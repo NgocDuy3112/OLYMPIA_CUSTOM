@@ -5,7 +5,11 @@ logs/
 temp/
 *.log
 *.sqlite3
-*.env
+
+.vscode/
+.idea/
+.cursor/
+.DS_Store
 
 # gitignore template for LangChain products, e.g., LangGraph, LangSmith
 # website: https://www.langchain.com/

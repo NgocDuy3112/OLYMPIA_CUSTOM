@@ -1,0 +1,79 @@
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
+
+from logger import global_logger
+from models.match import Match
+from schemas.base import *
+from schemas.match import MatchInfoPostRequest
+
+
+
+async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession) -> BaseResponse:
+    global_logger.info(f"POST request received to create match with code: {request.match_code}.")
+    new_match = Match(
+        match_code = request.match_code,
+        match_name = request.match_name
+    )
+    session.add(new_match)
+    global_logger.debug(f"Match object created and added to session. match_code={request.match_code}")
+
+    try:
+        await session.commit()
+        await session.refresh(new_match)
+        log_message = f"Match created successfully. match_code={request.match_code}, match_id={new_match.id}"
+        global_logger.info(log_message)
+        return BaseResponse(
+            status='success',
+            message=log_message
+        )
+    except IntegrityError:
+        await session.rollback()
+        log_message = f"A match with match_code={request.match_code} already exists."
+        global_logger.warning(log_message)
+        return BaseResponse(
+            status='error',
+            message=log_message,
+            exception=HTTPException(status_code=409)
+        )
+    except Exception:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while creating match with match_code={request.match_code}."
+        global_logger.exception()
+        return BaseResponse(
+            status='error',
+            message=log_message,
+            exception=HTTPException(status_code=500)
+        )
+
+
+async def get_matches_by_match_code_from_db(match_code: str | None, session: AsyncSession) -> BaseResponse:
+    global_logger.info(f"GET request received to fetch matches with code: {match_code}.")
+    try:
+        query = select(Match) if match_code is None else select(Match).where(Match.match_code == match_code)
+        result = await session.scalars(query)
+        matches = result.all()
+        matches_data = [
+            {
+                'match_code': match.match_code,
+                'match_name': match.match_name
+            }
+            for match in matches
+        ]
+        log_message = f"Fetched {len(matches_data)} matches from the database with match_code={match_code}."
+        global_logger.info(log_message)
+        return BaseResponse(
+            status='success',
+            message=log_message,
+            data=matches_data 
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        log_message = f"An unexpected error occurred while fetching matches with match_code={match_code}."
+        global_logger.exception()
+        return BaseResponse(
+            status='error',
+            message=log_message,
+            exception=HTTPException(status_code=500)
+        )

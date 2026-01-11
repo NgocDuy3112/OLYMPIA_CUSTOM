@@ -1,0 +1,77 @@
+services:
+  postgresql:
+    container_name: postgresql
+    image: postgres:17.5-bullseye
+    env_file:
+      - ./backend/app/.env
+    environment:
+      - POSTGRES_USER=${POSTGRES_DB_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_DB_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB_NAME}
+    ports:
+      - "${POSTGRES_DB_PORT}:5432"
+    volumes:
+      - ./database/postgresql/oc3:/var/lib/postgresql/data
+    networks:
+      - olympia-custom-network
+    profiles:
+      - production
+      - development
+
+  valkey-cache:
+    container_name: valkey-cache
+    image: valkey/valkey:8.1.1-alpine
+    env_file:
+      - ./backend/app/.env
+    command: >
+      valkey-server 
+      --requirepass ${VALKEY_PASSWORD}
+      --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* +@all
+    ports:
+      - "${VALKEY_CACHE_PORT}:6379"
+    networks:
+      - olympia-custom-network
+    profiles:
+      - production
+      - development
+
+  valkey-pubsub:
+    container_name: valkey-pubsub
+    image: valkey/valkey:8.1.1-alpine
+    env_file:
+      - ./backend/app/.env
+    command: >
+      valkey-server
+      --port 6380
+      --requirepass ${VALKEY_PASSWORD}
+      --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* +@all
+    ports:
+      - "${VALKEY_PUBSUB_PORT}:6380"
+    networks:
+      - olympia-custom-network
+    profiles:
+      - production
+      - development
+
+  app:
+    container_name: app
+    build:
+      context: ./backend/app
+    volumes:
+      - ./backend/app:/app
+    depends_on:
+      - postgresql
+      - valkey-cache
+      - valkey-pubsub
+    networks:
+      - olympia-custom-network
+    profiles:
+      - production
+      - development
+
+networks:
+  olympia-custom-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

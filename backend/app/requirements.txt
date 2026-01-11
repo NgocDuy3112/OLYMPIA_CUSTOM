@@ -1,0 +1,17 @@
+fastapi[standard]
+gunicorn
+
+asyncpg
+valkey
+sqlalchemy
+
+pandas
+openpyxl
+
+pydantic
+pydantic_settings
+
+pyjwt
+bcrypt==4.3.0
+passlib==1.7.0
+python-jose
