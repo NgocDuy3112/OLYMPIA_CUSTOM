@@ -4,21 +4,30 @@ from sqlalchemy.exc import IntegrityError
 
 from logger import global_logger
 from models.match import Match
-from schemas.base import *
-from schemas.match import MatchInfoPostRequest
+from schemas.match import *
 
 
 
 async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession) -> BaseResponse:
     global_logger.info(f"POST request received to create match with code: {request.match_code}.")
-    new_match = Match(
-        match_code = request.match_code,
-        match_name = request.match_name
-    )
-    session.add(new_match)
-    global_logger.debug(f"Match object created and added to session. match_code={request.match_code}")
-
     try:
+        match_id = select(Match).where(Match.match_code == request.match_code)
+        result = await session.execute(match_id)
+        existing_match = result.scalar_one_or_none()
+        if existing_match:
+            log_message = f"A match with match_code={request.match_code} already exists."
+            global_logger.warning(log_message)
+            return BaseResponse(
+                status='error',
+                message=log_message,
+                exception=HTTPException(status_code=409)
+            )
+        new_match = Match(
+            match_code = request.match_code,
+            match_name = request.match_name
+        )
+        session.add(new_match)
+        global_logger.debug(f"Match object created and added to session. match_code={request.match_code}")
         await session.commit()
         await session.refresh(new_match)
         log_message = f"Match created successfully. match_code={request.match_code}, match_id={new_match.id}"

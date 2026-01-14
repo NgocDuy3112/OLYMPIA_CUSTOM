@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from valkey import Valkey as ValkeyCache
 
 from logger import global_logger
 from models.record import Record
@@ -12,10 +13,20 @@ from schemas.record import *
 
 
 
-async def post_record_to_db(request: RecordPostRequest, session: AsyncSession) -> BaseResponse:
+async def post_record_to_db(
+    request: RecordPostRequest, 
+    session: AsyncSession,
+    cache: ValkeyCache
+) -> BaseResponse:
     log_message = f"POST request received to create record for player_code: {request.player_code}, match_code: {request.match_code}, question_code: {request.question_code}."
     global_logger.info(log_message)
     try:
+        # Save to cache for later queries
+        request_json = request.model_dump()
+        cache_key = f"record:{request.match_code}:{request.player_code}:{request.question_code}"
+        await cache.json().set(cache_key, "$", request_json)
+        await cache.zadd(f"leaderboard:{request.match_code}", {request.player_code: request.points}, xx=True, incr=True)
+        global_logger.info(f"Cached record for key=record:{request.match_code}:{request.player_code}:{request.question_code} with points={request.points}.")
         # Find user ID
         user_id = await session.scalar(
             select(User.id).where(
@@ -77,12 +88,34 @@ async def post_record_to_db(request: RecordPostRequest, session: AsyncSession) -
         )
 
 
-async def get_records_from_db(request: RecordGetRequest, session: AsyncSession) -> BaseResponse:
+async def get_records_from_db(
+    request: RecordGetRequest, 
+    session: AsyncSession,
+    cache: ValkeyCache
+) -> BaseResponse:
     log_message = f"GET request received to fetch records for player_code: {request.player_code}, match_code: {request.match_code}, question_code: {request.question_code}."
     global_logger.info(log_message)
     try:
+        cache_key = f"record:{request.match_code}:{request.player_code}:{request.question_code}"
+        if await cache.exists(cache_key):
+            record_json = await cache.json().get(cache_key, "$", no_escape=True)
+            log_message = f"Fetched record from cache for key={cache_key}."
+            global_logger.info(log_message)
+            return BaseResponse(
+                status='success',
+                message=log_message,
+                data=record_json
+            )
         # Build the query
-        query = select(Record).join(User).join(Match).join(Question).where(
+        query = select(
+            Record
+        ).join(
+            User, Record.player_id == User.id
+        ).join(
+            Match, Record.match_id == Match.id
+        ).join(
+            Question, Record.question_id == Question.id
+        ).where(
             User.user_code == request.player_code,
             Match.match_code == request.match_code,
             User.is_deleted == False,

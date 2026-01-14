@@ -2,11 +2,19 @@ from schemas.base import *
 
 
 class QuestionPostRequest(BaseRequest):
+    match_code: str
     question_code: str
     content: str
     answer: str
     explanation: str | None = None
     media_urls: list[str] | None = None
+
+    @field_validator('match_code', mode='after')
+    @classmethod
+    def ensure_match_code_format(cls, value: str) -> str:
+        if not value.startswith("OC3_M"):
+            raise ValueError("match_code must start with 'OC3_M'")
+        return value
 
     @field_validator('question_code', mode='after')
     @classmethod

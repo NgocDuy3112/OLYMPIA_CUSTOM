@@ -12,19 +12,19 @@ router = APIRouter(prefix='/questions', tags=['Câu hỏi'])
 
 
 @router.post(
-    "/",
+    "/drive/",
     dependencies=[Depends(require_roles(['admin']))],
     response_model=BaseResponse
 )
-async def post_question(
-    request: QuestionPostRequest,
+async def post_questions_from_google_drive(
+    match_code: str,
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     """
     Endpoint to create a new question in the system.
     Accessible only by users with the 'admin' role.
     """
-    return await post_question_to_db(request, session)
+    return await post_questions_from_google_drive_to_db(match_code, session)
 
 
 

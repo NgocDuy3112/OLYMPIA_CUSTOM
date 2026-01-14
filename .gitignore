@@ -10,6 +10,7 @@ temp/
 .idea/
 .cursor/
 .DS_Store
+credentials.json
 
 # gitignore template for LangChain products, e.g., LangGraph, LangSmith
 # website: https://www.langchain.com/

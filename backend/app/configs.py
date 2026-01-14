@@ -1,6 +1,10 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field
 
+from google.oauth2.credentials import Credentials
+
+SCOPES = ['https://www.googleapis.com/auth/drive']
+SERVICE_ACCOUNT_FILE = 'credentials.json'
 
 
 class AppSettings(BaseSettings):
@@ -52,3 +56,7 @@ class ValkeySettings(BaseSettings):
     @property
     def VALKEY_PUBSUB_URL(self) -> str:
         return  f"valkey://{self.VALKEY_USER}:{self.VALKEY_PASSWORD}@{self.VALKEY_HOST}:{self.VALKEY_PUBSUB_PORT}"
+
+
+
+gcp_creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)

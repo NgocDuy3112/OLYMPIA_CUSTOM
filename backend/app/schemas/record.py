@@ -2,11 +2,11 @@ from schemas.base import *
 
 
 class RecordPostRequest(BaseRequest):
-    player_code: str
     match_code: str
+    player_code: str
     question_code: str
     points: int
-    is_deleted: bool
+    is_deleted: bool = False
 
     @field_validator('match_code', mode='after')
     @classmethod
