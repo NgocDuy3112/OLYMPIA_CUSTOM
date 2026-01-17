@@ -25,8 +25,8 @@ class RecordPostRequest(BaseRequest):
     @field_validator('player_code', mode='after')
     @classmethod
     def ensure_player_code_format(cls, value: str) -> str:
-        if not value.startswith("OC3_U"):
-            raise ValueError("player_code must start with 'OC3_U'")
+        if not value.startswith("OC_U"):
+            raise ValueError("player_code must start with 'OC_U'")
         return value
 
     @field_validator('points', mode='after')

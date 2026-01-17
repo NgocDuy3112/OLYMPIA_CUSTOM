@@ -6,7 +6,7 @@ class MatchInfoPostRequest(BaseRequest):
     match_code: str
     match_name: str
 
-    @field_validator('match_code', mode='after')
+    @field_validator('match_code')
     @classmethod
     def ensure_match_code_format(cls, value: str) -> str:
         if not value.startswith("OC3_M"):

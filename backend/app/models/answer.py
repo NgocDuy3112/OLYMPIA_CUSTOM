@@ -19,7 +19,7 @@ class Answer(Base):
     """
     __tablename__ = "answers"
     # Columns
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid6, unique=True, nullable=False, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     answer_text: Mapped[str] = mapped_column(String, nullable=True)
@@ -29,7 +29,3 @@ class Answer(Base):
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False)
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False)
-    # Relationships
-    player: Mapped["User"] = relationship(back_populates='answers') # type: ignore
-    match: Mapped["Match"] = relationship(back_populates='answers') # type: ignore
-    question: Mapped["Question"] = relationship(back_populates='answers') # type: ignore

@@ -3,20 +3,20 @@ name = "app"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.31.0",
     "bcrypt==4.3.0",
     "fastapi[standard]>=0.128.0",
-    "google-api-python-client>=2.187.0",
+    "google-api-python-client>=2.188.0",
     "google-auth-httplib2>=0.3.0",
-    "google-auth-oauthlib>=1.2.3",
-    "gunicorn>=23.0.0",
+    "google-auth-oauthlib>=1.2.4",
     "passlib==1.7.0",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
     "pyjwt>=2.10.1",
     "python-jose>=3.5.0",
     "sqlalchemy>=2.0.45",
+    "uvicorn[standard]>=0.40.0",
     "valkey>=6.1.1",
 ]

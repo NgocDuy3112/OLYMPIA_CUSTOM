@@ -1,6 +1,6 @@
 secrets/
 configs/
-databases/
+database/
 logs/
 temp/
 *.log

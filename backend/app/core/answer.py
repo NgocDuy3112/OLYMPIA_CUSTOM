@@ -2,8 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
-from valkey import Valkey as ValkeyCache
-from valkey import Valkey as ValkeyPubSub
+from valkey.asyncio import Valkey
+import json
 
 from logger import global_logger
 from models.answer import Answer
@@ -17,13 +17,14 @@ from schemas.answer import *
 async def post_answer_to_db(
     request: AnswerPostRequest, 
     session: AsyncSession,
-    cache: ValkeyCache
+    valkey: Valkey
 ) -> BaseResponse:
     global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code}")
     try:
         request_json = request.model_dump()
         cache_key = f"answer:{request.match_code}:{request.player_code}:{request.question_code}"
-        await cache.json().set(cache_key, "$", request_json)
+        await valkey.json().set(cache_key, "$", request_json)
+        await valkey.publish(channel=request.match_code, message=json.dumps(request_json))
         global_logger.info(f"Cached answer for key=answer:{request.match_code}:{request.player_code}:{request.question_code} with points={request.answer_text}.")
         # Find match ID
         match_id = await session.scalar(
@@ -100,13 +101,13 @@ async def post_answer_to_db(
 async def get_answers_from_db(
     request: AnswerGetRequest, 
     session: AsyncSession,
-    cache: ValkeyCache
+    valkey: Valkey
 ) -> BaseResponse:
     global_logger.info(f"GET request to fetch answers for question {request.question_code} in match {request.match_code}")
     try:
         cache_key = f"answer:{request.match_code}:{request.player_code}:{request.question_code}"
-        if await cache.exists(cache_key):
-            record_json = await cache.json().get(cache_key, "$", no_escape=True)
+        if await valkey.exists(cache_key):
+            record_json = await valkey.json().get(cache_key, "$", no_escape=True)
             log_message = f"Fetched an answer from cache for key={cache_key}."
             global_logger.info(log_message)
             return BaseResponse(

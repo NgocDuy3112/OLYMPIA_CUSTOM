@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Annotated
 
 from dependencies.postgresql_db import get_db
-from dependencies.valkey_store import get_valkey_cache
+from dependencies.valkey_store import get_valkey
 from dependencies.user_auth import require_roles
 from models.answer import *
 from schemas.answer import *
@@ -20,9 +20,9 @@ router = APIRouter(prefix='/answers', tags=['Câu trả lời'])
 async def post_answer(
     request: AnswerPostRequest,
     session: Annotated[AsyncSession, Depends(get_db)],
-    cache: Annotated[ValkeyCache, Depends(get_valkey_cache)],
+    valkey: Annotated[Valkey, Depends(get_valkey)],
 ) -> BaseResponse:
-    return await post_answer_to_db(request, session, cache)
+    return await post_answer_to_db(request, session, valkey)
 
 
 
@@ -34,6 +34,6 @@ async def post_answer(
 async def get_answers(
     request: AnswerGetRequest,
     session: Annotated[AsyncSession, Depends(get_db)],
-    cache: Annotated[ValkeyCache, Depends(get_valkey_cache)]
+    valkey: Annotated[Valkey, Depends(get_valkey)]
 ) -> BaseResponse:
-    return await get_answers_from_db(request, session, cache)
+    return await get_answers_from_db(request, session, valkey)

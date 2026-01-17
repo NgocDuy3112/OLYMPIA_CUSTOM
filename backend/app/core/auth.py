@@ -5,15 +5,16 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
-from sqlalchemy import select, func, cast, Integer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from schemas.user import *
 from models.user import User
-from configs import settings
+from configs import AppSettings
 
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+settings = AppSettings()
+pwd_context = CryptContext(schemes=["bcrypt"])
 
 
 def hash_password(password: str) -> str:
@@ -50,7 +51,12 @@ async def signup(user_data: UserCreate, session: AsyncSession) -> TokenResponse:
         data={"sub": new_user.user_code + new_user.user_name, "role": new_user.role}, 
         expires_delta=access_token_expires
     )
-    return TokenResponse(access_token=token, role=new_user.role)
+    return TokenResponse(
+        access_token=token, 
+        role=new_user.role, 
+        user_code=new_user.user_code, 
+        user_name=new_user.user_name
+    )
 
 
 async def login(form_data: OAuth2PasswordRequestForm, session: AsyncSession) -> TokenResponse:

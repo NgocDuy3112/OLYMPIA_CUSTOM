@@ -17,7 +17,7 @@ class Question(Base):
         CheckConstraint("question_code LIKE 'OC_Q%'", name='check_question_code_starts_with_OC_Q'),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid6, unique=True, nullable=False, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     question_code: Mapped[str] = mapped_column(String(length=15))
@@ -31,7 +31,3 @@ class Question(Base):
 
     # Foreign Keys
     match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('matches.id'), nullable=False)
-
-    # Relationships
-    match: Mapped["Match"] = relationship(back_populates='questions') # type: ignore
-    records: Mapped[list["Record"]] = relationship(back_populates='question') # type: ignore

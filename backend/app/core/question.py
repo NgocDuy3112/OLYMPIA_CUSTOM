@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
 from logger import global_logger
-from backend.app.utils.gcp_helpers import *
+from utils.gcp_helpers import *
 from models.question import Question
 from models.match import Match
 from schemas.question import *
@@ -14,7 +14,12 @@ QUESTION_SHEET_NAMES = ['KHOI_DONG', 'GIAI_MA', 'BUT_PHA', 'VE_DICH']
 
 
 
-async def post_questions_from_google_drive_to_db(match_code: str, session: AsyncSession) -> BaseResponse:
+async def post_questions_from_google_drive_to_db(
+    match_code: str, 
+    session: AsyncSession,
+    google_drive_service,
+    google_sheets_service
+) -> BaseResponse:
     global_logger.info(f"POST request received to inject questions from Google Drive with match code: {match_code}.")
     try:
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code))
@@ -24,7 +29,7 @@ async def post_questions_from_google_drive_to_db(match_code: str, session: Async
             raise HTTPException(status_code=404)
         file_name = f"{match_code}/{match_code}"
         for sheet_name in QUESTION_SHEET_NAMES:
-            questions = get_filtered_data_by_names(file_name, sheet_name)
+            questions = get_filtered_data_by_names(file_name, sheet_name, google_drive_service, google_sheets_service)
             question_objects = [Question(
                 question_code=row[0],
                 content=row[1],
@@ -65,7 +70,60 @@ async def post_questions_from_google_drive_to_db(match_code: str, session: Async
 
 
 
-async def get_question_from_request_from_db(request: QuestionGetRequest, session: AsyncSession) -> BaseResponse:
+async def post_question_to_db(
+    request: QuestionPostRequest, 
+    session: AsyncSession
+) -> BaseResponse:
+    global_logger.info(f"POST request received to add question with code: {request.question_code}.")
+    try:
+        match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code))
+        if match_id is None:
+            log_message = f"No match found with match_code={request.match_code}."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404)
+        question = Question(
+            question_code=request.question_code,
+            content=request.content,
+            answer=request.answer,
+            explanation=request.explanation,
+            media_urls=request.media_urls,
+            match_id=match_id
+        )
+        session.add(question)
+        await session.commit()
+        log_message = f"Question with question_code={request.question_code} added successfully to the database."
+        global_logger.info(log_message)
+        return BaseResponse(
+            status='success',
+            message=log_message
+        )
+    except IntegrityError:
+        await session.rollback()
+        log_message = f"Question with question_code={request.question_code} already exists."
+        global_logger.warning(log_message)
+        return BaseResponse(
+            status='error',
+            message=log_message,
+            exception=HTTPException(status_code=409)
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while adding question with question_code={request.question_code}."
+        global_logger.exception(log_message)
+        return BaseResponse(
+            status='error',
+            message=log_message,
+            exception=HTTPException(status_code=500)
+        )
+
+
+
+async def get_question_from_request_from_db(
+    request: QuestionGetRequest, 
+    session: AsyncSession
+) -> BaseResponse:
     global_logger.info(f"GET request received to fetch question with code: {request.question_code}.")
     question_data = []
     try:
@@ -122,9 +180,9 @@ async def get_question_from_request_from_db(request: QuestionGetRequest, session
         )
     except HTTPException:
         raise
-    except Exception:
-        log_message = f"An unexpected error occurred while fetching question with question_code={request.question_code}."
-        global_logger.exception()
+    except Exception as e:
+        log_message = f"An unexpected error occurred while fetching question with question_code={request.question_code}: {str(e)}"
+        global_logger.exception(log_message)
         return BaseResponse(
             status='error',
             message=log_message,

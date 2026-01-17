@@ -23,10 +23,10 @@ class Record(Base):
     __tablename__ = "records"
     # Constraints
     __table_args__ = (
-        CheckConstraint('d_score_earned % 5 = 0', name='check_d_score_earned_multiple_of_5'),
+        CheckConstraint('points % 5 = 0', name='check_points_multiple_of_5'),
     )
     # Columns
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid6, unique=True, nullable=False, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     points: Mapped[int] = mapped_column(Integer)
@@ -36,8 +36,3 @@ class Record(Base):
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False)
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False)
-
-    # Relationships
-    player: Mapped["User"] = relationship(back_populates='records') # type: ignore
-    match: Mapped["Match"] = relationship(back_populates='records') # type: ignore
-    question: Mapped["Question"] = relationship(back_populates='records') # type: ignore

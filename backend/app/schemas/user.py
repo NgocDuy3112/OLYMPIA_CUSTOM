@@ -16,8 +16,8 @@ class UserCreate(BaseModel):
     @field_validator('user_code', mode='after')
     @classmethod
     def ensure_user_code_format(cls, value: str) -> str:
-        if not value.startswith("OC3_U"):
-            raise ValueError("user_code must start with 'OC3_U'")
+        if not value.startswith("OC_U"):
+            raise ValueError("user_code must start with 'OC_U'")
         return value
 
 

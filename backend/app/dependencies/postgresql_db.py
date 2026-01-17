@@ -6,7 +6,7 @@ from configs import PostgreSQLSettings
 
 
 settings = PostgreSQLSettings()
-engine = create_async_engine(settings.DATABASE_URL, future=True, echo=False)
+engine = create_async_engine(settings.POSTGRES_DATABASE_URL, future=True, echo=False)
 
 
 AsyncSessionLocal = sessionmaker(

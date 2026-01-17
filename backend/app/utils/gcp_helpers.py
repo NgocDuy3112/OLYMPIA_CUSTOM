@@ -1,28 +1,9 @@
-from googleapiclient.discovery import build
-from google.oauth2.credentials import Credentials
 from googleapiclient.errors import HttpError
 
 from logger import global_logger
-from configs import creds
 
 
-
-
-def build_service(creds: Credentials, service_name: str, version: str):
-    try:
-        service = build(service_name, version, credentials=creds)
-        global_logger.debug(f"Google {service_name} service built successfully.")
-        return service
-    except HttpError as error:
-        global_logger.error(f"An error occurred while building {service_name} service: {error}")
-        return None
-
-
-google_drive_service = build_service(creds, 'drive', 'v3')
-google_sheets_service = build_service(creds, 'sheets', 'v4')
-
-
-def list_files_by_folder_name(creds: Credentials, folder_name: str) -> list:
+def list_files_by_folder_name(google_drive_service, folder_name: str) -> list:
     try:
         folder_query = f"name = '{folder_name}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         folder_results = google_drive_service.files().list(q=folder_query, fields="files(id, name)").execute()
@@ -40,10 +21,10 @@ def list_files_by_folder_name(creds: Credentials, folder_name: str) -> list:
         return []
 
 
-def get_spreadsheet_id_by_name(drive_service, file_name: str) -> str:
+def get_spreadsheet_id_by_name(google_drive_service, file_name: str) -> str:
     """Search for a spreadsheet by name and return its ID."""
     query = (f"name = '{file_name}' and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false")
-    result = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    result = google_drive_service.files().list(q=query, fields="files(id, name)").execute()
     files = result.get('files', [])
     
     if not files:
@@ -53,9 +34,9 @@ def get_spreadsheet_id_by_name(drive_service, file_name: str) -> str:
     return files[0]['id']
 
 
-def get_sheet_data(sheets_service, spreadsheet_id: str, range_name: str) -> list:
+def get_sheet_data(google_sheets_service, spreadsheet_id: str, range_name: str) -> list:
     """Retrieve raw data from a specific spreadsheet range."""
-    result = sheets_service.spreadsheets().values().get(
+    result = google_sheets_service.spreadsheets().values().get(
         spreadsheetId=spreadsheet_id, 
         range=range_name
     ).execute()
@@ -73,12 +54,9 @@ def filter_empty_rows(values: list) -> list:
     ]
 
 
-def get_filtered_data_by_names(file_name: str, sheet_name: str, creds: Credentials | None = None) -> list:
+def get_filtered_data_by_names(file_name: str, sheet_name: str, google_drive_service, google_sheets_service) -> list:
     """Orchestrator function to find file, get data, and filter it."""
     try:
-        if creds is not None:
-            google_drive_service = build_service(creds, 'drive', 'v3')
-            google_sheets_service = build_service(creds, 'sheets', 'v4')
         spreadsheet_id = get_spreadsheet_id_by_name(google_drive_service, file_name)
         if not spreadsheet_id:
             return []
