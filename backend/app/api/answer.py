@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from typing import Annotated
 
 from dependencies.postgresql_db import get_db
@@ -16,20 +16,28 @@ router = APIRouter(prefix='/answers', tags=['Câu trả lời'])
 @router.post(
     "/", 
     dependencies=[Depends(require_roles(['admin', 'player']))],
-    response_model=BaseResponse)
+    response_model=BaseResponse,
+    status_code=201
+)
 async def post_answer(
     request: AnswerPostRequest,
     session: Annotated[AsyncSession, Depends(get_db)],
     valkey: Annotated[Valkey, Depends(get_valkey)],
 ) -> BaseResponse:
-    return await post_answer_to_db(request, session, valkey)
+    try:
+        return await post_answer_to_db(request, session, valkey)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 
 @router.get(
     "/",
-    dependencies=[Depends(require_roles(['admin', 'player']))],
-    response_model=BaseResponse
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
 )
 async def get_answer(
     match_code: str, 
@@ -38,4 +46,9 @@ async def get_answer(
     session: Annotated[AsyncSession, Depends(get_db)],
     valkey: Annotated[Valkey, Depends(get_valkey)]
 ) -> BaseResponse:
-    return await get_answer_from_db(match_code, player_code, question_code, session, valkey)
+    try:
+        return await get_answer_from_db(match_code, player_code, question_code, session, valkey)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")

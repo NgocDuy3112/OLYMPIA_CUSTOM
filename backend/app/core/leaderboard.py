@@ -19,10 +19,7 @@ async def get_leaderboard_from_valkey(
         if not await valkey.exists(leaderboard_key):
             log_message = f"No leaderboard found in cache for match_code={match_code} with player_code={player_code}."
             global_logger.warning(log_message)
-            return BaseResponse(
-                status='error',
-                message=log_message
-            )
+            raise HTTPException(status_code=404, detail=log_message)
         player_score = await valkey.zscore(leaderboard_key, player_code)
         formatted_data = {
             "match_code": match_code,
@@ -40,7 +37,4 @@ async def get_leaderboard_from_valkey(
     except Exception as e:
         log_message = f"Error fetching leaderboard from cache for match_code={match_code} with player_code={player_code}: {str(e)}"
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=500, detail=log_message)

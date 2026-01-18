@@ -15,7 +15,8 @@ router = APIRouter(prefix='/matches', tags=['Trận đấu'])
 @router.post(
     "/",
     dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse
+    response_model=BaseResponse,
+    status_code=201
 )
 async def post_match(
     request: MatchInfoPostRequest,
@@ -25,14 +26,20 @@ async def post_match(
     Endpoint to create a new match in the system.
     Accessible only by users with the 'admin' role.
     """
-    return await post_match_to_db(request, session)
+    try:
+        return await post_match_to_db(request, session)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 
 @router.get(
     "/",
     dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse
+    response_model=BaseResponse,
+    status_code=200
 )
 async def get_match_by_match_code(
     match_code: str,
@@ -42,4 +49,9 @@ async def get_match_by_match_code(
     Endpoint to fetch matches by their match code.
     Accessible only by users with the 'admin' role.
     """
-    return await get_match_by_match_code_from_db(match_code, session)
+    try:
+        return await get_match_by_match_code_from_db(match_code, session)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")

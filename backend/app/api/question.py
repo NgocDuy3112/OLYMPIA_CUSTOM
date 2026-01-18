@@ -15,7 +15,8 @@ router = APIRouter(prefix='/questions', tags=['Câu hỏi'])
 @router.post(
     "/drive/",
     dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse
+    response_model=BaseResponse,
+    status_code=201
 )
 async def post_questions_from_google_drive(
     match_code: str,
@@ -27,25 +28,42 @@ async def post_questions_from_google_drive(
     Endpoint to create a new question in the system.
     Accessible only by users with the 'admin' role.
     """
-    return await post_questions_from_google_drive_to_db(match_code, session, google_drive_service, google_sheets_service)
+    try:
+        return await post_questions_from_google_drive_to_db(
+            match_code, 
+            session, 
+            google_drive_service, 
+            google_sheets_service
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 @router.post(
     "/",
     dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse
+    response_model=BaseResponse,
+    status_code=201
 )
 async def post_question(
     request: QuestionPostRequest,
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
-    return await post_question_to_db(request, session)
+    try:
+        return await post_question_to_db(request, session)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 @router.get(
     "/",
     dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse
+    response_model=BaseResponse,
+    status_code=200
 )
 async def get_question_from_request(
     match_code: str = Query(..., description="The code of the match to which the question belongs."),
@@ -56,4 +74,9 @@ async def get_question_from_request(
     Endpoint to fetch questions based on the provided request parameters.
     Accessible only by users with the 'admin' role.
     """
-    return await get_question_from_request_from_db(match_code, question_code, session)
+    try:
+        return await get_question_from_request_from_db(match_code, question_code, session)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")

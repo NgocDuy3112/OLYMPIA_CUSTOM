@@ -40,14 +40,15 @@ async def post_answer_to_db(
         # Find player ID
         player_id = await session.scalar(
             select(User.id).where(
-                User.user_code == request.player_code
-                and User.is_deleted == False
+                User.user_code == request.player_code,
+                (User.role == 'player' or User.role == 'admin'),
+                User.is_deleted == False
             )
         )
         if player_id is None:
             log_message = f"Player with player_code={request.player_code} does not exist."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         # Find question ID
         question_id = await session.scalar(
             select(Question.id).where(
@@ -58,7 +59,7 @@ async def post_answer_to_db(
         if question_id is None:
             log_message = f"Question with question_code={request.question_code} does not exist."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         # Now create the answer
         new_answer = Answer(
             answer_text = request.answer_text,
@@ -72,28 +73,19 @@ async def post_answer_to_db(
         await session.commit()
         log_message = f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from player_code={request.player_code}."
         global_logger.info(log_message)
-        return BaseResponse(
-            status="success",
-            message=log_message,
-        )
+        return BaseResponse(status="success", message=log_message)
     except IntegrityError:
         await session.rollback()
         log_message = f"Integrity error when creating answer for question_code={request.question_code} in match_code={request.match_code} from player_code={request.player_code}."
         global_logger.warning(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=400, detail=log_message)
     except HTTPException:
         raise
     except Exception:
         await session.rollback()
         log_message = f"Failed to create answer for question_code={request.question_code} in match_code={request.match_code} from player_code={request.player_code}."
         global_logger.warning(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=500, detail=log_message)
 
 
 
@@ -128,6 +120,7 @@ async def get_answer_from_db(
             ).where(
                 Match.match_code == match_code,
                 User.user_code == player_code,
+                (User.role == 'player') | (User.role == 'admin'),
                 Question.question_code == question_code
             )
         )
@@ -135,7 +128,7 @@ async def get_answer_from_db(
         if answer is None:
             log_message = f"Answer for question_code={question_code} in match_code={match_code} from player_code={player_code} does not exist."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         answers_data = {
             'match_code': match_code,
             'player_code': player_code,
@@ -156,7 +149,4 @@ async def get_answer_from_db(
     except Exception:
         log_message = f"Failed to fetch answer for question_code={question_code} in match_code={match_code} from player_code={player_code}."
         global_logger.warning(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=500, detail=log_message)

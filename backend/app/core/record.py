@@ -35,7 +35,7 @@ async def post_record_to_db(
         if user_id is None:
             log_message = f"Player with player_code={request.player_code} does not exist."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         # Find match ID
         match_id = await session.scalar(
             select(Match.id).where(
@@ -46,7 +46,7 @@ async def post_record_to_db(
         if match_id is None:
             log_message = f"Match with match_code={request.match_code} does not exist."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         # Find question ID
         question_id = await session.scalar(
             select(Question.id).where(
@@ -57,7 +57,7 @@ async def post_record_to_db(
         if question_id is None:
             log_message = f"Question with question_code={request.question_code} does not exist."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         # Now create the record
         new_record = Record(
             user_id = user_id,
@@ -79,11 +79,7 @@ async def post_record_to_db(
         log_message = f"Error creating record for player_code={request.player_code}, match_code={request.match_code}, question_code={request.question_code}: {str(e)}"
         await session.rollback()
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message,
-            exception=e
-        )
+        raise HTTPException(status_code=500, detail=log_message)
 
 
 async def get_records_from_db(
@@ -120,8 +116,4 @@ async def get_records_from_db(
     except Exception as e:
         log_message = f"Error fetching records for player_code={player_code}, match_code={match_code}: {str(e)}"
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message,
-            exception=e
-        )
+        raise HTTPException(status_code=500, detail=log_message)

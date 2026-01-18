@@ -17,10 +17,7 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
         if existing_match:
             log_message = f"A match with match_code={request.match_code} already exists."
             global_logger.warning(log_message)
-            return BaseResponse(
-                status='error',
-                message=log_message
-            )
+            raise IntegrityError(log_message)
         new_match = Match(
             match_code = request.match_code,
             match_name = request.match_name
@@ -31,26 +28,17 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
         await session.refresh(new_match)
         log_message = f"Match created successfully. match_code={request.match_code}"
         global_logger.info(log_message)
-        return BaseResponse(
-            status='success',
-            message=log_message
-        )
+        return BaseResponse(status='success', message=log_message)
     except IntegrityError:
         await session.rollback()
         log_message = f"A match with match_code={request.match_code} already exists."
         global_logger.warning(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=400, detail=log_message)
     except Exception:
         await session.rollback()
         log_message = f"An unexpected error occurred while creating match with match_code={request.match_code}."
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=500, detail=log_message)
 
 
 async def get_match_by_match_code_from_db(match_code: str | None, session: AsyncSession) -> BaseResponse:
@@ -75,7 +63,4 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
     except Exception:
         log_message = f"An unexpected error occurred while fetching matches with match_code={match_code}."
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=500, detail=log_message)

@@ -15,7 +15,8 @@ router = APIRouter(prefix='/leaderboard', tags=['Bảng xếp hạng'])
 @router.get(
     "/{match_code}/{player_code}",
     dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse
+    response_model=BaseResponse,
+    status_code=200
 )
 async def get_leaderboard(
     match_code: str,
@@ -26,4 +27,9 @@ async def get_leaderboard(
     Endpoint to fetch the leaderboard.
     Accessible by users with 'admin' roles.
     """
-    return await get_leaderboard_from_valkey(match_code, player_code, valkey)
+    try:
+        return await get_leaderboard_from_valkey(match_code, player_code, valkey)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")

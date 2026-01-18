@@ -72,10 +72,7 @@ async def login(form_data: OAuth2PasswordRequestForm, session: AsyncSession) -> 
         )
     user = result.scalar_one_or_none()
     if not user or not verify_password(form_data.password, user.hashed_password):
-        return BaseResponse(
-            status='error',
-            message="Incorrect username or password"
-        )
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(
         data={

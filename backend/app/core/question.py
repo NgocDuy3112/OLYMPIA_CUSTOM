@@ -26,7 +26,7 @@ async def post_questions_from_google_drive_to_db(
         if match_id is None:
             log_message = f"No match found with match_code={match_code}."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         file_name = f"{match_code}/{match_code}"
         for sheet_name in QUESTION_SHEET_NAMES:
             questions = get_filtered_data_by_names(file_name, sheet_name, google_drive_service, google_sheets_service)
@@ -51,20 +51,14 @@ async def post_questions_from_google_drive_to_db(
         await session.rollback()
         log_message = f"Question in match_code={match_code} already exists."
         global_logger.warning(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=400, detail=log_message)
     except HTTPException:
         raise
     except Exception:
         await session.rollback()
         log_message = f"An unexpected error occurred while injecting questions from Google Drive with match_code={match_code}."
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=500, detail=log_message)
 
 
 
@@ -78,7 +72,7 @@ async def post_question_to_db(
         if match_id is None:
             log_message = f"No match found with match_code={request.match_code}."
             global_logger.warning(log_message)
-            raise HTTPException(status_code=404)
+            raise HTTPException(status_code=404, detail=log_message)
         question = Question(
             question_code=request.question_code,
             content=request.content,
@@ -99,21 +93,14 @@ async def post_question_to_db(
         await session.rollback()
         log_message = f"Question with question_code={request.question_code} already exists."
         global_logger.warning(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=400, detail=log_message)
     except HTTPException:
         raise
     except Exception:
         await session.rollback()
         log_message = f"An unexpected error occurred while adding question with question_code={request.question_code}."
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
-
+        raise HTTPException(status_code=500, detail=log_message)
 
 
 async def get_question_from_request_from_db(
@@ -136,10 +123,7 @@ async def get_question_from_request_from_db(
             if question is None:
                 log_message = f"No question found with question_code={question_code}."
                 global_logger.warning(log_message)
-                return BaseResponse(
-                    status='error',
-                    message=log_message
-                )
+                raise HTTPException(status_code=400, detail=log_message)
             question_data = {
                 'question_code': question.question_code,
                 'content': question.content,
@@ -177,7 +161,4 @@ async def get_question_from_request_from_db(
     except Exception as e:
         log_message = f"An unexpected error occurred while fetching question with question_code={question_code}: {str(e)}"
         global_logger.exception(log_message)
-        return BaseResponse(
-            status='error',
-            message=log_message
-        )
+        raise HTTPException(status_code=500, detail=log_message)
