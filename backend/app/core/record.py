@@ -87,10 +87,11 @@ async def post_record_to_db(
 
 
 async def get_records_from_db(
-    request: RecordGetRequest, 
+    match_code: str,
+    player_code: str,
     session: AsyncSession
 ) -> BaseResponse:
-    log_message = f"GET request received to fetch records for player_code: {request.player_code}, match_code: {request.match_code}, question_code: {request.question_code}."
+    log_message = f"GET request received to fetch records for player_code: {player_code}, match_code: {match_code}."
     global_logger.info(log_message)
     try:
         # Build the query
@@ -100,20 +101,16 @@ async def get_records_from_db(
             User, Record.player_id == User.id
         ).join(
             Match, Record.match_id == Match.id
-        ).join(
-            Question, Record.question_id == Question.id
         ).where(
-            User.user_code == request.player_code,
-            Match.match_code == request.match_code,
+            User.user_code == player_code,
+            Match.match_code == match_code,
             User.is_deleted == False,
             Match.is_deleted == False,
             Record.is_deleted == False
         )
-        if request.question_code is not None:
-            query = query.where(Question.question_code == request.question_code, Question.is_deleted == False)
         result = await session.execute(query)
         records = result.scalars().all()
-        log_message = f"Fetched {len(records)} records for player_code={request.player_code}, match_code={request.match_code}, question_code={request.question_code}."
+        log_message = f"Fetched {len(records)} records for player_code={player_code}, match_code={match_code}."
         global_logger.info(log_message)
         return BaseResponse(
             status='success',
@@ -121,7 +118,7 @@ async def get_records_from_db(
             data=records
         )
     except Exception as e:
-        log_message = f"Error fetching records for player_code={request.player_code}, match_code={request.match_code}, question_code={request.question_code}: {str(e)}"
+        log_message = f"Error fetching records for player_code={player_code}, match_code={match_code}: {str(e)}"
         global_logger.exception(log_message)
         return BaseResponse(
             status='error',

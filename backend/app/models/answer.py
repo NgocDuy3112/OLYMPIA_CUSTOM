@@ -14,9 +14,6 @@ def utcnow():
 
 
 class Answer(Base):
-    """
-    Answer ids are in the range 3400001 to 3499999.
-    """
     __tablename__ = "answers"
     # Columns
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)

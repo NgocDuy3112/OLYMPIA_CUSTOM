@@ -19,11 +19,4 @@ class BaseResponse(BaseModel):
 
     status: Literal["success", "error"]
     message: str
-    data: list[dict[str, Any]] | None = None
-    exception: Any | None = None
-
-    @model_validator(mode='after')
-    def check_exception(self):
-        if self.status == 'error' and self.exception is None:
-            raise ValueError("An exception must be provided when status is 'error'.")
-        return self
+    data: dict[str, Any] | list[dict[str, Any]] | None = None

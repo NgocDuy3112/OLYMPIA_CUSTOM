@@ -21,8 +21,7 @@ async def get_leaderboard_from_valkey(
             global_logger.warning(log_message)
             return BaseResponse(
                 status='error',
-                message=log_message,
-                exception=HTTPException(status_code=404)
+                message=log_message
             )
         player_score = await valkey.zscore(leaderboard_key, player_code)
         formatted_data = {
@@ -43,6 +42,5 @@ async def get_leaderboard_from_valkey(
         global_logger.exception(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=e
+            message=log_message
         )

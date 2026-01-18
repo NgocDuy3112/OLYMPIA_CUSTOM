@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Query, Depends
 
 from dependencies.postgresql_db import get_db
 from dependencies.user_auth import require_roles
@@ -48,11 +48,12 @@ async def post_question(
     response_model=BaseResponse
 )
 async def get_question_from_request(
-    request: QuestionGetRequest,
+    match_code: str = Query(..., description="The code of the match to which the question belongs."),
+    question_code: str = Query(..., description="The code of the question to fetch."),
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     """
     Endpoint to fetch questions based on the provided request parameters.
     Accessible only by users with the 'admin' role.
     """
-    return await get_question_from_request_from_db(request, session)
+    return await get_question_from_request_from_db(match_code, question_code, session)

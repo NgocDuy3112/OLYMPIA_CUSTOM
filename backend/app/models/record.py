@@ -14,12 +14,6 @@ def utcnow():
 
 
 class Record(Base):
-    """
-    SQLAlchemy model representing a record.
-    Inherits from the common declarative Base.
-    
-    Record ids are in the range 3500001 to 3599999.
-    """
     __tablename__ = "records"
     # Constraints
     __table_args__ = (

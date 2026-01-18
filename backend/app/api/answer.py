@@ -31,9 +31,11 @@ async def post_answer(
     dependencies=[Depends(require_roles(['admin', 'player']))],
     response_model=BaseResponse
 )
-async def get_answers(
-    request: AnswerGetRequest,
+async def get_answer(
+    match_code: str, 
+    player_code: str,
+    question_code: str,
     session: Annotated[AsyncSession, Depends(get_db)],
     valkey: Annotated[Valkey, Depends(get_valkey)]
 ) -> BaseResponse:
-    return await get_answers_from_db(request, session, valkey)
+    return await get_answer_from_db(match_code, player_code, question_code, session, valkey)

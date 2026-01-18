@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import uuid
 
 from sqlalchemy import String, DateTime, Boolean, CheckConstraint, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from dependencies.postgresql_db import Base
 from models import *
@@ -23,7 +23,7 @@ class Match(Base):
     __tablename__ = "matches"
     # Constraints
     __table_args__ = (
-        CheckConstraint("match_code LIKE 'OC_M%'", name='check_match_code_starts_with_OC_M'),
+        CheckConstraint("match_code LIKE 'OC3_M%'", name='check_match_code_starts_with_OC3_M'),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)

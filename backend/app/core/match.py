@@ -19,8 +19,7 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
             global_logger.warning(log_message)
             return BaseResponse(
                 status='error',
-                message=log_message,
-                exception=HTTPException(status_code=409)
+                message=log_message
             )
         new_match = Match(
             match_code = request.match_code,
@@ -30,7 +29,7 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
         global_logger.debug(f"Match object created and added to session. match_code={request.match_code}")
         await session.commit()
         await session.refresh(new_match)
-        log_message = f"Match created successfully. match_code={request.match_code}, match_id={new_match.id}"
+        log_message = f"Match created successfully. match_code={request.match_code}"
         global_logger.info(log_message)
         return BaseResponse(
             status='success',
@@ -42,34 +41,29 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
         global_logger.warning(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=409)
+            message=log_message
         )
     except Exception:
         await session.rollback()
         log_message = f"An unexpected error occurred while creating match with match_code={request.match_code}."
-        global_logger.exception()
+        global_logger.exception(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=500)
+            message=log_message
         )
 
 
-async def get_matches_by_match_code_from_db(match_code: str | None, session: AsyncSession) -> BaseResponse:
+async def get_match_by_match_code_from_db(match_code: str | None, session: AsyncSession) -> BaseResponse:
     global_logger.info(f"GET request received to fetch matches with code: {match_code}.")
     try:
-        query = select(Match) if match_code is None else select(Match).where(Match.match_code == match_code)
-        result = await session.scalars(query)
-        matches = result.all()
-        matches_data = [
-            {
-                'match_code': match.match_code,
-                'match_name': match.match_name
-            }
-            for match in matches
-        ]
-        log_message = f"Fetched {len(matches_data)} matches from the database with match_code={match_code}."
+        query = select(Match).where(Match.match_code == match_code)
+        result = await session.execute(query)
+        match = result.scalar_one_or_none()
+        matches_data = {
+            'match_code': match.match_code,
+            'match_name': match.match_name
+        }
+        log_message = f"Fetched 1 match from the database with match_code={match_code}."
         global_logger.info(log_message)
         return BaseResponse(
             status='success',
@@ -80,9 +74,8 @@ async def get_matches_by_match_code_from_db(match_code: str | None, session: Asy
         raise
     except Exception:
         log_message = f"An unexpected error occurred while fetching matches with match_code={match_code}."
-        global_logger.exception()
+        global_logger.exception(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=500)
+            message=log_message
         )

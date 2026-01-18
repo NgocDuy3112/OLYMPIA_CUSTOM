@@ -34,12 +34,12 @@ async def post_match(
     dependencies=[Depends(require_roles(['admin']))],
     response_model=BaseResponse
 )
-async def get_matches_by_match_code(
-    match_code: Annotated[str | None, Query(pattern="OC3_M[0-9]{2}")] = None,
+async def get_match_by_match_code(
+    match_code: str,
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     """
     Endpoint to fetch matches by their match code.
     Accessible only by users with the 'admin' role.
     """
-    return await get_matches_by_match_code_from_db(match_code, session)
+    return await get_match_by_match_code_from_db(match_code, session)

@@ -14,7 +14,7 @@ def utcnow():
 class Question(Base):
     __tablename__ = "questions"
     __table_args__ = (
-        CheckConstraint("question_code LIKE 'OC_Q%'", name='check_question_code_starts_with_OC_Q'),
+        CheckConstraint("question_code LIKE 'OC3_Q%'", name='check_question_code_starts_with_OC3_Q'),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)

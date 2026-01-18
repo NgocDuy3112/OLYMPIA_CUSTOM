@@ -53,8 +53,7 @@ async def post_questions_from_google_drive_to_db(
         global_logger.warning(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=409)
+            message=log_message
         )
     except HTTPException:
         raise
@@ -64,8 +63,7 @@ async def post_questions_from_google_drive_to_db(
         global_logger.exception(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=500)
+            message=log_message
         )
 
 
@@ -103,8 +101,7 @@ async def post_question_to_db(
         global_logger.warning(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=409)
+            message=log_message
         )
     except HTTPException:
         raise
@@ -114,49 +111,46 @@ async def post_question_to_db(
         global_logger.exception(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=500)
+            message=log_message
         )
 
 
 
 async def get_question_from_request_from_db(
-    request: QuestionGetRequest, 
+    match_code: str,
+    question_code: str, 
     session: AsyncSession
 ) -> BaseResponse:
-    global_logger.info(f"GET request received to fetch question with code: {request.question_code}.")
+    global_logger.info(f"GET request received to fetch question with code: {question_code}.")
     question_data = []
     try:
-        if request.question_code is not None:
+        if question_code is not None:
             query = select(Question).where(
-                Question.question_code == request.question_code and 
+                Question.question_code == question_code and 
                 Question.match_id == select(Match.id).where(
-                    Match.match_code == request.match_code)
+                    Match.match_code == match_code)
                 .scalar_subquery()
             )
             result = await session.scalar(query)
             question = result
             if question is None:
-                log_message = f"No question found with question_code={request.question_code}."
+                log_message = f"No question found with question_code={question_code}."
                 global_logger.warning(log_message)
                 return BaseResponse(
                     status='error',
-                    message=log_message,
-                    exception=HTTPException(status_code=404)
+                    message=log_message
                 )
-            question_data = [
-                {
-                    'question_code': question.question_code,
-                    'content': question.content,
-                    'answer': question.answer,
-                    'explanation': question.explanation,
-                    'media_urls': question.media_urls
-                }
-            ]
+            question_data = {
+                'question_code': question.question_code,
+                'content': question.content,
+                'answer': question.answer,
+                'explanation': question.explanation,
+                'media_urls': question.media_urls
+            }
         else:
             query = select(Question).where(
                 Question.match_id == select(Match.id).where(
-                    Match.match_code == request.match_code)
+                    Match.match_code == match_code)
                 .scalar_subquery()
             )
             result = await session.scalars(query)
@@ -171,7 +165,7 @@ async def get_question_from_request_from_db(
                 }
                 for q in questions
             ]
-        log_message = f"Fetched {len(question_data)} questions from the database with question_code={request.question_code}."
+        log_message = f"Fetched {len(question_data)} questions from the database with question_code={question_code}."
         global_logger.info(log_message)
         return BaseResponse(
             status='success',
@@ -181,10 +175,9 @@ async def get_question_from_request_from_db(
     except HTTPException:
         raise
     except Exception as e:
-        log_message = f"An unexpected error occurred while fetching question with question_code={request.question_code}: {str(e)}"
+        log_message = f"An unexpected error occurred while fetching question with question_code={question_code}: {str(e)}"
         global_logger.exception(log_message)
         return BaseResponse(
             status='error',
-            message=log_message,
-            exception=HTTPException(status_code=500)
+            message=log_message
         )
