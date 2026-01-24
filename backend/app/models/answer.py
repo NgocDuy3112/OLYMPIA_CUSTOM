@@ -23,6 +23,6 @@ class Answer(Base):
     has_buzzed: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
     timestamp: Mapped[float] = mapped_column(Numeric(6, 3), nullable=True)
     # Foreign Keys
-    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False)
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False)
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False, index=True)
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False, index=True)

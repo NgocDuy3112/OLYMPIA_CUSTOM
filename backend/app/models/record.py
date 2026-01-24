@@ -2,10 +2,9 @@ from datetime import datetime, timezone
 import uuid
 
 from sqlalchemy import Integer, DateTime, Boolean, ForeignKey, CheckConstraint, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from dependencies.postgresql_db import Base
-from models import *
 
 
 def utcnow():
@@ -27,6 +26,6 @@ class Record(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Foreign Keys
-    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
-    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False)
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False)
+    player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False, index=True)
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False, index=True)

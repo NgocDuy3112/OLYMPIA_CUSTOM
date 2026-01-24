@@ -1,8 +1,8 @@
 from datetime import datetime, timezone
 import uuid
-from sqlalchemy import CheckConstraint, String, DateTime, ForeignKey, Boolean, UUID, event, select
+from sqlalchemy import CheckConstraint, String, DateTime, ForeignKey, Boolean, UUID
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from dependencies.postgresql_db import Base
 
@@ -30,4 +30,4 @@ class Question(Base):
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Foreign Keys
-    match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('matches.id'), nullable=False)
+    match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('matches.id'), nullable=False, index=True)
