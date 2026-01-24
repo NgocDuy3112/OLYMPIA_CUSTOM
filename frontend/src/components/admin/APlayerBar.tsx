@@ -1,23 +1,27 @@
 import React from "react";
-import { Bell } from "lucide-react";
+import PingIconStyle from "../shared/PingIconStyle";
+import { Circle } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
 
-    
+
 interface APlayerBarProps {
     player: PlayerStatus;
     isActive: boolean;
+    isCurrent?: boolean;
+    isKeywordMode?: boolean;
 }
 
 
-const PlayerBar: React.FC<APlayerBarProps> = ({ player, isActive }) => {
+const PlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode }) => {
     return (
-        <div className={`flex justify-between ${isActive ? "bg-red-600" : "bg-red-900 ring-red-600"} ring-4 ${player.playerHasBuzzed ? "ring-red-600" : "ring-white-600"} rounded-xl text-white shadow-md px-4 py-3 w-full`}>
+        <div className={`flex justify-between ${isActive ? "bg-blue-600" : "bg-blue-900 ring-blue-600"} ring-4 ${player.playerHasBuzzed ? "ring-blue-600" : "ring-white-600"} rounded-xl text-white shadow-md px-4 py-3 w-full`}>
             <div className="flex flex-col flex-1">
                 <p className="font-extrabold uppercase leading-tight">
                     {player.playerName && (
-                        <span className="font-[SVN-Gratelos_Display] uppercase text-[24px] font-extrabold">
+                        <span className="font-[SVN-Gratelos_Display] uppercase text-[24px] font-extrabold flex items-center">
                             {player.playerName}
+                            <Circle className={`ml-3 ${isCurrent ? 'text-blue-400' : 'text-gray-600'}`} size={12} />
                         </span>
                     )}
                     {player.playerTimestamp != null && player.playerTimestamp != 0 && (
@@ -28,7 +32,7 @@ const PlayerBar: React.FC<APlayerBarProps> = ({ player, isActive }) => {
                 </p>
                 {player.playerHasBuzzed && (
                     <p className="text-[18px] mt-1 font-medium leading-snug">
-                        <Bell size={40} />
+                        <PingIconStyle isKeywordMode={!!isKeywordMode} />
                     </p>
                 )}
                 <p className="text-[18px] mt-1 font-medium leading-snug">
