@@ -18,7 +18,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                     {title}
                 </p>
                 <div className="text-5xl font-[SVN-Gratelos_Display] font-extrabold px-3 py-1 transition-colors duration-500 text-white" >
-                    {timerDuration}
+                    {timerDuration.toString().padStart(2, '0')}
                 </div>
             </div>
             <div className="flex flex-row">

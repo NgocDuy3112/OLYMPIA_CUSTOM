@@ -3,11 +3,13 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import type { Question } from "@/types/question";
 
 
+
 interface AVuotDeoClueProps {
     question: Question;
     index?: number;
-    onClick?: () => Promise<'correct' | 'incorrect' | boolean> | 'correct' | 'incorrect' | boolean | void;
+    onClick?: () => Promise<'correct' | 'incorrect' | boolean>;
 }
+
 
 
 const AVuotDeoClue: React.FC<AVuotDeoClueProps> = ({ question, index = 1, onClick }) => {

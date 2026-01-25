@@ -13,7 +13,8 @@ interface APlayerBarProps {
 }
 
 
-const PlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode }) => {
+
+const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode }) => {
     return (
         <div className={`flex justify-between ${isActive ? "bg-blue-600" : "bg-blue-900 ring-blue-600"} ring-4 ${player.playerHasBuzzed ? "ring-blue-600" : "ring-white-600"} rounded-xl text-white shadow-md px-4 py-3 w-full`}>
             <div className="flex flex-col flex-1">
@@ -46,4 +47,4 @@ const PlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isK
     );
 };
 
-export default PlayerBar;
+export default APlayerBar;

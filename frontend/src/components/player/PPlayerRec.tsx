@@ -9,6 +9,7 @@ interface PPlayerRecProps {
 }
 
 
+
 const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
     const answerContent = player.playerLastAnswer?.trim() ?? '';
     const isAnswered = answerContent !== '---' && answerContent !== '';
@@ -28,7 +29,6 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
         );
     } else if (isAnswered) {
         displayAnswer = answerContent.toUpperCase();
-
         if (typeof player.playerTimestamp === 'number') {
             displayTime = player.playerTimestamp.toFixed(3);
         }

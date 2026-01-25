@@ -1,9 +1,9 @@
 import React from "react";
-import PingIconStyle from "../shared/PingIconStyle";
+import PingIconStyle from "@/components/shared/PingIconStyle";
 
 
 
-interface PButtonProps {
+interface PSubmitButtonProps {
     isEnabled: boolean;
     isKeywordMode?: boolean;
     label?: string;
@@ -12,7 +12,7 @@ interface PButtonProps {
 
 
 
-const PButton: React.FC<PButtonProps> = ({isEnabled, isKeywordMode, label, onSubmit}) => {
+export const PSubmitButton: React.FC<PSubmitButtonProps> = ({isEnabled, isKeywordMode, label, onSubmit}) => {
     const isDisabled = !isEnabled;
     return (
         <button
@@ -30,6 +30,3 @@ const PButton: React.FC<PButtonProps> = ({isEnabled, isKeywordMode, label, onSub
         </button>
     )
 }
-
-
-export default PButton;
