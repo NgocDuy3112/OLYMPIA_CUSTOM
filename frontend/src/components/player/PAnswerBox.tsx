@@ -19,14 +19,14 @@ const PAnswerBox: React.FC<PAnswerBoxProps> = ({
     placeholderString
 }) => {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (e.nativeEvent.isComposing || !answer.trim()) {return;}
-        }
-        if (!isDisabled) {
-            onSubmit();
-            setAnswer('');
-        }
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        if (e.nativeEvent.isComposing) return;
+        if (isDisabled) return;
+        if (!answer.trim()) return;
+
+        onSubmit();
+        setAnswer("");
     }
     return (
         <input
