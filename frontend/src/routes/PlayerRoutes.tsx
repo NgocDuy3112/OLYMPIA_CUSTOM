@@ -5,14 +5,15 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 
 import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
+import PButPhaPage from "@/pages/player/PButPhaPage";
 
 
 
-interface ProtectedRouteProps {
+interface PProtectedRouteProps {
     children: React.ReactNode;
 }
 
-export const ProtectedContestantRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+export const ProtectedPlayerRoute: React.FC<PProtectedRouteProps> = ({ children }) => {
     const { playerCode } = useParams<{ playerCode: string }>();
     const token = sessionStorage.getItem("jwtToken_player");
     const storedPlayer = sessionStorage.getItem("playerCode");
@@ -26,7 +27,7 @@ export const ProtectedContestantRoute: React.FC<ProtectedRouteProps> = ({ childr
 
 
 
-const ContestantAutoNavigator = () => {
+const PlayerAutoNavigator = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -60,7 +61,7 @@ const ContestantAutoNavigator = () => {
 const ContestantRoutes = () => {
     return (
         <>
-            <ContestantAutoNavigator />
+            <PlayerAutoNavigator />
             <Routes>
             <Route path="/" element={<Navigate to="/contestant/waiting" replace />} />
             
@@ -69,57 +70,57 @@ const ContestantRoutes = () => {
             <Route
                 path="/kdc/:matchCode/:playerCode"
                 element={
-                    <ProtectedContestantRoute>
+                    <ProtectedPlayerRoute>
                         <PKhoiDongChungPage />
-                    </ProtectedContestantRoute>
+                    </ProtectedPlayerRoute>
                 }
             />
             <Route
                 path="/kdr/:matchCode/:playerCode"
                 element={
-                    <ProtectedContestantRoute>
+                    <ProtectedPlayerRoute>
                         <PKhoiDongRiengPage />
-                    </ProtectedContestantRoute>
+                    </ProtectedPlayerRoute>
+                }
+            />
+            <Route
+                path="/bp/:matchCode/:playerCode"
+                element={
+                    <ProtectedPlayerRoute>
+                        <PButPhaPage />
+                    </ProtectedPlayerRoute>
                 }
             />
             {/* <Route
                 path="/vd/:matchCode/:playerCode"
                 element={
-                    <ProtectedContestantRoute>
+                    <ProtectedPlayerRoute>
                         <VuotDeoPage />
-                    </ProtectedContestantRoute>
-                }
-            /> */}
-            {/* <Route
-                path="/bp/:matchCode/:playerCode"
-                element={
-                    <ProtectedContestantRoute>
-                        <ButPhaPage />
-                    </ProtectedContestantRoute>
+                    </ProtectedPlayerRoute>
                 }
             /> */}
             {/* <Route
                 path="/nrc/:matchCode/:playerCode"
                 element={
-                    <ProtectedContestantRoute>
+                    <ProtectedPlayerRoute>
                         <NuocRutChungPage />
-                    </ProtectedContestantRoute>
+                    </ProtectedPlayerRoute>
                 }
             /> */}
             {/* <Route
                 path="/nrcn/:matchCode/:playerCode"
                 element={
-                    <ProtectedContestantRoute>
+                    <ProtectedPlayerRoute>
                         <NuocRutCaNhanPage />
-                    </ProtectedContestantRoute>
+                    </ProtectedPlayerRoute>
                 }
             /> */}
             {/* <Route
                 path="/nrpick/:matchCode/:playerCode"
                 element={
-                    <ProtectedContestantRoute>
+                    <ProtectedPlayerRoute>
                         <NuocRutChonCauHoiPage />
-                    </ProtectedContestantRoute>
+                    </ProtectedPlayerRoute>
                 }
             /> */}
             {/* fallback */}

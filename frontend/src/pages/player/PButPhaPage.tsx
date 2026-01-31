@@ -19,7 +19,7 @@ function unwrapWsMessage(message: any): any {
 }
 
 
-const PKhoiDongChungPage = () => {
+const PButPhaPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
 	const { isConnected, lastMessage, sendAnswer } = useWebSocket(matchCode);
 	const { timer, timeLimit, start, getElapsedSeconds } = useCountdownTimer();
@@ -139,7 +139,7 @@ const PKhoiDongChungPage = () => {
 		<PBasePageLayout
 			players={players}
 			currentPlayerCode={playerCode}
-			title="KHỞI ĐỘNG - LƯỢT CHUNG"
+			title="BỨT PHÁ"
 			currentQuestion={currentQuestion}
 			timerDuration={timer}
 		>
@@ -154,5 +154,5 @@ const PKhoiDongChungPage = () => {
 	);
 };
 
-export default PKhoiDongChungPage;
+export default PButPhaPage;
 

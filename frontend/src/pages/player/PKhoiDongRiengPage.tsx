@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL } from "@/configs";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
@@ -29,53 +28,6 @@ const PKhoiDongRiengPage = () => {
 	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 	const [blockedPlayerCode, setBlockedPlayerCode] = useState<string | null>(null);
 
-	const loadPlayersState = useCallback(async () => {
-		if (!matchCode || !token) return;
-		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${matchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersList = (await playersRes.json()).response?.data?.players ?? [];
-
-			const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
-				headers: { Authorization: `Bearer ${token}` },
-			}).catch(() => null);
-			const scoreList = scoreRes ? (await scoreRes.json()).response?.data?.scoreboard ?? [] : [];
-
-			const profiles = await Promise.all(
-				playersList.map((p: { player_code: any }) =>
-					fetch(`${API_BASE_URL}/players/${p.player_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-
-			const finalPlayers: PlayerStatus[] = playersList.map((p: any, index: number) => {
-				const code = String(p.player_code ?? "");
-				const profile = profiles[index]?.response?.data;
-				const score = scoreList.find((s: any) => s.player_code === code);
-				return {
-					playerCode: code,
-					playerName: profile?.player_name ?? "",
-					playerScore: score?.total_d_score ?? score?.new_total_score ?? 0,
-					playerLastAnswer: undefined,
-					playerTimestamp: undefined,
-					playerHasBuzzed: false,
-				};
-			});
-
-			setPlayers(finalPlayers);
-		} catch (err) {
-			console.error("Failed to load players:", err);
-		}
-	}, [matchCode, token]);
-
-	useEffect(() => {
-		void loadPlayersState();
-	}, [loadPlayersState]);
-
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg = unwrapWsMessage(lastMessage);
@@ -84,6 +36,30 @@ const PKhoiDongRiengPage = () => {
 		applyWsMessage(msg);
 
 		switch (msg?.type) {
+			case "send_players_info": {
+				// Receive player information through WebSocket instead of API
+				const playersList = msg.players ?? [];
+				const scoreboard = msg.scoreboard ?? [];
+				const profiles = msg.profiles ?? [];
+
+				const finalPlayers: PlayerStatus[] = playersList.map((p: any) => {
+					const code = String(p.player_code ?? "");
+					const profile = profiles.find((prof: any) => prof.player_code === code);
+					const score = scoreboard.find((s: any) => s.player_code === code);
+					return {
+						playerCode: code,
+						playerName: profile?.player_name ?? "",
+						playerScore: score?.total_d_score ?? score?.new_total_score ?? 0,
+						playerLastAnswer: undefined,
+						playerTimestamp: undefined,
+						playerHasBuzzed: false,
+					};
+				});
+
+				setPlayers(finalPlayers);
+				break;
+			}
+
 			case "start_the_timer": {
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);

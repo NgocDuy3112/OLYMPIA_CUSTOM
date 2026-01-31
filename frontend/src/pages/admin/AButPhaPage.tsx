@@ -9,9 +9,9 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
 
-const TIME_LIMIT = 5;
-const MAX_QUESTION_INDEX = 6;
-const QUESTION_PREFIX = "KD_C"; // Matches the Khởi Động chung question naming convention.
+const TIME_LIMIT = 15;
+const MAX_QUESTION_INDEX = 4;
+const QUESTION_PREFIX = "BP"; // Bứt Phá question naming convention.
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -30,7 +30,7 @@ function unwrapWsMessage(message: any): any {
 }
 
 
-const AKhoiDongChungPage = () => {
+const AButPhaPage = () => {
 	const currentMatchCode = localStorage.getItem("matchCode") ?? "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage } = useWebSocket(currentMatchCode);
@@ -41,12 +41,12 @@ const AKhoiDongChungPage = () => {
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
 	const buildPlayersSnapshot = useCallback(
-		(
-			playersList: any[],
-			scoreboard: any[],
-			profiles: any[],
-			previousPlayers: PlayerStatus[],
-		): PlayerStatus[] => {
+(
+playersList: any[],
+scoreboard: any[],
+profiles: any[],
+previousPlayers: PlayerStatus[],
+): PlayerStatus[] => {
 			if (!playersList?.length) {
 				return previousPlayers;
 			}
@@ -95,7 +95,7 @@ const AKhoiDongChungPage = () => {
 	);
 
 	const applyPlayersSnapshot = useCallback(
-		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
+(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
 			const playersList = Array.isArray(payload?.players) ? payload.players : [];
 			const scoreboardList = Array.isArray(payload?.scoreboard) ? payload.scoreboard : [];
 			const profileList = Array.isArray(payload?.profiles) ? payload.profiles : [];
@@ -108,16 +108,16 @@ const AKhoiDongChungPage = () => {
 		if (!currentMatchCode || !token) return;
 		try {
 			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
+headers: { Authorization: `Bearer ${token}` },
+});
 			const playersJson = await playersRes.json();
 			const playersList = playersJson.response?.data?.players ?? [];
 
 			let scoreList: any[] = [];
 			try {
 				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
+headers: { Authorization: `Bearer ${token}` },
+});
 				const scoreJson = await scoreRes.json();
 				scoreList = scoreJson.response?.data?.scoreboard ?? [];
 			} catch (error) {
@@ -125,19 +125,19 @@ const AKhoiDongChungPage = () => {
 			}
 
 			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
+playersList.map((entry: any) =>
 					fetch(`${API_BASE_URL}/players/${entry.player_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
+headers: { Authorization: `Bearer ${token}` },
+})
 						.then((res) => res.json())
 						.catch(() => null),
 				),
 			);
 
 			const profiles = playersList.map((entry: any, index: number) => ({
-				player_code: entry.player_code,
-				player_name: profileResponses[index]?.response?.data?.player_name ?? "",
-			}));
+player_code: entry.player_code,
+player_name: profileResponses[index]?.response?.data?.player_name ?? "",
+}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 		} catch (error) {
@@ -148,11 +148,6 @@ const AKhoiDongChungPage = () => {
 	const resolveQuestionCode = useCallback((questionIndex: number) => {
 		return `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`;
 	}, []);
-
-	// Removed getStartClockUrl helper – URL is constructed inline where needed.
-
-	// Helper to build the start_clock endpoint URL for a given question code.
-	// The match code is derived from localStorage and is available in the component scope.
 
 	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
 		return {
@@ -165,7 +160,7 @@ const AKhoiDongChungPage = () => {
 	}, []);
 
 	const loadQuestion = useCallback(
-		async (questionIndex: number) => {
+async (questionIndex: number) => {
 			if (!currentMatchCode || !token) return;
 			if (questionIndex <= 0) {
 				setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -176,8 +171,8 @@ const AKhoiDongChungPage = () => {
 
 			try {
 				const res = await fetch(`${API_BASE_URL}/questions/${currentMatchCode}/${questionCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
+headers: { Authorization: `Bearer ${token}` },
+});
 				const data = await res.json();
 				setCurrentQuestion(mapQuestionPayload(data.response?.data, questionCode));
 			} catch (error) {
@@ -189,7 +184,7 @@ const AKhoiDongChungPage = () => {
 	);
 
 	const sendQuestionToContestants = useCallback(
-		async (questionIndex: number) => {
+async (questionIndex: number) => {
 			if (!currentMatchCode || !token) return;
 			if (questionIndex <= 0) return;
 
@@ -198,12 +193,12 @@ const AKhoiDongChungPage = () => {
 
 			try {
 				await fetch(endpoint, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-				});
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+},
+});
 			} catch (error) {
 				console.error("Failed to broadcast question:", error);
 			}
@@ -216,12 +211,12 @@ const AKhoiDongChungPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		try {
 			await fetch(`${API_BASE_URL}/controller/clear_question/${currentMatchCode}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-			});
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+},
+});
 		} catch (error) {
 			console.error("Failed to clear question:", error);
 		}
@@ -236,13 +231,13 @@ const AKhoiDongChungPage = () => {
 		if (!currentMatchCode || !token) return;
 		try {
 			await fetch(`${API_BASE_URL}/controller/navigate/${currentMatchCode}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ path: `/contestant/kdc` }),
-			});
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+},
+body: JSON.stringify({ path: `/contestant/bp` }),
+});
 		} catch (error) {
 			console.error("Failed to start round:", error);
 		}
@@ -257,20 +252,20 @@ const AKhoiDongChungPage = () => {
 		if (!currentMatchCode || !token) return;
 		try {
 			await fetch(`${API_BASE_URL}/controller/navigate/${currentMatchCode}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ path: `/contestant/waiting` }),
-			});
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+},
+body: JSON.stringify({ path: `/contestant/waiting` }),
+});
 		} catch (error) {
 			console.error("Failed to end round:", error);
 		}
 	}, [clearQuestion, currentMatchCode, token]);
 
 	const startTheClock = useCallback(
-		async (questionIndex: number) => {
+async (questionIndex: number) => {
 			if (!currentMatchCode || !token) return;
 			if (questionIndex <= 0) return;
 
@@ -279,13 +274,13 @@ const AKhoiDongChungPage = () => {
 
 			try {
 				await fetch(`${API_BASE_URL}/controller/start_clock/${currentMatchCode}/${questionCode}`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({ time_limit: TIME_LIMIT }),
-				});
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+},
+body: JSON.stringify({ time_limit: TIME_LIMIT }),
+});
 			} catch (error) {
 				console.error("Failed to start the clock:", error);
 			}
@@ -294,7 +289,7 @@ const AKhoiDongChungPage = () => {
 	);
 
 	const handleAddScore = useCallback(
-		async (playerCode: string, delta: number) => {
+async (playerCode: string, delta: number) => {
 			if (!playerCode) return;
 			setPlayers((prev) =>
 				prev.map((player) =>
@@ -310,26 +305,26 @@ const AKhoiDongChungPage = () => {
 
 			try {
 				await fetch(`${API_BASE_URL}/records/`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						player_code: playerCode,
-						match_code: currentMatchCode,
-						question_code: questionCode,
-						d_score_earned: delta,
-					}),
-				});
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+},
+body: JSON.stringify({
+player_code: playerCode,
+match_code: currentMatchCode,
+question_code: questionCode,
+d_score_earned: delta,
+}),
+});
 
 				const recentRes = await fetch(`${API_BASE_URL}/scoreboard/recent/${currentMatchCode}`, {
-					method: "GET",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-				});
+method: "GET",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${token}`,
+},
+});
 				const recentJson = await recentRes.json();
 				const scoreboard = recentJson.response?.data ?? [];
 				setPlayers((prev) =>
@@ -393,10 +388,10 @@ const AKhoiDongChungPage = () => {
 				startTransition(() => {
 					setPlayers((prev) =>
 						prev.map((player) => ({
-							...player,
-							playerLastAnswer: undefined,
-							playerTimestamp: undefined,
-						})),
+...player,
+playerLastAnswer: undefined,
+playerTimestamp: undefined,
+})),
 					);
 				});
 				break;
@@ -431,10 +426,10 @@ const AKhoiDongChungPage = () => {
 	}, [applyPlayersSnapshot, lastMessage]);
 
 	const hasQuestionSelected = currentQuestionIndex > 0;
-	const questionTitle = `KHỞI ĐỘNG - LƯỢT CHUNG${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
+	const questionTitle = `BỨT PHÁ${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
 
 	return (
-		<ABasePageLayout
+<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
 			timerDuration={timer}
@@ -513,26 +508,35 @@ const AKhoiDongChungPage = () => {
 			}
 			renderPlayerList={() =>
 				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
+<div className="flex flex-col gap-3" key={player.playerCode}>
 						<APlayerBar player={player} isActive={false} />
 						<div className="flex flex-row pt-3 gap-3 justify-center">
 							<button
 								onClick={() => {
-									void handleAddScore(player.playerCode, 10);
+									void handleAddScore(player.playerCode, 30);
 								}}
 								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 text-[18px] flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 							>
 								<Plus size={18} />
-								<span className="ml-2 font-bold">CỘNG 10</span>
+								<span className="ml-2 font-bold">CỘNG 30</span>
 							</button>
 							<button
 								onClick={() => {
-									void handleAddScore(player.playerCode, 5);
+									void handleAddScore(player.playerCode, 20);
 								}}
 								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 							>
 								<Plus size={18} />
-								<span className="ml-2 font-bold">CỘNG 5</span>
+								<span className="ml-2 font-bold">CỘNG 20</span>
+							</button>
+							<button
+								onClick={() => {
+									void handleAddScore(player.playerCode, 10);
+								}}
+								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+							>
+								<Plus size={18} />
+								<span className="ml-2 font-bold">CỘNG 10</span>
 							</button>
 						</div>
 					</div>
@@ -543,4 +547,4 @@ const AKhoiDongChungPage = () => {
 };
 
 
-export default AKhoiDongChungPage;
+export default AButPhaPage;
