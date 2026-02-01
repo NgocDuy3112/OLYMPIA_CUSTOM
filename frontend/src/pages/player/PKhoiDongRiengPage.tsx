@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
+import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
@@ -128,13 +129,18 @@ const PKhoiDongRiengPage = () => {
 		<PBasePageLayout
 			players={players}
 			currentPlayerCode={playerCode}
-			title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
-			currentQuestion={currentQuestion}
-			timerDuration={timer}
 		>
-			<div className="p-3">
-				<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />
-			</div>
+			<>
+				<PQuestionBoard
+					title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
+					question={currentQuestion}
+					timerDuration={timer}
+				/>
+
+				<div className="p-3">
+					<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />
+				</div>
+			</>
 		</PBasePageLayout>
 	);
 };

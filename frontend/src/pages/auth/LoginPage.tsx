@@ -47,7 +47,7 @@ const LoginPage: React.FC = () => {
                     type="password" 
                     value={credentials.password} onChange={handleChange} 
                 />
-                <button type="submit" className="mt-4 bg-red-600 hover:bg-red-500 text-white font-semibold py-2 rounded transition-all">
+                <button type="submit" className="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded transition-all">
                     ĐĂNG NHẬP
                 </button>
                 <a href="/signup" className="text-center text-sm underline opacity-80 hover:opacity-100">Chưa có tài khoản? Click vào đây!</a>

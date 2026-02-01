@@ -1,17 +1,12 @@
 import React from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
 import type { PlayerStatus } from "@/types/player";
-import type { Question } from "@/types/question";
-
 
 
 interface PBasePageLayoutProps {
     players: PlayerStatus[];
     currentPlayerCode: string;
-    title: string;
-    currentQuestion: Question;
-    timerDuration: number;
+    /** page should render its own board as children (first child) */
     children?: React.ReactNode;
 }
 
@@ -20,9 +15,6 @@ interface PBasePageLayoutProps {
 export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
     players,
     currentPlayerCode,
-    title,
-    currentQuestion,
-    timerDuration,
     children,
 }) => {
     return (
@@ -35,16 +27,8 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
             
             <div className="p-5 w-full flex justify-center">
                 <div className="w-full max-w-7xl">
-                    <PQuestionBoard
-                        title={title}
-                        question={currentQuestion}
-                        timerDuration={timerDuration}
-                    />
+                    {children}
                 </div>
-            </div>
-
-            <div className="w-full max-w-7xl flex flex-col gap-4">
-                {children}
             </div>
         </div>
     );

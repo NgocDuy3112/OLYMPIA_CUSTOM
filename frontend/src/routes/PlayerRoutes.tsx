@@ -58,76 +58,76 @@ const PlayerAutoNavigator = () => {
 };
 
 
-const ContestantRoutes = () => {
+const PlayerRoutes = () => {
     return (
         <>
             <PlayerAutoNavigator />
-            <Routes>
-            <Route path="/" element={<Navigate to="/contestant/waiting" replace />} />
-            
-            {/* <Route path="/access" element={<GameAccessPage />} />
-            <Route path="/waiting/:matchCode/:playerCode" element={<WaitingPage />} /> */}
-            <Route
-                path="/kdc/:matchCode/:playerCode"
-                element={
-                    <ProtectedPlayerRoute>
-                        <PKhoiDongChungPage />
-                    </ProtectedPlayerRoute>
-                }
-            />
-            <Route
-                path="/kdr/:matchCode/:playerCode"
-                element={
-                    <ProtectedPlayerRoute>
-                        <PKhoiDongRiengPage />
-                    </ProtectedPlayerRoute>
-                }
-            />
-            <Route
-                path="/bp/:matchCode/:playerCode"
-                element={
-                    <ProtectedPlayerRoute>
-                        <PButPhaPage />
-                    </ProtectedPlayerRoute>
-                }
-            />
-            {/* <Route
-                path="/vd/:matchCode/:playerCode"
-                element={
-                    <ProtectedPlayerRoute>
-                        <VuotDeoPage />
-                    </ProtectedPlayerRoute>
-                }
-            /> */}
-            {/* <Route
-                path="/nrc/:matchCode/:playerCode"
-                element={
-                    <ProtectedPlayerRoute>
-                        <NuocRutChungPage />
-                    </ProtectedPlayerRoute>
-                }
-            /> */}
-            {/* <Route
-                path="/nrcn/:matchCode/:playerCode"
-                element={
-                    <ProtectedPlayerRoute>
-                        <NuocRutCaNhanPage />
-                    </ProtectedPlayerRoute>
-                }
-            /> */}
-            {/* <Route
-                path="/nrpick/:matchCode/:playerCode"
-                element={
-                    <ProtectedPlayerRoute>
-                        <NuocRutChonCauHoiPage />
-                    </ProtectedPlayerRoute>
-                }
-            /> */}
-            {/* fallback */}
-            <Route path="*" element={<Navigate to="/contestant/waiting" replace />} />
+                <Routes>
+                <Route path="/" element={<Navigate to="/player/waiting" replace />} />
+                
+                {/* <Route path="/access" element={<GameAccessPage />} />
+                <Route path="/waiting/:matchCode/:playerCode" element={<WaitingPage />} /> */}
+                <Route
+                    path="/kdc/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PKhoiDongChungPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/kdr/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PKhoiDongRiengPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/bp/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PButPhaPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                {/* <Route
+                    path="/vd/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <VuotDeoPage />
+                        </ProtectedPlayerRoute>
+                    }
+                /> */}
+                {/* <Route
+                    path="/nrc/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <NuocRutChungPage />
+                        </ProtectedPlayerRoute>
+                    }
+                /> */}
+                {/* <Route
+                    path="/nrcn/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <NuocRutCaNhanPage />
+                        </ProtectedPlayerRoute>
+                    }
+                /> */}
+                {/* <Route
+                    path="/nrpick/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <NuocRutChonCauHoiPage />
+                        </ProtectedPlayerRoute>
+                    }
+                /> */}
+                {/* fallback */}
+                <Route path="*" element={<Navigate to="/player/waiting" replace />} />
             </Routes>
         </>
     );
 };
 
-export default ContestantRoutes;
+export default PlayerRoutes;

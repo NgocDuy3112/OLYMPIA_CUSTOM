@@ -3,6 +3,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
 import PAnswerBox from "@/components/player/PAnswerBox";
+import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
@@ -139,17 +140,22 @@ const PButPhaPage = () => {
 		<PBasePageLayout
 			players={players}
 			currentPlayerCode={playerCode}
-			title="BỨT PHÁ"
-			currentQuestion={currentQuestion}
-			timerDuration={timer}
 		>
-			<PAnswerBox
-				answer={answer}
-				setAnswer={setAnswer}
-				isDisabled={isSubmissionDisabled}
-				onSubmit={handleSubmitAnswer}
-				placeholderString="Nhập đáp án và nhấn Enter"
-			/>
+			<>
+				<PQuestionBoard
+					title="BỨT PHÁ"
+					question={currentQuestion}
+					timerDuration={timer}
+				/>
+
+				<PAnswerBox
+					answer={answer}
+					setAnswer={setAnswer}
+					isDisabled={isSubmissionDisabled}
+					onSubmit={handleSubmitAnswer}
+					placeholderString="Nhập đáp án và nhấn Enter"
+				/>
+			</>
 		</PBasePageLayout>
 	);
 };

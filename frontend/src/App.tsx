@@ -1,12 +1,25 @@
-import { useState } from 'react'
-import './App.css'
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import PlayerRoutes from "@/routes/PlayerRoutes";
+import AdminRoutes from "@/routes/AdminRoutes";
+import SignupPage from "./pages/auth/SignupPage";
+import LoginPage from "./pages/auth/LoginPage";
 
 function App() {
-
   return (
-    <>
-      
-    </>
+    <BrowserRouter>
+      <div className="min-h-screen">
+        <Routes>
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* Auth Routes */}
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          {/* Player Routes */}
+          <Route path="/player/*" element={<PlayerRoutes />}/>
+          {/* Admin Routes */}
+          <Route path="/admin/*" element={<AdminRoutes />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   )
 }
 
