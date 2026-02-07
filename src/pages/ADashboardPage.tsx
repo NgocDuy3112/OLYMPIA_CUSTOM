@@ -4,7 +4,8 @@ import { User, Question, Match } from '../types';
 const ADashboardPage: React.FC = () => {
   // State management
   const [matchCode, setMatchCode] = useState<string>('');
-  const [userCode, setUserCode] = useState<string>('');
+  const [userId, setUserId] = useState<string>('');
+  const [newUserCode, setNewUserCode] = useState<string>('');
   const [users, setUsers] = useState<User[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
@@ -83,14 +84,19 @@ const ADashboardPage: React.FC = () => {
   const handleUpdateUserCode = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!userCode.trim()) {
-      setError('Please enter a user code');
+    if (!userId.trim()) {
+      setError('Please enter a user ID');
       return;
     }
 
-    const user = users.find(u => u.code === userCode);
+    if (!newUserCode.trim()) {
+      setError('Please enter a new user code');
+      return;
+    }
+
+    const user = users.find(u => u.id === userId);
     if (user) {
-      updateUserCode(user.id, userCode);
+      updateUserCode(user.id, newUserCode);
     } else {
       setError('User not found');
     }
@@ -156,16 +162,30 @@ const ADashboardPage: React.FC = () => {
             <form onSubmit={handleUpdateUserCode}>
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="userCode" className="block text-sm font-medium text-gray-700 mb-2">
-                    User Code
+                  <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-2">
+                    User ID
                   </label>
                   <input
                     type="text"
-                    id="userCode"
-                    value={userCode}
-                    onChange={(e) => setUserCode(e.target.value)}
+                    id="userId"
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="Enter user code"
+                    placeholder="Enter user ID"
+                    disabled={loading}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="newUserCode" className="block text-sm font-medium text-gray-700 mb-2">
+                    New User Code
+                  </label>
+                  <input
+                    type="text"
+                    id="newUserCode"
+                    value={newUserCode}
+                    onChange={(e) => setNewUserCode(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="Enter new user code"
                     disabled={loading}
                   />
                 </div>

@@ -1,10 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import ADashboardPage from './pages/ADashboardPage'
+import App from './App'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ADashboardPage />
+    <App />
   </React.StrictMode>,
 )
