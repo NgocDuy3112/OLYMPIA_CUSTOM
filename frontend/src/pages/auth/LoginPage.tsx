@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
-import { InputField } from "@/components/auth/InputField";
+import { InputField } from "@/components/shared/InputField";
 import { BaseAuthLayout }from "@/pages/auth/BaseAuthLayout";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { API_BASE_URL } from "@/configs";
@@ -47,10 +47,10 @@ const LoginPage: React.FC = () => {
                     type="password" 
                     value={credentials.password} onChange={handleChange} 
                 />
-                <button type="submit" className="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded transition-all">
+                <button type="submit" className="mt-4 btn-primary-full">
                     ĐĂNG NHẬP
                 </button>
-                <a href="/signup" className="text-center text-sm underline opacity-80 hover:opacity-100">Chưa có tài khoản? Click vào đây!</a>
+                <a href="/signup" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Chưa có tài khoản? Click vào đây!</a>
             </form>
         </BaseAuthLayout>
     );

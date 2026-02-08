@@ -1,1 +1,80 @@
+:root {
+	--oc-primary: #0609cd; /* primary blue */
+	--oc-primary-dark: #1E4EDD; /* primary hover */
+	--oc-bg: #061226;
+	--oc-border: #0c0eff;
+	--oc-card-border: var(--oc-border);
+	--oc-card-bg: #060c71; /* stronger, more opaque card color for contrast */
+	--oc-surface: rgba(255,255,255,0.12);
+	--oc-text: #E6EEF5;
+}
+
 @import "tailwindcss";
+
+/* Global base styles and semantic helpers */
+@layer base {
+	html, body, #root {
+		height: 100%;
+	}
+	body {
+		background-color: var(--oc-bg);
+		color: var(--oc-text);
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+	a { color: var(--oc-primary); }
+}
+
+/* Component utilities (pure CSS to avoid @apply issues in some setups) */
+
+.card,
+.panel {
+	background: linear-gradient(
+		135deg,
+		color-mix(in srgb, var(--oc-card-bg) 65%, #030834 35%),
+		color-mix(in srgb, var(--oc-card-bg) 40%, #010214 60%)
+	);
+	color: var(--oc-text);
+	border: 2px solid color-mix(in srgb, var(--oc-card-border) 70%, #020222 30%);
+	box-shadow:
+		0 25px 60px rgba(6, 9, 205, 0.35),
+		inset 0 1px 0 rgba(255, 255, 255, 0.25);
+	backdrop-filter: blur(6px);
+	-webkit-backdrop-filter: blur(6px);
+}
+
+.card {
+	padding: 2.5rem; /* p-10 */
+	border-radius: 0.75rem; /* rounded-xl */
+	box-shadow: 0 25px 50px rgba(2,6,23,0.6); /* stronger shadow for separation */
+	width: 100%;
+	max-width: 28rem; /* max-w-md */
+	position: relative;
+	z-index: 10;
+}
+
+.panel {
+	border-radius: 1rem;
+	box-shadow: 0 25px 60px rgba(2,6,23,0.6);
+	overflow: hidden;
+}
+
+/* small helper for full-width primary buttons */
+
+.btn-primary-full {
+	display: inline-block;
+	background-color: var(--oc-primary);
+	color: #fff;
+	width: 100%;
+	padding: 0.5rem 1rem; /* py-2 */
+	border-radius: 0.375rem;
+	font-weight: 600;
+	transition: background-color 0.15s ease-in-out;
+	text-align: center;
+}
+.btn-primary-full:hover { background-color: var(--oc-primary-dark); }
+
+/* Panel used for wider admin pages to match project color scheme */
+.accent-dot {
+	background-color: var(--oc-primary);
+}

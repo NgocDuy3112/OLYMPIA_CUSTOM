@@ -1,13 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PlayerRoutes from "@/routes/PlayerRoutes";
 import AdminRoutes from "@/routes/AdminRoutes";
-import SignupPage from "./pages/auth/SignupPage";
-import LoginPage from "./pages/auth/LoginPage";
+import SignupPage from "@/pages/auth/SignupPage";
+import LoginPage from "@/pages/auth/LoginPage";
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen">
+      <div
+        className="min-h-screen bg-oc bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url('/background/OC3_background.png')` }}
+      >
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           {/* Auth Routes */}

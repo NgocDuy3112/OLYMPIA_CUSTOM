@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from api import (
     auth, 
+    user,
     match, 
     answer,
     question, 
@@ -49,6 +50,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(auth.router)
+app.include_router(user.router)
 app.include_router(match.router)
 app.include_router(answer.router)
 app.include_router(question.router)

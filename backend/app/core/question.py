@@ -105,7 +105,7 @@ async def post_question_to_db(
 
 async def get_question_from_request_from_db(
     match_code: str,
-    question_code: str, 
+    question_code: str | None, 
     session: AsyncSession
 ) -> BaseResponse:
     global_logger.info(f"GET request received to fetch question with code: {question_code}.")

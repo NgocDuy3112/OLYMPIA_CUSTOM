@@ -14,8 +14,8 @@ const GameAccessPage: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col justify-center items-center min-h-screen bg-cover bg-center text-white">
-            <div className="bg-blue-900 bg-opacity-50 p-10 rounded-xl shadow-lg w-full max-w-md">
+        <div className="flex flex-col justify-center items-center min-h-screen bg-cover bg-center">
+            <div className="card">
                 <div className="gap-2 text-center">
                     <h1 className="text-4xl font-[SVN-Gratelos_Display] font-bold mb-2">OLYMPIA CUSTOM 3</h1>
                     <h2 className="text-xl font-bold mb-5">Chuẩn bị vào trận đấu</h2>
@@ -27,12 +27,12 @@ const GameAccessPage: React.FC = () => {
                             type="text"
                             value={matchCode}
                             onChange={(e) => setMatchCode(e.target.value)}
-                            className="w-full px-3 py-2 rounded bg-white text-black border border-blue-900 focus:outline-none focus:border-blue-500"
+                            className="w-full px-3 py-2 rounded bg-white text-black border border-(--oc-border) focus:outline-none focus:border-(--oc-border)"
                         />
                     </div>
                     <button
                         type="submit"
-                        className="mt-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded transition-all duration-200"
+                        className="mt-4 btn-primary-full"
                     >
                         VÀO PHÒNG
                     </button>
