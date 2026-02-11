@@ -14,7 +14,6 @@ export const useAuthSession = () => {
         if (role === "admin") {
             localStorage.setItem("jwtToken_admin", access_token);
             localStorage.setItem("role", role);
-            // After admin login, navigate to the global dashboard
             navigate("/admin/dashboard");
         } else {
             sessionStorage.setItem("jwtToken_player", access_token);

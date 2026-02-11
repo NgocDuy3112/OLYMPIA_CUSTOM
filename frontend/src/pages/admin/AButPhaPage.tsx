@@ -4,6 +4,8 @@ import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Plus, Power, Refres
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { createLogger } from "@/utils/logger";
+const logger = createLogger("AButPha");
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
@@ -121,7 +123,7 @@ headers: { Authorization: `Bearer ${token}` },
 				const scoreJson = await scoreRes.json();
 				scoreList = scoreJson.response?.data?.scoreboard ?? [];
 			} catch (error) {
-				console.error("Failed to load scoreboard:", error);
+				logger.error("Failed to load scoreboard:", error);
 			}
 
 			const profileResponses = await Promise.all(
@@ -141,7 +143,7 @@ player_name: profileResponses[index]?.response?.data?.player_name ?? "",
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 		} catch (error) {
-			console.error("Failed to load players:", error);
+			logger.error("Failed to load players:", error);
 		}
 	}, [buildPlayersSnapshot, currentMatchCode, token]);
 
@@ -176,7 +178,7 @@ headers: { Authorization: `Bearer ${token}` },
 				const data = await res.json();
 				setCurrentQuestion(mapQuestionPayload(data.response?.data, questionCode));
 			} catch (error) {
-				console.error("Failed to load question:", error);
+				logger.error("Failed to load question:", error);
 				setCurrentQuestion(mapQuestionPayload(null, questionCode));
 			}
 		},
@@ -200,7 +202,7 @@ Authorization: `Bearer ${token}`,
 },
 });
 			} catch (error) {
-				console.error("Failed to broadcast question:", error);
+				logger.error("Failed to broadcast question:", error);
 			}
 		},
 		[currentMatchCode, resolveQuestionCode, token],
@@ -218,7 +220,7 @@ Authorization: `Bearer ${token}`,
 },
 });
 		} catch (error) {
-			console.error("Failed to clear question:", error);
+			logger.error("Failed to clear question:", error);
 		}
 	}, [currentMatchCode, token]);
 
@@ -239,7 +241,7 @@ Authorization: `Bearer ${token}`,
 body: JSON.stringify({ path: `/contestant/bp` }),
 });
 		} catch (error) {
-			console.error("Failed to start round:", error);
+			logger.error("Failed to start round:", error);
 		}
 	}, [clearQuestion, currentMatchCode, token]);
 
@@ -260,7 +262,7 @@ Authorization: `Bearer ${token}`,
 body: JSON.stringify({ path: `/contestant/waiting` }),
 });
 		} catch (error) {
-			console.error("Failed to end round:", error);
+			logger.error("Failed to end round:", error);
 		}
 	}, [clearQuestion, currentMatchCode, token]);
 
@@ -282,7 +284,7 @@ Authorization: `Bearer ${token}`,
 body: JSON.stringify({ time_limit: TIME_LIMIT }),
 });
 			} catch (error) {
-				console.error("Failed to start the clock:", error);
+				logger.error("Failed to start the clock:", error);
 			}
 		},
 		[currentMatchCode, resolveQuestionCode, token],
@@ -334,7 +336,7 @@ Authorization: `Bearer ${token}`,
 					}),
 				);
 			} catch (error) {
-				console.error("Failed to update score:", error);
+				logger.error("Failed to update score:", error);
 			}
 		},
 		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token],

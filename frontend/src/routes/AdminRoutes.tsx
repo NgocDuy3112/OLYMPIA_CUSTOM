@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
-import ADashboardPage from "@/pages/admin/ADashboardPage";
 
 
 interface AProtectedRouteProps {
@@ -30,7 +29,7 @@ const AdminRoutes = () => {
     return (
         <Routes>
             <Route path="/" element={<Navigate to="/admin/waiting" replace />} />
-            <Route path="/dashboard" element={<ADashboardPage />} />
+            {/* <Route path="/dashboard" element={} /> */}
             <Route
                 path="/kdc/:matchCode/:adminCode"
                 element={

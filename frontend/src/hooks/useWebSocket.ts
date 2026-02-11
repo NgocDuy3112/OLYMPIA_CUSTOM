@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from "react";
 import { API_BASE_URL, WS_BASE_URL } from "@/configs";
+import { createLogger } from "@/utils/logger";
+
+const logger = createLogger("WS");
 
 
 interface WebSocketPayload {
@@ -10,7 +13,8 @@ interface WebSocketPayload {
     answer?: string;
     [key: string]: any; 
 }
-const createWsUrl = (matchCode: string) => `${WS_BASE_URL}/controller/ws/match/${matchCode}`;
+
+const createWsUrl = (matchCode: string) => `${WS_BASE_URL}/ws/${matchCode}`;
 
 
 
@@ -27,7 +31,7 @@ export const useWebSocket = (matchCode: string) => {
         ws.current = new WebSocket(url);
 
         ws.current.onopen = () => {
-            console.log(`[WS] Connected to match: ${matchCode}`);
+            logger.info(`Connected to match: ${matchCode}`);
             setIsConnected(true);
         };
 
@@ -35,24 +39,24 @@ export const useWebSocket = (matchCode: string) => {
             try {
                 const message = JSON.parse(event.data);
                 setLastMessage(message); 
-            } catch (e) {
-                console.error("[WS] Error parsing message:", e);
+            } catch (error) {
+                logger.error("Error parsing message:", error);
             }
         };
 
         ws.current.onclose = () => {
-            console.log(`[WS] Disconnected from match: ${matchCode}`);
+            logger.info(`Disconnected from match: ${matchCode}`);
             setIsConnected(false);
             setTimeout(() => {
                 if (!ws.current || ws.current.readyState === WebSocket.CLOSED) {
                     ws.current = new WebSocket(url);
-                    console.log(`[WS] Reconnecting...`);
+                    logger.info(`Reconnecting...`);
                 }
             }, 3000);
         };
 
         ws.current.onerror = (error) => {
-            console.error("[WS] WebSocket Error:", error);
+            logger.error("WebSocket Error:", error);
         };
 
         return () => {
@@ -66,10 +70,10 @@ export const useWebSocket = (matchCode: string) => {
     const sendMessage = useCallback(async (payload: WebSocketPayload): Promise<boolean> => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             ws.current.send(JSON.stringify(payload));
-            console.log("[WS] Sent payload:", payload);
+            logger.debug("Sent payload:", payload);
             return true;
         } else {
-            console.warn("[WS] Cannot send message: Not connected.");
+            logger.warn("Cannot send message: Not connected.");
             return false;
         }
     }, []);

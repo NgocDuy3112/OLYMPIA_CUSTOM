@@ -4,6 +4,8 @@ import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Plus, Power, Refres
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { createLogger } from "@/utils/logger";
+const logger = createLogger("AKhoiDongRieng");
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
@@ -122,9 +124,7 @@ const AKhoiDongRiengPage = () => {
 				const scoreJson = await scoreRes.json();
 				scoreList = scoreJson.response?.data?.scoreboard ?? [];
 			} catch (error) {
-				console.error("Failed to load scoreboard:", error);
-			}
-
+                logger.error("Failed to load scoreboard:", error);			}
 			const profileResponses = await Promise.all(
 				playersList.map((entry: any) =>
 					fetch(`${API_BASE_URL}/players/${entry.player_code}`, {
@@ -142,7 +142,7 @@ const AKhoiDongRiengPage = () => {
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 		} catch (error) {
-			console.error("Failed to load players:", error);
+			logger.error("Failed to load players:", error);
 		}
 	}, [buildPlayersSnapshot, currentMatchCode, token]);
 
@@ -173,7 +173,7 @@ const AKhoiDongRiengPage = () => {
 				const data = await res.json();
 				setCurrentQuestion(mapQuestionPayload(data.response?.data, questionCode));
 			} catch (error) {
-				console.error("Failed to load question:", error);
+				logger.error("Failed to load question:", error);
 				setCurrentQuestion(mapQuestionPayload(null, questionCode));
 			}
 		},
@@ -197,7 +197,7 @@ const AKhoiDongRiengPage = () => {
 					},
 				});
 			} catch (error) {
-				console.error("Failed to broadcast question:", error);
+				logger.error("Failed to broadcast question:", error);
 			}
 		},
 		[currentMatchCode, token],
@@ -215,7 +215,7 @@ const AKhoiDongRiengPage = () => {
 				},
 			});
 		} catch (error) {
-			console.error("Failed to clear question:", error);
+			logger.error("Failed to clear question:", error);
 		}
 	}, [currentMatchCode, token]);
 
@@ -228,7 +228,7 @@ const AKhoiDongRiengPage = () => {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 		} catch (error) {
-			console.error("Failed to reset buzz state:", error);
+			logger.error("Failed to reset buzz state:", error);
 		}
 	}, [currentMatchCode, token]);
 
@@ -252,7 +252,7 @@ const AKhoiDongRiengPage = () => {
 				body: JSON.stringify({ path: `/contestant/lncn` }),
 			});
 		} catch (error) {
-			console.error("Failed to start turn:", error);
+			logger.error("Failed to start turn:", error);
 		}
 	}, [clearQuestion, currentMatchCode, resetBuzz, token]);
 
@@ -277,7 +277,7 @@ const AKhoiDongRiengPage = () => {
 				body: JSON.stringify({ path: `/contestant/waiting` }),
 			});
 		} catch (error) {
-			console.error("Failed to end turn:", error);
+			logger.error("Failed to end turn:", error);
 		}
 	}, [clearQuestion, currentMatchCode, resetBuzz, token]);
 
@@ -300,7 +300,7 @@ const AKhoiDongRiengPage = () => {
 					body: JSON.stringify({ time_limit: TIME_LIMIT }),
 				});
 			} catch (error) {
-				console.error("Failed to start the clock:", error);
+				logger.error("Failed to start the clock:", error);
 			}
 		},
 		[currentMatchCode, token],
@@ -357,7 +357,7 @@ const AKhoiDongRiengPage = () => {
 					}),
 				);
 			} catch (error) {
-				console.error("Failed to update score:", error);
+				logger.error("Failed to update score:", error);
 			}
 		},
 		[currentMatchCode, currentPlayerIndex, currentQuestionIndex, token],
