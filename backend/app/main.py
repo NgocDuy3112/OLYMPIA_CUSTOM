@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from api import (
+from routes import (
     auth, 
     user,
     match, 
@@ -59,9 +59,7 @@ app.include_router(leaderboard.router)
 
 
 
-@app.websocket(
-    "/ws/{match_code}",
-)
+@app.websocket("/ws/{match_code}")
 async def websocket_endpoint(websocket: WebSocket, match_code: str):
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code)
