@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useState } from "react";
-import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Plus, Power, RefreshCw } from "lucide-react";
+import { 
+	AlarmClockCheck, 
+	CheckCheck,
+	Check, 
+	Power, 
+	RefreshCw, 
+	CircleX, 
+	ArrowRightFromLine 
+} from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -41,6 +49,10 @@ const AKhoiDongChungPage = () => {
 	const [timer, setTimer] = useState<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+	const [isSecondAttempt, setIsSecondAttempt] = useState<boolean>(false);
+
+	const hasQuestionSelected = currentQuestionIndex > 0;
+	const questionTitle = `KHỞI ĐỘNG - LƯỢT CHUNG${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
 
 	const buildPlayersSnapshot = useCallback(
 		(
@@ -150,11 +162,6 @@ const AKhoiDongChungPage = () => {
 	const resolveQuestionCode = useCallback((questionIndex: number) => {
 		return `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`;
 	}, []);
-
-	// Removed getStartClockUrl helper – URL is constructed inline where needed.
-
-	// Helper to build the start_clock endpoint URL for a given question code.
-	// The match code is derived from localStorage and is available in the component scope.
 
 	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
 		return {
@@ -347,6 +354,16 @@ const AKhoiDongChungPage = () => {
 		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token],
 	);
 
+	const handleNextQuestion = useCallback(() => {
+		const nextIndex = currentQuestionIndex > 0 ? (currentQuestionIndex < MAX_QUESTION_INDEX ? currentQuestionIndex + 1 : currentQuestionIndex) : 1;
+		if (nextIndex === currentQuestionIndex && currentQuestionIndex !== 0) return;
+		
+		setCurrentQuestionIndex(nextIndex);
+		void loadQuestion(nextIndex);
+		void sendQuestionToContestants(nextIndex);
+		setIsSecondAttempt(false);
+	}, [currentQuestionIndex, loadQuestion, sendQuestionToContestants]);
+
 	useEffect(() => {
 		startTransition(() => {
 			void loadPlayersState();
@@ -432,9 +449,6 @@ const AKhoiDongChungPage = () => {
 		}
 	}, [applyPlayersSnapshot, lastMessage]);
 
-	const hasQuestionSelected = currentQuestionIndex > 0;
-	const questionTitle = `KHỞI ĐỘNG - LƯỢT CHUNG${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
-
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}
@@ -455,57 +469,62 @@ const AKhoiDongChungPage = () => {
 					</button>
 					<button
 						onClick={() => {
-							const prevIndex = Math.max(1, currentQuestionIndex - 1 || 1);
-							setCurrentQuestionIndex(prevIndex);
-							void loadQuestion(prevIndex);
-							void sendQuestionToContestants(prevIndex);
+							const activePlayer = players.find((p) => p.playerHasBuzzed);
+							if (!activePlayer) return;
+							const score = !isSecondAttempt ? 10 : 5;
+							void handleAddScore(activePlayer.playerCode, score);
+							handleNextQuestion();
 						}}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={currentQuestionIndex <= 1}
+						disabled={!hasQuestionSelected || !players.some(p => p.playerHasBuzzed)}
 					>
-						<ArrowLeftToLine size={18} />
-						<span className="ml-2 font-bold">CÂU HỎI TRƯỚC ĐÓ</span>
+						{!isSecondAttempt ? <CheckCheck size={18} /> : <Check size={18} />}
+						<span className="ml-2 font-bold">{!isSecondAttempt ? "CỘNG 10 ĐIỂM" : "CỘNG 5 ĐIỂM"}</span>
 					</button>
 					<button
 						onClick={() => {
-							const nextIndex = currentQuestionIndex > 0 ? currentQuestionIndex + 1 : 1;
-							if (nextIndex > MAX_QUESTION_INDEX) return;
-							setCurrentQuestionIndex(nextIndex);
-							void loadQuestion(nextIndex);
-							void sendQuestionToContestants(nextIndex);
+							if (!isSecondAttempt) {
+								setIsSecondAttempt(true);
+							} else {
+								handleNextQuestion();
+							}
 						}}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={currentQuestionIndex >= MAX_QUESTION_INDEX}
+						disabled={!hasQuestionSelected || !players.some(p => p.playerHasBuzzed)}
 					>
-						<ArrowRightToLine size={18} />
-						<span className="ml-2 font-bold">CÂU HỎI TIẾP THEO</span>
+						<CircleX size={18} />
+						<span className="ml-2 font-bold">{!isSecondAttempt ? "SAI LẦN 1" : "SAI LẦN 2"}</span>
+					</button>
+					<button
+						onClick={() => {
+							handleNextQuestion();
+						}}
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						disabled={!hasQuestionSelected || !players.some(p => p.playerHasBuzzed)}
+					>
+						<ArrowRightFromLine size={18} />
+						<span className="ml-2 font-bold">BỎ QUA</span>
 					</button>
 				</>
 			}
 			bottomActionButtons={
 				<>
 					<button
-						onClick={() => {
-							void handleStartRound();
-						}}
+						onClick={() => { handleStartRound() }}
 						className="bg-blue-900 ring-blue-600 ring-3 w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU LƯỢT THI</span>
 					</button>
 					<button
-						onClick={() => {
-							void loadPlayersState();
-						}}
+						onClick={() => { loadPlayersState()}}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT ĐIỂM SỐ</span>
 					</button>
 					<button
-						onClick={() => {
-							void handleEndRound();
-						}}
+						onClick={() => {handleEndRound()}}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<Power size={18} />
@@ -517,26 +536,7 @@ const AKhoiDongChungPage = () => {
 				players.map((player) => (
 					<div className="flex flex-col gap-3" key={player.playerCode}>
 						<APlayerBar player={player} isActive={false} />
-						<div className="flex flex-row pt-3 gap-3 justify-center">
-							<button
-								onClick={() => {
-									void handleAddScore(player.playerCode, 10);
-								}}
-								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 text-[18px] flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
-							>
-								<Plus size={18} />
-								<span className="ml-2 font-bold">CỘNG 10</span>
-							</button>
-							<button
-								onClick={() => {
-									void handleAddScore(player.playerCode, 5);
-								}}
-								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
-							>
-								<Plus size={18} />
-								<span className="ml-2 font-bold">CỘNG 5</span>
-							</button>
-						</div>
+						
 					</div>
 				))
 			}

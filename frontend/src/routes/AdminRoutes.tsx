@@ -1,8 +1,9 @@
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
+import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 
 
 interface AProtectedRouteProps {
@@ -11,12 +12,10 @@ interface AProtectedRouteProps {
 
 
 export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }) => {
-    const { adminCode } = useParams<{ adminCode: string }>();
-    // admin token and adminCode are stored in localStorage elsewhere in the app
     const token = localStorage.getItem("jwtToken_admin");
-    const storedAdmin = localStorage.getItem("adminCode");
+    const role = localStorage.getItem("role");
 
-    if (!token || !storedAdmin || (adminCode && adminCode !== storedAdmin)) {
+    if (!token || role !== "admin") {
         return <Navigate to="/login" replace />;
     }
 
@@ -31,7 +30,7 @@ const AdminRoutes = () => {
             <Route path="/" element={<Navigate to="/admin/waiting" replace />} />
             {/* <Route path="/dashboard" element={} /> */}
             <Route
-                path="/kdc/:matchCode/:adminCode"
+                path="/kdc/:matchCode"
                 element={
                     <ProtectedAdminRoute>
                         <AKhoiDongChungPage />
@@ -39,7 +38,7 @@ const AdminRoutes = () => {
                 }
             />
             <Route
-                path="/kdr/:matchCode/:adminCode"
+                path="/kdr/:matchCode"
                 element={
                     <ProtectedAdminRoute>
                         <AKhoiDongRiengPage />
@@ -47,10 +46,18 @@ const AdminRoutes = () => {
                 }
             />
             <Route
-                path="/bp/:matchCode/:adminCode"
+                path="/bp/:matchCode"
                 element={
                     <ProtectedAdminRoute>
                         <AButPhaPage />
+                    </ProtectedAdminRoute>
+                }
+            />
+            <Route
+                path="/game-managing"
+                element={
+                    <ProtectedAdminRoute>
+                        <AGameManagingPage />
                     </ProtectedAdminRoute>
                 }
             />

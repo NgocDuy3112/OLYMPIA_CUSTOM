@@ -23,7 +23,7 @@ const AdminGameplayNavBar: React.FC = () => {
 
     const navLinks = [
         { label: "Tạo Trận", path: "/admin/setup" },
-        { label: "Vào Phòng", path: "/admin/access" },
+        { label: "Vào Phòng", path: "/admin/game-managing" },
     ];
 
     const vongThiItems = [
@@ -53,7 +53,7 @@ const AdminGameplayNavBar: React.FC = () => {
                 {/* Logo */}
                 <div
                     className="flex items-center gap-2 cursor-pointer"
-                    onClick={() => navigate("/admin/access")}
+                    onClick={() => navigate("/admin/game-managing")}
                 >
                     <span className="text-[32px] font-bold font-[SVN-Gratelos_Display]">
                         OLYMPIA CUSTOM 3

@@ -8,13 +8,13 @@ export const useAuthSession = () => {
         const { access_token, role, player_code } = data;
 
         // Clear previous sessions
-        localStorage.removeItem("jwtToken_admin");
-        sessionStorage.removeItem("jwtToken_player");
+        localStorage.clear();
+        sessionStorage.clear();
 
         if (role === "admin") {
             localStorage.setItem("jwtToken_admin", access_token);
             localStorage.setItem("role", role);
-            navigate("/admin/dashboard");
+            navigate("/admin/game-managing");
         } else {
             sessionStorage.setItem("jwtToken_player", access_token);
             sessionStorage.setItem("role", role);

@@ -15,6 +15,7 @@ const TIME_LIMIT = 15;
 const MAX_QUESTION_INDEX = 4;
 const QUESTION_PREFIX = "BP"; // Bứt Phá question naming convention.
 
+
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
 	questionText: "",
