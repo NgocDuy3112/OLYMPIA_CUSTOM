@@ -46,6 +46,8 @@ class ValkeySettings(BaseSettings):
     VALKEY_PASSWORD: str
     VALKEY_HOST: str
     VALKEY_PORT: int
+    VALKEY_TIMEOUT: float = 5.0
+    VALKEY_HEALTH_CHECK_INTERVAL: int = 30
 
     @computed_field
     @property

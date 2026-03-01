@@ -24,6 +24,19 @@ export const useWebSocket = (matchCode: string) => {
     const [lastMessage, setLastMessage] = useState<any>(null); 
 
     useEffect(() => {
+        // Do not attempt to connect if matchCode is falsy — connecting to `/ws/` (no code)
+        // will result in a 403 from the server because the path param is required.
+        if (!matchCode) {
+            logger.info("No matchCode provided, skipping WebSocket connection");
+            if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+                ws.current.close();
+            }
+            ws.current = null;
+            setIsConnected(false);
+            setLastMessage(null);
+            return;
+        }
+
         const url = createWsUrl(matchCode);
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
             ws.current.close();

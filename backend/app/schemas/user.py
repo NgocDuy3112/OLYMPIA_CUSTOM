@@ -31,6 +31,12 @@ class UserChangePassword(BaseModel):
     new_password: str
 
 
+class UserUpdateRequest(BaseModel):
+    user_name: str | None = None
+    role: Role | None = None
+    new_password: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

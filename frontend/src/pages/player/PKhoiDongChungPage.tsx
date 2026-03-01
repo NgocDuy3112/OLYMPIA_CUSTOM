@@ -50,7 +50,7 @@ const PKhoiDongChungPage = () => {
 					return {
 						playerCode: code,
 						playerName: profile?.player_name ?? "",
-						playerScore: score?.total_d_score ?? score?.new_total_score ?? 0,
+						playerScore: score?.cummulative_score ?? score?.new_total_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: undefined,
@@ -161,4 +161,3 @@ const PKhoiDongChungPage = () => {
 };
 
 export default PKhoiDongChungPage;
-

@@ -77,8 +77,8 @@ previousPlayers: PlayerStatus[],
 					const scoreInfo = scoreMap.get(code) ?? {};
 
 					const resolvedScore =
-						typeof scoreInfo.total_d_score === "number"
-							? scoreInfo.total_d_score
+						typeof scoreInfo.cummulative_score === "number"
+							? scoreInfo.cummulative_score
 							: typeof scoreInfo.new_total_score === "number"
 								? scoreInfo.new_total_score
 								: previous?.playerScore ?? 0;
@@ -332,7 +332,7 @@ Authorization: `Bearer ${token}`,
 				const scoreboard = recentJson.response?.data ?? [];
 				setPlayers((prev) =>
 					prev.map((player) => {
-						const updatedScore = scoreboard.find((item: any) => item.player_code === player.playerCode)?.total_d_score;
+						const updatedScore = scoreboard.find((item: any) => item.player_code === player.playerCode)?.cummulative_score;
 						return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
 					}),
 				);

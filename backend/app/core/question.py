@@ -68,7 +68,7 @@ async def post_question_to_db(
 ) -> BaseResponse:
     global_logger.info(f"POST request received to add question with code: {request.question_code}.")
     try:
-        match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code))
+        match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
         if match_id is None:
             log_message = f"No match found with match_code={request.match_code}."
             global_logger.warning(log_message)
@@ -113,7 +113,8 @@ async def get_question_from_request_from_db(
     try:
         if question_code is not None:
             query = select(Question).where(
-                Question.question_code == question_code and 
+                Question.question_code == question_code,
+                Question.is_deleted == False,
                 Question.match_id == select(Match.id).where(
                     Match.match_code == match_code)
                 .scalar_subquery()
@@ -133,6 +134,7 @@ async def get_question_from_request_from_db(
             }
         else:
             query = select(Question).where(
+                Question.is_deleted == False,
                 Question.match_id == select(Match.id).where(
                     Match.match_code == match_code)
                 .scalar_subquery()
@@ -160,5 +162,98 @@ async def get_question_from_request_from_db(
         raise
     except Exception as e:
         log_message = f"An unexpected error occurred while fetching question with question_code={question_code}: {str(e)}"
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)
+
+
+async def delete_question_from_db(match_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
+    """Soft delete a question from DB by setting is_deleted=True."""
+    global_logger.info(f"Soft deleting question with question_code={question_code} in match_code={match_code} from database.")
+    try:
+        # Find match_id first to ensure question belongs to the correct match
+        match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False))
+        if match_id is None:
+            log_message = f"No active match found with match_code={match_code}."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        query = select(Question).where(
+            Question.question_code == question_code,
+            Question.match_id == match_id,
+            Question.is_deleted == False
+        )
+        result = await session.execute(query)
+        question = result.scalars().one_or_none()
+
+        if question is None:
+            log_message = f"No active question found with question_code={question_code} in match_code={match_code} to delete."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        question.is_deleted = True
+        await session.commit()
+
+        log_message = f"Question with question_code={question_code} in match_code={match_code} has been soft deleted successfully."
+        global_logger.info(log_message)
+        return BaseResponse(
+            status='success',
+            message=log_message
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while deleting question with question_code={question_code}."
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)
+
+
+async def patch_question_to_db(
+    match_code: str,
+    question_code: str,
+    request: QuestionUpdateRequest,
+    session: AsyncSession,
+) -> BaseResponse:
+    global_logger.info(f"PATCH request received to update question_code={question_code} in match_code={match_code}.")
+    try:
+        match_id = await session.scalar(
+            select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False)
+        )
+        if match_id is None:
+            log_message = f"No active match found with match_code={match_code}."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        result = await session.execute(
+            select(Question).where(
+                Question.question_code == question_code,
+                Question.match_id == match_id,
+                Question.is_deleted == False,
+            )
+        )
+        question = result.scalar_one_or_none()
+        if question is None:
+            log_message = f"No active question found with question_code={question_code} in match_code={match_code}."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        if request.content is not None:
+            question.content = request.content
+        if request.answer is not None:
+            question.answer = request.answer
+        if request.explanation is not None:
+            question.explanation = request.explanation
+        if request.media_urls is not None:
+            question.media_urls = request.media_urls
+
+        await session.commit()
+        log_message = f"Question updated successfully for question_code={question_code} in match_code={match_code}."
+        global_logger.info(log_message)
+        return BaseResponse(status='success', message=log_message)
+    except HTTPException:
+        raise
+    except Exception:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while updating question with question_code={question_code}."
         global_logger.exception(log_message)
         raise HTTPException(status_code=500, detail=log_message)

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Query, Depends
+from typing import Annotated
 
 from dependencies.postgresql_db import get_db
 from dependencies.valkey_store import get_valkey
@@ -43,8 +44,8 @@ async def post_record(
     status_code=200
 )
 async def get_records(
-    match_code: str = Query(..., description="Mã trận đấu, phải bắt đầu với 'OC3_M'"),
-    player_code: str = Query(..., description="Mã người chơi, phải bắt đầu với 'OC_U'"),
+    match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OC3_M'")],
+    player_code: Annotated[str, Query(..., description="Mã người chơi, phải bắt đầu với 'OC_U'")],
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     """

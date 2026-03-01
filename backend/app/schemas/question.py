@@ -31,3 +31,10 @@ class QuestionPostRequest(BaseRequest):
                 if not (url.startswith("http://") or url.startswith("https://")):
                     raise ValueError(f"Invalid media URL: {url}")
         return value
+
+
+class QuestionUpdateRequest(BaseModel):
+    content: str | None = None
+    answer: str | None = None
+    explanation: str | None = None
+    media_urls: list[str] | None = None

@@ -1,11 +1,13 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
 
 from logger import global_logger
 from models.user import User, RoleEnum
 from schemas.user import *
 from configs import *
+from core.auth import hash_password
 
 
 async def get_user_from_request_from_db(
@@ -77,3 +79,72 @@ async def get_user_from_request_from_db(
         raise HTTPException(
             status_code=500, detail=log_message
         )
+
+
+async def delete_user_from_db(user_code: str, session: AsyncSession) -> BaseResponse:
+    """Soft delete a user from DB by setting is_deleted=True."""
+    global_logger.info(f"Soft deleting user with user_code={user_code} from database.")
+    try:
+        query = select(User).where(User.user_code == user_code, User.is_deleted == False)
+        result = await session.execute(query)
+        user = result.scalars().one_or_none()
+
+        if user is None:
+            log_message = f"No active user found with user_code={user_code} to delete."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        user.is_deleted = True
+        await session.commit()
+
+        log_message = f"User with user_code={user_code} has been soft deleted successfully."
+        global_logger.info(log_message)
+        return BaseResponse(
+            status='success',
+            message=log_message
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while deleting user with user_code={user_code}."
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)
+
+
+async def patch_user_to_db(
+    user_code: str,
+    request: UserUpdateRequest,
+    session: AsyncSession
+) -> BaseResponse:
+    global_logger.info(f"Updating user {user_code} in database.")
+    try:
+        query = select(User).where(User.user_code == user_code, User.is_deleted == False)
+        result = await session.execute(query)
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            log_message = f"No active user found with user_code {user_code}."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        if request.user_name is not None:
+            user.user_name = request.user_name
+
+        if request.role is not None:
+            user.role = RoleEnum(request.role)
+
+        if request.new_password is not None:
+            user.hashed_password = hash_password(request.new_password)
+
+        await session.commit()
+        log_message = f"User {user_code} updated successfully."
+        global_logger.info(log_message)
+        return BaseResponse(status='success', message=log_message)
+    except HTTPException:
+        raise
+    except Exception:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while updating user {user_code}."
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)

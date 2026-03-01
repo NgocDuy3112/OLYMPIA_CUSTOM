@@ -27,9 +27,9 @@ async def post_record_to_db(
         # Find user ID
         user_id = await session.scalar(
             select(User.id).where(
-                User.user_code == request.player_code 
-                and User.role == RoleEnum.player
-                and User.is_deleted == False
+                User.user_code == request.player_code,
+                User.role == RoleEnum.player,
+                User.is_deleted == False,
             )
         )
         if user_id is None:
@@ -39,8 +39,8 @@ async def post_record_to_db(
         # Find match ID
         match_id = await session.scalar(
             select(Match.id).where(
-                Match.match_code == request.match_code
-                and Match.is_deleted == False
+                Match.match_code == request.match_code,
+                Match.is_deleted == False,
             )
         )
         if match_id is None:
@@ -50,8 +50,8 @@ async def post_record_to_db(
         # Find question ID
         question_id = await session.scalar(
             select(Question.id).where(
-                Question.question_code == request.question_code
-                and Question.is_deleted == False
+                Question.question_code == request.question_code,
+                Question.is_deleted == False,
             )
         )
         if question_id is None:
@@ -60,11 +60,12 @@ async def post_record_to_db(
             raise HTTPException(status_code=404, detail=log_message)
         # Now create the record
         new_record = Record(
-            user_id = user_id,
+            player_id = user_id,
             match_id = match_id,
             question_id = question_id,
             points = request.points,
         )
+        session.add(new_record)
         await session.commit()
         await session.refresh(new_record)
         log_message = f"Record created successfully for player_code={request.player_code}, match_code={request.match_code}, question_code={request.question_code}."

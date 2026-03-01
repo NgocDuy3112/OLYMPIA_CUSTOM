@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Annotated
 
 from dependencies.postgresql_db import get_db
@@ -28,6 +28,47 @@ async def post_match(
     """
     try:
         return await post_match_to_db(request, session)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.patch(
+    "/{match_code}",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def patch_match(
+    match_code: str,
+    request: MatchUpdateRequest,
+    session: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    """
+    Update a match. Accessible only by admin.
+    """
+    return await patch_match_to_db(match_code, request, session)
+
+
+@router.delete(
+    "/{match_code}",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def delete_match(
+    match_code: str,
+    session: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    """
+    Endpoint to delete a match based on the provided match code.
+    Accessible only by users with the 'admin' role.
+    """
+    try:
+        return await delete_match_from_db(match_code, session)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -38,19 +79,43 @@ async def post_match(
 @router.get(
     "/",
     dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse,
+    response_model=MatchRoomResponse,
     status_code=200
 )
 async def get_match_by_match_code(
     match_code: str,
     session: AsyncSession = Depends(get_db)
-) -> BaseResponse:
+) -> MatchRoomResponse:
     """
     Endpoint to fetch matches by their match code.
     Accessible only by users with the 'admin' role.
     """
     try:
         return await get_match_by_match_code_from_db(match_code, session)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+
+@router.get(
+    "/{match_code}/players",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def get_players_for_match(
+    match_code: str,
+    session: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    """Endpoint to fetch players of a match by match code."""
+    try:
+        return await get_players_by_match_from_db(match_code, session)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

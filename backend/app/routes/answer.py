@@ -32,6 +32,32 @@ async def post_answer(
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
+@router.delete(
+    "/{match_code}/{player_code}/{question_code}",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def delete_answer(
+    match_code: str,
+    player_code: str,
+    question_code: str,
+    session: Annotated[AsyncSession, Depends(get_db)]
+) -> BaseResponse:
+    """
+    Endpoint to delete an answer based on the provided match, player, and question codes.
+    Accessible only by users with the 'admin' role.
+    """
+    try:
+        return await delete_answer_from_db(match_code, player_code, question_code, session)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
 
 @router.get(
     "/",

@@ -33,7 +33,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 
 async def signup(user_data: UserCreate, session: AsyncSession) -> TokenResponse:
-    result = await session.execute(select(User).where(User.user_name == user_data.user_name or User.user_code == user_data.user_code))
+    result = await session.execute(select(User).where((User.user_name == user_data.user_name) | (User.user_code == user_data.user_code)))
     existing_user = result.scalar_one_or_none()
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")

@@ -6,6 +6,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
 import PButPhaPage from "@/pages/player/PButPhaPage";
+import PGameAccessPage from "@/pages/player/PGameAccessPage";
 
 
 
@@ -65,8 +66,7 @@ const PlayerRoutes = () => {
                 <Routes>
                 <Route path="/" element={<Navigate to="/player/waiting" replace />} />
                 
-                {/* <Route path="/access" element={<GameAccessPage />} />
-                <Route path="/waiting/:matchCode/:playerCode" element={<WaitingPage />} /> */}
+                <Route path="/access" element={<PGameAccessPage />} />
                 <Route
                     path="/kdc/:matchCode/:playerCode"
                     element={

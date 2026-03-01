@@ -3,6 +3,7 @@
 secrets/
 configs/
 database/
+docs/
 logs/
 temp/
 *.log

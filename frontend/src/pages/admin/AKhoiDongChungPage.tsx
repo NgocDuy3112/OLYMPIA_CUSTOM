@@ -41,7 +41,27 @@ function unwrapWsMessage(message: any): any {
 
 
 const AKhoiDongChungPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode") ?? "";
+	// Prefer matchCode from localStorage, but fall back to URL path (e.g. /admin/kdc/OC3_M01T)
+	const currentMatchCode = (() => {
+		try {
+			const stored = localStorage.getItem("matchCode");
+			if (stored && stored.length > 0) return stored;
+			const parts = window.location.pathname.split("/").filter(Boolean);
+			const last = parts.length > 0 ? parts[parts.length - 1] : "";
+			if (last && /^OC3_/.test(last)) {
+				// persist for later navigations
+				try {
+					localStorage.setItem("matchCode", last);
+				} catch (err) {
+					logger.debug("Could not persist matchCode to localStorage:", err);
+				}
+				return last;
+			}
+			return "";
+		} catch {
+			return "";
+		}
+	})();
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage } = useWebSocket(currentMatchCode);
 
@@ -88,8 +108,8 @@ const AKhoiDongChungPage = () => {
 					const scoreInfo = scoreMap.get(code) ?? {};
 
 					const resolvedScore =
-						typeof scoreInfo.total_d_score === "number"
-							? scoreInfo.total_d_score
+						typeof scoreInfo.cummulative_score === "number"
+							? scoreInfo.cummulative_score
 							: typeof scoreInfo.new_total_score === "number"
 								? scoreInfo.new_total_score
 								: previous?.playerScore ?? 0;
@@ -128,7 +148,7 @@ const AKhoiDongChungPage = () => {
 			const playersList = playersJson.response?.data?.players ?? [];
 
 			let scoreList: any[] = [];
-			try {
+				try {
 				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
 					headers: { Authorization: `Bearer ${token}` },
 				});
@@ -343,7 +363,7 @@ const AKhoiDongChungPage = () => {
 				const scoreboard = recentJson.response?.data ?? [];
 				setPlayers((prev) =>
 					prev.map((player) => {
-						const updatedScore = scoreboard.find((item: any) => item.player_code === player.playerCode)?.total_d_score;
+						const updatedScore = scoreboard.find((item: any) => item.player_code === player.playerCode)?.cummulative_score;
 						return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
 					}),
 				);

@@ -8,6 +8,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB_NAME}
     ports:
       - "${POSTGRES_DB_PORT}:5432"
+    env_file:
+      - ./configs/.env
     volumes:
       - ./database/postgresql/oc3:/var/lib/postgresql/data
     networks:
@@ -19,12 +21,12 @@ services:
   valkey:
     container_name: valkey
     image: valkey/valkey:9-alpine
-    command: >
-      valkey-server 
-      --requirepass ${VALKEY_PASSWORD}
-      --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* +@all
     ports:
-      - "${VALKEY_PORT}:6379"
+      - "6379:6379"
+    volumes:
+      - ./configs/valkey.conf:/configs/valkey.conf
+      - ./database/valkey:/data
+    command: valkey-server /configs/valkey.conf
     networks:
       - olympia-custom-network
     profiles:
@@ -35,11 +37,18 @@ services:
     container_name: app
     build:
       context: ./backend/app
+    working_dir: /backend/app
     volumes:
       - ./backend/app:/backend/app
+      - ./configs/.env:/backend/app/.env
+    environment:
+      - ENV_FILE=/backend/app/.env
+      - PYTHONPATH=/backend/app
     depends_on:
-      - postgresql
-      - valkey
+      postgresql:
+        condition: service_started
+      valkey:
+        condition: service_started
     ports:
       - "8000:8000"
     networks:
@@ -51,6 +60,3 @@ services:
 networks:
   olympia-custom-network:
     driver: bridge
-
-volumes:
-  postgres_data:

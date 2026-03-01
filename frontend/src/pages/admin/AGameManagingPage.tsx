@@ -145,34 +145,44 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, matchCode]);
 
-    // ── Create match (POST /matches) ─────────────────────────────────
+    // ── Create or Update match (PATCH /matches/{match_code}) ─────────
     const createMatch = useCallback(async () => {
         if (!matchCode || !matchName) return;
         setMatchLoading(true);
+
+        // Map userCodes to MatchPlayerAssignment format expected by backend
+        const players = userCodes
+            .map((code, index) => ({
+                player_code: code.trim(),
+                position: index + 1,
+            }))
+            .filter((p) => p.player_code !== "");
+
         try {
-            const res = await fetch(`${API_BASE_URL}/matches/`, {
-                method: "POST",
+            const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}`, {
+                method: "PATCH",
                 headers: authHeaders(),
                 body: JSON.stringify({
-                    match_code: matchCode,
                     match_name: matchName,
+                    players: players,
                 }),
             });
             const json: ApiResponse = await res.json();
             if (json.status === "success") {
-                logger.info("Match created:", matchCode);
+                logger.info("Match updated/created:", matchCode);
                 setMatchExists(true);
                 localStorage.setItem("matchCode", matchCode);
+                alert(matchExists ? "Cập nhật phòng thành công" : "Tạo/Cập nhật phòng thành công");
             } else {
-                logger.warn("Create match failed:", json.message);
+                logger.warn("Match operation failed:", json.message);
                 alert(json.message);
             }
         } catch (err) {
-            logger.error("Error creating match:", err);
+            logger.error("Error updating match:", err);
         } finally {
             setMatchLoading(false);
         }
-    }, [authHeaders, matchCode, matchName]);
+    }, [authHeaders, matchCode, matchName, userCodes, matchExists]);
 
     // ── Fetch questions (GET /questions?match_code=...&question_code=)
     const fetchQuestions = useCallback(async () => {

@@ -8,8 +8,8 @@ from routes import (
     match, 
     answer,
     question, 
-    record, 
-    leaderboard
+    record,
+    scoreboard
 )
 from dependencies.postgresql_db import *
 from dependencies.valkey_store import get_valkey
@@ -22,19 +22,38 @@ from logger import global_logger
 async def lifespan(app: FastAPI):
     # Startup code
     global_logger.info("Application startup: Database engine initialized")
-    valkey = await get_valkey()
+    
+    valkey = None
     manager = await get_ws_manager()
-    manager.set_valkey(valkey)
-    global_logger.info("WebSocket Connection Manager initialized with Valkey.")
+    
+    try:
+        valkey = await get_valkey()
+        manager.set_valkey(valkey)
+        global_logger.info("WebSocket Connection Manager initialized with Valkey.")
+    except Exception as e:
+        global_logger.error(
+            f"Failed to initialize Valkey connection: {str(e)}. "
+            f"WebSocket pub/sub features will be unavailable. "
+            f"Please verify VALKEY_HOST, VALKEY_PORT and VALKEY_PASSWORD environment variables.",
+            exc_info=True
+        )
+        # Continue startup without Valkey - REST API will still work
+    
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         global_logger.info("Database tables ensured.")
+    
     yield
+    
     # Cleanup code
     global_logger.info("Application Shutdown: Disposing of database engine.")
     if valkey:
-        await valkey.close()
-        global_logger.info("Valkey connection pool closed.")
+        try:
+            await valkey.close()
+            global_logger.info("Valkey connection pool closed.")
+        except Exception as e:
+            global_logger.warning(f"Error closing Valkey connection: {e}")
+    
     if engine: 
         await engine.dispose()
         global_logger.info("Database engine disposed.")
@@ -55,7 +74,7 @@ app.include_router(match.router)
 app.include_router(answer.router)
 app.include_router(question.router)
 app.include_router(record.router)
-app.include_router(leaderboard.router)
+app.include_router(scoreboard.router)
 
 
 
