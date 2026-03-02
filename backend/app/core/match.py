@@ -35,13 +35,13 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
         if request.players:
             for p_assignment in request.players:
                 # Find player by user_code
-                user_query = select(User).where(User.user_code == p_assignment.player_code, User.is_deleted == False)
+                user_query = select(User).where(User.user_code == p_assignment.user_code, User.is_deleted == False)
                 user_res = await session.execute(user_query)
                 user = user_res.scalar_one_or_none()
-                
+
                 if not user:
-                    raise HTTPException(status_code=404, detail=f"Player with code {p_assignment.player_code} not found")
-                
+                    raise HTTPException(status_code=404, detail=f"Player with code {p_assignment.user_code} not found")
+
                 match_player = MatchPlayerPosition(
                     match_id=new_match.id,
                     player_id=user.id,
@@ -105,19 +105,19 @@ async def patch_match_to_db(
             for assignment in request.players:
                 if assignment.position in seen_positions:
                     raise HTTPException(status_code=400, detail=f"Duplicate position={assignment.position} in players payload")
-                if assignment.player_code in seen_players:
-                    raise HTTPException(status_code=400, detail=f"Duplicate player_code={assignment.player_code} in players payload")
+                if assignment.user_code in seen_players:
+                    raise HTTPException(status_code=400, detail=f"Duplicate user_code={assignment.user_code} in players payload")
                 seen_positions.add(assignment.position)
-                seen_players.add(assignment.player_code)
+                seen_players.add(assignment.user_code)
 
             # Insert new room config
             for assignment in request.players:
                 user_result = await session.execute(
-                    select(User).where(User.user_code == assignment.player_code, User.is_deleted == False)
+                    select(User).where(User.user_code == assignment.user_code, User.is_deleted == False)
                 )
                 user = user_result.scalar_one_or_none()
                 if not user:
-                    raise HTTPException(status_code=404, detail=f"Player with code {assignment.player_code} not found")
+                    raise HTTPException(status_code=404, detail=f"Player with code {assignment.user_code} not found")
 
                 session.add(
                     MatchPlayerPosition(
@@ -193,7 +193,7 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
 
         players_data = [
             MatchPlayerInRoom(
-                player_code=pp.user.user_code,
+                user_code=pp.user.user_code,
                 user_name=pp.user.user_name,
                 position=pp.position
             )
@@ -239,7 +239,7 @@ async def get_players_by_match_from_db(match_code: str, session: AsyncSession) -
 
         players_data = [
             MatchPlayerInRoom(
-                player_code=pp.user.user_code,
+                user_code=pp.user.user_code,
                 user_name=pp.user.user_name,
                 position=pp.position,
             )

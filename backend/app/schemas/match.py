@@ -3,7 +3,7 @@ from schemas.base import *
 
 
 class MatchPlayerAssignment(BaseModel):
-    player_code: str
+    user_code: str
     position: int
 
 
@@ -21,7 +21,7 @@ class MatchInfoPostRequest(BaseRequest):
 
 
 class MatchPlayerInRoom(BaseModel):
-    player_code: str
+    user_code: str
     user_name: str
     position: int
 

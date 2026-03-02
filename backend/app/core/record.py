@@ -18,22 +18,22 @@ async def post_record_to_db(
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    log_message = f"POST request received to create record for player_code: {request.player_code}, match_code: {request.match_code}, question_code: {request.question_code}."
+    log_message = f"POST request received to create record for user_code: {request.user_code}, match_code: {request.match_code}, question_code: {request.question_code}."
     global_logger.info(log_message)
     try:
         # Save to cache for later queries
-        await valkey.zadd(f"leaderboard:{request.match_code}", {request.player_code: request.points}, incr=True)
-        global_logger.info(f"Cached record to the leaderboard for key=record:{request.match_code}:{request.player_code}:{request.question_code} with points={request.points}.")
+        await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: request.points}, incr=True)
+        global_logger.info(f"Cached record to the leaderboard for key=record:{request.match_code}:{request.user_code}:{request.question_code} with points={request.points}.")
         # Find user ID
         user_id = await session.scalar(
             select(User.id).where(
-                User.user_code == request.player_code,
+                User.user_code == request.user_code,
                 User.role == RoleEnum.player,
                 User.is_deleted == False,
             )
         )
         if user_id is None:
-            log_message = f"Player with player_code={request.player_code} does not exist."
+            log_message = f"Player with user_code={request.user_code} does not exist."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
         # Find match ID
@@ -68,7 +68,7 @@ async def post_record_to_db(
         session.add(new_record)
         await session.commit()
         await session.refresh(new_record)
-        log_message = f"Record created successfully for player_code={request.player_code}, match_code={request.match_code}, question_code={request.question_code}."
+        log_message = f"Record created successfully for user_code={request.user_code}, match_code={request.match_code}, question_code={request.question_code}."
         global_logger.info(log_message)
         return BaseResponse(
             status='success',
@@ -77,7 +77,7 @@ async def post_record_to_db(
     except HTTPException:
         raise
     except Exception as e:
-        log_message = f"Error creating record for player_code={request.player_code}, match_code={request.match_code}, question_code={request.question_code}: {str(e)}"
+        log_message = f"Error creating record for user_code={request.user_code}, match_code={request.match_code}, question_code={request.question_code}: {str(e)}"
         await session.rollback()
         global_logger.exception(log_message)
         raise HTTPException(status_code=500, detail=log_message)
@@ -85,10 +85,10 @@ async def post_record_to_db(
 
 async def get_records_from_db(
     match_code: str,
-    player_code: str,
+    user_code: str,
     session: AsyncSession
 ) -> BaseResponse:
-    log_message = f"GET request received to fetch records for player_code: {player_code}, match_code: {match_code}."
+    log_message = f"GET request received to fetch records for user_code: {user_code}, match_code: {match_code}."
     global_logger.info(log_message)
     try:
         # Build the query
@@ -99,7 +99,7 @@ async def get_records_from_db(
         ).join(
             Match, Record.match_id == Match.id
         ).where(
-            User.user_code == player_code,
+            User.user_code == user_code,
             Match.match_code == match_code,
             User.is_deleted == False,
             Match.is_deleted == False,
@@ -107,7 +107,7 @@ async def get_records_from_db(
         )
         result = await session.execute(query)
         records = result.scalars().all()
-        log_message = f"Fetched {len(records)} records for player_code={player_code}, match_code={match_code}."
+        log_message = f"Fetched {len(records)} records for user_code={user_code}, match_code={match_code}."
         global_logger.info(log_message)
         return BaseResponse(
             status='success',
@@ -115,6 +115,6 @@ async def get_records_from_db(
             data=records
         )
     except Exception as e:
-        log_message = f"Error fetching records for player_code={player_code}, match_code={match_code}: {str(e)}"
+        log_message = f"Error fetching records for user_code={user_code}, match_code={match_code}: {str(e)}"
         global_logger.exception(log_message)
         raise HTTPException(status_code=500, detail=log_message)

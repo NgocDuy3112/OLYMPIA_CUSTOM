@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
-import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
+// import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 
@@ -37,14 +37,14 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-            <Route
+            {/* <Route
                 path="/kdr/:matchCode"
                 element={
                     <ProtectedAdminRoute>
                         <AKhoiDongRiengPage />
                     </ProtectedAdminRoute>
                 }
-            />
+            /> */}
             <Route
                 path="/bp/:matchCode"
                 element={

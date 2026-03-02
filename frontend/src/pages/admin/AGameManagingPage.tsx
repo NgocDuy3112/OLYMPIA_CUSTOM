@@ -117,14 +117,14 @@ const AGameManagingPage = () => {
                         { headers: authHeaders() },
                     );
                     const playersJson = await playersRes.json();
-                    const playersList: { player_code: string }[] =
+                    const playersList: { user_code: string }[] =
                         playersJson.response?.data?.players ??
                         playersJson.data?.players ??
                         (Array.isArray(playersJson.data) ? playersJson.data : []);
 
                     const codes = playersList
                         .slice(0, 4)
-                        .map((p) => p.player_code ?? "");
+                        .map((p) => p.user_code ?? "");
                     setUserCodes([
                         codes[0] ?? "",
                         codes[1] ?? "",
@@ -153,10 +153,10 @@ const AGameManagingPage = () => {
         // Map userCodes to MatchPlayerAssignment format expected by backend
         const players = userCodes
             .map((code, index) => ({
-                player_code: code.trim(),
+                user_code: code.trim(),
                 position: index + 1,
             }))
-            .filter((p) => p.player_code !== "");
+            .filter((p) => p.user_code !== "");
 
         try {
             const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}`, {

@@ -33,14 +33,14 @@ async def post_answer(
 
 
 @router.delete(
-    "/{match_code}/{player_code}/{question_code}",
+    "/{match_code}/{user_code}/{question_code}",
     dependencies=[Depends(require_roles(['admin']))],
     response_model=BaseResponse,
     status_code=200
 )
 async def delete_answer(
     match_code: str,
-    player_code: str,
+    user_code: str,
     question_code: str,
     session: Annotated[AsyncSession, Depends(get_db)]
 ) -> BaseResponse:
@@ -49,7 +49,7 @@ async def delete_answer(
     Accessible only by users with the 'admin' role.
     """
     try:
-        return await delete_answer_from_db(match_code, player_code, question_code, session)
+        return await delete_answer_from_db(match_code, user_code, question_code, session)
     except HTTPException:
         raise
     except ValueError as e:
@@ -67,13 +67,13 @@ async def delete_answer(
 )
 async def get_answer(
     match_code: str, 
-    player_code: str,
+    user_code: str,
     question_code: str,
     session: Annotated[AsyncSession, Depends(get_db)],
     valkey: Annotated[Valkey, Depends(get_valkey)]
 ) -> BaseResponse:
     try:
-        return await get_answer_from_db(match_code, player_code, question_code, session, valkey)
+        return await get_answer_from_db(match_code, user_code, question_code, session, valkey)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

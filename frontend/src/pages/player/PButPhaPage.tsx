@@ -44,12 +44,12 @@ const PButPhaPage = () => {
 				const profiles = msg.profiles ?? [];
 
 				const finalPlayers: PlayerStatus[] = playersList.map((p: any) => {
-					const code = String(p.player_code ?? "");
-					const profile = profiles.find((prof: any) => prof.player_code === code);
-					const score = scoreboard.find((s: any) => s.player_code === code);
+					const code = String(p.user_code ?? "");
+					const profile = profiles.find((prof: any) => prof.user_code === code);
+					const score = scoreboard.find((s: any) => s.user_code === code);
 					return {
 						playerCode: code,
-						playerName: profile?.player_name ?? "",
+						playerName: profile?.user_name ?? "",
 						playerScore: score?.cummulative_score ?? score?.new_total_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
@@ -68,10 +68,10 @@ const PButPhaPage = () => {
 			}
 
 			case "player_score_updated": {
-				if (msg.player_code && typeof msg.new_total_score === "number") {
+				if (msg.user_code && typeof msg.new_total_score === "number") {
 					setPlayers((prev) =>
 						prev.map((p) =>
-							p.playerCode === msg.player_code ? { ...p, playerScore: msg.new_total_score } : p,
+							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
 						),
 					);
 				}
@@ -95,7 +95,7 @@ const PButPhaPage = () => {
 				const answers = msg.answers ?? [];
 				setPlayers((prev) =>
 					prev.map((p) => {
-						const ans = answers.find((a: any) => a.player_code === p.playerCode);
+						const ans = answers.find((a: any) => a.user_code === p.playerCode);
 						if (!ans) return p;
 						return {
 							...p,

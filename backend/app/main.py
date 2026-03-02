@@ -86,7 +86,9 @@ async def websocket_endpoint(websocket: WebSocket, match_code: str):
         while True:
             data = await websocket.receive_json()
             global_logger.info(f"Received message from {websocket.client} in room {match_code}: {data}")
-            await ws_manager.broadcast_to_room(match_code, {"message": data})
+            # broadcast the raw payload; ConnectionManager will wrap messages
+            # for clients and optionally publish to Valkey
+            await ws_manager.broadcast_to_room(match_code, data)
     except Exception as e:
         global_logger.error(f"WebSocket error in room {match_code} for {websocket.client}: {e}")
     finally:

@@ -45,15 +45,15 @@ async def post_record(
 )
 async def get_records(
     match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OC3_M'")],
-    player_code: Annotated[str, Query(..., description="Mã người chơi, phải bắt đầu với 'OC_U'")],
+    user_code: Annotated[str, Query(..., description="Mã người chơi, phải bắt đầu với 'OC_U'")],
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     """
-    Endpoint to retrieve records based on match_code and player_code.
+    Endpoint to retrieve records based on match_code and user_code.
     Accessible by users with 'admin' or 'player' roles.
     """
     try:
-        return await get_records_from_db(match_code, player_code, session)
+        return await get_records_from_db(match_code, user_code, session)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

@@ -34,10 +34,17 @@ async def get_user_from_request_from_db(
                 log_message = f"No user found with user_code={user_code}."
                 global_logger.warning(log_message)
                 raise HTTPException(status_code=404, detail=log_message)
+            user_data = {
+                'user_code': user.user_code,
+                'user_name': user.user_name,
+                'role': user.role.value,
+                'created_at': user.created_at,
+                'updated_at': user.updated_at
+            }
             return BaseResponse(
                 status='success',
                 message=f"Fetched user with user_code={user_code}.",
-                data=user
+                data=user_data
             )
 
         # If user_role is provided, validate and filter
@@ -57,7 +64,7 @@ async def get_user_from_request_from_db(
         users_data = [
             {
                 'user_code': user.user_code,
-                'userPname': user.user_name,
+                'user_name': user.user_name,
                 'role': user.role.value,
                 'created_at': user.created_at,
                 'updated_at': user.updated_at

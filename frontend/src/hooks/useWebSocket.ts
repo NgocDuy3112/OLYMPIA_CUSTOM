@@ -8,7 +8,7 @@ const logger = createLogger("WS");
 
 interface WebSocketPayload {
     type: string;
-    player_code: string;
+    user_code: string;
     question_code?: string;
     answer?: string;
     [key: string]: any; 
@@ -100,7 +100,7 @@ export const useWebSocket = (matchCode: string) => {
                 "Authorization": `Bearer ${token}`
             },
             body: JSON.stringify({ 
-                player_code: playerCode,
+                user_code: playerCode,
                 match_code: matchCode,
                 question_code: questionCode,
                 answer_text: answer.trim(),
@@ -109,7 +109,7 @@ export const useWebSocket = (matchCode: string) => {
         });
         return await sendMessage({
             type: "answer",
-            player_code: playerCode,
+            user_code: playerCode,
             question_code: questionCode,
             answer_text: answer.trim(),
             timestamp: timestamp
@@ -125,7 +125,7 @@ export const useWebSocket = (matchCode: string) => {
                 "Authorization": `Bearer ${token}`
             },
             body: JSON.stringify({ 
-                player_code: playerCode,
+                user_code: playerCode,
                 match_code: matchCode,
                 question_code: questionCode,
                 has_buzzed: true
@@ -133,7 +133,7 @@ export const useWebSocket = (matchCode: string) => {
         });
         return await sendMessage({
             type: "buzz",
-            player_code: playerCode,
+            user_code: playerCode,
             question_code: questionCode,
             has_buzzed: true
         });

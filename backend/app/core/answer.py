@@ -19,13 +19,13 @@ async def post_answer_to_db(
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.player_code}")
+    global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
     try:
         request_json = request.model_dump()
-        cache_key = f"answer:{request.match_code}:{request.player_code}:{request.question_code}"
+        cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
         await valkey.json().set(cache_key, "$", request_json)
         await valkey.publish(channel=request.match_code, message=json.dumps(request_json))
-        global_logger.info(f"Cached answer for key=answer:{request.match_code}:{request.player_code}:{request.question_code} with points={request.answer_text}.")
+        global_logger.info(f"Cached answer for key=answer:{request.match_code}:{request.user_code}:{request.question_code} with points={request.answer_text}.")
         # Find match ID
         match_id = await session.scalar(
             select(Match.id).where(
@@ -40,13 +40,13 @@ async def post_answer_to_db(
         # Find player ID
         player_id = await session.scalar(
             select(User.id).where(
-                User.user_code == request.player_code,
+                User.user_code == request.user_code,
                 (User.role == 'player') | (User.role == 'admin'),
                 User.is_deleted == False
             )
         )
         if player_id is None:
-            log_message = f"Player with player_code={request.player_code} does not exist."
+            log_message = f"Player with user_code={request.user_code} does not exist."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
         # Find question ID
@@ -71,19 +71,19 @@ async def post_answer_to_db(
         )
         session.add(new_answer)
         await session.commit()
-        log_message = f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from player_code={request.player_code}."
+        log_message = f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
         global_logger.info(log_message)
         return BaseResponse(status="success", message=log_message)
     except IntegrityError:
         await session.rollback()
-        log_message = f"Integrity error when creating answer for question_code={request.question_code} in match_code={request.match_code} from player_code={request.player_code}."
+        log_message = f"Integrity error when creating answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
         global_logger.warning(log_message)
         raise HTTPException(status_code=400, detail=log_message)
     except HTTPException:
         raise
     except Exception:
         await session.rollback()
-        log_message = f"Failed to create answer for question_code={request.question_code} in match_code={request.match_code} from player_code={request.player_code}."
+        log_message = f"Failed to create answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
         global_logger.warning(log_message)
         raise HTTPException(status_code=500, detail=log_message)
 
@@ -91,14 +91,14 @@ async def post_answer_to_db(
 
 async def get_answer_from_db(
     match_code: str, 
-    player_code: str,
+    user_code: str,
     question_code: str,
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    global_logger.info(f"GET request to fetch answer for question {question_code} in match {match_code} from player {player_code}")
+    global_logger.info(f"GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
     try:
-        cache_key = f"answer:{match_code}:{player_code}:{question_code}"
+        cache_key = f"answer:{match_code}:{user_code}:{question_code}"
         if await valkey.exists(cache_key):
             record_json = await valkey.json().get(cache_key, "$", no_escape=True)
             log_message = f"Fetched an answer from cache for key={cache_key}."
@@ -119,25 +119,25 @@ async def get_answer_from_db(
                 Question, Answer.question_id == Question.id
             ).where(
                 Match.match_code == match_code,
-                User.user_code == player_code,
+                User.user_code == user_code,
                 (User.role == 'player') | (User.role == 'admin'),
                 Question.question_code == question_code
             )
         )
         answer = result.scalar_one_or_none()
         if answer is None:
-            log_message = f"Answer for question_code={question_code} in match_code={match_code} from player_code={player_code} does not exist."
+            log_message = f"Answer for question_code={question_code} in match_code={match_code} from user_code={user_code} does not exist."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
         answers_data = {
             'match_code': match_code,
-            'player_code': player_code,
+            'user_code': user_code,
             'question_code': question_code,
             'answer_text': answer.answer_text,
             'has_buzzed': answer.has_buzzed,
             'timestamp': float(answer.timestamp) if answer.timestamp is not None else None
         }
-        log_message = f"Fetched answer for question_code={question_code} in match_code={match_code} from player_code={player_code}."
+        log_message = f"Fetched answer for question_code={question_code} in match_code={match_code} from user_code={user_code}."
         global_logger.info(log_message)
         return BaseResponse(
             status='success',
@@ -147,14 +147,14 @@ async def get_answer_from_db(
     except HTTPException:
         raise
     except Exception:
-        log_message = f"Failed to fetch answer for question_code={question_code} in match_code={match_code} from player_code={player_code}."
+        log_message = f"Failed to fetch answer for question_code={question_code} in match_code={match_code} from user_code={user_code}."
         global_logger.warning(log_message)
         raise HTTPException(status_code=500, detail=log_message)
 
 
-async def delete_answer_from_db(match_code: str, player_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
+async def delete_answer_from_db(match_code: str, user_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
     """Soft delete an answer from DB by setting is_deleted=True (if supported by model)."""
-    global_logger.info(f"Soft deleting answer for question {question_code} in match {match_code} from player {player_code}")
+    global_logger.info(f"Soft deleting answer for question {question_code} in match {match_code} from player {user_code}")
     try:
         # Find the answer by joining with Match, User, and Question to match codes
         query = (
@@ -164,7 +164,7 @@ async def delete_answer_from_db(match_code: str, player_code: str, question_code
             .join(Question, Answer.question_id == Question.id)
             .where(
                 Match.match_code == match_code,
-                User.user_code == player_code,
+                User.user_code == user_code,
                 Question.question_code == question_code
             )
         )
@@ -177,13 +177,13 @@ async def delete_answer_from_db(match_code: str, player_code: str, question_code
         answer = result.scalars().one_or_none()
 
         if answer is None:
-            log_message = f"No answer found for question_code={question_code} in match_code={match_code} from player_code={player_code}."
+            log_message = f"No answer found for question_code={question_code} in match_code={match_code} from user_code={user_code}."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
 
         # Check if already deleted if the attribute exists
         if hasattr(answer, 'is_deleted') and answer.is_deleted:
-            log_message = f"Answer already deleted for question_code={question_code} in match_code={match_code} from player_code={player_code}."
+            log_message = f"Answer already deleted for question_code={question_code} in match_code={match_code} from user_code={user_code}."
             global_logger.warning(log_message)
             raise HTTPException(status_code=400, detail=log_message)
 
@@ -196,7 +196,7 @@ async def delete_answer_from_db(match_code: str, player_code: str, question_code
             global_logger.error(log_message)
             raise HTTPException(status_code=500, detail="Failed to soft delete answer. Model might need update.")
 
-        log_message = f"Answer for question_code={question_code} in match_code={match_code} from player_code={player_code} has been soft deleted successfully."
+        log_message = f"Answer for question_code={question_code} in match_code={match_code} from user_code={user_code} has been soft deleted successfully."
         global_logger.info(log_message)
         return BaseResponse(
             status='success',

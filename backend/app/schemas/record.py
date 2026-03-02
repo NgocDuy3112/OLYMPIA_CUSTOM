@@ -3,7 +3,7 @@ from schemas.base import *
 
 class RecordPostRequest(BaseRequest):
     match_code: str
-    player_code: str
+    user_code: str
     question_code: str
     points: int
     is_deleted: bool = False
@@ -22,11 +22,11 @@ class RecordPostRequest(BaseRequest):
             raise ValueError("question_code must start with 'OC3_Q'")
         return value
 
-    @field_validator('player_code', mode='after')
+    @field_validator('user_code', mode='after')
     @classmethod
-    def ensure_player_code_format(cls, value: str) -> str:
+    def ensure_user_code_format(cls, value: str) -> str:
         if not value.startswith("OC_U"):
-            raise ValueError("player_code must start with 'OC_U'")
+            raise ValueError("user_code must start with 'OC_U'")
         return value
 
     @field_validator('points', mode='after')

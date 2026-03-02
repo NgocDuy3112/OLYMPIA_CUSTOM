@@ -57,8 +57,8 @@ previousPlayers: PlayerStatus[],
 			const toMap = (collection: any[]) => {
 				const map = new Map<string, any>();
 				collection?.forEach((item) => {
-					if (item && item.player_code) {
-						map.set(String(item.player_code), item);
+					if (item && item.user_code) {
+						map.set(String(item.user_code), item);
 					}
 				});
 				return map;
@@ -69,7 +69,7 @@ previousPlayers: PlayerStatus[],
 
 			return playersList
 				.map((entry: any) => {
-					const code = String(entry?.player_code ?? "");
+					const code = String(entry?.user_code ?? "");
 					if (!code) return null;
 
 					const previous = previousPlayers.find((p) => p.playerCode === code);
@@ -85,7 +85,7 @@ previousPlayers: PlayerStatus[],
 
 					return {
 						playerCode: code,
-						playerName: profile.player_name ?? previous?.playerName ?? "",
+						playerName: profile.user_name ?? previous?.playerName ?? "",
 						playerScore: resolvedScore,
 						playerLastAnswer: previous?.playerLastAnswer,
 						playerTimestamp: previous?.playerTimestamp,
@@ -129,7 +129,7 @@ headers: { Authorization: `Bearer ${token}` },
 
 			const profileResponses = await Promise.all(
 playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/players/${entry.player_code}`, {
+					fetch(`${API_BASE_URL}/players/${entry.user_code}`, {
 headers: { Authorization: `Bearer ${token}` },
 })
 						.then((res) => res.json())
@@ -138,8 +138,8 @@ headers: { Authorization: `Bearer ${token}` },
 			);
 
 			const profiles = playersList.map((entry: any, index: number) => ({
-player_code: entry.player_code,
-player_name: profileResponses[index]?.response?.data?.player_name ?? "",
+user_code: entry.user_code,
+user_name: profileResponses[index]?.response?.data?.user_name ?? "",
 }));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -314,7 +314,7 @@ headers: {
 Authorization: `Bearer ${token}`,
 },
 body: JSON.stringify({
-player_code: playerCode,
+user_code: playerCode,
 match_code: currentMatchCode,
 question_code: questionCode,
 d_score_earned: delta,
@@ -332,7 +332,7 @@ Authorization: `Bearer ${token}`,
 				const scoreboard = recentJson.response?.data ?? [];
 				setPlayers((prev) =>
 					prev.map((player) => {
-						const updatedScore = scoreboard.find((item: any) => item.player_code === player.playerCode)?.cummulative_score;
+						const updatedScore = scoreboard.find((item: any) => item.user_code === player.playerCode)?.cummulative_score;
 						return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
 					}),
 				);
@@ -374,11 +374,11 @@ Authorization: `Bearer ${token}`,
 				break;
 			}
 			case "player_score_updated": {
-				if (msg.player_code && typeof msg.new_total_score === "number") {
+				if (msg.user_code && typeof msg.new_total_score === "number") {
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((player) =>
-								player.playerCode === msg.player_code
+								player.playerCode === msg.user_code
 									? { ...player, playerScore: msg.new_total_score }
 									: player,
 							),
@@ -404,7 +404,7 @@ playerTimestamp: undefined,
 				startTransition(() => {
 					setPlayers((prev) =>
 						prev.map((player) => {
-							const answer = answers.find((item: any) => item.player_code === player.playerCode);
+							const answer = answers.find((item: any) => item.user_code === player.playerCode);
 							if (!answer) return player;
 							return {
 								...player,

@@ -13,15 +13,17 @@ import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { createLogger } from "@/utils/logger";
-const logger = createLogger("AKhoiDongChung");
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+
+const logger = createLogger("AKhoiDongChung");
 
 
 const TIME_LIMIT = 5;
 const MAX_QUESTION_INDEX = 6;
 const QUESTION_PREFIX = "KD_C"; // Matches the Khởi Động chung question naming convention.
+
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -63,7 +65,7 @@ const AKhoiDongChungPage = () => {
 		}
 	})();
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage } = useWebSocket(currentMatchCode);
+	const { lastMessage, sendMessage } = useWebSocket(currentMatchCode);
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [timer, setTimer] = useState<number>(0);
@@ -88,8 +90,8 @@ const AKhoiDongChungPage = () => {
 			const toMap = (collection: any[]) => {
 				const map = new Map<string, any>();
 				collection?.forEach((item) => {
-					if (item && item.player_code) {
-						map.set(String(item.player_code), item);
+					if (item && item.user_code) {
+						map.set(String(item.user_code), item);
 					}
 				});
 				return map;
@@ -100,7 +102,7 @@ const AKhoiDongChungPage = () => {
 
 			return playersList
 				.map((entry: any) => {
-					const code = String(entry?.player_code ?? "");
+					const code = String(entry?.user_code ?? "");
 					if (!code) return null;
 
 					const previous = previousPlayers.find((p) => p.playerCode === code);
@@ -116,7 +118,7 @@ const AKhoiDongChungPage = () => {
 
 					return {
 						playerCode: code,
-						playerName: profile.player_name ?? previous?.playerName ?? "",
+						playerName: profile.user_name ?? previous?.playerName ?? "",
 						playerScore: resolvedScore,
 						playerLastAnswer: previous?.playerLastAnswer,
 						playerTimestamp: previous?.playerTimestamp,
@@ -145,7 +147,7 @@ const AKhoiDongChungPage = () => {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			const playersJson = await playersRes.json();
-			const playersList = playersJson.response?.data?.players ?? [];
+			const playersList = playersJson.data?.players ?? [];
 
 			let scoreList: any[] = [];
 				try {
@@ -153,14 +155,14 @@ const AKhoiDongChungPage = () => {
 					headers: { Authorization: `Bearer ${token}` },
 				});
 				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.response?.data?.scoreboard ?? [];
+				scoreList = scoreJson.data?.scoreboard ?? [];
 			} catch (error) {
 				logger.error("Failed to load scoreboard:", error);
 			}
 
 			const profileResponses = await Promise.all(
 				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/players/${entry.player_code}`, {
+					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
 						headers: { Authorization: `Bearer ${token}` },
 					})
 						.then((res) => res.json())
@@ -168,9 +170,9 @@ const AKhoiDongChungPage = () => {
 				),
 			);
 
-			const profiles = playersList.map((entry: any, index: number) => ({
-				player_code: entry.player_code,
-				player_name: profileResponses[index]?.response?.data?.player_name ?? "",
+			const profiles = playersList.map((index: number) => ({
+				playerCode: profileResponses[index]?.data?.user_code ?? "",
+				playerName: profileResponses[index]?.data?.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -208,7 +210,7 @@ const AKhoiDongChungPage = () => {
 					headers: { Authorization: `Bearer ${token}` },
 				});
 				const data = await res.json();
-				setCurrentQuestion(mapQuestionPayload(data.response?.data, questionCode));
+				setCurrentQuestion(mapQuestionPayload(data.data, questionCode));
 			} catch (error) {
 				logger.error("Failed to load question:", error);
 				setCurrentQuestion(mapQuestionPayload(null, questionCode));
@@ -219,42 +221,35 @@ const AKhoiDongChungPage = () => {
 
 	const sendQuestionToContestants = useCallback(
 		async (questionIndex: number) => {
-			if (!currentMatchCode || !token) return;
+			if (!currentMatchCode) return;
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
-			const endpoint = `${API_BASE_URL}/controller/send_question/${currentMatchCode}/${questionCode}`;
 
 			try {
-				await fetch(endpoint, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
+				await sendMessage({
+					type: "send_question",
+					user_code: "",
+					question_code: questionCode,
+					content: currentQuestion.questionText ?? "",
+					media_source: currentQuestion.questionMediaURL ?? undefined,
 				});
 			} catch (error) {
-				logger.error("Failed to broadcast question:", error);
+				logger.error("Failed to broadcast question via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, token],
+		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
 	const clearQuestion = useCallback(async () => {
-		if (!currentMatchCode || !token) return;
+		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		try {
-			await fetch(`${API_BASE_URL}/controller/clear_question/${currentMatchCode}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-			});
+			try {
+			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (error) {
-			logger.error("Failed to clear question:", error);
+			logger.error("Failed to clear question via WS:", error);
 		}
-	}, [currentMatchCode, token]);
+	}, [currentMatchCode, sendMessage]);
 
 	const handleStartRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -262,20 +257,13 @@ const AKhoiDongChungPage = () => {
 		setTimer(0);
 		await clearQuestion();
 
-		if (!currentMatchCode || !token) return;
+		if (!currentMatchCode) return;
 		try {
-			await fetch(`${API_BASE_URL}/controller/navigate/${currentMatchCode}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ path: `/contestant/kdc` }),
-			});
+			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/kdc` });
 		} catch (error) {
-			logger.error("Failed to start round:", error);
+			logger.error("Failed to start round via WS:", error);
 		}
-	}, [clearQuestion, currentMatchCode, token]);
+	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -283,43 +271,29 @@ const AKhoiDongChungPage = () => {
 		setTimer(0);
 		await clearQuestion();
 
-		if (!currentMatchCode || !token) return;
+		if (!currentMatchCode) return;
 		try {
-			await fetch(`${API_BASE_URL}/controller/navigate/${currentMatchCode}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({ path: `/contestant/waiting` }),
-			});
+			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/waiting` });
 		} catch (error) {
-			logger.error("Failed to end round:", error);
+			logger.error("Failed to end round via WS:", error);
 		}
-	}, [clearQuestion, currentMatchCode, token]);
+	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
-			if (!currentMatchCode || !token) return;
+			if (!currentMatchCode) return;
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
 			setTimer(TIME_LIMIT);
 
 			try {
-				await fetch(`${API_BASE_URL}/controller/start_clock/${currentMatchCode}/${questionCode}`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({ time_limit: TIME_LIMIT }),
-				});
+				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode });
 			} catch (error) {
-				logger.error("Failed to start the clock:", error);
+				logger.error("Failed to start the clock via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, token],
+		[currentMatchCode, resolveQuestionCode, sendMessage],
 	);
 
 	const handleAddScore = useCallback(
@@ -345,14 +319,14 @@ const AKhoiDongChungPage = () => {
 						Authorization: `Bearer ${token}`,
 					},
 					body: JSON.stringify({
-						player_code: playerCode,
+						user_code: playerCode,
 						match_code: currentMatchCode,
 						question_code: questionCode,
 						d_score_earned: delta,
 					}),
 				});
 
-				const recentRes = await fetch(`${API_BASE_URL}/scoreboard/recent/${currentMatchCode}`, {
+				const recentRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
 					method: "GET",
 					headers: {
 						"Content-Type": "application/json",
@@ -360,10 +334,10 @@ const AKhoiDongChungPage = () => {
 					},
 				});
 				const recentJson = await recentRes.json();
-				const scoreboard = recentJson.response?.data ?? [];
+				const scoreboard = recentJson.data ?? [];
 				setPlayers((prev) =>
 					prev.map((player) => {
-						const updatedScore = scoreboard.find((item: any) => item.player_code === player.playerCode)?.cummulative_score;
+						const updatedScore = scoreboard.find((item: any) => item.user_code === player.playerCode)?.cummulative_score;
 						return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
 					}),
 				);
@@ -415,11 +389,11 @@ const AKhoiDongChungPage = () => {
 				break;
 			}
 			case "player_score_updated": {
-				if (msg.player_code && typeof msg.new_total_score === "number") {
+				if (msg.user_code && typeof msg.new_total_score === "number") {
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((player) =>
-								player.playerCode === msg.player_code
+								player.playerCode === msg.user_code
 									? { ...player, playerScore: msg.new_total_score }
 									: player,
 							),
@@ -445,7 +419,7 @@ const AKhoiDongChungPage = () => {
 				startTransition(() => {
 					setPlayers((prev) =>
 						prev.map((player) => {
-							const answer = answers.find((item: any) => item.player_code === player.playerCode);
+							const answer = answers.find((item: any) => item.user_code === player.playerCode);
 							if (!answer) return player;
 							return {
 								...player,
@@ -556,7 +530,6 @@ const AKhoiDongChungPage = () => {
 				players.map((player) => (
 					<div className="flex flex-col gap-3" key={player.playerCode}>
 						<APlayerBar player={player} isActive={false} />
-						
 					</div>
 				))
 			}

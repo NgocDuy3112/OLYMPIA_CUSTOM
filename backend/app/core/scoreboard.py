@@ -52,8 +52,8 @@ async def get_scoreboard_for_a_match_from_db(
         # Step 2: Build players data and sort by position
         players_data = [
             {
-                "player_code": pp.user.user_code,
-                "player_name": pp.user.user_name,
+                "user_code": pp.user.user_code,
+                "user_name": pp.user.user_name,
                 "position": pp.position,
             }
             for pp in match.players_position
@@ -61,14 +61,14 @@ async def get_scoreboard_for_a_match_from_db(
         players_data.sort(key=lambda x: x["position"])
         
         # Step 3: Fetch all scores from Valkey in one operation
-        player_codes = [p["player_code"] for p in players_data]
+        player_codes = [p["user_code"] for p in players_data]
         
         if await valkey.exists(leaderboard_key):
             scores = await valkey.mget(player_codes) if player_codes else []
             scoreboard_list = [
                 {
-                    "player_code": p["player_code"],
-                    "player_name": p["player_name"],
+                    "user_code": p["user_code"],
+                    "user_name": p["user_name"],
                     "cummulative_score": _safe_convert_score(scores[i] if i < len(scores) else None),
                 }
                 for i, p in enumerate(players_data)
@@ -78,8 +78,8 @@ async def get_scoreboard_for_a_match_from_db(
             # No leaderboard in cache -> return zeros for all players
             scoreboard_list = [
                 {
-                    "player_code": p["player_code"],
-                    "player_name": p["player_name"],
+                    "user_code": p["user_code"],
+                    "user_name": p["user_name"],
                     "cummulative_score": 0,
                 }
                 for p in players_data
