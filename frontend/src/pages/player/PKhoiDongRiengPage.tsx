@@ -2,27 +2,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
+// temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
 
-function unwrapWsMessage(message: any): any {
-	if (message && typeof message === "object" && "message" in message) {
-		return message.message;
-	}
-	return message;
-}
 
 const PKhoiDongRiengPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendBuzz } = useWebSocket(matchCode);
+	const { playerCode, token } = usePlayerSession();
+	const { isConnected, lastMessage, sendBuzz } = usePlayerWebSocket();
 	const { timer, start } = useCountdownTimer();
-	const { currentQuestion, applyWsMessage } = useQuestionState();
+	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [hasPinged, setHasPinged] = useState(false);
@@ -31,7 +26,11 @@ const PKhoiDongRiengPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg = unwrapWsMessage(lastMessage);
+		const msg = lastMessage;
+
+		// Debug logs to help verify payloads
+		console.info("PLAYER lastMessage:", lastMessage);
+		console.info("PLAYER msg:", msg);
 
 		// Handles send_question/clear_question
 		applyWsMessage(msg);
@@ -135,6 +134,7 @@ const PKhoiDongRiengPage = () => {
 					title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
 					question={currentQuestion}
 					timerDuration={timer}
+					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
 				/>
 
 				<div className="p-3">

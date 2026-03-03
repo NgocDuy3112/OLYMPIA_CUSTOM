@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import AdminGameplayNavBar from "@/navigation/ANavBar";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import type { AdminQuestionBoardControls, ControlsRenderApi } from "@/types/questionBoardTypes";
 import type { Question } from "@/types/question";
 
 interface ABasePageLayoutProps {
@@ -8,6 +9,12 @@ interface ABasePageLayoutProps {
 	questionTitle: string;
 	question: Question;
 	timerDuration: number;
+
+	// Optional controls configuration for the question board (numbers / subjects)
+	controls?: AdminQuestionBoardControls;
+
+	// Optional custom controls provided as a render-prop and passed into AQuestionBoard
+	controlsChildren?: (api: ControlsRenderApi) => ReactNode;
 
 	// Control buttons (top row - navigation/clock controls)
 	topControlButtons: ReactNode;
@@ -51,14 +58,18 @@ const ABasePageLayout = ({
 	bottomActionButtons,
 	statusMessages,
 	renderPlayerList,
+	controls,
+	controlsChildren,
 }: ABasePageLayoutProps) => {
 	return (
 		<>
 			<AdminGameplayNavBar />
-			<div className="flex flex-row w-screen h-screen p-6 gap-8">
+			<div className="flex flex-row w-full min-h-screen p-6 gap-8">
 				{/* Left section: Question board and controls */}
 				<div className="flex flex-col flex-3 gap-6">
-					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} />
+					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} controls={controls}>
+						{controlsChildren}
+					</AQuestionBoard>
 
 					<div className="flex flex-col items-center gap-6">
 						{/* Top control buttons row */}

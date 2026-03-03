@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
+import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 
 
 import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
@@ -35,7 +36,7 @@ const PlayerAutoNavigator = () => {
     const matchCode = sessionStorage.getItem("matchCode") || "";
     const playerCode = sessionStorage.getItem("playerCode") || "";
 
-    const { lastMessage } = useWebSocket(matchCode);
+    const { lastMessage } = usePlayerWebSocket();
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -60,8 +61,10 @@ const PlayerAutoNavigator = () => {
 
 
 const PlayerRoutes = () => {
+    const matchCode = sessionStorage.getItem("matchCode") || "";
+
     return (
-        <>
+        <PlayerWebSocketProvider matchCode={matchCode}>
             <PlayerAutoNavigator />
                 <Routes>
                 <Route path="/" element={<Navigate to="/player/waiting" replace />} />
@@ -126,7 +129,7 @@ const PlayerRoutes = () => {
                 {/* fallback */}
                 <Route path="*" element={<Navigate to="/player/waiting" replace />} />
             </Routes>
-        </>
+        </PlayerWebSocketProvider>
     );
 };
 

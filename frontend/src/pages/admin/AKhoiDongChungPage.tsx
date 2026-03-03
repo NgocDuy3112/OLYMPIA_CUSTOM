@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { startTransition, useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { 
 	AlarmClockCheck, 
 	CheckCheck,
@@ -13,6 +13,7 @@ import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { createLogger } from "@/utils/logger";
+import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
@@ -20,7 +21,7 @@ import { API_BASE_URL } from "@/configs";
 const logger = createLogger("AKhoiDongChung");
 
 
-const TIME_LIMIT = 5;
+const TIME_LIMIT = 60;
 const MAX_QUESTION_INDEX = 6;
 const QUESTION_PREFIX = "KD_C"; // Matches the Khởi Động chung question naming convention.
 
@@ -34,12 +35,6 @@ const DEFAULT_QUESTION: Question = {
 };
 
 
-function unwrapWsMessage(message: any): any {
-	if (message && typeof message === "object" && "message" in message) {
-		return message.message;
-	}
-	return message;
-}
 
 
 const AKhoiDongChungPage = () => {
@@ -68,67 +63,25 @@ const AKhoiDongChungPage = () => {
 	const { lastMessage, sendMessage } = useWebSocket(currentMatchCode);
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	// allow multi-selection of players on this page
+	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
+	const toggleSelectedPlayer = useCallback((playerCode: string) => {
+		setSelectedPlayerCodes((prev) => (prev.includes(playerCode) ? prev.filter((c) => c !== playerCode) : [...prev, playerCode]));
+	}, []);
 	const [timer, setTimer] = useState<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 	const [isSecondAttempt, setIsSecondAttempt] = useState<boolean>(false);
 
+	// countdown running state & auto-advance interval ref
+	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const autoAdvanceRef = useRef<number | null>(null);
+
 	const hasQuestionSelected = currentQuestionIndex > 0;
-	const questionTitle = `KHỞI ĐỘNG - LƯỢT CHUNG${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
+	const questionTitle = "KHỞI ĐỘNG - LƯỢT CHUNG";
 
-	const buildPlayersSnapshot = useCallback(
-		(
-			playersList: any[],
-			scoreboard: any[],
-			profiles: any[],
-			previousPlayers: PlayerStatus[],
-		): PlayerStatus[] => {
-			if (!playersList?.length) {
-				return previousPlayers;
-			}
-
-			const toMap = (collection: any[]) => {
-				const map = new Map<string, any>();
-				collection?.forEach((item) => {
-					if (item && item.user_code) {
-						map.set(String(item.user_code), item);
-					}
-				});
-				return map;
-			};
-
-			const scoreMap = toMap(scoreboard ?? []);
-			const profileMap = toMap(profiles ?? []);
-
-			return playersList
-				.map((entry: any) => {
-					const code = String(entry?.user_code ?? "");
-					if (!code) return null;
-
-					const previous = previousPlayers.find((p) => p.playerCode === code);
-					const profile = profileMap.get(code) ?? {};
-					const scoreInfo = scoreMap.get(code) ?? {};
-
-					const resolvedScore =
-						typeof scoreInfo.cummulative_score === "number"
-							? scoreInfo.cummulative_score
-							: typeof scoreInfo.new_total_score === "number"
-								? scoreInfo.new_total_score
-								: previous?.playerScore ?? 0;
-
-					return {
-						playerCode: code,
-						playerName: profile.user_name ?? previous?.playerName ?? "",
-						playerScore: resolvedScore,
-						playerLastAnswer: previous?.playerLastAnswer,
-						playerTimestamp: previous?.playerTimestamp,
-						playerHasBuzzed: previous?.playerHasBuzzed ?? false,
-					};
-				})
-				.filter(Boolean) as PlayerStatus[];
-		},
-		[],
-	);
+	// use shared helper for mapping players + profiles + scoreboard into PlayerStatus[]
+	// keep the same pure function semantics as before
 
 	const applyPlayersSnapshot = useCallback(
 		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
@@ -137,7 +90,7 @@ const AKhoiDongChungPage = () => {
 			const profileList = Array.isArray(payload?.profiles) ? payload.profiles : [];
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreboardList, profileList, prev));
 		},
-		[buildPlayersSnapshot],
+		[],
 	);
 
 	const loadPlayersState = useCallback(async () => {
@@ -170,16 +123,16 @@ const AKhoiDongChungPage = () => {
 				),
 			);
 
-			const profiles = playersList.map((index: number) => ({
-				playerCode: profileResponses[index]?.data?.user_code ?? "",
-				playerName: profileResponses[index]?.data?.user_name ?? "",
+			const profiles = playersList.map((entry: any, index: number) => ({
+				user_code: entry.user_code,
+				user_name: profileResponses[index]?.data?.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 		} catch (error) {
 			logger.error("Failed to load players:", error);
 		}
-	}, [buildPlayersSnapshot, currentMatchCode, token]);
+	}, [currentMatchCode, token]);
 
 	const resolveQuestionCode = useCallback((questionIndex: number) => {
 		return `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`;
@@ -196,11 +149,11 @@ const AKhoiDongChungPage = () => {
 	}, []);
 
 	const loadQuestion = useCallback(
-		async (questionIndex: number) => {
-			if (!currentMatchCode || !token) return;
+		async (questionIndex: number): Promise<Question | undefined> => {
+			if (!currentMatchCode || !token) return undefined;
 			if (questionIndex <= 0) {
 				setCurrentQuestion({ ...DEFAULT_QUESTION });
-				return;
+				return { ...DEFAULT_QUESTION };
 			}
 
 			const questionCode = resolveQuestionCode(questionIndex);
@@ -210,29 +163,34 @@ const AKhoiDongChungPage = () => {
 					headers: { Authorization: `Bearer ${token}` },
 				});
 				const data = await res.json();
-				setCurrentQuestion(mapQuestionPayload(data.data, questionCode));
+				const mapped = mapQuestionPayload(data.data, questionCode);
+				setCurrentQuestion(mapped);
+				return mapped;
 			} catch (error) {
 				logger.error("Failed to load question:", error);
-				setCurrentQuestion(mapQuestionPayload(null, questionCode));
+				const mapped = mapQuestionPayload(null, questionCode);
+				setCurrentQuestion(mapped);
+				return mapped;
 			}
 		},
 		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
 	);
 
 	const sendQuestionToContestants = useCallback(
-		async (questionIndex: number) => {
+		async (questionIndex: number, question?: Question) => {
 			if (!currentMatchCode) return;
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
+			const payloadQuestion = question ?? currentQuestion;
 
 			try {
 				await sendMessage({
 					type: "send_question",
 					user_code: "",
 					question_code: questionCode,
-					content: currentQuestion.questionText ?? "",
-					media_source: currentQuestion.questionMediaURL ?? undefined,
+					content: payloadQuestion.questionText ?? "",
+					media_source: payloadQuestion.questionMediaURL ?? undefined,
 				});
 			} catch (error) {
 				logger.error("Failed to broadcast question via WS:", error);
@@ -282,18 +240,29 @@ const AKhoiDongChungPage = () => {
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
 			if (!currentMatchCode) return;
-			if (questionIndex <= 0) return;
 
-			const questionCode = resolveQuestionCode(questionIndex);
+			// If no question selected, advance to the first question and broadcast it immediately
+			if (questionIndex <= 0) {
+				setCurrentQuestionIndex(1);
+				try {
+					const q = await loadQuestion(1);
+					await sendQuestionToContestants(1, q);
+				} catch (error) {
+					logger.error("Failed to load/send initial question for countdown:", error);
+				}
+			}
+
 			setTimer(TIME_LIMIT);
+			setIsTimerRunning(true);
 
+			const questionCode = resolveQuestionCode(questionIndex > 0 ? questionIndex : 1);
 			try {
 				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, sendMessage],
+		[currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToContestants],
 	);
 
 	const handleAddScore = useCallback(
@@ -322,7 +291,7 @@ const AKhoiDongChungPage = () => {
 						user_code: playerCode,
 						match_code: currentMatchCode,
 						question_code: questionCode,
-						d_score_earned: delta,
+						points: delta,
 					}),
 				});
 
@@ -348,13 +317,17 @@ const AKhoiDongChungPage = () => {
 		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token],
 	);
 
-	const handleNextQuestion = useCallback(() => {
+	const handleNextQuestion = useCallback(async () => {
 		const nextIndex = currentQuestionIndex > 0 ? (currentQuestionIndex < MAX_QUESTION_INDEX ? currentQuestionIndex + 1 : currentQuestionIndex) : 1;
 		if (nextIndex === currentQuestionIndex && currentQuestionIndex !== 0) return;
-		
+
 		setCurrentQuestionIndex(nextIndex);
-		void loadQuestion(nextIndex);
-		void sendQuestionToContestants(nextIndex);
+		try {
+			const q = await loadQuestion(nextIndex);
+			await sendQuestionToContestants(nextIndex, q);
+		} catch (err) {
+			logger.error("Failed advancing to next question:", err);
+		}
 		setIsSecondAttempt(false);
 	}, [currentQuestionIndex, loadQuestion, sendQuestionToContestants]);
 
@@ -365,7 +338,24 @@ const AKhoiDongChungPage = () => {
 	}, [loadPlayersState]);
 
 	useEffect(() => {
-		if (timer <= 0) return;
+		if (timer <= 0) {
+			// stop auto-advance and running state when timer reaches zero
+			if (autoAdvanceRef.current) {
+				window.clearInterval(autoAdvanceRef.current);
+				autoAdvanceRef.current = null;
+			}
+
+			// clear highlighted question and stop running state
+			startTransition(() => {
+				setIsTimerRunning(false);
+				setCurrentQuestionIndex(0);
+			});
+
+			// clear question on contestants (schedule async to avoid sync setState inside effect)
+			Promise.resolve().then(() => void clearQuestion());
+			return;
+		}
+
 		const intervalId = window.setInterval(() => {
 			setTimer((prev) => {
 				if (prev <= 1) {
@@ -376,11 +366,27 @@ const AKhoiDongChungPage = () => {
 			});
 		}, 1000);
 		return () => window.clearInterval(intervalId);
-	}, [timer]);
+	}, [timer, clearQuestion]);
+
+	// auto-advance every 10s while the timer is running
+	useEffect(() => {
+		if (!isTimerRunning) return;
+
+		autoAdvanceRef.current = window.setInterval(() => {
+			void handleNextQuestion();
+		}, 10000);
+
+		return () => {
+			if (autoAdvanceRef.current) {
+				window.clearInterval(autoAdvanceRef.current);
+				autoAdvanceRef.current = null;
+			}
+		};
+	}, [isTimerRunning, handleNextQuestion]);
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg = unwrapWsMessage(lastMessage);
+		const msg = lastMessage;
 		switch (msg?.type) {
 			case "send_players_info": {
 				startTransition(() => {
@@ -448,15 +454,56 @@ const AKhoiDongChungPage = () => {
 			questionTitle={questionTitle}
 			question={currentQuestion}
 			timerDuration={timer}
+			controls={{
+				variant: 'numbers',
+				count: 6,
+				activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
+			}}
+			controlsChildren={() => (
+				<div className="flex gap-2">
+					{Array.from({ length: 6 }).map((_, idx) => {
+						const isActive = currentQuestionIndex > 0 && currentQuestionIndex - 1 === idx;
+						return (
+							<button
+								key={idx}
+								type="button"
+								aria-pressed={isActive}
+								disabled={isTimerRunning}
+								onClick={async () => {
+									if (isTimerRunning) return;
+									const qIndex = idx + 1;
+									if (!isActive) {
+										setCurrentQuestionIndex(qIndex);
+										try {
+											const q = await loadQuestion(qIndex);
+											await sendQuestionToContestants(qIndex, q);
+										} catch (err) {
+											logger.error('Failed to load/send question:', err);
+										}
+									} else {
+										setCurrentQuestionIndex(0);
+										try {
+											await clearQuestion();
+										} catch (err) {
+											logger.error('Failed to clear question:', err);
+										}
+									}
+								}}
+								className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:opacity-50 ${isActive ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}>
+								{idx + 1}
+							</button>
+						);
+					})}
+				</div>
+			)}
 			topControlButtons={
 				<>
 					<button
 						onClick={() => {
-							if (!hasQuestionSelected) return;
 							void startTheClock(currentQuestionIndex);
 						}}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={!hasQuestionSelected}
+						disabled={isTimerRunning}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU ĐẾM GIỜ</span>
@@ -529,7 +576,13 @@ const AKhoiDongChungPage = () => {
 			renderPlayerList={() =>
 				players.map((player) => (
 					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar player={player} isActive={false} />
+						<APlayerBar
+							player={player}
+							isActive={selectedPlayerCodes.includes(player.playerCode)}
+							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
+							onClick={toggleSelectedPlayer}
+							disabled={timer > 0}
+						/>
 					</div>
 				))
 			}

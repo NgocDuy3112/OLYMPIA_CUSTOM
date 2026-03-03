@@ -10,13 +10,36 @@ interface APlayerBarProps {
     isActive: boolean;
     isCurrent?: boolean;
     isKeywordMode?: boolean;
+    onClick?: (playerCode: string) => void;
+    disabled?: boolean;
 }
 
 
 
-const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode }) => {
+const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, onClick, disabled }) => {
+    // Use a single border instead of nested rings to avoid double-outline visual glitches
+    const borderClass = player.playerHasBuzzed ? "border-blue-500" : "border-blue-600";
+    const handleClick = () => {
+        if (disabled) return;
+        onClick?.(player.playerCode);
+    };
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (disabled) return;
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onClick?.(player.playerCode);
+        }
+    };
+
     return (
-        <div className={`flex justify-between ${isActive ? "bg-blue-600" : "bg-blue-900 ring-blue-600"} ring-4 ${player.playerHasBuzzed ? "ring-blue-600" : "ring-white-600"} rounded-xl text-white shadow-md px-4 py-3 w-full`}>
+        <div
+            role={disabled ? undefined : "button"}
+            tabIndex={disabled ? -1 : 0}
+            onClick={disabled ? undefined : handleClick}
+            onKeyDown={disabled ? undefined : handleKeyDown}
+            aria-disabled={disabled ?? false}
+            className={`flex justify-between ${isActive ? "bg-blue-600" : "bg-blue-900"} border-2 ${borderClass} rounded-xl text-white shadow-md px-4 py-3 w-full ${disabled ? 'opacity-60 pointer-events-none' : 'cursor-pointer'} focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400`}
+        >
             <div className="flex flex-col flex-1">
                 <p className="font-extrabold uppercase leading-tight">
                     {player.playerName && (

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -82,14 +82,18 @@ app.include_router(scoreboard.router)
 async def websocket_endpoint(websocket: WebSocket, match_code: str):
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code)
+
     try:
         while True:
             data = await websocket.receive_json()
             global_logger.info(f"Received message from {websocket.client} in room {match_code}: {data}")
-            # broadcast the raw payload; ConnectionManager will wrap messages
-            # for clients and optionally publish to Valkey
             await ws_manager.broadcast_to_room(match_code, data)
+
+    except WebSocketDisconnect:
+        global_logger.info(f"WebSocket disconnected: {websocket.client} room={match_code}")
+
     except Exception as e:
-        global_logger.error(f"WebSocket error in room {match_code} for {websocket.client}: {e}")
+        global_logger.error(f"WebSocket error in room {match_code} for {websocket.client}: {e}", exc_info=True)
+
     finally:
         ws_manager.disconnect(websocket, match_code)

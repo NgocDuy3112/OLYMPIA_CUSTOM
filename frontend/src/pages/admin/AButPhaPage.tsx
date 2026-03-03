@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useState } from "react";
-import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Plus, Power, RefreshCw } from "lucide-react";
+import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Power, RefreshCw } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { createLogger } from "@/utils/logger";
+import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 const logger = createLogger("AButPha");
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
@@ -25,128 +26,83 @@ const DEFAULT_QUESTION: Question = {
 };
 
 
-function unwrapWsMessage(message: any): any {
-	if (message && typeof message === "object" && "message" in message) {
-		return message.message;
-	}
-	return message;
-}
 
 
 const AButPhaPage = () => {
 	const currentMatchCode = localStorage.getItem("matchCode") ?? "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage } = useWebSocket(currentMatchCode);
+	const { lastMessage, sendMessage } = useWebSocket(currentMatchCode);
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	// Allow multi-selection in this page
+	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
+	const toggleSelectedPlayer = useCallback((code: string) => {
+		setSelectedPlayerCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
+	}, []);
 	const [timer, setTimer] = useState<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
-	const buildPlayersSnapshot = useCallback(
-(
-playersList: any[],
-scoreboard: any[],
-profiles: any[],
-previousPlayers: PlayerStatus[],
-): PlayerStatus[] => {
-			if (!playersList?.length) {
-				return previousPlayers;
-			}
-
-			const toMap = (collection: any[]) => {
-				const map = new Map<string, any>();
-				collection?.forEach((item) => {
-					if (item && item.user_code) {
-						map.set(String(item.user_code), item);
-					}
-				});
-				return map;
-			};
-
-			const scoreMap = toMap(scoreboard ?? []);
-			const profileMap = toMap(profiles ?? []);
-
-			return playersList
-				.map((entry: any) => {
-					const code = String(entry?.user_code ?? "");
-					if (!code) return null;
-
-					const previous = previousPlayers.find((p) => p.playerCode === code);
-					const profile = profileMap.get(code) ?? {};
-					const scoreInfo = scoreMap.get(code) ?? {};
-
-					const resolvedScore =
-						typeof scoreInfo.cummulative_score === "number"
-							? scoreInfo.cummulative_score
-							: typeof scoreInfo.new_total_score === "number"
-								? scoreInfo.new_total_score
-								: previous?.playerScore ?? 0;
-
-					return {
-						playerCode: code,
-						playerName: profile.user_name ?? previous?.playerName ?? "",
-						playerScore: resolvedScore,
-						playerLastAnswer: previous?.playerLastAnswer,
-						playerTimestamp: previous?.playerTimestamp,
-						playerHasBuzzed: previous?.playerHasBuzzed ?? false,
-					};
-				})
-				.filter(Boolean) as PlayerStatus[];
-		},
+	const computePlayersSnapshot = useCallback(
+		(
+			playersList: any[],
+			scoreboard: any[] = [],
+			profiles: any[] = [],
+			previousPlayers: PlayerStatus[] = [],
+		): PlayerStatus[] => buildPlayersSnapshot(playersList, scoreboard, profiles, previousPlayers),
 		[],
 	);
 
 	const applyPlayersSnapshot = useCallback(
-(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
+		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
 			const playersList = Array.isArray(payload?.players) ? payload.players : [];
 			const scoreboardList = Array.isArray(payload?.scoreboard) ? payload.scoreboard : [];
 			const profileList = Array.isArray(payload?.profiles) ? payload.profiles : [];
-			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreboardList, profileList, prev));
+			setPlayers((prev) => computePlayersSnapshot(playersList, scoreboardList, profileList, prev));
 		},
-		[buildPlayersSnapshot],
+		[computePlayersSnapshot],
 	);
 
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return;
 		try {
 			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-headers: { Authorization: `Bearer ${token}` },
-});
+				headers: { Authorization: `Bearer ${token}` },
+			});
 			const playersJson = await playersRes.json();
-			const playersList = playersJson.response?.data?.players ?? [];
+			const playersList = playersJson.data?.players ?? [];
 
 			let scoreList: any[] = [];
 			try {
 				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-headers: { Authorization: `Bearer ${token}` },
-});
+					headers: { Authorization: `Bearer ${token}` },
+				});
 				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.response?.data?.scoreboard ?? [];
+				scoreList = scoreJson.data?.scoreboard ?? [];
 			} catch (error) {
 				logger.error("Failed to load scoreboard:", error);
 			}
 
 			const profileResponses = await Promise.all(
-playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/players/${entry.user_code}`, {
-headers: { Authorization: `Bearer ${token}` },
-})
+				playersList.map((entry: any) =>
+					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
+						headers: { Authorization: `Bearer ${token}` },
+					})
 						.then((res) => res.json())
 						.catch(() => null),
 				),
 			);
 
 			const profiles = playersList.map((entry: any, index: number) => ({
-user_code: entry.user_code,
-user_name: profileResponses[index]?.response?.data?.user_name ?? "",
-}));
+				user_code: entry.user_code,
+				user_name: profileResponses[index]?.data?.user_name ?? "",
+			}));
 
-			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
+			setPlayers((prev) => computePlayersSnapshot(playersList, scoreList, profiles, prev));
 		} catch (error) {
 			logger.error("Failed to load players:", error);
 		}
-	}, [buildPlayersSnapshot, currentMatchCode, token]);
+	}, [computePlayersSnapshot, currentMatchCode, token]);
 
 	const resolveQuestionCode = useCallback((questionIndex: number) => {
 		return `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`;
@@ -163,67 +119,65 @@ user_name: profileResponses[index]?.response?.data?.user_name ?? "",
 	}, []);
 
 	const loadQuestion = useCallback(
-async (questionIndex: number) => {
-			if (!currentMatchCode || !token) return;
+		async (questionIndex: number): Promise<Question | undefined> => {
+			if (!currentMatchCode || !token) return undefined;
 			if (questionIndex <= 0) {
 				setCurrentQuestion({ ...DEFAULT_QUESTION });
-				return;
+				return { ...DEFAULT_QUESTION };
 			}
 
 			const questionCode = resolveQuestionCode(questionIndex);
 
 			try {
 				const res = await fetch(`${API_BASE_URL}/questions/${currentMatchCode}/${questionCode}`, {
-headers: { Authorization: `Bearer ${token}` },
-});
+					headers: { Authorization: `Bearer ${token}` },
+				});
 				const data = await res.json();
-				setCurrentQuestion(mapQuestionPayload(data.response?.data, questionCode));
+				const mapped = mapQuestionPayload(data.data, questionCode);
+				setCurrentQuestion(mapped);
+				return mapped;
 			} catch (error) {
 				logger.error("Failed to load question:", error);
-				setCurrentQuestion(mapQuestionPayload(null, questionCode));
+				const mapped = mapQuestionPayload(null, questionCode);
+				setCurrentQuestion(mapped);
+				return mapped;
 			}
 		},
 		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
 	);
 
 	const sendQuestionToContestants = useCallback(
-async (questionIndex: number) => {
-			if (!currentMatchCode || !token) return;
+		async (questionIndex: number, question?: Question) => {
+			if (!currentMatchCode) return;
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
-			const endpoint = `${API_BASE_URL}/controller/send_question/${currentMatchCode}/${questionCode}`;
+			const payloadQuestion = question ?? currentQuestion;
 
 			try {
-				await fetch(endpoint, {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-});
+				await sendMessage({
+					type: "send_question",
+					user_code: "",
+					question_code: questionCode,
+					content: payloadQuestion.questionText ?? "",
+					media_source: payloadQuestion.questionMediaURL ?? undefined,
+				});
 			} catch (error) {
-				logger.error("Failed to broadcast question:", error);
+				logger.error("Failed to broadcast question via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, token],
+		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
 	const clearQuestion = useCallback(async () => {
-		if (!currentMatchCode || !token) return;
+		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		try {
-			await fetch(`${API_BASE_URL}/controller/clear_question/${currentMatchCode}`, {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-});
+			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (error) {
-			logger.error("Failed to clear question:", error);
+			logger.error("Failed to clear question via WS:", error);
 		}
-	}, [currentMatchCode, token]);
+	}, [currentMatchCode, sendMessage]);
 
 	const handleStartRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -231,20 +185,13 @@ Authorization: `Bearer ${token}`,
 		setTimer(0);
 		await clearQuestion();
 
-		if (!currentMatchCode || !token) return;
+		if (!currentMatchCode) return;
 		try {
-			await fetch(`${API_BASE_URL}/controller/navigate/${currentMatchCode}`, {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-body: JSON.stringify({ path: `/contestant/bp` }),
-});
+			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/bp` });
 		} catch (error) {
-			logger.error("Failed to start round:", error);
+			logger.error("Failed to start round via WS:", error);
 		}
-	}, [clearQuestion, currentMatchCode, token]);
+	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -252,23 +199,16 @@ body: JSON.stringify({ path: `/contestant/bp` }),
 		setTimer(0);
 		await clearQuestion();
 
-		if (!currentMatchCode || !token) return;
+		if (!currentMatchCode) return;
 		try {
-			await fetch(`${API_BASE_URL}/controller/navigate/${currentMatchCode}`, {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-body: JSON.stringify({ path: `/contestant/waiting` }),
-});
+			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/waiting` });
 		} catch (error) {
-			logger.error("Failed to end round:", error);
+			logger.error("Failed to end round via WS:", error);
 		}
-	}, [clearQuestion, currentMatchCode, token]);
+	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(
-async (questionIndex: number) => {
+		async (questionIndex: number) => {
 			if (!currentMatchCode || !token) return;
 			if (questionIndex <= 0) return;
 
@@ -276,72 +216,15 @@ async (questionIndex: number) => {
 			setTimer(TIME_LIMIT);
 
 			try {
-				await fetch(`${API_BASE_URL}/controller/start_clock/${currentMatchCode}/${questionCode}`, {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-body: JSON.stringify({ time_limit: TIME_LIMIT }),
-});
+				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode });
 			} catch (error) {
-				logger.error("Failed to start the clock:", error);
+				logger.error("Failed to start the clock via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, token],
+		[currentMatchCode, resolveQuestionCode, sendMessage, token],
 	);
 
-	const handleAddScore = useCallback(
-async (playerCode: string, delta: number) => {
-			if (!playerCode) return;
-			setPlayers((prev) =>
-				prev.map((player) =>
-					player.playerCode === playerCode
-						? { ...player, playerScore: (player.playerScore ?? 0) + delta }
-						: player,
-				),
-			);
 
-			if (!currentMatchCode || !token) return;
-
-			const questionCode = currentQuestionIndex > 0 ? resolveQuestionCode(currentQuestionIndex) : undefined;
-
-			try {
-				await fetch(`${API_BASE_URL}/records/`, {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-body: JSON.stringify({
-user_code: playerCode,
-match_code: currentMatchCode,
-question_code: questionCode,
-d_score_earned: delta,
-}),
-});
-
-				const recentRes = await fetch(`${API_BASE_URL}/scoreboard/recent/${currentMatchCode}`, {
-method: "GET",
-headers: {
-"Content-Type": "application/json",
-Authorization: `Bearer ${token}`,
-},
-});
-				const recentJson = await recentRes.json();
-				const scoreboard = recentJson.response?.data ?? [];
-				setPlayers((prev) =>
-					prev.map((player) => {
-						const updatedScore = scoreboard.find((item: any) => item.user_code === player.playerCode)?.cummulative_score;
-						return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
-					}),
-				);
-			} catch (error) {
-				logger.error("Failed to update score:", error);
-			}
-		},
-		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token],
-	);
 
 	useEffect(() => {
 		startTransition(() => {
@@ -365,7 +248,7 @@ Authorization: `Bearer ${token}`,
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg = unwrapWsMessage(lastMessage);
+		const msg = lastMessage;
 		switch (msg?.type) {
 			case "send_players_info": {
 				startTransition(() => {
@@ -391,10 +274,10 @@ Authorization: `Bearer ${token}`,
 				startTransition(() => {
 					setPlayers((prev) =>
 						prev.map((player) => ({
-...player,
-playerLastAnswer: undefined,
-playerTimestamp: undefined,
-})),
+							...player,
+							playerLastAnswer: undefined,
+							playerTimestamp: undefined,
+						})),
 					);
 				});
 				break;
@@ -432,10 +315,50 @@ playerTimestamp: undefined,
 	const questionTitle = `BỨT PHÁ${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
 
 	return (
-<ABasePageLayout
+		<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
 			timerDuration={timer}
+			controls={{
+				variant: 'numbers',
+				count: 5,
+				activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
+			}}
+			controlsChildren={() => (
+				<div className="flex gap-2">
+					{Array.from({ length: 5 }).map((_, idx) => {
+						const isActive = currentQuestionIndex > 0 && currentQuestionIndex - 1 === idx;
+						return (
+							<button
+								key={idx}
+								type="button"
+								aria-pressed={isActive}
+								onClick={async () => {
+									const qIndex = idx + 1;
+									if (!isActive) {
+											setCurrentQuestionIndex(qIndex);
+											try {
+												const q = await loadQuestion(qIndex);
+												await sendQuestionToContestants(qIndex, q);
+											} catch (err) {
+												logger.error('Failed to load/send question:', err);
+											}
+										} else {
+											setCurrentQuestionIndex(0);
+											try {
+												await clearQuestion();
+											} catch (err) {
+												logger.error('Failed to clear question:', err);
+											}
+										}
+								}}
+								className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${isActive ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}>
+								{idx + 1}
+							</button>
+						);
+					})}
+				</div>
+			)}
 			topControlButtons={
 				<>
 					<button
@@ -443,34 +366,42 @@ playerTimestamp: undefined,
 							if (!hasQuestionSelected) return;
 							void startTheClock(currentQuestionIndex);
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={!hasQuestionSelected}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU ĐẾM GIỜ</span>
 					</button>
 					<button
-						onClick={() => {
+						onClick={async () => {
 							const prevIndex = Math.max(1, currentQuestionIndex - 1 || 1);
 							setCurrentQuestionIndex(prevIndex);
-							void loadQuestion(prevIndex);
-							void sendQuestionToContestants(prevIndex);
+							try {
+								const q = await loadQuestion(prevIndex);
+								await sendQuestionToContestants(prevIndex, q);
+							} catch (err) {
+								logger.error('Failed to load/send previous question:', err);
+							}
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={currentQuestionIndex <= 1}
 					>
 						<ArrowLeftToLine size={18} />
 						<span className="ml-2 font-bold">CÂU HỎI TRƯỚC ĐÓ</span>
 					</button>
 					<button
-						onClick={() => {
+						onClick={async () => {
 							const nextIndex = currentQuestionIndex > 0 ? currentQuestionIndex + 1 : 1;
 							if (nextIndex > MAX_QUESTION_INDEX) return;
 							setCurrentQuestionIndex(nextIndex);
-							void loadQuestion(nextIndex);
-							void sendQuestionToContestants(nextIndex);
+							try {
+								const q = await loadQuestion(nextIndex);
+								await sendQuestionToContestants(nextIndex, q);
+							} catch (err) {
+								logger.error('Failed to load/send next question:', err);
+							}
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={currentQuestionIndex >= MAX_QUESTION_INDEX}
 					>
 						<ArrowRightToLine size={18} />
@@ -484,7 +415,7 @@ playerTimestamp: undefined,
 						onClick={() => {
 							void handleStartRound();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 border-2 border-blue-600 w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU LƯỢT THI</span>
@@ -493,7 +424,7 @@ playerTimestamp: undefined,
 						onClick={() => {
 							void loadPlayersState();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT ĐIỂM SỐ</span>
@@ -502,7 +433,7 @@ playerTimestamp: undefined,
 						onClick={() => {
 							void handleEndRound();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC PHẦN THI</span>
@@ -511,37 +442,13 @@ playerTimestamp: undefined,
 			}
 			renderPlayerList={() =>
 				players.map((player) => (
-<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar player={player} isActive={false} />
-						<div className="flex flex-row pt-3 gap-3 justify-center">
-							<button
-								onClick={() => {
-									void handleAddScore(player.playerCode, 30);
-								}}
-								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 text-[18px] flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
-							>
-								<Plus size={18} />
-								<span className="ml-2 font-bold">CỘNG 30</span>
-							</button>
-							<button
-								onClick={() => {
-									void handleAddScore(player.playerCode, 20);
-								}}
-								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
-							>
-								<Plus size={18} />
-								<span className="ml-2 font-bold">CỘNG 20</span>
-							</button>
-							<button
-								onClick={() => {
-									void handleAddScore(player.playerCode, 10);
-								}}
-								className="bg-blue-900 ring-blue-600 ring-3 w-35 h-12 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
-							>
-								<Plus size={18} />
-								<span className="ml-2 font-bold">CỘNG 10</span>
-							</button>
-						</div>
+					<div className="flex flex-col gap-3" key={player.playerCode}>
+						<APlayerBar
+							player={player}
+							isActive={selectedPlayerCodes.includes(player.playerCode)}
+							onClick={toggleSelectedPlayer}
+							disabled={timer > 0}
+						/>
 					</div>
 				))
 			}

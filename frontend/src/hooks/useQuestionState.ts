@@ -16,11 +16,17 @@ export interface QuestionState {
     clear: () => void;
 }
 
-export function useQuestionState(): QuestionState {
+export interface QuestionStateWithIndex extends QuestionState {
+    currentQuestionIndex: number;
+}
+
+export function useQuestionState(): QuestionStateWithIndex {
     const [currentQuestion, setCurrentQuestion] = useState<Question>(emptyQuestion);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 
     const clear = useCallback(() => {
         setCurrentQuestion(emptyQuestion);
+        setCurrentQuestionIndex(0);
     }, []);
 
     const applyWsMessage = useCallback((raw: unknown) => {
@@ -30,21 +36,28 @@ export function useQuestionState(): QuestionState {
         const msg: any = "message" in (raw as any) ? (raw as any).message : raw;
 
         switch (msg?.type) {
-            case "send_question":
+            case "send_question": {
+                const code = msg.question_code ?? "";
+                // try to extract trailing number as index (e.g., 'BP_01' => 1)
+                const m = String(code).match(/(\d+)\s*$/);
+                const idx = m ? Number(m[1]) : 0;
                 setCurrentQuestion({
                     ...emptyQuestion,
-                    questionCode: msg.question_code ?? "",
+                    questionCode: code,
                     questionText: msg.content ?? "",
                     questionMediaURL: msg.media_source ?? undefined,
                 });
+                setCurrentQuestionIndex(Number.isFinite(idx) ? idx : 0);
                 break;
+            }
             case "clear_question":
                 setCurrentQuestion(emptyQuestion);
+                setCurrentQuestionIndex(0);
                 break;
             default:
                 break;
         }
     }, []);
 
-    return { currentQuestion, applyWsMessage, clear };
+    return { currentQuestion, applyWsMessage, clear, currentQuestionIndex } as unknown as QuestionState & { currentQuestionIndex: number };
 }

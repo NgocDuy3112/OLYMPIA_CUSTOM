@@ -10,7 +10,7 @@ const GameAccessPage: React.FC = () => {
         e.preventDefault();
         if (!matchCode) return;
         sessionStorage.setItem("matchCode", matchCode);
-        navigate(`/contestant/waiting`);
+        navigate(`/player/waiting`);
     };
 
     return (

@@ -12,7 +12,7 @@ const logger = createLogger("AGameManaging");
 /** Maps to backend `core/user.py` response fields */
 interface UserData {
     user_code: string;
-    userPname: string;       // backend returns `userPname` (not user_name)
+    user_name: string;       // backend returns `user_name` (not userPname)
     role: "guest" | "player" | "admin";
     created_at: string;
     updated_at: string;
@@ -270,7 +270,7 @@ const AGameManagingPage = () => {
                                         className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors"
                                     >
                                         <td className="py-2 px-2 font-mono text-xs">{u.user_code}</td>
-                                        <td className="py-2 px-2">{u.userPname}</td>
+                                        <td className="py-2 px-2">{u.user_name}</td>
                                         <td className="py-2 px-2 capitalize">{u.role}</td>
                                     </tr>
                                 ))}

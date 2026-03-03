@@ -2,36 +2,34 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
+// temporary page-level logging uses console.info; createLogger import removed for brevity
 import PAnswerBox from "@/components/player/PAnswerBox";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
 
 
-function unwrapWsMessage(message: any): any {
-	if (message && typeof message === "object" && "message" in message) {
-		return message.message;
-	}
-	return message;
-}
-
 
 const PButPhaPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendAnswer } = useWebSocket(matchCode);
+	const { playerCode, token } = usePlayerSession();
+	const { isConnected, lastMessage, sendAnswer } = usePlayerWebSocket();
 	const { timer, timeLimit, start, getElapsedSeconds } = useCountdownTimer();
-	const { currentQuestion, applyWsMessage } = useQuestionState();
+	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [answer, setAnswer] = useState("");
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg = unwrapWsMessage(lastMessage);
+		const msg = lastMessage;
+
+		// Debug logs to help verify payloads
+		console.info("PLAYER lastMessage:", lastMessage);
+		console.info("PLAYER msg:", msg);
 
 		// Let the question hook handle send_question/clear_question
 		applyWsMessage(msg);
@@ -142,11 +140,12 @@ const PButPhaPage = () => {
 			currentPlayerCode={playerCode}
 		>
 			<>
-				<PQuestionBoard
-					title="BỨT PHÁ"
-					question={currentQuestion}
-					timerDuration={timer}
-				/>
+					<PQuestionBoard
+						title="BỨT PHÁ"
+						question={currentQuestion}
+						timerDuration={timer}
+						controls={{ variant: 'numbers', count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+					/>
 
 				<PAnswerBox
 					answer={answer}
