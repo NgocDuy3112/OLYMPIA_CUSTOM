@@ -3,7 +3,7 @@ import { startTransition, useCallback, useEffect, useState } from "react";
 import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Power, RefreshCw } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 const logger = createLogger("AButPha");
@@ -31,7 +31,7 @@ const DEFAULT_QUESTION: Question = {
 const AButPhaPage = () => {
 	const currentMatchCode = localStorage.getItem("matchCode") ?? "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useWebSocket(currentMatchCode);
+	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	// Allow multi-selection in this page
@@ -248,7 +248,7 @@ const AButPhaPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg = lastMessage;
+		const msg: any = lastMessage;
 		switch (msg?.type) {
 			case "send_players_info": {
 				startTransition(() => {

@@ -3,15 +3,12 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { 
 	AlarmClockCheck, 
 	CheckCheck,
-	Check, 
 	Power, 
 	RefreshCw, 
-	CircleX, 
-	ArrowRightFromLine 
 } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -60,7 +57,7 @@ const AKhoiDongChungPage = () => {
 		}
 	})();
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useWebSocket(currentMatchCode);
+	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	// allow multi-selection of players on this page
@@ -71,11 +68,14 @@ const AKhoiDongChungPage = () => {
 	const [timer, setTimer] = useState<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
-	const [isSecondAttempt, setIsSecondAttempt] = useState<boolean>(false);
+	// second attempt logic removed — always award full points
 
 	// countdown running state & auto-advance interval ref
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 	const autoAdvanceRef = useRef<number | null>(null);
+
+	// Track whether admin has already applied score for the current question
+	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
 
 	const hasQuestionSelected = currentQuestionIndex > 0;
 	const questionTitle = "KHỞI ĐỘNG - LƯỢT CHUNG";
@@ -328,8 +328,32 @@ const AKhoiDongChungPage = () => {
 		} catch (err) {
 			logger.error("Failed advancing to next question:", err);
 		}
-		setIsSecondAttempt(false);
+		// second attempt flag removed
 	}, [currentQuestionIndex, loadQuestion, sendQuestionToContestants]);
+
+	// Reset the "has added score" flag when advancing to a different question
+	useEffect(() => {
+		// schedule state update async to avoid cascading renders
+		Promise.resolve().then(() => setHasAddedScore(false));
+	}, [currentQuestionIndex]);
+
+	const handleAddScoreToSelected = useCallback(async () => {
+		if (selectedPlayerCodes.length === 0) return;
+		const score = 10; // always award 10 points
+		setHasAddedScore(true);
+		try {
+			// Apply score sequentially to avoid race conditions updating scoreboard
+			for (const code of selectedPlayerCodes) {
+				await handleAddScore(code, score);
+			}
+			// Clear selection after awarding points
+			setSelectedPlayerCodes([]);
+			// Advance to next question after scoring
+			await handleNextQuestion();
+		} catch (err) {
+			logger.error("Failed adding score to selected players:", err);
+		}
+	}, [selectedPlayerCodes, handleAddScore, handleNextQuestion]);
 
 	useEffect(() => {
 		startTransition(() => {
@@ -386,7 +410,7 @@ const AKhoiDongChungPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg = lastMessage;
+		const msg: any = lastMessage;
 		switch (msg?.type) {
 			case "send_players_info": {
 				startTransition(() => {
@@ -502,49 +526,21 @@ const AKhoiDongChungPage = () => {
 						onClick={() => {
 							void startTheClock(currentQuestionIndex);
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={isTimerRunning}
 					>
 						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU ĐẾM GIỜ</span>
+						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</button>
 					<button
 						onClick={() => {
-							const activePlayer = players.find((p) => p.playerHasBuzzed);
-							if (!activePlayer) return;
-							const score = !isSecondAttempt ? 10 : 5;
-							void handleAddScore(activePlayer.playerCode, score);
-							handleNextQuestion();
+							void handleAddScoreToSelected();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={!hasQuestionSelected || !players.some(p => p.playerHasBuzzed)}
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						disabled={!hasQuestionSelected || selectedPlayerCodes.length === 0 || hasAddedScore}
 					>
-						{!isSecondAttempt ? <CheckCheck size={18} /> : <Check size={18} />}
-						<span className="ml-2 font-bold">{!isSecondAttempt ? "CỘNG 10 ĐIỂM" : "CỘNG 5 ĐIỂM"}</span>
-					</button>
-					<button
-						onClick={() => {
-							if (!isSecondAttempt) {
-								setIsSecondAttempt(true);
-							} else {
-								handleNextQuestion();
-							}
-						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={!hasQuestionSelected || !players.some(p => p.playerHasBuzzed)}
-					>
-						<CircleX size={18} />
-						<span className="ml-2 font-bold">{!isSecondAttempt ? "SAI LẦN 1" : "SAI LẦN 2"}</span>
-					</button>
-					<button
-						onClick={() => {
-							handleNextQuestion();
-						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={!hasQuestionSelected || !players.some(p => p.playerHasBuzzed)}
-					>
-						<ArrowRightFromLine size={18} />
-						<span className="ml-2 font-bold">BỎ QUA</span>
+						<CheckCheck size={18} />
+						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
 					</button>
 				</>
 			}
@@ -552,21 +548,21 @@ const AKhoiDongChungPage = () => {
 				<>
 					<button
 						onClick={() => { handleStartRound() }}
-						className="bg-blue-900 ring-blue-600 ring-3 w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU LƯỢT THI</span>
 					</button>
 					<button
 						onClick={() => { loadPlayersState()}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT ĐIỂM SỐ</span>
 					</button>
 					<button
 						onClick={() => {handleEndRound()}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC PHẦN THI</span>

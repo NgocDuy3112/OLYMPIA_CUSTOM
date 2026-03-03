@@ -26,7 +26,7 @@ const PKhoiDongRiengPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg = lastMessage;
+		const msg: any = lastMessage;
 
 		// Debug logs to help verify payloads
 		console.info("PLAYER lastMessage:", lastMessage);

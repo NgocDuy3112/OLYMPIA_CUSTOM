@@ -4,6 +4,7 @@ import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 // import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
+import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 
 
 interface AProtectedRouteProps {
@@ -25,8 +26,11 @@ export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }
 
 
 const AdminRoutes = () => {
+    const matchCode = localStorage.getItem("matchCode") || "";
+
     return (
-        <Routes>
+        <AdminWebSocketProvider matchCode={matchCode}>
+            <Routes>
             <Route path="/" element={<Navigate to="/admin/waiting" replace />} />
             {/* <Route path="/dashboard" element={} /> */}
             <Route
@@ -61,7 +65,8 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-        </Routes>
+            </Routes>
+        </AdminWebSocketProvider>
     );
 }
 
