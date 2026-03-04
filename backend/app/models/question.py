@@ -1,7 +1,6 @@
 from datetime import datetime, timezone
 import uuid
 from sqlalchemy import CheckConstraint, String, DateTime, ForeignKey, Boolean, UUID
-from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dependencies.postgresql_db import Base
@@ -20,10 +19,11 @@ class Question(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
-    question_code: Mapped[str] = mapped_column(String(length=15))
+    question_code: Mapped[str] = mapped_column(String(length=25))
     content: Mapped[str] = mapped_column(String)
     answer: Mapped[str] = mapped_column(String)
-    media_urls: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=True)
+    # store single media URL (or comma-separated URLs) as a string
+    media_url: Mapped[str] = mapped_column(String, nullable=True)
     explanation: Mapped[str] = mapped_column(String, nullable=True)
     
     is_used: Mapped[bool] = mapped_column(Boolean, default=False)

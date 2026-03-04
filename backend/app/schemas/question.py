@@ -7,7 +7,8 @@ class QuestionPostRequest(BaseRequest):
     content: str
     answer: str
     explanation: str | None = None
-    media_urls: list[str] | None = None
+    # store a single media URL (or comma-separated URLs) as a string
+    media_url: str | None = None
 
     @field_validator('match_code', mode='after')
     @classmethod
@@ -23,13 +24,14 @@ class QuestionPostRequest(BaseRequest):
             raise ValueError("question_code must start with 'OC3_Q'")
         return value
 
-    @field_validator('media_urls', mode='after')
+    @field_validator('media_url', mode='after')
     @classmethod
-    def ensure_media_urls_are_valid(cls, value: list[str] | None) -> list[str] | None:
-        if value is not None:
-            for url in value:
-                if not (url.startswith("http://") or url.startswith("https://")):
-                    raise ValueError(f"Invalid media URL: {url}")
+    def ensure_media_url_is_valid(cls, value: str | None) -> str | None:
+        if value is not None and value != "":
+            # allow a single URL or comma-separated URLs; validate the first non-empty token
+            first = str(value).split(',')[0].strip()
+            if not (first.startswith("http://") or first.startswith("https://")):
+                raise ValueError(f"Invalid media URL: {first}")
         return value
 
 
@@ -37,4 +39,4 @@ class QuestionUpdateRequest(BaseModel):
     content: str | None = None
     answer: str | None = None
     explanation: str | None = None
-    media_urls: list[str] | None = None
+    media_url: str | None = None

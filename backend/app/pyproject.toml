@@ -19,4 +19,5 @@ dependencies = [
     "sqlalchemy>=2.0.45",
     "uvicorn[standard]>=0.40.0",
     "valkey>=6.1.1",
+    "openpyxl>=3.1.2",
 ]

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends, HTTPException
+from fastapi import APIRouter, Query, Depends, HTTPException, UploadFile, File
 from typing import Annotated
 
 from dependencies.postgresql_db import get_db
@@ -38,6 +38,41 @@ async def post_questions_from_google_drive(
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+
+@router.post(
+    "/excel/",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=201
+)
+async def post_questions_from_excel(
+    file: UploadFile = File(...),
+    match_code: str | None = None,
+    session: AsyncSession = Depends(get_db),
+) -> BaseResponse:
+    """Upload an Excel file containing questions. If `match_code` is provided it must match the uploaded
+    file name (without extension). If omitted, the match_code is derived from the uploaded file name.
+    """
+    try:
+        # derive match_code from filename if not provided
+        filename = file.filename or ""
+        derived = filename.rsplit('.', 1)[0] if filename else None
+        final_match_code = match_code or derived
+        if not final_match_code:
+            raise HTTPException(status_code=400, detail="match_code not provided and could not be derived from file name")
+        # if both provided, ensure they match
+        if match_code and derived and match_code != derived:
+            raise HTTPException(status_code=400, detail="Provided match_code does not match uploaded file name")
+
+        return await post_questions_from_excel_to_db(final_match_code, file, session)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 

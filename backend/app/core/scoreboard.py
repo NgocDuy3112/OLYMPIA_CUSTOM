@@ -64,15 +64,23 @@ async def get_scoreboard_for_a_match_from_db(
         player_codes = [p["user_code"] for p in players_data]
         
         if await valkey.exists(leaderboard_key):
-            scores = await valkey.mget(player_codes) if player_codes else []
-            scoreboard_list = [
-                {
-                    "user_code": p["user_code"],
-                    "user_name": p["user_name"],
-                    "cummulative_score": _safe_convert_score(scores[i] if i < len(scores) else None),
-                }
-                for i, p in enumerate(players_data)
-            ]
+            # The leaderboard is stored as a sorted set (zset) under the leaderboard_key.
+            # Use ZSCORE per player to retrieve their cumulative score. We intentionally
+            # avoid mget here because scores are stored as zset member scores, not as
+            # separate string keys.
+            scoreboard_list = []
+            for p in players_data:
+                try:
+                    score = await valkey.zscore(leaderboard_key, p["user_code"])  # may return None
+                except Exception:
+                    score = None
+                scoreboard_list.append(
+                    {
+                        "user_code": p["user_code"],
+                        "user_name": p["user_name"],
+                        "cummulative_score": _safe_convert_score(score),
+                    }
+                )
             global_logger.info(f"Fetched scoreboard from cache for match_code={match_code}.")
         else:
             # No leaderboard in cache -> return zeros for all players

@@ -30,7 +30,7 @@ interface QuestionData {
     content: string;
     answer: string;
     explanation: string | null;
-    media_urls: string[] | null;
+    media_url: string[] | null;
 }
 
 /** Maps to backend `schemas/base.py` BaseResponse */
@@ -191,7 +191,7 @@ const AGameManagingPage = () => {
         setQuestionsLoading(true);
         try {
             const res = await fetch(
-                `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(code)}&question_code=`,
+                `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(code)}`,
                 { headers: authHeaders() },
             );
             const json: ApiResponse = await res.json();
@@ -390,7 +390,7 @@ const AGameManagingPage = () => {
                                     <th className="py-2 px-2">content</th>
                                     <th className="py-2 px-2">answer</th>
                                     <th className="py-2 px-2">explanation</th>
-                                    <th className="py-2 px-2">media_urls</th>
+                                    <th className="py-2 px-2">media_url</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -408,8 +408,8 @@ const AGameManagingPage = () => {
                                             {q.explanation ?? "—"}
                                         </td>
                                         <td className="py-2 px-2 text-xs">
-                                            {q.media_urls && q.media_urls.length > 0
-                                                ? q.media_urls.map((url, i) => (
+                                            {q.media_url && q.media_url.length > 0
+                                                ? q.media_url.map((url, i) => (
                                                       <a
                                                           key={i}
                                                           href={url}

@@ -14,7 +14,7 @@ import { API_BASE_URL } from "@/configs";
 
 const TIME_LIMIT = 15;
 const MAX_QUESTION_INDEX = 4;
-const QUESTION_PREFIX = "BP"; // Bứt Phá question naming convention.
+const QUESTION_PREFIX = "OC3_Q_BP"; // Bứt Phá question naming convention.
 
 
 const DEFAULT_QUESTION: Question = {
@@ -105,7 +105,7 @@ const AButPhaPage = () => {
 	}, [computePlayersSnapshot, currentMatchCode, token]);
 
 	const resolveQuestionCode = useCallback((questionIndex: number) => {
-		return `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`;
+		return `${QUESTION_PREFIX}_${String(questionIndex)}`;
 	}, []);
 
 	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
@@ -129,7 +129,7 @@ const AButPhaPage = () => {
 			const questionCode = resolveQuestionCode(questionIndex);
 
 			try {
-				const res = await fetch(`${API_BASE_URL}/questions/${currentMatchCode}/${questionCode}`, {
+				const res = await fetch(`${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(questionCode)}`, {
 					headers: { Authorization: `Bearer ${token}` },
 				});
 				const data = await res.json();
@@ -146,7 +146,7 @@ const AButPhaPage = () => {
 		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
 	);
 
-	const sendQuestionToContestants = useCallback(
+	const sendQuestionToplayers = useCallback(
 		async (questionIndex: number, question?: Question) => {
 			if (!currentMatchCode) return;
 			if (questionIndex <= 0) return;
@@ -187,7 +187,7 @@ const AButPhaPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/bp` });
+			await sendMessage({ type: "navigate", user_code: "", path: `/player/bp` });
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
 		}
@@ -201,7 +201,7 @@ const AButPhaPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/waiting` });
+			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
@@ -339,7 +339,7 @@ const AButPhaPage = () => {
 											setCurrentQuestionIndex(qIndex);
 											try {
 												const q = await loadQuestion(qIndex);
-												await sendQuestionToContestants(qIndex, q);
+												await sendQuestionToplayers(qIndex, q);
 											} catch (err) {
 												logger.error('Failed to load/send question:', err);
 											}
@@ -378,7 +378,7 @@ const AButPhaPage = () => {
 							setCurrentQuestionIndex(prevIndex);
 							try {
 								const q = await loadQuestion(prevIndex);
-								await sendQuestionToContestants(prevIndex, q);
+								await sendQuestionToplayers(prevIndex, q);
 							} catch (err) {
 								logger.error('Failed to load/send previous question:', err);
 							}
@@ -396,7 +396,7 @@ const AButPhaPage = () => {
 							setCurrentQuestionIndex(nextIndex);
 							try {
 								const q = await loadQuestion(nextIndex);
-								await sendQuestionToContestants(nextIndex, q);
+								await sendQuestionToplayers(nextIndex, q);
 							} catch (err) {
 								logger.error('Failed to load/send next question:', err);
 							}

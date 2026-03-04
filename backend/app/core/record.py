@@ -109,10 +109,25 @@ async def get_records_from_db(
         records = result.scalars().all()
         log_message = f"Fetched {len(records)} records for user_code={user_code}, match_code={match_code}."
         global_logger.info(log_message)
+
+        # Convert SQLAlchemy model instances to plain dicts for pydantic serialization
+        records_list: list[dict[str, object]] = []
+        for r in records:
+            records_list.append({
+                "id": str(r.id) if getattr(r, 'id', None) is not None else None,
+                "created_at": r.created_at.isoformat() if getattr(r, 'created_at', None) is not None else None,
+                "updated_at": r.updated_at.isoformat() if getattr(r, 'updated_at', None) is not None else None,
+                "points": r.points,
+                "is_deleted": r.is_deleted,
+                "player_id": str(r.player_id) if getattr(r, 'player_id', None) is not None else None,
+                "match_id": str(r.match_id) if getattr(r, 'match_id', None) is not None else None,
+                "question_id": str(r.question_id) if getattr(r, 'question_id', None) is not None else None,
+            })
+
         return BaseResponse(
             status='success',
             message=log_message,
-            data=records
+            data=records_list
         )
     except Exception as e:
         log_message = f"Error fetching records for user_code={user_code}, match_code={match_code}: {str(e)}"

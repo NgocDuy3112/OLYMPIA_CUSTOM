@@ -5,6 +5,7 @@ valkey
 asyncpg
 sqlalchemy
 
+openpyxl
 pydantic
 pydantic_settings
 

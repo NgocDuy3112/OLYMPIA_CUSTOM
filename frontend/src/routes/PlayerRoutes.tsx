@@ -40,8 +40,8 @@ const PlayerAutoNavigator = () => {
 
     useEffect(() => {
         if (!lastMessage) return;
-
-        const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
+        const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
+        const msg = raw?.message ?? raw; 
         if (msg?.type !== "navigate") return;
 
         const basePath: unknown = msg?.path;

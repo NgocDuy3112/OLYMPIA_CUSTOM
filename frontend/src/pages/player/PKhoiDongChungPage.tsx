@@ -36,19 +36,40 @@ const PKhoiDongChungPage = () => {
 
 		switch (msg?.type) {
 			case "send_players_info": {
-				// Receive player information through WebSocket instead of API
+				// Receive player information through WebSocket; support both old (players+scoreboard+profiles)
+				// and new (players[] where each player already contains cummulative_score/user_name) shapes.
 				const playersList = msg.players ?? [];
 				const scoreboard = msg.scoreboard ?? [];
 				const profiles = msg.profiles ?? [];
 
-				const finalPlayers: PlayerStatus[] = playersList.map((p: any) => {
-					const code = String(p.user_code ?? "");
-					const profile = profiles.find((prof: any) => prof.user_code === code);
-					const score = scoreboard.find((s: any) => s.user_code === code);
+				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
+					const code = String(p?.user_code ?? "");
+
+					// resolve name: prefer player object, then profiles, then scoreboard entry
+					let name = "";
+					if (p?.user_name) name = p.user_name;
+					else {
+						const prof = (profiles ?? []).find((pr: any) => String(pr?.user_code) === code);
+						if (prof) name = prof.user_name ?? "";
+						else {
+							const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
+							name = scoreEntry?.user_name ?? "";
+						}
+					}
+
+					// resolve score: prefer player.cummulative_score then scoreboard lookup
+					let scoreVal = 0;
+					if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
+					else {
+						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
+						if (scoreEntry) scoreVal = scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+					}
+
 					return {
 						playerCode: code,
-						playerName: profile?.user_name ?? "",
-						playerScore: score?.cummulative_score ?? score?.new_total_score ?? 0,
+						playerName: name,
+						playerScore: scoreVal,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: undefined,

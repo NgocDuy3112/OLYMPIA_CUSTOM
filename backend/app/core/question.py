@@ -8,6 +8,9 @@ from models.question import Question
 from models.match import Match
 from schemas.question import *
 from configs import *
+from fastapi import HTTPException, UploadFile
+from openpyxl import load_workbook
+from io import BytesIO
 
 
 QUESTION_SHEET_NAMES = ['KHOI_DONG', 'GIAI_MA', 'BUT_PHA', 'VE_DICH']
@@ -35,7 +38,7 @@ async def post_questions_from_google_drive_to_db(
                 content=row[1],
                 answer=row[2],
                 explanation=row[3] if row[3] else None,
-                media_urls=row[4].split(',') if row[4] else None,
+                media_url=str(row[4]).strip() if row[4] else None,
                 match_id=match_id
             ) for row in questions]
             session.add_all(question_objects)
@@ -61,6 +64,95 @@ async def post_questions_from_google_drive_to_db(
         raise HTTPException(status_code=500, detail=log_message)
 
 
+async def post_questions_from_excel_to_db(
+    match_code: str,
+    file: UploadFile,
+    session: AsyncSession
+) -> BaseResponse:
+    """Load questions from an uploaded Excel file.
+
+    The uploaded Excel file is expected to contain sheets named in QUESTION_SHEET_NAMES.
+    Each sheet should have columns A-E corresponding to: question_code, content, answer, explanation, media_url.
+    The first row is treated as header and skipped.
+    """
+    global_logger.info(f"POST request received to inject questions from Excel with match code: {match_code}.")
+    try:
+        match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code))
+        if match_id is None:
+            log_message = f"No match found with match_code={match_code}."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        # read uploaded file bytes and load workbook
+        content = await file.read()
+        wb = load_workbook(BytesIO(content), data_only=True)
+
+        for sheet_name in QUESTION_SHEET_NAMES:
+            if sheet_name not in wb.sheetnames:
+                global_logger.debug(f"Sheet '{sheet_name}' not found in uploaded workbook; skipping.")
+                continue
+            ws = wb[sheet_name]
+
+            rows = []
+            # iterate rows starting from second row (assume header in first row)
+            for row in ws.iter_rows(min_row=2, max_col=5, values_only=True):
+                if not row:
+                    continue
+                # require at least one non-empty cell after the first column to consider row valid
+                if len(row) <= 1 or not any((cell is not None and str(cell).strip()) for cell in row[1:]):
+                    continue
+                qcode = row[0]
+                content_cell = row[1]
+                answer_cell = row[2] if len(row) > 2 else None
+                explanation_cell = row[3] if len(row) > 3 else None
+                media_cell = row[4] if len(row) > 4 else None
+
+                # skip rows missing required fields
+                if not qcode or not content_cell or not answer_cell:
+                    global_logger.warning(f"Skipping invalid row in sheet '{sheet_name}': {row}")
+                    continue
+
+                rows.append((qcode, content_cell, answer_cell, explanation_cell, media_cell))
+
+            question_objects = []
+            for r in rows:
+                try:
+                    question_objects.append(Question(
+                            question_code=str(r[0]).strip(),
+                            content=str(r[1]),
+                            answer=str(r[2]),
+                            explanation=str(r[3]) if r[3] is not None else None,
+                            media_url=str(r[4]).strip() if r[4] else None,
+                            match_id=match_id
+                        ))
+                except Exception as e:
+                    global_logger.error(f"Failed constructing Question object for row {r}: {e}")
+
+            if question_objects:
+                session.add_all(question_objects)
+                global_logger.debug(f"Added {len(question_objects)} questions from sheet '{sheet_name}' to session.")
+
+        await session.commit()
+        log_message = f"Questions injected successfully from Excel for match_code={match_code}."
+        global_logger.info(log_message)
+        return BaseResponse(
+            status='success',
+            message=log_message
+        )
+    except IntegrityError:
+        await session.rollback()
+        log_message = f"Question in match_code={match_code} already exists."
+        global_logger.warning(log_message)
+        raise HTTPException(status_code=400, detail=log_message)
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while injecting questions from Excel with match_code={match_code}: {e}"
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)
+
+
 
 async def post_question_to_db(
     request: QuestionPostRequest, 
@@ -78,7 +170,7 @@ async def post_question_to_db(
             content=request.content,
             answer=request.answer,
             explanation=request.explanation,
-            media_urls=request.media_urls,
+            media_url=request.media_url,
             match_id=match_id
         )
         session.add(question)
@@ -130,7 +222,7 @@ async def get_question_from_request_from_db(
                 'content': question.content,
                 'answer': question.answer,
                 'explanation': question.explanation,
-                'media_urls': question.media_urls
+                'media_url': question.media_url
             }
         else:
             query = select(Question).where(
@@ -147,7 +239,7 @@ async def get_question_from_request_from_db(
                     'content': q.content,
                     'answer': q.answer,
                     'explanation': q.explanation,
-                    'media_urls': q.media_urls
+                    'media_url': q.media_url
                 }
                 for q in questions
             ]
@@ -243,8 +335,8 @@ async def patch_question_to_db(
             question.answer = request.answer
         if request.explanation is not None:
             question.explanation = request.explanation
-        if request.media_urls is not None:
-            question.media_urls = request.media_urls
+        if request.media_url is not None:
+            question.media_url = request.media_url
 
         await session.commit()
         log_message = f"Question updated successfully for question_code={question_code} in match_code={match_code}."

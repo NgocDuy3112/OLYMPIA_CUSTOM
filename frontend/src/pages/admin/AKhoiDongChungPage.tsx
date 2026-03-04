@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { 
-	AlarmClockCheck, 
+import {
+	AlarmClockCheck,
 	CheckCheck,
-	Power, 
-	RefreshCw, 
+	Power,
+	RefreshCw,
 } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -20,7 +20,7 @@ const logger = createLogger("AKhoiDongChung");
 
 const TIME_LIMIT = 60;
 const MAX_QUESTION_INDEX = 6;
-const QUESTION_PREFIX = "KD_C"; // Matches the Khởi Động chung question naming convention.
+const QUESTION_PREFIX = "OC3_Q_KD_C"; // Matches the Khởi Động chung question naming convention.
 
 
 const DEFAULT_QUESTION: Question = {
@@ -36,26 +36,7 @@ const DEFAULT_QUESTION: Question = {
 
 const AKhoiDongChungPage = () => {
 	// Prefer matchCode from localStorage, but fall back to URL path (e.g. /admin/kdc/OC3_M01T)
-	const currentMatchCode = (() => {
-		try {
-			const stored = localStorage.getItem("matchCode");
-			if (stored && stored.length > 0) return stored;
-			const parts = window.location.pathname.split("/").filter(Boolean);
-			const last = parts.length > 0 ? parts[parts.length - 1] : "";
-			if (last && /^OC3_/.test(last)) {
-				// persist for later navigations
-				try {
-					localStorage.setItem("matchCode", last);
-				} catch (err) {
-					logger.debug("Could not persist matchCode to localStorage:", err);
-				}
-				return last;
-			}
-			return "";
-		} catch {
-			return "";
-		}
-	})();
+	const currentMatchCode = localStorage.getItem("matchCode");
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
@@ -68,6 +49,8 @@ const AKhoiDongChungPage = () => {
 	const [timer, setTimer] = useState<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+
+	// second attempt logic removed — always award full points
 	// second attempt logic removed — always award full points
 
 	// countdown running state & auto-advance interval ref
@@ -77,7 +60,7 @@ const AKhoiDongChungPage = () => {
 	// Track whether admin has already applied score for the current question
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
 
-	const hasQuestionSelected = currentQuestionIndex > 0;
+
 	const questionTitle = "KHỞI ĐỘNG - LƯỢT CHUNG";
 
 	// use shared helper for mapping players + profiles + scoreboard into PlayerStatus[]
@@ -94,7 +77,7 @@ const AKhoiDongChungPage = () => {
 	);
 
 	const loadPlayersState = useCallback(async () => {
-		if (!currentMatchCode || !token) return;
+		if (!currentMatchCode || !token) return undefined;
 		try {
 			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
 				headers: { Authorization: `Bearer ${token}` },
@@ -103,7 +86,7 @@ const AKhoiDongChungPage = () => {
 			const playersList = playersJson.data?.players ?? [];
 
 			let scoreList: any[] = [];
-				try {
+			try {
 				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
 					headers: { Authorization: `Bearer ${token}` },
 				});
@@ -129,22 +112,71 @@ const AKhoiDongChungPage = () => {
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
+
+			return { playersList, scoreList, profiles };
 		} catch (error) {
 			logger.error("Failed to load players:", error);
+			return undefined;
 		}
 	}, [currentMatchCode, token]);
 
+	// Broadcast the current players/scoreboard/profiles snapshot to players via WS
+	const sendPlayersSnapshot = useCallback(async () => {
+		if (!currentMatchCode) return;
+		logger.info("sendPlayersSnapshot: preparing to send snapshot");
+		try {
+			const payload = await loadPlayersState();
+			if (!payload) {
+				logger.warn("sendPlayersSnapshot: loadPlayersState returned no payload");
+				return;
+			}
+			const { playersList, scoreList, profiles } = payload;
+
+			// build a consolidated players array that includes cumulative score and position
+			const mergedPlayers = (playersList ?? []).map((p: any) => {
+				const userCode = String(p?.user_code ?? p?.playerCode ?? "");
+				const profile = (profiles ?? []).find((pr: any) => String(pr?.user_code) === userCode) ?? {};
+				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
+
+				const cummulativeScore =
+					scoreEntry?.cummulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+
+				return {
+					user_code: userCode,
+					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
+					position: p?.position ?? p?.pos ?? undefined,
+					cummulative_score: cummulativeScore,
+				};
+			});
+
+			try {
+				// send a single, consolidated players array to the players client
+				await sendMessage({ type: "send_players_info", players: mergedPlayers });
+				logger.info("sendPlayersSnapshot: sent players snapshot via WS");
+			} catch (err) {
+				logger.error("Failed to broadcast players info via WS:", err);
+			}
+		} catch (err) {
+			logger.error("Failed to prepare players snapshot:", err);
+		}
+	}, [currentMatchCode, loadPlayersState, sendMessage]);
+
 	const resolveQuestionCode = useCallback((questionIndex: number) => {
-		return `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`;
+		return `${QUESTION_PREFIX}_${String(questionIndex)}`;
 	}, []);
 
 	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
+		// Support multiple possible shapes returned by different endpoints
 		return {
-			questionCode: payload?.question_code ?? fallbackCode ?? "",
-			questionText: payload?.question?.content ?? payload?.question_content ?? "",
-			questionAnswer: payload?.question?.correct_answers ?? payload?.correct_answer ?? "",
-			questionExplanation: payload?.question?.explanation ?? payload?.question_explanation ?? "",
-			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? undefined,
+			questionCode: payload?.question_code ?? payload?.question?.question_code ?? fallbackCode ?? "",
+			questionText:
+				payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
+			questionAnswer:
+				payload?.question?.correct_answers ?? payload?.question?.correct_answer ?? payload?.answer ?? payload?.correct_answer ?? "",
+			questionExplanation:
+				payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
+			questionMediaURL:
+				payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? payload?.media_url ?? payload?.media_url ?? undefined,
 		};
 	}, []);
 
@@ -159,11 +191,30 @@ const AKhoiDongChungPage = () => {
 			const questionCode = resolveQuestionCode(questionIndex);
 
 			try {
-				const res = await fetch(`${API_BASE_URL}/questions/${currentMatchCode}/${questionCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
+				// Use query endpoint which the backend exposes for fetching questions
+				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(questionCode)}`;
+				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+				if (!res.ok) {
+					logger.warn(`loadQuestion: server returned ${res.status} for ${questionCode}`);
+					const mappedFallback = mapQuestionPayload(null, questionCode);
+					setCurrentQuestion(mappedFallback);
+					return mappedFallback;
+				}
 				const data = await res.json();
-				const mapped = mapQuestionPayload(data.data, questionCode);
+				// backend returns BaseResponse with data being either a dict or list; normalize to single payload
+				let payload: any = null;
+				if (Array.isArray(data.data)) {
+					// try to find the exact question in the returned list (some endpoints return list even when queried)
+					if (questionCode) {
+						payload = data.data.find((q: any) => String(q?.question_code) === String(questionCode)) ?? data.data[0] ?? null;
+						if (!payload) logger.warn(`loadQuestion: could not find question_code=${questionCode} in returned data, falling back to first item`);
+					} else {
+						payload = data.data[0] ?? null;
+					}
+				} else {
+					payload = data.data ?? null;
+				}
+				const mapped = mapQuestionPayload(payload, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			} catch (error) {
@@ -176,7 +227,7 @@ const AKhoiDongChungPage = () => {
 		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
 	);
 
-	const sendQuestionToContestants = useCallback(
+	const sendQuestionToplayers = useCallback(
 		async (questionIndex: number, question?: Question) => {
 			if (!currentMatchCode) return;
 			if (questionIndex <= 0) return;
@@ -202,7 +253,7 @@ const AKhoiDongChungPage = () => {
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
-			try {
+		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (error) {
 			logger.error("Failed to clear question via WS:", error);
@@ -217,11 +268,25 @@ const AKhoiDongChungPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/kdc` });
+			// send current players snapshot to players when starting the round
+			try {
+				await sendPlayersSnapshot();
+			} catch (err) {
+				logger.error("Failed to send players snapshot on start:", err);
+			}
+
+			// Navigate players to the player view including match and player code in the path.
+			// Send a per-player navigate message (with user_code set) so each client can
+			// react only when the user_code matches their own identity.
+			try {
+				await sendMessage({ type: "navigate", user_code: "", path: `/player/kdc` });
+			} catch (err) {
+				logger.error("Failed to navigate players to player view:", err);
+			}
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
 		}
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -231,7 +296,7 @@ const AKhoiDongChungPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "navigate", user_code: "", path: `/contestant/waiting` });
+			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
@@ -246,7 +311,7 @@ const AKhoiDongChungPage = () => {
 				setCurrentQuestionIndex(1);
 				try {
 					const q = await loadQuestion(1);
-					await sendQuestionToContestants(1, q);
+					await sendQuestionToplayers(1, q);
 				} catch (error) {
 					logger.error("Failed to load/send initial question for countdown:", error);
 				}
@@ -262,11 +327,12 @@ const AKhoiDongChungPage = () => {
 				logger.error("Failed to start the clock via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToContestants],
+		[currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToplayers],
 	);
 
 	const handleAddScore = useCallback(
-		async (playerCode: string, delta: number) => {
+		async (playerCode: string, delta: number, broadcast = true) => {
+			logger.info("handleAddScore: player=", playerCode, "delta=", delta, "broadcast=", broadcast);
 			if (!playerCode) return;
 			setPlayers((prev) =>
 				prev.map((player) =>
@@ -278,43 +344,88 @@ const AKhoiDongChungPage = () => {
 
 			if (!currentMatchCode || !token) return;
 
-			const questionCode = currentQuestionIndex > 0 ? resolveQuestionCode(currentQuestionIndex) : undefined;
+			const questionCode = resolveQuestionCode(currentQuestionIndex);
 
 			try {
-				await fetch(`${API_BASE_URL}/records/`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-					body: JSON.stringify({
-						user_code: playerCode,
-						match_code: currentMatchCode,
-						question_code: questionCode,
-						points: delta,
-					}),
-				});
+				// create record (may return 4xx). If we don't have a valid question_code, skip the POST
+				try {
+					if (!questionCode || String(questionCode).length === 0) {
+						logger.warn("handleAddScore: no question_code available; skipping POST to /records");
+					} else {
+						const recordRes = await fetch(`${API_BASE_URL}/records/`, {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+								Authorization: `Bearer ${token}`,
+							},
+							body: JSON.stringify({
+								user_code: playerCode,
+								match_code: currentMatchCode,
+								question_code: questionCode,
+								points: delta,
+							}),
+						});
+						if (!recordRes.ok) {
+							const txt = await recordRes.text().catch(() => "<no body>");
+							logger.warn("handleAddScore: record POST failed", recordRes.status, txt);
+						} else {
+							logger.info("handleAddScore: record created for", playerCode, delta);
+						}
+					}
+				} catch (postErr) {
+					logger.error("handleAddScore: error posting record:", postErr);
+				}
 
-				const recentRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					method: "GET",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
-				});
-				const recentJson = await recentRes.json();
-				const scoreboard = recentJson.data ?? [];
-				setPlayers((prev) =>
-					prev.map((player) => {
-						const updatedScore = scoreboard.find((item: any) => item.user_code === player.playerCode)?.cummulative_score;
-						return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
-					}),
-				);
+				// Refresh scoreboard and guard against unexpected shapes (server may return object)
+				try {
+					const recentRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${token}`,
+						},
+					});
+					let recentJson: any = {};
+					try {
+						recentJson = await recentRes.json();
+					} catch (e) {
+						logger.error("handleAddScore: failed parsing scoreboard JSON:", e);
+					}
+
+					let scoreboardArr: any[] = [];
+					if (Array.isArray(recentJson.data)) scoreboardArr = recentJson.data;
+					else if (Array.isArray(recentJson.data?.scoreboard)) scoreboardArr = recentJson.data.scoreboard;
+					else if (Array.isArray(recentJson.scoreboard)) scoreboardArr = recentJson.scoreboard;
+					else if (Array.isArray(recentJson)) scoreboardArr = recentJson;
+					else {
+						logger.warn("handleAddScore: unexpected scoreboard shape", recentJson);
+						scoreboardArr = [];
+					}
+
+					setPlayers((prev) =>
+						prev.map((player) => {
+							const updatedScore = scoreboardArr.find((item: any) => item.user_code === player.playerCode)?.cummulative_score;
+							return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
+						}),
+					);
+				} catch (err) {
+					logger.error("handleAddScore: failed to refresh scoreboard:", err);
+				}
+
+				// broadcast updated players/scoreboard after applying score
+				if (broadcast) {
+					try {
+						await sendPlayersSnapshot();
+						logger.info("handleAddScore: broadcasted players snapshot for", playerCode);
+					} catch (err) {
+						logger.error("Failed to broadcast players snapshot after score update:", err);
+					}
+				}
 			} catch (error) {
 				logger.error("Failed to update score:", error);
 			}
 		},
-		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token],
+		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token, sendPlayersSnapshot],
 	);
 
 	const handleNextQuestion = useCallback(async () => {
@@ -324,12 +435,12 @@ const AKhoiDongChungPage = () => {
 		setCurrentQuestionIndex(nextIndex);
 		try {
 			const q = await loadQuestion(nextIndex);
-			await sendQuestionToContestants(nextIndex, q);
+			await sendQuestionToplayers(nextIndex, q);
 		} catch (err) {
 			logger.error("Failed advancing to next question:", err);
 		}
 		// second attempt flag removed
-	}, [currentQuestionIndex, loadQuestion, sendQuestionToContestants]);
+	}, [currentQuestionIndex, loadQuestion, sendQuestionToplayers]);
 
 	// Reset the "has added score" flag when advancing to a different question
 	useEffect(() => {
@@ -339,21 +450,60 @@ const AKhoiDongChungPage = () => {
 
 	const handleAddScoreToSelected = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0) return;
+		// CHỈ cho phép cộng điểm khi có câu hỏi đang hoạt động (index > 0)
+		if (currentQuestionIndex <= 0) {
+			logger.warn("handleAddScoreToSelected: No active question selected (index 0). Aborting score award.");
+			return;
+		}
 		const score = 10; // always award 10 points
+		logger.info("handleAddScoreToSelected: starting for players=", selectedPlayerCodes);
 		setHasAddedScore(true);
 		try {
 			// Apply score sequentially to avoid race conditions updating scoreboard
 			for (const code of selectedPlayerCodes) {
-				await handleAddScore(code, score);
+				try {
+					// avoid broadcasting for every individual update; broadcast once after loop
+					await handleAddScore(code, score, false);
+					logger.info("handleAddScoreToSelected: applied", code, score);
+				} catch (innerErr) {
+					logger.error("handleAddScoreToSelected: failed applying score to", code, innerErr);
+				}
+			}
+			// Broadcast a single consolidated players snapshot (safe: check matchCode/token)
+			if (currentMatchCode) {
+				try {
+					await sendPlayersSnapshot();
+					logger.info("handleAddScoreToSelected: broadcasted players snapshot");
+				} catch (err) {
+					logger.error("Failed broadcasting players snapshot after group scoring:", err);
+				}
+			} else {
+				logger.warn("handleAddScoreToSelected: no currentMatchCode, skipping broadcast");
 			}
 			// Clear selection after awarding points
 			setSelectedPlayerCodes([]);
-			// Advance to next question after scoring
-			await handleNextQuestion();
 		} catch (err) {
 			logger.error("Failed adding score to selected players:", err);
+			// revert hasAddedScore so UI remains usable
+			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCodes, handleAddScore, handleNextQuestion]);
+	}, [selectedPlayerCodes, handleAddScore, sendPlayersSnapshot, currentMatchCode, currentQuestionIndex]);
+
+	// Global error hooks to capture unexpected runtime errors for diagnostics
+	useEffect(() => {
+		const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
+			logger.error("Unhandled promise rejection:", ev.reason ?? ev);
+		};
+		const onError = (ev: ErrorEvent) => {
+			logger.error("Runtime error:", ev.error ?? ev.message ?? ev);
+		};
+		window.addEventListener("unhandledrejection", onUnhandledRejection);
+		window.addEventListener("error", onError);
+		return () => {
+			window.removeEventListener("unhandledrejection", onUnhandledRejection);
+			window.removeEventListener("error", onError);
+		};
+	}, []);
 
 	useEffect(() => {
 		startTransition(() => {
@@ -375,7 +525,7 @@ const AKhoiDongChungPage = () => {
 				setCurrentQuestionIndex(0);
 			});
 
-			// clear question on contestants (schedule async to avoid sync setState inside effect)
+			// clear question on players (schedule async to avoid sync setState inside effect)
 			Promise.resolve().then(() => void clearQuestion());
 			return;
 		}
@@ -500,16 +650,23 @@ const AKhoiDongChungPage = () => {
 										setCurrentQuestionIndex(qIndex);
 										try {
 											const q = await loadQuestion(qIndex);
-											await sendQuestionToContestants(qIndex, q);
+											await sendQuestionToplayers(qIndex, q);
 										} catch (err) {
 											logger.error('Failed to load/send question:', err);
 										}
 									} else {
-										setCurrentQuestionIndex(0);
-										try {
-											await clearQuestion();
-										} catch (err) {
-											logger.error('Failed to clear question:', err);
+										// If it's the active question, trigger point award for selected players
+										if (selectedPlayerCodes.length > 0 && !hasAddedScore) {
+											void handleAddScoreToSelected().catch((err) => {
+												logger.error("Auto point award failed:", err);
+											});
+										} else {
+											setCurrentQuestionIndex(0);
+											try {
+												await clearQuestion();
+											} catch (err) {
+												logger.error('Failed to clear question:', err);
+											}
 										}
 									}
 								}}
@@ -534,10 +691,15 @@ const AKhoiDongChungPage = () => {
 					</button>
 					<button
 						onClick={() => {
-							void handleAddScoreToSelected();
+							// call and catch to avoid unhandled promise rejections causing app-level errors
+							void handleAddScoreToSelected().catch((err) => {
+								logger.error("AddScore button handler failed:", err);
+								// best-effort UI recovery
+								setHasAddedScore(false);
+							});
 						}}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={!hasQuestionSelected || selectedPlayerCodes.length === 0 || hasAddedScore}
+						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
 					>
 						<CheckCheck size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
@@ -551,21 +713,21 @@ const AKhoiDongChungPage = () => {
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU LƯỢT THI</span>
+						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</button>
 					<button
-						onClick={() => { loadPlayersState()}}
+						onClick={() => { loadPlayersState() }}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT ĐIỂM SỐ</span>
+						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</button>
 					<button
-						onClick={() => {handleEndRound()}}
+						onClick={() => { handleEndRound() }}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<Power size={18} />
-						<span className="ml-2 font-bold">KẾT THÚC PHẦN THI</span>
+						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</button>
 				</>
 			}
