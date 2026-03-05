@@ -12,7 +12,7 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
 
-const TIME_LIMIT = 15;
+const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 4;
 const QUESTION_PREFIX = "OC3_Q_BP"; // Bứt Phá question naming convention.
 
@@ -99,10 +99,53 @@ const AButPhaPage = () => {
 			}));
 
 			setPlayers((prev) => computePlayersSnapshot(playersList, scoreList, profiles, prev));
+
+			// return payload useful for sendPlayersSnapshot
+			return { playersList, scoreList, profiles };
 		} catch (error) {
 			logger.error("Failed to load players:", error);
 		}
 	}, [computePlayersSnapshot, currentMatchCode, token]);
+
+	// Broadcast the current players/scoreboard/profiles snapshot to players via WS
+	const sendPlayersSnapshot = useCallback(async () => {
+		if (!currentMatchCode) return;
+		logger.info("sendPlayersSnapshot: preparing to send snapshot");
+		try {
+			const payload = await loadPlayersState();
+			if (!payload) {
+				logger.warn("sendPlayersSnapshot: loadPlayersState returned no payload");
+				return;
+			}
+			const { playersList, scoreList, profiles } = payload as any;
+
+			// build a consolidated players array that includes cumulative score and position
+			const mergedPlayers = (playersList ?? []).map((p: any) => {
+				const userCode = String(p?.user_code ?? p?.playerCode ?? "");
+				const profile = (profiles ?? []).find((pr: any) => String(pr?.user_code) === userCode) ?? {};
+				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
+
+				const cummulativeScore =
+					scoreEntry?.cummulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+
+				return {
+					user_code: userCode,
+					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
+					position: p?.position ?? p?.pos ?? undefined,
+					cummulative_score: cummulativeScore,
+				};
+			});
+
+			try {
+				await sendMessage({ type: "send_players_info", players: mergedPlayers });
+				logger.info("sendPlayersSnapshot: sent players snapshot via WS");
+			} catch (err) {
+				logger.error("Failed to broadcast players info via WS:", err);
+			}
+		} catch (err) {
+			logger.error("Failed to prepare players snapshot:", err);
+		}
+	}, [currentMatchCode, loadPlayersState, sendMessage]);
 
 	const resolveQuestionCode = useCallback((questionIndex: number) => {
 		return `${QUESTION_PREFIX}_${String(questionIndex)}`;
@@ -187,11 +230,23 @@ const AButPhaPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "navigate", user_code: "", path: `/player/bp` });
+			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
+			try {
+				await sendMessage({ type: "navigate", user_code: "", path: `/player/bp` });
+			} catch (err) {
+				logger.error("Failed to navigate players to player view:", err);
+			}
+
+			// send current players snapshot to players when starting the round
+			try {
+				await sendPlayersSnapshot();
+			} catch (err) {
+				logger.error("Failed to send players snapshot on start:", err);
+			}
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
 		}
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -210,6 +265,11 @@ const AButPhaPage = () => {
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
 			if (!currentMatchCode || !token) return;
+			// prevent restarting while already counting down
+			if (timer > 0) {
+				logger.warn("startTheClock: timer already running, ignoring start request");
+				return;
+			}
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
@@ -221,7 +281,7 @@ const AButPhaPage = () => {
 				logger.error("Failed to start the clock via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, sendMessage, token],
+		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer],
 	);
 
 
@@ -332,6 +392,7 @@ const AButPhaPage = () => {
 							<button
 								key={idx}
 								type="button"
+								disabled={timer > 0}
 								aria-pressed={isActive}
 								onClick={async () => {
 									const qIndex = idx + 1;
@@ -367,7 +428,7 @@ const AButPhaPage = () => {
 							void startTheClock(currentQuestionIndex);
 						}}
 						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
-						disabled={!hasQuestionSelected}
+						disabled={!hasQuestionSelected || timer > 0}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU ĐẾM GIỜ</span>

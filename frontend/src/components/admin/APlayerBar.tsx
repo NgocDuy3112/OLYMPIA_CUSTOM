@@ -42,17 +42,19 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
         >
             <div className="flex flex-col flex-1">
                 <p className="font-extrabold uppercase leading-tight">
-                    {player.playerName && (
-                        <span className="font-[SVN-Gratelos_Display] uppercase text-[24px] font-extrabold flex items-center">
-                            {player.playerName}
-                            <Circle className={`ml-3 ${isCurrent ? 'text-blue-400' : 'text-gray-600'}`} size={12} />
-                        </span>
-                    )}
-                    {player.playerTimestamp != null && player.playerTimestamp != 0 && (
-                        <span className="ml-3 text-[16px] font-normal text-white">
-                            {player.playerTimestamp}
-                        </span>
-                    )}
+                    <span className="flex items-center gap-4">
+                        {player.playerName && (
+                            <span className="font-[SVN-Gratelos_Display] uppercase text-[24px] font-extrabold flex items-center">
+                                {player.playerName}
+                                <Circle className={`ml-3 ${isCurrent ? 'text-blue-400' : 'text-gray-600'}`} size={12} />
+                            </span>
+                        )}
+                        {player.playerTimestamp != null && player.playerTimestamp != 0 && (
+                            <span className="text-[16px] font-normal text-white">
+                                {player.playerTimestamp}
+                            </span>
+                        )}
+                    </span>
                 </p>
                 {player.playerHasBuzzed && (
                     <p className="text-[18px] mt-1 font-medium leading-snug">

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
 import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
 import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
@@ -8,6 +8,7 @@ import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
 import PButPhaPage from "@/pages/player/PButPhaPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
+import PWaitingPage from "@/pages/player/PWaitingPage";
 
 
 
@@ -29,47 +30,92 @@ export const ProtectedPlayerRoute: React.FC<PProtectedRouteProps> = ({ children 
 
 
 
-const PlayerAutoNavigator = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-
-    const matchCode = sessionStorage.getItem("matchCode") || "";
-    const playerCode = sessionStorage.getItem("playerCode") || "";
-
-    const { lastMessage } = usePlayerWebSocket();
-
+// Component to conditionally render WebSocket provider only when matchCode is available
+const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    // Track matchCode in state so we can react to it being set during the same page session
+    const [matchCode, setMatchCode] = useState<string>(() => {
+        const s = sessionStorage.getItem("matchCode");
+        return s && s.trim() !== "" ? s : "";
+    });
+    // Listen for a custom event that signals matchCode was set by the access page.
+    // This useEffect must be called unconditionally to satisfy the rules-of-hooks.
     useEffect(() => {
-        if (!lastMessage) return;
-        const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
-        const msg = raw?.message ?? raw; 
-        if (msg?.type !== "navigate") return;
+        if (matchCode) return; // already have matchCode, nothing to do
 
-        const basePath: unknown = msg?.path;
-        if (typeof basePath !== "string") return;
-        if (!matchCode || !playerCode) return;
+        const onMatchCodeSet = () => {
+            const s = sessionStorage.getItem("matchCode") || "";
+            if (s && s.trim() !== "") setMatchCode(s);
+        };
 
-        const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
-        const target = `${normalized}/${matchCode}/${playerCode}`;
+        window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
+        return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
+    }, [matchCode]);
 
-        if (location.pathname !== target) {
-            navigate(target, { replace: true });
-        }
-    }, [lastMessage, matchCode, playerCode, navigate, location.pathname]);
+    // If matchCode is not set yet, render children without WebSocket provider
+    if (!matchCode) return <>{children}</>;
 
-    return null;
+    // AutoNavigator component that uses WebSocket - only rendered inside provider
+    const PlayerAutoNavigatorWithWs: React.FC = () => {
+        const navigate = useNavigate();
+        const location = useLocation();
+        const playerCode = sessionStorage.getItem("playerCode") || "";
+        const { lastMessage } = usePlayerWebSocket();
+
+        useEffect(() => {
+            if (!lastMessage) return;
+            const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
+            const msg = raw?.message ?? raw;
+
+            // Debugging: log the incoming message and routing context so we can trace why navigation may be skipped
+            console.info("[AutoNav] received WS message:", { raw, msg, matchCode, playerCode, pathname: location.pathname });
+
+            if (msg?.type !== "navigate") return;
+
+            const basePath: unknown = msg?.path;
+            if (typeof basePath !== "string") return;
+
+            // If message targets a specific user, respect it (empty string means broadcast)
+            const targetUser = (msg?.user_code ?? "") as string;
+            if (targetUser && targetUser !== playerCode) {
+                // message is for some other player
+                console.debug("[AutoNav] navigate message for different user, ignoring", { targetUser, playerCode });
+                return;
+            }
+
+            if (!matchCode || !playerCode) {
+                console.warn("[AutoNav] missing matchCode or playerCode, cannot navigate", { matchCode, playerCode });
+                return;
+            }
+
+            const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+            const target = `${normalized}/${matchCode}/${playerCode}`;
+
+            if (location.pathname !== target) {
+                console.info("[AutoNav] navigating to", target, "from", location.pathname);
+                navigate(target, { replace: true });
+            }
+        }, [lastMessage, playerCode, navigate, location.pathname]);
+
+        return null;
+    };
+
+    return (
+        <PlayerWebSocketProvider matchCode={matchCode}>
+            <PlayerAutoNavigatorWithWs />
+            {children}
+        </PlayerWebSocketProvider>
+    );
 };
 
 
 const PlayerRoutes = () => {
-    const matchCode = sessionStorage.getItem("matchCode") || "";
-
     return (
-        <PlayerWebSocketProvider matchCode={matchCode}>
-            <PlayerAutoNavigator />
-                <Routes>
-                <Route path="/" element={<Navigate to="/player/waiting" replace />} />
+        <PlayerWebSocketWrapper>
+            <Routes>
+                <Route path="/" element={<Navigate to="/player/access" replace />} />
                 
                 <Route path="/access" element={<PGameAccessPage />} />
+                <Route path="/waiting" element={<PWaitingPage />} />
                 <Route
                     path="/kdc/:matchCode/:playerCode"
                     element={
@@ -127,9 +173,9 @@ const PlayerRoutes = () => {
                     }
                 /> */}
                 {/* fallback */}
-                <Route path="*" element={<Navigate to="/player/waiting" replace />} />
+                <Route path="*" element={<Navigate to="/player/access" replace />} />
             </Routes>
-        </PlayerWebSocketProvider>
+        </PlayerWebSocketWrapper>
     );
 };
 

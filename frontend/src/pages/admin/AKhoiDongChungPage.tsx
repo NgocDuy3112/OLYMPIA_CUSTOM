@@ -268,20 +268,19 @@ const AKhoiDongChungPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
+			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
+			// (clients that mount after navigation will see the players snapshot as lastMessage).
+			try {
+				await sendMessage({ type: "navigate", user_code: "", path: `/player/kdc` });
+			} catch (err) {
+				logger.error("Failed to navigate players to player view:", err);
+			}
+
 			// send current players snapshot to players when starting the round
 			try {
 				await sendPlayersSnapshot();
 			} catch (err) {
 				logger.error("Failed to send players snapshot on start:", err);
-			}
-
-			// Navigate players to the player view including match and player code in the path.
-			// Send a per-player navigate message (with user_code set) so each client can
-			// react only when the user_code matches their own identity.
-			try {
-				await sendMessage({ type: "navigate", user_code: "", path: `/player/kdc` });
-			} catch (err) {
-				logger.error("Failed to navigate players to player view:", err);
 			}
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
@@ -609,6 +608,46 @@ const AKhoiDongChungPage = () => {
 						}),
 					);
 				});
+				break;
+			}
+
+			case "answer": {
+				// Real-time answer from player via WebSocket
+				const { user_code, answer_text, timestamp } = msg;
+				if (user_code && answer_text) {
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((player) =>
+								player.playerCode === user_code
+									? {
+											...player,
+											playerLastAnswer: answer_text,
+											playerTimestamp: timestamp ?? player.playerTimestamp,
+										}
+									: player,
+							),
+						);
+					});
+					logger.info("Received answer from", user_code, ":", answer_text);
+				}
+				break;
+			}
+
+			case "buzz": {
+				// Buzz notification from player
+				const { user_code } = msg;
+				if (user_code) {
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((player) =>
+								player.playerCode === user_code
+									? { ...player, playerHasBuzzed: true }
+									: player,
+							),
+						);
+					});
+					logger.info("Player buzzed:", user_code);
+				}
 				break;
 			}
 			case "start_the_timer": {

@@ -10,6 +10,12 @@ const GameAccessPage: React.FC = () => {
         e.preventDefault();
         if (!matchCode) return;
         sessionStorage.setItem("matchCode", matchCode);
+        // notify other parts of the app (same window) that matchCode was set
+        try {
+            window.dispatchEvent(new Event("oc3_matchCode_set"));
+        } catch {
+            // ignore if dispatch fails for any reason
+        }
         navigate(`/player/waiting`);
     };
 
