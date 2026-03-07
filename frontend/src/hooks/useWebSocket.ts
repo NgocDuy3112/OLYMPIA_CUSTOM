@@ -1,23 +1,18 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { API_BASE_URL, WS_BASE_URL } from "@/configs";
+import { WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 
 const logger = createLogger("WS");
-
-interface WebSocketPayload {
-  type: string;
-  user_code: string;
-  question_code?: string;
-  answer?: string;
-  [key: string]: any;
-}
 
 const createWsUrl = (matchCode: string) => `${WS_BASE_URL}/ws/${matchCode}`;
 
 export const useWebSocket = (matchCode: string) => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const messageDrainTimerRef = useRef<number | null>(null);
+  const pendingMessagesRef = useRef<any[]>([]);
+  const isDrainingMessagesRef = useRef(false);
 
   const [rawIsConnected, setRawIsConnected] = useState(false);
   const [rawLastMessage, setRawLastMessage] = useState<any>(null);
@@ -32,6 +27,13 @@ export const useWebSocket = (matchCode: string) => {
       reconnectTimerRef.current = null;
     }
 
+    if (messageDrainTimerRef.current) {
+      window.clearTimeout(messageDrainTimerRef.current);
+      messageDrainTimerRef.current = null;
+    }
+    pendingMessagesRef.current = [];
+    isDrainingMessagesRef.current = false;
+
     // Nếu matchCode rỗng: đóng socket và thoát (không setState sync)
     if (!matchCode) {
       logger.info("No matchCode provided, skipping WebSocket connection");
@@ -44,6 +46,32 @@ export const useWebSocket = (matchCode: string) => {
 
     const url = createWsUrl(matchCode);
     let closedByCleanup = false;
+
+    const drainNextMessage = () => {
+      if (closedByCleanup) {
+        pendingMessagesRef.current = [];
+        isDrainingMessagesRef.current = false;
+        messageDrainTimerRef.current = null;
+        return;
+      }
+
+      const nextMessage = pendingMessagesRef.current.shift();
+      if (typeof nextMessage === "undefined") {
+        isDrainingMessagesRef.current = false;
+        messageDrainTimerRef.current = null;
+        return;
+      }
+
+      setRawLastMessage(nextMessage);
+      messageDrainTimerRef.current = window.setTimeout(drainNextMessage, 0);
+    };
+
+    const enqueueMessage = (message: any) => {
+      pendingMessagesRef.current.push(message);
+      if (isDrainingMessagesRef.current) return;
+      isDrainingMessagesRef.current = true;
+      messageDrainTimerRef.current = window.setTimeout(drainNextMessage, 0);
+    };
 
     const connect = () => {
       if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
@@ -68,7 +96,7 @@ export const useWebSocket = (matchCode: string) => {
         try {
           console.info(`[WS:${matchCode}] raw frame:`, event.data);
           const raw = JSON.parse(event.data);
-          setRawLastMessage(raw);
+          enqueueMessage(raw);
           logger.debug("Received WS message:", raw);
         } catch (error) {
           logger.error("Error parsing message:", error);
@@ -107,6 +135,13 @@ export const useWebSocket = (matchCode: string) => {
         reconnectTimerRef.current = null;
       }
 
+      if (messageDrainTimerRef.current) {
+        window.clearTimeout(messageDrainTimerRef.current);
+        messageDrainTimerRef.current = null;
+      }
+      pendingMessagesRef.current = [];
+      isDrainingMessagesRef.current = false;
+
       const s = wsRef.current;
       if (s) {
         s.onopen = null;
@@ -125,7 +160,7 @@ export const useWebSocket = (matchCode: string) => {
     };
   }, [matchCode]);
 
-  const sendMessage = useCallback(async (payload: WebSocketPayload): Promise<boolean> => {
+  const sendMessage = useCallback(async (payload: Record<string, unknown>): Promise<boolean> => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(payload));
       logger.debug("Sent payload:", payload);
@@ -135,65 +170,9 @@ export const useWebSocket = (matchCode: string) => {
     return false;
   }, []);
 
-  const sendAnswer = useCallback(
-    async (playerCode: string, questionCode: string, answer: string, timestamp: number, token: string): Promise<boolean> => {
-      await fetch(`${API_BASE_URL}/answers/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          user_code: playerCode,
-          match_code: matchCode,
-          question_code: questionCode,
-          answer_text: answer.trim(),
-          timestamp,
-        }),
-      });
-
-      return await sendMessage({
-        type: "answer",
-        user_code: playerCode,
-        question_code: questionCode,
-        answer_text: answer.trim(),
-        timestamp,
-      });
-    },
-    [sendMessage, matchCode]
-  );
-
-  const sendBuzz = useCallback(
-    async (playerCode: string, questionCode: string, token: string): Promise<boolean> => {
-      await fetch(`${API_BASE_URL}/answers/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          user_code: playerCode,
-          match_code: matchCode,
-          question_code: questionCode,
-          has_buzzed: true,
-        }),
-      });
-
-      return await sendMessage({
-        type: "buzz",
-        user_code: playerCode,
-        question_code: questionCode,
-        has_buzzed: true,
-      });
-    },
-    [sendMessage, matchCode]
-  );
-
   return {
     isConnected,
     lastMessage,
     sendMessage,
-    sendAnswer,
-    sendBuzz,
   };
 };

@@ -5,6 +5,7 @@ import {
 	CheckCheck,
 	Power,
 	RefreshCw,
+	Eye,
 } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -62,6 +63,56 @@ const AKhoiDongChungPage = () => {
 
 
 	const questionTitle = "KHỞI ĐỘNG - LƯỢT CHUNG";
+
+	// Nút "Hiện trả lời" chỉ sáng khi đã chọn một câu hỏi (currentQuestionIndex > 0)
+	const canShowAnswers = currentQuestionIndex > 0 && !!currentMatchCode && !!token;
+
+	const showAnswers = useCallback(async () => {
+		if (!canShowAnswers) return;
+		if (!currentQuestion?.questionCode) {
+			logger.warn("showAnswers: no question code available");
+			return;
+		}
+
+		const questionCode = currentQuestion.questionCode;
+		const answersPayload: Array<{ user_code: string; content: string; timestamp: number }> = [];
+
+		// Lấy đáp án từng player qua GET /answers/
+		for (const player of players) {
+			try {
+				const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode)}&player_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`;
+				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+				if (!res.ok) continue;
+				const json = await res.json();
+				// GET trả về BaseResponse; data có thể là object hoặc array
+				const data = json.data;
+				if (!data) continue;
+				// chuẩn hóa thành một object answer
+				const answerObj = Array.isArray(data) ? data[0] : data;
+				if (answerObj?.answer_text) {
+					answersPayload.push({
+						user_code: player.playerCode,
+						content: answerObj.answer_text,
+						timestamp: answerObj.timestamp ?? 0,
+					});
+				}
+			} catch (err) {
+				logger.warn("showAnswers: failed to fetch answer for", player.playerCode, err);
+			}
+		}
+
+		if (answersPayload.length === 0) {
+			logger.warn("showAnswers: no answers retrieved from server");
+			return;
+		}
+
+		try {
+			await sendMessage({ type: "send_answers_to_players", answers: answersPayload });
+			logger.info("showAnswers: broadcasted answers count=", answersPayload.length);
+		} catch (err) {
+			logger.error("showAnswers: failed to broadcast answers", err);
+		}
+	}, [canShowAnswers, currentMatchCode, token, currentQuestion, players, sendMessage]);
 
 	// use shared helper for mapping players + profiles + scoreboard into PlayerStatus[]
 	// keep the same pure function semantics as before
@@ -138,14 +189,14 @@ const AKhoiDongChungPage = () => {
 				const profile = (profiles ?? []).find((pr: any) => String(pr?.user_code) === userCode) ?? {};
 				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 
-				const cummulativeScore =
-					scoreEntry?.cummulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+				const cumulativeScore =
+					scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 
 				return {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
-					cummulative_score: cummulativeScore,
+					cumulative_score: cumulativeScore,
 				};
 			});
 
@@ -301,33 +352,61 @@ const AKhoiDongChungPage = () => {
 		}
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
-	const startTheClock = useCallback(
-		async (questionIndex: number) => {
-			if (!currentMatchCode) return;
+		const startTheClock = useCallback(async () => {
+			// Always target question 1 when starting the timer
+			const targetIndex = 1;
 
-			// If no question selected, advance to the first question and broadcast it immediately
-			if (questionIndex <= 0) {
-				setCurrentQuestionIndex(1);
-				try {
-					const q = await loadQuestion(1);
-					await sendQuestionToplayers(1, q);
-				} catch (error) {
-					logger.error("Failed to load/send initial question for countdown:", error);
-				}
-			}
+			// Reset selection / answers locally so admin sees a fresh state
+			setSelectedPlayerCodes([]);
+			setHasAddedScore(false);
+			setPlayers((prev) => prev.map((p) => ({
+				...p,
+				playerLastAnswer: undefined,
+				playerTimestamp: undefined,
+				playerHasBuzzed: undefined,
+			})));
 
+			setCurrentQuestionIndex(targetIndex);
+
+			// Immediately show a fallback question on admin so UI is responsive
+			const fallbackQuestion: Question = {
+				questionCode: resolveQuestionCode(targetIndex),
+				questionText: `Câu hỏi ${targetIndex}`,
+				questionAnswer: "",
+				questionExplanation: "",
+				questionMediaURL: undefined,
+			};
+			setCurrentQuestion(fallbackQuestion);
+
+			// start local timer immediately (do this before fire-and-forget network calls)
 			setTimer(TIME_LIMIT);
 			setIsTimerRunning(true);
 
-			const questionCode = resolveQuestionCode(questionIndex > 0 ? questionIndex : 1);
-			try {
-				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode });
-			} catch (error) {
-				logger.error("Failed to start the clock via WS:", error);
+			// Notify players ASAP: clear previous answers, send fallback question and start timer
+			if (currentMatchCode) {
+				void sendMessage({ type: "clear_answers", user_code: "" });
+				void sendMessage({
+					type: "send_question",
+					user_code: "",
+					question_code: fallbackQuestion.questionCode,
+					content: fallbackQuestion.questionText,
+					media_source: fallbackQuestion.questionMediaURL,
+				});
+				void sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode });
 			}
-		},
-		[currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToplayers],
-	);
+
+			// Fetch the authoritative question in background and re-broadcast when ready
+			void loadQuestion(targetIndex)
+				.then((q) => {
+					if (q) {
+						setCurrentQuestion(q);
+						if (currentMatchCode) {
+							void sendQuestionToplayers(targetIndex, q).catch((err) => logger.warn("Failed rebroadcasting loaded question:", err));
+						}
+					}
+				})
+				.catch((err) => logger.error("Failed to load question in background:", err));
+		}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToplayers]);
 
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -403,7 +482,8 @@ const AKhoiDongChungPage = () => {
 
 					setPlayers((prev) =>
 						prev.map((player) => {
-							const updatedScore = scoreboardArr.find((item: any) => item.user_code === player.playerCode)?.cummulative_score;
+							const entry = scoreboardArr.find((item: any) => item.user_code === player.playerCode);
+							const updatedScore = entry?.cumulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
 							return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
 						}),
 					);
@@ -561,6 +641,53 @@ const AKhoiDongChungPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
+			case "player_online": {
+				if (msg.user_code) {
+					startTransition(() => {
+						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
+					});
+					// when a player reconnects, proactively resend the current players snapshot and
+					// the active question/timer so the reconnecting client can restore its UI state
+					(async () => {
+						try {
+							await sendPlayersSnapshot();
+							logger.info("Resent players snapshot after player_online for", msg.user_code);
+						} catch (err) {
+							logger.error("Failed to resend players snapshot on player_online:", err);
+						}
+
+						// resend current question if active
+						if (currentQuestionIndex > 0) {
+							try {
+								await sendQuestionToplayers(currentQuestionIndex);
+								logger.info("Resent question to players after player_online for", msg.user_code);
+							} catch (err) {
+								logger.error("Failed to resend question on player_online:", err);
+							}
+						}
+
+						// if a timer is running, send remaining time so reconnecting client can resume countdown
+						if (timer > 0 && currentQuestionIndex > 0) {
+							try {
+								const questionCode = resolveQuestionCode(currentQuestionIndex);
+								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timer, question_code: questionCode });
+								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
+							} catch (err) {
+								logger.error("Failed to resend timer on player_online:", err);
+							}
+						}
+					})();
+				}
+				break;
+			}
+			case "player_offline": {
+				if (msg.user_code) {
+					startTransition(() => {
+						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: false } : p)));
+					});
+				}
+				break;
+			}
 			case "send_players_info": {
 				startTransition(() => {
 					applyPlayersSnapshot(msg);
@@ -660,7 +787,7 @@ const AKhoiDongChungPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage]);
+	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendQuestionToplayers, currentQuestionIndex, timer, sendMessage, resolveQuestionCode]);
 
 	return (
 		<ABasePageLayout
@@ -720,7 +847,7 @@ const AKhoiDongChungPage = () => {
 				<>
 					<button
 						onClick={() => {
-							void startTheClock(currentQuestionIndex);
+							void startTheClock();
 						}}
 						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={isTimerRunning}
@@ -742,6 +869,14 @@ const AKhoiDongChungPage = () => {
 					>
 						<CheckCheck size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
+					</button>
+					<button
+						onClick={() => { void showAnswers(); }}
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						disabled={!canShowAnswers}
+					>
+						<Eye size={18} />
+						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
 					</button>
 				</>
 			}

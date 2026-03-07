@@ -5,4 +5,6 @@ export interface PlayerStatus {
     playerLastAnswer?: string;
     playerTimestamp?: number;
     playerHasBuzzed?: boolean;
+    // indicates whether the player's client has an active websocket connection
+    playerConnected?: boolean;
 }

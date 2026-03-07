@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
+import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
@@ -15,8 +16,8 @@ import type { PlayerStatus } from "@/types/player";
 
 
 const PKhoiDongChungPage = () => {
-	const { playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendAnswer } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = usePlayerSession();
+	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
 	const { timer, timeLimit, start, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
@@ -37,7 +38,7 @@ const PKhoiDongChungPage = () => {
 		switch (msg?.type) {
 			case "send_players_info": {
 				// Receive player information through WebSocket; support both old (players+scoreboard+profiles)
-				// and new (players[] where each player already contains cummulative_score/user_name) shapes.
+				// and new (players[] where each player already contains cumulative_score/user_name) shapes.
 				const playersList = msg.players ?? [];
 				const scoreboard = msg.scoreboard ?? [];
 				const profiles = msg.profiles ?? [];
@@ -57,13 +58,13 @@ const PKhoiDongChungPage = () => {
 						}
 					}
 
-					// resolve score: prefer player.cummulative_score then scoreboard lookup
+					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
-					if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
+					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
+					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
 					else {
 						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 					}
 
 					return {
@@ -183,9 +184,36 @@ const PKhoiDongChungPage = () => {
 			),
 		);
 
-		await sendAnswer(playerCode, currentQuestion.questionCode, trimmed, ts, token);
+		try {
+			// Persist answer via REST
+			await fetch(`${API_BASE_URL}/answers/`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					user_code: playerCode,
+					match_code: matchCode,
+					question_code: currentQuestion.questionCode,
+					answer_text: trimmed,
+					timestamp: ts,
+				}),
+			});
+		} catch (err) {
+			console.warn("Failed to POST answer:", err);
+		}
+
+		// Send real-time frame
+		await sendMessage({
+			type: "answer",
+			user_code: playerCode,
+			question_code: currentQuestion.questionCode,
+			answer_text: trimmed,
+			timestamp: ts,
+		});
 		setAnswer("");
-	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendAnswer, timeLimit, timer, token]);
+	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
 
 	const isSubmissionDisabled = !isConnected || timer <= 0;
 
@@ -207,7 +235,7 @@ const PKhoiDongChungPage = () => {
 					setAnswer={setAnswer}
 					isDisabled={isSubmissionDisabled}
 					onSubmit={handleSubmitAnswer}
-					placeholderString="Nhập đáp án và nhấn Enter"
+					placeholderString={timer <= 0 ? "Bạn không thể nhập đáp án tại thời điểm này" : "Nhập đáp án và nhấn Enter"}
 				/>
 			</>
 		</PBasePageLayout>

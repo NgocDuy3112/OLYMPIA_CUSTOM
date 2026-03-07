@@ -1,9 +1,34 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 
 const logger = createLogger("AGameManaging");
+
+// Small button component to navigate directly into the admin room for a match code
+const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
+    const navigate = useNavigate();
+    const handleClick = () => {
+        if (!matchCode) return;
+        try {
+            localStorage.setItem("matchCode", matchCode);
+        } catch {
+            // ignore
+        }
+        navigate(`/admin/kdc/${matchCode}`);
+    };
+
+    return (
+        <button
+            onClick={handleClick}
+            disabled={disabled}
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 disabled:opacity-50 font-medium transition-colors"
+        >
+            Vào phòng
+        </button>
+    );
+};
 
 /* ------------------------------------------------------------------ */
 /*  Types matching backend schemas                                     */
@@ -320,11 +345,7 @@ const AGameManagingPage = () => {
                     className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
 
-                {matchExists && (
-                    <p className="text-green-400 text-xs">
-                        ✓ Match đã tồn tại — dữ liệu đã được tự động điền.
-                    </p>
-                )}
+                {/* previously showed a green "match exists" helper; removed per UX request */}
 
                 {/* 4 userCode inputs */}
                 <div className="grid grid-cols-2 gap-2">
@@ -341,14 +362,18 @@ const AGameManagingPage = () => {
                 </div>
 
                 {/* Action button */}
-                <button
-                    onClick={createMatch}
-                    disabled={matchLoading || !matchCode || !matchName}
-                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
-                >
-                    <Plus size={16} />
-                    {matchExists ? "Cập nhật phòng" : "Tạo phòng"}
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={createMatch}
+                        disabled={matchLoading || !matchCode || !matchName}
+                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
+                    >
+                        <Plus size={16} />
+                        {matchExists ? "Cập nhật phòng" : "Tạo phòng"}
+                    </button>
+
+                    <VaoPhongButton matchCode={matchCode} disabled={!matchCode} />
+                </div>
             </div>
 
             {/* ─── Card 3 : Câu hỏi (full width) ────────────────────── */}

@@ -34,7 +34,11 @@ const PAnswerBox: React.FC<PAnswerBoxProps> = ({
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={!isDisabled ? placeholderString || 'Nhập câu trả lời của bạn tại khung này và nhấn Enter để xác nhận câu trả lời' : 'Bạn không thể nhập đáp án tại thời điểm này'}
+            placeholder={
+                placeholderString ?? (!isDisabled
+                    ? 'Nhập câu trả lời của bạn tại khung này và nhấn Enter để xác nhận câu trả lời'
+                    : 'Bạn không thể nhập đáp án tại thời điểm này')
+            }
             disabled={isDisabled}
             className={`w-full p-3 rounded-lg text-lg text-black text-center shadow-sm transition duration-150 border-blue-500 border-4 bg-white disabled:bg-blue-900 disabled:cursor-not-allowed disabled:text-blue-300`}
         />

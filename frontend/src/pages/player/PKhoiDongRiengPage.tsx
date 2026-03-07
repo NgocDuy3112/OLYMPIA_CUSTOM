@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
+import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
@@ -14,8 +15,8 @@ import type { PlayerStatus } from "@/types/player";
 
 
 const PKhoiDongRiengPage = () => {
-	const { playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendBuzz } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = usePlayerSession();
+	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
 	const { timer, start } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
@@ -49,7 +50,7 @@ const PKhoiDongRiengPage = () => {
 					return {
 						playerCode: code,
 						playerName: profile?.user_name ?? "",
-						playerScore: score?.cummulative_score ?? score?.new_total_score ?? 0,
+						playerScore: score?.cumulative_score ?? score?.cummulative_score ?? score?.new_total_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: false,
@@ -113,9 +114,27 @@ const PKhoiDongRiengPage = () => {
 		if (buzzerWinnerCode) return;
 		if (!currentQuestion.questionCode) return;
 
-		const success = await sendBuzz(playerCode, currentQuestion.questionCode, token);
+		try {
+			await fetch(`${API_BASE_URL}/answers/`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					user_code: playerCode,
+					match_code: matchCode,
+					question_code: currentQuestion.questionCode,
+					has_buzzed: true,
+				}),
+			});
+		} catch (err) {
+			console.warn("Failed to POST buzz:", err);
+		}
+
+		const success = await sendMessage({ type: "buzz", user_code: playerCode, question_code: currentQuestion.questionCode, has_buzzed: true });
 		if (success) setHasPinged(true);
-	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendBuzz, timer, token]);
+	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, timer, token, matchCode]);
 
 	const isPingDisabled =
 		hasPinged ||

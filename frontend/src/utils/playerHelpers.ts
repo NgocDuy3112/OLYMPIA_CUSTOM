@@ -1,18 +1,40 @@
 import type { PlayerStatus } from "@/types/player";
 
+interface RawPlayer {
+  user_code?: string | number;
+  user_name?: string;
+  position?: number;
+  cummulative_score?: number;
+  cumulative_score?: number;
+  total_score?: number;
+  score?: number;
+}
+interface RawScore {
+  user_code?: string | number;
+  cummulative_score?: number;
+  cumulative_score?: number;
+  total_score?: number;
+  score?: number;
+  user_name?: string;
+}
+interface RawProfile {
+  user_code?: string | number;
+  user_name?: string;
+}
+
 export function buildPlayersSnapshot(
-  playersList: any[],
-  scoreboard: any[] = [],
-  profiles: any[] = [],
+  playersList: RawPlayer[],
+  scoreboard: RawScore[] = [],
+  profiles: RawProfile[] = [],
   previousPlayers: PlayerStatus[] = [],
 ): PlayerStatus[] {
   if (!playersList?.length) return previousPlayers;
 
-  const scoreMap = new Map((scoreboard ?? []).map((s: any) => [String(s.user_code ?? ""), s]));
-  const profileMap = new Map((profiles ?? []).map((p: any) => [String(p.user_code ?? ""), p]));
+  const scoreMap = new Map(scoreboard.map((s) => [String(s.user_code ?? ""), s]));
+  const profileMap = new Map(profiles.map((p) => [String(p.user_code ?? ""), p]));
 
   return playersList
-    .map((entry: any) => {
+    .map((entry) => {
       const code = String(entry?.user_code ?? "");
       if (!code) return null;
 
@@ -20,7 +42,8 @@ export function buildPlayersSnapshot(
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
 
-      const playerScore = (scoreInfo && (scoreInfo.cummulative_score ?? scoreInfo.new_total_score)) ?? previous?.playerScore ?? 0;
+      // Prefer the correctly spelled 'cumulative_score' but accept the legacy 'cummulative_score' shape
+      const playerScore = (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cummulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ?? previous?.playerScore ?? 0;
 
       return {
         playerCode: code,
@@ -29,9 +52,10 @@ export function buildPlayersSnapshot(
         playerLastAnswer: previous?.playerLastAnswer,
         playerTimestamp: previous?.playerTimestamp,
         playerHasBuzzed: previous?.playerHasBuzzed ?? false,
+        playerConnected: previous?.playerConnected ?? false,
       } as PlayerStatus;
     })
-    .filter(Boolean) as PlayerStatus[];
+    .filter((p): p is PlayerStatus => p !== null);
 }
 
 export default buildPlayersSnapshot;

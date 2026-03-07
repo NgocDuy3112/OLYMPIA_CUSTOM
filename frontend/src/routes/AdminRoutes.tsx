@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 // import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
@@ -26,7 +26,18 @@ export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }
 
 
 const AdminRoutes = () => {
-    const matchCode = localStorage.getItem("matchCode") || "";
+    // Prefer stored matchCode but fall back to extracting it from the URL path
+    const location = useLocation();
+    const stored = localStorage.getItem("matchCode") || "";
+    const fromPath = (() => {
+        try {
+            const m = location.pathname.match(/OC3_[A-Za-z0-9_-]+/);
+            return m ? m[0] : "";
+        } catch {
+            return "";
+        }
+    })();
+    const matchCode = stored || fromPath;
 
     return (
         <AdminWebSocketProvider matchCode={matchCode}>

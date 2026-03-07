@@ -1,6 +1,5 @@
 import React from "react";
 import PingIconStyle from "../shared/PingIconStyle";
-import { Circle } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
 
@@ -18,7 +17,8 @@ interface APlayerBarProps {
 
 const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, onClick, disabled }) => {
     // Use a single border instead of nested rings to avoid double-outline visual glitches
-    const borderClass = player.playerHasBuzzed ? "border-blue-500" : "border-blue-600";
+    // If this player is the current responder, show a white border per design
+    const borderClass = isCurrent ? "border-white" : (player.playerHasBuzzed ? "border-blue-500" : "border-blue-600");
     const handleClick = () => {
         if (disabled) return;
         onClick?.(player.playerCode);
@@ -43,12 +43,18 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
             <div className="flex flex-col flex-1">
                 <p className="font-extrabold uppercase leading-tight">
                     <span className="flex items-center gap-4">
+                        {/* connection indicator */}
+                        <span
+                            title={player.playerConnected ? "Connected" : "Disconnected"}
+                            className={`w-3 h-3 rounded-full shrink-0 ${player.playerConnected ? 'bg-green-400' : 'bg-gray-600'}`}
+                        />
+
                         {player.playerName && (
                             <span className="font-[SVN-Gratelos_Display] uppercase text-[24px] font-extrabold flex items-center">
                                 {player.playerName}
-                                <Circle className={`ml-3 ${isCurrent ? 'text-blue-400' : 'text-gray-600'}`} size={12} />
                             </span>
                         )}
+
                         {player.playerTimestamp != null && player.playerTimestamp != 0 && (
                             <span className="text-[16px] font-normal text-white">
                                 {player.playerTimestamp}

@@ -13,7 +13,7 @@ import { API_BASE_URL } from "@/configs";
 
 
 const TIME_LIMIT = 30;
-const MAX_QUESTION_INDEX = 4;
+const MAX_QUESTION_INDEX = 5;
 const QUESTION_PREFIX = "OC3_Q_BP"; // Bứt Phá question naming convention.
 
 
@@ -125,14 +125,14 @@ const AButPhaPage = () => {
 				const profile = (profiles ?? []).find((pr: any) => String(pr?.user_code) === userCode) ?? {};
 				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 
-				const cummulativeScore =
-					scoreEntry?.cummulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+				const cumulativeScore =
+					scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 
 				return {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
-					cummulative_score: cummulativeScore,
+					cumulative_score: cumulativeScore,
 				};
 			});
 
@@ -310,6 +310,22 @@ const AButPhaPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
+			case "player_online": {
+				if (msg.user_code) {
+					startTransition(() => {
+						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
+					});
+				}
+				break;
+			}
+			case "player_offline": {
+				if (msg.user_code) {
+					startTransition(() => {
+						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: false } : p)));
+					});
+				}
+				break;
+			}
 			case "send_players_info": {
 				startTransition(() => {
 					applyPlayersSnapshot(msg);
@@ -359,6 +375,46 @@ const AButPhaPage = () => {
 				});
 				break;
 			}
+
+			case "answer": {
+				// Real-time answer from player via WebSocket
+				const { user_code, answer_text, timestamp } = msg;
+				if (user_code && answer_text) {
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((player) =>
+								player.playerCode === user_code
+									? {
+										...player,
+										playerLastAnswer: answer_text,
+										playerTimestamp: timestamp ?? player.playerTimestamp,
+									}
+								: player,
+							),
+						);
+					});
+					logger.info("Received answer from", user_code, ":", answer_text);
+				}
+				break;
+			}
+
+			case "buzz": {
+				// Buzz notification from player
+				const { user_code } = msg;
+				if (user_code) {
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((player) =>
+								player.playerCode === user_code
+									? { ...player, playerHasBuzzed: true }
+								: player,
+							),
+						);
+					});
+					logger.info("Player buzzed:", user_code);
+				}
+				break;
+			}
 			case "start_the_timer": {
 				const timeLimit = Number(msg.time_limit);
 				startTransition(() => {
@@ -381,12 +437,12 @@ const AButPhaPage = () => {
 			timerDuration={timer}
 			controls={{
 				variant: 'numbers',
-				count: 5,
+				count: MAX_QUESTION_INDEX,
 				activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
 			}}
 			controlsChildren={() => (
 				<div className="flex gap-2">
-					{Array.from({ length: 5 }).map((_, idx) => {
+					{Array.from({ length: MAX_QUESTION_INDEX }).map((_, idx) => {
 						const isActive = currentQuestionIndex > 0 && currentQuestionIndex - 1 === idx;
 						return (
 							<button
@@ -427,11 +483,11 @@ const AButPhaPage = () => {
 							if (!hasQuestionSelected) return;
 							void startTheClock(currentQuestionIndex);
 						}}
-						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={!hasQuestionSelected || timer > 0}
 					>
 						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU ĐẾM GIỜ</span>
+						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</button>
 					<button
 						onClick={async () => {
@@ -444,11 +500,11 @@ const AButPhaPage = () => {
 								logger.error('Failed to load/send previous question:', err);
 							}
 						}}
-						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={currentQuestionIndex <= 1}
 					>
 						<ArrowLeftToLine size={18} />
-						<span className="ml-2 font-bold">CÂU HỎI TRƯỚC ĐÓ</span>
+						<span className="ml-2 font-bold">LÙI CÂU</span>
 					</button>
 					<button
 						onClick={async () => {
@@ -462,11 +518,11 @@ const AButPhaPage = () => {
 								logger.error('Failed to load/send next question:', err);
 							}
 						}}
-						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={currentQuestionIndex >= MAX_QUESTION_INDEX}
 					>
 						<ArrowRightToLine size={18} />
-						<span className="ml-2 font-bold">CÂU HỎI TIẾP THEO</span>
+						<span className="ml-2 font-bold">TỚI CÂU</span>
 					</button>
 				</>
 			}
@@ -476,28 +532,28 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleStartRound();
 						}}
-						className="bg-blue-900 border-2 border-blue-600 w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU LƯỢT THI</span>
+						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</button>
 					<button
 						onClick={() => {
 							void loadPlayersState();
 						}}
-						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT ĐIỂM SỐ</span>
+						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</button>
 					<button
 						onClick={() => {
 							void handleEndRound();
 						}}
-						className="bg-blue-900 border-2 border-blue-600 min-w-60 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
+						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<Power size={18} />
-						<span className="ml-2 font-bold">KẾT THÚC PHẦN THI</span>
+						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</button>
 				</>
 			}
