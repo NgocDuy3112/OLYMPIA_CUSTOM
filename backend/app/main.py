@@ -61,6 +61,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan, description="OLYMPIA CUSTOM 3 MATCH - API ENDPOINTS", version="0.0.1")
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

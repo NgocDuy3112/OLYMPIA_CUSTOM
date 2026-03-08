@@ -58,27 +58,27 @@ const makeLogMethod = (level: LogLevel, ctx?: string) => {
 
         const prefix = createPrefix(level, ctx);
 
-        // Pick console method
+        // Pick console method (avoid console.log)
         const method: ((...m: unknown[]) => void) = (() => {
             switch (level) {
                 case "DEBUG":
-                    return console.debug ?? console.log;
+                    return console.debug ?? (() => {});
                 case "INFO":
-                    return console.info ?? console.log;
+                    return console.info ?? (() => {});
                 case "WARN":
-                    return console.warn ?? console.log;
+                    return console.warn ?? (() => {});
                 case "ERROR":
-                    return console.error ?? console.log;
+                    return console.error ?? (() => {});
                 default:
-                    return console.log;
+                    return console.info ?? (() => {});
             }
         })();
 
         try {
             method(prefix, ...args);
         } catch {
-            // If console.* throws for some reason, fallback
-            console.log(prefix, ...args);
+            // If console.* throws for some reason, fallback to console.error (if available)
+            try { console.error(prefix, ...args); } catch {}
         }
 
         // Remote logging (non-blocking)
