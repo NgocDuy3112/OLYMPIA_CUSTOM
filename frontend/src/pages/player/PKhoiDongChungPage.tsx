@@ -18,11 +18,12 @@ import type { PlayerStatus } from "@/types/player";
 const PKhoiDongChungPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
 	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
-	const { timer, timeLimit, start, getElapsedSeconds } = useCountdownTimer();
+	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [answer, setAnswer] = useState("");
+	const [showAnswers, setShowAnswers] = useState(false);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -82,8 +83,9 @@ const PKhoiDongChungPage = () => {
 			}
 
 			case "start_the_timer": {
-				start(Number(msg.time_limit ?? 0));
+				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setAnswer("");
+				setShowAnswers(false);
 				break;
 			}
 
@@ -108,6 +110,7 @@ const PKhoiDongChungPage = () => {
 					})),
 				);
 				setAnswer("");
+				setShowAnswers(false);
 				break;
 			}
 
@@ -124,6 +127,7 @@ const PKhoiDongChungPage = () => {
 						};
 					}),
 				);
+				setShowAnswers(true);
 				break;
 			}
 
@@ -164,7 +168,7 @@ const PKhoiDongChungPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, start, playerCode]);
+	}, [applyWsMessage, lastMessage, startSynced, playerCode]);
 
 	const handleSubmitAnswer = useCallback(async () => {
 		const trimmed = answer.trim();
@@ -186,20 +190,25 @@ const PKhoiDongChungPage = () => {
 
 		try {
 			// Persist answer via REST
-			await fetch(`${API_BASE_URL}/answers/`, {
+			const res = await fetch(`${API_BASE_URL}/answers/`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${token}`,
 				},
 				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					answer_text: trimmed,
-					timestamp: ts,
-				}),
+						user_code: playerCode,
+						match_code: matchCode,
+						question_code: currentQuestion.questionCode,
+						answer_text: trimmed,
+						has_buzzed: false,
+						timestamp: ts,
+					}),
 			});
+			if (!res.ok) {
+				const body = await res.text().catch(() => "");
+				console.warn("Failed to POST answer:", res.status, body);
+			}
 		} catch (err) {
 			console.warn("Failed to POST answer:", err);
 		}
@@ -217,9 +226,14 @@ const PKhoiDongChungPage = () => {
 
 	const isSubmissionDisabled = !isConnected || timer <= 0;
 
+	// Always show the current player's own answer; hide others until admin reveals
+	const displayPlayers = players.map((p) =>
+		showAnswers || p.playerCode === playerCode ? p : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
+	);
+
 	return (
 		<PBasePageLayout
-			players={players}
+			players={displayPlayers}
 			currentPlayerCode={playerCode}
 		>
 			<>

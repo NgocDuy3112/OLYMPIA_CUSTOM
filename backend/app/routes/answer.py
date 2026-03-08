@@ -26,6 +26,8 @@ async def post_answer(
 ) -> BaseResponse:
     try:
         return await post_answer_to_db(request, session, valkey)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -74,6 +76,8 @@ async def get_answer(
 ) -> BaseResponse:
     try:
         return await get_answer_from_db(match_code, user_code, question_code, session, valkey)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

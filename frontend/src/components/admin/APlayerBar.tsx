@@ -57,7 +57,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
 
                         {player.playerTimestamp != null && player.playerTimestamp != 0 && (
                             <span className="text-[16px] font-normal text-white">
-                                {player.playerTimestamp}
+                                {player.playerTimestamp.toFixed(3)}
                             </span>
                         )}
                     </span>

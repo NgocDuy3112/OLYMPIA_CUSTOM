@@ -276,7 +276,7 @@ const AButPhaPage = () => {
 			setTimer(TIME_LIMIT);
 
 			try {
-				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode });
+				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}

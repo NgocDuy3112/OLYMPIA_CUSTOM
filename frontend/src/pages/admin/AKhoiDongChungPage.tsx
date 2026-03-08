@@ -80,7 +80,7 @@ const AKhoiDongChungPage = () => {
 		// Lấy đáp án từng player qua GET /answers/
 		for (const player of players) {
 			try {
-				const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode)}&player_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`;
+				const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 				if (!res.ok) continue;
 				const json = await res.json();
@@ -102,8 +102,7 @@ const AKhoiDongChungPage = () => {
 		}
 
 		if (answersPayload.length === 0) {
-			logger.warn("showAnswers: no answers retrieved from server");
-			return;
+			logger.warn("showAnswers: no answers retrieved from server; broadcasting empty reveal");
 		}
 
 		try {
@@ -392,7 +391,7 @@ const AKhoiDongChungPage = () => {
 					content: fallbackQuestion.questionText,
 					media_source: fallbackQuestion.questionMediaURL,
 				});
-				void sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode });
+				void sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
 			}
 
 			// Fetch the authoritative question in background and re-broadcast when ready
@@ -670,7 +669,7 @@ const AKhoiDongChungPage = () => {
 						if (timer > 0 && currentQuestionIndex > 0) {
 							try {
 								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timer, question_code: questionCode });
+								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timer, question_code: questionCode, started_at: Date.now() });
 								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
 							} catch (err) {
 								logger.error("Failed to resend timer on player_online:", err);

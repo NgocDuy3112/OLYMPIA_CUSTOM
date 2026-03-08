@@ -23,7 +23,7 @@ async def post_answer_to_db(
     try:
         request_json = request.model_dump()
         cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
-        await valkey.json().set(cache_key, "$", request_json)
+        await valkey.set(cache_key, json.dumps(request_json))
         await valkey.publish(channel=request.match_code, message=json.dumps(request_json))
         global_logger.info(f"Cached answer for key=answer:{request.match_code}:{request.user_code}:{request.question_code} with points={request.answer_text}.")
         # Find match ID
@@ -81,11 +81,11 @@ async def post_answer_to_db(
         raise HTTPException(status_code=400, detail=log_message)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
         await session.rollback()
         log_message = f"Failed to create answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
-        global_logger.warning(log_message)
-        raise HTTPException(status_code=500, detail=log_message)
+        global_logger.error(log_message, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"{log_message} Reason: {e}")
 
 
 
@@ -99,8 +99,9 @@ async def get_answer_from_db(
     global_logger.info(f"GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
     try:
         cache_key = f"answer:{match_code}:{user_code}:{question_code}"
-        if await valkey.exists(cache_key):
-            record_json = await valkey.json().get(cache_key, "$", no_escape=True)
+        cached = await valkey.get(cache_key)
+        if cached is not None:
+            record_json = json.loads(cached)
             log_message = f"Fetched an answer from cache for key={cache_key}."
             global_logger.info(log_message)
             return BaseResponse(
@@ -121,10 +122,11 @@ async def get_answer_from_db(
                 Match.match_code == match_code,
                 User.user_code == user_code,
                 (User.role == 'player') | (User.role == 'admin'),
-                Question.question_code == question_code
-            )
+                Question.question_code == question_code,
+                Answer.is_deleted == False
+            ).order_by(Answer.created_at.desc())
         )
-        answer = result.scalar_one_or_none()
+        answer = result.scalars().first()
         if answer is None:
             log_message = f"Answer for question_code={question_code} in match_code={match_code} from user_code={user_code} does not exist."
             global_logger.warning(log_message)
@@ -146,10 +148,10 @@ async def get_answer_from_db(
         )
     except HTTPException:
         raise
-    except Exception:
+    except Exception as e:
         log_message = f"Failed to fetch answer for question_code={question_code} in match_code={match_code} from user_code={user_code}."
-        global_logger.warning(log_message)
-        raise HTTPException(status_code=500, detail=log_message)
+        global_logger.error(log_message, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"{log_message} Reason: {e}")
 
 
 async def delete_answer_from_db(match_code: str, user_code: str, question_code: str, session: AsyncSession) -> BaseResponse:

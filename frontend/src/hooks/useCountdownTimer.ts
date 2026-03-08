@@ -5,6 +5,10 @@ export interface CountdownTimerState {
     timer: number;
     timerDisplay: string;
     start: (timeLimitSeconds: number) => void;
+    /** Start the timer synced to when admin fired the signal.
+     *  Automatically subtracts elapsed time since `startedAt` (ms epoch).
+     *  Falls back to `Date.now()` when `startedAt` is not provided. */
+    startSynced: (timeLimitSeconds: number, startedAt?: number) => void;
     stop: () => void;
     reset: () => void;
     getElapsedSeconds: () => number;
@@ -18,7 +22,18 @@ export function useCountdownTimer(): CountdownTimerState {
     const runningRef = useRef(false);
 
     const start = useCallback((timeLimitSeconds: number) => {
-        const normalized = Math.max(0, Math.floor(timeLimitSeconds));
+        const normalized = Math.max(0, Math.round(timeLimitSeconds));
+        setTimeLimit(normalized);
+        setTimer(normalized);
+        startTimeMsRef.current = Date.now();
+        runningRef.current = true;
+    }, []);
+
+    const startSynced = useCallback((timeLimitSeconds: number, startedAt?: number) => {
+        const ref = typeof startedAt === 'number' ? startedAt : Date.now();
+        const elapsedSec = (Date.now() - ref) / 1000;
+        const remaining = Math.max(0, timeLimitSeconds - elapsedSec);
+        const normalized = Math.max(0, Math.round(remaining));
         setTimeLimit(normalized);
         setTimer(normalized);
         startTimeMsRef.current = Date.now();
@@ -68,6 +83,7 @@ export function useCountdownTimer(): CountdownTimerState {
         timer,
         timerDisplay,
         start,
+        startSynced,
         stop,
         reset,
         getElapsedSeconds,
