@@ -114,47 +114,51 @@ const AVeDichPickLayout = ({
 					{/* Board — mirrors AQuestionBoard shell */}
 					<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4">
 
-						{/* Board header: title + counter */}
-						<div className="flex justify-between items-center pb-1">
-							<p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+						{/* Board header: title + selected preview + counter — all in one row */}
+						<div className="flex items-center gap-4 pb-1">
+							<p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
 								{title}
 							</p>
-							<p className="text-sm text-blue-300 shrink-0">
-								Chọn {maxQuestions} câu hỏi ({selectedQuestionCodes.length}/{maxQuestions})
-							</p>
-						</div>
 
-						{/* Selected questions preview row — aligned with grid columns */}
-						<div
-							className="grid gap-3"
-							style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(56px, 56px)" }}
-						>
-							{Array.from({ length: maxQuestions }).map((_, i) => {
-								const code = selectedQuestionCodes[i];
-								if (!code) {
+							{/* Spacer */}
+							<div className="flex-1" />
+
+							{/* Selected questions preview — grouped near counter */}
+							<div className="flex gap-3">
+								{Array.from({ length: maxQuestions }).map((_, i) => {
+									const code = selectedQuestionCodes[i];
+									if (!code) {
+										return (
+											<div key={`selected-empty-${i}`} className="w-60 shrink-0 h-9">
+												<VeDichQuestionCard placeholder category="" points={undefined} disabled />
+											</div>
+										);
+									}
+
+									const qIndex = questions.findIndex((q) => q.questionCode === code);
+									const rawCategory = categories[qIndex] || "Unknown";
+									const point = points[qIndex] || 0;
+									const [catPrimary, catSecondary] = (rawCategory || "").split("|").map((s) => s?.trim());
+
 									return (
-										<VeDichQuestionCard key={`selected-empty-${i}`} placeholder category="" points={undefined} disabled />
+										<div key={`selected-${code}`} className="w-60 shrink-0 h-9">
+											<VeDichQuestionCard
+												category={catPrimary || rawCategory}
+												subcategory={catSecondary}
+												points={point}
+												state={getQuestionState(code)}
+												isSelected={true}
+												disabled={false}
+												onClick={() => onQuestionSelect?.(code)}
+											/>
+										</div>
 									);
-								}
+								})}
+							</div>
 
-								const qIndex = questions.findIndex((q) => q.questionCode === code);
-								const rawCategory = categories[qIndex] || "Unknown";
-								const point = points[qIndex] || 0;
-								const [catPrimary, catSecondary] = (rawCategory || "").split("|").map((s) => s?.trim());
-
-								return (
-									<VeDichQuestionCard
-										key={`selected-${code}`}
-										category={catPrimary || rawCategory}
-										subcategory={catSecondary}
-										points={point}
-										state={getQuestionState(code)}
-										isSelected={true}
-										disabled={false}
-										onClick={() => onQuestionSelect?.(code)}
-									/>
-								);
-							})}
+							<p className="font-[SVN-Gratelos_Display] font-extrabold text-blue-300 shrink-0 text-2xl">
+								{selectedQuestionCodes.length}/{maxQuestions}
+							</p>
 						</div>
 
 						{/* Divider */}
@@ -163,7 +167,7 @@ const AVeDichPickLayout = ({
 						{/* Questions Grid — 6×4 */}
 						<div
 							className="grid gap-3"
-							style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(56px, 56px)" }}
+						style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(58px, 58px)" }}
 						>
 							{Array.from({ length: 6 * 4 }).map((_, idx) => {
 								const question = questions[idx];

@@ -84,7 +84,7 @@ const VeDichQuestionCard = ({
 			disabled={disabled || placeholder}
 			aria-hidden={placeholder}
 			className={`
-				flex flex-row items-center gap-2 px-3 py-2 rounded-lg
+					flex flex-row items-center gap-2 px-3 py-1 rounded-lg
 				border-2 border-transparent hover:border-blue-300
 				transition-all duration-150 font-bold w-full h-full
 				${getStateStyles()}
@@ -94,7 +94,7 @@ const VeDichQuestionCard = ({
 		>
 			{/* Points */}
 			{typeof points === "number" && (
-				<span className="font-[SVN-Gratelos_Display] text-2xl font-extrabold leading-none shrink-0">{points}</span>
+				<span className="font-[SVN-Gratelos_Display] text-xl font-extrabold leading-none shrink-0">{points}</span>
 			)}
 
 			{/* Category + subcategory inline */}
