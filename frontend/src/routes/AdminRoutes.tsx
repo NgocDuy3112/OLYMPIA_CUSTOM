@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 // import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
+import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestion";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 
@@ -65,6 +66,23 @@ const AdminRoutes = () => {
                 element={
                     <ProtectedAdminRoute>
                         <AButPhaPage />
+                    </ProtectedAdminRoute>
+                }
+            />
+            {/* VỀ ĐÍCH - Question picker pages */}
+            <Route
+                path="/vdc/pick/:matchCode"
+                element={
+                    <ProtectedAdminRoute>
+                        <AVeDichPickQuestion />
+                    </ProtectedAdminRoute>
+                }
+            />
+            <Route
+                path="/vdcn/pick/:matchCode"
+                element={
+                    <ProtectedAdminRoute>
+                        <AVeDichPickQuestion />
                     </ProtectedAdminRoute>
                 }
             />

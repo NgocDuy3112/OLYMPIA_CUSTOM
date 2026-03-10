@@ -1,0 +1,215 @@
+import type { ReactNode } from "react";
+import AdminGameplayNavBar from "@/navigation/ANavBar";
+import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
+import type { Question } from "@/types/question";
+import type { VeDichRound } from "@/types/veDich";
+
+interface AVeDichPickLayoutProps {
+	// Title and round info
+	title: string;
+	round: VeDichRound;  // Determines maxQuestions (4 for CHUNG, 3 for RIENG)
+
+	// Questions data
+	questions: Question[];  // All available questions
+	categories: string[];   // Category labels for each question (same order as questions)
+	points: number[];       // Point values for each question (same order as questions)
+
+	// Selection state
+	selectedQuestionCodes: string[];  // Which questions are selected
+	onQuestionSelect?: (questionCode: string) => void;
+
+	// Question states
+	disabledQuestionCodes?: string[];  // Questions that can't be selected
+	questionStates?: Record<string, "answered" | "answered-wrong" | "available">;
+
+	// Control buttons (top row - navigation/clock controls)
+	topControlButtons: ReactNode;
+
+	// Action buttons (bottom row - start/end/refresh controls)
+	bottomActionButtons: ReactNode;
+
+	// Optional status messages
+	statusMessages?: ReactNode;
+
+	// Player list render function
+	renderPlayerList: () => ReactNode;
+}
+
+/**
+ * AVeDichPickLayout - Layout for VỀ ĐÍCH (Pick Questions) pages
+ *
+ * Displays a responsive grid of VeDichQuestionCard components.
+ * Used for admin to pick questions for Lượt Chung (4) or Lượt Riêng (3).
+ *
+ * Structure:
+ * - Top: Title + NavBar
+ * - Left (flex-3): Question cards grid + control buttons
+ * - Right (flex-1): Player list
+ *
+ * Usage example:
+ * ```tsx
+ * <AVeDichPickLayout
+ *   title="VỀ ĐÍCH - LƯỢT CHUNG - CHỌN CÂU HỎI"
+ *   round={VeDichRound.CHUNG}
+ *   questions={allQuestions}
+ *   categories={questionCategories}
+ *   points={questionPoints}
+ *   selectedQuestionCodes={selected}
+ *   onQuestionSelect={(code) => handleSelect(code)}
+ *   topControlButtons={<>...buttons...</>}
+ *   bottomActionButtons={<>...buttons...</>}
+ *   renderPlayerList={() => <APlayerBar {...} />}
+ * />
+ * ```
+ */
+const AVeDichPickLayout = ({
+	title,
+	round,
+	questions,
+	categories,
+	points,
+	selectedQuestionCodes,
+	onQuestionSelect,
+	disabledQuestionCodes = [],
+	questionStates = {},
+	topControlButtons,
+	bottomActionButtons,
+	statusMessages,
+	renderPlayerList,
+}: AVeDichPickLayoutProps) => {
+	const maxQuestions = round;  // Enum value IS the max count
+	const canSelectMore = selectedQuestionCodes.length < maxQuestions;
+
+	const getQuestionState = (questionCode: string): "answered" | "answered-wrong" | "available" => {
+		return questionStates[questionCode] || "available";
+	};
+
+	const isQuestionDisabled = (questionCode: string): boolean => {
+		return disabledQuestionCodes.includes(questionCode);
+	};
+
+	const isQuestionSelected = (questionCode: string): boolean => {
+		return selectedQuestionCodes.includes(questionCode);
+	};
+
+	const handleQuestionClick = (questionCode: string) => {
+		if (isQuestionDisabled(questionCode)) return;
+
+		if (isQuestionSelected(questionCode)) {
+			// Deselect
+			onQuestionSelect?.(questionCode);
+		} else if (canSelectMore) {
+			// Select if we haven't reached max
+			onQuestionSelect?.(questionCode);
+		}
+	};
+
+	return (
+		<>
+			<AdminGameplayNavBar />
+			<div className="flex flex-row w-full min-h-screen p-6 gap-8">
+				{/* Left section: Board + controls (same flex-3 as ABasePageLayout) */}
+				<div className="flex flex-col flex-3 gap-6">
+
+					{/* Board — mirrors AQuestionBoard shell */}
+					<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4">
+
+						{/* Board header: title + counter */}
+						<div className="flex justify-between items-center pb-1">
+							<p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+								{title}
+							</p>
+							<p className="text-sm text-blue-300 shrink-0">
+								Chọn {maxQuestions} câu hỏi ({selectedQuestionCodes.length}/{maxQuestions})
+							</p>
+						</div>
+
+						{/* Selected questions preview row — aligned with grid columns */}
+						<div
+							className="grid gap-3"
+							style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(56px, 56px)" }}
+						>
+							{Array.from({ length: maxQuestions }).map((_, i) => {
+								const code = selectedQuestionCodes[i];
+								if (!code) {
+									return (
+										<VeDichQuestionCard key={`selected-empty-${i}`} placeholder category="" points={undefined} disabled />
+									);
+								}
+
+								const qIndex = questions.findIndex((q) => q.questionCode === code);
+								const rawCategory = categories[qIndex] || "Unknown";
+								const point = points[qIndex] || 0;
+								const [catPrimary, catSecondary] = (rawCategory || "").split("|").map((s) => s?.trim());
+
+								return (
+									<VeDichQuestionCard
+										key={`selected-${code}`}
+										category={catPrimary || rawCategory}
+										subcategory={catSecondary}
+										points={point}
+										state={getQuestionState(code)}
+										isSelected={true}
+										disabled={false}
+										onClick={() => onQuestionSelect?.(code)}
+									/>
+								);
+							})}
+						</div>
+
+						{/* Divider */}
+						<div className="border-t border-blue-700" />
+
+						{/* Questions Grid — 6×4 */}
+						<div
+							className="grid gap-3"
+							style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(56px, 56px)" }}
+						>
+							{Array.from({ length: 6 * 4 }).map((_, idx) => {
+								const question = questions[idx];
+								const rawCategory = categories[idx] || "Unknown";
+								const point = points[idx] || 0;
+								const [catPrimary, catSecondary] = (rawCategory || "").split("|").map((s) => s?.trim());
+
+								if (!question) {
+									return (
+										<VeDichQuestionCard key={`slot-${idx}`} placeholder category="" points={undefined} disabled />
+									);
+								}
+
+								const isSelected = isQuestionSelected(question.questionCode);
+								const isDisabled = isQuestionDisabled(question.questionCode);
+								const state = getQuestionState(question.questionCode);
+
+								return (
+									<VeDichQuestionCard
+										key={question.questionCode}
+										category={catPrimary || rawCategory}
+										subcategory={catSecondary}
+										points={point}
+										state={state}
+										isSelected={isSelected}
+									disabled={isDisabled}
+										onClick={() => handleQuestionClick(question.questionCode)}
+									/>
+								);
+							})}
+						</div>
+					</div>
+
+					{/* Control buttons — same structure as ABasePageLayout */}
+					<div className="flex flex-col items-center gap-6">
+						<div className="flex flex-wrap gap-6 justify-center">{topControlButtons}</div>
+						<div className="flex flex-wrap gap-6 justify-center">{bottomActionButtons}</div>
+						{statusMessages}
+					</div>
+				</div>
+
+				{/* Right section: Player list (same flex-1 as ABasePageLayout) */}
+				<div className="flex flex-col flex-1 gap-5 overflow-y-auto pr-2">{renderPlayerList()}</div>
+			</div>
+		</>
+	);
+};
+
+export default AVeDichPickLayout;
