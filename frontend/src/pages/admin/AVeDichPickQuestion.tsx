@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { CheckCircle, RotateCcw } from "lucide-react";
 import AVeDichPickLayout from "@/pages/admin/AVeDichPickLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -37,6 +37,7 @@ const AVeDichPickQuestion = () => {
 	const currentMatchCode = localStorage.getItem("matchCode") || paramMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const navigate = useNavigate();
 
 	// Determine round type from current path
 	const currentPath = window.location.pathname;
@@ -176,7 +177,30 @@ const AVeDichPickQuestion = () => {
 				const used = veDichRaw
 					.filter((q: { is_used?: boolean }) => q.is_used === true)
 					.map((q: { question_code: string }) => q.question_code);
-				setUsedQuestionCodes(used);
+
+				// Also treat questions already answered in ANY VỀ ĐÍCH round as used.
+				// Unified key written by both AVeDichChungPage and future Riêng page.
+				try {
+					const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
+					if (storedUsed) {
+						const usedCodes = JSON.parse(storedUsed) as string[];
+						setUsedQuestionCodes([...new Set([...used, ...usedCodes])]);
+					} else {
+						// Fallback: also check per-round chung states for backward compat
+						const storedChungStates = localStorage.getItem(`veDich_chung_states_${currentMatchCode}`);
+						if (storedChungStates) {
+							const statesMap = JSON.parse(storedChungStates) as Record<string, string>;
+							const answeredCodes = Object.entries(statesMap)
+								.filter(([, v]) => v === "answered")
+								.map(([k]) => k);
+							setUsedQuestionCodes([...new Set([...used, ...answeredCodes])]);
+						} else {
+							setUsedQuestionCodes(used);
+						}
+					}
+				} catch {
+					setUsedQuestionCodes(used);
+				}
 
 				// Sort by question_code for consistent ordering
 				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
@@ -234,18 +258,27 @@ const AVeDichPickQuestion = () => {
 				timestamp: Date.now(),
 			};
 			sendMessage(payload);
+			// Persist selected codes so the gameplay page can restore them
+			if (currentMatchCode) {
+				const codesKey = isChung
+					? `veDich_chung_codes_${currentMatchCode}`
+					: `veDich_rieng_codes_${currentMatchCode}`;
+				localStorage.setItem(codesKey, JSON.stringify(selectedQuestionCodes));
+			}
 			setSuccessMessage(`Đã chọn ${round} câu hỏi. Chuyển đến vòng thi...`);
 
-			// Clear selection after brief feedback
+			// Navigate to the gameplay page after brief feedback
 			setTimeout(() => {
-				setSelectedQuestionCodes([]);
-				setSuccessMessage("");
-			}, 2000);
+				const dest = isChung
+					? `/admin/vdc/${currentMatchCode}`
+					: `/admin/vdr/${currentMatchCode}`;
+				navigate(dest);
+			}, 1500);
 		} catch (err) {
 			logger.error("Failed to confirm selection:", err);
 			setErrorMessage("Lỗi khi xác nhận câu hỏi");
 		}
-	}, [selectedQuestionCodes, round, currentMatchCode, isChung, sendMessage]);
+	}, [selectedQuestionCodes, round, currentMatchCode, isChung, sendMessage, navigate]);
 
 	const handleResetSelection = useCallback(() => {
 		setSelectedQuestionCodes([]);
@@ -259,7 +292,7 @@ const AVeDichPickQuestion = () => {
 				onClick={handleConfirmSelection}
 				disabled={selectedQuestionCodes.length !== round || isLoading}
 				className={`
-					flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-white transition-all
+					flex items-center gap-2 px-6 py-3 rounded-none font-bold text-white transition-all
 					${selectedQuestionCodes.length === round && !isLoading
 						? "bg-blue-600 hover:bg-blue-700 cursor-pointer"
 						: "bg-gray-400 cursor-not-allowed opacity-50"
@@ -267,12 +300,12 @@ const AVeDichPickQuestion = () => {
 				`}
 			>
 				<CheckCircle size={20} />
-				Xác nhận ({selectedQuestionCodes.length}/{round})
+				Xác nhận
 			</button>
 
 			<button
 				onClick={handleResetSelection}
-				className="flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all"
+				className="flex items-center gap-2 px-6 py-3 rounded-none font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all"
 			>
 				<RotateCcw size={20} />
 				Đặt lại

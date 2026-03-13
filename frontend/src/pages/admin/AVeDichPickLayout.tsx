@@ -202,11 +202,11 @@ const AVeDichPickLayout = ({
 					</div>
 
 					{/* Control buttons — same structure as ABasePageLayout */}
-					<div className="flex flex-col items-center gap-6">
-						<div className="flex flex-wrap gap-6 justify-center">{topControlButtons}</div>
-						<div className="flex flex-wrap gap-6 justify-center">{bottomActionButtons}</div>
-						{statusMessages}
+					<div className="flex flex-wrap items-center justify-center gap-4 max-w-220 mx-auto">
+						{topControlButtons}
+						{bottomActionButtons}
 					</div>
+					{statusMessages}
 				</div>
 
 				{/* Right section: Player list (same flex-1 as ABasePageLayout) */}

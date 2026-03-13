@@ -71,16 +71,13 @@ const ABasePageLayout = ({
 						{controlsChildren}
 					</AQuestionBoard>
 
-					<div className="flex flex-col items-center gap-6">
-						{/* Top control buttons row */}
-						<div className="flex flex-wrap gap-6 justify-center">{topControlButtons}</div>
-
-						{/* Bottom action buttons row */}
-						<div className="flex flex-wrap gap-6 justify-center">{bottomActionButtons}</div>
-
-						{/* Optional status messages */}
-						{statusMessages}
+					<div className="flex flex-wrap items-center justify-center gap-4 max-w-220 mx-auto">
+						{topControlButtons}
+						{bottomActionButtons}
 					</div>
+
+					{/* Optional status messages */}
+					{statusMessages}
 				</div>
 
 				{/* Right section: Player list */}

@@ -56,7 +56,7 @@ const VeDichQuestionCard = ({
 }: VeDichQuestionCardProps) => {
 	const getStateStyles = () => {
 		if (placeholder) {
-			return "bg-transparent text-transparent ring-0 border-2 border-dashed border-gray-200";
+			return "bg-blue-800/40 text-transparent ring-0 border-2 border-dashed border-blue-400/70 pointer-events-none";
 		}
 
 		if (disabled) {

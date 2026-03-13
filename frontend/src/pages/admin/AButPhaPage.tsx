@@ -2,6 +2,7 @@
 import { startTransition, useCallback, useEffect, useState } from "react";
 import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Power, RefreshCw } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
+import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { createLogger } from "@/utils/logger";
@@ -478,18 +479,17 @@ const AButPhaPage = () => {
 			)}
 			topControlButtons={
 				<>
-					<button
+					<AControlButton
 						onClick={() => {
 							if (!hasQuestionSelected) return;
 							void startTheClock(currentQuestionIndex);
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={!hasQuestionSelected || timer > 0}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={async () => {
 							const prevIndex = Math.max(1, currentQuestionIndex - 1 || 1);
 							setCurrentQuestionIndex(prevIndex);
@@ -500,13 +500,12 @@ const AButPhaPage = () => {
 								logger.error('Failed to load/send previous question:', err);
 							}
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={currentQuestionIndex <= 1}
 					>
 						<ArrowLeftToLine size={18} />
 						<span className="ml-2 font-bold">LÙI CÂU</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={async () => {
 							const nextIndex = currentQuestionIndex > 0 ? currentQuestionIndex + 1 : 1;
 							if (nextIndex > MAX_QUESTION_INDEX) return;
@@ -518,43 +517,39 @@ const AButPhaPage = () => {
 								logger.error('Failed to load/send next question:', err);
 							}
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={currentQuestionIndex >= MAX_QUESTION_INDEX}
 					>
 						<ArrowRightToLine size={18} />
 						<span className="ml-2 font-bold">TỚI CÂU</span>
-					</button>
+					</AControlButton>
 				</>
 			}
 			bottomActionButtons={
 				<>
-					<button
+					<AControlButton
 						onClick={() => {
 							void handleStartRound();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={() => {
 							void loadPlayersState();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={() => {
 							void handleEndRound();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
-					</button>
+					</AControlButton>
 				</>
 			}
 			renderPlayerList={() =>

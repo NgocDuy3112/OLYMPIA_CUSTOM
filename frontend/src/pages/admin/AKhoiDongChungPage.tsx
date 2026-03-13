@@ -8,6 +8,7 @@ import {
 	Eye,
 } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
+import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { createLogger } from "@/utils/logger";
@@ -844,17 +845,16 @@ const AKhoiDongChungPage = () => {
 			)}
 			topControlButtons={
 				<>
-					<button
+					<AControlButton
 						onClick={() => {
 							void startTheClock();
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={isTimerRunning}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={() => {
 							// call and catch to avoid unhandled promise rejections causing app-level errors
 							void handleAddScoreToSelected().catch((err) => {
@@ -863,45 +863,40 @@ const AKhoiDongChungPage = () => {
 								setHasAddedScore(false);
 							});
 						}}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
 					>
 						<CheckCheck size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={() => { void showAnswers(); }}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50"
 						disabled={!canShowAnswers}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-					</button>
+					</AControlButton>
 				</>
 			}
 			bottomActionButtons={
 				<>
-					<button
+					<AControlButton
 						onClick={() => { handleStartRound() }}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={() => { loadPlayersState() }}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT</span>
-					</button>
-					<button
+					</AControlButton>
+					<AControlButton
 						onClick={() => { handleEndRound() }}
-						className="bg-blue-900 ring-blue-600 ring-3 min-w-40 h-15 flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg"
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
-					</button>
+					</AControlButton>
 				</>
 			}
 			renderPlayerList={() =>

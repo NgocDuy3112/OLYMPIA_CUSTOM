@@ -113,7 +113,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                 {question.questionMediaURL ? (
                     <>
                         {/* Left side: question text (50% width) */}
-                        <div className="flex-1 flex flex-col justify-center">
+                        <div className="flex-1 flex flex-col justify-start">
                             <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
                                 {question.questionText}
                             </p>
@@ -125,7 +125,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                     </>
                 ) : (
                     /* Full width: question text only */
-                    <p className="w-full text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
+                    <p className="w-full text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left self-start">
                         {question.questionText}
                     </p>
                 )}

@@ -82,7 +82,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerD
             <div className="flex flex-row flex-1 gap-4">
                 {question.questionMediaURL ? (
                     <>
-                        <div className="flex-1 flex flex-col justify-center">
+                        <div className="flex-1 flex flex-col justify-start">
                             <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
                                 {question.questionText}
                             </p>
@@ -92,7 +92,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerD
                         </div>
                     </>
                 ) : (
-                    <p className="w-full text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
+                    <p className="w-full text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left self-start">
                         {question.questionText}
                     </p>
                 )}
