@@ -11,10 +11,12 @@ interface PQuestionBoardProps {
     controls?: PlayerQuestionBoardControls;
     // optional custom content to render in the controls area (not a render-prop)
     children?: React.ReactNode;
+    /** Tailwind height class applied to the board container. Defaults to h-[40vh]. */
+    boardHeightClass?: string;
 }
 
 
-const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerDuration, controls, children }) => {
+const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[40vh]" }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const activeIndices = controls?.activeIndices ?? [];
@@ -64,7 +66,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerD
     );
 
     return (
-        <div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 h-[40vh]">
+        <div className={`p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 ${boardHeightClass}`}>
             <div className="flex justify-between items-center pb-1">
                 <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
                     {title}

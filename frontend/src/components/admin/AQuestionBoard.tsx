@@ -10,10 +10,14 @@ interface AQuestionBoardProps {
     controls?: AdminQuestionBoardControls;
     // children must be a render-prop that receives control APIs
     children?: (api: ControlsRenderApi) => React.ReactNode;
+    /** Tailwind height class applied to the board container. Defaults to h-[50vh]. */
+    boardHeightClass?: string;
+    /** Tailwind height class applied to the answer/explanation box. Defaults to h-28. */
+    answerBoxHeightClass?: string;
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[50vh]", answerBoxHeightClass = "h-[15vh]" }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -82,7 +86,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
     );
 
     return (
-        <div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 h-[50vh]">
+        <div className={`p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 ${boardHeightClass}`}>
             {/* Header: title, timer and six control boxes */}
             <div className="flex justify-between items-center pb-1">
                 <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
@@ -132,7 +136,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
             </div>
 
             {/* Fixed-height answer and explanation box */}
-            <div className="flex flex-col bg-blue-800 border border-blue-600 h-50 rounded-xl text-white font-extrabold items-center justify-center p-4 gap-2">
+            <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-4 gap-2`}>
                 <div className="text-2xl text-center line-clamp-2">
                     {question.questionAnswer}
                 </div>

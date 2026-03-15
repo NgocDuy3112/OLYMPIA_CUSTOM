@@ -2,7 +2,7 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import {
 	AlarmClockCheck,
-	CheckCheck,
+	Calculator,
 	Power,
 	RefreshCw,
 	Eye,
@@ -529,7 +529,7 @@ const AKhoiDongChungPage = () => {
 
 	const handleAddScoreToSelected = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0) return;
-		// CHỈ cho phép cộng điểm khi có câu hỏi đang hoạt động (index > 0)
+		// CHỈ cho phép tính điểm khi có câu hỏi đang hoạt động (index > 0)
 		if (currentQuestionIndex <= 0) {
 			logger.warn("handleAddScoreToSelected: No active question selected (index 0). Aborting score award.");
 			return;
@@ -854,27 +854,6 @@ const AKhoiDongChungPage = () => {
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
-					<AControlButton
-						onClick={() => {
-							// call and catch to avoid unhandled promise rejections causing app-level errors
-							void handleAddScoreToSelected().catch((err) => {
-								logger.error("AddScore button handler failed:", err);
-								// best-effort UI recovery
-								setHasAddedScore(false);
-							});
-						}}
-						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
-					>
-						<CheckCheck size={18} />
-						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
-					>
-						<Eye size={18} />
-						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-					</AControlButton>
 				</>
 			}
 			bottomActionButtons={
@@ -886,16 +865,41 @@ const AKhoiDongChungPage = () => {
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton
-						onClick={() => { loadPlayersState() }}
-					>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
-					</AControlButton>
-					<AControlButton
 						onClick={() => { handleEndRound() }}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
+					</AControlButton>
+				</>
+			}
+			playerSectionButtons={
+				<>
+					<AControlButton
+						onClick={() => {
+							// call and catch to avoid unhandled promise rejections causing app-level errors
+							void handleAddScoreToSelected().catch((err) => {
+								logger.error("AddScore button handler failed:", err);
+								// best-effort UI recovery
+								setHasAddedScore(false);
+							});
+						}}
+						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
+					>
+						<Calculator size={18} />
+						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void showAnswers(); }}
+						disabled={!canShowAnswers}
+					>
+						<Eye size={18} />
+						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { loadPlayersState() }}
+					>
+						<RefreshCw size={18} />
+						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 				</>
 			}

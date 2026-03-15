@@ -55,7 +55,7 @@ interface QuestionData {
     content: string;
     answer: string;
     explanation: string | null;
-    media_url: string[] | null;
+    media_url: string | null;  // comma-separated URLs or single URL
 }
 
 /** Maps to backend `schemas/base.py` BaseResponse */
@@ -274,7 +274,7 @@ const AGameManagingPage = () => {
                     </button>
                 </div>
 
-                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                <div className="overflow-hidden flex-1 -mr-2 pr-2">
                     {usersLoading && users.length === 0 ? (
                         <p className="text-gray-400 text-sm">Đang tải…</p>
                     ) : users.length === 0 ? (
@@ -283,9 +283,9 @@ const AGameManagingPage = () => {
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-blue-900">
                                 <tr className="text-left text-blue-300 border-b border-blue-700">
-                                    <th className="py-2 px-2">user_code</th>
-                                    <th className="py-2 px-2">user_name</th>
-                                    <th className="py-2 px-2">role</th>
+                                    <th className="py-2 px-2">Mã thí sinh</th>
+                                    <th className="py-2 px-2">Tên thí sinh</th>
+                                    <th className="py-2 px-2">Vai trò</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -315,7 +315,7 @@ const AGameManagingPage = () => {
                 <div className="flex gap-2">
                     <input
                         type="text"
-                        placeholder="match_code (VD: OC3_M001)"
+                        placeholder="Mã trận đấu"
                         value={matchCode}
                         onChange={(e) => {
                             const val = e.target.value;
@@ -339,7 +339,7 @@ const AGameManagingPage = () => {
                 {/* matchName input */}
                 <input
                     type="text"
-                    placeholder="match_name"
+                    placeholder="Tên trận đấu"
                     value={matchName}
                     onChange={(e) => setMatchName(e.target.value)}
                     className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -353,7 +353,7 @@ const AGameManagingPage = () => {
                         <input
                             key={i}
                             type="text"
-                            placeholder={`user_code #${i + 1} (VD: OC_U…)`}
+                            placeholder={`Mã thí sinh vị trí #${i + 1} `}
                             value={code}
                             onChange={(e) => handleUserCodeChange(i, e.target.value)}
                             className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -385,7 +385,7 @@ const AGameManagingPage = () => {
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="match_code"
+                            placeholder="Mã trận đấu"
                             value={questionsMatchCode}
                             onChange={(e) => setQuestionsMatchCode(e.target.value)}
                             className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-48"
@@ -400,7 +400,7 @@ const AGameManagingPage = () => {
                     </div>
                 </div>
 
-                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                <div className="overflow-hidden flex-1 -mr-2 pr-2">
                     {questionsLoading ? (
                         <p className="text-gray-400 text-sm">Đang tải…</p>
                     ) : questions.length === 0 ? (
@@ -411,11 +411,11 @@ const AGameManagingPage = () => {
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-blue-900">
                                 <tr className="text-left text-blue-300 border-b border-blue-700">
-                                    <th className="py-2 px-2">question_code</th>
-                                    <th className="py-2 px-2">content</th>
-                                    <th className="py-2 px-2">answer</th>
-                                    <th className="py-2 px-2">explanation</th>
-                                    <th className="py-2 px-2">media_url</th>
+                                    <th className="py-2 px-2">Mã câu hỏi</th>
+                                    <th className="py-2 px-2">Nội dung</th>
+                                    <th className="py-2 px-2">Đáp án</th>
+                                    <th className="py-2 px-2">Giải thích</th>
+                                    <th className="py-2 px-2">Media</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -432,17 +432,17 @@ const AGameManagingPage = () => {
                                         <td className="py-2 px-2 text-gray-300 max-w-xs truncate">
                                             {q.explanation ?? "—"}
                                         </td>
-                                        <td className="py-2 px-2 text-xs">
-                                            {q.media_url && q.media_url.length > 0
-                                                ? q.media_url.map((url, i) => (
+                        <td className="py-2 px-2 text-xs">
+                                            {q.media_url
+                                                ? q.media_url.split(',').map((url, i) => (
                                                       <a
                                                           key={i}
-                                                          href={url}
+                                                          href={url.trim()}
                                                           target="_blank"
                                                           rel="noreferrer"
                                                           className="text-blue-400 hover:underline block truncate max-w-40"
                                                       >
-                                                          {url}
+                                                          {url.trim()}
                                                       </a>
                                                   ))
                                                 : "—"}

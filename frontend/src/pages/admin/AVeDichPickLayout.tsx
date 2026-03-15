@@ -107,7 +107,7 @@ const AVeDichPickLayout = ({
 	return (
 		<>
 			<AdminGameplayNavBar />
-			<div className="flex flex-row w-full min-h-screen p-6 gap-8">
+			<div className="flex flex-row w-full min-h-screen p-6 gap-8 overflow-hidden">
 				{/* Left section: Board + controls (same flex-3 as ABasePageLayout) */}
 				<div className="flex flex-col flex-3 gap-6">
 
@@ -193,7 +193,7 @@ const AVeDichPickLayout = ({
 										points={point}
 										state={state}
 										isSelected={isSelected}
-									disabled={isDisabled}
+										disabled={isDisabled}
 										onClick={() => handleQuestionClick(question.questionCode)}
 									/>
 								);
@@ -210,7 +210,7 @@ const AVeDichPickLayout = ({
 				</div>
 
 				{/* Right section: Player list (same flex-1 as ABasePageLayout) */}
-				<div className="flex flex-col flex-1 gap-5 overflow-y-auto pr-2">{renderPlayerList()}</div>
+			<div className="flex flex-col flex-1 gap-5 overflow-hidden pr-2">{renderPlayerList()}</div>
 			</div>
 		</>
 	);

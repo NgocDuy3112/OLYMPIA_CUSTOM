@@ -1,5 +1,6 @@
 .github/
 .claude/
+CLAUDE.md
 
 secrets/
 configs/

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { CheckCircle, RotateCcw } from "lucide-react";
 import AVeDichPickLayout from "@/pages/admin/AVeDichPickLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
+import AControlButton from "@/components/admin/AControlButton";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
@@ -267,6 +268,10 @@ const AVeDichPickQuestion = () => {
 			}
 			setSuccessMessage(`Đã chọn ${round} câu hỏi. Chuyển đến vòng thi...`);
 
+			// Navigate players to the appropriate game page
+			const playerPath = isChung ? "/player/vdc" : "/player/vdr";
+			sendMessage({ type: "navigate", user_code: "", path: playerPath });
+
 			// Navigate to the gameplay page after brief feedback
 			setTimeout(() => {
 				const dest = isChung
@@ -288,28 +293,20 @@ const AVeDichPickQuestion = () => {
 
 	const topControlButtons = (
 		<>
-			<button
+			<AControlButton
 				onClick={handleConfirmSelection}
 				disabled={selectedQuestionCodes.length !== round || isLoading}
-				className={`
-					flex items-center gap-2 px-6 py-3 rounded-none font-bold text-white transition-all
-					${selectedQuestionCodes.length === round && !isLoading
-						? "bg-blue-600 hover:bg-blue-700 cursor-pointer"
-						: "bg-gray-400 cursor-not-allowed opacity-50"
-					}
-				`}
 			>
 				<CheckCircle size={20} />
-				Xác nhận
-			</button>
+				<span className="ml-2 font-bold">XÁC NHẬN</span>
+			</AControlButton>
 
-			<button
+			<AControlButton
 				onClick={handleResetSelection}
-				className="flex items-center gap-2 px-6 py-3 rounded-none font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all"
 			>
 				<RotateCcw size={20} />
-				Đặt lại
-			</button>
+				<span className="ml-2 font-bold">CHỌN LẠI</span>
+			</AControlButton>
 		</>
 	);
 

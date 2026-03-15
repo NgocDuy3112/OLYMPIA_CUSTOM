@@ -7,6 +7,9 @@ import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
 import PButPhaPage from "@/pages/player/PButPhaPage";
+import PVeDichChungPage from "@/pages/player/PVeDichChungPage";
+import PVeDichRiengPage from "@/pages/player/PVeDichRiengPage";
+import PGiaiMaPage from "@/pages/player/PGiaiMaPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
 import PWaitingPage from "@/pages/player/PWaitingPage";
 
@@ -137,6 +140,30 @@ const PlayerRoutes = () => {
                     element={
                         <ProtectedPlayerRoute>
                             <PButPhaPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/vdc/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PVeDichChungPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/vdr/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PVeDichRiengPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/gm/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PGiaiMaPage />
                         </ProtectedPlayerRoute>
                     }
                 />

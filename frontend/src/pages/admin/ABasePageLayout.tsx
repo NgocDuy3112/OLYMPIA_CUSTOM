@@ -10,6 +10,15 @@ interface ABasePageLayoutProps {
 	question: Question;
 	timerDuration: number;
 
+	// Optional node rendered above the AQuestionBoard in the left column
+	aboveQuestionBoard?: ReactNode;
+
+	/** Tailwind height class forwarded to AQuestionBoard. Defaults to h-[50vh]. */
+	boardHeightClass?: string;
+
+	/** Tailwind height class forwarded to AQuestionBoard's answer/explanation box. Defaults to h-28. */
+	answerBoxHeightClass?: string;
+
 	// Optional controls configuration for the question board (numbers / subjects)
 	controls?: AdminQuestionBoardControls;
 
@@ -27,6 +36,9 @@ interface ABasePageLayoutProps {
 
 	// Player list render function
 	renderPlayerList: () => ReactNode;
+
+	// Optional buttons rendered below the player list (e.g. TÍNH ĐIỂM, HIỆN TRẢ LỜI, CẬP NHẬT)
+	playerSectionButtons?: ReactNode;
 }
 
 /**
@@ -60,14 +72,18 @@ const ABasePageLayout = ({
 	renderPlayerList,
 	controls,
 	controlsChildren,
+	aboveQuestionBoard,
+	boardHeightClass,
+	answerBoxHeightClass,
+	playerSectionButtons,
 }: ABasePageLayoutProps) => {
 	return (
 		<>
 			<AdminGameplayNavBar />
-			<div className="flex flex-row w-full min-h-screen p-6 gap-8">
+			<div className="flex flex-row w-full min-h-screen p-6 gap-8 overflow-hidden">
 				{/* Left section: Question board and controls */}
-				<div className="flex flex-col flex-3 gap-6">
-					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} controls={controls}>
+				<div className="flex flex-col flex-3 gap-6">				{aboveQuestionBoard}
+					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass}>
 						{controlsChildren}
 					</AQuestionBoard>
 
@@ -80,8 +96,15 @@ const ABasePageLayout = ({
 					{statusMessages}
 				</div>
 
-				{/* Right section: Player list */}
-				<div className="flex flex-col flex-1 gap-5 overflow-y-auto pr-2">{renderPlayerList()}</div>
+				{/* Right section: Player list + optional action buttons */}
+				<div className="flex flex-col flex-1 gap-5 overflow-hidden">
+					<div className="flex flex-col gap-5 overflow-hidden pr-2">{renderPlayerList()}</div>
+					{playerSectionButtons && (
+						<div className="flex flex-wrap items-center justify-center gap-4">
+							{playerSectionButtons}
+						</div>
+					)}
+				</div>
 			</div>
 		</>
 	);

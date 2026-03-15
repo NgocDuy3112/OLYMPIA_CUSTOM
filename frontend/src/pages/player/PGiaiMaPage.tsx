@@ -5,6 +5,7 @@ import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
+import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
@@ -14,15 +15,17 @@ import type { PlayerStatus } from "@/types/player";
 
 
 
-const PVeDichChungPage = () => {
+const PGiaiMaPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
 	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	const [answer, setAnswer] = useState("");
+	const [questionAnswer, setQuestionAnswer] = useState("");
+	const [keyword, setKeyword] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
+	const [hasSubmittedKeyword, setHasSubmittedKeyword] = useState(false);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -83,8 +86,10 @@ const PVeDichChungPage = () => {
 
 			case "start_the_timer": {
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
-				setAnswer("");
+				setQuestionAnswer("");
+				setKeyword("");
 				setShowAnswers(false);
+				setHasSubmittedKeyword(false);
 				break;
 			}
 
@@ -108,25 +113,10 @@ const PVeDichChungPage = () => {
 						playerHasBuzzed: undefined,
 					})),
 				);
-				setAnswer("");
-				setShowAnswers(false);
-				break;
-			}
-
-			case "send_answers_to_players": {
-				const answers = msg.answers ?? [];
-				setPlayers((prev) =>
-					prev.map((p) => {
-						const ans = answers.find((a: any) => a.user_code === p.playerCode);
-						if (!ans) return p;
-						return {
-							...p,
-							playerLastAnswer: ans.content,
-							playerTimestamp: ans.timestamp,
-						};
-					}),
-				);
+				setQuestionAnswer("");
+				setKeyword("");
 				setShowAnswers(true);
+				setHasSubmittedKeyword(false);
 				break;
 			}
 
@@ -169,8 +159,8 @@ const PVeDichChungPage = () => {
 		}
 	}, [applyWsMessage, lastMessage, startSynced, playerCode]);
 
-	const handleSubmitAnswer = useCallback(async () => {
-		const trimmed = answer.trim();
+	const handleSubmitQuestionAnswer = useCallback(async () => {
+		const trimmed = questionAnswer.trim();
 		if (!trimmed) return;
 		if (!isConnected) return;
 		if (timer <= 0) return;
@@ -179,16 +169,8 @@ const PVeDichChungPage = () => {
 		const elapsed = getElapsedSeconds();
 		const ts = Math.max(0, Math.min(timeLimit, elapsed));
 
-		setPlayers((prev) =>
-			prev.map((p) =>
-				p.playerCode === playerCode
-					? { ...p, playerLastAnswer: trimmed, playerTimestamp: Number(ts.toFixed(3)) }
-					: p,
-			),
-		);
-
 		try {
-			// Persist answer via REST
+			// Persist question answer via REST
 			const res = await fetch(`${API_BASE_URL}/answers/`, {
 				method: "POST",
 				headers: {
@@ -206,10 +188,10 @@ const PVeDichChungPage = () => {
 			});
 			if (!res.ok) {
 				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST answer:", res.status, body);
+				console.warn("Failed to POST question answer:", res.status, body);
 			}
 		} catch (err) {
-			console.warn("Failed to POST answer:", err);
+			console.warn("Failed to POST question answer:", err);
 		}
 
 		// Send real-time frame
@@ -220,10 +202,66 @@ const PVeDichChungPage = () => {
 			answer_text: trimmed,
 			timestamp: ts,
 		});
-		setAnswer("");
-	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
+		setQuestionAnswer("");
+	}, [questionAnswer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
+
+	const handleSubmitKeyword = useCallback(async () => {
+		const trimmed = keyword.trim();
+		if (!trimmed) return;
+		if (!isConnected) return;
+		if (timer <= 0) return;
+		if (!currentQuestion.questionCode) return;
+
+		const elapsed = getElapsedSeconds();
+		const ts = Math.max(0, Math.min(timeLimit, elapsed));
+
+		setPlayers((prev) =>
+			prev.map((p) =>
+				p.playerCode === playerCode
+					? { ...p, playerLastAnswer: trimmed, playerTimestamp: Number(ts.toFixed(3)) }
+					: p,
+			),
+		);
+
+		try {
+			// Persist keyword via REST
+			const res = await fetch(`${API_BASE_URL}/answers/`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					user_code: playerCode,
+					match_code: matchCode,
+					question_code: currentQuestion.questionCode,
+					answer_text: trimmed,
+					has_buzzed: false,
+					timestamp: ts,
+				}),
+			});
+			if (!res.ok) {
+				const body = await res.text().catch(() => "");
+				console.warn("Failed to POST keyword:", res.status, body);
+			}
+		} catch (err) {
+			console.warn("Failed to POST keyword:", err);
+		}
+
+		// Send real-time frame
+		await sendMessage({
+			type: "answer",
+			user_code: playerCode,
+			question_code: currentQuestion.questionCode,
+			answer_text: trimmed,
+			timestamp: ts,
+		});
+		setKeyword("");
+		setHasSubmittedKeyword(true);
+	}, [keyword, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
 
 	const isSubmissionDisabled = !isConnected || timer <= 0;
+	const isLockedAfterKeyword = isSubmissionDisabled || hasSubmittedKeyword;
 
 	// Always show the current player's own answer; hide others until admin reveals
 	const displayPlayers = players.map((p) =>
@@ -237,22 +275,38 @@ const PVeDichChungPage = () => {
 		>
 			<>
 				<PQuestionBoard
-					title="VẾ DỊCH - LƯỢT CHUNG"
+					title="GIẢI MÃ"
 					question={currentQuestion}
 					timerDuration={timer}
+					boardHeightClass="h-[38vh]"
 					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
 				/>
 
-				<PAnswerBox
-					answer={answer}
-					setAnswer={setAnswer}
-					isDisabled={isSubmissionDisabled}
-					onSubmit={handleSubmitAnswer}
-					placeholderString={timer <= 0 ? "Bạn không thể nhập đáp án tại thời điểm này" : "Nhập đáp án và nhấn Enter"}
-				/>
+				<div className="flex flex-col gap-3 p-3">
+					<PAnswerBox
+						answer={questionAnswer}
+						setAnswer={setQuestionAnswer}
+						isDisabled={isLockedAfterKeyword}
+						onSubmit={handleSubmitQuestionAnswer}
+						placeholderString={isLockedAfterKeyword ? "Bạn không thể nhập câu trả lời tại thời điểm này" : "Nhập câu trả lời và nhấn Enter"}
+					/>
+					<PAnswerBox
+						answer={keyword}
+						setAnswer={setKeyword}
+						isDisabled={isLockedAfterKeyword}
+						onSubmit={handleSubmitKeyword}
+						placeholderString={isLockedAfterKeyword ? "Bạn không thể nhập từ khoá tại thời điểm này" : "Nhập từ khoá và nhấn Enter"}
+					/>
+					<PSubmitButton
+						isEnabled={!isLockedAfterKeyword && keyword.trim().length > 0}
+						isKeywordMode={true}
+						label="NỘP TỪ KHOÁ"
+						onSubmit={handleSubmitKeyword}
+					/>
+				</div>
 			</>
 		</PBasePageLayout>
 	);
 };
 
-export default PVeDichChungPage;
+export default PGiaiMaPage;

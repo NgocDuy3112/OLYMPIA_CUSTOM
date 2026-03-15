@@ -3,12 +3,11 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { useNavigate } from "react-router-dom";
 import {
 	AlarmClockCheck,
-	CheckCheck,
+	Calculator,
 	ListRestart,
 	Power,
 	RefreshCw,
 	Eye,
-	MinusCircle,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -520,7 +519,8 @@ const AVeDichChungPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
-	const handleAddScoreToSelected = useCallback(async () => {
+// Calculate score: add to selected, deduct 50% from all (Lượt Chung logic)
+	const handleCalculateScore = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		const points = currentPoints;
 		const deduction = -Math.floor(points * 0.5);
@@ -528,19 +528,22 @@ const AVeDichChungPage = () => {
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
 
 		try {
-			for (const player of players) {
-				if (selectedPlayerCodes.includes(player.playerCode)) {
-					await handleAddScore(player.playerCode, points, false);
-				} else if (deduction !== 0) {
-					await handleAddScore(player.playerCode, deduction, false);
-				}
+			// Add points to selected players
+			for (const playerCode of selectedPlayerCodes) {
+				await handleAddScore(playerCode, points, false);
 			}
+
+			// Deduct 50% from all players (including selected ones)
+			for (const player of players) {
+				await handleAddScore(player.playerCode, deduction, false);
+			}
+
 			if (currentMatchCode) {
 				await sendPlayersSnapshot();
 			}
 			setSelectedPlayerCodes([]);
-		} catch (err) {
-			logger.error("handleAddScoreToSelected failed:", err);
+		} catch (err: any) {
+			logger.error("handleCalculateScore failed:", err);
 		}
 	}, [
 		selectedPlayerCodes,
@@ -551,34 +554,6 @@ const AVeDichChungPage = () => {
 		sendPlayersSnapshot,
 		currentMatchCode,
 	]);
-
-	// Deduct 50% of points from all players for the current question
-	const handleDeductScoreFromAll = useCallback(async () => {
-		if (!currentQuestion.questionCode) return;
-		const points = currentPoints;
-		const deduction = -Math.floor(points * 0.5);
-		// Mark question as answered on the board
-		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
-
-		try {
-			for (const player of players) {
-				await handleAddScore(player.playerCode, deduction, false);
-			}
-			if (currentMatchCode) {
-				await sendPlayersSnapshot();
-			}
-		} catch (err) {
-			logger.error("handleDeductScoreFromAll failed:", err);
-		}
-	}, [
-		currentQuestion.questionCode,
-		currentPoints,
-		players,
-		handleAddScore,
-		sendPlayersSnapshot,
-		currentMatchCode,
-	]);
-
 
 	// ─── Round control ────────────────────────────────────────────────────────────
 	const handleStartRound = useCallback(async () => {
@@ -821,39 +796,33 @@ const AVeDichChungPage = () => {
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
-
+				</>
+			}
+			playerSectionButtons={
+				<>
 					<AControlButton
 						onClick={() => {
-							void handleAddScoreToSelected().catch((err) => {
-								logger.error("CỘNG ĐIỂM handler failed:", err);
+							void handleCalculateScore().catch((err) => {
+								logger.error("TÍNH ĐIỂM handler failed:", err);
 							});
 						}}
 						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
 					>
-						<CheckCheck size={18} />
-						<span className="ml-2 font-bold">
-							CỘNG ĐIỂM{currentPoints > 0 ? ` (+${currentPoints})` : ""}
-						</span>
+						<Calculator size={18} />
+						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
 					</AControlButton>
-
-					<AControlButton
-						onClick={() => {
-							void handleDeductScoreFromAll().catch((err) => {
-								logger.error("TRỪ ĐIỂM handler failed:", err);
-							});
-						}}
-						disabled={!currentQuestion.questionCode}
-					>
-						<MinusCircle size={18} />
-						<span className="ml-2 font-bold">TRỪ ĐIỂM (-{currentPoints ? Math.floor(currentPoints * 0.5) : 0})</span>
-					</AControlButton>
-
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
 						disabled={!canShowAnswers}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void loadPlayersState(); }}
+					>
+						<RefreshCw size={18} />
+						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 				</>
 			}
@@ -870,13 +839,6 @@ const AVeDichChungPage = () => {
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
-
-					<AControlButton
-						onClick={() => { void loadPlayersState(); }}
-					>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 
 					<AControlButton

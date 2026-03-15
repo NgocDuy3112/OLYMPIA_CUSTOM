@@ -3,9 +3,10 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 // import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
-import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestion";
+import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestionPage";
 import AVeDichChungPage from "@/pages/admin/AVeDichChungPage";
 import AVeDichRiengPage from "@/pages/admin/AVeDichRiengPage";
+import AGiaiMaPage from "@/pages/admin/AGiaiMaPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 
@@ -102,6 +103,14 @@ const AdminRoutes = () => {
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichRiengPage />
+                    </ProtectedAdminRoute>
+                }
+            />
+            <Route
+                path="/gm/:matchCode"
+                element={
+                    <ProtectedAdminRoute>
+                        <AGiaiMaPage />
                     </ProtectedAdminRoute>
                 }
             />
