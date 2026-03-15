@@ -257,7 +257,7 @@ const AGameManagingPage = () => {
      * ================================================================ */
 
     return (
-        <div className="grid grid-cols-[1fr_1fr] grid-rows-[400px_1fr] gap-4 p-6 min-h-screen text-white">
+        <div className="grid grid-cols-[1fr_1fr] grid-rows-[400px_1fr] gap-4 p-6 h-screen text-white">
             {/* ─── Card 1 : Users ────────────────────────────────────── */}
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
@@ -274,7 +274,7 @@ const AGameManagingPage = () => {
                     </button>
                 </div>
 
-                <div className="overflow-hidden flex-1 -mr-2 pr-2">
+                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
                     {usersLoading && users.length === 0 ? (
                         <p className="text-gray-400 text-sm">Đang tải…</p>
                     ) : users.length === 0 ? (
@@ -400,7 +400,7 @@ const AGameManagingPage = () => {
                     </div>
                 </div>
 
-                <div className="overflow-hidden flex-1 -mr-2 pr-2">
+                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
                     {questionsLoading ? (
                         <p className="text-gray-400 text-sm">Đang tải…</p>
                     ) : questions.length === 0 ? (

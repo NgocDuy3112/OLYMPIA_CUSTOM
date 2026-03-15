@@ -20,7 +20,7 @@ const GameAccessPage: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col justify-center items-center min-h-screen bg-cover bg-center">
+        <div className="flex flex-col justify-center items-center h-screen overflow-hidden bg-cover bg-center">
             <div className="card">
                 <div className="gap-2 text-center">
                     <h1 className="text-4xl font-[SVN-Gratelos_Display] font-bold mb-2">OLYMPIA CUSTOM 3</h1>

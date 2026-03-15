@@ -777,7 +777,8 @@ const AVeDichRiengPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={
+			topControlButtons={null}
+			playerSectionButtons={
 				<>
 					<AControlButton
 						onClick={startTheClock}
@@ -786,10 +787,6 @@ const AVeDichRiengPage = () => {
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
-				</>
-			}
-			playerSectionButtons={
-				<>
 					<AControlButton
 						onClick={() => {
 							void handleCalculateScore().catch((err) => {

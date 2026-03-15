@@ -480,16 +480,6 @@ const AButPhaPage = () => {
 			topControlButtons={
 				<>
 					<AControlButton
-						onClick={() => {
-							if (!hasQuestionSelected) return;
-							void startTheClock(currentQuestionIndex);
-						}}
-						disabled={!hasQuestionSelected || timer > 0}
-					>
-						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
-					</AControlButton>
-					<AControlButton
 						onClick={async () => {
 							const prevIndex = Math.max(1, currentQuestionIndex - 1 || 1);
 							setCurrentQuestionIndex(prevIndex);
@@ -551,8 +541,20 @@ const AButPhaPage = () => {
 						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</AControlButton>
 				</>
-			}
-			renderPlayerList={() =>
+			}			playerSectionButtons={
+				<>
+					<AControlButton
+						onClick={() => {
+							if (!hasQuestionSelected) return;
+							void startTheClock(currentQuestionIndex);
+						}}
+						disabled={!hasQuestionSelected || timer > 0}
+					>
+						<AlarmClockCheck size={18} />
+						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
+					</AControlButton>
+				</>
+			}			renderPlayerList={() =>
 				players.map((player) => (
 					<div className="flex flex-col gap-3" key={player.playerCode}>
 						<APlayerBar

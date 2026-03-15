@@ -18,7 +18,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
     children,
 }) => {
     return (
-        <div className="flex flex-col justify-start items-center min-h-screen p-4">
+        <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
             <div className="flex gap-4 max-w-7xl w-full justify-center mt-5">
                 {players.map(p => (
                     <PPlayerRec key={p.playerCode} player={p} isCurrent={p.playerCode === currentPlayerCode} />

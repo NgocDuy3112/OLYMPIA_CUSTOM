@@ -53,7 +53,7 @@ const AVuotDeoClue: React.FC<AVuotDeoClueProps> = ({ question, index = 1, onClic
                 tabIndex={0}
                 onClick={handleClick}
                 onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && handleClick()}
-                className={`p-4 rounded-xl w-20 h-20 flex items-center justify-center text-white font-bold cursor-pointer shadow ${bgClass}`}
+                className={`p-4 rounded-xl w-20 h-16 flex items-center justify-center text-white font-bold cursor-pointer shadow ${bgClass}`}
                 aria-pressed={status !== 'idle'}
             >
                 {status === 'incorrect' ? <span className="text-2xl">✕</span> : <span className="text-2xl">{index}</span>}

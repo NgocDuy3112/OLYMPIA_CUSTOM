@@ -5,7 +5,7 @@ const PWaitingPage: React.FC = () => {
 	const playerCode = sessionStorage.getItem("playerCode") || "";
 
 	return (
-		<div className="flex flex-col justify-center items-center min-h-screen">
+		<div className="flex flex-col justify-center items-center h-screen overflow-hidden">
 			<div className="card text-center">
 				<h1 className="text-3xl font-bold mb-2">Chờ vào trận</h1>
 				<p className="mb-4">Mã trận: <strong>{matchCode}</strong></p>

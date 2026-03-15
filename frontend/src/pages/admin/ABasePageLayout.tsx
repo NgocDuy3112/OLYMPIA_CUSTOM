@@ -78,11 +78,11 @@ const ABasePageLayout = ({
 	playerSectionButtons,
 }: ABasePageLayoutProps) => {
 	return (
-		<>
+		<div className="flex flex-col h-screen overflow-hidden">
 			<AdminGameplayNavBar />
-			<div className="flex flex-row w-full min-h-screen p-6 gap-8 overflow-hidden">
+			<div className="flex flex-row w-full flex-1 p-6 gap-8 overflow-hidden">
 				{/* Left section: Question board and controls */}
-				<div className="flex flex-col flex-3 gap-6">				{aboveQuestionBoard}
+				<div className="flex flex-col flex-3 gap-6 overflow-hidden">				{aboveQuestionBoard}
 					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass}>
 						{controlsChildren}
 					</AQuestionBoard>
@@ -106,7 +106,7 @@ const ABasePageLayout = ({
 					)}
 				</div>
 			</div>
-		</>
+		</div>
 	);
 };
 

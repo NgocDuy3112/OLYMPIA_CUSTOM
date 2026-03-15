@@ -843,19 +843,7 @@ const AKhoiDongChungPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={
-				<>
-					<AControlButton
-						onClick={() => {
-							void startTheClock();
-						}}
-						disabled={isTimerRunning}
-					>
-						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
-					</AControlButton>
-				</>
-			}
+			topControlButtons={null}
 			bottomActionButtons={
 				<>
 					<AControlButton
@@ -874,6 +862,15 @@ const AKhoiDongChungPage = () => {
 			}
 			playerSectionButtons={
 				<>
+					<AControlButton
+						onClick={() => {
+							void startTheClock();
+						}}
+						disabled={isTimerRunning}
+					>
+						<AlarmClockCheck size={18} />
+						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
+					</AControlButton>
 					<AControlButton
 						onClick={() => {
 							// call and catch to avoid unhandled promise rejections causing app-level errors

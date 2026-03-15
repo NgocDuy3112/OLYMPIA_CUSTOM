@@ -565,7 +565,7 @@ const AGiaiMaPage = () => {
 	const clueGrid = (
 		<div className="flex flex-col gap-3 w-full">
 			{/* Keyword info banner */}
-			<div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-6 py-6 text-center font-[SVN-Gratelos_Display] text-6xl font-bold text-white uppercase shadow">
+			<div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-6 py-6 text-center font-[SVN-Gratelos_Display] text-5xl font-bold text-white uppercase shadow">
 				{keyInfo}
 			</div>
 			{/* Grid */}
@@ -592,17 +592,8 @@ const AGiaiMaPage = () => {
 			aboveQuestionBoard={clueGrid}
 			boardHeightClass="h-[30vh]"
 			answerBoxHeightClass="h-25"
-			topControlButtons={
-				<>
-					<AControlButton
-						onClick={() => { void startTheClock(); }}
-						disabled={isTimerRunning || !currentQuestion.questionCode}
-					>
-						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
-					</AControlButton>
-				</>
-			}
+			controlsChildren={() => null}
+			topControlButtons={null}
 			bottomActionButtons={
 				<>
 					<AControlButton onClick={() => { void handleStartRound(); }}>
@@ -617,6 +608,13 @@ const AGiaiMaPage = () => {
 			}
 			playerSectionButtons={
 				<>
+					<AControlButton
+						onClick={() => { void startTheClock(); }}
+						disabled={isTimerRunning || !currentQuestion.questionCode}
+					>
+						<AlarmClockCheck size={18} />
+						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
+					</AControlButton>
 					<AControlButton
 						onClick={() => {
 							void handleAddScoreToSelected().catch((err) =>

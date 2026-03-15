@@ -107,7 +107,7 @@ const AVeDichPickLayout = ({
 	return (
 		<>
 			<AdminGameplayNavBar />
-			<div className="flex flex-row w-full min-h-screen p-6 gap-8 overflow-hidden">
+			<div className="flex flex-row w-full h-screen p-6 gap-8 overflow-hidden">
 				{/* Left section: Board + controls (same flex-3 as ABasePageLayout) */}
 				<div className="flex flex-col flex-3 gap-6">
 
