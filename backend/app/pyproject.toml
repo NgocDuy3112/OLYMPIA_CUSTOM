@@ -20,4 +20,5 @@ dependencies = [
     "uvicorn[standard]>=0.40.0",
     "valkey>=6.1.1",
     "openpyxl>=3.1.2",
+    "alembic>=1.14.0",
 ]

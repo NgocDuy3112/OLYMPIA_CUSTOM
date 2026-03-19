@@ -4,6 +4,7 @@ uvicorn[standard]
 valkey
 asyncpg
 sqlalchemy
+alembic
 
 openpyxl
 pydantic

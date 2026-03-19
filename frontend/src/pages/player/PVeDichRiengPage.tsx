@@ -73,6 +73,7 @@ const PVeDichRiengPage = () => {
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: false,
+						playerIsTurn: (p as any)?.is_current ?? false,
 					};
 				});
 

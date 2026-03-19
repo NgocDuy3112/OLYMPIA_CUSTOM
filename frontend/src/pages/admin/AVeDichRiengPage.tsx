@@ -207,6 +207,7 @@ const AVeDichRiengPage = () => {
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
 					cumulative_score: cumulativeScore,
+					is_current: Array.isArray(selectedPlayerCodes) ? selectedPlayerCodes.includes(String(userCode)) : false,
 				};
 			});
 
@@ -214,7 +215,7 @@ const AVeDichRiengPage = () => {
 		} catch (err) {
 			logger.error("Failed to send players snapshot:", err);
 		}
-	}, [currentMatchCode, loadPlayersState, sendMessage]);
+	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCodes]);
 
 	// ─── Question fetch ───────────────────────────────────────────────────────────
 	useEffect(() => {

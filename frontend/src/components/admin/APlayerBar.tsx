@@ -1,4 +1,5 @@
 import React from "react";
+import { Mic } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
 import type { PlayerStatus } from "@/types/player";
 
@@ -50,8 +51,12 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                         />
 
                         {player.playerName && (
-                            <span className="font-[SVN-Gratelos_Display] uppercase text-[24px] font-extrabold flex items-center">
+                            <span className="font-[SVN-Gratelos_Display] uppercase text-[24px] font-extrabold flex items-center gap-2">
                                 {player.playerName}
+                                {/* Turn indicator icon (plain Mic, no red theme) */}
+                                {isCurrent && (
+                                    <Mic size={16} className="text-white shrink-0" />
+                                )}
                             </span>
                         )}
 

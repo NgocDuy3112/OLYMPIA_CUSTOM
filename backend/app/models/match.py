@@ -12,7 +12,6 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
-
 class Match(Base):
     """
     SQLAlchemy model representing a match in the system.

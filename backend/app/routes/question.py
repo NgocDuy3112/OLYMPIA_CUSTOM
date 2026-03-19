@@ -135,6 +135,8 @@ async def get_question_from_request(
     """
     try:
         return await get_question_from_request_from_db(match_code, question_code, session)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

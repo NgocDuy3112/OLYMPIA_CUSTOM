@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
-// import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
+import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
 import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestionPage";
 import AVeDichChungPage from "@/pages/admin/AVeDichChungPage";
@@ -56,14 +56,22 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-            {/* <Route
+            <Route
                 path="/kdr/:matchCode"
                 element={
                     <ProtectedAdminRoute>
                         <AKhoiDongRiengPage />
                     </ProtectedAdminRoute>
                 }
-            /> */}
+            />
+            <Route
+                path="/kdcn/:matchCode"
+                element={
+                    <ProtectedAdminRoute>
+                        <AKhoiDongRiengPage />
+                    </ProtectedAdminRoute>
+                }
+            />
             <Route
                 path="/bp/:matchCode"
                 element={

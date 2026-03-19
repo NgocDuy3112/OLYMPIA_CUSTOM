@@ -1,11 +1,9 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL } from "@/configs";
+import { useEffect, useState } from "react";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
-import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
@@ -15,15 +13,12 @@ import type { PlayerStatus } from "@/types/player";
 
 
 const PKhoiDongRiengPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+	const { playerCode } = usePlayerSession();
+	const { lastMessage } = usePlayerWebSocket();
 	const { timer, start } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	const [hasPinged, setHasPinged] = useState(false);
-	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
-	const [blockedPlayerCode, setBlockedPlayerCode] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -49,11 +44,12 @@ const PKhoiDongRiengPage = () => {
 					const score = scoreboard.find((s: any) => s.user_code === code);
 					return {
 						playerCode: code,
-						playerName: profile?.user_name ?? "",
-						playerScore: score?.cumulative_score ?? score?.cummulative_score ?? score?.new_total_score ?? 0,
+						playerName: p?.user_name ?? profile?.user_name ?? "",
+						playerScore: p?.cumulativeScore ?? score?.cumulative_score ?? score?.cummulative_score ?? score?.new_total_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: false,
+						playerIsTurn: (p as any)?.is_current ?? false,
 					};
 				});
 
@@ -62,9 +58,6 @@ const PKhoiDongRiengPage = () => {
 			}
 
 			case "start_the_timer": {
-				setHasPinged(false);
-				setBuzzerWinnerCode(null);
-				setBlockedPlayerCode(null);
 				start(Number(msg.time_limit ?? 0));
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
@@ -72,7 +65,6 @@ const PKhoiDongRiengPage = () => {
 
 			case "buzzer_winner": {
 				const winner = msg.user_code;
-				setBuzzerWinnerCode(winner ?? null);
 				setPlayers((prev) =>
 					prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
 				);
@@ -91,14 +83,12 @@ const PKhoiDongRiengPage = () => {
 			}
 
 			case "clear_buzz": {
-				setHasPinged(false);
-				setBuzzerWinnerCode(null);
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
 
 			case "blocked_buzz": {
-				if (msg.user_code) setBlockedPlayerCode(msg.user_code);
+				// blocked_buzz handling removed - state not used
 				break;
 			}
 
@@ -107,41 +97,6 @@ const PKhoiDongRiengPage = () => {
 		}
 	}, [applyWsMessage, lastMessage, start]);
 
-	const handlePing = useCallback(async () => {
-		if (!isConnected) return;
-		if (hasPinged) return;
-		if (timer <= 0) return;
-		if (buzzerWinnerCode) return;
-		if (!currentQuestion.questionCode) return;
-
-		try {
-			await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					has_buzzed: true,
-				}),
-			});
-		} catch (err) {
-			console.warn("Failed to POST buzz:", err);
-		}
-
-		const success = await sendMessage({ type: "buzz", user_code: playerCode, question_code: currentQuestion.questionCode, has_buzzed: true });
-		if (success) setHasPinged(true);
-	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, timer, token, matchCode]);
-
-	const isPingDisabled =
-		hasPinged ||
-		timer <= 0 ||
-		!isConnected ||
-		!!buzzerWinnerCode ||
-		blockedPlayerCode === playerCode;
 
 	return (
 		<PBasePageLayout
@@ -156,9 +111,6 @@ const PKhoiDongRiengPage = () => {
 					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
 				/>
 
-				<div className="p-3">
-					<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />
-				</div>
 			</>
 		</PBasePageLayout>
 	);

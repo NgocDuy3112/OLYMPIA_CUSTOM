@@ -7,4 +7,6 @@ export interface PlayerStatus {
     playerHasBuzzed?: boolean;
     // indicates whether the player's client has an active websocket connection
     playerConnected?: boolean;
+    // indicates whether this player is the currently active/selected player for solo rounds
+    playerIsTurn?: boolean;
 }

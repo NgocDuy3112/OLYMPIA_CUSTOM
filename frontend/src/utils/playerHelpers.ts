@@ -53,6 +53,10 @@ export function buildPlayersSnapshot(
         playerTimestamp: previous?.playerTimestamp,
         playerHasBuzzed: previous?.playerHasBuzzed ?? false,
         playerConnected: previous?.playerConnected ?? false,
+        // Support several possible flag names coming from server/admin snapshots
+        playerIsTurn:
+          (entry as any)?.is_current ?? (entry as any)?.isCurrent ?? (entry as any)?.is_selected ??
+          (entry as any)?.selected ?? previous?.playerIsTurn ?? false,
       } as PlayerStatus;
     })
     .filter((p): p is PlayerStatus => p !== null);

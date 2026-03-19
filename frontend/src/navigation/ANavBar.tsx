@@ -32,7 +32,7 @@ const AdminGameplayNavBar: React.FC = () => {
             value: "khoiDong",
             subItems: [
                 { label: "Chung", path: `/admin/kdc/${matchCode}` },
-                { label: "Cá nhân", path: `/admin/kdcn/${matchCode}` },
+                    { label: "Cá nhân", path: `/admin/kdr/${matchCode}` },
             ],
         },
         { label: "GIẢI MÃ", path: `/admin/gm/${matchCode}` },

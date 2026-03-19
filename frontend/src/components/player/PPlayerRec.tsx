@@ -1,5 +1,5 @@
 import React from "react";
-import { Bell } from "lucide-react";
+import { Bell, Mic } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
 
@@ -58,8 +58,11 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
                 }`}
         >
             <div className="flex justify-between items-center w-full">
-                <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%]">
-                    {player.playerName}
+                <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%] flex items-center gap-2">
+                    <span className="truncate">{player.playerName}</span>
+                    {player.playerIsTurn && (
+                        <Mic size={20} className="text-white inline-block" />
+                    )}
                 </p>
                 <div className="flex items-center">
                     <p className="text-[32px] font-[SVN-Gratelos_Display] font-extrabold">
