@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import {
+	Play,
 	AlarmClockCheck,
 	Plus,
 	Power,
@@ -12,6 +13,7 @@ import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { usePlayerPresence } from "@/hooks/usePlayerPresence";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -43,6 +45,7 @@ const AKhoiDongRiengPage = () => {
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	usePlayerPresence({ lastMessage, setPlayers });
 	const [playerPositions, setPlayerPositions] = useState<Record<string, number>>({});
 	// Solo round: allow only ONE player to be selected at a time
 	const [selectedPlayerCode, setSelectedPlayerCode] = useState<string | null>(null);
@@ -635,12 +638,10 @@ const AKhoiDongRiengPage = () => {
 					// when a player reconnects, proactively resend the current players snapshot and
 					// the active question/timer so the reconnecting client can restore its UI state
 					(async () => {
+						// Route the late-joining player directly to the current round
 						try {
-							await sendPlayersSnapshot();
-							logger.info("Resent players snapshot after player_online for", msg.user_code);
-						} catch (err) {
-							logger.error("Failed to resend players snapshot on player_online:", err);
-						}
+							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdr" });
+						} catch { /* best-effort */ }
 
 						// resend current question if active
 						if (currentQuestionIndex > 0) {
@@ -661,6 +662,14 @@ const AKhoiDongRiengPage = () => {
 							} catch (err) {
 								logger.error("Failed to resend timer on player_online:", err);
 							}
+						}
+
+						// Send players/scores last (requires API call) so game state appears first
+						try {
+							await sendPlayersSnapshot();
+							logger.info("Resent players snapshot after player_online for", msg.user_code);
+						} catch (err) {
+							logger.error("Failed to resend players snapshot on player_online:", err);
 						}
 					})();
 				}
@@ -835,7 +844,7 @@ const AKhoiDongRiengPage = () => {
 					<AControlButton
 						onClick={() => { handleStartRound() }}
 					>
-						<AlarmClockCheck size={18} />
+						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton

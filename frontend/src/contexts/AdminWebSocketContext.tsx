@@ -16,11 +16,23 @@ export const AdminWebSocketProvider: React.FC<{ matchCode: string; children: Rea
     sendMessage: ws.sendMessage,
   };
 
-  // When admin UI connects (or reconnects), request players to re-advertise presence
+  // When admin UI connects (or reconnects), request players to re-advertise presence.
+  // Delayed by 1.5 s so the admin page has time to load player data from the API before
+  // the player_heartbeat responses arrive (avoids a race where player_online is processed
+  // while the players list is still empty).
   useEffect(() => {
     if (!ws.isConnected) return;
-    // Fire-and-forget: ask all clients to announce presence so admin UI can rebuild connected state
-    void ws.sendMessage({ type: "request_presence" });
+    const initialTimer = window.setTimeout(() => {
+      void ws.sendMessage({ type: "request_presence" });
+    }, 1500);
+    // Re-request every 30 s so newly-arrived players are picked up without a full reconnect.
+    const periodicTimer = window.setInterval(() => {
+      void ws.sendMessage({ type: "request_presence" });
+    }, 30_000);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(periodicTimer);
+    };
   }, [ws.isConnected, ws.sendMessage]);
 
   return <AdminWebSocketContext.Provider value={value}>{children}</AdminWebSocketContext.Provider>;

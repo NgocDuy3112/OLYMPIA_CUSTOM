@@ -42,7 +42,7 @@ const AdminGameplayNavBar: React.FC = () => {
             value: "veDich",
             subItems: [
                 { label: "Chung", path: `/admin/vdc/pick/${matchCode}` },
-                { label: "Cá nhân", path: `/admin/vdcn/pick/${matchCode}`},
+                { label: "Cá nhân", path: `/admin/vdr/pick/${matchCode}` },
             ],
         },
     ];

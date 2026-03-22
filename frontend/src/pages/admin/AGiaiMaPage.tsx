@@ -6,12 +6,14 @@ import {
 	Power,
 	RefreshCw,
 	Eye,
+	Play,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { usePlayerPresence } from "@/hooks/usePlayerPresence";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -74,6 +76,7 @@ const AGiaiMaPage = () => {
 
 	// ─── Player state ─────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	usePlayerPresence({ lastMessage, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -309,6 +312,40 @@ const AGiaiMaPage = () => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
+			case "player_online": {
+				if (msg.user_code) {
+					startTransition(() => {
+						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
+					});
+					// Route the late-joining player directly to the current round
+					(async () => {
+						try {
+							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
+						} catch { /* best-effort */ }
+						if (currentQuestion.questionCode) {
+							try {
+								await sendMessage({
+									type: "send_question",
+									user_code: "",
+									question_code: currentQuestion.questionCode,
+									content: currentQuestion.questionText ?? "",
+									media_source: currentQuestion.questionMediaURL ?? undefined,
+								});
+							} catch { /* best-effort */ }
+						}
+						if (isTimerRunning && timerRef.current > 0) {
+							try {
+								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+							} catch { /* best-effort */ }
+						}
+						// Send players/scores last (requires API call) so game state appears first
+						try {
+							await sendPlayersSnapshot();
+						} catch { /* best-effort */ }
+					})();
+				}
+				break;
+			}
 			case "send_players_info": {
 				startTransition(() => { applyPlayersSnapshot(msg); });
 				break;
@@ -349,7 +386,7 @@ const AGiaiMaPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendPlayersSnapshot]);
 
 	// ─── Timer countdown ──────────────────────────────────────────────────────
 	useEffect(() => {
@@ -597,7 +634,7 @@ const AGiaiMaPage = () => {
 			bottomActionButtons={
 				<>
 					<AControlButton onClick={() => { void handleStartRound(); }}>
-						<AlarmClockCheck size={18} />
+						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton onClick={() => { void handleEndRound(); }}>

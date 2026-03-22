@@ -34,6 +34,6 @@ export const getVeDichRoundLabel = (round: VeDichRound): string => {
  * @returns Route path
  */
 export const getVeDichRoutePath = (round: VeDichRound, matchCode: string): string => {
-	const roundPath = round === VeDichRound.CHUNG ? "vdc" : "vdcn";
+	const roundPath = round === VeDichRound.CHUNG ? "vdc" : "vdr";
 	return `/admin/${roundPath}/pick/${matchCode}`;
 };

@@ -64,14 +64,7 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-            <Route
-                path="/kdcn/:matchCode"
-                element={
-                    <ProtectedAdminRoute>
-                        <AKhoiDongRiengPage />
-                    </ProtectedAdminRoute>
-                }
-            />
+            {/* legacy alias `/kdcn` removed — use `/kdr/:matchCode` */}
             <Route
                 path="/bp/:matchCode"
                 element={
@@ -90,7 +83,7 @@ const AdminRoutes = () => {
                 }
             />
             <Route
-                path="/vdcn/pick/:matchCode"
+                path="/vdr/pick/:matchCode"
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichPickQuestion />

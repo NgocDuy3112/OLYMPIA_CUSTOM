@@ -6,6 +6,7 @@ import { API_BASE_URL } from "@/configs";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
@@ -18,7 +19,17 @@ const PVeDichChungPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
 	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
-	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
+	const { currentQuestion, applyWsMessage } = useQuestionState();
+
+	type RoundQuestion = { code: string; category: string; points: number };
+	const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
+		if (!matchCode) return [];
+		try {
+			const stored = localStorage.getItem(`veDich_chung_meta_${matchCode}`);
+			return stored ? (JSON.parse(stored) as RoundQuestion[]) : [];
+		} catch { return []; }
+	});
+	const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [answer, setAnswer] = useState("");
@@ -164,6 +175,24 @@ const PVeDichChungPage = () => {
 				break;
 			}
 
+			case "veDich_question_state": {
+				const { question_code, state: qState } = msg;
+				if (question_code && qState) {
+					setQuestionStates((prev) => ({ ...prev, [question_code]: qState as "answered" | "answered-wrong" | "available" }));
+				}
+				break;
+			}
+
+			case "veDich_questions_selected":
+			case "veDich_questions_meta": {
+				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
+				if (metadata.length > 0) {
+					setRoundQuestionsData(metadata);
+					try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch { /* ignore */ }
+				}
+				break;
+			}
+
 			default:
 				break;
 		}
@@ -237,11 +266,34 @@ const PVeDichChungPage = () => {
 		>
 			<>
 				<PQuestionBoard
-					title="VẾ DỊCH - LƯỢT CHUNG"
+					title="VỀ ĐÍCH - LƯỢT CHUNG"
 					question={currentQuestion}
 					timerDuration={timer}
-					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-				/>
+				>
+					<div className="flex gap-2">
+						{roundQuestionsData.length > 0
+						? roundQuestionsData.map((q) => {
+							const qState = questionStates[q.code] ?? "available";
+							const isActive = currentQuestion.questionCode === q.code;
+							return (
+							<div key={q.code} className="w-60 shrink-0 h-9">
+								<VeDichQuestionCard
+									category={q.category}
+									points={q.points}
+									state={qState}
+									isSelected={isActive}
+									disabled={qState !== "available"}
+								/>
+							</div>
+							);
+						})
+							: Array.from({ length: 4 }).map((_, i) => (
+								<div key={`ph-${i}`} className="w-60 shrink-0 h-9">
+									<VeDichQuestionCard placeholder category="" disabled />
+								</div>
+							))}
+					</div>
+				</PQuestionBoard>
 
 				<PAnswerBox
 					answer={answer}

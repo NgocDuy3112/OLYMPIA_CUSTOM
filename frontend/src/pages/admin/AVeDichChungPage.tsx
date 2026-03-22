@@ -8,6 +8,7 @@ import {
 	Power,
 	RefreshCw,
 	Eye,
+	Play,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -15,6 +16,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { usePlayerPresence } from "@/hooks/usePlayerPresence";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -60,6 +62,7 @@ const AVeDichChungPage = () => {
 
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	usePlayerPresence({ lastMessage, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -265,11 +268,24 @@ const AVeDichChungPage = () => {
 
 	useEffect(() => {
 		startTransition(() => {
-			void loadPlayersState();
+			void sendPlayersSnapshot();
 		});
-	}, [loadPlayersState]);
+	}, [sendPlayersSnapshot]);
 
-	// ─── Question activation ──────────────────────────────────────────────────────
+	// Broadcast round question metadata so players can render the 4 question cards
+	useEffect(() => {
+		if (!currentMatchCode || questions.length === 0 || roundQuestionCodes.length === 0) return;
+		const metadata = roundQuestionCodes.map((code) => {
+			const idx = questions.findIndex((q) => q.questionCode === code);
+			const rawCategory = questionCategories[idx] || "Unknown";
+			const pts = questionPoints[idx] || 0;
+			const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
+			return { code, category: catPrimary || rawCategory, points: pts };
+		});
+		void sendMessage({ type: "veDich_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
+
+
 	const mapQuestionPayload = useCallback(
 		(payload: any, fallbackCode?: string): Question => ({
 			questionCode:
@@ -519,23 +535,35 @@ const AVeDichChungPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
-// Calculate score: add to selected, deduct 50% from all (Lượt Chung logic)
+	// Calculate score: if there are selected players, award them and deduct 50% from everyone;
+	// if no one is selected, deduct 50% from all players (Lượt Chung special rule).
 	const handleCalculateScore = useCallback(async () => {
-		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
+		if (!currentQuestion.questionCode) return;
 		const points = currentPoints;
 		const deduction = -Math.floor(points * 0.5);
 		// Mark question as answered on the board
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
+		// Broadcast so player chips update too
+		void sendMessage({ type: "veDich_question_state", question_code: currentQuestion.questionCode, state: "answered" });
 
 		try {
-			// Add points to selected players
-			for (const playerCode of selectedPlayerCodes) {
-				await handleAddScore(playerCode, points, false);
-			}
+			if (selectedPlayerCodes.length === 0) {
+				// No correct answers: apply deduction to all players
+				for (const player of players) {
+					await handleAddScore(player.playerCode, deduction, false);
+				}
+			} else {
+				// Add points to selected players
+				for (const playerCode of selectedPlayerCodes) {
+					await handleAddScore(playerCode, points, false);
+				}
 
-			// Deduct 50% from all players (including selected ones)
-			for (const player of players) {
-				await handleAddScore(player.playerCode, deduction, false);
+				// Deduct 50% from non-selected players only
+				for (const player of players) {
+					if (!selectedPlayerCodes.includes(player.playerCode)) {
+						await handleAddScore(player.playerCode, deduction, false);
+					}
+				}
 			}
 
 			if (currentMatchCode) {
@@ -553,6 +581,7 @@ const AVeDichChungPage = () => {
 		handleAddScore,
 		sendPlayersSnapshot,
 		currentMatchCode,
+		sendMessage,
 	]);
 
 	// ─── Round control ────────────────────────────────────────────────────────────
@@ -609,9 +638,31 @@ const AVeDichChungPage = () => {
 						);
 					});
 					(async () => {
+						// Route the late-joining player directly to the current round
 						try {
-							await sendPlayersSnapshot();
-						} catch { /* best-effort on reconnect */ }
+							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdc" });
+						} catch { /* best-effort */ }
+						// Resend board metadata so the player can see the 4 question cards
+						if (roundQuestionCodes.length > 0 && questions.length > 0 && currentMatchCode) {
+							try {
+								const metadata = roundQuestionCodes.map((code) => {
+									const idx = questions.findIndex((q) => q.questionCode === code);
+									const rawCategory = questionCategories[idx] || "Unknown";
+									const pts = questionPoints[idx] || 0;
+									const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
+									return { code, category: catPrimary || rawCategory, points: pts };
+								});
+								await sendMessage({ type: "veDich_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+							} catch { /* best-effort */ }
+						}
+						// Resend answered question states so the board chips reflect reality
+						for (const [code, state] of Object.entries(questionStates)) {
+							if (state === "answered" || state === "answered-wrong") {
+								try {
+									await sendMessage({ type: "veDich_question_state", question_code: code, state });
+								} catch { /* best-effort */ }
+							}
+						}
 						if (currentQuestion.questionCode) {
 							try {
 								await sendMessage({
@@ -628,12 +679,16 @@ const AVeDichChungPage = () => {
 								await sendMessage({
 									type: "start_the_timer",
 									user_code: "",
-								time_limit: timerRef.current,
+									time_limit: timerRef.current,
 									question_code: currentQuestion.questionCode,
 									started_at: Date.now(),
 								});
 							} catch { /* best-effort on reconnect */ }
 						}
+						// Send players/scores last (requires API call) so game state appears first
+						try {
+							await sendPlayersSnapshot();
+						} catch { /* best-effort on reconnect */ }
 					})();
 				}
 				break;
@@ -736,7 +791,7 @@ const AVeDichChungPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode]);
+	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, questionCategories, questionPoints, questionStates, questions, roundQuestionCodes]);
 
 	// ─── Board rendering helpers ──────────────────────────────────────────────────
 	const getQuestionMeta = (questionCode: string) => {
@@ -775,7 +830,7 @@ const AVeDichChungPage = () => {
 									points={pts}
 									state={state}
 									isSelected={isActive}
-									disabled={state !== "available" || isTimerRunning}
+									disabled={state !== "available"}
 									onClick={() => {
 										if (state === "available" && !isTimerRunning) {
 											void handleQuestionActivate(code);
@@ -803,7 +858,7 @@ const AVeDichChungPage = () => {
 								logger.error("TÍNH ĐIỂM handler failed:", err);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
+						disabled={!currentQuestion.questionCode || isTimerRunning}
 					>
 						<Calculator size={18} />
 						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
@@ -825,16 +880,18 @@ const AVeDichChungPage = () => {
 			}
 			bottomActionButtons={
 				<>
-					<AControlButton						onClick={() => navigate(`/admin/vdc/pick/${currentMatchCode ?? ""}`)}
+					<AControlButton						
+						onClick={() => navigate(`/admin/vdc/pick/${currentMatchCode ?? ""}`)}
 						disabled={isTimerRunning}
 					>
 						<ListRestart size={18} />
 						<span className="ml-2 font-bold">CHỌN LẠI</span>
 					</AControlButton>
 
-					<AControlButton						onClick={() => { void handleStartRound(); }}
+					<AControlButton						
+						onClick={() => { void handleStartRound(); }}
 					>
-						<AlarmClockCheck size={18} />
+						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 

@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { startTransition, useCallback, useEffect, useState } from "react";
-import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Power, RefreshCw } from "lucide-react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Power, RefreshCw, Play } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { usePlayerPresence } from "@/hooks/usePlayerPresence";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 const logger = createLogger("AButPha");
@@ -35,12 +36,14 @@ const AButPhaPage = () => {
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	usePlayerPresence({ lastMessage, setPlayers });
 	// Allow multi-selection in this page
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((code: string) => {
 		setSelectedPlayerCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
 	}, []);
 	const [timer, setTimer] = useState<number>(0);
+	const timerRef = useRef<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
@@ -293,6 +296,8 @@ const AButPhaPage = () => {
 		});
 	}, [loadPlayersState]);
 
+	useEffect(() => { timerRef.current = timer; }, [timer]);
+
 	useEffect(() => {
 		if (timer <= 0) return;
 		const intervalId = window.setInterval(() => {
@@ -316,6 +321,32 @@ const AButPhaPage = () => {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
+					// Route the late-joining player directly to the current round
+					(async () => {
+						try {
+							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/bp" });
+						} catch { /* best-effort */ }
+						if (currentQuestion.questionCode) {
+							try {
+								await sendMessage({
+									type: "send_question",
+									user_code: "",
+									question_code: currentQuestion.questionCode,
+									content: currentQuestion.questionText ?? "",
+									media_source: currentQuestion.questionMediaURL ?? undefined,
+								});
+							} catch { /* best-effort */ }
+						}
+						if (timerRef.current > 0 && currentQuestion.questionCode) {
+							try {
+								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+							} catch { /* best-effort */ }
+						}
+						// Send players/scores last (requires API call) so game state appears first
+						try {
+							await sendPlayersSnapshot();
+						} catch { /* best-effort */ }
+					})();
 				}
 				break;
 			}
@@ -426,7 +457,7 @@ const AButPhaPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage]);
+	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot]);
 
 	const hasQuestionSelected = currentQuestionIndex > 0;
 	const questionTitle = `BỨT PHÁ${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
@@ -521,7 +552,7 @@ const AButPhaPage = () => {
 							void handleStartRound();
 						}}
 					>
-						<AlarmClockCheck size={18} />
+						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton

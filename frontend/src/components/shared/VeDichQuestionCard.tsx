@@ -60,7 +60,12 @@ const VeDichQuestionCard = ({
 		}
 
 		if (disabled) {
-			return "bg-blue-900 text-blue-300 ring-2 ring-blue-600 cursor-not-allowed pointer-events-none opacity-50";
+			// If the card is disabled but currently selected (active question during timer),
+			// show it as selected (no strikethrough) so admin can see which question is running.
+			if (isSelected) {
+				return "bg-blue-600 text-white ring-0 shadow-sm pointer-events-none";
+			}
+			return "bg-blue-950 text-blue-700/60 ring-1 ring-blue-900 cursor-not-allowed pointer-events-none line-through decoration-blue-700/50";
 		}
 
 		switch (state) {

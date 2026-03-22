@@ -3,11 +3,14 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { useNavigate } from "react-router-dom";
 import {
 	AlarmClockCheck,
-	Calculator,
 	ListRestart,
 	Power,
 	RefreshCw,
-	Eye,
+
+	Play,
+	Zap,
+	Plus,
+	Minus,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -15,6 +18,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { usePlayerPresence } from "@/hooks/usePlayerPresence";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -60,6 +64,7 @@ const AVeDichRiengPage = () => {
 
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	usePlayerPresence({ lastMessage, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -90,16 +95,24 @@ const AVeDichRiengPage = () => {
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
+	// The player whose Lượt Riêng it is — persisted from the pick page.
+	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(() => {
+		if (!currentMatchCode) return null;
+		try {
+			return localStorage.getItem(`veDich_rieng_selected_player_${currentMatchCode}`) || null;
+		} catch { return null; }
+	});
 
 	// ─── Timer state ──────────────────────────────────────────────────────────────
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
+	const wasTimerRunningRef = useRef<boolean>(false); // Track state transitions to prevent premature window activation
 
 	// ─── Score state ──────────────────────────────────────────────────────────────
 
 	const questionTitle = "VỀ ĐÍCH - LƯỢT RIÊNG";
-	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
 
 	// Point value of the currently active question
 	const currentPoints = (() => {
@@ -266,9 +279,25 @@ const AVeDichRiengPage = () => {
 
 	useEffect(() => {
 		startTransition(() => {
-			void loadPlayersState();
+			void sendPlayersSnapshot();
 		});
-	}, [loadPlayersState]);
+	}, [sendPlayersSnapshot]);
+
+	// Broadcast round question metadata whenever questions + roundQuestionCodes are both ready.
+	// This fires after the async question fetch completes, ensuring players who arrived before
+	// the fetch finished will receive the 3 question cards as soon as data is available.
+	useEffect(() => {
+		if (!currentMatchCode || questions.length === 0 || roundQuestionCodes.length === 0) return;
+		const metadata = roundQuestionCodes.map((code) => {
+			const idx = questions.findIndex((q) => q.questionCode === code);
+			return {
+				code,
+				category: questionCategories[idx] ?? "",
+				points: questionPoints[idx] ?? 0,
+			};
+		});
+		void sendMessage({ type: "veDich_rieng_questions_meta", question_metadata: metadata });
+	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
 	// ─── Question activation ──────────────────────────────────────────────────────
 	const mapQuestionPayload = useCallback(
@@ -292,6 +321,10 @@ const AVeDichRiengPage = () => {
 
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setTimer(0);
+		setAnsweringWindowTimer(0); // Reset answering window
+		setIsTimerRunning(false);
+		wasTimerRunningRef.current = false; // Reset state transition tracker
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (err) {
@@ -377,6 +410,7 @@ const AVeDichRiengPage = () => {
 		if (!currentQuestion.questionCode || isTimerRunning) return;
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
+		setAnsweringWindowTimer(0); // Reset answering window when starting new question
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
 			void sendMessage({
@@ -412,40 +446,45 @@ const AVeDichRiengPage = () => {
 		startTransition(() => setIsTimerRunning(false));
 	}, [timer, isTimerRunning]);
 
-	// ─── Show answers ─────────────────────────────────────────────────────────────
-	const showAnswers = useCallback(async () => {
-		if (!canShowAnswers) return;
-		const questionCode = currentQuestion.questionCode;
-		const answersPayload: Array<{ user_code: string; content: string; timestamp: number }> = [];
+	// Track isTimerRunning state transitions
+	useEffect(() => {
+		wasTimerRunningRef.current = isTimerRunning;
+	}, [isTimerRunning]);
 
-		for (const player of players) {
-			try {
-				const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`;
-				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-				if (!res.ok) continue;
-				const json = await res.json();
-				const data = json.data;
-				if (!data) continue;
-				const answerObj = Array.isArray(data) ? data[0] : data;
-				if (answerObj?.answer_text) {
-					answersPayload.push({
-						user_code: player.playerCode,
-						content: answerObj.answer_text,
-						timestamp: answerObj.timestamp ?? 0,
-					});
-				}
-			} catch (err) {
-				logger.warn("showAnswers: failed for", player.playerCode, err);
-			}
-		}
+	// Wait 5 seconds after timer expires, then start answering window countdown
+	// Only trigger when isTimerRunning transitions from true → false (timer actually finished running)
+	useEffect(() => {
+		if (isTimerRunning || answeringWindowTimer !== 0) return; // Skip if timer still running or window already started
+		if (!wasTimerRunningRef.current) return; // Skip if timer was never running (initial state)
+		
+		const waitTimeoutId = setTimeout(() => {
+			setAnsweringWindowTimer(5);
+		}, 5000);
+		return () => clearTimeout(waitTimeoutId);
+	}, [isTimerRunning, answeringWindowTimer]);
 
-		try {
-			await sendMessage({ type: "send_answers_to_players", answers: answersPayload });
-		} catch (err) {
-			logger.error("showAnswers: broadcast failed", err);
-		}
-	}, [canShowAnswers, currentMatchCode, token, currentQuestion, players, sendMessage]);
+	// Countdown answering window timer (5 → 0)
+	useEffect(() => {
+		if (answeringWindowTimer <= 0) return;
+		const intervalId = window.setInterval(() => {
+			setAnsweringWindowTimer((prev) => {
+				const next = prev <= 1 ? 0 : prev - 1;
+				return next;
+			});
+		}, 1000);
+		return () => window.clearInterval(intervalId);
+	}, [answeringWindowTimer]);
 
+	// Broadcast answering window activation when countdown starts (transition to 5)
+	useEffect(() => {
+		if (answeringWindowTimer !== 5 || !currentMatchCode) return;
+		void sendMessage({
+			type: "answering_window_activated",
+			countdown: 5,
+		});
+	}, [answeringWindowTimer, currentMatchCode, sendMessage]);
+
+	
 	// ─── Score management ─────────────────────────────────────────────────────────
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -519,14 +558,16 @@ const AVeDichRiengPage = () => {
 
 	// Lượt Riêng: individual round — only the selected player(s) get +points.
 	// Calculate score: add to selected players only (Lượt Riêng logic)
-	const handleCalculateScore = useCallback(async () => {
+
+	// Add points: +100% of question value
+	const handleAddPoints = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		const points = currentPoints;
-		// Mark question as answered on the board
-		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
+		const answeredCode = currentQuestion.questionCode;
+		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
+		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
 
 		try {
-			// Add points to selected players only (no deduction for others in Rieng rounds)
 			for (const playerCode of selectedPlayerCodes) {
 				await handleAddScore(playerCode, points, false);
 			}
@@ -535,7 +576,7 @@ const AVeDichRiengPage = () => {
 			}
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
-			logger.error("handleCalculateScore failed:", err);
+			logger.error("handleAddPoints failed:", err);
 		}
 	}, [
 		selectedPlayerCodes,
@@ -543,8 +584,50 @@ const AVeDichRiengPage = () => {
 		currentPoints,
 		handleAddScore,
 		sendPlayersSnapshot,
+		sendMessage,
 		currentMatchCode,
 	]);
+
+	// Subtract points: -50% of question value
+	const handleSubtractPoints = useCallback(async () => {
+		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
+		const points = Math.floor(currentPoints * -0.5); // -50%
+		const answeredCode = currentQuestion.questionCode;
+		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
+		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
+
+		try {
+			for (const playerCode of selectedPlayerCodes) {
+				await handleAddScore(playerCode, points, false);
+			}
+			if (currentMatchCode) {
+				await sendPlayersSnapshot();
+			}
+			setSelectedPlayerCodes([]);
+		} catch (err: any) {
+			logger.error("handleSubtractPoints failed:", err);
+		}
+	}, [
+		selectedPlayerCodes,
+		currentQuestion.questionCode,
+		currentPoints,
+		handleAddScore,
+		sendPlayersSnapshot,
+		sendMessage,
+		currentMatchCode,
+	]);
+
+	// Manually open buzzer window (skip 5s wait)
+	const handleOpenBuzzer = useCallback(async () => {
+		if (timer !== 0) return; // Only allow when main timer is finished
+		setAnsweringWindowTimer(5);
+		if (currentMatchCode) {
+			void sendMessage({
+				type: "answering_window_activated",
+				countdown: 5,
+			});
+		}
+	}, [timer, currentMatchCode, sendMessage]);
 
 	// ─── Round control ────────────────────────────────────────────────────────────
 	const handleStartRound = useCallback(async () => {
@@ -588,6 +671,13 @@ const AVeDichRiengPage = () => {
 						setRoundQuestionCodes(msg.selected_question_codes);
 					});
 				}
+				// Track which player's turn it is
+				if (msg.selected_player_code) {
+					startTransition(() => setCurrentTurnPlayerCode(msg.selected_player_code));
+					if (currentMatchCode) {
+						localStorage.setItem(`veDich_rieng_selected_player_${currentMatchCode}`, msg.selected_player_code);
+					}
+				}
 				break;
 			}
 			case "player_online": {
@@ -600,9 +690,32 @@ const AVeDichRiengPage = () => {
 						);
 					});
 					(async () => {
+						// Route the late-joining player directly to the current round
 						try {
-							await sendPlayersSnapshot();
-						} catch { /* best-effort on reconnect */ }
+							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdr" });
+						} catch { /* best-effort */ }
+						// Resend board metadata (3 question cards)
+						if (roundQuestionCodes.length > 0 && questions.length > 0) {
+							const metadata = roundQuestionCodes.map((code) => {
+								const idx = questions.findIndex((q) => q.questionCode === code);
+								return {
+									code,
+									category: questionCategories[idx] ?? "",
+									points: questionPoints[idx] ?? 0,
+								};
+							});
+							try {
+								await sendMessage({ type: "veDich_rieng_questions_meta", question_metadata: metadata });
+							} catch { /* best-effort */ }
+							// Resend answered question states
+							for (const [code, qState] of Object.entries(questionStates)) {
+								if (qState === "answered" || qState === "answered-wrong") {
+									try {
+										await sendMessage({ type: "veDich_question_state", question_code: code, state: qState });
+									} catch { /* best-effort */ }
+								}
+							}
+						}
 						if (currentQuestion.questionCode) {
 							try {
 								await sendMessage({
@@ -625,6 +738,10 @@ const AVeDichRiengPage = () => {
 								});
 							} catch { /* best-effort on reconnect */ }
 						}
+						// Send players/scores last (requires API call) so game state appears first
+						try {
+							await sendPlayersSnapshot();
+						} catch { /* best-effort on reconnect */ }
 					})();
 				}
 				break;
@@ -714,6 +831,8 @@ const AVeDichRiengPage = () => {
 							),
 						);
 					});
+					// Broadcast to all players so their screens show the buzzer icon
+					void sendMessage({ type: "buzzer_winner", user_code, match_code: currentMatchCode });
 				}
 				break;
 			}
@@ -727,7 +846,7 @@ const AVeDichRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode]);
+	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, roundQuestionCodes, questions, questionCategories, questionPoints, questionStates]);
 
 	// ─── Board rendering helpers ──────────────────────────────────────────────────
 	const getQuestionMeta = (questionCode: string) => {
@@ -766,7 +885,7 @@ const AVeDichRiengPage = () => {
 									points={pts}
 									state={state}
 									isSelected={isActive}
-									disabled={state !== "available" || isTimerRunning}
+									disabled={state !== "available"}
 									onClick={() => {
 										if (state === "available" && !isTimerRunning) {
 											void handleQuestionActivate(code);
@@ -789,22 +908,33 @@ const AVeDichRiengPage = () => {
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
 					<AControlButton
+						onClick={handleOpenBuzzer}
+						disabled={timer > 0 || answeringWindowTimer > 0}
+					>
+						<Zap size={18} />
+						<span className="ml-2 font-bold">MỞ CHUÔNG</span>
+					</AControlButton>
+					<AControlButton
 						onClick={() => {
-							void handleCalculateScore().catch((err) => {
-								logger.error("TÍNH ĐIỂM handler failed:", err);
+							void handleAddPoints().catch((err) => {
+								logger.error("Cộng điểm handler failed:", err);
 							});
 						}}
 						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
 					>
-						<Calculator size={18} />
-						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
+						<Plus size={18} />
+						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
-						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
+						onClick={() => {
+							void handleSubtractPoints().catch((err) => {
+								logger.error("Trừ điểm handler failed:", err);
+							});
+						}}
+						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
 					>
-						<Eye size={18} />
-						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+						<Minus size={18} />
+						<span className="ml-2 font-bold">TRỪ ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void loadPlayersState(); }}
@@ -817,20 +947,18 @@ const AVeDichRiengPage = () => {
 			bottomActionButtons={
 				<>
 					<AControlButton
-						onClick={() => navigate(`/admin/vdcn/pick/${currentMatchCode ?? ""}`)}
+						onClick={() => { void handleStartRound(); }}
+					>
+						<Play size={18} />
+						<span className="ml-2 font-bold">BẮT ĐẦU</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => navigate(`/admin/vdr/pick/${currentMatchCode ?? ""}`)}
 						disabled={isTimerRunning}
 					>
 						<ListRestart size={18} />
 						<span className="ml-2 font-bold">CHỌN LẠI</span>
 					</AControlButton>
-
-					<AControlButton
-						onClick={() => { void handleStartRound(); }}
-					>
-						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
-
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
 					>
@@ -845,7 +973,7 @@ const AVeDichRiengPage = () => {
 						<APlayerBar
 							player={player}
 							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
+							isCurrent={player.playerCode === currentTurnPlayerCode}
 							onClick={toggleSelectedPlayer}
 							disabled={timer > 0}
 						/>

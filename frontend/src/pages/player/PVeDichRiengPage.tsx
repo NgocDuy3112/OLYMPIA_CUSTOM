@@ -6,23 +6,29 @@ import { API_BASE_URL } from "@/configs";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
 
+type RoundQuestion = { code: string; category: string; points: number };
 
 const PVeDichRiengPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
 	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
 	const { timer, start } = useCountdownTimer();
-	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
+	const { currentQuestion, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [hasPinged, setHasPinged] = useState(false);
 	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 	const [blockedPlayerCode, setBlockedPlayerCode] = useState<string | null>(null);
+	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(null);
+	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
+	const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
+	const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});;
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -84,7 +90,7 @@ const PVeDichRiengPage = () => {
 			case "start_the_timer": {
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
-				setBlockedPlayerCode(null);
+				setAnsweringWindowTimer(0); // Reset answering window when new timer starts
 				start(Number(msg.time_limit ?? 0));
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
@@ -113,15 +119,41 @@ const PVeDichRiengPage = () => {
 			case "clear_buzz": {
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
+				setAnsweringWindowTimer(0); // Reset answering window
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
 
 			case "blocked_buzz": {
-				if (msg.user_code) setBlockedPlayerCode(msg.user_code);
+				// msg.user_code may be null/empty to clear the blocked player
+				setBlockedPlayerCode(msg.user_code ?? null);
 				break;
 			}
 
+			case "veDich_questions_selected":
+			case "veDich_rieng_questions_meta": {
+				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
+				if (metadata.length > 0) setRoundQuestionsData(metadata);
+				// Track whose turn it is (only for riêng round)
+				if (msg.round === "rieng" && msg.selected_player_code) {
+					setCurrentTurnPlayerCode(msg.selected_player_code);
+				}
+				break;
+			}
+
+			case "veDich_question_state": {
+				const { question_code, state: qState } = msg;
+				if (question_code && qState) {
+					setQuestionStates((prev) => ({ ...prev, [question_code]: qState as "answered" | "answered-wrong" | "available" }));
+				}
+				break;
+			}
+			case "answering_window_activated": {
+				// Start the answering window countdown for other players
+				const countdown = msg.countdown ?? 5;
+				setAnsweringWindowTimer(countdown);
+				break;
+			}
 			default:
 				break;
 		}
@@ -158,10 +190,21 @@ const PVeDichRiengPage = () => {
 
 	const isPingDisabled =
 		hasPinged ||
-		timer <= 0 ||
 		!isConnected ||
 		!!buzzerWinnerCode ||
-		blockedPlayerCode === playerCode;
+		blockedPlayerCode === playerCode ||
+		currentTurnPlayerCode === playerCode ||
+		timer > 0 || // Main timer running - only allow current player to think
+		answeringWindowTimer <= 0; // No answering window active - cannot buzz
+
+	// Countdown answering window timer
+	useEffect(() => {
+		if (answeringWindowTimer <= 0) return;
+		const intervalId = window.setInterval(() => {
+			setAnsweringWindowTimer((prev) => (prev <= 1 ? 0 : prev - 1));
+		}, 1000);
+		return () => window.clearInterval(intervalId);
+	}, [answeringWindowTimer]);
 
 	return (
 		<PBasePageLayout
@@ -170,11 +213,34 @@ const PVeDichRiengPage = () => {
 		>
 			<>
 				<PQuestionBoard
-					title="VẾ DỊCH - LƯỢT CÁ NHÂN"
+					title="VỀ ĐÍCH - LƯỢT CÁ NHÂN"
 					question={currentQuestion}
-					timerDuration={timer}
-					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-				/>
+					timerDuration={answeringWindowTimer > 0 ? answeringWindowTimer : timer}
+				>
+					<div className="flex gap-2">
+						{roundQuestionsData.length > 0
+							? roundQuestionsData.map((q) => {
+									const qState = questionStates[q.code] ?? "available";
+									const isActive = currentQuestion.questionCode === q.code;
+									return (
+										<div key={q.code} className="w-60 shrink-0 h-9">
+											<VeDichQuestionCard
+												category={q.category}
+												points={q.points}
+												state={qState}
+												isSelected={isActive}
+												disabled={qState !== "available"}
+											/>
+										</div>
+									);
+								})
+							: Array.from({ length: 3 }).map((_, i) => (
+									<div key={`ph-${i}`} className="w-60 shrink-0 h-9">
+										<VeDichQuestionCard placeholder category="" disabled />
+									</div>
+								))}
+						</div>
+					</PQuestionBoard>
 
 				<div className="p-3">
 					<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />

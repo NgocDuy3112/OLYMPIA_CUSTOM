@@ -57,6 +57,10 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                                 {isCurrent && (
                                     <Mic size={16} className="text-white shrink-0" />
                                 )}
+                                {/* Buzzer icon inline next to name */}
+                                {player.playerHasBuzzed && (
+                                    <PingIconStyle isKeywordMode={!!isKeywordMode} />
+                                )}
                             </span>
                         )}
 
@@ -67,11 +71,6 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                         )}
                     </span>
                 </p>
-                {player.playerHasBuzzed && (
-                    <p className="text-[18px] mt-1 font-medium leading-snug">
-                        <PingIconStyle isKeywordMode={!!isKeywordMode} />
-                    </p>
-                )}
                 <p className="text-[18px] mt-1 font-medium leading-snug">
                     {player.playerLastAnswer?.toUpperCase() ?? ""}
                 </p>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Bell, Mic } from "lucide-react";
+import { Zap, Mic } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
 
@@ -23,7 +23,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
         content = (
             <>
                 <p className={`px-2 rounded-md font-bold text-wrap ${isAnswered ? answerClasses : 'text-white'}`}>
-                    <Bell size={40}/>
+                    <Zap size={40}/>
                 </p>
             </>
         );

@@ -26,8 +26,8 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     void ws.sendMessage({ type: "player_online", user_code: playerCode });
   }, [ws.isConnected, playerCode, ws.sendMessage]);
 
-  // respond to presence requests from admin: if admin reconnects they may broadcast
-  // a `request_presence` message; reply with player_online so admin can rebuild connected list
+  // respond to presence requests from admin with a lightweight heartbeat (not player_online,
+  // which would trigger a full state-resend on the admin side).
   useEffect(() => {
     const raw = ws.lastMessage as { type?: string; message?: { type?: string } } | null;
     const last = raw?.message ?? raw;
@@ -35,8 +35,17 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     if (last.type !== "request_presence") return;
     if (!ws.isConnected) return;
     if (!playerCode) return;
-    void ws.sendMessage({ type: "player_online", user_code: playerCode });
+    void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
   }, [ws.lastMessage, ws.isConnected, playerCode, ws.sendMessage]);
+
+  // Periodic heartbeat so admin can detect disconnects within ~25 s.
+  useEffect(() => {
+    if (!ws.isConnected || !playerCode) return;
+    const intervalId = window.setInterval(() => {
+      void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
+    }, 15_000);
+    return () => window.clearInterval(intervalId);
+  }, [ws.isConnected, playerCode, ws.sendMessage]);
 
   return <PlayerWebSocketContext.Provider value={value}>{children}</PlayerWebSocketContext.Provider>;
 };

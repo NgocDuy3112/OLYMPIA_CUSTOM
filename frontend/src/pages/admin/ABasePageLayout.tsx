@@ -19,6 +19,9 @@ interface ABasePageLayoutProps {
 	/** Tailwind height class forwarded to AQuestionBoard's answer/explanation box. Defaults to h-28. */
 	answerBoxHeightClass?: string;
 
+	/** When true, hides the answer/explanation box inside AQuestionBoard */
+	hideAnswerBox?: boolean;
+
 	// Optional controls configuration for the question board (numbers / subjects)
 	controls?: AdminQuestionBoardControls;
 
@@ -75,6 +78,7 @@ const ABasePageLayout = ({
 	aboveQuestionBoard,
 	boardHeightClass,
 	answerBoxHeightClass,
+	hideAnswerBox,
 	playerSectionButtons,
 }: ABasePageLayoutProps) => {
 	return (
@@ -83,7 +87,7 @@ const ABasePageLayout = ({
 			<div className="flex flex-row w-full flex-1 p-6 gap-8 overflow-hidden">
 				{/* Left section: Question board and controls */}
 				<div className="flex flex-col flex-3 gap-6 overflow-hidden">				{aboveQuestionBoard}
-					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass}>
+					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass} hideAnswerBox={hideAnswerBox}>
 						{controlsChildren}
 					</AQuestionBoard>
 

@@ -9,9 +9,11 @@ import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
 import PButPhaPage from "@/pages/player/PButPhaPage";
 import PVeDichChungPage from "@/pages/player/PVeDichChungPage";
 import PVeDichRiengPage from "@/pages/player/PVeDichRiengPage";
+import PVeDichPickPage from "@/pages/player/PVeDichPickPage";
 import PGiaiMaPage from "@/pages/player/PGiaiMaPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
 import PWaitingPage from "@/pages/player/PWaitingPage";
+import { VeDichRound } from "@/types/veDich";
 
 
 
@@ -91,9 +93,19 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
             }
 
             const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
-            const target = `${normalized}/${matchCode}/${playerCode}`;
 
-            if (location.pathname !== target) {
+            // Some admin paths are full player routes (no match/player params expected)
+            // — e.g. "/player/waiting" should navigate exactly to that path.
+            const noParamsPaths: string[] = ["/player/waiting"];
+
+            const target = noParamsPaths.includes(normalized)
+                ? normalized
+                : `${normalized}/${matchCode}/${playerCode}`;
+
+            // Normalize trailing slash when comparing current location
+            const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
+
+            if (currentPath !== target) {
                 console.info("[AutoNav] navigating to", target, "from", location.pathname);
                 navigate(target, { replace: true });
             }
@@ -144,10 +156,26 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
+                    path="/vdc/pick/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PVeDichPickPage round={VeDichRound.CHUNG} />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
                     path="/vdc/:matchCode/:playerCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichChungPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/vdr/pick/:matchCode/:playerCode"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PVeDichPickPage round={VeDichRound.RIENG} />
                         </ProtectedPlayerRoute>
                     }
                 />
