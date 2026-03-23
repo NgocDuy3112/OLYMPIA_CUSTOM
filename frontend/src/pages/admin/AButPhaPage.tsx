@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { AlarmClockCheck, ArrowLeftToLine, ArrowRightToLine, Power, RefreshCw, Play } from "lucide-react";
+import { AlarmClockCheck, Calculator, Eye, Power, RefreshCw, Play } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -42,10 +42,14 @@ const AButPhaPage = () => {
 	const toggleSelectedPlayer = useCallback((code: string) => {
 		setSelectedPlayerCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
 	}, []);
+	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
+	const timerStartedAtRef = useRef<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+
+	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
 
 	const computePlayersSnapshot = useCallback(
 		(
@@ -226,6 +230,9 @@ const AButPhaPage = () => {
 		}
 	}, [currentMatchCode, sendMessage]);
 
+	// Reset hasAddedScore whenever active question changes
+	useEffect(() => { setHasAddedScore(false); }, [currentQuestionIndex]);
+
 	const handleStartRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -277,6 +284,7 @@ const AButPhaPage = () => {
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
+			timerStartedAtRef.current = Date.now();
 			setTimer(TIME_LIMIT);
 
 			try {
@@ -289,6 +297,134 @@ const AButPhaPage = () => {
 	);
 
 
+
+	const showAnswers = useCallback(async () => {
+		if (!canShowAnswers) return;
+		const questionCode = currentQuestion.questionCode;
+		const answersPayload: Array<{ user_code: string; content: string; timestamp: number }> = [];
+		for (const player of players) {
+			try {
+				const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`;
+				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+				if (!res.ok) continue;
+				const json = await res.json();
+				const data = json.data;
+				if (!data) continue;
+				const answerObj = Array.isArray(data) ? data[0] : data;
+				if (answerObj?.answer_text) {
+					answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: answerObj.timestamp ?? 0 });
+				}
+			} catch (err) {
+				logger.warn("showAnswers: failed for", player.playerCode, err);
+			}
+		}
+		try {
+			await sendMessage({ type: "send_answers_to_players", answers: answersPayload });
+		} catch (err) {
+			logger.error("showAnswers: failed to broadcast:", err);
+		}
+	}, [canShowAnswers, currentMatchCode, token, currentQuestion, players, sendMessage]);
+
+	const handleAddScore = useCallback(
+		async (playerCode: string, delta: number, broadcast = true) => {
+			if (!playerCode) return;
+			setPlayers((prev) => prev.map((p) => p.playerCode === playerCode ? { ...p, playerScore: (p.playerScore ?? 0) + delta } : p));
+			if (!currentMatchCode || !token) return;
+			const questionCode = currentQuestion.questionCode;
+			try {
+				if (questionCode) {
+					const recordRes = await fetch(`${API_BASE_URL}/records/`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+						body: JSON.stringify({ user_code: playerCode, match_code: currentMatchCode, question_code: questionCode, points: delta }),
+					});
+					if (!recordRes.ok) logger.warn("handleAddScore: record POST failed", recordRes.status);
+				}
+			} catch (err) {
+				logger.error("handleAddScore: record POST error:", err);
+			}
+			try {
+				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, { headers: { Authorization: `Bearer ${token}` } });
+				const scoreJson: any = await scoreRes.json().catch(() => ({}));
+				let scoreboardArr: any[] = [];
+				if (Array.isArray(scoreJson.data)) scoreboardArr = scoreJson.data;
+				else if (Array.isArray(scoreJson.data?.scoreboard)) scoreboardArr = scoreJson.data.scoreboard;
+				else if (Array.isArray(scoreJson.scoreboard)) scoreboardArr = scoreJson.scoreboard;
+				setPlayers((prev) => prev.map((p) => {
+					const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
+					const updated = entry?.cumulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
+					return typeof updated === "number" ? { ...p, playerScore: updated } : p;
+				}));
+			} catch (err) {
+				logger.error("handleAddScore: scoreboard refresh failed:", err);
+			}
+			if (broadcast) {
+				try { await sendPlayersSnapshot(); } catch (err) { logger.error("handleAddScore: broadcast failed:", err); }
+			}
+		},
+		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
+	);
+
+	const handleCalculateScore = useCallback(async () => {
+		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
+		setHasAddedScore(true);
+		try {
+			// Fetch the LAST answer timestamp for each selected player
+			const playerAnswers: Array<{ playerCode: string; timestamp: number }> = [];
+			for (const code of selectedPlayerCodes) {
+				try {
+					const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(code)}&question_code=${encodeURIComponent(currentQuestion.questionCode)}`;
+					const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+					if (res.ok) {
+						const json = await res.json();
+						const data = json.data;
+						if (data) {
+							// Take the LAST answer submitted (highest timestamp)
+							const answers = Array.isArray(data) ? data : [data];
+							const last = answers.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), answers[0]);
+							playerAnswers.push({ playerCode: code, timestamp: last?.timestamp ?? Date.now() });
+							continue;
+						}
+					}
+				} catch (err) {
+					logger.warn("handleCalculateScore: failed to fetch answer for", code, err);
+				}
+				// Fallback: use current time if fetch fails
+				playerAnswers.push({ playerCode: code, timestamp: Date.now() });
+			}
+
+			// Sort ascending by timestamp to determine answer order
+			playerAnswers.sort((a, b) => a.timestamp - b.timestamp);
+
+			// Base points determined by the LAST correct answer's elapsed time
+			const lastTimestamp = Math.max(...playerAnswers.map((p) => p.timestamp));
+			const startedAt = timerStartedAtRef.current || (lastTimestamp - TIME_LIMIT * 1000);
+			const elapsedSeconds = Math.max(0, (lastTimestamp - startedAt) / 1000);
+			let basePoints: number;
+			if (elapsedSeconds < 10) basePoints = 30;
+			else if (elapsedSeconds < 20) basePoints = 20;
+			else basePoints = 10;
+
+			// Multipliers by answer order: 1st x2, 2nd x1.5, 3rd x1, 4th+ x0.5
+			const ORDER_MULTIPLIERS = [2, 1.5, 1, 0.5];
+
+			for (let i = 0; i < playerAnswers.length; i++) {
+				const { playerCode } = playerAnswers[i];
+				const multiplier = ORDER_MULTIPLIERS[Math.min(i, ORDER_MULTIPLIERS.length - 1)];
+				const score = Math.round(basePoints * multiplier);
+				logger.info(`handleCalculateScore: ${playerCode} rank=${i + 1} base=${basePoints} x${multiplier} = ${score}`);
+				await handleAddScore(playerCode, score, false).catch((err) =>
+					logger.error("Score failed for", playerCode, err),
+				);
+			}
+
+			if (currentMatchCode) await sendPlayersSnapshot();
+			setSelectedPlayerCodes([]);
+		} catch (err) {
+			logger.error("handleCalculateScore failed:", err);
+			setHasAddedScore(false);
+		}
+	}, [selectedPlayerCodes, currentQuestion.questionCode, currentMatchCode, token, handleAddScore, sendPlayersSnapshot]);
 
 	useEffect(() => {
 		startTransition(() => {
@@ -508,43 +644,7 @@ const AButPhaPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={
-				<>
-					<AControlButton
-						onClick={async () => {
-							const prevIndex = Math.max(1, currentQuestionIndex - 1 || 1);
-							setCurrentQuestionIndex(prevIndex);
-							try {
-								const q = await loadQuestion(prevIndex);
-								await sendQuestionToplayers(prevIndex, q);
-							} catch (err) {
-								logger.error('Failed to load/send previous question:', err);
-							}
-						}}
-						disabled={currentQuestionIndex <= 1}
-					>
-						<ArrowLeftToLine size={18} />
-						<span className="ml-2 font-bold">LÙI CÂU</span>
-					</AControlButton>
-					<AControlButton
-						onClick={async () => {
-							const nextIndex = currentQuestionIndex > 0 ? currentQuestionIndex + 1 : 1;
-							if (nextIndex > MAX_QUESTION_INDEX) return;
-							setCurrentQuestionIndex(nextIndex);
-							try {
-								const q = await loadQuestion(nextIndex);
-								await sendQuestionToplayers(nextIndex, q);
-							} catch (err) {
-								logger.error('Failed to load/send next question:', err);
-							}
-						}}
-						disabled={currentQuestionIndex >= MAX_QUESTION_INDEX}
-					>
-						<ArrowRightToLine size={18} />
-						<span className="ml-2 font-bold">TỚI CÂU</span>
-					</AControlButton>
-				</>
-			}
+			topControlButtons={null}
 			bottomActionButtons={
 				<>
 					<AControlButton
@@ -554,14 +654,6 @@ const AButPhaPage = () => {
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => {
-							void loadPlayersState();
-						}}
-					>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => {
@@ -583,6 +675,24 @@ const AButPhaPage = () => {
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleCalculateScore(); }}
+						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
+					>
+						<Calculator size={18} />
+						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void showAnswers(); }}
+						disabled={!canShowAnswers}
+					>
+						<Eye size={18} />
+						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+					</AControlButton>
+					<AControlButton onClick={() => { void loadPlayersState(); }}>
+						<RefreshCw size={18} />
+						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 				</>
 			}			renderPlayerList={() =>

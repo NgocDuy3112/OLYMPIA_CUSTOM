@@ -426,8 +426,16 @@ const AVeDichPickQuestion = () => {
 				onClick={() => {
 					const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";
 					sendMessage({ type: "navigate", user_code: "", path: pickPath });
-					// Re-broadcast player info so PVeDichPickPage (which mounts after this navigate)
-					// has player data — avoids race where send_players_info fired on admin mount
+					// Re-broadcast grid data so PVeDichPickPage has question codes when it mounts
+					sendMessage({
+						type: "veDich_selection_update",
+						match_code: currentMatchCode,
+						round: isChung ? "chung" : "rieng",
+						selected_question_codes: selectedQuestionCodes,
+						all_question_codes: questions.map((q) => q.questionCode),
+						used_question_codes: usedQuestionCodes,
+					});
+					// Re-broadcast player info so PVeDichPickPage has player data on mount
 					void loadPlayersState();
 				}}
 				disabled={isLoading}
