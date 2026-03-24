@@ -6,11 +6,12 @@ import {
 	ListRestart,
 	Power,
 	RefreshCw,
-
 	Play,
 	Zap,
 	Plus,
 	Minus,
+	Star,
+	Shield,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -103,6 +104,18 @@ const AVeDichRiengPage = () => {
 		} catch { return null; }
 	});
 
+	// ─── Power state ─────────────────────────────────────────────────────────────
+	// Track which powers each player has used. Persisted across navigation.
+	const [usedPowers, setUsedPowers] = useState<Record<string, { star: boolean; shield: boolean }>>(() => {
+		if (!currentMatchCode) return {};
+		try {
+			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
+			return stored ? (JSON.parse(stored) as Record<string, { star: boolean; shield: boolean }>) : {};
+		} catch { return {}; }
+	});
+	// Active power for the current question (cleared after scoring or question change)
+	const [activePower, setActivePower] = useState<'star' | 'shield' | null>(null);
+
 	// ─── Timer state ──────────────────────────────────────────────────────────────
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
@@ -143,6 +156,17 @@ const AVeDichRiengPage = () => {
 			} catch { /* ignore */ }
 		}
 	}, [questionStates, currentMatchCode]);
+
+	// Persist usedPowers to localStorage whenever it changes
+	useEffect(() => {
+		if (!currentMatchCode) return;
+		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
+	}, [usedPowers, currentMatchCode]);
+
+	// Reset activePower whenever the active question changes
+	useEffect(() => {
+		setActivePower(null);
+	}, [currentQuestion.questionCode]);
 
 	// ─── Players helpers ──────────────────────────────────────────────────────────
 	const applyPlayersSnapshot = useCallback(
@@ -559,10 +583,13 @@ const AVeDichRiengPage = () => {
 	// Lượt Riêng: individual round — only the selected player(s) get +points.
 	// Calculate score: add to selected players only (Lượt Riêng logic)
 
-	// Add points: +100% of question value
+	// Add points: +100% default, +150% with star, +50% with shield
 	const handleAddPoints = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
-		const points = currentPoints;
+		let points: number;
+		if (activePower === 'star') points = Math.round(currentPoints * 1.5);
+		else if (activePower === 'shield') points = Math.round(currentPoints * 0.5);
+		else points = currentPoints;
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
 		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
@@ -571,9 +598,15 @@ const AVeDichRiengPage = () => {
 			for (const playerCode of selectedPlayerCodes) {
 				await handleAddScore(playerCode, points, false);
 			}
-			if (currentMatchCode) {
-				await sendPlayersSnapshot();
+			if (currentMatchCode) await sendPlayersSnapshot();
+			// Mark power as consumed for the turn player
+			if (activePower && currentTurnPlayerCode) {
+				setUsedPowers((prev) => ({
+					...prev,
+					[currentTurnPlayerCode]: { ...(prev[currentTurnPlayerCode] ?? { star: false, shield: false }), [activePower]: true },
+				}));
 			}
+			setActivePower(null);
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
 			logger.error("handleAddPoints failed:", err);
@@ -582,27 +615,38 @@ const AVeDichRiengPage = () => {
 		selectedPlayerCodes,
 		currentQuestion.questionCode,
 		currentPoints,
+		activePower,
+		currentTurnPlayerCode,
 		handleAddScore,
 		sendPlayersSnapshot,
 		sendMessage,
 		currentMatchCode,
 	]);
 
-	// Subtract points: -50% of question value
+	// Subtract points: -50% default, -100% with star, 0 with shield
 	const handleSubtractPoints = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
-		const points = Math.floor(currentPoints * -0.5); // -50%
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
 		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
 
 		try {
-			for (const playerCode of selectedPlayerCodes) {
-				await handleAddScore(playerCode, points, false);
+			// Shield: no deduction — skip score call
+			if (activePower !== 'shield') {
+				const points = activePower === 'star' ? -currentPoints : Math.floor(currentPoints * -0.5);
+				for (const playerCode of selectedPlayerCodes) {
+					await handleAddScore(playerCode, points, false);
+				}
 			}
-			if (currentMatchCode) {
-				await sendPlayersSnapshot();
+			if (currentMatchCode) await sendPlayersSnapshot();
+			// Mark power as consumed for the turn player
+			if (activePower && currentTurnPlayerCode) {
+				setUsedPowers((prev) => ({
+					...prev,
+					[currentTurnPlayerCode]: { ...(prev[currentTurnPlayerCode] ?? { star: false, shield: false }), [activePower]: true },
+				}));
 			}
+			setActivePower(null);
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
 			logger.error("handleSubtractPoints failed:", err);
@@ -611,6 +655,8 @@ const AVeDichRiengPage = () => {
 		selectedPlayerCodes,
 		currentQuestion.questionCode,
 		currentPoints,
+		activePower,
+		currentTurnPlayerCode,
 		handleAddScore,
 		sendPlayersSnapshot,
 		sendMessage,
@@ -897,7 +943,31 @@ const AVeDichRiengPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={null}
+			topControlButtons={
+				<div className="flex items-center gap-3 flex-wrap">
+					<span className="text-blue-300 font-bold text-sm uppercase tracking-wide shrink-0">Trợ giúp:</span>
+					<AControlButton
+						onClick={() => setActivePower((prev) => (prev === 'star' ? null : 'star'))}
+						disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star)}
+						className={activePower === 'star' ? 'bg-yellow-500 ring-yellow-400 text-blue-900' : undefined}
+					>
+						<Star size={18} />
+						<span className="ml-2 font-bold">
+							{currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star ? 'NGÔI SAO (đã dùng)' : 'NGÔI SAO HY VỌNG'}
+						</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => setActivePower((prev) => (prev === 'shield' ? null : 'shield'))}
+						disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield)}
+						className={activePower === 'shield' ? 'bg-green-500 ring-green-400 text-blue-900' : undefined}
+					>
+						<Shield size={18} />
+						<span className="ml-2 font-bold">
+							{currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield ? 'BẢO HỘ (đã dùng)' : 'BẢO HỘ MIỄN TRỪ'}
+						</span>
+					</AControlButton>
+				</div>
+			}
 			playerSectionButtons={
 				<>
 					<AControlButton
