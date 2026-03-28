@@ -19,12 +19,33 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Add match_status column to matches table
+    # 1. Ensure matchstatusenum exists in a race-safe way, then add the column
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            CREATE TYPE matchstatusenum AS ENUM ('setup','active','completed','in_progress','paused','finished');
+        EXCEPTION WHEN duplicate_object THEN
+            NULL;
+        END$$;
+        """
+    )
+
     op.add_column(
         "matches",
         sa.Column(
             "match_status",
-            sa.Enum("setup", "in_progress", "paused", "finished", name="matchstatusenum"),
+            # use create_type=False to avoid attempting to recreate the type
+            sa.Enum(
+                "setup",
+                "active",
+                "completed",
+                "in_progress",
+                "paused",
+                "finished",
+                name="matchstatusenum",
+                create_type=False,
+            ),
             nullable=False,
             server_default="setup",
         ),
@@ -52,12 +73,25 @@ def upgrade() -> None:
         op.f("ix_refresh_tokens_user_id"), "refresh_tokens", ["user_id"], unique=False
     )
 
+        # Ensure auditactiontype enum exists in a race-safe way before creating the audit_logs table
+        op.execute(
+            """
+            DO $$
+            BEGIN
+                CREATE TYPE auditactiontype AS ENUM ('LOGIN','LOGOUT','SCORE_CHANGE','MATCH_STATE_CHANGE','PLAYER_JOIN','PLAYER_LEAVE','QUESTION_USED','MATCH_CREATED','MATCH_DELETED');
+            EXCEPTION WHEN duplicate_object THEN
+                NULL;
+            END$$;
+            """
+        )
+
     # 3. Create audit_logs table
     op.create_table(
         "audit_logs",
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column(
             "action_type",
+            # ensure type exists first and avoid recreating it here
             sa.Enum(
                 "LOGIN",
                 "LOGOUT",
@@ -69,6 +103,7 @@ def upgrade() -> None:
                 "MATCH_CREATED",
                 "MATCH_DELETED",
                 name="auditactiontype",
+                create_type=False,
             ),
             nullable=False,
         ),
@@ -94,6 +129,7 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_audit_logs_created_at"), "audit_logs", ["created_at"], unique=False
     )
+
 
 
 def downgrade() -> None:

@@ -1,8 +1,8 @@
 # Records API
 
-**Tag**: `Bản ghi`
+**Tag**: `Records`
 
-This document describes the score record management endpoints.
+Score record management endpoints with Valkey leaderboard integration.
 
 ---
 
@@ -10,24 +10,21 @@ This document describes the score record management endpoints.
 
 - [POST `/records/`](#post-records)
 - [GET `/records/`](#get-records)
-- [Request Schemas](#request-schemas)
-- [Response Schemas](#response-schemas)
-- [Implementation Notes](#implementation-notes)
 
 ---
 
 ## POST `/records/`
 
-Record points for a user in a match. Accessible by admin and player roles.
+Record points for a user in a match.
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/records/` |
 | **Method** | `POST` |
-| **Authentication** | Admin or Player role required |
-| **Response Format** | JSON |
+| **Auth** | Admin or Player role required |
+| **Content-Type** | `application/json` |
 
 ### Request Body
 
@@ -58,9 +55,7 @@ curl -X POST http://localhost:8000/records/ \
 
 ### Success Response
 
-**Status Code**: `201 Created`
-
-**Schema**: `BaseResponse`
+**Status**: `201 Created`
 
 ```json
 {
@@ -70,30 +65,38 @@ curl -X POST http://localhost:8000/records/ \
 }
 ```
 
+### Valkey Integration
+
+When a record is created, the system updates the in-memory leaderboard:
+
+1. **Key**: `leaderboard:{match_code}`
+2. **Data Structure**: Sorted Set (ZSET)
+3. **Operation**: `ZADD leaderboard:{match_code} {user_code} {points} INCR`
+4. **Result**: User's score is incremented in the sorted set
+
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `400 Bad Request` | Validation Error | Invalid input data (e.g., points not multiple of 5) |
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not authorized (not admin or player) |
-| `404 Not Found` | Not Found Error | User, match, or question not found |
-| `500 Internal Server Error` | Server Error | Database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Invalid input (e.g., points not multiple of 5) |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not authorized (not admin or player) |
+| `404` | Not Found Error | User, match, or question not found |
+| `500` | Server Error | Database or server error |
 
 ---
 
 ## GET `/records/`
 
-Retrieve records for a user in a match. Accessible by admin and player roles.
+Retrieve records for a user in a match.
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/records/` |
 | **Method** | `GET` |
-| **Authentication** | Admin or Player role required |
-| **Response Format** | JSON |
+| **Auth** | Admin or Player role required |
 
 ### Query Parameters
 
@@ -111,9 +114,7 @@ curl -X GET "http://localhost:8000/records/?match_code=OC3_M001&user_code=OC_U00
 
 ### Success Response
 
-**Status Code**: `200 OK`
-
-**Schema**: `BaseResponse`
+**Status**: `200 OK`
 
 ```json
 {
@@ -140,43 +141,59 @@ curl -X GET "http://localhost:8000/records/?match_code=OC3_M001&user_code=OC_U00
 }
 ```
 
+### Response Fields
+
+Each record object contains:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Record UUID |
+| `created_at` | string | ISO timestamp |
+| `updated_at` | string | ISO timestamp (nullable) |
+| `points` | integer | Points awarded |
+| `is_deleted` | boolean | Soft delete flag |
+| `player_id` | string | Player UUID |
+| `match_id` | string | Match UUID |
+| `question_id` | string | Question UUID |
+
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `400 Bad Request` | Validation Error | Missing required query parameters |
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not authorized (not admin or player) |
-| `404 Not Found` | Not Found Error | No records found |
-| `500 Internal Server Error` | Server Error | Database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Missing required query parameters |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not authorized (not admin or player) |
+| `404` | Not Found Error | No records found |
+| `500` | Server Error | Database or server error |
 
 ---
 
-## Request Schemas
+## Schemas
 
 ### RecordPostRequest
 
 ```typescript
-{
-  match_code: string;  // Must start with 'OC3_M'
-  user_code: string;  // Must start with 'OC_U'
-  question_code: string;  // Must start with 'OC3_Q'
-  points: number;  // Must be multiple of 5
+interface RecordPostRequest {
+  match_code: string;   // Must start with 'OC3_M'
+  user_code: string;    // Must start with 'OC_U'
+  question_code: string; // Must start with 'OC3_Q'
+  points: number;       // Must be multiple of 5
   is_deleted?: boolean;
 }
 ```
 
----
-
-## Response Schemas
-
-### BaseResponse
+### Record Object
 
 ```typescript
-{
-  status: "success" | "error";
-  message: string;
-  data?: object | array | null;
+interface Record {
+  id: string;
+  created_at: string;
+  updated_at: string | null;
+  points: number;
+  is_deleted: boolean;
+  player_id: string;
+  match_id: string;
+  question_id: string;
 }
 ```
 
@@ -186,44 +203,49 @@ curl -X GET "http://localhost:8000/records/?match_code=OC3_M001&user_code=OC_U00
 
 ### Score Calculation
 
-- Points must be multiples of 5
+- Points **must** be multiples of 5
 - Records are cumulative for each user in a match
 - The `is_deleted` flag allows soft deletion of records
 
-### Valkey Integration
+### Valkey Leaderboard
 
-When a record is created, the system updates the in-memory leaderboard stored in Valkey:
+**Key Pattern**: `leaderboard:{match_code}`
 
-- **Key**: `leaderboard:{match_code}`
-- **Data Structure**: Sorted Set (ZSET)
-- **Member**: `user_code`
-- **Score**: Cumulative score
+**Example**: `leaderboard:OC3_M001`
 
-The `ZADD` command with `INCR=True` is used to increment the user's score in the sorted set.
+**Operations**:
+
+| Operation | Command | Description |
+|-----------|---------|-------------|
+| **Add/Update** | `ZADD key {user_code} {points} INCR` | Increment score |
+| **Get Score** | `ZSCORE key {user_code}` | Get cumulative score |
+| **Get All** | `ZREVRANGE key 0 -1 WITHSCORES` | Get sorted leaderboard |
+
+### Scoreboard Flow
+
+```
+POST /records/
+  ↓
+1. ZADD leaderboard:{match_code} {user_code} {points} INCR (Valkey)
+2. INSERT INTO records (PostgreSQL)
+3. PUBLISH score update to {match_code} channel (WebSocket)
+```
 
 ### Leaderboard Retrieval
 
-The `GET /scoreboard/{match_code}` endpoint reads scores from the Valkey ZSET to build the leaderboard. If no cache exists, players are returned with a score of 0.
+The `GET /scoreboard/{match_code}` endpoint:
+1. Reads scores from Valkey ZSET using `ZSCORE`
+2. Fetches player names from PostgreSQL
+3. Assembles and returns the scoreboard
 
-### Response (`BaseResponse`)
+If no cache exists, players are returned with `cummulative_score: 0`.
 
-- `data`: danh sách records (đã được serialize trong core). Each record object contains:
-  - `id` (string)
-  - `created_at` (ISO timestamp string)
-  - `updated_at` (ISO timestamp string | null)
-  - `points` (int)
-  - `is_deleted` (bool)
-  - `player_id` (string)
-  - `match_id` (string)
-  - `question_id` (string)
+---
 
-### Status codes (get)
+## Related Files
 
-- `200`: OK.
-- `500`: Internal Server Error.
-
-## File liên quan
-
-- `backend/app/routes/record.py`
-- `backend/app/core/record.py`
-- `backend/app/schemas/record.py`
+- `backend/app/routes/record.py` - Route handlers
+- `backend/app/core/record.py` - Business logic
+- `backend/app/schemas/record.py` - Record schemas
+- `backend/app/models/record.py` - Record model
+- `backend/app/dependencies/valkey_store.py` - Valkey connection

@@ -10,7 +10,7 @@ const PWaitingPage: React.FC = () => {
 				<h1 className="text-3xl font-bold mb-2">Chờ vào trận</h1>
 				<p className="mb-4">Mã trận: <strong>{matchCode}</strong></p>
 				{playerCode ? (
-					<p className="mb-4">Mã thí sinh: <strong>{playerCode}</strong></p>
+					<p className="mb-4">Mã đăng nhập: <strong>{playerCode}</strong></p>
 				) : (
 					<p className="mb-4">Bạn đã vào phòng. Chờ kỹ thuật viên bắt đầu trận đấu.</p>
 				)}

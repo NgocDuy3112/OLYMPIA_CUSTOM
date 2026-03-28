@@ -11,6 +11,7 @@ import PVeDichChungPage from "@/pages/player/PVeDichChungPage";
 import PVeDichRiengPage from "@/pages/player/PVeDichRiengPage";
 import PVeDichPickPage from "@/pages/player/PVeDichPickPage";
 import PGiaiMaPage from "@/pages/player/PGiaiMaPage";
+import PQualifierPage from "@/pages/player/PQualifierPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
 import PWaitingPage from "@/pages/player/PWaitingPage";
 import { VeDichRound } from "@/types/veDich";
@@ -42,6 +43,7 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         const s = sessionStorage.getItem("matchCode");
         return s && s.trim() !== "" ? s : "";
     });
+    const location = useLocation();
     // Listen for a custom event that signals matchCode was set by the access page.
     // This useEffect must be called unconditionally to satisfy the rules-of-hooks.
     useEffect(() => {
@@ -55,6 +57,20 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
         return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
     }, [matchCode]);
+
+    // If user visits the qualifier player route and no matchCode is set, default to OC3_Q
+    useEffect(() => {
+        if (matchCode) return;
+        try {
+            if (location.pathname.startsWith("/player/vl")) {
+                const defaultCode = "OC3_Q";
+                sessionStorage.setItem("matchCode", defaultCode);
+                setMatchCode(defaultCode);
+            }
+        } catch (e) {
+            // ignore
+        }
+    }, [location.pathname, matchCode]);
 
     // If matchCode is not set yet, render children without WebSocket provider
     if (!matchCode) return <>{children}</>;
@@ -96,7 +112,7 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
 
             // Some admin paths are full player routes (no match/player params expected)
             // — e.g. "/player/waiting" should navigate exactly to that path.
-            const noParamsPaths: string[] = ["/player/waiting"];
+            const noParamsPaths: string[] = ["/player/waiting", "/player/vl"];
 
             const target = noParamsPaths.includes(normalized)
                 ? normalized
@@ -184,6 +200,14 @@ const PlayerRoutes = () => {
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichRiengPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/vl"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PQualifierPage />
                         </ProtectedPlayerRoute>
                     }
                 />

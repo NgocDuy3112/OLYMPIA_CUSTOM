@@ -10,13 +10,17 @@ const logger = createLogger("AGameManaging");
 const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
     const navigate = useNavigate();
     const handleClick = () => {
-        if (!matchCode) return;
+        const codeToUse = matchCode || (typeof window !== "undefined" ? localStorage.getItem("matchCode") || "" : "");
+        if (!codeToUse) {
+            alert("Vui lòng nhập Mã trận đấu trước khi vào phòng.");
+            return;
+        }
         try {
-            localStorage.setItem("matchCode", matchCode);
+            localStorage.setItem("matchCode", codeToUse);
         } catch {
             // ignore
         }
-        navigate(`/admin/kdc/${matchCode}`);
+        navigate(`/admin/kdc/${codeToUse}`);
     };
 
     return (
@@ -26,6 +30,31 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 disabled:opacity-50 font-medium transition-colors"
         >
             Vào phòng
+        </button>
+    );
+};
+
+// Navigate to qualifier (Vòng Loại) admin page
+const VaoPhongQualifierButton = ({ matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
+    const navigate = useNavigate();
+    const handleClick = () => {
+        // Qualifier can use a sensible default (OC3_Q) if no matchCode provided
+        const codeToUse = matchCode || (typeof window !== "undefined" ? localStorage.getItem("matchCode") || "OC3_Q" : "OC3_Q");
+        try {
+            localStorage.setItem("matchCode", codeToUse);
+        } catch {
+            // ignore
+        }
+        navigate("/admin/vl");
+    };
+
+    return (
+        <button
+            onClick={handleClick}
+            disabled={disabled}
+            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 font-medium transition-colors"
+        >
+            Vòng Loại
         </button>
     );
 };
@@ -83,10 +112,24 @@ const AGameManagingPage = () => {
     const [matchExists, setMatchExists] = useState(false);
     const [matchLoading, setMatchLoading] = useState(false);
 
+    // ── Left-card tab ─────────────────────────────────────────────────
+    const [leftTab, setLeftTab] = useState<"players" | "createQuestion">("players");
+
     // ── Questions state ──────────────────────────────────────────────
     const [questions, setQuestions] = useState<QuestionData[]>([]);
     const [questionsLoading, setQuestionsLoading] = useState(false);
     const [questionsMatchCode, setQuestionsMatchCode] = useState(localStorage.getItem("matchCode") || "");
+    // Quick create-question form state (admin convenience)
+    const [newQuestionCode, setNewQuestionCode] = useState("");
+    const [newContent, setNewContent] = useState("");
+    const [newAnswer, setNewAnswer] = useState("");
+    const [newExplanation, setNewExplanation] = useState("");
+    const [newMediaUrl, setNewMediaUrl] = useState("");
+    const [newOptions, setNewOptions] = useState<string[]>(["", "", "", "", "", ""]);
+    const [creatingQuestion, setCreatingQuestion] = useState(false);
+
+    // ── Send credentials state (tracks which user_code is in-flight) ─
+    const [sendingCredentials, setSendingCredentials] = useState<string | null>(null);
 
     /* ================================================================
      *  API helpers
@@ -117,6 +160,26 @@ const AGameManagingPage = () => {
             logger.error("Error fetching users:", err);
         } finally {
             setUsersLoading(false);
+        }
+    }, [authHeaders]);
+
+    // ── Send / reset credentials (POST /auth/send-credentials/{code}) ─
+    const sendCredentials = useCallback(async (userCode: string) => {
+        setSendingCredentials(userCode);
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/send-credentials/${userCode}`, {
+                method: "POST",
+                headers: authHeaders(),
+            });
+            const body = await res.json();
+            if (!res.ok) throw new Error(body.detail ?? "Lỗi không xác định");
+            alert(`✅ ${body.message}`);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            alert(`❌ Gửi thất bại: ${msg}`);
+            logger.error("Error sending credentials:", err);
+        } finally {
+            setSendingCredentials(null);
         }
     }, [authHeaders]);
 
@@ -235,6 +298,63 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, matchCode, questionsMatchCode]);
 
+    const setOptionAt = useCallback((idx: number, val: string) => {
+        setNewOptions((prev) => {
+            const next = [...prev];
+            next[idx] = val;
+            return next;
+        });
+    }, []);
+
+    const createQuestion = useCallback(async () => {
+        const codeToUse = questionsMatchCode || matchCode;
+        if (!codeToUse) {
+            alert("Vui lòng nhập mã trận đấu trước khi tạo câu hỏi (Questions match code)");
+            return;
+        }
+        if (!newQuestionCode || !newContent || !newAnswer) {
+            alert("Vui lòng điền question_code, content và answer");
+            return;
+        }
+        setCreatingQuestion(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/questions/`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    match_code: codeToUse,
+                    question_code: newQuestionCode,
+                    content: newContent,
+                    answer: newAnswer,
+                    explanation: newExplanation || null,
+                    media_url: newMediaUrl || null,
+                    // send options as native array (backend accepts array or string)
+                    options: newOptions,
+                }),
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success") {
+                alert("Tạo câu hỏi thành công");
+                // reset form
+                setNewQuestionCode("");
+                setNewContent("");
+                setNewAnswer("");
+                setNewExplanation("");
+                setNewMediaUrl("");
+                setNewOptions(["", "", "", "", "", ""]);
+                // refresh list
+                await fetchQuestions();
+            } else {
+                alert(`Tạo câu hỏi thất bại: ${json.message}`);
+            }
+        } catch (err) {
+            logger.error("Error creating question:", err);
+            alert("Lỗi khi tạo câu hỏi");
+        } finally {
+            setCreatingQuestion(false);
+        }
+    }, [authHeaders, matchCode, questionsMatchCode, newQuestionCode, newContent, newAnswer, newExplanation, newMediaUrl, newOptions, fetchQuestions]);
+
     // ── Load users on mount ──────────────────────────────────────────
     useEffect(() => {
         fetchUsers();
@@ -261,9 +381,28 @@ const AGameManagingPage = () => {
             {/* ─── Card 1 : Users ────────────────────────────────────── */}
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
-                    <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
-                        <Users size={22} /> Danh sách người chơi
-                    </h2>
+                    <div className="flex gap-1">
+                        <button
+                            onClick={() => setLeftTab("players")}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                                leftTab === "players"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-blue-900/40 text-blue-300 hover:bg-blue-800"
+                            }`}
+                        >
+                            <Users size={16} /> Người chơi
+                        </button>
+                        <button
+                            onClick={() => setLeftTab("createQuestion")}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+                                leftTab === "createQuestion"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-blue-900/40 text-blue-300 hover:bg-blue-800"
+                            }`}
+                        >
+                            <Plus size={16} /> Tạo câu hỏi
+                        </button>
+                    </div>
                     <button
                         onClick={fetchUsers}
                         disabled={usersLoading}
@@ -274,7 +413,77 @@ const AGameManagingPage = () => {
                     </button>
                 </div>
 
-                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                {/* Quick create question form (admin) */}
+                {leftTab === "createQuestion" && (
+                    <div className="bg-blue-800/20 border border-blue-700 rounded-md p-3">
+                        <h3 className="text-sm font-semibold text-blue-200 mb-2">Tạo câu hỏi nhanh (admin)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <input
+                            type="text"
+                            placeholder="question_code (OC3_Q_...)"
+                            value={newQuestionCode}
+                            onChange={(e) => setNewQuestionCode(e.target.value)}
+                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="answer (A..F)"
+                            value={newAnswer}
+                            onChange={(e) => setNewAnswer(e.target.value)}
+                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                        />
+                        <input
+                            type="text"
+                            placeholder="media_url (optional)"
+                            value={newMediaUrl}
+                            onChange={(e) => setNewMediaUrl(e.target.value)}
+                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                        />
+                    </div>
+
+                    <textarea
+                        placeholder="Nội dung câu hỏi"
+                        value={newContent}
+                        onChange={(e) => setNewContent(e.target.value)}
+                        className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                        rows={3}
+                    />
+
+                    <textarea
+                        placeholder="Giải thích (optional)"
+                        value={newExplanation}
+                        onChange={(e) => setNewExplanation(e.target.value)}
+                        className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                        rows={2}
+                    />
+
+                    <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {newOptions.map((opt, i) => (
+                            <input
+                                key={i}
+                                type="text"
+                                placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                                value={opt}
+                                onChange={(e) => setOptionAt(i, e.target.value)}
+                                className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            />
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-3">
+                        <button
+                            onClick={createQuestion}
+                            disabled={creatingQuestion}
+                            className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 font-medium"
+                        >
+                            {creatingQuestion ? "Đang tạo..." : "Tạo câu hỏi"}
+                        </button>
+                        <div className="text-sm text-blue-300">Match: <span className="font-mono">{questionsMatchCode || matchCode || "(chưa đặt)"}</span></div>
+                    </div>
+                    </div>
+                )}
+
+                {leftTab === "players" && <div className="overflow-y-auto flex-1 -mr-2 pr-2">
                     {usersLoading && users.length === 0 ? (
                         <p className="text-gray-400 text-sm">Đang tải…</p>
                     ) : users.length === 0 ? (
@@ -283,9 +492,10 @@ const AGameManagingPage = () => {
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-blue-900">
                                 <tr className="text-left text-blue-300 border-b border-blue-700">
-                                    <th className="py-2 px-2">Mã thí sinh</th>
+                                    <th className="py-2 px-2">Mã đăng nhập</th>
                                     <th className="py-2 px-2">Tên thí sinh</th>
                                     <th className="py-2 px-2">Vai trò</th>
+                                    <th className="py-2 px-2"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -297,12 +507,22 @@ const AGameManagingPage = () => {
                                         <td className="py-2 px-2 font-mono text-xs">{u.user_code}</td>
                                         <td className="py-2 px-2">{u.user_name}</td>
                                         <td className="py-2 px-2 capitalize">{u.role}</td>
+                                        <td className="py-2 px-2 text-right">
+                                            <button
+                                                onClick={() => sendCredentials(u.user_code)}
+                                                disabled={sendingCredentials === u.user_code}
+                                                className="text-xs px-2 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                title="Gửi mã đăng nhập & mật khẩu qua email"
+                                            >
+                                                {sendingCredentials === u.user_code ? "Đang gửi…" : "Gửi thông tin"}
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     )}
-                </div>
+                </div>}
             </div>
 
             {/* ─── Card 2 : Tạo phòng ───────────────────────────────── */}
@@ -349,11 +569,11 @@ const AGameManagingPage = () => {
 
                 {/* 4 userCode inputs */}
                 <div className="grid grid-cols-2 gap-2">
-                    {userCodes.map((code, i) => (
+                            {userCodes.map((code, i) => (
                         <input
                             key={i}
-                            type="text"
-                            placeholder={`Mã thí sinh vị trí #${i + 1} `}
+                                    type="text"
+                                    placeholder={`Mã đăng nhập vị trí #${i + 1} `}
                             value={code}
                             onChange={(e) => handleUserCodeChange(i, e.target.value)}
                             className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -373,6 +593,7 @@ const AGameManagingPage = () => {
                     </button>
 
                     <VaoPhongButton matchCode={matchCode} disabled={!matchCode} />
+                    <VaoPhongQualifierButton matchCode={matchCode} />
                 </div>
             </div>
 

@@ -1,6 +1,8 @@
-# Components Documentation
+# Component Library Documentation
 
-This document provides comprehensive documentation for all React components in the OLYMPIA CUSTOM 3 frontend.
+Comprehensive documentation for all React components in the OLYMPIA CUSTOM 3 frontend.
+
+---
 
 ## Table of Contents
 
@@ -8,6 +10,7 @@ This document provides comprehensive documentation for all React components in t
 2. [Admin Components](#admin-components)
 3. [Player Components](#player-components)
 4. [Component Patterns](#component-patterns)
+5. [Best Practices](#best-practices)
 
 ---
 
@@ -17,15 +20,25 @@ Reusable components used across both admin and player interfaces.
 
 ### InputField
 
-**Location:** `src/components/shared/InputField.tsx`
+**Location**: `src/components/shared/InputField.tsx`
 
-**Purpose:** Lightweight form input wrapper with label and Tailwind styling.
+**Purpose**: Lightweight form input wrapper with label and Tailwind styling.
 
-**Props:**
-- `label` (string): Label text displayed above input
-- Standard HTML input attributes spread to underlying input element
+**Props**:
+```typescript
+interface InputFieldProps {
+  label: string;
+  name?: string;
+  value?: string | number;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  type?: string;
+  disabled?: boolean;
+  required?: boolean;
+}
+```
 
-**Usage:**
+**Usage**:
 ```tsx
 <InputField
   label="Username"
@@ -36,7 +49,7 @@ Reusable components used across both admin and player interfaces.
 />
 ```
 
-**Styling:**
+**Styling**:
 - Label: `block text-sm font-medium text-oc-text mb-1`
 - Input: `w-full px-3 py-2 bg-white border border-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500`
 
@@ -44,55 +57,74 @@ Reusable components used across both admin and player interfaces.
 
 ### RenderMedia
 
-**Location:** `src/components/shared/RenderMedia.tsx`
+**Location**: `src/components/shared/RenderMedia.tsx`
 
-**Purpose:** Conditional media renderer supporting images and videos.
+**Purpose**: Conditional media renderer supporting images and videos.
 
-**Props:**
-- `src` (string): URL/path to media file
-- `alt` (string): Alt text for accessibility (images only)
-- `className` (string): Additional CSS classes
-
-**Supported Media Types:**
-- **Images:** `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
-- **Videos:** `.mp4`, `.webm`, `.ogg`
-- **Unsupported:** Returns `null`
-
-**Usage:**
-```tsx
-<RenderMedia src={questionMediaUrl} alt="Question image" className="w-full h-64 object-contain" />
+**Props**:
+```typescript
+interface RenderMediaProps {
+  src: string;
+  alt?: string;
+  className?: string;
+}
 ```
 
-**Implementation:**
+**Supported Media Types**:
+- **Images**: `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`
+- **Videos**: `.mp4`, `.webm`, `.ogg`
+- **Unsupported**: Returns `null`
+
+**Usage**:
+```tsx
+<RenderMedia 
+  src={questionMediaUrl} 
+  alt="Question image" 
+  className="w-full h-64 object-contain" 
+/>
+```
+
+**Implementation**:
 ```typescript
 const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 const videoExtensions = ['mp4', 'webm', 'ogg'];
 
 const extension = src.split('.').pop()?.toLowerCase();
+
+if (imageExtensions.includes(extension)) {
+  return <img src={src} alt={alt} className={className} />;
+} else if (videoExtensions.includes(extension)) {
+  return <video src={src} className={className} controls />;
+}
+return null;
 ```
 
 ---
 
 ### ErrorBoundary
 
-**Location:** `src/components/shared/ErrorBoundary.tsx`
+**Location**: `src/components/shared/ErrorBoundary.tsx`
 
-**Purpose:** Class-based error boundary to catch and display errors gracefully.
+**Purpose**: Class-based error boundary to catch and display errors gracefully.
 
-**Props:**
-- `children` (ReactNode): Content to render
+**Props**:
+```typescript
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+```
 
-**State:**
-- `hasError` (boolean): Error flag
-- `error` (Error): Error object
+**State**:
+- `hasError`: boolean
+- `error`: Error | null
 
-**Behavior:**
+**Behavior**:
 - Catches rendering errors in child component tree
-- Logs errors to configured logger utility
+- Logs errors to configured logger
 - Displays Vietnamese error message: "Đã xảy ra lỗi. Vui lòng thử lại sau."
 - Shows error details in development mode
 
-**Usage:**
+**Usage**:
 ```tsx
 <ErrorBoundary>
   <SomeComponent />
@@ -103,18 +135,22 @@ const extension = src.split('.').pop()?.toLowerCase();
 
 ### PingIconStyle
 
-**Location:** `src/components/shared/PingIconStyle.tsx`
+**Location**: `src/components/shared/PingIconStyle.tsx`
 
-**Purpose:** Icon switcher displaying Zap (neutral) or KeyRound (keyword) icons.
+**Purpose**: Icon switcher displaying Zap (neutral) or KeyRound (keyword) icons.
 
-**Props:**
-- `isKeywordMode` (boolean): When true, shows KeyRound icon; otherwise Zap
+**Props**:
+```typescript
+interface PingIconStyleProps {
+  isKeywordMode: boolean;
+}
+```
 
-**Styling:**
+**Styling**:
 - Fixed size: `w-[18px] h-[18px]`
 - Color: `text-gray-400`
 
-**Usage:**
+**Usage**:
 ```tsx
 <PingIconStyle isKeywordMode={false} />
 ```
@@ -127,21 +163,30 @@ Components exclusive to the admin interface.
 
 ### AQuestionBoard
 
-**Location:** `src/components/admin/AQuestionBoard.tsx`
+**Location**: `src/components/admin/AQuestionBoard.tsx`
 
-**Purpose:** Main question display for admin with controls toggle functionality.
+**Purpose**: Main question display for admin with controls toggle functionality.
 
-**Props:**
-- `title` (string): Section title (e.g., "Câu hỏi 1")
-- `question` (Question): Question object with text, answer, explanation, media
-- `timerDuration` (number): Countdown duration in seconds
-- `controls` ("numbers" | "subjects"): Control variant type
-  - `"numbers"`: 6 numbered boxes for traditional buzzer rounds
-  - `"subjects"`: Larger rectangles displaying scores for Vượt Đèo round
-- `children`? (ReactNode): Render-prop for custom controls (see AdminQuestionBoardControls)
-- `className`? (string): Additional styling
+**Props**:
+```typescript
+interface AQuestionBoardProps {
+  title: string;
+  question: Question;
+  timerDuration: number;
+  controls: "numbers" | "subjects";
+  showAnswers: boolean;
+  onToggleAnswers: () => void;
+  currentIndex: number;
+  count: number;
+  boxStates: boolean[];
+  onUpdateBoxState?: (index: number, state: boolean) => void;
+  onToggle?: (index: number, state: boolean) => void;  // For subjects mode
+  children?: ReactNode;
+  className?: string;
+}
+```
 
-**Type Definitions:**
+**Type Definitions**:
 ```typescript
 type BaseQuestionBoardControls = {
   showAnswers: boolean;
@@ -153,18 +198,18 @@ type BaseQuestionBoardControls = {
 };
 
 interface AdminQuestionBoardControls extends BaseQuestionBoardControls {
-  onToggle?: (index: number, state: boolean) => void; // For subjects mode
+  onToggle?: (index: number, state: boolean) => void;
 }
 ```
 
-**Layout:**
+**Layout**:
 - Fixed height container (`h-[60vh]`) with scrolling explanation
 - Question media displayed 50/50 split with question text
 - Answer displayed when `showAnswers` is true
 - Explanation scrollable in dedicated area
 - Children (controls) rendered below question
 
-**Usage Example:**
+**Usage Example**:
 ```tsx
 <AQuestionBoard
   title="Câu hỏi 1"
@@ -176,13 +221,15 @@ interface AdminQuestionBoardControls extends BaseQuestionBoardControls {
   currentIndex={currentQuestionIndex}
   count={totalQuestions}
   boxStates={boxStates}
-  onUpdateBoxState={(index, state) => setBoxStates(prev => prev.map((b, i) => i === index ? state : b))}
+  onUpdateBoxState={(index, state) => 
+    setBoxStates(prev => prev.map((b, i) => i === index ? state : b))
+  }
 >
   {/* Custom controls can be passed as children */}
 </AQuestionBoard>
 ```
 
-**Styling:**
+**Styling**:
 - Background: `bg-gray-200`
 - Border: `border-4 border-gray-500`
 - Text colors: Blue-900 for questions, green-600 for answers
@@ -191,19 +238,23 @@ interface AdminQuestionBoardControls extends BaseQuestionBoardControls {
 
 ### APlayerBar
 
-**Location:** `src/components/admin/APlayerBar.tsx`
+**Location**: `src/components/admin/APlayerBar.tsx`
 
-**Purpose:** Player status display showing connection, name, score, and buzzer state.
+**Purpose**: Player status display showing connection, name, score, and buzzer state.
 
-**Props:**
-- `player` (PlayerStatus): Player data object
-- `isActive` (boolean): Whether this player is currently answering
-- `isCurrent` (boolean): Whether this is the current responder/focus
-- `isKeywordMode` (boolean): Display keyword icon vs neutral icon
-- `onClick`? (() => void): Click handler for selecting player
-- `disabled`? (boolean): Disable interaction
+**Props**:
+```typescript
+interface APlayerBarProps {
+  player: PlayerStatus;
+  isActive: boolean;
+  isCurrent: boolean;
+  isKeywordMode: boolean;
+  onClick?: () => void;
+  disabled?: boolean;
+}
+```
 
-**Display Elements:**
+**Display Elements**:
 - Connection indicator (green dot if connected, gray if not)
 - Player name (formatted from `playerName`)
 - Timestamp (relative time: "Vừa xong", "3 giây trước")
@@ -212,7 +263,7 @@ interface AdminQuestionBoardControls extends BaseQuestionBoardControls {
 - Buzzed indicator (border color change: `border-blue-500`)
 - PingIconStyle component (Zap or KeyRound)
 
-**Interactions:**
+**Interactions**:
 - Click: Calls `onClick` with player code
 - Keyboard: Enter/Space triggers click (accessible)
 - Visual feedback:
@@ -220,7 +271,7 @@ interface AdminQuestionBoardControls extends BaseQuestionBoardControls {
   - `isActive`: Blue-500 border
   - Default: Blue-600 border
 
-**Usage:**
+**Usage**:
 ```tsx
 <APlayerBar
   player={playerData}
@@ -236,29 +287,33 @@ interface AdminQuestionBoardControls extends BaseQuestionBoardControls {
 
 ### AVuotDeoClue
 
-**Location:** `src/components/admin/AVuotDeoClue.tsx`
+**Location**: `src/components/admin/AVuotDeoClue.tsx`
 
-**Purpose:** Clue/hint component for Vượt Đèo round with state management.
+**Purpose**: Clue/hint component for Vượt Đèo round with state management.
 
-**Props:**
-- `question` (Question): Question object to display clue for
-- `index` (number): Player index for id generation
-- `onClick` (() => Promise<'correct' | 'incorrect' | boolean>): Async callback returning result
+**Props**:
+```typescript
+interface AVuotDeoClueProps {
+  question: Question;
+  index: number;
+  onClick: () => Promise<'correct' | 'incorrect' | boolean>;
+}
+```
 
-**States:**
+**States**:
 - `Idle`: Default state, clickable
 - `Selected`: Loading state during async operation
 - `Correct`: Green background, shows explanation modal with media
 - `Incorrect`: Black background, returns to idle after delay
 
-**Behavior:**
+**Behavior**:
 1. Click → enters Selected state
 2. Call `onClick()` → waits for result
 3. If `'correct'` or `true`: show explanation modal (press OK to dismiss)
 4. If `'incorrect'` or `false`: 1.5s delay then return to Idle
 5. Auto-cleanup modal on unmount
 
-**Usage:**
+**Usage**:
 ```tsx
 <AVuotDeoClue
   question={vuotDeoQuestion}
@@ -279,26 +334,29 @@ Components exclusive to the player interface.
 
 ### PQuestionBoard
 
-**Location:** `src/components/player/PQuestionBoard.tsx`
+**Location**: `src/components/player/PQuestionBoard.tsx`
 
-**Purpose:** Read-only question display for players.
+**Purpose**: Read-only question display for players.
 
-**Props:**
-- `title` (string): Section title
-- `question` (Question): Question object
-- `timerDuration` (number): Countdown duration
-- `controls` (object): Display-only controls (no callbacks)
-  - Shape matches AdminQuestionBoardControls but without `onToggle`
-- `children`? (ReactNode): Optional child components
-- `className`? (string): Additional styling
+**Props**:
+```typescript
+interface PQuestionBoardProps {
+  title: string;
+  question: Question;
+  timerDuration: number;
+  controls: object;  // Display-only controls
+  children?: ReactNode;
+  className?: string;
+}
+```
 
-**Key Differences from AQuestionBoard:**
+**Key Differences from AQuestionBoard**:
 - Smaller height (`40vh` instead of `60vh`)
 - Controls are display-only (cannot toggle answers)
 - No answer toggling functionality
 - Limited to read-only presentation
 
-**Usage:**
+**Usage**:
 ```tsx
 <PQuestionBoard
   title="Câu hỏi chung"
@@ -315,27 +373,31 @@ Components exclusive to the player interface.
 
 ### PAnswerBox
 
-**Location:** `src/components/player/PAnswerBox.tsx`
+**Location**: `src/components/player/PAnswerBox.tsx`
 
-**Purpose:** Text input for player answers with Submit on Enter.
+**Purpose**: Text input for player answers with Submit on Enter.
 
-**Props:**
-- `answer` (string): Current answer text
-- `setAnswer` (Dispatch<SetStateAction<string>>): Setter for answer state
-- `isDisabled` (boolean): Disable input during certain states
-- `onSubmit` (() => void): Submit handler (called on Enter)
-- `placeholderString` (string): Placeholder text
+**Props**:
+```typescript
+interface PAnswerBoxProps {
+  answer: string;
+  setAnswer: Dispatch<SetStateAction<string>>;
+  isDisabled: boolean;
+  onSubmit: () => void;
+  placeholderString: string;
+}
+```
 
-**Keyboard Handling:**
+**Keyboard Handling**:
 - Enter → trigger `onSubmit` (unless composing IME)
 - Checks `isComposing` to avoid premature submission with Vietnamese IME
 
-**Styling:**
+**Styling**:
 - Border: `border-2 border-blue-900`
 - Background: `bg-white` (enabled) / `bg-blue-900` (disabled)
 - Transition: `transition-colors`
 
-**Usage:**
+**Usage**:
 ```tsx
 <PAnswerBox
   answer={answerText}
@@ -350,27 +412,31 @@ Components exclusive to the player interface.
 
 ### PSubmitButton
 
-**Location:** `src/components/player/PSubmitButton.tsx`
+**Location**: `src/components/player/PSubmitButton.tsx`
 
-**Purpose:** Buzzer/submit button with visual state feedback.
+**Purpose**: Buzzer/submit button with visual state feedback.
 
-**Props:**
-- `isEnabled` (boolean): Enable/disable button
-- `isKeywordMode` (boolean): Display different icon
-- `label` (string): Button text (default: "BẤM CHUÔNG ĐỂ GIÀNH QUYỀN TRẢ LỜI")
-- `onSubmit` (() => void): Click handler
+**Props**:
+```typescript
+interface PSubmitButtonProps {
+  isEnabled: boolean;
+  isKeywordMode: boolean;
+  label?: string;
+  onSubmit: () => void;
+}
+```
 
-**States:**
+**States**:
 - **Enabled:** `bg-blue-300` ring, PingIconStyle Zap icon
 - **Disabled:** `bg-blue-600` ring, no icon (or KeyRound if keyword mode)
 
-**Styling:**
+**Styling**:
 - Ring: `ring-2 ring-blue-300` (enabled) / `ring-blue-600` (disabled)
 - Text: Bold, centered
 - Icon: `w-6 h-6` (when enabled)
 - Hover: `hover:bg-blue-200` (enabled only)
 
-**Usage:**
+**Usage**:
 ```tsx
 <PSubmitButton
   isEnabled={canBuzz}
@@ -384,49 +450,57 @@ Components exclusive to the player interface.
 
 ### PVuotDeoClue
 
-**Location:** `src/components/player/PVuotDeoClue.tsx`
+**Location**: `src/components/player/PVuotDeoClue.tsx`
 
-**Purpose:** Player version of the clue component for Vượt Đèo round.
+**Purpose**: Player version of the clue component for Vượt Đèo round.
 
-**Props:**
-- `question` (Question): Question with clue to display
-- `index` (number): Unique identifier
-- `onClick` (() => Promise<boolean>): Async callback (true=correct, false=incorrect)
+**Props**:
+```typescript
+interface PVuotDeoClueProps {
+  question: Question;
+  index: number;
+  onClick: () => Promise<boolean>;
+}
+```
 
-**States:** Same as admin version (Idle, Selected, Correct, Incorrect)
+**States**: Same as admin version (Idle, Selected, Correct, Incorrect)
 
-**Behavior:**
+**Behavior**:
 - On correct: 5-second delay before closed automatically
 - Shows explanation popup when correct
 - Identical state machine to AVuotDeoClue
 
-**Usage:** Same as AVuotDeoClue
+**Usage**: Same as AVuotDeoClue
 
 ---
 
 ### PPlayerRec
 
-**Location:** `src/components/player/PPlayerRec.tsx`
+**Location**: `src/components/player/PPlayerRec.tsx`
 
-**Purpose:** Player record card displaying individual player info in list.
+**Purpose**: Player record card displaying individual player info in list.
 
-**Props:**
-- `player` (PlayerStatus): Player data
-- `isCurrent` (boolean): Highlight current player
+**Props**:
+```typescript
+interface PPlayerRecProps {
+  player: PlayerStatus;
+  isCurrent: boolean;
+}
+```
 
-**Content:**
+**Content**:
 - Player name (bold)
 - Score badge (blue background)
 - Last answer (truncated, shown if exists)
 - Timestamp (if available)
 - Bell icon (if player has buzzed)
 
-**Styling:**
+**Styling**:
 - Default: `bg-blue-100`
 - Current player: `bg-blue-600` with `scale-105` transform
 - Rounded corners, padding
 
-**Usage in player lists:**
+**Usage in player lists**:
 ```tsx
 {PPlayerList.map(player => (
   <PPlayerRec
@@ -463,83 +537,118 @@ Components exclusive to the player interface.
 </AQuestionBoard>
 ```
 
+---
+
 ### Controlled Components
 
 All input components follow React controlled patterns:
-- Parent owns state via `useState`
-- Value passed via `value` prop
-- Updates via setter function prop (`setValue` or `onChange`)
+
+```tsx
+const [value, setValue] = useState("");
+
+<InputField
+  value={value}
+  onChange={e => setValue(e.target.value)}
+  // ...other props
+/>
+```
+
+---
 
 ### Accessibility
 
-- ARIA attributes: `aria-disabled`, `aria-label`
-- Keyboard support: Enter/Space on interactive elements
-- Semantic HTML: `<button>`, `<input>`, `<dialog>`
+- **ARIA attributes**: `aria-disabled`, `aria-label`
+- **Keyboard support**: Enter/Space on interactive elements
+- **Semantic HTML**: `<button>`, `<input>`, `<dialog>`
+
+---
 
 ### Styling Strategy
 
-- **Tailwind CSS:** All styling via utility classes
-- **Color Palette:**
+- **Tailwind CSS**: All styling via utility classes
+- **Color Palette**:
   - Primary: `blue-900`, `blue-600`, `blue-300`
   - Success: `green-500`, `green-600`
   - Danger: `red-500`, `black` (for incorrect)
   - Neutral: `gray-200`, `gray-400`, `gray-600`
-- **Consistent spacing:** `p-3`, `m-2`, `gap-4`
-- **Border radius:** `rounded-lg`, `rounded-md`
-
-### Media Handling
-
-- **RenderMedia:** Centralized media rendering logic
-- **File types:** Hardcoded extension checks (no MIME sniffing)
-- **Fallback:** Returns `null` for unsupported types
-
-### Error Handling
-
-- **ErrorBoundary:** Global catch-all for component errors
-- **Try-catch:** Used in async operations (Vượt Đèo clicks)
-- **User feedback:** Alert dialogs for API failures
+- **Consistent spacing**: `p-3`, `m-2`, `gap-4`
+- **Border radius**: `rounded-lg`, `rounded-md`
 
 ---
 
-## Component File Naming Convention
+### Media Handling
 
-- **Shared:** `PascalCase` (e.g., `InputField.tsx`)
-- **Admin prefix:** `A<ComponentName>.tsx` (e.g., `APlayerBar.tsx`)
-- **Player prefix:** `P<ComponentName>.tsx` (e.g., `PAnswerBox.tsx`)
-- **Utilities:** `camelCase` (e.g., `limitWords` in `playerHelpers.ts`)
+- **RenderMedia**: Centralized media rendering logic
+- **File types**: Hardcoded extension checks (no MIME sniffing)
+- **Fallback**: Returns `null` for unsupported types
+
+---
+
+### Error Handling
+
+- **ErrorBoundary**: Global catch-all for component errors
+- **Try-catch**: Used in async operations (Vượt Đèo clicks)
+- **User feedback**: Alert dialogs for API failures
 
 ---
 
 ## Best Practices
 
-1. **Props:** Keep props minimal, use render-props for flexibility
-2. **State:** Lift state up; components should be as stateless as possible
-3. **Styling:** Prefer Tailwind over custom CSS; consistent color tokens
-4. **Icons:** Use Lucide React for consistent iconography
-5. **Conditional rendering:** Use early returns or ternary operators
-6. **Async operations:** Handle loading states and errors
-7. **Cleanup:** Use `useEffect` return functions for unmount cleanup
-
----
-
-## Creating New Components
+### Creating New Components
 
 When adding a new component:
 
-1. Place in appropriate folder: `components/shared/`, `admin/`, or `player/`
-2. Follow naming convention with prefix
-3. Export as default or named
-4. Add PropTypes or TypeScript interface for props
-5. Include JSDoc comments for complex props
-6. Keep component focused on single responsibility
-7. Use existing utility functions from `src/utils/`
+1. **Place in appropriate folder**:
+   - `components/shared/` - Shared components
+   - `components/admin/` - Admin-only components
+   - `components/player/` - Player-only components
+
+2. **Follow naming convention**:
+   - Shared: `PascalCase` (e.g., `InputField.tsx`)
+   - Admin prefix: `A<ComponentName>.tsx` (e.g., `APlayerBar.tsx`)
+   - Player prefix: `P<ComponentName>.tsx` (e.g., `PAnswerBox.tsx`)
+
+3. **TypeScript**:
+   - Define props interface
+   - Add JSDoc comments for complex props
+   - Avoid `any` type
+
+4. **Component structure**:
+   - Keep focused on single responsibility
+   - Use existing utility functions from `src/utils/`
+   - Follow controlled component pattern
 
 ---
 
-## Common Utilities Used in Components
+### Code Quality
 
-- **logger** (`src/utils/logger.ts`): Debug logging
-- **playerHelpers** (`src/utils/playerHelpers.ts`): `limitWords`, `buildPlayersSnapshot`
-- **useQuestionState** (`src/hooks/useQuestionState.ts`): Question state management
-- **useCountdownTimer** (`src/hooks/useCountdownTimer.ts`): Timer logic
-- **usePlayerWebSocket / useAdminWebSocket**: Context consumers
+- **Props**: Keep props minimal, use render-props for flexibility
+- **State**: Lift state up; components should be as stateless as possible
+- **Styling**: Prefer Tailwind over custom CSS; consistent color tokens
+- **Icons**: Use Lucide React for consistent iconography
+- **Conditional rendering**: Use early returns or ternary operators
+- **Async operations**: Handle loading states and errors
+- **Cleanup**: Use `useEffect` return functions for unmount cleanup
+
+---
+
+### Common Utilities
+
+Components use these utilities from `src/utils/`:
+
+| Utility | Purpose |
+|---------|---------|
+| `logger` | Debug logging |
+| `limitWords` | Truncate text with word limit |
+| `buildPlayersSnapshot` | Build player state snapshot |
+| `useQuestionState` | Question state management |
+| `useCountdownTimer` | Timer logic |
+| `usePlayerWebSocket / useAdminWebSocket` | Context consumers |
+
+---
+
+## Related Documentation
+
+- [API Reference](./API.md) - HTTP & WebSocket endpoints
+- [Architecture](./ARCHITECTURE.md) - Frontend architecture overview
+- [Backend API](../backend/README.md) - Backend endpoints

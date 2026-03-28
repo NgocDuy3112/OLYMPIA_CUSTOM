@@ -26,7 +26,8 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
         # Create new match
         new_match = Match(
             match_code = request.match_code,
-            match_name = request.match_name
+            match_name = request.match_name,
+            match_status = request.match_status if getattr(request, 'match_status', None) is not None else 'setup'
         )
         session.add(new_match)
         await session.flush() # Get match id

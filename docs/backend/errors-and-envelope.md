@@ -1,6 +1,6 @@
 # Errors & Response Envelope
 
-This document describes the error handling and response format conventions.
+Standard error handling and response format conventions for the OLYMPIA CUSTOM 3 API.
 
 ---
 
@@ -16,13 +16,13 @@ This document describes the error handling and response format conventions.
 
 ## Standard Response Envelope
 
-All API responses follow the `BaseResponse` schema defined in `backend/app/schemas/base.py`:
+All API responses follow the `BaseResponse` schema:
 
 ```typescript
-{
+interface BaseResponse<T = any> {
   status: "success" | "error";
   message: string;
-  data?: object | array | null;
+  data?: T | T[] | null;
 }
 ```
 
@@ -30,8 +30,8 @@ All API responses follow the `BaseResponse` schema defined in `backend/app/schem
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `status` | string | Indicates success (`"success"`) or error (`"error"`) |
-| `message` | string | Human-readable message describing the result |
+| `status` | string | `"success"` or `"error"` |
+| `message` | string | Human-readable description |
 | `data` | object/array/null | Response payload (varies by endpoint) |
 
 ### Success Response Example
@@ -80,37 +80,39 @@ Error responses follow the same envelope structure:
 
 | Code | Description | Usage |
 |------|-------------|-------|
-| `200 OK` | Request successful | GET, PATCH, DELETE success |
-| `201 Created` | Resource created | POST success |
-| `204 No Content` | Resource deleted | DELETE success (no response body) |
+| `200 OK` | Request successful | GET, PATCH, DELETE |
+| `201 Created` | Resource created | POST |
+| `204 No Content` | Resource deleted | DELETE (no body) |
 
 ### Client Error Codes
 
-| Code | Description | Usage |
-|------|-------------|-------|
-| `400 Bad Request` | Invalid input data | Validation errors, duplicate resources |
-| `401 Unauthorized` | Missing or invalid authentication | Missing token, expired token |
-| `403 Forbidden` | Insufficient permissions | Wrong role for endpoint |
-| `404 Not Found` | Resource not found | Invalid ID, non-existent resource |
-| `422 Unprocessable Entity` | Validation error | Pydantic validation failures |
+| Code | Description | Common Scenarios |
+|------|-------------|------------------|
+| `400 Bad Request` | Invalid input | Validation errors, duplicates |
+| `401 Unauthorized` | Auth required | Missing/invalid token |
+| `403 Forbidden` | Insufficient permissions | Wrong role |
+| `404 Not Found` | Resource not found | Invalid ID |
+| `422 Unprocessable Entity` | Validation error | Pydantic validation |
 
 ### Server Error Codes
 
 | Code | Description | Usage |
 |------|-------------|-------|
-| `500 Internal Server Error` | Server error | Database errors, unexpected exceptions |
+| `500 Internal Server Error` | Server error | Database errors, exceptions |
 
 ---
 
 ## Common Error Scenarios
 
-### 1. Authentication Errors
+### Authentication Errors
 
 #### Missing Token
 
-```
+```http
 Status: 401 Unauthorized
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Not authenticated",
@@ -120,9 +122,11 @@ Response:
 
 #### Invalid Token
 
-```
+```http
 Status: 401 Unauthorized
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Could not validate credentials",
@@ -132,9 +136,11 @@ Response:
 
 #### Expired Token
 
-```
+```http
 Status: 401 Unauthorized
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Token has expired",
@@ -144,13 +150,15 @@ Response:
 
 ---
 
-### 2. Authorization Errors
+### Authorization Errors
 
 #### Insufficient Role
 
-```
+```http
 Status: 403 Forbidden
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Not enough permissions",
@@ -160,13 +168,15 @@ Response:
 
 ---
 
-### 3. Validation Errors
+### Validation Errors
 
 #### Invalid User Code Format
 
-```
+```http
 Status: 400 Bad Request
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "user_code must start with 'OC_U'",
@@ -176,9 +186,11 @@ Response:
 
 #### Duplicate Resource
 
-```
+```http
 Status: 400 Bad Request
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "User already exists",
@@ -188,9 +200,11 @@ Response:
 
 #### Invalid Input Type
 
-```
+```http
 Status: 422 Unprocessable Entity
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Invalid input",
@@ -200,13 +214,15 @@ Response:
 
 ---
 
-### 4. Not Found Errors
+### Not Found Errors
 
 #### User Not Found
 
-```
+```http
 Status: 404 Not Found
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "User not found",
@@ -216,9 +232,11 @@ Response:
 
 #### Match Not Found
 
-```
+```http
 Status: 404 Not Found
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Match not found",
@@ -228,13 +246,15 @@ Response:
 
 ---
 
-### 5. Server Errors
+### Server Errors
 
 #### Database Error
 
-```
+```http
 Status: 500 Internal Server Error
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Internal Server Error",
@@ -244,9 +264,11 @@ Response:
 
 #### External Service Error
 
-```
+```http
 Status: 500 Internal Server Error
-Response:
+```
+
+```json
 {
   "status": "error",
   "message": "Failed to connect to Google Drive",
@@ -258,9 +280,9 @@ Response:
 
 ## Client Recommendations
 
-### 1. Safe Response Parsing
+### Safe Response Parsing
 
-Always handle the `data` field safely as it can be `object`, `array`, or `null`:
+Always handle the `data` field safely:
 
 ```typescript
 interface SafeResponse<T> {
@@ -277,18 +299,18 @@ function handleResponse<T>(response: SafeResponse<T>): T | T[] | null {
 }
 ```
 
-### 2. Error Handling Strategy
+### Error Handling Strategy
 
 ```typescript
 async function apiCall(url: string, options?: RequestInit) {
   try {
     const response = await fetch(url, options);
     const data = await response.json();
-    
+
     if (!response.ok) {
       throw new Error(data.message || `HTTP error! status: ${response.status}`);
     }
-    
+
     return data;
   } catch (error) {
     console.error('API Error:', error);
@@ -297,7 +319,7 @@ async function apiCall(url: string, options?: RequestInit) {
 }
 ```
 
-### 3. Token Expiration Handling
+### Token Expiration Handling
 
 ```typescript
 async function refreshToken() {
@@ -306,13 +328,13 @@ async function refreshToken() {
     window.location.href = '/login';
     return;
   }
-  
+
   try {
     const response = await fetch('/auth/refresh', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${refreshToken}` }
     });
-    
+
     if (response.ok) {
       const data = await response.json();
       localStorage.setItem('access_token', data.access_token);
@@ -325,7 +347,7 @@ async function refreshToken() {
 }
 ```
 
-### 4. Retry Strategy
+### Retry Strategy
 
 ```typescript
 async function retryRequest<T>(
@@ -349,26 +371,28 @@ async function retryRequest<T>(
 
 ## Implementation Notes
 
-### Route-Level Exception Handling
-
-Some endpoints wrap errors in a generic `500` response. This is a known issue that should be addressed in future updates.
-
-### Inconsistent Data Shapes
-
-The `data` field shape varies between endpoints:
-- Some return plain objects
-- Some return arrays
-- Some return ORM objects
-- Some return cached JSONPath arrays
-
-Always check the specific endpoint documentation for the expected `data` shape.
-
 ### Known Issues
 
-1. **SQLAlchemy Query Patterns**: Some core queries use Python boolean operators (`and`/`or`) instead of SQLAlchemy bitwise operators (`&`/`|`), which may cause unexpected behavior.
+1. **Inconsistent Data Shapes**: The `data` field shape varies between endpoints (objects, arrays, ORM objects, cached JSONPath arrays)
 
-2. **Session Management**: Some endpoints don't call `session.add()` before committing, which may cause data not to be persisted.
+2. **SQLAlchemy Query Patterns**: Some queries may use Python boolean operators instead of SQLAlchemy bitwise operators
 
-3. **WebSocket Authentication**: The WebSocket endpoint doesn't enforce JWT authentication by default.
+3. **Session Management**: Some endpoints may not call `session.add()` before committing
 
-4. **Error Messages**: Some errors may not provide detailed information for security reasons.
+4. **WebSocket Authentication**: WebSocket endpoint doesn't enforce JWT by default
+
+### Best Practices
+
+1. **Always check `status` field** before processing `data`
+2. **Handle null `data`** gracefully
+3. **Log error messages** for debugging
+4. **Display user-friendly messages** to end users
+5. **Implement retry logic** for transient errors
+
+---
+
+## Related Files
+
+- `backend/app/schemas/base.py` - BaseResponse schema
+- `backend/app/main.py` - Global exception handlers
+- `backend/app/dependencies/user_auth.py` - Authentication errors

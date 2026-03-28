@@ -1,8 +1,8 @@
 # Answers API
 
-**Tag**: `Câu trả lời`
+**Tag**: `Answers`
 
-This document describes the answer submission and retrieval endpoints.
+Answer submission and retrieval endpoints with Valkey caching.
 
 ---
 
@@ -10,24 +10,22 @@ This document describes the answer submission and retrieval endpoints.
 
 - [POST `/answers/`](#post-answers)
 - [GET `/answers/`](#get-answers)
-- [DELETE `/answers/{match_code}/{user_code}/{question_code}`](#delete-answers)
-- [Request Schemas](#request-schemas)
-- [Response Schemas](#response-schemas)
+- [DELETE `/answers/{match_code}/{user_code}/{question_code}`](#delete-answersmatch_codeuser_codequestion_code)
 
 ---
 
 ## POST `/answers/`
 
-Submit an answer for a player in a match. Accessible by admin and player roles.
+Submit an answer for a player in a match.
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/answers/` |
 | **Method** | `POST` |
-| **Authentication** | Admin or Player role required |
-| **Response Format** | JSON |
+| **Auth** | Admin or Player role required |
+| **Content-Type** | `application/json` |
 
 ### Request Body
 
@@ -40,7 +38,7 @@ Submit an answer for a player in a match. Accessible by admin and player roles.
 | `question_code` | string | ✅ | Question code (must start with `OC3_Q`) |
 | `answer_text` | string | ✅ | The answer text |
 | `has_buzzed` | boolean | ✅ | Whether the player buzzed in |
-| `timestamp` | float | ✅ | Elapsed seconds when answer was submitted (max 3 decimal places) |
+| `timestamp` | number | ✅ | Elapsed seconds when submitted (max 3 decimal places) |
 
 ### Request Example
 
@@ -60,9 +58,7 @@ curl -X POST http://localhost:8000/answers/ \
 
 ### Success Response
 
-**Status Code**: `201 Created`
-
-**Schema**: `BaseResponse`
+**Status**: `201 Created`
 
 ```json
 {
@@ -72,32 +68,35 @@ curl -X POST http://localhost:8000/answers/ \
 }
 ```
 
+### Caching Behavior
+
+1. **Write to Valkey**: Answer is cached at key `answer:{match_code}:{user_code}:{question_code}`
+2. **Broadcast**: Answer event is published to WebSocket channel `{match_code}`
+3. **Persist to PostgreSQL**: Answer is inserted into the `answers` table
+
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `400 Bad Request` | Validation Error | Invalid field format or integrity constraint violation |
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not authorized (not admin or player) |
-| `404 Not Found` | Not Found Error | Match, user, or question not found in DB |
-| `500 Internal Server Error` | Server Error | Unexpected database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Invalid field format or integrity constraint |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not authorized (not admin or player) |
+| `404` | Not Found Error | Match, user, or question not found |
+| `500` | Server Error | Database or server error |
 
 ---
 
 ## GET `/answers/`
 
-Retrieve the most recent answer for a given player and question. Accessible only by admin users.
+Retrieve the most recent answer for a given player and question.
 
-Answers are first looked up in the Valkey cache (written on POST). On a cache miss the query falls back to PostgreSQL, returning the most recently submitted non-deleted answer.
-
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/answers/` |
 | **Method** | `GET` |
-| **Authentication** | Admin role required |
-| **Response Format** | JSON |
+| **Auth** | Admin role required |
 
 ### Query Parameters
 
@@ -114,11 +113,17 @@ curl -X GET "http://localhost:8000/answers/?match_code=OC3_M001&user_code=OC_U00
   -H "Authorization: Bearer <token>"
 ```
 
+### Caching Strategy
+
+Answers are retrieved using a cache-aside pattern:
+
+1. **Check Valkey**: Look up `answer:{match_code}:{user_code}:{question_code}`
+2. **Cache Hit**: Return cached answer immediately
+3. **Cache Miss**: Query PostgreSQL for most recent non-deleted answer
+
 ### Success Response
 
-**Status Code**: `200 OK`
-
-**Schema**: `BaseResponse`
+**Status**: `200 OK`
 
 ```json
 {
@@ -135,31 +140,30 @@ curl -X GET "http://localhost:8000/answers/?match_code=OC3_M001&user_code=OC_U00
 }
 ```
 
-> **Note**: `data` is always a plain object (never an array). Cache hits return the object stored at POST time; DB hits return the same shape derived from the answer row.
+**Note**: `data` is always a plain object (never an array).
 
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not an admin user |
-| `404 Not Found` | Not Found Error | No answer found for the given parameters |
-| `500 Internal Server Error` | Server Error | Unexpected database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | No answer found |
+| `500` | Server Error | Database or server error |
 
 ---
 
 ## DELETE `/answers/{match_code}/{user_code}/{question_code}`
 
-Soft-delete an answer (sets `is_deleted = true`). Admin only.
+Soft-delete an answer (sets `is_deleted = true`).
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/answers/{match_code}/{user_code}/{question_code}` |
 | **Method** | `DELETE` |
-| **Authentication** | Admin role required |
-| **Response Format** | JSON |
+| **Auth** | Admin role required |
 
 ### Path Parameters
 
@@ -169,34 +173,43 @@ Soft-delete an answer (sets `is_deleted = true`). Admin only.
 | `user_code` | string | Player's user code |
 | `question_code` | string | Question code |
 
+### Request Example
+
+```bash
+curl -X DELETE http://localhost:8000/answers/OC3_M001/OC_U001/OC3_Q001 \
+  -H "Authorization: Bearer <token>"
+```
+
 ### Success Response
 
-**Status Code**: `200 OK`
+**Status**: `200 OK`
 
 ```json
 {
   "status": "success",
-  "message": "...",
+  "message": "Answer deleted successfully",
   "data": null
 }
 ```
 
 ### Error Responses
 
-| Status Code | Description |
-|-------------|-------------|
-| `400 Bad Request` | Invalid data |
-| `404 Not Found` | Answer not found |
-| `500 Internal Server Error` | Unexpected error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Invalid data |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Answer not found |
+| `500` | Server Error | Database or server error |
 
 ---
 
-## Request Schemas
+## Schemas
 
 ### AnswerPostRequest
 
 ```typescript
-{
+interface AnswerPostRequest {
   match_code: string;    // Must start with 'OC3_M'
   user_code: string;     // Must start with 'OC_U'
   question_code: string; // Must start with 'OC3_Q'
@@ -206,17 +219,54 @@ Soft-delete an answer (sets `is_deleted = true`). Admin only.
 }
 ```
 
----
-
-## Response Schemas
-
-### BaseResponse
+### Answer Object
 
 ```typescript
+interface Answer {
+  match_code: string;
+  user_code: string;
+  question_code: string;
+  answer_text: string;
+  has_buzzed: boolean;
+  timestamp: number;
+}
+```
+
+---
+
+## Implementation Notes
+
+### Valkey Cache Key Pattern
+
+```
+answer:{match_code}:{user_code}:{question_code}
+```
+
+**Example**: `answer:OC3_M001:OC_U001:OC3_Q001`
+
+### Cache Lifecycle
+
+1. **POST**: Creates/updates cache entry
+2. **GET**: Reads from cache (falls back to PostgreSQL)
+3. **DELETE**: Removes cache entry and soft-deletes DB record
+
+### WebSocket Broadcast
+
+When an answer is submitted via POST:
+1. Answer is cached in Valkey
+2. Event is published to channel `{match_code}`
+3. All connected WebSocket clients receive the answer event
+
+**Message Format**:
+```json
 {
-  status: "success" | "error";
-  message: string;
-  data?: object | null;
+  "type": "answer",
+  "user_code": "OC_U001",
+  "question_code": "OC3_Q001",
+  "match_code": "OC3_M001",
+  "answer_text": "Hanoi",
+  "has_buzzed": false,
+  "timestamp": 12.490
 }
 ```
 
@@ -224,6 +274,7 @@ Soft-delete an answer (sets `is_deleted = true`). Admin only.
 
 ## Related Files
 
-- `backend/app/routes/answer.py`
-- `backend/app/core/answer.py`
-- `backend/app/schemas/answer.py`
+- `backend/app/routes/answer.py` - Route handlers
+- `backend/app/core/answer.py` - Business logic
+- `backend/app/schemas/answer.py` - Answer schemas
+- `backend/app/models/answer.py` - Answer model

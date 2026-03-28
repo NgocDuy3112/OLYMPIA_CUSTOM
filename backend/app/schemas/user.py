@@ -4,19 +4,21 @@ from typing import Literal
 from schemas.base import *
 
 
-Role = Literal["guest", "player", "admin"]
+Role = Literal["guest", "player", "mc", "admin"]
 
 
 class UserCreate(BaseModel):
     user_name: str
-    user_code: str
-    password: str
+    user_code: str | None = None
+    # Password optional: backend will generate and email credentials when omitted
+    password: str | None = None
     role: Role = "player"
+    email: str | None = None
 
     @field_validator('user_code', mode='after')
     @classmethod
-    def ensure_user_code_format(cls, value: str) -> str:
-        if not value.startswith("OC_U"):
+    def ensure_user_code_format(cls, value: str | None) -> str | None:
+        if value is not None and not value.startswith("OC_U"):
             raise ValueError("user_code must start with 'OC_U'")
         return value
 
@@ -43,3 +45,12 @@ class TokenResponse(BaseModel):
     role: Role
     user_code: str | None = None
     user_name: str | None = None
+
+
+class PasswordResetRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class MagicLoginRequest(BaseModel):
+    token: str

@@ -1,8 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PlayerRoutes from "@/routes/PlayerRoutes";
 import AdminRoutes from "@/routes/AdminRoutes";
-import SignupPage from "@/pages/auth/SignupPage";
-import LoginPage from "@/pages/auth/LoginPage";
+import PlayerSignupPage from "@/pages/auth/player/PlayerSignupPage";
+import PlayerLoginPage from "@/pages/auth/player/PlayerLoginPage";
+import AdminSignupPage from "@/pages/auth/admin/AdminSignupPage";
+import AdminLoginPage from "@/pages/auth/admin/AdminLoginPage";
+import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 
 function App() {
   return (
@@ -14,8 +17,16 @@ function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           {/* Auth Routes */}
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/login" element={<LoginPage />} />
+              {/* Legacy routes redirect to player auth by default */}
+              <Route path="/signup" element={<PlayerSignupPage />} />
+              <Route path="/login" element={<PlayerLoginPage />} />
+              <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+
+              {/* Role-specific auth routes */}
+              <Route path="/player/login" element={<PlayerLoginPage />} />
+              <Route path="/player/signup" element={<PlayerSignupPage />} />
+              <Route path="/admin/login" element={<AdminLoginPage />} />
+              <Route path="/admin/signup" element={<AdminSignupPage />} />
           {/* Player Routes */}
           <Route path="/player/*" element={<PlayerRoutes />}/>
           {/* Admin Routes */}

@@ -1,31 +1,28 @@
 # Scoreboard API
 
-**Tag**: `Bảng xếp hạng`
+**Tag**: `Scoreboard`
 
-This document describes the leaderboard and scoreboard endpoints.
+Leaderboard and scoreboard endpoints with Valkey integration.
 
 ---
 
 ## Table of Contents
 
 - [GET `/scoreboard/{match_code}`](#get-scoreboardmatch_code)
-- [Response Format](#response-format)
-- [Implementation Notes](#implementation-notes)
 
 ---
 
 ## GET `/scoreboard/{match_code}`
 
-Retrieve the complete leaderboard for a match. Accessible only by admin users.
+Retrieve the complete leaderboard for a match.
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/scoreboard/{match_code}` |
 | **Method** | `GET` |
-| **Authentication** | Admin role required |
-| **Response Format** | JSON |
+| **Auth** | Admin role required |
 
 ### Path Parameters
 
@@ -42,9 +39,7 @@ curl -X GET http://localhost:8000/scoreboard/OC3_M001 \
 
 ### Success Response
 
-**Status Code**: `200 OK`
-
-**Schema**: `BaseResponse`
+**Status**: `200 OK`
 
 ```json
 {
@@ -77,26 +72,15 @@ curl -X GET http://localhost:8000/scoreboard/OC3_M001 \
 }
 ```
 
-### Error Responses
+### Response Fields
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not an admin user |
-| `404 Not Found` | Not Found Error | Match not found |
-| `500 Internal Server Error` | Server Error | Database or server error |
-
----
-
-## Response Format
-
-### Scoreboard Object
+**Scoreboard Object**:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `scoreboard` | array | Array of player score objects |
 
-### Player Score Object
+**Player Score Object**:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -104,51 +88,138 @@ curl -X GET http://localhost:8000/scoreboard/OC3_M001 \
 | `user_name` | string | Player's name |
 | `cummulative_score` | integer | Total accumulated score |
 
+### Error Responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Match not found |
+| `500` | Server Error | Database or server error |
+
 ---
 
 ## Implementation Notes
 
 ### Caching Strategy
 
-The leaderboard uses Valkey (Redis-compatible) for fast, in-memory access:
+The leaderboard uses **Valkey** (Redis-compatible) for fast, in-memory access.
 
-- **Cache Key**: `leaderboard:{match_code}`
-- **Data Structure**: Sorted Set (ZSET)
-- **Member**: `user_code`
-- **Score**: `cummulative_score`
+**Cache Configuration**:
+
+| Property | Value |
+|----------|-------|
+| **Key Pattern** | `leaderboard:{match_code}` |
+| **Data Structure** | Sorted Set (ZSET) |
+| **Members** | User codes (e.g., `OC_U001`) |
+| **Scores** | Cumulative integer points |
+
+### Operations
+
+| Operation | Command | Complexity |
+|-----------|---------|------------|
+| **Add/Update** | `ZADD key {user_code} {points} INCR` | O(log N) |
+| **Get Score** | `ZSCORE key {user_code}` | O(1) |
+| **Get All** | `ZREVRANGE key 0 -1 WITHSCORES` | O(log N + M) |
 
 ### Score Updates
 
 When a new record is created via `POST /records/`:
 
-1. The server calls `valkey.zadd()` with `incr=True`
-2. This increments the user's score in the sorted set
-3. The leaderboard is automatically sorted by score
+1. Server calls `valkey.zadd()` with `incr=True`
+2. User's score is incremented in the sorted set
+3. Leaderboard is automatically sorted by score
 
 ### Cache Retrieval
 
 When `GET /scoreboard/{match_code}` is called:
 
-1. The server reads scores from the Valkey ZSET using `ZSCORE`
-2. Player names are fetched from the database
-3. The scoreboard is assembled and returned
+1. Server checks if leaderboard exists using `EXISTS`
+2. For each player in the match:
+   - Read score from Valkey using `ZSCORE`
+   - Fetch player name from PostgreSQL
+3. Assemble and return the scoreboard
 
 ### Fallback Behavior
 
 - If no cache exists, players are returned with `cummulative_score: 0`
-- The cache is updated whenever records are created
+- The cache is updated whenever records are created via `POST /records/`
 
 ### Performance Benefits
 
-- O(1) score retrieval using `ZSCORE`
-- O(log N) score updates using `ZADD ... INCR`
-- Automatic sorting by score in the sorted set
-- Low latency for leaderboard display
+| Benefit | Description |
+|---------|-------------|
+| **O(1) Score Lookup** | `ZSCORE` provides constant-time score retrieval |
+| **O(log N) Updates** | `ZADD ... INCR` efficiently updates scores |
+| **Automatic Sorting** | Sorted set maintains order by score |
+| **Low Latency** | In-memory operations for fast leaderboard display |
+
+---
+
+## Valkey Integration
+
+### Key Pattern
+
+```
+leaderboard:{match_code}
+```
+
+**Examples**:
+- `leaderboard:OC3_M001`
+- `leaderboard:OC3_M002`
+
+### Data Structure
+
+**Type**: Sorted Set (ZSET)
+
+**Members**: User codes (strings)
+
+**Scores**: Cumulative points (integers)
+
+### Example Commands
+
+```bash
+# Increment score
+ZADD leaderboard:OC3_M001 "OC_U001" 100 INCR
+
+# Get player score
+ZSCORE leaderboard:OC3_M001 "OC_U001"
+
+# Get full leaderboard (descending order)
+ZREVRANGE leaderboard:OC3_M001 0 -1 WITHSCORES
+
+# Check if leaderboard exists
+EXISTS leaderboard:OC3_M001
+```
+
+---
+
+## Score Flow
+
+```
+Player submits answer
+        ↓
+POST /records/ (points: 100)
+        ↓
+┌───────────────────────────────────┐
+│ 1. ZADD leaderboard:{match}       │
+│    {user_code} 100 INCR (Valkey)  │
+│                                   │
+│ 2. INSERT INTO records (PostgreSQL)│
+│                                   │
+│ 3. PUBLISH to {match} channel     │
+│    (WebSocket broadcast)          │
+└───────────────────────────────────┘
+        ↓
+GET /scoreboard/{match_code}
+        ↓
+Returns updated leaderboard
+```
 
 ---
 
 ## Related Files
 
-- `backend/app/routes/scoreboard.py` - API endpoint
+- `backend/app/routes/scoreboard.py` - Route handlers
 - `backend/app/core/scoreboard.py` - Business logic
 - `backend/app/dependencies/valkey_store.py` - Valkey connection

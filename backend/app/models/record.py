@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import uuid
 
-from sqlalchemy import Integer, DateTime, Boolean, ForeignKey, CheckConstraint, UUID
+from sqlalchemy import Integer, DateTime, Boolean, ForeignKey, CheckConstraint, UUID, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dependencies.postgresql_db import Base
@@ -28,4 +28,6 @@ class Record(Base):
     # Foreign Keys
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False, index=True)
-    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False, index=True)
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey('questions.id'), nullable=False, index=True)
+    round_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    question_code: Mapped[str | None] = mapped_column(String(length=25), nullable=True)

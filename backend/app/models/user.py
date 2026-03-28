@@ -12,6 +12,7 @@ from models import *
 class RoleEnum(str, enum.Enum):
     guest = "guest"
     player = "player"
+    mc = "mc"
     admin = "admin"
 
 
@@ -33,4 +34,10 @@ class User(Base):
     user_name: Mapped[str] = mapped_column(String(100), nullable=False)
     is_deleted: Mapped[bool] = mapped_column(default=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[RoleEnum] = mapped_column(Enum(RoleEnum), default=RoleEnum.player)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Use create_type=False to avoid SQLAlchemy auto-creating the enum type at table
+    # creation time; Alembic migration explicitly creates the type in a guarded
+    # DO block so we keep enum creation under migration control.
+    role: Mapped[RoleEnum] = mapped_column(
+        Enum(RoleEnum, name="roleenum", create_type=False), default=RoleEnum.player
+    )

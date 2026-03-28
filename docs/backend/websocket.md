@@ -1,13 +1,15 @@
-
 # WebSocket API
 
-This document describes the WebSocket endpoint for real-time communication.
+**Tag**: `WebSocket`
+
+Real-time communication endpoint for game synchronization.
 
 ---
 
 ## Table of Contents
 
 - [Connection Endpoint](#connection-endpoint)
+- [Authentication](#authentication)
 - [Message Format](#message-format)
 - [Message Types](#message-types)
 - [Implementation Details](#implementation-details)
@@ -21,6 +23,8 @@ This document describes the WebSocket endpoint for real-time communication.
 ```
 ws://localhost:8000/ws/{match_code}
 ```
+
+**Production**: `wss://your-domain.com/ws/{match_code}`
 
 ### Path Parameters
 
@@ -38,7 +42,7 @@ ws.onopen = () => {
 };
 
 ws.onmessage = (event) => {
-  // NOTE: Backend sends raw payload objects, NOT wrapped in { "message": payload }
+  // Backend sends raw payload objects (not wrapped)
   const message = JSON.parse(event.data);
   console.log('Received:', message);
 };
@@ -46,11 +50,31 @@ ws.onmessage = (event) => {
 ws.onclose = () => {
   console.log('Disconnected');
 };
+
+ws.onerror = (error) => {
+  console.error('WebSocket error:', error);
+};
 ```
 
-### Authentication
+---
 
-WebSocket connections currently don't enforce JWT authentication by default. To add authentication, implement token validation using `get_ws_user(token)` from `dependencies/user_auth.py`.
+## Authentication
+
+WebSocket connections do **not** enforce JWT authentication by default.
+
+### Adding Authentication
+
+To implement authentication, validate tokens using `get_ws_user(token)` from `dependencies/user_auth.py`:
+
+```javascript
+// Client-side: Send token after connection
+ws.onopen = () => {
+  ws.send(JSON.stringify({
+    type: "auth",
+    token: "jwt-token-here"
+  }));
+};
+```
 
 ---
 
@@ -58,7 +82,7 @@ WebSocket connections currently don't enforce JWT authentication by default. To 
 
 ### Client → Server
 
-Clients send JSON messages to the server:
+Clients send JSON messages:
 
 ```json
 {
@@ -70,7 +94,7 @@ Clients send JSON messages to the server:
 
 ### Server → Client
 
-**IMPORTANT**: The backend broadcasts **raw payload objects directly** to clients. It does NOT wrap outbound frames in a `{ "message": payload }` envelope.
+**IMPORTANT**: Backend sends **raw payload objects** directly (NOT wrapped in `{ "message": payload }`).
 
 ```json
 {
@@ -79,7 +103,7 @@ Clients send JSON messages to the server:
 }
 ```
 
-**Note**: Some frontend code defensively supports both shapes for backward compatibility, but the backend always sends raw objects.
+**Note**: Some frontend code supports both shapes for backward compatibility, but the backend always sends raw objects.
 
 ---
 
@@ -187,7 +211,7 @@ Start a timer for a question.
 
 ### `send_players_info`
 
-Send player information to players (recommended consolidated shape).
+Send player information, scoreboard, and profiles (recommended consolidated shape).
 
 #### Payload
 
@@ -220,41 +244,253 @@ Send player information to players (recommended consolidated shape).
 
 ---
 
+### `player_score_updated`
+
+Notify clients of a score change for a specific player.
+
+#### Payload
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | `"player_score_updated"` |
+| `user_code` | string | ✅ | Player's user code |
+| `new_total_score` | number | ✅ | Updated total score |
+
+#### Example
+
+```json
+{
+  "type": "player_score_updated",
+  "user_code": "OC_U001",
+  "new_total_score": 150
+}
+```
+
+---
+
+### `answer`
+
+Broadcast a player's answer to all clients.
+
+#### Payload
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | `"answer"` |
+| `user_code` | string | ✅ | Player's user code |
+| `question_code` | string | ✅ | Question code |
+| `match_code` | string | ✅ | Match code |
+| `answer_text` | string | ✅ | Answer text |
+| `has_buzzed` | boolean | ✅ | Whether player buzzed |
+| `timestamp` | number | ✅ | Elapsed seconds |
+
+#### Example
+
+```json
+{
+  "type": "answer",
+  "user_code": "OC_U001",
+  "question_code": "OC3_Q001",
+  "match_code": "OC3_M001",
+  "answer_text": "Hanoi",
+  "has_buzzed": false,
+  "timestamp": 12.490
+}
+```
+
+---
+
+### `buzz`
+
+Buzz notification from a player (for individual rounds).
+
+#### Payload
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | `"buzz"` |
+| `user_code` | string | ✅ | Player's user code |
+
+#### Example
+
+```json
+{
+  "type": "buzz",
+  "user_code": "OC_U001"
+}
+```
+
+---
+
+### `request_presence`
+
+Admin requests all clients to announce their presence.
+
+#### Payload
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | `"request_presence"` |
+
+#### Example
+
+```json
+{
+  "type": "request_presence"
+}
+```
+
+**Client Response**: Clients should send `player_online` message.
+
+---
+
+### `player_online`
+
+Player announces presence upon WebSocket connection.
+
+#### Payload
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | `"player_online"` |
+| `user_code` | string | ✅ | Player's user code |
+
+#### Example
+
+```json
+{
+  "type": "player_online",
+  "user_code": "OC_U001"
+}
+```
+
+---
+
+### `clear_answers`
+
+Reset all player answers.
+
+#### Payload
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | `"clear_answers"` |
+
+#### Example
+
+```json
+{
+  "type": "clear_answers"
+}
+```
+
+---
+
+### `send_answers_to_players`
+
+Display other players' answers (for Khởi Động Chung).
+
+#### Payload
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | `"send_answers_to_players"` |
+| `answers` | array | ✅ | Array of answer objects |
+
+#### Example
+
+```json
+{
+  "type": "send_answers_to_players",
+  "answers": [
+    {
+      "user_code": "OC_U001",
+      "content": "Hanoi",
+      "timestamp": 12.490
+    },
+    {
+      "user_code": "OC_U002",
+      "content": "Ho Chi Minh City",
+      "timestamp": 15.230
+    }
+  ]
+}
+```
+
+---
+
 ## Implementation Details
 
 ### Connection Manager
 
 The `ConnectionManager` in `backend/app/utils/ws_connection.py` handles:
 
-- **Connection management**: Connect/disconnect WebSocket clients
-- **Room management**: Group clients by match code
-- **Broadcasting**: Send messages to all clients in a room
-- **Valkey integration**: Publish/subscribe for multi-instance sync
+| Feature | Description |
+|---------|-------------|
+| **Connection Management** | Connect/disconnect WebSocket clients |
+| **Room Management** | Group clients by match code |
+| **Broadcasting** | Send messages to all clients in a room |
+| **Valkey Integration** | Publish/subscribe for multi-instance sync |
 
 ### Valkey Integration
 
-For multi-instance deployments, the WebSocket manager uses Valkey for message synchronization:
+For multi-instance deployments, WebSocket messages are synchronized via Valkey:
 
-- **Publish**: Messages are published to `room:{match_code}` channel
-- **Subscribe**: Each instance subscribes to its rooms
-- **Loop prevention**: Messages include `__origin` and `__payload` fields to prevent broadcast loops
+**Publish**:
+```python
+await redis.publish(f"room:{match_code}", json.dumps({
+  "__origin": instance_id,
+  "__payload": message
+}))
+```
 
-### Message Broadcasting
+**Subscribe**:
+- Each instance subscribes to its rooms
+- Messages include `__origin` to prevent broadcast loops
 
-When a client sends a message:
+### Message Broadcasting Flow
 
-1. Server receives via `receive_json()`
-2. Logs the message
-3. Calls `ws_manager.broadcast_to_room(match_code, data)`
-4. Server wraps payload as `{ "message": <payload> }`
-5. Broadcasts to all clients in the room
-6. If Valkey is enabled, publishes to channel for other instances
+```
+Client sends message
+        ↓
+Server receives via receive_json()
+        ↓
+Server logs message
+        ↓
+Calls ws_manager.broadcast_to_room(match_code, data)
+        ↓
+Broadcasts to all connected clients in room
+        ↓
+If Valkey enabled: PUBLISH to room:{match_code} channel
+        ↓
+Other instances receive and forward to their clients
+```
 
 ### Error Handling
 
-- **WebSocketDisconnect**: Gracefully handles client disconnections
-- **General errors**: Logged with full context for debugging
-- **Cleanup**: Disconnects are properly handled in `finally` block
+| Error Type | Handling |
+|------------|----------|
+| **WebSocketDisconnect** | Gracefully removes client from room |
+| **General errors** | Logged with full context |
+| **Cleanup** | Disconnects properly handled in `finally` block |
+
+---
+
+## Best Practices
+
+### Client-Side
+
+1. **Reconnection**: Implement automatic reconnection with exponential backoff
+2. **Message Queue**: Queue messages during disconnection
+3. **Heartbeat**: Send periodic ping to keep connection alive
+4. **Error Handling**: Handle connection errors gracefully
+
+### Server-Side
+
+1. **Rate Limiting**: Limit message frequency per client
+2. **Validation**: Validate all incoming messages
+3. **Logging**: Log all messages for debugging
+4. **Cleanup**: Properly clean up disconnected clients
 
 ---
 
@@ -262,32 +498,5 @@ When a client sends a message:
 
 - `backend/app/main.py` - WebSocket endpoint
 - `backend/app/utils/ws_connection.py` - ConnectionManager
-- `backend/app/dependencies/ws_manager.py` - WebSocket manager dependency
+- `backend/app/dependencies/ws_manager.py` - WebSocket manager
 - `backend/app/dependencies/user_auth.py` - Token validation helpers
-         { "user_code": "OC_U_P01", "user_name": "Nguyen A", "position": 1, "cummulative_score": 120 },
-         { "user_code": "OC_U_P02", "user_name": "Tran B", "position": 2, "cummulative_score": 90 }
-       ]
-     }
-     ```
-   - Legacy/alternate shape supported by some clients: `{ type: 'send_players_info', players: [...], scoreboard: [...], profiles: [...] }` — clients should accept either.
-
- - `player_score_updated` (server → clients)
-   - payload example: `{ "type": "player_score_updated", "user_code": "OC_U_P03", "new_total_score": 150 }`
-
- - Output wrapper (server → client): messages are sent inside an envelope `{ "message": <payload> }` by the ConnectionManager. Frontend helpers typically unwrap this envelope before dispatching by `type`.
-
-### Notes và best-practices
-
-- Migration: các endpoint HTTP legacy `/controller/*` (admin → POST send_question / start_clock / navigate / clear_question ...) được xem là deprecated trong kế hoạch migrazione sang WS-first. Thay vì gọi REST, admin UI nên gửi control messages qua WebSocket theo các payload mẫu ở trên.
-- Admin UI: sử dụng hook `useWebSocket(matchCode)` và gọi `sendMessage(payload)` (ví dụ như trên). Đảm bảo payload có `user_code` (admin có thể dùng `""` nếu không có mã user cụ thể) để tuân typing trên frontend.
-- Multi‑instance: nếu triển khai nhiều backend, Valkey được dùng để replicate messages giữa các instance. `ConnectionManager` tự thêm `__origin` khi publish và bỏ qua các message có `__origin` trùng để tránh lặp.
-
-### Error handling
-
-- Lỗi trong loop được log; manager cố gắng cleanup clients bị lỗi.
-
-## File liên quan
-
-- `backend/app/main.py` (`websocket_endpoint`)
-- `backend/app/utils/ws_connection.py` (ConnectionManager, Valkey integration)
-- `backend/app/dependencies/ws_manager.py`

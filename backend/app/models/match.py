@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 import uuid
 
-from sqlalchemy import String, DateTime, Boolean, CheckConstraint, UUID, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import String, DateTime, Boolean, CheckConstraint, UUID, ForeignKey, Integer, UniqueConstraint, Enum as SQLEnum
+import enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from dependencies.postgresql_db import Base
@@ -31,6 +32,8 @@ class Match(Base):
 
     match_code: Mapped[str] = mapped_column(String, unique=True, index=True)
     match_name: Mapped[str] = mapped_column(String(length=100), unique=True)
+    match_status: Mapped[str] = mapped_column(SQLEnum('setup','active','completed','in_progress','paused','finished', name='matchstatusenum'), nullable=False, server_default='setup')
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Relationships

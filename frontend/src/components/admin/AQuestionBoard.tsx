@@ -7,6 +7,8 @@ interface AQuestionBoardProps {
     title: string;
     question: Question;
     timerDuration: number;
+    /** Optional node rendered next to the title in the header (e.g. dropdown) */
+    titleExtra?: React.ReactNode;
     controls?: AdminQuestionBoardControls;
     // children must be a render-prop that receives control APIs
     children?: (api: ControlsRenderApi) => React.ReactNode;
@@ -19,7 +21,7 @@ interface AQuestionBoardProps {
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[50vh]", answerBoxHeightClass = "h-[15vh]", hideAnswerBox = false }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[50vh]", answerBoxHeightClass = "h-[15vh]", hideAnswerBox = false, titleExtra }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -91,9 +93,12 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         <div className={`p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 ${boardHeightClass}`}>
             {/* Header: title, timer and six control boxes */}
             <div className="flex justify-between items-center pb-1">
-                <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
-                    {title}
-                </p>
+                <div className="flex items-center gap-4">
+                    <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                        {title}
+                    </p>
+                    {titleExtra && <div className="ml-2">{titleExtra}</div>}
+                </div>
                 <div className="flex items-center gap-4">
                     {/* keep controls container from shrinking so timer changes don't push it */}
                     <div className="flex gap-2 shrink-0">

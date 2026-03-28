@@ -1,0 +1,725 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import {
+    AlarmClockCheck,
+    Play,
+    Calculator,
+    Power,
+    RefreshCw,
+    Eye,
+    Trophy,
+} from "lucide-react";
+import ABasePageLayout from "@/pages/admin/ABasePageLayout";
+import AControlButton from "@/components/admin/AControlButton";
+import APlayerBar from "@/components/admin/APlayerBar";
+import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { createLogger } from "@/utils/logger";
+import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import type { PlayerStatus } from "@/types/player";
+import type { Question } from "@/types/question";
+import {
+    QUALIFIER_OPTIONS,
+    QUALIFIER_TIME_LIMIT,
+    QUALIFIER_QUESTIONS_PER_ROUND,
+    QUALIFIER_ROUND_COUNT,
+    QUALIFIER_QUESTION_PREFIX,
+    type QualifierStandingEntry,
+} from "@/types/qualifier";
+import { API_BASE_URL } from "@/configs";
+
+const logger = createLogger("AQualifier");
+
+const QUESTION_PREFIX = QUALIFIER_QUESTION_PREFIX || "OC3_Q_VL";
+
+const DEFAULT_QUESTION: Question = {
+    questionCode: "",
+    questionText: "",
+    questionAnswer: "",
+    questionExplanation: "",
+    questionMediaURL: undefined,
+    questionOptions: undefined,
+};
+
+const OPTION_BG: Record<string, string> = {
+    // Use the same blue tone as AQuestionBoard for all option boxes
+    A: "bg-blue-900 border-blue-600",
+    B: "bg-blue-900 border-blue-600",
+    C: "bg-blue-900 border-blue-600",
+    D: "bg-blue-900 border-blue-600",
+    E: "bg-blue-900 border-blue-600",
+    F: "bg-blue-900 border-blue-600",
+};
+
+
+const AQualifierPage = () => {
+    const currentMatchCode = localStorage.getItem("matchCode") ?? "";
+    const token = localStorage.getItem("jwtToken_admin") ?? "";
+    const { lastMessage, sendMessage } = useAdminWebSocket();
+
+    const [players, setPlayers] = useState<PlayerStatus[]>([]);
+    usePlayerPresence({ lastMessage, setPlayers });
+
+    const [timer, setTimer] = useState<number>(0);
+    const timerRef = useRef<number>(0);
+    const [isTimerRunning, setIsTimerRunning] = useState(false);
+
+    const [currentRound, setCurrentRound] = useState<number>(1);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
+    const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+    const [parsedOptions, setParsedOptions] = useState<string[]>([]);
+
+    const [hasCalculatedScore, setHasCalculatedScore] = useState(false);
+    const [lastScoreResult, setLastScoreResult] = useState<{ correct_count: number; wrong_count: number } | null>(null);
+    const [standings, setStandings] = useState<QualifierStandingEntry[]>([]);
+    const [advancements, setAdvancements] = useState<Array<{ round_number: number; status: string; user_code: string; user_name: string }>>([]);
+
+    const maxQuestionsForRound = QUALIFIER_QUESTIONS_PER_ROUND[currentRound] ?? 0;
+    const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    const resolveQuestionCode = useCallback(
+        (round: number, idx: number) => `${QUESTION_PREFIX}_${round}_${String(idx).padStart(2, "0")}`,
+        [],
+    );
+
+    const parseOptions = useCallback((options: string | string[] | undefined): string[] => {
+        if (!options) return [];
+        if (Array.isArray(options)) return options.slice(0, 6);
+        try {
+            const parsed = JSON.parse(options as string);
+            return Array.isArray(parsed) ? parsed.slice(0, 6) : [];
+        } catch (e) {
+            logger.warn("parseOptions: failed to parse options", e);
+            return [];
+        }
+    }, []);
+
+    const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => ({
+        questionCode: payload?.question_code ?? fallbackCode ?? "",
+        questionText: payload?.content ?? payload?.question?.content ?? "",
+        questionAnswer: payload?.answer ?? payload?.question?.answer ?? "",
+        questionExplanation: payload?.explanation ?? payload?.question?.explanation ?? "",
+        questionMediaURL: payload?.media_url ?? payload?.question?.media_url ?? undefined,
+        questionOptions: payload?.options ?? payload?.question?.options ?? undefined,
+    }), []);
+
+    const computePlayersSnapshot = useCallback(
+        (playersList: any[], scoreboard: any[] = [], profiles: any[] = [], prev: PlayerStatus[] = []) =>
+            buildPlayersSnapshot(playersList, scoreboard, profiles, prev),
+        [],
+    );
+
+    const applyPlayersSnapshot = useCallback(
+        (payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
+            setPlayers((prev) =>
+                computePlayersSnapshot(
+                    Array.isArray(payload?.players) ? payload.players : [],
+                    Array.isArray(payload?.scoreboard) ? payload.scoreboard : [],
+                    Array.isArray(payload?.profiles) ? payload.profiles : [],
+                    prev,
+                ),
+            );
+        },
+        [computePlayersSnapshot],
+    );
+
+    // ── Data Loading ──────────────────────────────────────────────────────────
+
+    const loadPlayersState = useCallback(async () => {
+        if (!currentMatchCode || !token) return undefined;
+        try {
+            const playersJson = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
+                headers: { Authorization: `Bearer ${token}` },
+            }).then((r) => r.json());
+            const playersList: any[] = playersJson.data?.players ?? [];
+
+            const profileResponses = await Promise.all(
+                playersList.map((entry: any) =>
+                    fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    })
+                        .then((r) => r.json())
+                        .catch(() => null),
+                ),
+            );
+            const profiles = playersList.map((entry: any, i: number) => ({
+                user_code: entry.user_code,
+                user_name: profileResponses[i]?.data?.user_name ?? "",
+            }));
+
+            setPlayers((prev) => computePlayersSnapshot(playersList, [], profiles, prev));
+            return { playersList, profiles };
+        } catch (err) {
+            logger.error("Failed to load players:", err);
+        }
+    }, [computePlayersSnapshot, currentMatchCode, token]);
+
+    const sendPlayersSnapshot = useCallback(async () => {
+        if (!currentMatchCode) return;
+        try {
+            const payload = await loadPlayersState();
+            if (!payload) return;
+            const { playersList, profiles } = payload;
+            const mergedPlayers = (playersList ?? []).map((p: any) => {
+                const code = String(p?.user_code ?? "");
+                const profile = profiles.find((pr: any) => String(pr?.user_code) === code) as any ?? {};
+                return { user_code: code, user_name: (profile?.user_name as string) ?? (p?.user_name as string) ?? "" };
+            });
+            await sendMessage({ type: "send_players_info", players: mergedPlayers });
+        } catch (err) {
+            logger.error("Failed to send players snapshot:", err);
+        }
+    }, [currentMatchCode, loadPlayersState, sendMessage]);
+
+    const loadQualifierStandings = useCallback(async () => {
+        if (!currentMatchCode || !token) return;
+        try {
+            const json = await fetch(`${API_BASE_URL}/qualifier/standings/${currentMatchCode}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            }).then((r) => r.json());
+            setStandings(json.data?.standings ?? []);
+        } catch (err) {
+            logger.error("Failed to load qualifier standings:", err);
+        }
+    }, [currentMatchCode, token]);
+
+    const loadAdvancements = useCallback(async () => {
+        if (!currentMatchCode || !token) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/qualifier/advancements/${currentMatchCode}`, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) return;
+            const json = await res.json();
+            setAdvancements(json.data?.advancements ?? []);
+        } catch (err) {
+            logger.warn("Failed to load qualifier advancements:", err);
+        }
+    }, [currentMatchCode, token]);
+
+    const loadQuestion = useCallback(
+        async (round: number, questionIndex: number): Promise<Question | undefined> => {
+            if (!currentMatchCode || !token || questionIndex <= 0) {
+                setCurrentQuestion({ ...DEFAULT_QUESTION });
+                setParsedOptions([]);
+                return { ...DEFAULT_QUESTION };
+            }
+
+            const candidates = [
+                // Preferred format used by UI
+                resolveQuestionCode(round, questionIndex),
+                // Some DBs may not zero-pad the index
+                `${QUESTION_PREFIX}_${round}_${questionIndex}`,
+                // Some imports may use prefix + round + index without extra separator
+                `${QUESTION_PREFIX}_${round}${String(questionIndex).padStart(2, "0")}`,
+                // Fallbacks without round
+                `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`,
+                `${QUESTION_PREFIX}_${questionIndex}`,
+            ];
+
+            // Helper to try fetching a single candidate code
+            const tryFetch = async (qCode: string) => {
+                try {
+                    const res = await fetch(
+                        `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(qCode)}`,
+                        { headers: { Authorization: `Bearer ${token}` } },
+                    );
+                    const data = await res.json();
+                    // API may return single object in data or array; map accordingly
+                    if (!data) return undefined;
+                    // If API returned an array, pick first
+                    const payload = Array.isArray(data.data) ? data.data[0] : data.data;
+                    if (!payload) return undefined;
+                    return mapQuestionPayload(payload, qCode);
+                } catch (e) {
+                    // ignore and try next (log for debugging)
+                    logger.warn("tryFetch candidate failed:", e);
+                    return undefined;
+                }
+            };
+
+            // Try candidates in order
+            for (const c of candidates) {
+                const mapped = await tryFetch(c);
+                if (mapped && mapped.questionCode) {
+                    setCurrentQuestion(mapped);
+                    setParsedOptions(parseOptions(mapped.questionOptions));
+                    return mapped;
+                }
+            }
+
+            // As a last resort, fetch all questions for the match and try to find a best match
+            try {
+                const allRes = await fetch(
+                    `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}`,
+                    { headers: { Authorization: `Bearer ${token}` } },
+                );
+                const allJson = await allRes.json();
+                const list = Array.isArray(allJson.data) ? allJson.data : allJson.data ? [allJson.data] : [];
+
+                // Try to find by pattern: contains _VL_ and round and index
+                const roundIdxRegex = new RegExp(`${QUESTION_PREFIX}[_-]?${round}[_-]?(\\d{1,3})`, "i");
+                for (const item of list) {
+                    const code = String(item?.question_code ?? "");
+                    const m = code.match(roundIdxRegex);
+                    if (m) {
+                        const idx = Number(m[1]);
+                        if (idx === questionIndex) {
+                            const mapped = mapQuestionPayload(item, code);
+                            setCurrentQuestion(mapped);
+                            setParsedOptions(parseOptions(mapped.questionOptions));
+                            return mapped;
+                        }
+                    }
+                }
+
+                // If still not found, try to pick the question by ordinal position within the match
+                if (list.length >= questionIndex) {
+                    const item = list[questionIndex - 1];
+                    const mapped = mapQuestionPayload(item, String(item?.question_code ?? ""));
+                    setCurrentQuestion(mapped);
+                    setParsedOptions(parseOptions(mapped.questionOptions));
+                    return mapped;
+                }
+            } catch (err) {
+                logger.warn("Fallback fetch all questions failed:", err);
+            }
+
+            // Nothing found — return empty fallback with constructed code
+            const fallbackCode = resolveQuestionCode(round, questionIndex);
+            const fallback = mapQuestionPayload(null, fallbackCode);
+            setCurrentQuestion(fallback);
+            setParsedOptions([]);
+            return fallback;
+        },
+        [currentMatchCode, mapQuestionPayload, parseOptions, resolveQuestionCode, token],
+    );
+
+    // ── WebSocket message handler ─────────────────────────────────────────────
+
+    useEffect(() => {
+        if (!lastMessage) return;
+        const msg = lastMessage as any;
+        switch (msg?.type) {
+            case "send_players_info":
+                startTransition(() => applyPlayersSnapshot(msg));
+                break;
+            case "answer": {
+                const { user_code, answer_text, timestamp } = msg;
+                if (user_code && answer_text) {
+                    startTransition(() => {
+                        setPlayers((prev) =>
+                            prev.map((p) =>
+                                p.playerCode === user_code
+                                    ? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp ?? p.playerTimestamp }
+                                    : p,
+                            ),
+                        );
+                    });
+                }
+                break;
+            }
+            case "qualifier_scores_updated":
+                setLastScoreResult({ correct_count: msg.correct_count, wrong_count: msg.wrong_count });
+                startTransition(() => {
+                    setPlayers((prev) =>
+                        prev.map((p) => {
+                            const upd = (msg.score_updates as any[]).find((s: any) => s.user_code === p.playerCode);
+                            return upd ? { ...p, playerScore: upd.new_total } : p;
+                        }),
+                    );
+                });
+                break;
+            case "send_answers_to_players": {
+                const answers = Array.isArray(msg.answers) ? msg.answers : [];
+                startTransition(() => {
+                    setPlayers((prev) =>
+                        prev.map((p) => {
+                            const ans = answers.find((a: any) => a.user_code === p.playerCode);
+                            return ans
+                                ? { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp }
+                                : p;
+                        }),
+                    );
+                });
+                break;
+            }
+            case "clear_answers":
+                startTransition(() => {
+                    setPlayers((prev) =>
+                        prev.map((p) => ({ ...p, playerLastAnswer: undefined, playerTimestamp: undefined })),
+                    );
+                });
+                break;
+            case "qualifier_round_result":
+                // refresh server-side persisted advancements so the right column displays accurate lists
+                void loadAdvancements();
+                break;
+            default:
+                break;
+        }
+    }, [lastMessage, applyPlayersSnapshot, loadAdvancements]);
+
+    // ── Timer ─────────────────────────────────────────────────────────────────
+
+    useEffect(() => { timerRef.current = timer; }, [timer]);
+
+    useEffect(() => {
+        if (!isTimerRunning) return;
+        const id = window.setInterval(() => {
+            setTimer((prev) => {
+                if (prev <= 1) { setIsTimerRunning(false); return 0; }
+                return prev - 1;
+            });
+        }, 1000);
+        return () => clearInterval(id);
+    }, [isTimerRunning]);
+
+    useEffect(() => {
+        setHasCalculatedScore(false);
+        setLastScoreResult(null);
+    }, [currentQuestionIndex, currentRound]);
+
+    useEffect(() => {
+        void loadPlayersState();
+        void loadQualifierStandings();
+        void loadAdvancements();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── Action handlers ───────────────────────────────────────────────────────
+
+    const handleStartRound = useCallback(async () => {
+        setCurrentQuestionIndex(0);
+        setCurrentQuestion({ ...DEFAULT_QUESTION });
+        setParsedOptions([]);
+        setTimer(0);
+        setIsTimerRunning(false);
+        if (!currentMatchCode) return;
+        try {
+            await sendMessage({ type: "navigate", user_code: "", path: "/player/vl" });
+            await sendPlayersSnapshot();
+            await sendMessage({ type: "clear_question", user_code: "" });
+        } catch (err) {
+            logger.error("Failed to start qualifier round:", err);
+        }
+    }, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
+
+    const handleEndRound = useCallback(async () => {
+        setCurrentQuestionIndex(0);
+        setCurrentQuestion({ ...DEFAULT_QUESTION });
+        setParsedOptions([]);
+        setTimer(0);
+        setIsTimerRunning(false);
+        if (!currentMatchCode) return;
+        try {
+            await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+        } catch (err) {
+            logger.error("Failed to end qualifier round:", err);
+        }
+        try {
+            // call backend to finalize round (will persist passed/reserve and broadcast)
+            const res = await fetch(`${API_BASE_URL}/qualifier/end-round`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ match_code: currentMatchCode, round_number: currentRound }),
+            });
+            const json = await res.json();
+            if (json.status === "success") {
+                // refresh standings and advancements
+                await loadQualifierStandings();
+                await loadAdvancements();
+            } else {
+                logger.error("End round failed:", json.message);
+            }
+        } catch (err) {
+            logger.error("Failed to call end-round API:", err);
+            await loadQualifierStandings();
+        }
+    }, [currentMatchCode, currentRound, loadQualifierStandings, loadAdvancements, sendMessage, token]);
+
+    const startTheClock = useCallback(async () => {
+        if (!currentMatchCode || !token || currentQuestionIndex <= 0 || timer > 0) return;
+        const questionCode = resolveQuestionCode(currentRound, currentQuestionIndex);
+        setTimer(QUALIFIER_TIME_LIMIT);
+        setIsTimerRunning(true);
+        try {
+            await sendMessage({
+                type: "start_the_timer",
+                user_code: "",
+                time_limit: QUALIFIER_TIME_LIMIT,
+                question_code: questionCode,
+                started_at: Date.now(),
+            });
+        } catch (err) {
+            logger.error("Failed to start timer:", err);
+        }
+    }, [currentMatchCode, currentQuestionIndex, currentRound, resolveQuestionCode, sendMessage, timer, token]);
+
+    const handleCalculateScores = useCallback(async () => {
+        if (!currentMatchCode || !token || !currentQuestion.questionCode || hasCalculatedScore) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/qualifier/calculate-scores`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({
+                    match_code: currentMatchCode,
+                    question_code: currentQuestion.questionCode,
+                    correct_answer: currentQuestion.questionAnswer,
+                    round_number: currentRound,
+                }),
+            });
+            const json = await res.json();
+            if (json.status === "success") {
+                setHasCalculatedScore(true);
+                setLastScoreResult(json.data);
+                await loadQualifierStandings();
+            } else {
+                logger.error("Score calculation failed:", json.message);
+            }
+        } catch (err) {
+            logger.error("Failed to calculate qualifier scores:", err);
+        }
+    }, [currentMatchCode, currentQuestion, currentRound, hasCalculatedScore, loadQualifierStandings, token]);
+
+    const showAnswers = useCallback(async () => {
+        if (!canShowAnswers) return;
+        const answersPayload: Array<{ user_code: string; content: string; timestamp: number }> = [];
+        for (const player of players) {
+            try {
+                const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(currentQuestion.questionCode)}`;
+                const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+                if (!res.ok) continue;
+                const json = await res.json();
+                const data = json.data;
+                if (!data) continue;
+                const answerObj = Array.isArray(data) ? data[0] : data;
+                if (answerObj?.answer_text) {
+                    answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: answerObj.timestamp ?? 0 });
+                }
+            } catch (err) {
+                logger.warn("showAnswers: failed for", player.playerCode, err);
+            }
+        }
+        try {
+            await sendMessage({ type: "send_answers_to_players", answers: answersPayload });
+        } catch (err) {
+            logger.error("showAnswers broadcast failed:", err);
+        }
+    }, [canShowAnswers, currentMatchCode, currentQuestion, players, sendMessage, token]);
+
+    const clearAnswers = useCallback(async () => {
+        if (!currentMatchCode) return;
+        try {
+            await sendMessage({ type: "clear_answers" });
+            startTransition(() => {
+                setPlayers((prev) =>
+                    prev.map((p) => ({ ...p, playerLastAnswer: undefined, playerTimestamp: undefined })),
+                );
+            });
+        } catch (err) {
+            logger.error("clearAnswers failed:", err);
+        }
+    }, [currentMatchCode, sendMessage]);
+
+    // Select a question by index (1-based). Loads question and broadcasts it to players.
+    const handleSelectQuestion = useCallback(
+        async (questionIndex: number) => {
+            if (questionIndex <= 0) return;
+            setCurrentQuestionIndex(questionIndex);
+            const q = await loadQuestion(currentRound, questionIndex);
+            if (!q || !q.questionCode) return;
+            try {
+                await sendMessage({
+                    type: "send_question",
+                    user_code: "",
+                    question_code: q.questionCode,
+                    content: q.questionText ?? "",
+                    options: parseOptions(q.questionOptions),
+                    media_source: q.questionMediaURL ?? undefined,
+                });
+            } catch (err) {
+                logger.error("Failed to broadcast question:", err);
+            }
+        },
+        [currentRound, loadQuestion, sendMessage, parseOptions],
+    );
+
+    // ── Render helpers ────────────────────────────────────────────────────────
+
+    const questionTitle = `VÒNG LOẠI`;
+
+    const renderPlayerList = useCallback(() => {
+        // group advancements by round
+        const grouped: Record<number, Array<{ round_number: number; status: string; user_code: string; user_name: string }>> = {};
+        for (const a of advancements) {
+            const r = Number(a.round_number) || 0;
+            if (!grouped[r]) grouped[r] = [];
+            grouped[r].push(a);
+        }
+        const roundKeys = Object.keys(grouped).map((k) => Number(k)).sort((a, b) => a - b);
+
+        return (
+            <>
+                {roundKeys.length > 0 && (
+                    <div className="mb-4">
+                        {roundKeys.map((r) => {
+                            const items = grouped[r] ?? [];
+                            const passed = items.filter((it) => it.status === "passed");
+                            const reserved = items.filter((it) => it.status === "reserve");
+                            return (
+                                <div key={r} className="mb-3 p-2 bg-blue-800 rounded">
+                                    <div className="flex items-center justify-between">
+                                        <div className="text-sm font-semibold">Vòng {r}</div>
+                                        <div className="text-xs text-gray-200">Qua: {passed.length} — Dự phòng: {reserved.length}</div>
+                                    </div>
+                                    <div className="mt-2">
+                                        <div className="text-xs text-green-200 mb-1">Qua:</div>
+                                        <div className="flex flex-wrap gap-2 mb-2">
+                                            {passed.map((p) => (
+                                                <span key={p.user_code} className="px-2 py-1 bg-green-700 rounded text-xs text-white">{p.user_name || p.user_code}</span>
+                                            ))}
+                                        </div>
+                                        <div className="text-xs text-yellow-200 mb-1">Dự phòng:</div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {reserved.map((p) => (
+                                                <span key={p.user_code} className="px-2 py-1 bg-yellow-700 rounded text-xs text-white">{p.user_name || p.user_code}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+                <div className="space-y-2">
+                    {players.map((p) => {
+                        const standing = standings.find((s) => s.user_code === p.playerCode);
+                        const displayScore = standing ? standing.total_score : p.playerScore;
+                        const isNegative = displayScore < 0;
+                        return (
+                            <APlayerBar
+                                key={p.playerCode}
+                                player={{ ...p, playerScore: displayScore }}
+                                isActive={isNegative}
+                                disabled
+                            />
+                        );
+                    })}
+                </div>
+            </>
+        );
+    }, [advancements, players, standings]);
+
+    return (
+        <ABasePageLayout
+            questionTitle={questionTitle}
+            question={currentQuestion}
+            timerDuration={timer}
+            hideAnswerBox={true}
+            controls={{
+                variant: "numbers",
+                count: maxQuestionsForRound,
+                activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
+                onToggle: (idx: number, state: boolean) => {
+                    // when an index is toggled on, select the question
+                    if (state) void handleSelectQuestion(idx + 1);
+                },
+            }}
+            titleExtra={(
+                <div className="flex items-center gap-2">
+                    <select
+                        value={currentRound}
+                        onChange={(e) => {
+                            const r = Number(e.target.value || 1);
+                            setCurrentRound(r);
+                            setCurrentQuestionIndex(0);
+                            setCurrentQuestion({ ...DEFAULT_QUESTION });
+                            setParsedOptions([]);
+                        }}
+                        className="bg-blue-800 text-white border border-blue-600 rounded px-3 py-1 text-sm"
+                    >
+                        {Array.from({ length: QUALIFIER_ROUND_COUNT + 1 }, (_, i) => i + 1).map((r) => (
+                            <option key={r} value={r}>
+                                {r <= QUALIFIER_ROUND_COUNT ? `Vòng ${r} (${QUALIFIER_QUESTIONS_PER_ROUND[r]} câu)` : "Dự phòng"}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )}
+            aboveQuestionBoard={
+                lastScoreResult ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <div className="ml-auto flex gap-2 text-xs font-mono">
+                            <span className="bg-green-700 text-green-100 px-2 py-1 rounded">
+                                ✓ {lastScoreResult.correct_count} đúng (+{lastScoreResult.wrong_count} điểm)
+                            </span>
+                            <span className="bg-red-700 text-red-100 px-2 py-1 rounded">
+                                ✗ {lastScoreResult.wrong_count} sai (-{lastScoreResult.correct_count} điểm)
+                            </span>
+                        </div>
+                    </div>
+                ) : undefined
+            }
+            underQuestionBoard={(
+                <div className="mt-4">
+                    <div className="grid grid-cols-3 grid-rows-2 gap-4 auto-rows-fr">
+                        {QUALIFIER_OPTIONS.map((opt, idx) => {
+                            const text = parsedOptions[idx] ?? "";
+                            const isCorrect = currentQuestion.questionAnswer?.toUpperCase() === opt;
+                            return (
+                                <div
+                                    key={opt}
+                                    className={`flex items-start gap-3 p-4 rounded-xl border-2 text-white font-bold text-sm ${OPTION_BG[opt]} ${isCorrect ? "ring-2 ring-white" : ""} h-28 shadow-md`}
+                                >
+                                    <div className="text-3xl font-extrabold w-8 text-center">{opt}</div>
+                                    <div className="leading-tight text-left">{text}</div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+            topControlButtons={
+                <>
+                    <AControlButton onClick={handleStartRound}>
+                        <Power size={18} className="mr-2" /> BẮT ĐẦU VÒNG
+                    </AControlButton>
+                    <AControlButton
+                        onClick={startTheClock}
+                        disabled={timer > 0 || currentQuestionIndex <= 0}
+                    >
+                        <AlarmClockCheck size={18} className="mr-2" /> BẤM GIỜ (10s)
+                    </AControlButton>
+                </>
+            }
+            bottomActionButtons={
+                <>
+                    <AControlButton onClick={showAnswers} disabled={!canShowAnswers}>
+                        <Eye size={18} className="mr-2" /> HIỆN TRẢ LỜI
+                    </AControlButton>
+                    <AControlButton
+                        onClick={handleCalculateScores}
+                        disabled={!currentQuestion.questionCode || hasCalculatedScore}
+                        className={hasCalculatedScore ? "opacity-60" : ""}
+                    >
+                        <Calculator size={18} className="mr-2" /> TÍNH ĐIỂM
+                    </AControlButton>
+                    <AControlButton onClick={clearAnswers}>
+                        <RefreshCw size={18} className="mr-2" /> XÓA ĐÁP ÁN
+                    </AControlButton>
+                    <AControlButton onClick={() => void loadQualifierStandings()}>
+                        <Trophy size={18} className="mr-2" /> TẢI BXH
+                    </AControlButton>
+                    <AControlButton onClick={handleEndRound}>
+                        <Play size={18} className="mr-2" /> KẾT THÚC VÒNG
+                    </AControlButton>
+                </>
+            }
+            renderPlayerList={renderPlayerList}
+        />
+    );
+};
+
+export default AQualifierPage;

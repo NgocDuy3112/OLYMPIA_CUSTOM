@@ -1,10 +1,10 @@
 # OLYMPIA CUSTOM 3 — Backend API Documentation
 
-Tài liệu này mô tả chi tiết API backend của hệ thống OLYMPIA CUSTOM 3, được xây dựng bằng FastAPI.
+Comprehensive API documentation for the OLYMPIA CUSTOM 3 quiz game backend, built with FastAPI.
 
-## Mục lục
+## Table of Contents
 
-- [Tổng quan](#tổng-quan)
+- [Overview](#overview)
 - [Authentication](#authentication)
 - [Response Format](#response-format)
 - [API Endpoints](#api-endpoints)
@@ -13,37 +13,43 @@ Tài liệu này mô tả chi tiết API backend của hệ thống OLYMPIA CUST
 
 ---
 
-## Tổng quan
+## Overview
 
-### Framework & Technology Stack
+### Technology Stack
 
-- **Framework**: FastAPI (Python 3.12+)
-- **Database**: PostgreSQL 17 (Async SQLAlchemy 2.0)
-- **Cache**: Valkey 9 (Redis-compatible)
-- **Authentication**: JWT (JSON Web Tokens)
-- **File Upload**: Google Drive & Excel import
+| Component | Technology | Version |
+|-----------|------------|---------|
+| **Framework** | FastAPI | Latest (Python 3.12+) |
+| **Database** | PostgreSQL | 17 |
+| **ORM** | SQLAlchemy | 2.0 (Async) |
+| **Cache** | Valkey | 9 (Redis-compatible) |
+| **Authentication** | JWT | HS256 |
+| **File Import** | Google Drive, Excel | - |
 
-### Base URL
+### Base URLs
 
-- Development: `http://localhost:8000`
-- Production: Configured via environment variables
+| Environment | URL |
+|-------------|-----|
+| **Development** | `http://localhost:8000` |
+| **Production** | Configured via environment variables |
 
-### OpenAPI Documentation
+### API Documentation
 
-FastAPI tự động generate tài liệu API:
+FastAPI auto-generates interactive API docs:
 
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
-- **OpenAPI JSON**: `http://localhost:8000/openapi.json`
+| Documentation | URL |
+|---------------|-----|
+| **Swagger UI** | `http://localhost:8000/docs` |
+| **ReDoc** | `http://localhost:8000/redoc` |
+| **OpenAPI JSON** | `http://localhost:8000/openapi.json` |
 
 ### Health Check
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Check if the API is running |
+```http
+GET /health
+```
 
-**Response**:
-
+**Response:**
 ```json
 {
   "status": "healthy"
@@ -54,223 +60,9 @@ FastAPI tự động generate tài liệu API:
 
 ```
 backend/app/
-├── core/          # Business logic layer
-├── routes/        # FastAPI route handlers
-├── models/        # SQLAlchemy ORM models
-├── schemas/       # Pydantic request/response models
-├── dependencies/  # Dependency injection (DB, Auth, Valkey)
-├── utils/         # Helper functions
-└── main.py        # Application entry point
-```
-
----
-
-## Authentication
-
-### JWT Token Format
-
-Tất cả protected endpoints yêu cầu Bearer token trong Authorization header:
-
-```
-Authorization: Bearer <access_token>
-```
-
-### Token Structure
-
-JWT tokens contain the following claims:
-
-```json
-{
-  "sub": "user_code",
-  "role": "guest|player|admin",
-  "exp": timestamp
-}
-```
-
-### Token Acquisition
-
-| Endpoint | Method | Public | Description |
-|----------|--------|--------|-------------|
-| `/auth/signup` | POST | ✅ | Register new user |
-| `/auth/login` | POST | ✅ | Authenticate and get token |
-
-### Token Usage
-
-```bash
-# Example: Get user list (admin only)
-curl -X GET http://localhost:8000/users/ \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-### Token Expiration
-
-- Default: Configured via `ACCESS_TOKEN_EXPIRE_MINUTES` environment variable
-- Tokens must be refreshed before expiration
-- Expired tokens return `401 Unauthorized`
-
----
-
-## Response Format
-
-### Standard Response Envelope
-
-Tất cả API responses follow the `BaseResponse` schema:
-
-```json
-{
-  "status": "success" | "error",
-  "message": "string",
-  "data": "object | array | null"
-}
-```
-
-### Response Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `status` | string | `"success"` or `"error"` |
-| `message` | string | Human-readable message |
-| `data` | object/array/null | Response payload |
-
-### Error Response Example
-
-```json
-{
-  "status": "error",
-  "message": "User not found",
-  "data": null
-}
-```
-
-### Common Error Codes
-
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `400 Bad Request` | Validation Error | Invalid input data (e.g., invalid code format) |
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Insufficient permissions (wrong role) |
-| `404 Not Found` | Not Found Error | Resource doesn't exist |
-| `422 Unprocessable Entity` | Validation Error | Pydantic schema validation failure |
-| `500 Internal Server Error` | Server Error | Database or server error |
-
-For more details, see [Errors & Response Envelope](./errors-and-envelope.md).
-
----
-
-## API Endpoints
-
-### Authentication & Users
-
-| Endpoint | Method | Role | Description |
-|----------|--------|------|-------------|
-| `/auth/signup` | POST | Public | Register new user |
-| `/auth/login` | POST | Public | Authenticate user |
-| `/users/` | GET | Admin | List or filter users |
-| `/users/{user_code}` | PATCH | Admin | Update user |
-| `/users/{user_code}` | DELETE | Admin | Delete user |
-
-### Matches (Trận đấu)
-
-| Endpoint | Method | Role | Description |
-|----------|--------|------|-------------|
-| `/matches/` | POST | Admin | Create new match |
-| `/matches/` | GET | Admin | Get match details |
-| `/matches/{match_code}` | PATCH | Admin | Update match |
-| `/matches/{match_code}` | DELETE | Admin | Delete match |
-
-### Questions (Câu hỏi)
-
-| Endpoint | Method | Role | Description |
-|----------|--------|------|-------------|
-| `/questions/drive/` | POST | Admin | Import from Google Drive |
-| `/questions/excel/` | POST | Admin | Import from Excel file |
-| `/questions/{match_code}/{question_code}` | DELETE | Admin | Delete question |
-
-### Answers (Câu trả lời)
-
-| Endpoint | Method | Role | Description |
-|----------|--------|------|-------------|
-| `/answers/` | POST | Player/Admin | Submit answer (writes to Valkey cache + PostgreSQL) |
-| `/answers/` | GET | Admin | Get most recent answer (reads from Valkey cache, falls back to PostgreSQL) |
-| `/answers/{match_code}/{user_code}/{question_code}` | DELETE | Admin | Delete answer |
-
-### Records (Điểm số)
-
-| Endpoint | Method | Role | Description |
-|----------|--------|------|-------------|
-| `/records/` | POST | Player/Admin | Record points (writes to Valkey cache + PostgreSQL) |
-| `/records/` | GET | Player/Admin | Get records for user in match |
-
-### Scoreboard (Bảng xếp hạng)
-
-| Endpoint | Method | Role | Description |
-|----------|--------|------|-------------|
-| `/scoreboard/{match_code}` | GET | Admin | Get leaderboard |
-
-### Caching Strategy
-
-The backend uses **Valkey** for caching frequently accessed data:
-
-| Endpoint | Cache Behavior |
-|----------|----------------|
-| `/answers/` | POST writes to cache; GET reads from cache (falls back to PostgreSQL) |
-| `/records/` | POST writes to cache |
-| `/scoreboard/{match_code}` | Reads from Valkey cache |
-
-**Note**: Cache invalidation is handled automatically on write operations. The cache serves as the primary read source for performance, with PostgreSQL as a fallback.
-
----
-
-## WebSocket
-
-### Connection Endpoint
-
-```
-ws://localhost:8000/ws/{match_code}
-```
-
-### Authentication
-
-WebSocket connections currently don't enforce JWT authentication by default. To add authentication, implement token validation using `get_ws_user(token)` from `dependencies/user_auth.py`.
-
-### Message Format
-
-#### Client → Server
-
-```json
-{
-  "type": "send_question|clear_question|navigate|start_the_timer",
-  "user_code": "string",
-  "question_code": "string (optional)",
-  "content": "string (optional)",
-  "media_source": "string|array (optional)",
-  "time_limit": "number (optional)",
-  "path": "string (optional)"
-}
-```
-
-#### Server → Client
-
-**NOTE**: Backend sends **raw payload objects directly**. It does NOT wrap outbound frames in a `{ "message": payload }` envelope.
-
-```json
-{
-  "type": "send_question|clear_question|navigate|start_the_timer|send_players_info",
-  ...
-}
-```
-
----
-
-## Developer Resources
-
-### Project Structure
-
-```
-backend/app/
-├── main.py              # FastAPI app entry point, lifespan, WebSocket
+├── main.py              # FastAPI app entry point, WebSocket
 ├── configs.py           # Configuration management
-├── logger.py            # Logging utilities (global_logger)
+├── logger.py            # Logging utilities
 ├── core/                # Business logic layer
 │   ├── auth.py          # Authentication logic
 │   ├── user.py          # User management
@@ -285,7 +77,7 @@ backend/app/
 │   ├── question.py      # Question model
 │   ├── answer.py        # Answer model
 │   └── record.py        # Record model
-├── schemas/             # Pydantic request/response models
+├── schemas/             # Pydantic models
 │   ├── base.py          # BaseResponse schema
 │   ├── user.py          # User schemas
 │   ├── match.py         # Match schemas
@@ -293,7 +85,7 @@ backend/app/
 │   ├── answer.py        # Answer schemas
 │   ├── record.py        # Record schemas
 │   └── scoreboard.py    # Scoreboard schemas
-├── routes/              # API endpoints (FastAPI routers)
+├── routes/              # API routers
 │   ├── auth.py          # /auth endpoints
 │   ├── user.py          # /users endpoints
 │   ├── match.py         # /matches endpoints
@@ -312,17 +104,264 @@ backend/app/
     └── gcp_helpers.py   # Google Cloud helpers
 ```
 
+---
+
+## Authentication
+
+### JWT Token Format
+
+All protected endpoints require a Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer <access_token>
+```
+
+### Token Claims
+
+```json
+{
+  "sub": "user_code",
+  "role": "guest|player|admin",
+  "exp": timestamp
+}
+```
+
+### Token Acquisition
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/auth/signup` | POST | Public | Register new user |
+| `/auth/login` | POST | Public | Authenticate and get token |
+| `/auth/refresh` | POST | Public | Refresh access token |
+| `/auth/logout` | POST | Bearer | Revoke refresh tokens |
+
+### Token Expiration
+
+| Token | Lifetime | Storage |
+|-------|----------|---------|
+| **Access Token** | 30 minutes (configurable) | Memory/localStorage |
+| **Refresh Token** | 7 days (configurable) | localStorage |
+
+### Example Usage
+
+```bash
+curl -X GET http://localhost:8000/users/ \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+---
+
+## Response Format
+
+### Standard Response Envelope
+
+All API responses follow the `BaseResponse` schema:
+
+```json
+{
+  "status": "success",
+  "message": "Human-readable message",
+  "data": { ... }
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | `"success"` or `"error"` |
+| `message` | string | Human-readable description |
+| `data` | object/array/null | Response payload |
+
+### Success Response Example
+
+```json
+{
+  "status": "success",
+  "message": "User created successfully",
+  "data": {
+    "user_code": "OC_U001",
+    "user_name": "Nguyen Van A",
+    "role": "admin"
+  }
+}
+```
+
+### Error Response Example
+
+```json
+{
+  "status": "error",
+  "message": "User not found",
+  "data": null
+}
+```
+
+### HTTP Status Codes
+
+| Code | Description | Common Scenarios |
+|------|-------------|------------------|
+| `200 OK` | Success | GET, PATCH, DELETE |
+| `201 Created` | Resource created | POST |
+| `400 Bad Request` | Invalid input | Validation errors, duplicates |
+| `401 Unauthorized` | Auth required | Missing/invalid token |
+| `403 Forbidden` | Insufficient permissions | Wrong role |
+| `404 Not Found` | Resource not found | Invalid ID |
+| `422 Unprocessable Entity` | Validation error | Pydantic validation |
+| `500 Internal Server Error` | Server error | Database errors |
+
+See [Errors & Response Envelope](./errors-and-envelope.md) for details.
+
+---
+
+## API Endpoints
+
+### Authentication & Users
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/auth/signup` | POST | Public | Register new user |
+| `/auth/login` | POST | Public | Authenticate user |
+| `/auth/refresh` | POST | Public | Refresh access token |
+| `/auth/logout` | POST | Bearer | Revoke tokens |
+| `/auth/send-credentials/{user_code}` | POST | Admin | Email user credentials |
+| `/auth/send-reset/{user_code}` | POST | Admin | Send password reset link |
+| `/auth/reset-password` | POST | Public | Reset password with token |
+| `/auth/request-otp` | POST | Public | Request OTP |
+| `/auth/verify-otp` | POST | Public | Verify OTP |
+| `/users/` | GET | Admin | List/filter users |
+| `/users/{user_code}` | PATCH | Admin | Update user |
+| `/users/{user_code}` | DELETE | Admin | Delete user |
+
+### Matches
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/matches/` | POST | Admin | Create match |
+| `/matches/` | GET | Admin | Get match details |
+| `/matches/{match_code}` | PATCH | Admin | Update match |
+| `/matches/{match_code}` | DELETE | Admin | Delete match |
+
+### Questions
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/questions/drive/` | POST | Admin | Import from Google Drive |
+| `/questions/excel/` | POST | Admin | Import from Excel |
+| `/questions/` | POST | Admin | Create question manually |
+| `/questions/` | GET | Admin | Get question details |
+| `/questions/{match_code}/{question_code}` | DELETE | Admin | Delete question |
+
+### Answers
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/answers/` | POST | Player/Admin | Submit answer |
+| `/answers/` | GET | Admin | Get answer (cache → DB) |
+| `/answers/{match_code}/{user_code}/{question_code}` | DELETE | Admin | Delete answer |
+
+### Records
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/records/` | POST | Player/Admin | Record points |
+| `/records/` | GET | Player/Admin | Get user records |
+
+### Scoreboard
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/scoreboard/{match_code}` | GET | Admin | Get leaderboard |
+
+### Caching Strategy
+
+The backend uses **Valkey** for caching:
+
+| Endpoint | Cache Behavior |
+|----------|----------------|
+| `/answers/` | POST writes to cache; GET reads from cache (falls back to PostgreSQL) |
+| `/records/` | POST writes to cache, updates leaderboard |
+| `/scoreboard/{match_code}` | Reads from Valkey ZSET |
+
+**Note**: Cache invalidation is automatic on write operations.
+
+---
+
+## WebSocket
+
+### Connection Endpoint
+
+```
+ws://localhost:8000/ws/{match_code}
+```
+
+### Authentication
+
+WebSocket connections do not enforce JWT by default. To add authentication, use `get_ws_user(token)` from `dependencies/user_auth.py`.
+
+### Message Format
+
+#### Client → Server
+
+```json
+{
+  "type": "send_question|clear_question|navigate|start_the_timer|send_players_info",
+  "user_code": "string",
+  "question_code": "string (optional)",
+  "content": "string (optional)",
+  "media_source": "string|array (optional)",
+  "time_limit": "number (optional)",
+  "path": "string (optional)"
+}
+```
+
+#### Server → Client
+
+**IMPORTANT**: Backend sends **raw payload objects** (not wrapped in `{ "message": payload }`).
+
+```json
+{
+  "type": "send_question|clear_question|navigate|start_the_timer|send_players_info|player_score_updated",
+  ...
+}
+```
+
+See [WebSocket API](./websocket.md) for complete message type documentation.
+
+---
+
+## Developer Resources
+
+### Email / SMTP Configuration
+
+Configure SMTP for transactional emails (credentials, password resets, OTPs):
+
+**Environment Variables** (Docker: `configs/.env`, Local: `backend/app/.env`):
+
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-smtp-username
+SMTP_PASSWORD=your-smtp-password-or-app-password
+EMAIL_FROM_NAME="Olympia Custom"
+FRONTEND_URL=http://localhost:5173
+```
+
+**Notes:**
+- For Gmail: Enable 2FA and use an App Password
+- `FRONTEND_URL` is used for password reset links
+
 ### Running the Application
 
 ```bash
-# Development mode (with auto-reload)
+# Development mode (auto-reload)
 cd backend/app
 uvicorn main:app --reload
 
 # Production mode
 uvicorn main:app --host 0.0.0.0 --port 8000
 
-# Using Docker Compose
+# Docker Compose
 docker-compose up -d --profile development
 ```
 
@@ -330,27 +369,75 @@ docker-compose up -d --profile development
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `SECRET_KEY` | JWT secret key | `your-secret-key-here` |
+| `SECRET_KEY` | JWT secret key | `your-secret-key` |
 | `ALGORITHM` | JWT algorithm | `HS256` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Token expiration time | `30` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime | `30` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime | `7` |
 | `POSTGRES_DB_USER` | PostgreSQL username | `oc3_user` |
 | `POSTGRES_DB_PASSWORD` | PostgreSQL password | `secure_password` |
-| `POSTGRES_DB_HOST` | PostgreSQL hostname | `localhost` |
+| `POSTGRES_DB_HOST` | PostgreSQL host | `localhost` |
 | `POSTGRES_DB_PORT` | PostgreSQL port | `5432` |
-| `POSTGRES_DB_NAME` | PostgreSQL database name | `oc3_db` |
+| `POSTGRES_DB_NAME` | Database name | `oc3_db` |
 | `VALKEY_USER` | Valkey username | `default` |
-| `VALKEY_PASSWORD` | Valkey password | `valkey_password` |
-| `VALKEY_HOST` | Valkey hostname | `localhost` |
+| `VALKEY_PASSWORD` | Valkey password | `valkey_pass` |
+| `VALKEY_HOST` | Valkey host | `localhost` |
 | `VALKEY_PORT` | Valkey port | `6379` |
-| `SERVICE_ACCOUNT_FILE` | GCP service account JSON path | `credentials.json` |
+| `SERVICE_ACCOUNT_FILE` | GCP service account JSON | `credentials.json` |
 
-For local development, create `backend/app/.env` with the same variables (use `localhost` for hosts).
+### Logging
+
+The backend uses `global_logger` from `logger.py`:
+
+```python
+from logger import global_logger
+
+global_logger.info("Application started")
+global_logger.error("Database connection failed", exc_info=True)
+```
+
+**Log Location**: `logs/backend.log` (daily rotation, 7-day retention)
+
+### Database Patterns
+
+- All operations are **async** (SQLAlchemy 2.0 + asyncpg)
+- Use `select()` + `await db.execute()` for queries
+- `session.add()` is **not** awaitable
+- Always `await` coroutines
+
+### WebSocket Integration
+
+- Endpoint: `GET /ws/{match_code}`
+- Valkey pub/sub for multi-instance sync via `ConnectionManager`
+- Backend sends raw payloads (not wrapped)
+- See [WebSocket API](./websocket.md)
+
+### Frontend Integration
+
+- TypeScript interfaces must match API schemas
+- See `frontend/src/types/` for type definitions
+- WebSocket messages are raw payloads
+
+### Common Tasks
+
+#### Add a New Endpoint
+
+1. Define schema in `schemas/`
+2. Implement business logic in `core/`
+3. Create route handler in `routes/`
+4. Update documentation in `docs/backend/`
+
+#### Add a New Model
+
+1. Define model in `models/`
+2. Create Alembic migration
+3. Update schemas if needed
+4. Test with Swagger UI
 
 ---
 
 ## Quick Start
 
-### 1. Register a new admin user
+### 1. Register Admin User
 
 ```bash
 curl -X POST http://localhost:8000/auth/signup \
@@ -363,7 +450,7 @@ curl -X POST http://localhost:8000/auth/signup \
   }'
 ```
 
-### 2. Login to get token
+### 2. Login
 
 ```bash
 curl -X POST http://localhost:8000/auth/login \
@@ -371,7 +458,7 @@ curl -X POST http://localhost:8000/auth/login \
   -d "username=OC_U001&password=securepassword123"
 ```
 
-### 3. Create a match
+### 3. Create Match
 
 ```bash
 curl -X POST http://localhost:8000/matches/ \
@@ -387,7 +474,7 @@ curl -X POST http://localhost:8000/matches/ \
   }'
 ```
 
-### 4. Import questions from Excel
+### 4. Import Questions
 
 ```bash
 curl -X POST "http://localhost:8000/questions/excel/?match_code=OC3_M001" \
@@ -395,7 +482,7 @@ curl -X POST "http://localhost:8000/questions/excel/?match_code=OC3_M001" \
   -F "file=@questions.xlsx"
 ```
 
-### 5. Start the game via WebSocket
+### 5. Start Game via WebSocket
 
 ```javascript
 const ws = new WebSocket('ws://localhost:8000/ws/OC3_M001');
@@ -411,7 +498,9 @@ ws.onopen = () => {
 };
 ```
 
-## Mục lục tài liệu
+---
+
+## Related Documentation
 
 - [Auth](./auth.md)
 - [Users](./users.md)
@@ -422,58 +511,3 @@ ws.onopen = () => {
 - [Scoreboard](./scoreboard.md)
 - [WebSocket](./websocket.md)
 - [Errors & Envelope](./errors-and-envelope.md)
-
-## Developer Resources
-
-### API Documentation
-
-- **Swagger UI**: `http://localhost:8000/docs` (interactive API exploration)
-- **ReDoc**: `http://localhost:8000/redoc` (clean documentation view)
-- **OpenAPI JSON**: `http://localhost:8000/openapi.json` (machine-readable spec)
-
-### Logging
-
-The backend uses `global_logger` from `logger.py` for all logging. Logs are written to `logs/backend.log` with daily rotation and 7-day retention.
-
-```python
-from logger import global_logger
-
-global_logger.info("Application started")
-global_logger.error("Database connection failed", exc_info=True)
-```
-
-### Database Patterns
-
-- All database operations are **async** (SQLAlchemy 2.0 + asyncpg)
-- Use `select()` + `await db.execute()` for queries
-- `session.add()` is **not** awaitable
-- Always `await` coroutines; missing `await` is the most common async bug
-
-### WebSocket
-
-- Endpoint: `GET /ws/{match_code}`
-- Valkey pub/sub powers room-based broadcasts via `ConnectionManager`
-- Protocol defined in [WebSocket API](./websocket.md)
-- **Important**: Backend sends raw payload objects (not wrapped in `{ "message": payload }`)
-
-### Frontend Integration
-
-- Frontend TypeScript interfaces must match API schemas exactly
-- See `frontend/src/types/` for type definitions
-- WebSocket messages are raw payloads (not wrapped in `{ "message": payload }`)
-
-### Common Tasks
-
-#### Add a new endpoint
-
-1. Define schema in `schemas/`
-2. Implement business logic in `core/`
-3. Create route handler in `routes/`
-4. Update documentation in `docs/api/`
-
-#### Add a new model
-
-1. Define model in `models/`
-2. Create migration script
-3. Update schemas if needed
-4. Test with Swagger UI

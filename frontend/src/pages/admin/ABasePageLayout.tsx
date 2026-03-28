@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import React, { type ReactNode } from "react";
 import AdminGameplayNavBar from "@/navigation/ANavBar";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import type { AdminQuestionBoardControls, ControlsRenderApi } from "@/types/questionBoardTypes";
@@ -12,6 +12,12 @@ interface ABasePageLayoutProps {
 
 	// Optional node rendered above the AQuestionBoard in the left column
 	aboveQuestionBoard?: ReactNode;
+
+	// Optional node rendered next to the title in the question board header
+	titleExtra?: ReactNode;
+
+	// Optional node rendered directly under the AQuestionBoard (e.g. answer options)
+	underQuestionBoard?: ReactNode;
 
 	/** Tailwind height class forwarded to AQuestionBoard. Defaults to h-[50vh]. */
 	boardHeightClass?: string;
@@ -65,7 +71,7 @@ interface ABasePageLayoutProps {
  * />
  * ```
  */
-const ABasePageLayout = ({
+const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 	questionTitle,
 	question,
 	timerDuration,
@@ -75,7 +81,9 @@ const ABasePageLayout = ({
 	renderPlayerList,
 	controls,
 	controlsChildren,
+	underQuestionBoard,
 	aboveQuestionBoard,
+	titleExtra,
 	boardHeightClass,
 	answerBoxHeightClass,
 	hideAnswerBox,
@@ -87,9 +95,12 @@ const ABasePageLayout = ({
 			<div className="flex flex-row w-full flex-1 p-6 gap-8 overflow-hidden">
 				{/* Left section: Question board and controls */}
 				<div className="flex flex-col flex-3 gap-6 overflow-hidden">				{aboveQuestionBoard}
-					<AQuestionBoard title={questionTitle} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass} hideAnswerBox={hideAnswerBox}>
+					<AQuestionBoard title={questionTitle} titleExtra={titleExtra} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass} hideAnswerBox={hideAnswerBox}>
 						{controlsChildren}
 					</AQuestionBoard>
+
+					{/* Optional content rendered directly under the question board (e.g. MC options) */}
+					{underQuestionBoard}
 
 					<div className="flex flex-wrap items-center justify-center gap-4 max-w-220 mx-auto">
 						{topControlButtons}

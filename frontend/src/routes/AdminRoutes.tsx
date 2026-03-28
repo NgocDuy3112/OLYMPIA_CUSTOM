@@ -7,6 +7,7 @@ import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestionPage";
 import AVeDichChungPage from "@/pages/admin/AVeDichChungPage";
 import AVeDichRiengPage from "@/pages/admin/AVeDichRiengPage";
 import AGiaiMaPage from "@/pages/admin/AGiaiMaPage";
+import AQualifierPage from "@/pages/admin/AQualifierPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 
@@ -104,6 +105,14 @@ const AdminRoutes = () => {
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichRiengPage />
+                    </ProtectedAdminRoute>
+                }
+            />
+            <Route
+                path="/vl"
+                element={
+                    <ProtectedAdminRoute>
+                        <AQualifierPage />
                     </ProtectedAdminRoute>
                 }
             />

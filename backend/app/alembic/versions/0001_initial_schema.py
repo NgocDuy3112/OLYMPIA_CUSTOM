@@ -20,6 +20,24 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # ### users ###
+    # Ensure the PostgreSQL enum type exists before creating the users table.
+    # This avoids errors when the type was already created outside of Alembic
+    # (or by a previous partial migration run).
+    # Create roleenum in a race-safe way: attempt to create and ignore
+    # duplicate-object errors. This handles concurrent migrations or
+    # pre-existing types left from previous runs.
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            CREATE TYPE roleenum AS ENUM ('guest', 'player', 'admin');
+        EXCEPTION WHEN duplicate_object THEN
+            -- type already exists, ignore
+            NULL;
+        END$$;
+        """
+    )
+
     op.create_table(
         "users",
         sa.Column("id", sa.UUID(), nullable=False),
@@ -31,7 +49,7 @@ def upgrade() -> None:
         sa.Column("hashed_password", sa.String(length=255), nullable=False),
         sa.Column(
             "role",
-            sa.Enum("guest", "player", "admin", name="roleenum"),
+            sa.Enum("guest", "player", "admin", name="roleenum", create_type=False),
             nullable=True,
             default="player",
         ),

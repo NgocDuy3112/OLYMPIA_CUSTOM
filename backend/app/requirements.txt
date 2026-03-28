@@ -6,6 +6,7 @@ asyncpg
 sqlalchemy
 alembic
 
+aiosmtplib
 openpyxl
 pydantic
 pydantic_settings
@@ -18,3 +19,8 @@ python-jose
 google-api-python-client
 google-auth-httplib2
 google-auth-oauthlib
+
+pytest
+pytest-asyncio
+pytest-mock
+pytest-cov

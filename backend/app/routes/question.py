@@ -77,6 +77,30 @@ async def post_questions_from_excel(
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
+@router.post(
+    "/excel/qualifier/",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=201
+)
+async def post_qualifier_questions_from_excel(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db),
+) -> BaseResponse:
+    """Upload a single-sheet Excel file for Vòng Loại questions.
+
+    The file name (without extension) must start with 'OC3_VL' and will be used
+    as the match_code. Columns A-K: question_code, content, answer (A-F),
+    explanation, media_url, option_A, option_B, option_C, option_D, option_E, option_F.
+    """
+    try:
+        return await post_qualifier_questions_from_excel_to_db(file, session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
 @router.delete(
     "/{match_code}/{question_code}",
     dependencies=[Depends(require_roles(['admin']))],

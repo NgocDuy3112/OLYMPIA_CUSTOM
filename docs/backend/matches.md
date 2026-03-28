@@ -1,8 +1,8 @@
 # Matches API
 
-**Tag**: `Trận đấu`
+**Tag**: `Matches`
 
-This document describes the match management endpoints.
+Match management endpoints for creating, retrieving, updating, and deleting matches.
 
 ---
 
@@ -12,23 +12,21 @@ This document describes the match management endpoints.
 - [GET `/matches/`](#get-matches)
 - [PATCH `/matches/{match_code}`](#patch-matchesmatch_code)
 - [DELETE `/matches/{match_code}`](#delete-matchesmatch_code)
-- [Request Schemas](#request-schemas)
-- [Response Schemas](#response-schemas)
 
 ---
 
 ## POST `/matches/`
 
-Create a new match with optional player assignments. Accessible only by admin users.
+Create a new match with optional player assignments.
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/matches/` |
 | **Method** | `POST` |
-| **Authentication** | Admin role required |
-| **Response Format** | JSON |
+| **Auth** | Admin role required |
+| **Content-Type** | `application/json` |
 
 ### Request Body
 
@@ -36,16 +34,16 @@ Create a new match with optional player assignments. Accessible only by admin us
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `match_code` | string | ✅ | Unique match identifier (must start with `OC3_M`) |
+| `match_code` | string | ✅ | Unique match ID (must start with `OC3_M`) |
 | `match_name` | string | ✅ | Human-readable match name |
-| `players` | array | ❌ | List of player assignments (max 4 players) |
+| `players` | array | ❌ | Player assignments (max 4 players) |
 
 **Player Assignment Schema** (`MatchPlayerAssignment`):
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `user_code` | string | ✅ | Player's user code (must start with `OC_U`) |
-| `position` | integer | ✅ | Player position (1-4) |
+| `position` | integer | ✅ | Position (1-4) |
 
 ### Request Example
 
@@ -67,9 +65,7 @@ curl -X POST http://localhost:8000/matches/ \
 
 ### Success Response
 
-**Status Code**: `201 Created`
-
-**Schema**: `BaseResponse`
+**Status**: `201 Created`
 
 ```json
 {
@@ -81,28 +77,27 @@ curl -X POST http://localhost:8000/matches/ \
 
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `400 Bad Request` | Validation Error | Invalid input data (e.g., invalid `match_code` format) |
-| `400 Bad Request` | Duplicate Error | Match already exists |
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not an admin user |
-| `500 Internal Server Error` | Server Error | Database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Invalid input (e.g., wrong `match_code` format) |
+| `400` | Duplicate Error | Match already exists |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `500` | Server Error | Database or server error |
 
 ---
 
 ## GET `/matches/`
 
-Retrieve match details by match code. Accessible only by admin users.
+Retrieve match details by match code.
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/matches/` |
 | **Method** | `GET` |
-| **Authentication** | Admin role required |
-| **Response Format** | JSON |
+| **Auth** | Admin role required |
 
 ### Query Parameters
 
@@ -119,9 +114,9 @@ curl -X GET "http://localhost:8000/matches/?match_code=OC3_M001" \
 
 ### Success Response
 
-**Status Code**: `200 OK`
+**Status**: `200 OK`
 
-**Schema**: `MatchRoomResponse` (extends `BaseResponse`)
+**Schema**: `MatchRoomResponse`
 
 ```json
 {
@@ -158,28 +153,28 @@ curl -X GET "http://localhost:8000/matches/?match_code=OC3_M001" \
 
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `400 Bad Request` | Validation Error | Missing or invalid `match_code` |
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not an admin user |
-| `404 Not Found` | Not Found Error | Match not found |
-| `500 Internal Server Error` | Server Error | Database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Missing or invalid `match_code` |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Match not found |
+| `500` | Server Error | Database or server error |
 
 ---
 
 ## PATCH `/matches/{match_code}`
 
-Update an existing match. Accessible only by admin users.
+Update an existing match.
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/matches/{match_code}` |
 | **Method** | `PATCH` |
-| **Authentication** | Admin role required |
-| **Response Format** | JSON |
+| **Auth** | Admin role required |
+| **Content-Type** | `application/json` |
 
 ### Path Parameters
 
@@ -194,7 +189,7 @@ Update an existing match. Accessible only by admin users.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `match_name` | string | ❌ | New match name |
-| `players` | array | ❌ | Updated list of player assignments |
+| `players` | array | ❌ | Updated player assignments |
 
 ### Request Example
 
@@ -213,9 +208,7 @@ curl -X PATCH http://localhost:8000/matches/OC3_M001 \
 
 ### Success Response
 
-**Status Code**: `200 OK`
-
-**Schema**: `BaseResponse`
+**Status**: `200 OK`
 
 ```json
 {
@@ -227,28 +220,27 @@ curl -X PATCH http://localhost:8000/matches/OC3_M001 \
 
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `400 Bad Request` | Validation Error | Invalid input data |
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not an admin user |
-| `404 Not Found` | Not Found Error | Match not found |
-| `500 Internal Server Error` | Server Error | Database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Invalid input data |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Match not found |
+| `500` | Server Error | Database or server error |
 
 ---
 
 ## DELETE `/matches/{match_code}`
 
-Delete a match from the system. Accessible only by admin users.
+Soft-delete a match (sets `is_deleted = true`).
 
-### Endpoint Details
+### Request
 
 | Property | Value |
 |----------|-------|
 | **URL** | `/matches/{match_code}` |
 | **Method** | `DELETE` |
-| **Authentication** | Admin role required |
-| **Response Format** | JSON |
+| **Auth** | Admin role required |
 
 ### Path Parameters
 
@@ -265,9 +257,7 @@ curl -X DELETE http://localhost:8000/matches/OC3_M001 \
 
 ### Success Response
 
-**Status Code**: `200 OK`
-
-**Schema**: `BaseResponse`
+**Status**: `200 OK`
 
 ```json
 {
@@ -279,21 +269,21 @@ curl -X DELETE http://localhost:8000/matches/OC3_M001 \
 
 ### Error Responses
 
-| Status Code | Error Type | Description |
-|-------------|------------|-------------|
-| `401 Unauthorized` | Authentication Error | Missing or invalid token |
-| `403 Forbidden` | Authorization Error | Not an admin user |
-| `404 Not Found` | Not Found Error | Match not found |
-| `500 Internal Server Error` | Server Error | Database or server error |
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Match not found |
+| `500` | Server Error | Database or server error |
 
 ---
 
-## Request Schemas
+## Schemas
 
 ### MatchInfoPostRequest
 
 ```typescript
-{
+interface MatchInfoPostRequest {
   match_code: string;  // Must start with 'OC3_M'
   match_name: string;
   players?: MatchPlayerAssignment[];
@@ -308,20 +298,16 @@ interface MatchPlayerAssignment {
 ### MatchUpdateRequest
 
 ```typescript
-{
+interface MatchUpdateRequest {
   match_name?: string;
   players?: MatchPlayerAssignment[];
 }
 ```
 
----
-
-## Response Schemas
-
 ### MatchRoomResponse
 
 ```typescript
-{
+interface MatchRoomResponse {
   status: "success" | "error";
   message: string;
   data: {
@@ -337,96 +323,12 @@ interface MatchPlayerInRoom {
   position: number;
 }
 ```
-  - `players`: array các object `{ user_code, user_name, position }`
-
-### Status codes
-
-- `200` OK
-- `404` Không tìm thấy match
-- `500` Internal Server Error
 
 ---
 
-## GET `/matches/{match_code}/players`
+## Related Files
 
-Trả danh sách người chơi của một trận (chỉ players, không kèm tên).
-
-### Quyền truy cập
-
-- Chỉ `admin`.
-
-### Path params
-
-- `match_code` (string)
-
-### Response
-
-`BaseResponse` với `data.players` là mảng players giống phần `GET /matches/`.
-
-### Status codes
-
-- `200` OK
-- `404` Match không tồn tại
-- `500` Internal Server Error
-
----
-
-## PATCH `/matches/{match_code}`
-
-Cập nhật tên hoặc cấu trúc phòng (players).
-
-### Quyền truy cập
-
-- Chỉ `admin`.
-
-### Path params
-
-- `match_code` (string)
-
-### Request body (`MatchUpdateRequest`)
-
-- `match_name` (string, không bắt buộc)
-- `players` (array `MatchPlayerAssignment`, không bắt buộc) – gửi mới sẽ xóa cấu hình cũ.
-
-### Success response
-
-`BaseResponse` với mô tả thay đổi.
-
-### Status codes
-
-- `200` OK
-- `400` Dữ liệu không hợp lệ
-- `404` Match không tồn tại
-- `500` Internal Server Error
-
----
-
-## DELETE `/matches/{match_code}`
-
-Soft‑delete một trận (đánh dấu `is_deleted`).
-
-### Quyền truy cập
-
-- Chỉ `admin`.
-
-### Path params
-
-- `match_code` (string)
-
-### Success response
-
-`BaseResponse` với message `soft deleted`.
-
-### Status codes
-
-- `200` OK
-- `404` Không tìm thấy match
-- `500` Internal Server Error
-
----
-
-## File liên quan
-
-- `backend/app/routes/match.py`
-- `backend/app/core/match.py`
-- `backend/app/schemas/match.py`
+- `backend/app/routes/match.py` - Route handlers
+- `backend/app/core/match.py` - Business logic
+- `backend/app/schemas/match.py` - Match schemas
+- `backend/app/models/match.py` - Match model

@@ -67,3 +67,15 @@ class GCPSettings(BaseSettings):
             self.SERVICE_ACCOUNT_FILE, 
             scopes=[self.GOOGLE_DRIVE_SCOPE]
         )
+
+
+class EmailSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = "customolympia0@gmail.com"
+    SMTP_PASSWORD: str = "OlympiaCustom2023!"
+    EMAIL_FROM_NAME: str = "Olympia Custom"
+    # Frontend URL used to build password reset links emailed to users
+    FRONTEND_URL: str = "http://localhost:5173"

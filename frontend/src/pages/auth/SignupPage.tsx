@@ -8,7 +8,7 @@ import { API_BASE_URL } from "@/configs";
 
 
 const SignupPage: React.FC = () => {
-    const [form, setForm] = useState({ userCode: "", userName: "", password: "" });
+    const [form, setForm] = useState({ email: "", userName: "", password: "" });
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -18,9 +18,9 @@ const SignupPage: React.FC = () => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    user_code: form.userCode,
                     user_name: form.userName,
                     password: form.password,
+                    email: form.email,
                     role: "player"
                 }),
             });
@@ -41,9 +41,10 @@ const SignupPage: React.FC = () => {
         <BaseAuthLayout title="OLYMPIA CUSTOM 3" subtitle="Tạo tài khoản thí sinh">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 <InputField 
-                    label="Mã thí sinh" 
-                    value={form.userCode} 
-                    onChange={(e: { target: { value: any; }; }) => setForm({ ...form, userCode: e.target.value })} 
+                    label="Email" 
+                    type="email"
+                    value={form.email} 
+                    onChange={(e: { target: { value: any; }; }) => setForm({ ...form, email: e.target.value })} 
                 />
                 <InputField 
                     label="Tên thí sinh" 

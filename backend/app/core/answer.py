@@ -21,12 +21,7 @@ async def post_answer_to_db(
 ) -> BaseResponse:
     global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
     try:
-        request_json = request.model_dump()
-        cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
-        await valkey.set(cache_key, json.dumps(request_json))
-        await valkey.publish(channel=request.match_code, message=json.dumps(request_json))
-        global_logger.info(f"Cached answer for key=answer:{request.match_code}:{request.user_code}:{request.question_code} with points={request.answer_text}.")
-        # Find match ID
+        # Validate existence of match, player and question first
         match_id = await session.scalar(
             select(Match.id).where(
                 Match.match_code == request.match_code,
@@ -60,7 +55,29 @@ async def post_answer_to_db(
             log_message = f"Question with question_code={request.question_code} does not exist."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
-        # Now create the answer
+
+        # Enforce single-answer-per-player for qualifier questions (and generally avoid duplicates)
+        cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
+        cached = await valkey.get(cache_key)
+        if cached is not None:
+            log_message = f"Player {request.user_code} already submitted answer for question {request.question_code}; rejecting duplicate."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=400, detail=log_message)
+
+        # Fallback DB check in case cache missed
+        db_res = await session.execute(
+            select(Answer.id).where(
+                Answer.player_id == player_id,
+                Answer.match_id == match_id,
+                Answer.question_id == question_id,
+                Answer.is_deleted == False,
+            )
+        )
+        if db_res.first() is not None:
+            log_message = f"Player {request.user_code} already has a stored answer for question {request.question_code}; rejecting duplicate."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=400, detail=log_message)
+        # Now create the answer and then cache + broadcast
         new_answer = Answer(
             answer_text = request.answer_text,
             has_buzzed = request.has_buzzed,
@@ -71,6 +88,17 @@ async def post_answer_to_db(
         )
         session.add(new_answer)
         await session.commit()
+
+        # Cache the answer for fast reads and publish to match channel
+        request_json = request.model_dump()
+        try:
+            await valkey.set(cache_key, json.dumps(request_json))
+            await valkey.publish(channel=request.match_code, message=json.dumps(request_json))
+            global_logger.info(f"Cached and published answer for key={cache_key}.")
+        except Exception as e:
+            # Log but do not fail the request since DB commit succeeded
+            global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}")
+
         log_message = f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
         global_logger.info(log_message)
         return BaseResponse(status="success", message=log_message)

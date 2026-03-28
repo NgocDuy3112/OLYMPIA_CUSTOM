@@ -31,7 +31,8 @@ def require_roles(*allowed_roles):
 
     def role_checker(user: dict = Depends(get_current_user)):
         user_role = user["role"]
-        if user_role not in normalized_roles:
+        # Allow 'admin' to access endpoints requiring other roles (superuser)
+        if user_role not in normalized_roles and user_role != "admin":
             raise HTTPException(
                 status_code=403,
                 detail=f"Role '{user_role}' is not allowed to access this endpoint"
