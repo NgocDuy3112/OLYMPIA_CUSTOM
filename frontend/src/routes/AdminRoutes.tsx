@@ -30,9 +30,16 @@ export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }
 
 
 
+const QUALIFIER_MATCH_CODE = "OC3_M_VL";
+
 const AdminRoutes = () => {
-    // Prefer stored matchCode but fall back to extracting it from the URL path
+    // Prefer stored matchCode but fall back to extracting it from the URL path.
+    // Exception: when on the qualifier (/vl) route, always use OC3_M_VL so
+    // admin and players share the same WebSocket channel.
     const location = useLocation();
+
+    const isQualifierRoute = location.pathname === "/admin/vl";
+
     const stored = localStorage.getItem("matchCode") || "";
     const fromPath = (() => {
         try {
@@ -42,7 +49,7 @@ const AdminRoutes = () => {
             return "";
         }
     })();
-    const matchCode = stored || fromPath;
+    const matchCode = isQualifierRoute ? QUALIFIER_MATCH_CODE : (stored || fromPath);
 
     return (
         <AdminWebSocketProvider matchCode={matchCode}>

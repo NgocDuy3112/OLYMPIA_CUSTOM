@@ -38,10 +38,9 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
 const VaoPhongQualifierButton = ({ matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
     const navigate = useNavigate();
     const handleClick = () => {
-        // Qualifier can use a sensible default (OC3_Q) if no matchCode provided
-        const codeToUse = matchCode || (typeof window !== "undefined" ? localStorage.getItem("matchCode") || "OC3_Q" : "OC3_Q");
+        // Qualifier always uses OC3_M_VL so admin + player share the same WS channel
         try {
-            localStorage.setItem("matchCode", codeToUse);
+            localStorage.setItem("matchCode", "OC3_M_VL");
         } catch {
             // ignore
         }

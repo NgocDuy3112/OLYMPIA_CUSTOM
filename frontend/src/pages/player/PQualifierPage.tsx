@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
@@ -39,12 +38,55 @@ const PQualifierPage = () => {
     const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
 
+    // Decode player name from JWT payload — no network call needed
+    const playerName = useMemo((): string => {
+        try {
+            const payload = JSON.parse(atob(token.split(".")[1]));
+            return (payload.user_name as string) ?? "";
+        } catch {
+            return "";
+        }
+    }, [token]);
+
     const [players, setPlayers] = useState<PlayerStatus[]>([]);
+    const [boardCount, setBoardCount] = useState<number>(6);
+    const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
     const [parsedOptions, setParsedOptions] = useState<string[]>([]);
     /** The option letter the player selected (or null if not yet answered) */
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
+    /** Option the player clicked but hasn't confirmed yet */
+    const [pendingOption, setPendingOption] = useState<string | null>(null);
     const [showAnswers, setShowAnswers] = useState(false);
     const [myStanding, setMyStanding] = useState<QualifierStandingEntry | null>(null);
+    /** Set of user_codes that have submitted an answer for the current question (for live count) */
+    const answeredCodesRef = useRef<Set<string>>(new Set());
+    const [answeredCount, setAnsweredCount] = useState(0);
+
+    // ── On mount: fetch own standing ─────────────────────────────────────────
+
+    useEffect(() => {
+        if (!matchCode || !token) return;
+        fetch(`${API_BASE_URL}/qualifier/standings/${matchCode}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((r) => r.json())
+            .then((json) => {
+                const all: QualifierStandingEntry[] = json.data?.standings ?? [];
+                const mine = all.find((s) => s.user_code === playerCode);
+                if (mine) setMyStanding(mine);
+            })
+            .catch((e) => logger.warn("Failed to fetch initial qualifier standing:", e));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── Request state sync once WebSocket is connected ────────────────────────
+    // sendMessage only works when readyState === OPEN, so we must wait for isConnected.
+    // Also re-requests on reconnect so player re-syncs after a dropped connection.
+    useEffect(() => {
+        if (!isConnected) return;
+        void sendMessage({ type: "request_qualifier_state", user_code: playerCode });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isConnected]);
 
     const parseOptions = (options: string | string[] | undefined): string[] => {
         if (!options) return [];
@@ -74,21 +116,40 @@ const PQualifierPage = () => {
                 const opts = parseOptions(msg.options ?? undefined);
                 setParsedOptions(opts);
                 setSelectedOption(null);
+                setPendingOption(null);
                 setShowAnswers(false);
+                answeredCodesRef.current.clear();
+                setAnsweredCount(0);
+                // sync board count and active index when admin broadcasts question
+                if (typeof msg.count === "number") setBoardCount(Number(msg.count));
+                if (typeof msg.question_index === "number") setActiveQuestionIndex(Number(msg.question_index));
                 break;
             }
 
             case "clear_question": {
                 setParsedOptions([]);
                 setSelectedOption(null);
+                setPendingOption(null);
                 setShowAnswers(false);
+                answeredCodesRef.current.clear();
+                setAnsweredCount(0);
+                setActiveQuestionIndex(null);
+                if (typeof msg.count === "number") setBoardCount(Number(msg.count));
+                break;
+            }
+
+            case "sync_qualifier_round": {
+                if (typeof msg.count === "number") setBoardCount(Number(msg.count));
                 break;
             }
 
             case "start_the_timer": {
                 startSynced(Number(msg.time_limit ?? QUALIFIER_TIME_LIMIT), msg.started_at);
                 setSelectedOption(null);
+                setPendingOption(null);
                 setShowAnswers(false);
+                answeredCodesRef.current.clear();
+                setAnsweredCount(0);
                 break;
             }
 
@@ -166,6 +227,16 @@ const PQualifierPage = () => {
                 break;
             }
 
+            case "answer": {
+                // Track how many players have answered (without revealing content)
+                const code = String(msg.user_code ?? "");
+                if (code && !answeredCodesRef.current.has(code)) {
+                    answeredCodesRef.current.add(code);
+                    setAnsweredCount(answeredCodesRef.current.size);
+                }
+                break;
+            }
+
             default:
                 break;
         }
@@ -173,12 +244,24 @@ const PQualifierPage = () => {
 
     // ── Submit answer ─────────────────────────────────────────────────────────
 
-    const handleSelectOption = useCallback(
-        async (option: string) => {
-            if (selectedOption !== null) return; // already answered
+    /** Step 1: player clicks an option — show confirmation popup */
+    const handleClickOption = useCallback(
+        (option: string) => {
+            if (selectedOption !== null) return;
             if (!isConnected) return;
             if (timer <= 0) return;
             if (!currentQuestion.questionCode) return;
+            setPendingOption(option);
+        },
+        [selectedOption, isConnected, timer, currentQuestion.questionCode],
+    );
+
+    /** Step 2: player confirms in popup — actually submit */
+    const handleConfirmOption = useCallback(
+        async () => {
+            if (!pendingOption) return;
+            const option = pendingOption;
+            setPendingOption(null);
 
             setSelectedOption(option);
 
@@ -224,7 +307,7 @@ const PQualifierPage = () => {
                 logger.warn("Failed to send WS answer:", err);
             }
         },
-        [selectedOption, isConnected, timer, currentQuestion.questionCode, getElapsedSeconds, timeLimit, playerCode, matchCode, token, sendMessage],
+        [pendingOption, getElapsedSeconds, timeLimit, playerCode, matchCode, token, currentQuestion.questionCode, sendMessage],
     );
 
     // ── Render ────────────────────────────────────────────────────────────────
@@ -239,19 +322,73 @@ const PQualifierPage = () => {
             : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
     );
 
+    // ── Stats bar computation ─────────────────────────────────────────────────
+    // Before reveal: use the live count of WS answer messages received
+    // After reveal: compute from displayPlayers (which has all answers visible)
+    const statsAnswered = showAnswers
+        ? displayPlayers.filter((p) => p.playerLastAnswer).length
+        : answeredCount;
+    const statsCorrect = showAnswers && correctAnswer
+        ? displayPlayers.filter((p) => p.playerLastAnswer?.toUpperCase() === correctAnswer).length
+        : 0;
+    const statsWrong = showAnswers ? statsAnswered - statsCorrect : 0;
+    const statsNoAnswer = players.length - statsAnswered;
+
     return (
         <PBasePageLayout players={displayPlayers} currentPlayerCode={playerCode}>
             <>
                 <PPlayerInfoCard
-                    playerName={players.find((p) => p.playerCode === playerCode)?.playerName ?? ""}
+                    playerName={playerName || players.find((p) => p.playerCode === playerCode)?.playerName || ""}
                     playerScore={myStanding?.total_score ?? players.find((p) => p.playerCode === playerCode)?.playerScore ?? 0}
                     playerRank={myStanding?.rank ?? null}
                 />
+
+                {/* Answer stats bar */}
+                {players.length > 0 && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm">
+                        {showAnswers ? (
+                            <>
+                                <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
+                                <span className="flex items-center gap-1 bg-green-700 text-white font-bold px-3 py-1 rounded-lg">
+                                    ✓&nbsp;<span className="text-base">{statsCorrect}</span>
+                                    <span className="font-normal text-xs ml-0.5">đúng</span>
+                                </span>
+                                <span className="flex items-center gap-1 bg-red-700 text-white font-bold px-3 py-1 rounded-lg">
+                                    ✗&nbsp;<span className="text-base">{statsWrong}</span>
+                                    <span className="font-normal text-xs ml-0.5">sai</span>
+                                </span>
+                                <span className="flex items-center gap-1 bg-blue-800 text-blue-200 font-bold px-3 py-1 rounded-lg">
+                                    —&nbsp;<span className="text-base">{statsNoAnswer}</span>
+                                    <span className="font-normal text-xs ml-0.5">chưa trả lời</span>
+                                </span>
+                                <span className="ml-auto text-blue-400 text-xs shrink-0">
+                                    {statsAnswered}/{players.length} đã trả lời
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="text-blue-300 font-semibold mr-1 shrink-0">Đã trả lời:</span>
+                                <span className="flex items-center gap-1 bg-green-800 text-white font-bold px-3 py-1 rounded-lg">
+                                    <span className="text-base">{statsAnswered}</span>
+                                    <span className="font-normal text-xs ml-0.5">người</span>
+                                </span>
+                                <span className="flex items-center gap-1 bg-blue-800 text-blue-200 font-bold px-3 py-1 rounded-lg">
+                                    —&nbsp;<span className="text-base">{statsNoAnswer}</span>
+                                    <span className="font-normal text-xs ml-0.5">chưa trả lời</span>
+                                </span>
+                                <span className="ml-auto text-blue-400 text-xs shrink-0">
+                                    {statsAnswered}/{players.length} đã trả lời
+                                </span>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 <PQuestionBoard
                     title={`VÒNG LOẠI`}
                     question={currentQuestion}
                     timerDuration={timer}
+                    controls={{ variant: "numbers", count: boardCount, activeIndices: activeQuestionIndex ? [activeQuestionIndex - 1] : [] }}
                 />
 
                 {/* Option grid — 2 columns of 3 */}
@@ -272,18 +409,19 @@ const PQualifierPage = () => {
                                 key={opt}
                                 type="button"
                                 disabled={buttonsDisabled}
-                                onClick={() => void handleSelectOption(opt)}
+                                onClick={() => handleClickOption(opt)}
                                 className={`flex items-center gap-4 px-6 py-4 rounded-xl border text-white font-bold text-lg transition-all duration-150 shadow-xl ${classes} ${buttonsDisabled && !isSelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                             >
                                 <span className={`text-2xl font-extrabold w-10 shrink-0 ${isCorrect ? "text-gray-900" : ""}`}>
                                     {opt}
                                 </span>
                                 <span className={`leading-snug text-left ${isCorrect ? "text-gray-900" : ""}`}>
-                                    {text || opt}
+                                    {text}
                                 </span>
-                                {isSelected && (
+                                {/* Only show result icon after admin reveals answers */}
+                                {showAnswers && isSelected && (
                                     <span className="ml-auto text-2xl">
-                                        {showAnswers ? (isCorrect ? "✓" : "✗") : "✓"}
+                                        {isCorrect ? "✓" : "✗"}
                                     </span>
                                 )}
                             </button>
@@ -291,24 +429,37 @@ const PQualifierPage = () => {
                     })}
                 </div>
 
-                {/* Status line */}
-                <div className="mt-4 text-center text-sm font-medium text-white/70">
-                    {selectedOption
-                        ? showAnswers
-                            ? correctAnswer === selectedOption
-                                ? "✅ Đúng rồi!"
-                                : `❌ Sai! Đáp án đúng là ${correctAnswer}`
-                            : `Đã chọn: ${selectedOption} — chờ kết quả...`
-                        : timer > 0
-                          ? "Chọn đáp án của bạn"
-                          : "Hết giờ"}
-                    {myStanding && (
-                        <span className="ml-4 text-blue-200">
-                            Điểm vòng loại: {myStanding.total_score > 0 ? "+" : ""}
-                            {myStanding.total_score}
-                        </span>
-                    )}
-                </div>
+                {/* Confirmation popup */}
+                {pendingOption && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                        <div className="bg-blue-900 border-2 border-blue-400 rounded-2xl shadow-2xl px-8 py-6 flex flex-col items-center gap-5 w-80">
+                            <p className="text-white font-bold text-lg text-center leading-snug">
+                                Bạn chọn đáp án&nbsp;
+                                <span className="text-blue-200 text-2xl font-extrabold">{pendingOption}</span>
+                            </p>
+                            <p className="text-white/80 text-sm text-center">
+                                Bạn chỉ có thể nộp đáp án&nbsp;<span className="font-bold text-white">1 lần duy nhất</span>.
+                            </p>
+                            <div className="flex gap-4 w-full">
+                                <button
+                                    type="button"
+                                    onClick={() => setPendingOption(null)}
+                                    className="flex-1 py-2 rounded-xl border border-blue-400 text-blue-200 font-semibold hover:bg-blue-800 transition-colors"
+                                >
+                                    Huỷ
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleConfirmOption()}
+                                    className="flex-1 py-2 rounded-xl bg-blue-400 text-gray-900 font-bold hover:bg-blue-300 transition-colors"
+                                >
+                                    Xác nhận
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             </>
         </PBasePageLayout>
     );

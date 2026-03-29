@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
 import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
@@ -63,7 +64,8 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         if (matchCode) return;
         try {
             if (location.pathname.startsWith("/player/vl")) {
-                const defaultCode = "OC3_Q";
+                // Use OC3_M_VL as the default qualifier match code (real match-style code)
+                const defaultCode = "OC3_M_VL";
                 sessionStorage.setItem("matchCode", defaultCode);
                 setMatchCode(defaultCode);
             }
@@ -112,7 +114,7 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
 
             // Some admin paths are full player routes (no match/player params expected)
             // — e.g. "/player/waiting" should navigate exactly to that path.
-            const noParamsPaths: string[] = ["/player/waiting", "/player/vl"];
+            const noParamsPaths: string[] = ["/player/waiting"];
 
             const target = noParamsPaths.includes(normalized)
                 ? normalized
@@ -205,6 +207,14 @@ const PlayerRoutes = () => {
                 />
                 <Route
                     path="/vl"
+                    element={
+                        <ProtectedPlayerRoute>
+                            <PQualifierPage />
+                        </ProtectedPlayerRoute>
+                    }
+                />
+                <Route
+                    path="/vl/:matchCode/:playerCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PQualifierPage />

@@ -5,7 +5,6 @@ import {
     Play,
     Calculator,
     Power,
-    RefreshCw,
     Eye,
     Trophy,
 } from "lucide-react";
@@ -53,7 +52,9 @@ const OPTION_BG: Record<string, string> = {
 
 
 const AQualifierPage = () => {
-    const currentMatchCode = localStorage.getItem("matchCode") ?? "";
+    // Use stored matchCode when available; fallback to the qualifier default so
+    // the /admin/vl page works even when localStorage wasn't pre-seeded.
+    const currentMatchCode = localStorage.getItem("matchCode") ?? "OC3_M_VL";
     const token = localStorage.getItem("jwtToken_admin") ?? "";
     const { lastMessage, sendMessage } = useAdminWebSocket();
 
@@ -63,6 +64,8 @@ const AQualifierPage = () => {
     const [timer, setTimer] = useState<number>(0);
     const timerRef = useRef<number>(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
+    const isTimerRunningRef = useRef(false);
+    const timerStartedAtRef = useRef<number | null>(null);
 
     const [currentRound, setCurrentRound] = useState<number>(1);
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
@@ -355,14 +358,121 @@ const AQualifierPage = () => {
                 // refresh server-side persisted advancements so the right column displays accurate lists
                 void loadAdvancements();
                 break;
+            case "player_online": {
+                const code = String(msg.user_code ?? "");
+                if (!code) break;
+                // Mark connected if already in list; otherwise add with placeholder name
+                startTransition(() => {
+                    setPlayers((prev) => {
+                        if (prev.some((p) => p.playerCode === code)) {
+                            return prev.map((p) =>
+                                p.playerCode === code ? { ...p, playerConnected: true } : p,
+                            );
+                        }
+                        return [...prev, { playerCode: code, playerName: "", playerScore: 0, playerConnected: true }];
+                    });
+                });
+                // Fetch user profile to fill in the name asynchronously
+                if (token) {
+                    void fetch(`${API_BASE_URL}/users/?user_code=${encodeURIComponent(code)}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    })
+                        .then((r) => r.json())
+                        .then((json) => {
+                            const name: string = json?.data?.user_name ?? "";
+                            if (name) {
+                                startTransition(() => {
+                                    setPlayers((prev) =>
+                                        prev.map((p) =>
+                                            p.playerCode === code && !p.playerName
+                                                ? { ...p, playerName: name }
+                                                : p,
+                                        ),
+                                    );
+                                });
+                            }
+                        })
+                        .catch((e) => logger.warn("player_online: failed to fetch profile", e));
+                }
+                break;
+            }
+            case "player_heartbeat": {
+                const code = String(msg.user_code ?? "");
+                if (!code) break;
+                // Mark connected; also add to list if missing (e.g. late join)
+                startTransition(() => {
+                    setPlayers((prev) => {
+                        if (prev.some((p) => p.playerCode === code)) {
+                            return prev.map((p) =>
+                                p.playerCode === code ? { ...p, playerConnected: true } : p,
+                            );
+                        }
+                        // Unknown player — add placeholder and let player_online/API fill in name
+                        return [...prev, { playerCode: code, playerName: "", playerScore: 0, playerConnected: true }];
+                    });
+                });
+                if (token) {
+                    void fetch(`${API_BASE_URL}/users/?user_code=${encodeURIComponent(code)}`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    })
+                        .then((r) => r.json())
+                        .then((json) => {
+                            const name: string = json?.data?.user_name ?? "";
+                            if (name) {
+                                startTransition(() => {
+                                    setPlayers((prev) =>
+                                        prev.map((p) =>
+                                            p.playerCode === code && !p.playerName
+                                                ? { ...p, playerName: name }
+                                                : p,
+                                        ),
+                                    );
+                                });
+                            }
+                        })
+                        .catch((e) => logger.warn("player_heartbeat: failed to fetch profile", e));
+                }
+                break;
+            }
+            case "request_qualifier_state": {
+                // A player just mounted PQualifierPage — re-send current state so they sync immediately
+                void sendPlayersSnapshot();
+                // Always sync the current round's question count so player board matches admin
+                void sendMessage({ type: "sync_qualifier_round", count: maxQuestionsForRound });
+                if (currentQuestionIndex > 0 && currentQuestion.questionCode) {
+                    void sendMessage({
+                        type: "send_question",
+                        user_code: "",
+                        question_code: currentQuestion.questionCode,
+                        content: currentQuestion.questionText ?? "",
+                        options: parseOptions(currentQuestion.questionOptions),
+                        // include count and index so players can render correct board
+                        count: maxQuestionsForRound,
+                        question_index: currentQuestionIndex,
+                        media_source: currentQuestion.questionMediaURL ?? undefined,
+                    });
+                    // Re-broadcast timer if still running so the player syncs the countdown
+                    if (isTimerRunningRef.current && timerRef.current > 0 && timerStartedAtRef.current !== null) {
+                        void sendMessage({
+                            type: "start_the_timer",
+                            user_code: "",
+                            time_limit: QUALIFIER_TIME_LIMIT,
+                            question_code: currentQuestion.questionCode,
+                            started_at: timerStartedAtRef.current,
+                        });
+                    }
+                }
+                break;
+            }
             default:
                 break;
         }
-    }, [lastMessage, applyPlayersSnapshot, loadAdvancements]);
+    }, [lastMessage, applyPlayersSnapshot, loadAdvancements, currentQuestion, currentQuestionIndex, maxQuestionsForRound, sendPlayersSnapshot, sendMessage, parseOptions, token]);
 
     // ── Timer ─────────────────────────────────────────────────────────────────
 
     useEffect(() => { timerRef.current = timer; }, [timer]);
+    useEffect(() => { isTimerRunningRef.current = isTimerRunning; }, [isTimerRunning]);
 
     useEffect(() => {
         if (!isTimerRunning) return;
@@ -379,6 +489,13 @@ const AQualifierPage = () => {
         setHasCalculatedScore(false);
         setLastScoreResult(null);
     }, [currentQuestionIndex, currentRound]);
+
+    // Broadcast the new question count whenever admin switches rounds so players sync immediately
+    useEffect(() => {
+        const count = QUALIFIER_QUESTIONS_PER_ROUND[currentRound] ?? 0;
+        if (!count) return;
+        void sendMessage({ type: "sync_qualifier_round", count });
+    }, [currentRound, sendMessage]);
 
     useEffect(() => {
         void loadPlayersState();
@@ -399,11 +516,11 @@ const AQualifierPage = () => {
         try {
             await sendMessage({ type: "navigate", user_code: "", path: "/player/vl" });
             await sendPlayersSnapshot();
-            await sendMessage({ type: "clear_question", user_code: "" });
+            await sendMessage({ type: "clear_question", user_code: "", count: maxQuestionsForRound });
         } catch (err) {
             logger.error("Failed to start qualifier round:", err);
         }
-    }, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
+    }, [currentMatchCode, maxQuestionsForRound, sendMessage, sendPlayersSnapshot]);
 
     const handleEndRound = useCallback(async () => {
         setCurrentQuestionIndex(0);
@@ -441,6 +558,8 @@ const AQualifierPage = () => {
     const startTheClock = useCallback(async () => {
         if (!currentMatchCode || !token || currentQuestionIndex <= 0 || timer > 0) return;
         const questionCode = resolveQuestionCode(currentRound, currentQuestionIndex);
+        const startedAt = Date.now();
+        timerStartedAtRef.current = startedAt;
         setTimer(QUALIFIER_TIME_LIMIT);
         setIsTimerRunning(true);
         try {
@@ -449,7 +568,7 @@ const AQualifierPage = () => {
                 user_code: "",
                 time_limit: QUALIFIER_TIME_LIMIT,
                 question_code: questionCode,
-                started_at: Date.now(),
+                started_at: startedAt,
             });
         } catch (err) {
             logger.error("Failed to start timer:", err);
@@ -508,19 +627,6 @@ const AQualifierPage = () => {
         }
     }, [canShowAnswers, currentMatchCode, currentQuestion, players, sendMessage, token]);
 
-    const clearAnswers = useCallback(async () => {
-        if (!currentMatchCode) return;
-        try {
-            await sendMessage({ type: "clear_answers" });
-            startTransition(() => {
-                setPlayers((prev) =>
-                    prev.map((p) => ({ ...p, playerLastAnswer: undefined, playerTimestamp: undefined })),
-                );
-            });
-        } catch (err) {
-            logger.error("clearAnswers failed:", err);
-        }
-    }, [currentMatchCode, sendMessage]);
 
     // Select a question by index (1-based). Loads question and broadcasts it to players.
     const handleSelectQuestion = useCallback(
@@ -536,13 +642,16 @@ const AQualifierPage = () => {
                     question_code: q.questionCode,
                     content: q.questionText ?? "",
                     options: parseOptions(q.questionOptions),
+                    // include count and index so players can render the correct board
+                    count: maxQuestionsForRound,
+                    question_index: questionIndex,
                     media_source: q.questionMediaURL ?? undefined,
                 });
             } catch (err) {
                 logger.error("Failed to broadcast question:", err);
             }
         },
-        [currentRound, loadQuestion, sendMessage, parseOptions],
+        [currentRound, maxQuestionsForRound, loadQuestion, sendMessage, parseOptions],
     );
 
     // ── Render helpers ────────────────────────────────────────────────────────
@@ -612,6 +721,16 @@ const AQualifierPage = () => {
         );
     }, [advancements, players, standings]);
 
+    // ── Answer stats for stats bar ────────────────────────────────────────────
+    const statsTotalPlayers = players.length;
+    const statsAnsweredCount = players.filter((p) => p.playerLastAnswer).length;
+    const statsNoAnswerCount = statsTotalPlayers - statsAnsweredCount;
+    const statsCorrectKey = currentQuestion.questionAnswer?.toUpperCase() ?? "";
+    const statsCorrectCount = statsCorrectKey
+        ? players.filter((p) => p.playerLastAnswer?.toUpperCase() === statsCorrectKey).length
+        : 0;
+    const statsWrongCount = statsAnsweredCount - statsCorrectCount;
+
     return (
         <ABasePageLayout
             questionTitle={questionTitle}
@@ -648,20 +767,42 @@ const AQualifierPage = () => {
                     </select>
                 </div>
             )}
-            aboveQuestionBoard={
-                lastScoreResult ? (
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <div className="ml-auto flex gap-2 text-xs font-mono">
-                            <span className="bg-green-700 text-green-100 px-2 py-1 rounded">
-                                ✓ {lastScoreResult.correct_count} đúng (+{lastScoreResult.wrong_count} điểm)
-                            </span>
-                            <span className="bg-red-700 text-red-100 px-2 py-1 rounded">
-                                ✗ {lastScoreResult.wrong_count} sai (-{lastScoreResult.correct_count} điểm)
-                            </span>
-                        </div>
+            aboveQuestionBoard={(
+                <>
+                    {/* Real-time answer stats bar */}
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm">
+                        <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
+                        <span className="flex items-center gap-1 bg-green-700 text-white font-bold px-3 py-1 rounded-lg">
+                            ✓&nbsp;<span className="text-base">{statsCorrectCount}</span>
+                            <span className="font-normal text-xs ml-0.5">đúng</span>
+                        </span>
+                        <span className="flex items-center gap-1 bg-red-700 text-white font-bold px-3 py-1 rounded-lg">
+                            ✗&nbsp;<span className="text-base">{statsWrongCount}</span>
+                            <span className="font-normal text-xs ml-0.5">sai</span>
+                        </span>
+                        <span className="flex items-center gap-1 bg-blue-800 text-blue-200 font-bold px-3 py-1 rounded-lg">
+                            —&nbsp;<span className="text-base">{statsNoAnswerCount}</span>
+                            <span className="font-normal text-xs ml-0.5">chưa trả lời</span>
+                        </span>
+                        <span className="ml-auto text-blue-400 text-xs shrink-0">
+                            {statsAnsweredCount}/{statsTotalPlayers} đã trả lời
+                        </span>
                     </div>
-                ) : undefined
-            }
+                    {/* Score result shown after "Tính điểm" */}
+                    {lastScoreResult && (
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <div className="ml-auto flex gap-2 text-xs font-mono">
+                                <span className="bg-green-700 text-green-100 px-2 py-1 rounded">
+                                    ✓ {lastScoreResult.correct_count} đúng (+{lastScoreResult.wrong_count} điểm)
+                                </span>
+                                <span className="bg-red-700 text-red-100 px-2 py-1 rounded">
+                                    ✗ {lastScoreResult.wrong_count} sai (-{lastScoreResult.correct_count} điểm)
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
             underQuestionBoard={(
                 <div className="mt-4">
                     <div className="grid grid-cols-3 grid-rows-2 gap-4 auto-rows-fr">
@@ -697,7 +838,7 @@ const AQualifierPage = () => {
             bottomActionButtons={
                 <>
                     <AControlButton onClick={showAnswers} disabled={!canShowAnswers}>
-                        <Eye size={18} className="mr-2" /> HIỆN TRẢ LỜI
+                        <Eye size={18} className="mr-2" /> HIỆN ĐÁP ÁN
                     </AControlButton>
                     <AControlButton
                         onClick={handleCalculateScores}
@@ -706,9 +847,7 @@ const AQualifierPage = () => {
                     >
                         <Calculator size={18} className="mr-2" /> TÍNH ĐIỂM
                     </AControlButton>
-                    <AControlButton onClick={clearAnswers}>
-                        <RefreshCw size={18} className="mr-2" /> XÓA ĐÁP ÁN
-                    </AControlButton>
+                    {/* XÓA ĐÁP ÁN button removed per request */}
                     <AControlButton onClick={() => void loadQualifierStandings()}>
                         <Trophy size={18} className="mr-2" /> TẢI BXH
                     </AControlButton>
