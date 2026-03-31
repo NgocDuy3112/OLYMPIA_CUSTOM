@@ -32,10 +32,14 @@ Comprehensive overview of the OLYMPIA CUSTOM 3 frontend architecture.
 
 | Code | Vietnamese | English | Type |
 |------|------------|---------|------|
+| **VL** | Vòng Loại | Qualifier | Preliminary qualification round |
 | **KDC** | Khởi Động Chung | Group Warm-up | All players answer same questions |
 | **KDR** | Khởi Động Riêng | Individual Warm-up | Individual questions |
 | **BP** | Bứt Phá | Sprint | Fast-paced buzzer round |
 | **VD** | Vượt Đèo | Escape | Clue-based challenge |
+| **VDC** | Về Đích Chung | Final Group Stage | Final group round |
+| **VDR** | Về Đích Riêng | Final Individual Stage | Final individual round |
+| **GM** | Giải Mã | Decode | Mystery/decoding round |
 
 ---
 
@@ -85,7 +89,10 @@ frontend/
 │   │   ├── useAuthSession.ts        # Session management
 │   │   ├── usePlayerSession.ts      # Player session snapshot
 │   │   ├── useQuestionState.ts      # Question state management
-│   │   └── useCountdownTimer.ts     # Timer logic
+│   │   ├── useCountdownTimer.ts     # Timer logic
+│   │   ├── usePlayerPresence.ts     # Player presence tracking
+│   │   ├── useAdminWebSocket.ts     # Admin WebSocket context hook
+│   │   └── usePlayerWebSocket.ts    # Player WebSocket context hook
 │   ├── pages/                       # Full page components
 │   │   ├── admin/                   # Admin pages
 │   │   ├── player/                  # Player pages
@@ -147,9 +154,16 @@ frontend/
 |------|-----------|---------|
 | `/access` | `PGameAccessPage` | Enter match code |
 | `/waiting` | `PWaitingPage` | Wait for game start |
+| `/vl/:matchCode/:playerCode` | `PVongLoaiPage` | Qualifier round |
 | `/kdc/:matchCode/:playerCode` | `PKhoiDongChungPage` | Group warm-up |
 | `/kdr/:matchCode/:playerCode` | `PKhoiDongRiengPage` | Individual warm-up |
 | `/bp/:matchCode/:playerCode` | `PButPhaPage` | Sprint round |
+| `/vd/:matchCode/:playerCode` | `PVuotDeoPage` | Escape round |
+| `/vdc/pick/:matchCode/:playerCode` | `PVeDichChungPickPage` | Final group stage selection |
+| `/vdc/:matchCode/:playerCode` | `PVeDichChungPage` | Final group stage |
+| `/vdr/pick/:matchCode/:playerCode` | `PVeDichRiengPickPage` | Final individual selection |
+| `/vdr/:matchCode/:playerCode` | `PVeDichRiengPage` | Final individual stage |
+| `/gm/:matchCode/:playerCode` | `PGiaiMaPage` | Decode round |
 
 ---
 

@@ -10,6 +10,7 @@ Match management endpoints for creating, retrieving, updating, and deleting matc
 
 - [POST `/matches/`](#post-matches)
 - [GET `/matches/`](#get-matches)
+- [GET `/matches/{match_code}/players`](#get-matchesmatch_codeplayers)
 - [PATCH `/matches/{match_code}`](#patch-matchesmatch_code)
 - [DELETE `/matches/{match_code}`](#delete-matchesmatch_code)
 
@@ -36,6 +37,7 @@ Create a new match with optional player assignments.
 |-------|------|----------|-------------|
 | `match_code` | string | ✅ | Unique match ID (must start with `OC3_M`) |
 | `match_name` | string | ✅ | Human-readable match name |
+| `match_status` | string | ❌ | Match status: `setup`, `active`, `completed`, `in_progress`, `paused`, `finished` (default: `setup`) |
 | `players` | array | ❌ | Player assignments (max 4 players) |
 
 **Player Assignment Schema** (`MatchPlayerAssignment`):
@@ -163,6 +165,60 @@ curl -X GET "http://localhost:8000/matches/?match_code=OC3_M001" \
 
 ---
 
+## GET `/matches/{match_code}/players`
+
+Retrieve the list of players in a match.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/matches/{match_code}/players` |
+| **Method** | `GET` |
+| **Auth** | Admin role required |
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `match_code` | string | ✅ | Match code to retrieve players for |
+
+### Request Example
+
+```bash
+curl -X GET "http://localhost:8000/matches/OC3_M001/players" \
+  -H "Authorization: Bearer <token>"
+```
+
+### Success Response
+
+**Status**: `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "Players retrieved successfully",
+  "data": {
+    "players": [
+      {
+        "user_code": "OC_U001",
+        "user_name": "Nguyen Van A",
+        "position": 1
+      },
+      {
+        "user_code": "OC_U002",
+        "user_name": "Tran Thi B",
+        "position": 2
+      }
+    ]
+  }
+}
+```
+
+### Error Responses
+
+---
+
 ## PATCH `/matches/{match_code}`
 
 Update an existing match.
@@ -189,6 +245,7 @@ Update an existing match.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `match_name` | string | ❌ | New match name |
+| `match_status` | string | ❌ | New match status: `setup`, `active`, `completed`, `in_progress`, `paused`, `finished` |
 | `players` | array | ❌ | Updated player assignments |
 
 ### Request Example
@@ -286,6 +343,7 @@ curl -X DELETE http://localhost:8000/matches/OC3_M001 \
 interface MatchInfoPostRequest {
   match_code: string;  // Must start with 'OC3_M'
   match_name: string;
+  match_status?: "setup" | "active" | "completed" | "in_progress" | "paused" | "finished";
   players?: MatchPlayerAssignment[];
 }
 
@@ -300,6 +358,7 @@ interface MatchPlayerAssignment {
 ```typescript
 interface MatchUpdateRequest {
   match_name?: string;
+  match_status?: "setup" | "active" | "completed" | "in_progress" | "paused" | "finished";
   players?: MatchPlayerAssignment[];
 }
 ```

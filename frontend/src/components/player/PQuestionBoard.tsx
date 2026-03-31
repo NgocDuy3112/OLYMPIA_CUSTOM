@@ -90,7 +90,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerD
                             </p>
                         </div>
                         <div className="flex-1 flex items-center justify-center">
-                            {RenderMedia(question.questionMediaURL)}
+                            <RenderMedia mediaUrl={question.questionMediaURL} />
                         </div>
                     </>
                 ) : (

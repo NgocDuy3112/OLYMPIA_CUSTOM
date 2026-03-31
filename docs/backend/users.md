@@ -31,7 +31,7 @@ Retrieve users by user code or filter by role.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `user_code` | string | ❌ | Filter by specific user code |
-| `user_role` | string | ❌ | Filter by role: `guest`, `player`, `admin` |
+| `user_role` | string | ❌ | Filter by role: `guest`, `player`, `mc`, `admin` |
 
 ### Behavior
 
@@ -248,7 +248,7 @@ curl -X DELETE http://localhost:8000/users/OC_U001 \
 ```typescript
 interface UserUpdateRequest {
   user_name?: string;
-  role?: "guest" | "player" | "admin";
+  role?: "guest" | "player" | "mc" | "admin";
   new_password?: string;
 }
 ```
@@ -259,7 +259,7 @@ interface UserUpdateRequest {
 interface User {
   user_code: string;
   user_name: string;
-  role: "guest" | "player" | "admin";
+  role: "guest" | "player" | "mc" | "admin";
   created_at: string;  // ISO 8601 datetime
   updated_at: string;  // ISO 8601 datetime
 }

@@ -319,6 +319,29 @@ const response = await fetch(`${API_BASE_URL}/questions/`, {
 
 ---
 
+### Qualifier Endpoints
+
+#### POST `/questions/excel/qualifier/`
+
+Import qualifier questions from Excel (Admin only).
+
+**Request**:
+```typescript
+const formData = new FormData();
+formData.append("file", fileInput.files[0]);
+
+const response = await fetch(
+  `${API_BASE_URL}/questions/excel/qualifier/?match_code=${matchCode}`,
+  {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${token}` },
+    body: formData
+  }
+);
+```
+
+---
+
 ### Answers Endpoints
 
 #### POST `/answers/`

@@ -1,0 +1,46 @@
+# ─────────────────────────────────────────────────────────────
+# systemd service unit for OLYMPIA CUSTOM (Podman)
+#
+# Usage:
+#   1. Copy to /etc/systemd/system/olympia.service
+#   2. Reload:  sudo systemctl daemon-reload
+#   3. Enable:  sudo systemctl enable olympia
+#   4. Start:   sudo systemctl start olympia
+#   5. Status:  sudo systemctl status olympia
+#
+# Prerequisites:
+#   - Podman + podman-compose installed
+#   - Repository cloned to /opt/olympia
+#   - configs/.env populated with production values
+# ─────────────────────────────────────────────────────────────
+
+[Unit]
+Description=Olympia Custom Quiz Game — Podman Compose
+Documentation=https://github.com/NgocDuy3112/OLYMPIA_CUSTOM
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/olympia
+
+# Start all production containers
+ExecStart=/usr/bin/podman compose --profile production up -d
+
+# Graceful shutdown
+ExecStop=/usr/bin/podman compose --profile production down
+
+# Restart containers if any exit unexpectedly
+ExecReload=/usr/bin/podman compose --profile production up -d --force-recreate
+
+# Run as root (Podman rootless is possible but volumes + ports < 1024
+# are simpler with rootful for a single-app VPS)
+User=root
+
+# Restart the whole unit if start fails
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

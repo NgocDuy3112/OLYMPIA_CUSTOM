@@ -1,0 +1,195 @@
+# ─────────────────────────────────────────────────────────────
+# Production Docker Compose for OLYMPIA CUSTOM
+#
+# Usage:
+#   podman compose -f docker-compose.prod.yaml up -d
+#
+# The host only needs Podman installed.  Everything else
+# (database, cache, app, reverse-proxy, TLS) runs in containers.
+#
+# Differences from docker-compose.yaml (development):
+#   - No volume mounts for app code (baked into image)
+#   - No host port exposure for DB / Valkey
+#   - Healthchecks with service_healthy dependency
+#   - Named volumes for persistent data
+#   - Nginx + Certbot for HTTPS (Let's Encrypt)
+# ─────────────────────────────────────────────────────────────
+
+services:
+  postgresql:
+    container_name: olympia-postgresql
+    image: postgres:17.5-bullseye
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_DB_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_DB_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB_NAME}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - olympia-custom-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER:-olympia} -d ${POSTGRES_DB_NAME:-olympia_custom}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  valkey:
+    container_name: olympia-valkey
+    image: valkey/valkey:9-alpine
+    restart: unless-stopped
+    volumes:
+      - ./configs/valkey.conf:/configs/valkey.conf:ro
+      - valkeydata:/data
+    command: valkey-server /configs/valkey.conf
+    networks:
+      - olympia-custom-network
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    container_name: olympia-app
+    build:
+      context: ./backend/app
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    # Expose only on the internal network — Nginx reverse-proxies to this.
+    expose:
+      - "8000"
+    networks:
+      - olympia-custom-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ── Nginx reverse proxy ───────────────────────────────────
+  nginx:
+    container_name: olympia-nginx
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Nginx configuration
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Frontend static files (built locally, copied to VPS)
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      # Let's Encrypt certificates (shared with certbot)
+      - certbot-conf:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - olympia-custom-network
+
+  # ── Certbot — obtains and renews Let's Encrypt certificates
+  certbot:
+    container_name: olympia-certbot
+    image: certbot/certbot:latest
+    restart: "no"
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    # Initial certificate request.  After the first run, renewals
+    # are handled by a systemd timer (see deploy/README.md).
+    entrypoint: >
+      /bin/sh -c "
+        trap exit TERM;
+        if [ ! -d /etc/letsencrypt/live/${DOMAIN:-example.com} ]; then
+          certbot certonly --webroot
+            --webroot-path=/var/www/certbot
+            --email ${CERTBOT_EMAIL:-admin@example.com}
+            --agree-tos --no-eff-email
+            --force-renewal -d ${DOMAIN:-example.com};
+        fi;
+        while true; do sleep 86400; done
+      "
+    networks:
+      - olympia-custom-network
+
+  # ── Discord Music Bot — plays background music per game phase
+  music-bot:
+    container_name: olympia-music-bot
+    build:
+      context: ./backend/ocee-bot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    command: ["python", "music_bot.py"]
+    volumes:
+      - ./backend/ocee-bot/audio/music:/app/audio/music:ro
+    depends_on:
+      valkey:
+        condition: service_healthy
+    networks:
+      - olympia-custom-network
+
+  # ── Discord SFX Bot — plays sound effects on game events
+  sfx-bot:
+    container_name: olympia-sfx-bot
+    build:
+      context: ./backend/ocee-bot
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    command: ["python", "sfx_bot.py"]
+    volumes:
+      - ./backend/ocee-bot/audio/sfx:/app/audio/sfx:ro
+    depends_on:
+      valkey:
+        condition: service_healthy
+    networks:
+      - olympia-custom-network
+
+  # ── AI Chatbot — RAG-powered Q&A (commented out until ready)
+  # ai-bot:
+  #   container_name: olympia-ai-bot
+  #   build:
+  #     context: ./backend/ai
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./configs/.env
+  #   command: ["python", "chatbot.py"]
+  #   depends_on:
+  #     postgresql:
+  #       condition: service_healthy
+  #     valkey:
+  #       condition: service_healthy
+  #   networks:
+  #     - olympia-custom-network
+
+networks:
+  olympia-custom-network:
+    driver: bridge
+
+volumes:
+  pgdata:
+    driver: local
+  valkeydata:
+    driver: local
+  certbot-conf:
+    driver: local
+  certbot-www:
+    driver: local

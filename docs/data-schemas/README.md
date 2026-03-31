@@ -62,6 +62,9 @@ The application uses a **dual-database architecture**:
 | `records` | Score records | Points must be multiple of 5 |
 | `refresh_tokens` | JWT refresh tokens | Unique token, expiration |
 | `audit_logs` | Action audit trail | Immutable (append-only) |
+| `password_reset_tokens` | Password reset tokens | Unique token, expiration |
+| `qualifier_advancement` | Qualifier round advancements | Tracks advanced players |
+| `qualifier_records` | Qualifier-specific records | Qualifier round scores |
 
 ### Detailed Schema
 
@@ -242,6 +245,192 @@ GET /scoreboard/{match_code}
 | **PostgreSQL** | Index frequently queried columns (`user_code`, `match_code`) |
 | **Valkey** | Use appropriate data structures (ZSET for leaderboards) |
 | **Both** | Monitor query patterns and optimize hot paths |
+
+---
+
+## Database Migrations
+
+### Alembic Setup
+
+The project uses Alembic for PostgreSQL schema migrations.
+
+**Directory Structure**:
+```
+backend/app/
+├── alembic/
+│   ├── versions/          # Migration scripts
+│   ├── env.py             # Alembic environment config
+│   └── script.py.mako     # Migration template
+└── alembic.ini            # Alembic configuration
+```
+
+### Creating Migrations
+
+**Auto-generate from models**:
+```bash
+cd backend/app
+alembic revision --autogenerate -m "Add new_column to users table"
+```
+
+**Manual migration**:
+```bash
+alembic revision -m "Create matches table"
+```
+
+**Edit the generated file** in `alembic/versions/`:
+```python
+"""Create matches table
+
+Revision ID: abc123
+Revises: def456
+Create Date: 2024-01-01 00:00:00.000000
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+def upgrade():
+    op.create_table(
+        'matches',
+        sa.Column('id', sa.UUID(), nullable=False),
+        sa.Column('match_code', sa.String(), nullable=False),
+        sa.Column('match_name', sa.String(length=100), nullable=False),
+        sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now()),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('match_code')
+    )
+    op.create_index('idx_matches_match_code', 'matches', ['match_code'])
+
+def downgrade():
+    op.drop_index('idx_matches_match_code', table_name='matches')
+    op.drop_table('matches')
+```
+
+### Running Migrations
+
+**Check current version**:
+```bash
+alembic current
+```
+
+**Apply all migrations**:
+```bash
+alembic upgrade head
+```
+
+**Upgrade to specific version**:
+```bash
+alembic upgrade abc123
+```
+
+**Downgrade one version**:
+```bash
+alembic downgrade -1
+```
+
+**Downgrade to specific version**:
+```bash
+alembic downgrade def456
+```
+
+### Migration Best Practices
+
+1. **Always test migrations** on a staging database first
+2. **Write reversible migrations** (implement `downgrade()`)
+3. **Keep migrations immutable** - never edit applied migrations
+4. **Add indexes concurrently** (PostgreSQL 12+):
+```python
+op.create_index('idx_name', 'table', ['column'], postgresql_concurrently=True)
+```
+
+---
+
+## Backup Strategies
+
+### PostgreSQL Backups
+
+#### Full Backup with pg_dump
+
+```bash
+# Backup to file
+pg_dump -h localhost -U oc3_user -d oc3_db -F c -b -v -f backup_$(date +%Y%m%d_%H%M%S).dump
+
+# Backup to compressed file
+pg_dump -h localhost -U oc3_user -d oc3_db | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+```
+
+**Restore**:
+```bash
+# From custom format
+pg_restore -h localhost -U oc3_user -d oc3_db -v backup.dump
+
+# From SQL file
+gunzip -c backup.sql.gz | psql -h localhost -U oc3_user -d oc3_db
+```
+
+#### Automated Backup Script
+
+```bash
+#!/bin/bash
+# backup_postgresql.sh
+
+BACKUP_DIR="/backups/postgresql"
+DATE=$(date +%Y%m%d_%H%M%S)
+RETENTION_DAYS=30
+
+# Create backup
+pg_dump -h localhost -U oc3_user -d oc3_db -F c -b -v -f $BACKUP_DIR/backup_$DATE.dump
+
+# Compress old backups
+find $BACKUP_DIR -name "*.dump" -mtime +1 -exec gzip {} \;
+
+# Delete old backups
+find $BACKUP_DIR -name "*.dump.gz" -mtime +$RETENTION_DAYS -delete
+```
+
+**Cron job** (daily at 2 AM):
+```cron
+0 2 * * * /path/to/backup_postgresql.sh
+```
+
+### Valkey Backups
+
+#### RDB Snapshots
+
+Enable in `valkey.conf`:
+```conf
+save 900 1
+save 300 10
+save 60 10000
+dbfilename dump.rdb
+```
+
+**Manual snapshot**:
+```bash
+valkey-cli BGSAVE
+```
+
+#### AOF (Append-Only File)
+
+```conf
+appendonly yes
+appendfilename "appendonly.aof"
+appendfsync everysec
+```
+
+### Disaster Recovery Plan
+
+**Recovery Time Objective (RTO)**: < 4 hours
+**Recovery Point Objective (RPO)**: < 1 hour
+
+**Recovery Steps**:
+1. Assess damage and identify last good backup
+2. Provision new database server
+3. Restore from backup
+4. Apply WAL/AOF logs
+5. Update connection strings
+6. Verify data integrity
+7. Resume normal operations
 
 ---
 

@@ -105,7 +105,7 @@ Stores quiz questions.
 | `is_used` | BOOLEAN | DEFAULT FALSE | Usage flag |
 | `is_deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
 | `match_id` | UUID | FOREIGN KEY → matches(id) | Match reference |
-| `options` | JSONB | NULLABLE | Multiple choice options (Qualifier) |
+| `options` | VARCHAR | NULLABLE | Multiple choice options (Qualifier, JSON-encoded string) |
 
 **Indexes**:
 - `idx_questions_question_code` on `question_code`
@@ -152,6 +152,7 @@ Stores scoring records.
 | `player_id` | UUID | FOREIGN KEY → users(id) | Player reference |
 | `match_id` | UUID | FOREIGN KEY → matches(id) | Match reference |
 | `question_id` | UUID | FOREIGN KEY → questions(id) | Question reference |
+| `round_number` | INTEGER | NULLABLE | Round number (for multi-round games) |
 
 **Indexes**:
 - `idx_records_player_id` on `player_id`
@@ -203,6 +204,70 @@ Immutable audit trail of key actions.
 - `idx_audit_logs_actor_code` on `actor_code`
 - `idx_audit_logs_match_code` on `match_code`
 - `idx_audit_logs_created_at` on `created_at`
+
+---
+
+### password_reset_tokens
+
+Stores password reset tokens for user password recovery.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, UNIQUE, NOT NULL | Token identifier |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | Expiration timestamp |
+| `token` | VARCHAR | UNIQUE, NOT NULL | Reset token (hashed) |
+| `user_id` | UUID | FOREIGN KEY → users(id) CASCADE DELETE | User reference |
+
+**Indexes**:
+- `idx_prt_token` on `token`
+- `idx_prt_user_id` on `user_id`
+- `idx_prt_expires_at` on `expires_at` (for cleanup)
+
+---
+
+### qualifier_advancement
+
+Tracks players who have advanced from the qualifier round.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, UNIQUE, NOT NULL | Advancement identifier |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+| `match_id` | UUID | FOREIGN KEY → matches(id) CASCADE DELETE | Match reference |
+| `player_id` | UUID | FOREIGN KEY → users(id) CASCADE DELETE | Player reference |
+| `is_deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
+
+**Indexes**:
+- `idx_qa_match_id` on `match_id`
+- `idx_qa_player_id` on `player_id`
+- Unique constraint on `(match_id, player_id)`
+
+---
+
+### qualifier_records
+
+Stores scoring records specific to the qualifier round.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY, UNIQUE, NOT NULL | Record identifier |
+| `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | Last update timestamp |
+| `points` | INTEGER | CHECK (multiple of 5) | Points awarded |
+| `is_deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
+| `player_id` | UUID | FOREIGN KEY → users(id) | Player reference |
+| `match_id` | UUID | FOREIGN KEY → matches(id) | Match reference |
+| `question_id` | UUID | FOREIGN KEY → questions(id) | Question reference |
+
+**Indexes**:
+- `idx_qr_player_id` on `player_id`
+- `idx_qr_match_id` on `match_id`
+- `idx_qr_question_id` on `question_id`
+- `idx_qr_player_match` on `(player_id, match_id)`
+
+**Constraints**:
+- `CHECK (points % 5 = 0)`
 
 ---
 

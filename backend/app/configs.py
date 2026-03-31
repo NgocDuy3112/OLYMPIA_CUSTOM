@@ -5,7 +5,7 @@ from google.oauth2.credentials import Credentials
 
 
 SCOPES = ['https://www.googleapis.com/auth/drive']
-SERVICE_ACCOUNT_FILE = 'credentials.json'
+DRIVE_CREDENTIALS_FILE = 'credentials.json'
 
 
 class AppSettings(BaseSettings):
@@ -58,13 +58,13 @@ class ValkeySettings(BaseSettings):
 class GCPSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     GOOGLE_DRIVE_SCOPE: str
-    SERVICE_ACCOUNT_FILE: str
+    DRIVE_CREDENTIALS_FILE: str
 
     @computed_field
     @property
     def GCP_CREDS(self) -> Credentials:
         return Credentials.from_authorized_user_file(
-            self.SERVICE_ACCOUNT_FILE, 
+            self.DRIVE_CREDENTIALS_FILE,
             scopes=[self.GOOGLE_DRIVE_SCOPE]
         )
 

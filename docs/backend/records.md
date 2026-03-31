@@ -36,6 +36,7 @@ Record points for a user in a match.
 | `user_code` | string | ✅ | User's code (must start with `OC_U`) |
 | `question_code` | string | ✅ | Question code (must start with `OC3_Q`) |
 | `points` | integer | ✅ | Points to record (must be multiple of 5) |
+| `round_number` | integer | ❌ | Round number (for multi-round games) |
 | `is_deleted` | boolean | ❌ | Soft delete flag (default: `false`) |
 
 ### Request Example
@@ -178,6 +179,7 @@ interface RecordPostRequest {
   user_code: string;    // Must start with 'OC_U'
   question_code: string; // Must start with 'OC3_Q'
   points: number;       // Must be multiple of 5
+  round_number?: number;
   is_deleted?: boolean;
 }
 ```
@@ -194,6 +196,7 @@ interface Record {
   player_id: string;
   match_id: string;
   question_id: string;
+  round_number?: number;
 }
 ```
 

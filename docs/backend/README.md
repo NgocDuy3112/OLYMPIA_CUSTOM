@@ -70,13 +70,17 @@ backend/app/
 │   ├── question.py      # Question management
 │   ├── answer.py        # Answer handling
 │   ├── record.py        # Score records
-│   └── scoreboard.py    # Scoreboard calculation
+│   ├── scoreboard.py    # Scoreboard calculation
+│   └── qualifier.py     # Qualifier round logic
 ├── models/              # SQLAlchemy ORM models
 │   ├── user.py          # User model
 │   ├── match.py         # Match model
 │   ├── question.py      # Question model
 │   ├── answer.py        # Answer model
-│   └── record.py        # Record model
+│   ├── record.py        # Record model
+│   ├── password_reset_token.py  # Password reset tokens
+│   ├── qualifier_advancement.py # Qualifier advancements
+│   └── qualifier_record.py      # Qualifier-specific records
 ├── schemas/             # Pydantic models
 │   ├── base.py          # BaseResponse schema
 │   ├── user.py          # User schemas
@@ -84,7 +88,8 @@ backend/app/
 │   ├── question.py      # Question schemas
 │   ├── answer.py        # Answer schemas
 │   ├── record.py        # Record schemas
-│   └── scoreboard.py    # Scoreboard schemas
+│   ├── scoreboard.py    # Scoreboard schemas
+│   └── qualifier.py     # Qualifier schemas
 ├── routes/              # API routers
 │   ├── auth.py          # /auth endpoints
 │   ├── user.py          # /users endpoints
@@ -92,7 +97,9 @@ backend/app/
 │   ├── question.py      # /questions endpoints
 │   ├── answer.py        # /answers endpoints
 │   ├── record.py        # /records endpoints
-│   └── scoreboard.py    # /scoreboard endpoints
+│   ├── scoreboard.py    # /scoreboard endpoints
+│   ├── qualifier.py     # /qualifier endpoints
+│   └── media.py         # /media endpoints
 ├── dependencies/        # Dependency injection
 │   ├── postgresql_db.py # Database session
 │   ├── user_auth.py     # JWT authentication
@@ -121,7 +128,7 @@ Authorization: Bearer <access_token>
 ```json
 {
   "sub": "user_code",
-  "role": "guest|player|admin",
+  "role": "guest|player|mc|admin",
   "exp": timestamp
 }
 ```
@@ -273,6 +280,15 @@ See [Errors & Response Envelope](./errors-and-envelope.md) for details.
 |----------|--------|------|-------------|
 | `/scoreboard/{match_code}` | GET | Admin | Get leaderboard |
 
+### Qualifier
+
+| Endpoint | Method | Role | Description |
+|----------|--------|------|-------------|
+| `/qualifier/advance` | POST | Admin | Advance players from qualifier |
+| `/qualifier/records/` | POST | Admin | Record qualifier points |
+| `/qualifier/records/` | GET | Admin | Get qualifier records |
+| `/qualifier/advancements/` | GET | Admin | Get qualifier advancements |
+
 ### Caching Strategy
 
 The backend uses **Valkey** for caching:
@@ -382,7 +398,7 @@ docker-compose up -d --profile development
 | `VALKEY_PASSWORD` | Valkey password | `valkey_pass` |
 | `VALKEY_HOST` | Valkey host | `localhost` |
 | `VALKEY_PORT` | Valkey port | `6379` |
-| `SERVICE_ACCOUNT_FILE` | GCP service account JSON | `credentials.json` |
+| `DRIVE_CREDENTIALS_FILE` | Google Drive OAuth credentials JSON | `credentials.json` |
 
 ### Logging
 
@@ -432,6 +448,353 @@ global_logger.error("Database connection failed", exc_info=True)
 2. Create Alembic migration
 3. Update schemas if needed
 4. Test with Swagger UI
+
+---
+
+## Development Workflow
+
+### Local Development Setup
+
+1. **Clone and Install Dependencies**:
+```bash
+cd backend/app
+pip install -r requirements.txt
+```
+
+2. **Environment Configuration**:
+```bash
+# Copy example environment file
+cp configs/.env.example configs/.env
+
+# Edit with your settings
+nano configs/.env
+```
+
+3. **Start Services with Docker Compose**:
+```bash
+# Start PostgreSQL and Valkey only
+docker-compose up -d postgres valkey
+
+# Or start all services including backend
+docker-compose up -d --profile development
+```
+
+4. **Run Database Migrations**:
+```bash
+cd backend/app
+alembic upgrade head
+```
+
+5. **Start Development Server**:
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Code Style and Quality
+
+The project uses the following tools for code quality:
+
+| Tool | Purpose | Command |
+|------|---------|---------|
+| **Black** | Code formatting | `black backend/app/` |
+| **isort** | Import sorting | `isort backend/app/` |
+| **Flake8** | Linting | `flake8 backend/app/` |
+| **MyPy** | Type checking | `mypy backend/app/` |
+| **Pytest** | Testing | `pytest tests/` |
+
+**Pre-commit Hook Setup**:
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+### Debugging
+
+**Using VS Code**:
+Create `.vscode/launch.json`:
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FastAPI: Debug",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "main:app",
+        "--reload",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "jinja": true,
+      "justMyCode": true
+    }
+  ]
+}
+```
+
+**Logging**:
+```python
+from logger import global_logger
+
+# Different log levels
+global_logger.debug("Debug message")
+global_logger.info("Info message")
+global_logger.warning("Warning message")
+global_logger.error("Error message", exc_info=True)
+global_logger.critical("Critical message")
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+#### Database Connection Errors
+
+**Problem**: `Connection refused` or `could not connect to server`
+
+**Solutions**:
+1. Check if PostgreSQL is running:
+```bash
+docker-compose ps
+```
+
+2. Verify connection string:
+```bash
+# Test connection
+psql postgresql://oc3_user:secure_password@localhost:5432/oc3_db
+```
+
+3. Check PostgreSQL logs:
+```bash
+docker-compose logs postgres
+```
+
+#### Valkey Connection Errors
+
+**Problem**: `ERR AUTH <password> called without any password configured`
+
+**Solutions**:
+1. Check Valkey configuration in `docker-compose.yaml`
+2. Verify password in environment variables
+3. Test connection:
+```bash
+docker-compose exec valkey valkey-cli -a your_password ping
+```
+
+#### JWT Token Issues
+
+**Problem**: `Token has expired` or `Could not validate credentials`
+
+**Solutions**:
+1. Check token expiration time in response
+2. Implement token refresh logic (see [Auth](./auth.md#token-management))
+3. Verify `SECRET_KEY` matches between deployments
+
+#### WebSocket Disconnections
+
+**Problem**: Frequent WebSocket disconnections
+
+**Solutions**:
+1. Check network stability
+2. Verify load balancer WebSocket support (if applicable)
+3. Increase timeout settings:
+```python
+# In uvicorn configuration
+--timeout-keep-alive 300
+```
+
+4. Check Valkey pub/sub connection:
+```bash
+docker-compose logs -f olympia-app | grep "WebSocket"
+```
+
+#### Import Errors (Google Drive)
+
+**Problem**: `Failed to import from Google Drive`
+
+**Solutions**:
+1. Verify `credentials.json` exists in `backend/app/`
+2. Check Google Drive API is enabled
+3. Verify service account has Drive access
+4. Check `DRIVE_CREDENTIALS_FILE` environment variable
+
+### Performance Issues
+
+#### Slow Database Queries
+
+**Diagnosis**:
+```sql
+-- Enable query logging
+ALTER SYSTEM SET log_min_duration_statement = 1000;
+SELECT pg_reload_conf();
+
+-- Check slow queries
+SELECT * FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;
+```
+
+**Solutions**:
+1. Add indexes on frequently queried columns
+2. Use `EXPLAIN ANALYZE` to understand query plans
+3. Consider connection pooling adjustments
+
+#### High Memory Usage
+
+**Diagnosis**:
+```bash
+# Check container memory
+docker stats
+
+# Check Valkey memory
+docker-compose exec valkey valkey-cli INFO memory
+```
+
+**Solutions**:
+1. Adjust Valkey `maxmemory` policy
+2. Review cache TTL settings
+3. Implement pagination for large datasets
+
+---
+
+## Deployment
+
+### Production Checklist
+
+Before deploying to production:
+
+- [ ] Set strong `SECRET_KEY` (min 32 characters)
+- [ ] Configure production database credentials
+- [ ] Set up SSL/TLS certificates
+- [ ] Configure backup strategy for PostgreSQL
+- [ ] Set up monitoring and alerting
+- [ ] Review and update CORS origins
+- [ ] Configure rate limiting
+- [ ] Set up log aggregation
+- [ ] Test disaster recovery procedures
+
+### Environment Variables for Production
+
+```bash
+# Security
+SECRET_KEY=your-super-secret-key-min-32-chars
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
+
+# Database
+POSTGRES_DB_USER=production_user
+POSTGRES_DB_PASSWORD=very-secure-password
+POSTGRES_DB_HOST=your-db-host
+POSTGRES_DB_PORT=5432
+POSTGRES_DB_NAME=olympia_production
+
+# Valkey
+VALKEY_USER=default
+VALKEY_PASSWORD=secure-valkey-password
+VALKEY_HOST=your-valkey-host
+VALKEY_PORT=6379
+
+# Email/SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-smtp-user
+SMTP_PASSWORD=your-app-password
+EMAIL_FROM_NAME="Olympia Custom"
+FRONTEND_URL=https://your-domain.com
+
+# Google Drive
+DRIVE_CREDENTIALS_FILE=credentials.json
+
+# CORS
+ALLOWED_ORIGINS=https://your-domain.com,https://admin.your-domain.com
+
+# Logging
+LOG_LEVEL=INFO
+LOG_FORMAT=json
+```
+
+### Docker Deployment
+
+See [deploy/README.md](../../deploy/README.md) for comprehensive deployment instructions.
+
+**Quick Deploy**:
+```bash
+# Build and start all services
+docker-compose -f docker-compose.prod.yaml up -d --build
+
+# Check health
+curl http://localhost:8000/health
+
+# View logs
+docker-compose logs -f
+```
+
+### Scaling Considerations
+
+**Horizontal Scaling**:
+1. Use external PostgreSQL (not Docker)
+2. Use external Valkey cluster
+3. Configure load balancer with WebSocket support
+4. Enable Valkey pub/sub for multi-instance sync
+
+**Vertical Scaling**:
+- Increase PostgreSQL connection pool
+- Increase Valkey memory limit
+- Adjust Uvicorn workers: `--workers 4`
+
+---
+
+## Monitoring and Observability
+
+### Health Checks
+
+```bash
+# Basic health check
+curl http://localhost:8000/health
+
+# Detailed health check (with database)
+curl http://localhost:8000/health/detailed
+```
+
+### Metrics to Monitor
+
+| Metric | Tool | Alert Threshold |
+|--------|------|-----------------|
+| API Response Time | Prometheus/Grafana | p95 > 500ms |
+| Error Rate | Prometheus/Grafana | > 1% |
+| Database Connections | pg_stat_activity | > 80% pool |
+| Valkey Memory | INFO memory | > 80% maxmemory |
+| WebSocket Connections | Custom metric | Sudden drop |
+| Disk Usage | Node exporter | > 85% |
+
+### Log Aggregation
+
+Recommended stack:
+- **ELK Stack**: Elasticsearch, Logstash, Kibana
+- **Loki + Grafana**: Lightweight alternative
+- **Cloud**: AWS CloudWatch, GCP Cloud Logging
+
+---
+
+## API Versioning
+
+Current API version: **v1** (implicit)
+
+Future versions should follow:
+```
+/api/v1/...
+/api/v2/...
+```
+
+Version migration strategy:
+1. Deprecate old version (6 months notice)
+2. Maintain both versions during transition
+3. Document breaking changes in changelog
 
 ---
 

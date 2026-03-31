@@ -70,7 +70,7 @@ const PVuotDeoClue: React.FC<PVuotDeoClueProps> = ({ question, index = 1, onClic
                         </button>
 
                         {question.questionMediaURL ? (
-                            <div>{RenderMedia(question.questionMediaURL)}</div>
+                            <div><RenderMedia mediaUrl={question.questionMediaURL} /></div>
                         ) : (
                             <div className="text-gray-800">{question.questionExplanation ?? 'No clue available.'}</div>
                         )}

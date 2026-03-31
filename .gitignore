@@ -3,18 +3,23 @@
 CLAUDE.md
 
 secrets/
-configs/
 database/
 logs/
 temp/
 *.log
 *.sqlite3
 
+# Ignore env files with real values, but allow .env.example templates
+configs/.env
+configs/*.json
+backend/app/.env
+credentials.json
+**/credentials.json
+
 .vscode/
 .idea/
 .cursor/
 .DS_Store
-credentials.json
 
 # gitignore template for LangChain products, e.g., LangGraph, LangSmith
 # website: https://www.langchain.com/

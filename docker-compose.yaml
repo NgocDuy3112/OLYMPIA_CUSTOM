@@ -14,8 +14,13 @@ services:
       - ./database/postgresql/oc3:/var/lib/postgresql/data
     networks:
       - olympia-custom-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER:-olympia} -d ${POSTGRES_DB_NAME:-olympia_custom}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     profiles:
-      - production
       - development
 
   valkey:
@@ -29,8 +34,13 @@ services:
     command: valkey-server /configs/valkey.conf
     networks:
       - olympia-custom-network
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     profiles:
-      - production
       - development
 
   app:
@@ -54,7 +64,6 @@ services:
     networks:
       - olympia-custom-network
     profiles:
-      - production
       - development
 
 networks:

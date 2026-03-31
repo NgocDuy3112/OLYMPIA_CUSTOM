@@ -23,6 +23,8 @@ os.environ.setdefault("SMTP_HOST", "smtp.test.com")
 os.environ.setdefault("SMTP_USER", "test@test.com")
 os.environ.setdefault("SMTP_PASSWORD", "testpassword")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:5173")
+os.environ.setdefault("GOOGLE_DRIVE_SCOPE", "https://www.googleapis.com/auth/drive")
+os.environ.setdefault("DRIVE_CREDENTIALS_FILE", "/tmp/fake_creds.json")
 
 import pytest
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession

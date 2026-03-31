@@ -30,6 +30,7 @@ Detailed Valkey (Redis-compatible) data structures for the Olympia Custom quiz g
 | **Answer Cache** | String | `answer:{match}:{user}:{question}` |
 | **Pub/Sub** | Channel | `{match_code}` |
 | **Session Data** | Hash | `session:{user_code}` |
+| **OTP Storage** | String | `otp:{user_code}:{purpose}` or `otp:{email}:{purpose}` |
 
 ---
 
@@ -254,6 +255,51 @@ HSET session:OC_U001
 | **Get All** | `HGETALL key` | Get all fields |
 | **Delete** | `DEL key` | Remove session |
 | **Expire** | `EXPIRE key {seconds}` | Set TTL |
+
+---
+
+### OTP Storage
+
+**Key Pattern**: `otp:{user_code}:{purpose}` or `otp:{email}:{purpose}`
+
+**Example**: `otp:OC_U001:login` or `otp:user@example.com:login`
+
+#### Structure
+
+| Property | Value |
+|----------|-------|
+| **Type** | String |
+| **Value** | 6-digit OTP code |
+| **TTL** | 5 minutes (300 seconds) |
+
+#### Operations
+
+| Operation | Command | Description |
+|-----------|---------|-------------|
+| **Set** | `SETEX key 300 {otp_code}` | Store OTP with 5-min TTL |
+| **Get** | `GET key` | Retrieve OTP |
+| **Delete** | `DEL key` | Invalidate OTP |
+| **Exists** | `EXISTS key` | Check if OTP exists |
+
+#### Rate Limiting
+
+OTP requests are rate-limited per user/email to prevent abuse. The backend tracks request counts using additional keys:
+- `otp:rate:{user_code}:{purpose}` - Request counter
+- `otp:rate:{email}:{purpose}` - Request counter (email-based)
+
+#### Example
+
+```bash
+# Store OTP with 5-minute TTL
+SETEX otp:OC_U001:login 300 "123456"
+
+# Retrieve OTP
+GET otp:OC_U001:login
+# Output: "123456"
+
+# Invalidate OTP after successful verification
+DEL otp:OC_U001:login
+```
 
 ---
 

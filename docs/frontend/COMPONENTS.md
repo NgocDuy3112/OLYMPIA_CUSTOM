@@ -157,6 +157,41 @@ interface PingIconStyleProps {
 
 ---
 
+### VeDichQuestionCard
+
+**Location**: `src/components/shared/VeDichQuestionCard.tsx`
+
+**Purpose**: Question card component for the Final Stage (Về Đích) rounds.
+
+**Props**:
+```typescript
+interface VeDichQuestionCardProps {
+  question: Question;
+  isLocked: boolean;
+  onSubmit: (answer: string) => void;
+  timerDuration?: number;
+}
+```
+
+**Features**:
+- Displays question with media support via `RenderMedia`
+- Lock/unlock state for answer submission control
+- Integrated timer display (optional)
+- Answer input with submit button
+- Visual feedback for locked/unlocked states
+
+**Usage**:
+```tsx
+<VeDichQuestionCard
+  question={currentQuestion}
+  isLocked={isAnswerLocked}
+  onSubmit={handleSubmitAnswer}
+  timerDuration={30}
+/>
+```
+
+---
+
 ## Admin Components
 
 Components exclusive to the admin interface.
@@ -323,6 +358,45 @@ interface AVuotDeoClueProps {
     if (result) awardPoints(playerCode, 10);
     return result ? 'correct' : 'incorrect';
   }}
+/>
+```
+
+---
+
+### AControlButton
+
+**Location**: `src/components/admin/AControlButton.tsx`
+
+**Purpose**: Control button component for admin game management actions.
+
+**Props**:
+```typescript
+interface AControlButtonProps {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "secondary" | "danger";
+  icon?: ReactNode;
+}
+```
+
+**Variants**:
+- **Primary**: Main action buttons (blue theme)
+- **Secondary**: Secondary actions (gray theme)
+- **Danger**: Destructive actions (red theme)
+
+**Features**:
+- Optional icon support
+- Disabled state styling
+- Click handler with loading state support
+
+**Usage**:
+```tsx
+<AControlButton
+  label="Start Game"
+  onClick={handleStartGame}
+  disabled={!isReady}
+  variant="primary"
 />
 ```
 

@@ -11,6 +11,7 @@ from routes import (
     record,
     scoreboard,
     qualifier,
+    media,
 )
 from dependencies.postgresql_db import *
 from dependencies.valkey_store import get_valkey
@@ -107,6 +108,7 @@ app.include_router(question.router)
 app.include_router(record.router)
 app.include_router(scoreboard.router)
 app.include_router(qualifier.router)
+app.include_router(media.router)
 
 
 
