@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth import *
@@ -24,9 +24,9 @@ router = APIRouter(prefix="/auth", tags=["Uỷ Quyền"])
     response_model=TokenResponse,
     status_code=201
 )
-async def signup_api(user_data: UserCreate, session: AsyncSession = Depends(get_db)):
+async def signup_api(user_data: UserCreate, background_tasks: BackgroundTasks, session: AsyncSession = Depends(get_db)):
     try:
-        return await signup(user_data, session)
+        return await signup(user_data, session, background_tasks)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

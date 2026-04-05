@@ -86,6 +86,7 @@ curl -X POST http://localhost:8000/auth/signup \
 | [Answers API](./backend/answers.md) | Answer submission and caching |
 | [Records API](./backend/records.md) | Score recording and leaderboards |
 | [Scoreboard API](./backend/scoreboard.md) | Leaderboard retrieval |
+| [Qualifier API](./backend/qualifier.md) | Qualifier round management |
 | [WebSocket API](./backend/websocket.md) | Real-time communication |
 | [Media API](./backend/media.md) | Media proxy for Google Drive |
 | [Errors & Envelope](./backend/errors-and-envelope.md) | Error handling patterns |

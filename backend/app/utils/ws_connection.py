@@ -103,5 +103,19 @@ class ConnectionManager:
         else:
             await self.send_to_room_local(room_id, payload)
 
+    async def shutdown(self):
+        """Gracefully cancel all Valkey pub/sub listener tasks on shutdown."""
+        for room_id, task in list(self._room_tasks.items()):
+            if not task.done():
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                global_logger.info(f"Cancelled Valkey listener for room {room_id!r}")
+        self._room_tasks.clear()
+        self.rooms.clear()
+        global_logger.info("ConnectionManager shutdown complete.")
+
 
 manager = ConnectionManager()

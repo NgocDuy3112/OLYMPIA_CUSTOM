@@ -9,7 +9,8 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
   matchCode,
   children,
 }) => {
-  const ws = useWebSocket(matchCode);
+  const token = sessionStorage.getItem("jwtToken_player") ?? undefined;
+  const ws = useWebSocket(matchCode, token);
 
   const value: PlayerWsContextValue = {
     isConnected: ws.isConnected,

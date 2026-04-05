@@ -26,7 +26,9 @@ from sqlalchemy import select
 from models.user import User, RoleEnum
 from models.match import Match
 from models.question import Question
-from core.auth import hash_password, create_access_token
+from core.auth import hash_password, create_access_token, signup
+from schemas.user import UserCreate
+from fastapi import BackgroundTasks
 
 
 def _make_token(user_code: str = "OC_U12345678", role: str = "admin",
@@ -97,7 +99,7 @@ class TestDuplicateUserCode:
         )
 
         with pytest.raises(Exception):
-            await signup(duplicate, db_session)
+            await signup(duplicate, db_session, BackgroundTasks())
 
 
 # ── EDGE-05: Large media file handling ───────────────────────────────────────

@@ -298,6 +298,51 @@ interface APlayerBarProps {
 - Buzzed indicator (border color change: `border-blue-500`)
 - PingIconStyle component (Zap or KeyRound)
 
+---
+
+### AQualifierPage
+
+**Location**: `src/pages/admin/AQualifierPage.tsx`
+
+**Purpose**: Admin control panel for the Qualifier round (Vòng Loại).
+
+**Features**:
+- Round selector (dropdown for rounds 1-5)
+- Question navigation (8/4/2/2/8 questions per round)
+- Answer grid (A-F options with visual feedback)
+- Control buttons: Start Round, Timer, Show Answer, Calculate Score, End Round
+- Player standings sidebar (grouped by round, passed/reserve status)
+- WebSocket integration for real-time updates
+
+**State Management**:
+- `currentRound`: Active round number (1-5)
+- `currentQuestionIndex`: Question index within round
+- `currentQuestion`: Question object with text, options, answer
+- `standings`: Player rankings sorted by score
+- `advancements`: Passed/reserve status per player per round
+
+**Key Functions**:
+- `resolveQuestionCode(round, idx)`: Generate question code `OC3_Q_VL_{round}_{idx:02d}`
+- `parseOptions(options)`: Parse JSON options string to array
+- `handleCalculateScore()`: Call `POST /qualifier/calculate-scores`
+- `handleEndRound()`: Call `POST /qualifier/end-round`
+
+**WebSocket Events Sent**:
+- `send_question`: Broadcast question to players
+- `start_the_timer`: Start countdown
+- `sync_qualifier_round`: Sync round state
+
+**WebSocket Events Received**:
+- `qualifier_scores_updated`: Score calculation results
+- `qualifier_advancement`: Round advancement results
+
+**Usage**:
+```tsx
+// Route: /admin/vl
+// Access: Admin role required
+<AQualifierPage />
+```
+
 **Interactions**:
 - Click: Calls `onClick` with player code
 - Keyboard: Enter/Space triggers click (accessible)
@@ -583,6 +628,52 @@ interface PPlayerRecProps {
     isCurrent={player.playerCode === myPlayerCode}
   />
 ))}
+```
+
+---
+
+### PQualifierPage
+
+**Location**: `src/pages/player/PQualifierPage.tsx`
+
+**Purpose**: Player interface for the Qualifier round (Vòng Loại).
+
+**Features**:
+- Question display with 6 answer options (A-F)
+- Countdown timer synced with admin
+- Answer selection and submission
+- Real-time score updates via WebSocket
+- Personal standing display (rank, score)
+
+**State Management**:
+- `selectedOption`: Currently selected answer (A-F)
+- `pendingOption`: Option clicked but not confirmed
+- `showAnswers`: Whether correct answer is revealed
+- `myStanding`: Current player's ranking info
+- `answeredCount`: Number of players who submitted answers
+
+**Key Functions**:
+- `parseOptions(options)`: Parse JSON options string to array
+- `handleOptionClick(option)`: Select answer option
+- `handleSubmitAnswer()`: Submit answer via WebSocket
+
+**WebSocket Events Sent**:
+- `player_online`: Announce presence on connect
+- `request_qualifier_state`: Request current round state
+- `answer`: Submit answer for current question
+
+**WebSocket Events Received**:
+- `question`: Receive question from admin
+- `start_the_timer`: Start countdown
+- `qualifier_scores_updated`: Score calculation results
+- `qualifier_advancement`: Round advancement results
+- `clear_question`: Clear question display
+
+**Usage**:
+```tsx
+// Route: /player/vl
+// Access: Player role required
+<PQualifierPage />
 ```
 
 ---

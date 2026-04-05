@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
@@ -16,12 +16,14 @@ from routes import (
 from dependencies.postgresql_db import *
 from dependencies.valkey_store import get_valkey
 from dependencies.ws_manager import get_ws_manager
+from dependencies.user_auth import get_ws_user
 from utils.ws_connection import ConnectionManager
 from logger import global_logger
 from alembic.config import Config
 from alembic import command
 import asyncio
 from pathlib import Path
+from jwt import PyJWTError
 
 
 @asynccontextmanager
@@ -73,6 +75,13 @@ async def lifespan(app: FastAPI):
     
     # Cleanup code
     global_logger.info("Application Shutdown: Disposing of database engine.")
+    
+    # Gracefully shut down WebSocket ConnectionManager (cancel Valkey listeners)
+    try:
+        await manager.shutdown()
+    except Exception as e:
+        global_logger.warning(f"Error shutting down ConnectionManager: {e}")
+    
     if valkey:
         try:
             await valkey.close()
@@ -95,7 +104,7 @@ def health_check():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Vite dev server; override in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -113,21 +122,56 @@ app.include_router(media.router)
 
 
 @app.websocket("/ws/{match_code}")
-async def websocket_endpoint(websocket: WebSocket, match_code: str):
+async def websocket_endpoint(
+    websocket: WebSocket,
+    match_code: str,
+    token: str | None = Query(None, description="JWT access token"),
+):
+    # ── Authenticate WebSocket connection ─────────────────────────────────
+    if not token:
+        await websocket.close(code=4001, reason="Missing authentication token")
+        return
+
+    try:
+        user_info = get_ws_user(token)
+    except PyJWTError:
+        await websocket.close(code=4001, reason="Invalid authentication token")
+        return
+    except Exception:
+        await websocket.close(code=4001, reason="Authentication failed")
+        return
+
+    global_logger.info(
+        f"WebSocket authenticated: user={user_info['user_code']!r} "
+        f"role={user_info['role']!r} room={match_code!r}"
+    )
+
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code)
 
     try:
         while True:
             data = await websocket.receive_json()
-            global_logger.info(f"Received message from {websocket.client} in room {match_code}: {data}")
+            # Inject authenticated user info into inbound messages
+            data["user_code"] = user_info["user_code"]
+            data["role"] = user_info["role"]
+            global_logger.info(
+                f"Received message from {user_info['user_code']!r} "
+                f"in room {match_code!r}: {data}"
+            )
             await ws_manager.broadcast_to_room(match_code, data)
 
     except WebSocketDisconnect:
-        global_logger.info(f"WebSocket disconnected: {websocket.client} room={match_code}")
+        global_logger.info(
+            f"WebSocket disconnected: {user_info['user_code']!r} room={match_code!r}"
+        )
 
     except Exception as e:
-        global_logger.error(f"WebSocket error in room {match_code} for {websocket.client}: {e}", exc_info=True)
+        global_logger.error(
+            f"WebSocket error in room {match_code!r} for "
+            f"{user_info['user_code']!r}: {e}",
+            exc_info=True,
+        )
 
     finally:
         ws_manager.disconnect(websocket, match_code)

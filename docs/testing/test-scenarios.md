@@ -51,8 +51,18 @@ edge-case testing for the quiz game platform.
 | ID | Scenario | Steps | Expected |
 |----|----------|-------|----------|
 | VL-01 | Import qualifier questions | POST `/questions/excel/qualifier/` | 201, questions created |
-| VL-02 | Calculate qualifier scores | Trigger score calculation | Correct scores per player |
-| VL-03 | Advancement logic | Top N players advance | Correct advancement records |
+| VL-02 | Calculate scores for question | POST `/qualifier/calculate-scores` | 200, score updates returned |
+| VL-03 | End round 1 (8 players advance) | POST `/qualifier/end-round` with round_number=1 | 200, 8 passed, reserves marked |
+| VL-04 | End round 2 (4 players advance) | POST `/qualifier/end-round` with round_number=2 | 200, 4 passed from uncategorized |
+| VL-05 | End round 3 (2 players advance) | POST `/qualifier/end-round` with round_number=3 | 200, 2 passed from uncategorized |
+| VL-06 | End round 4 (2 players advance) | POST `/qualifier/end-round` with round_number=4 | 200, 2 passed from uncategorized |
+| VL-07 | End round 5 (fill to 16) | POST `/qualifier/end-round` with round_number=5 | 200, reserves fill to 16 total |
+| VL-08 | Get standings | GET `/qualifier/standings/{match_code}` | 200, sorted by score |
+| VL-09 | Get advancements | GET `/qualifier/advancements/{match_code}` | 200, all advancement records |
+| VL-10 | Override advance count | POST `/qualifier/end-round` with advance_count=5 | 200, 5 players advance |
+| VL-11 | Invalid round number | POST `/qualifier/end-round` with round_number=6 | 400, validation error |
+| VL-12 | Player access standings | GET `/qualifier/standings/{match_code}` with player JWT | 200, standings returned |
+| VL-13 | Player access advancements | GET `/qualifier/advancements/{match_code}` with player JWT | 403, forbidden |
 
 ### 1.6 Media Proxy
 

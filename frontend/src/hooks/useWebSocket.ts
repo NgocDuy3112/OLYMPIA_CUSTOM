@@ -5,9 +5,10 @@ import { createLogger } from "@/utils/logger";
 
 const logger = createLogger("WS");
 
-const createWsUrl = (matchCode: string) => `${WS_BASE_URL}/ws/${matchCode}`;
+const createWsUrl = (matchCode: string, token?: string) =>
+  `${WS_BASE_URL}/ws/${matchCode}${token ? `?token=${encodeURIComponent(token)}` : ``}`;
 
-export const useWebSocket = (matchCode: string) => {
+export const useWebSocket = (matchCode: string, token?: string) => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const messageDrainTimerRef = useRef<number | null>(null);
@@ -44,7 +45,7 @@ export const useWebSocket = (matchCode: string) => {
       return;
     }
 
-    const url = createWsUrl(matchCode);
+    const url = createWsUrl(matchCode, token);
     let closedByCleanup = false;
 
     const drainNextMessage = () => {

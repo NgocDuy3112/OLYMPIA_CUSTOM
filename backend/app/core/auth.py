@@ -3,7 +3,7 @@ from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import uuid
 
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 
 from sqlalchemy import select, func
@@ -37,7 +37,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-async def signup(user_data: UserCreate, session: AsyncSession) -> TokenResponse:
+async def signup(user_data: UserCreate, session: AsyncSession, background_tasks: BackgroundTasks) -> TokenResponse:
     # Auto-generate user_code if not provided.
     # Use role-specific prefixes so admin and player codes live in separate namespaces.
     # Examples: admin -> OC_U_Axxxxxxx, player -> OC_U_P03xxxxxxx
@@ -94,9 +94,10 @@ async def signup(user_data: UserCreate, session: AsyncSession) -> TokenResponse:
         }, 
         expires_delta=access_token_expires
     )
-    # Send credentials email in the background if an email address was provided
+    # Send credentials email in background (non-blocking)
     if new_user.email:
-        await send_credentials_email_safe(
+        background_tasks.add_task(
+            send_credentials_email_safe,
             to=new_user.email,
             user_name=new_user.user_name,
             user_code=new_user.user_code,

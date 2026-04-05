@@ -342,6 +342,91 @@ const response = await fetch(
 
 ---
 
+#### POST `/qualifier/calculate-scores`
+
+Calculate scores for a qualifier question (Admin only).
+
+**Request**:
+```typescript
+const response = await fetch(`${API_BASE_URL}/qualifier/calculate-scores`, {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    match_code: "OC3_M_VL",
+    question_code: "OC3_Q_VL_1_01",
+    correct_answer: "A",
+    round_number: 1
+  })
+});
+
+const data = await response.json();
+// { status: "success", data: { correct_count, wrong_count, score_updates } }
+```
+
+---
+
+#### POST `/qualifier/end-round`
+
+Finalize a qualifier round (Admin only).
+
+**Request**:
+```typescript
+const response = await fetch(`${API_BASE_URL}/qualifier/end-round`, {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    match_code: "OC3_M_VL",
+    round_number: 1,
+    advance_count: null  // Optional override
+  })
+});
+
+const data = await response.json();
+// { status: "success", data: { round_number, passed: [...], reserve: [...] } }
+```
+
+---
+
+#### GET `/qualifier/advancements/{match_code}`
+
+Get all advancement records for a match (Admin only).
+
+**Request**:
+```typescript
+const response = await fetch(
+  `${API_BASE_URL}/qualifier/advancements/${matchCode}`,
+  { headers: { "Authorization": `Bearer ${token}` } }
+);
+
+const data = await response.json();
+// { status: "success", data: { advancements: [...] } }
+```
+
+---
+
+#### GET `/qualifier/standings/{match_code}`
+
+Get current qualifier standings (Admin or Player).
+
+**Request**:
+```typescript
+const response = await fetch(
+  `${API_BASE_URL}/qualifier/standings/${matchCode}`,
+  { headers: { "Authorization": `Bearer ${token}` } }
+);
+
+const data = await response.json();
+// { status: "success", data: { standings: [...] } }
+```
+
+---
+
 ### Answers Endpoints
 
 #### POST `/answers/`

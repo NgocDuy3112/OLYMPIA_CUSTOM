@@ -201,7 +201,13 @@ async def calculate_and_apply_qualifier_scores(
             "wrong_count": wrong_count,
             "score_updates": score_updates,
         }
-        await valkey.publish(channel=request.match_code, message=json.dumps(broadcast_payload))
+        try:
+            await valkey.publish(channel=request.match_code, message=json.dumps(broadcast_payload))
+        except Exception:
+            global_logger.exception(
+                f"Failed to broadcast qualifier scores via Valkey for question={request.question_code}; "
+                "scores are already persisted in DB."
+            )
 
         log_message = (
             f"Qualifier scores applied for question={request.question_code}: "

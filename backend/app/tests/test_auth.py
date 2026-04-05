@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from sqlalchemy import select
-from fastapi import HTTPException
+from fastapi import HTTPException, BackgroundTasks
 
 from models.user import User, RoleEnum
 from models.password_reset_token import PasswordResetToken
@@ -55,7 +55,7 @@ class TestAuthCore:
         """Test successful user signup."""
         user_create = UserCreate(**mock_user_data)
         
-        response = await signup(user_create, db_session)
+        response = await signup(user_create, db_session, BackgroundTasks())
         
         assert isinstance(response, TokenResponse)
         assert response.role == "player"
@@ -82,7 +82,7 @@ class TestAuthCore:
         user_create = UserCreate(**duplicate_data)
         
         with pytest.raises(HTTPException) as exc_info:
-            await signup(user_create, db_session)
+            await signup(user_create, db_session, BackgroundTasks())
         
         assert exc_info.value.status_code == 400
         assert "Username already exists" in exc_info.value.detail
@@ -99,7 +99,7 @@ class TestAuthCore:
         user_create = UserCreate(**duplicate_data)
         
         with pytest.raises(HTTPException) as exc_info:
-            await signup(user_create, db_session)
+            await signup(user_create, db_session, BackgroundTasks())
         
         assert exc_info.value.status_code == 400
         assert "Username already exists" in exc_info.value.detail
@@ -110,7 +110,7 @@ class TestAuthCore:
         mock_user_data_copy["user_code"] = None  # Should auto-generate
         
         user_create = UserCreate(**mock_user_data_copy)
-        response = await signup(user_create, db_session)
+        response = await signup(user_create, db_session, BackgroundTasks())
         
         assert isinstance(response, TokenResponse)
         assert response.user_code.startswith("OC_U")
@@ -142,7 +142,7 @@ class TestAuthCore:
         mock_user_data_copy["email"] = None
         
         user_create = UserCreate(**mock_user_data_copy)
-        user_response = await signup(user_create, db_session)
+        user_response = await signup(user_create, db_session, BackgroundTasks())
         
         with pytest.raises(HTTPException) as exc_info:
             await send_credentials(user_response.user_code, db_session)
@@ -180,7 +180,7 @@ class TestAuthCore:
         mock_user_data_copy["email"] = None
         
         user_create = UserCreate(**mock_user_data_copy)
-        user_response = await signup(user_create, db_session)
+        user_response = await signup(user_create, db_session, BackgroundTasks())
         
         with pytest.raises(HTTPException) as exc_info:
             await send_reset_link(user_response.user_code, db_session)
@@ -359,7 +359,7 @@ class TestOTPFunctions:
         mock_user_data_copy["email"] = None
         
         user_create = UserCreate(**mock_user_data_copy)
-        user_response = await signup(user_create, db_session)
+        user_response = await signup(user_create, db_session, BackgroundTasks())
         
         with pytest.raises(ValueError) as exc_info:
             await request_otp(

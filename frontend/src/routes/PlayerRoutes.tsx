@@ -146,7 +146,6 @@ const PlayerRoutes = () => {
         <PlayerWebSocketWrapper>
             <Routes>
                 <Route path="/" element={<Navigate to="/player/access" replace />} />
-                
                 <Route path="/access" element={<PGameAccessPage />} />
                 <Route path="/waiting" element={<PWaitingPage />} />
                 <Route

@@ -32,6 +32,9 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
         }
     };
 
+    // Qualifier tie-breaker info (only shown when available)
+    const hasTieBreaker = player.playerCorrectScore != null || player.playerAvgResponseTime != null;
+
     return (
         <div
             role={disabled ? undefined : "button"}
@@ -74,6 +77,20 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                 <p className="text-[18px] mt-1 font-medium leading-snug">
                     {player.playerLastAnswer?.toUpperCase() ?? ""}
                 </p>
+                {/* Qualifier tie-breaker info */}
+                {hasTieBreaker && (
+                    <p className="text-[12px] mt-1 text-blue-200 font-normal">
+                        {player.playerCorrectScore != null && (
+                            <span>Đúng: {player.playerCorrectScore} điểm</span>
+                        )}
+                        {player.playerCorrectScore != null && player.playerAvgResponseTime != null && (
+                            <span className="mx-2">|</span>
+                        )}
+                        {player.playerAvgResponseTime != null && (
+                            <span>T.Bình: {player.playerAvgResponseTime.toFixed(2)}s</span>
+                        )}
+                    </p>
+                )}
             </div>
             <p className="flex font-[SVN-Gratelos_Display] text-[50px] font-extrabold ml-4 items-center">
                 {player.playerScore}

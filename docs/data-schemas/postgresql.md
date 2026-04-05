@@ -234,14 +234,23 @@ Tracks players who have advanced from the qualifier round.
 |--------|------|-------------|-------------|
 | `id` | UUID | PRIMARY KEY, UNIQUE, NOT NULL | Advancement identifier |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | Last update timestamp |
 | `match_id` | UUID | FOREIGN KEY → matches(id) CASCADE DELETE | Match reference |
 | `player_id` | UUID | FOREIGN KEY → users(id) CASCADE DELETE | Player reference |
+| `round_number` | INTEGER | NOT NULL, CHECK (1-5) | Round where advancement occurred |
+| `status` | VARCHAR(20) | NOT NULL, CHECK IN ('passed', 'reserve') | Advancement status |
+| `total_score` | INTEGER | NOT NULL | Cumulative score at time of advancement |
 | `is_deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
 
 **Indexes**:
 - `idx_qa_match_id` on `match_id`
 - `idx_qa_player_id` on `player_id`
+- `idx_qa_round_number` on `round_number`
 - Unique constraint on `(match_id, player_id)`
+
+**Status Values**:
+- `passed`: Player advanced to next stage (top N with positive scores)
+- `reserve`: Player marked as reserve (negative cumulative score)
 
 ---
 
@@ -254,20 +263,27 @@ Stores scoring records specific to the qualifier round.
 | `id` | UUID | PRIMARY KEY, UNIQUE, NOT NULL | Record identifier |
 | `created_at` | TIMESTAMPTZ | DEFAULT NOW() | Creation timestamp |
 | `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | Last update timestamp |
-| `points` | INTEGER | CHECK (multiple of 5) | Points awarded |
-| `is_deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
 | `player_id` | UUID | FOREIGN KEY → users(id) | Player reference |
 | `match_id` | UUID | FOREIGN KEY → matches(id) | Match reference |
 | `question_id` | UUID | FOREIGN KEY → questions(id) | Question reference |
+| `round_number` | INTEGER | NOT NULL, CHECK (1-5) | Round number |
+| `answer_text` | VARCHAR(10) | NOT NULL | Player's answer (A-F) |
+| `is_correct` | BOOLEAN | NOT NULL | Whether answer was correct |
+| `response_time` | FLOAT | NOT NULL | Time taken to answer (seconds) |
+| `score_delta` | INTEGER | NOT NULL | Points earned/lost |
+| `is_deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
 
 **Indexes**:
 - `idx_qr_player_id` on `player_id`
 - `idx_qr_match_id` on `match_id`
 - `idx_qr_question_id` on `question_id`
 - `idx_qr_player_match` on `(player_id, match_id)`
+- `idx_qr_round_number` on `round_number`
 
-**Constraints**:
-- `CHECK (points % 5 = 0)`
+**Scoring Rules**:
+- Correct answer: `+wrong_count` points
+- Wrong answer: `-correct_count` points
+- Skipped: `0` points
 
 ---
 

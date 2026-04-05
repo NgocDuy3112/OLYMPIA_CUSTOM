@@ -284,10 +284,12 @@ See [Errors & Response Envelope](./errors-and-envelope.md) for details.
 
 | Endpoint | Method | Role | Description |
 |----------|--------|------|-------------|
-| `/qualifier/advance` | POST | Admin | Advance players from qualifier |
-| `/qualifier/records/` | POST | Admin | Record qualifier points |
-| `/qualifier/records/` | GET | Admin | Get qualifier records |
-| `/qualifier/advancements/` | GET | Admin | Get qualifier advancements |
+| `/qualifier/calculate-scores` | POST | Admin | Calculate scores for a question |
+| `/qualifier/end-round` | POST | Admin | Finalize round, advance players |
+| `/qualifier/advancements/{match_code}` | GET | Admin | Get all advancement records |
+| `/qualifier/standings/{match_code}` | GET | Admin/Player | Get current standings |
+
+See [Qualifier API](./qualifier.md) for detailed documentation.
 
 ### Caching Strategy
 

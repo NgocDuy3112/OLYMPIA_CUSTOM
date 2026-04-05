@@ -668,56 +668,94 @@ const AQualifierPage = () => {
         }
         const roundKeys = Object.keys(grouped).map((k) => Number(k)).sort((a, b) => a - b);
 
-        return (
-            <>
-                {roundKeys.length > 0 && (
-                    <div className="mb-4">
-                        {roundKeys.map((r) => {
-                            const items = grouped[r] ?? [];
-                            const passed = items.filter((it) => it.status === "passed");
-                            const reserved = items.filter((it) => it.status === "reserve");
-                            return (
-                                <div key={r} className="mb-3 p-2 bg-blue-800 rounded">
-                                    <div className="flex items-center justify-between">
-                                        <div className="text-sm font-semibold">Vòng {r}</div>
-                                        <div className="text-xs text-gray-200">Qua: {passed.length} — Dự phòng: {reserved.length}</div>
-                                    </div>
-                                    <div className="mt-2">
-                                        <div className="text-xs text-green-200 mb-1">Qua:</div>
-                                        <div className="flex flex-wrap gap-2 mb-2">
-                                            {passed.map((p) => (
-                                                <span key={p.user_code} className="px-2 py-1 bg-green-700 rounded text-xs text-white">{p.user_name || p.user_code}</span>
-                                            ))}
-                                        </div>
-                                        <div className="text-xs text-yellow-200 mb-1">Dự phòng:</div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {reserved.map((p) => (
-                                                <span key={p.user_code} className="px-2 py-1 bg-yellow-700 rounded text-xs text-white">{p.user_name || p.user_code}</span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
+        // Build a PlayerStatus for an advancement entry, merging standings + live presence
+        const toPlayerStatus = (entry: { user_code: string; user_name: string }): PlayerStatus => {
+            const standing = standings.find((s) => s.user_code === entry.user_code);
+            const live = players.find((p) => p.playerCode === entry.user_code);
+            return {
+                playerCode: entry.user_code,
+                playerName: entry.user_name || entry.user_code,
+                playerScore: standing?.total_score ?? live?.playerScore ?? 0,
+                playerConnected: live?.playerConnected ?? false,
+                playerLastAnswer: live?.playerLastAnswer,
+                playerHasBuzzed: live?.playerHasBuzzed ?? false,
+                playerTimestamp: live?.playerTimestamp,
+                // Qualifier tie-breaker fields
+                playerCorrectScore: standing?.correct_score,
+                playerAvgResponseTime: standing?.avg_response_time,
+            };
+        };
 
-                <div className="space-y-2">
-                    {players.map((p) => {
-                        const standing = standings.find((s) => s.user_code === p.playerCode);
-                        const displayScore = standing ? standing.total_score : p.playerScore;
-                        const isNegative = displayScore < 0;
+        if (roundKeys.length > 0) {
+            return (
+                <div className="space-y-4">
+                    {roundKeys.map((r) => {
+                        const items = grouped[r] ?? [];
+                        const passed = items.filter((it) => it.status === "passed");
+                        const reserved = items.filter((it) => it.status === "reserve");
                         return (
-                            <APlayerBar
-                                key={p.playerCode}
-                                player={{ ...p, playerScore: displayScore }}
-                                isActive={isNegative}
-                                disabled
-                            />
+                            <div key={r}>
+                                <div className="flex items-center justify-between mb-2 px-1">
+                                    <div className="text-sm font-semibold">Vòng {r}</div>
+                                    <div className="text-xs text-gray-300">Qua: {passed.length} — Dự phòng: {reserved.length}</div>
+                                </div>
+                                {passed.length > 0 && (
+                                    <>
+                                        <div className="space-y-1.5 mb-3">
+                                            {passed.map((p) => (
+                                                <APlayerBar
+                                                    key={p.user_code}
+                                                    player={toPlayerStatus(p)}
+                                                    isActive={true}
+                                                    disabled
+                                                />
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                                {reserved.length > 0 && (
+                                    <>
+                                        <div className="space-y-1.5">
+                                            {reserved.map((p) => (
+                                                <APlayerBar
+                                                    key={p.user_code}
+                                                    player={toPlayerStatus(p)}
+                                                    isActive={false}
+                                                    disabled
+                                                />
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
                         );
                     })}
                 </div>
-            </>
+            );
+        }
+
+        // Fallback: no advancements yet — show live connected players
+        return (
+            <div className="space-y-2">
+                {players.map((p) => {
+                    const standing = standings.find((s) => s.user_code === p.playerCode);
+                    const displayScore = standing ? standing.total_score : p.playerScore;
+                    const isNegative = displayScore < 0;
+                    return (
+                        <APlayerBar
+                            key={p.playerCode}
+                            player={{
+                                ...p,
+                                playerScore: displayScore,
+                                playerCorrectScore: standing?.correct_score,
+                                playerAvgResponseTime: standing?.avg_response_time,
+                            }}
+                            isActive={isNegative}
+                            disabled
+                        />
+                    );
+                })}
+            </div>
         );
     }, [advancements, players, standings]);
 

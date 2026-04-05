@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from models.record import Record
 from models.user import User, RoleEnum
 from models.match import Match
-from schemas.record import RecordCreateRequest
+from schemas.record import RecordPostRequest
 
 
 async def test_post_record_to_db_success(db_session, sample_user):

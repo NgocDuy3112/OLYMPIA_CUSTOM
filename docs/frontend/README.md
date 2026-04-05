@@ -25,7 +25,7 @@ Complete documentation for the OLYMPIA CUSTOM 3 quiz game frontend application.
 
 | Round | Vietnamese | English | Description |
 |-------|------------|---------|-------------|
-| **VL** | Vòng Loại | Qualifier | Preliminary qualification round |
+| **VL** | Vòng Loại | Qualifier | Preliminary qualification round (5 rounds: 8→4→2→2→8 questions) |
 | **KDC** | Khởi Động Chung | Group Warm-up | All players answer same questions |
 | **KDR** | Khởi Động Riêng | Individual Warm-up | Players answer individual questions |
 | **BP** | Bứt Phá | Sprint | Fast-paced buzzer round |
@@ -33,6 +33,23 @@ Complete documentation for the OLYMPIA CUSTOM 3 quiz game frontend application.
 | **VDC** | Về Đích Chung | Final Group Stage | Final group round |
 | **VDR** | Về Đích Riêng | Final Individual Stage | Final individual round |
 | **GM** | Giải Mã | Decode | Mystery/decoding round |
+
+### Qualifier Round Details
+
+The Qualifier (Vòng Loại) consists of up to 5 rounds:
+
+| Round | Questions | Advancing | Notes |
+|-------|-----------|-----------|-------|
+| 1 | 8 | Top 8 | All registered players participate |
+| 2 | 4 | Top 4 | Only uncategorized players from Round 1 |
+| 3 | 2 | Top 2 | Only uncategorized players from Round 2 |
+| 4 | 2 | Top 2 | Only uncategorized players from Round 3 |
+| 5 | 8 | Fill to 16 | Reserve players compete to fill remaining spots |
+
+**Player Categories**:
+- **Passed**: Top N players with positive cumulative scores
+- **Reserve**: Players with negative cumulative scores
+- **Uncategorized**: Players who haven't been categorized yet
 
 ---
 

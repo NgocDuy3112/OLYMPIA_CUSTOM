@@ -74,8 +74,8 @@ class EmailSettings(BaseSettings):
 
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 587
-    SMTP_USER: str = "customolympia0@gmail.com"
-    SMTP_PASSWORD: str = "OlympiaCustom2023!"
+    SMTP_USER: str
+    SMTP_PASSWORD: str
     EMAIL_FROM_NAME: str = "Olympia Custom"
     # Frontend URL used to build password reset links emailed to users
     FRONTEND_URL: str = "http://localhost:5173"

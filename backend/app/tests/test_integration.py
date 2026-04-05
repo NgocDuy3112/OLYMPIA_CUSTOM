@@ -133,30 +133,31 @@ class TestWebSocketBroadcast:
     def test_connection_manager_broadcast(self):
         """ConnectionManager should broadcast to all connections in a room."""
         from utils.ws_connection import ConnectionManager
-        from unittest.mock import MagicMock, AsyncMock
+        from unittest.mock import MagicMock, AsyncMock, patch
+        import asyncio
 
         manager = ConnectionManager()
 
         # Create mock WebSocket connections
         ws1 = MagicMock()
-        ws1.client.host = "127.0.0.1"
         ws2 = MagicMock()
-        ws2.client.host = "127.0.0.1"
 
-        # Simulate connections
-        manager.active_connections.append(ws1)
-        manager.active_connections.append(ws2)
-        manager.room_connections["OC3_M_TEST"] = {ws1, ws2}
+        # Simulate room with connections
+        manager.rooms["OC3_M_TEST"] = [ws1, ws2]
 
-        # Broadcast a message
-        import asyncio
-        asyncio.get_event_loop().run_until_complete(
-            manager.broadcast_to_room("OC3_M_TEST", {"type": "test"})
-        )
+        # Mock send_to_room_local to verify it's called
+        async def fake_send(room_id, data):
+            for ws in manager.rooms.get(room_id, []):
+                ws.send_json(data)
+
+        with patch.object(manager, "send_to_room_local", side_effect=fake_send):
+            asyncio.get_event_loop().run_until_complete(
+                manager.broadcast_to_room("OC3_M_TEST", {"type": "test"})
+            )
 
         # Both should have received the message
-        ws1.send_json.assert_called_once()
-        ws2.send_json.assert_called_once()
+        ws1.send_json.assert_called_once_with({"type": "test"})
+        ws2.send_json.assert_called_once_with({"type": "test"})
 
 
 # ── INT-03: Scoreboard update ────────────────────────────────────────────────

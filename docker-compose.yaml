@@ -6,66 +6,49 @@ services:
       - POSTGRES_USER=${POSTGRES_DB_USER}
       - POSTGRES_PASSWORD=${POSTGRES_DB_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB_NAME}
-    ports:
-      - "${POSTGRES_DB_PORT}:5432"
-    env_file:
-      - ./configs/.env
     volumes:
-      - ./database/postgresql/oc3:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - olympia-custom-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER:-olympia} -d ${POSTGRES_DB_NAME:-olympia_custom}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
     profiles:
+      - production
       - development
 
   valkey:
     container_name: valkey
     image: valkey/valkey:9-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./configs/valkey.conf:/configs/valkey.conf
-      - ./database/valkey:/data
-    command: valkey-server /configs/valkey.conf
+    command: >
+      valkey-server 
+      --requirepass ${VALKEY_PASSWORD}
+      --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* +@all
     networks:
       - olympia-custom-network
-    healthcheck:
-      test: ["CMD", "valkey-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     profiles:
+      - production
       - development
 
   app:
     container_name: app
     build:
       context: ./backend/app
-    working_dir: /backend/app
+    env_file:
+      - ./configs/.env
     volumes:
       - ./backend/app:/backend/app
-      - ./configs/.env:/backend/app/.env
-    environment:
-      - ENV_FILE=/backend/app/.env
-      - PYTHONPATH=/backend/app
     depends_on:
-      postgresql:
-        condition: service_started
-      valkey:
-        condition: service_started
+      - postgresql
+      - valkey
     ports:
       - "8000:8000"
     networks:
       - olympia-custom-network
     profiles:
+      - production
       - development
 
 networks:
   olympia-custom-network:
     driver: bridge
+
+volumes:
+  postgres_data:

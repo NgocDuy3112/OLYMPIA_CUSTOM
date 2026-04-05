@@ -113,7 +113,7 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 
 				{/* Right section: Player list + optional action buttons */}
 				<div className="flex flex-col flex-1 gap-5 overflow-hidden">
-					<div className="flex flex-col gap-5 overflow-hidden pr-2">{renderPlayerList()}</div>
+					<div className="flex flex-col gap-5 overflow-y-auto pr-2">{renderPlayerList()}</div>
 					{playerSectionButtons && (
 						<div className="flex flex-wrap items-center justify-center gap-4">
 							{playerSectionButtons}

@@ -51,7 +51,7 @@ const AdminSignupPage: React.FC = () => {
                     value={form.userName} 
                     onChange={(e: { target: { value: any; }; }) => setForm({ ...form, userName: e.target.value })} 
                 />
-                <p className="text-sm text-gray-300">Mật khẩu admin sẽ được tự động sinh và gửi tới email quản trị.</p>
+                <p className="text-sm text-gray-300">Mã và mật khẩu đăng nhập sẽ được tự động sinh và gửi tới email được cung cấp.</p>
                 <button type="submit" className="mt-4 btn-primary-full">
                     TẠO TÀI KHOẢN ADMIN
                 </button>

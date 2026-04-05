@@ -8,7 +8,8 @@ export const AdminWebSocketProvider: React.FC<{ matchCode: string; children: Rea
   matchCode,
   children,
 }) => {
-  const ws = useWebSocket(matchCode);
+  const token = localStorage.getItem("jwtToken_admin") ?? undefined;
+  const ws = useWebSocket(matchCode, token);
 
   const value: AdminWsContextValue = {
     isConnected: ws.isConnected,
