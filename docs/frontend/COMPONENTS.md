@@ -287,6 +287,21 @@ interface APlayerBarProps {
   onClick?: () => void;
   disabled?: boolean;
 }
+
+// PlayerStatus now includes optional qualifier tie-breaker fields:
+interface PlayerStatus {
+  playerCode: string;
+  playerName: string;
+  playerScore: number;
+  playerLastAnswer?: string;
+  playerTimestamp?: number;
+  playerHasBuzzed?: boolean;
+  playerConnected?: boolean;
+  playerIsTurn?: boolean;
+  // Qualifier-specific (optional)
+  playerCorrectScore?: number;
+  playerAvgResponseTime?: number;
+}
 ```
 
 **Display Elements**:
@@ -297,6 +312,10 @@ interface APlayerBarProps {
 - Score (in badge: `bg-blue-600`)
 - Buzzed indicator (border color change: `border-blue-500`)
 - PingIconStyle component (Zap or KeyRound)
+- **Qualifier Tie-Breaker Info** (only in AQualifierPage):
+  - `playerCorrectScore`: Points from correct answers only
+  - `playerAvgResponseTime`: Average response time in seconds
+  - Displayed as: "Đúng: X điểm | T.Bình: Ys"
 
 ---
 

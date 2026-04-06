@@ -561,6 +561,53 @@ ws.send(JSON.stringify({
 }));
 ```
 
+### Testing Scripts
+
+#### simulate_qualifier_bot.py
+
+**Location**: `scripts/simulate_qualifier_bot.py`
+
+**Purpose**: Bot players tự động trả lời khi admin broadcast câu hỏi qua WebSocket. Dùng để test UI mà không cần nhiều người thật.
+
+**Features**:
+- Đăng nhập N players test (OC_U_P03TST01-64)
+- Kết nối WebSocket cho từng player
+- Lắng nghe event `send_question` từ admin
+- Tự động submit đáp án với delay ngẫu nhiên (1-9s)
+- Có thể điều chỉnh tỷ lệ đúng/sai và tỷ lệ bỏ qua
+
+**Chạy trong container**:
+```bash
+podman exec -it -w /backend/app app python simulate_qualifier_bot.py --players 20
+```
+
+**Options**:
+```bash
+--players N        Số bot players (default 20)
+--correct-rate F     Xác suất trả lời đúng 0.0-1.0 (default 0.75)
+--skip-rate F        Xác suất bỏ qua câu hỏi (default 0.10)
+--min-delay F        Delay tối thiểu giây (default 1.0)
+--max-delay F        Delay tối đa giây (default 9.0)
+```
+
+**Workflow**:
+1. Chạy script ở terminal
+2. Admin vào browser `/admin/vl`
+3. Admin click **BẮT ĐẦU VÒNG** → chọn câu → **BẤM GIỜ**
+4. Bots tự động trả lời, terminal hiển thị từng đáp án
+5. Admin click **TÍNH ĐIỂM** và **KẾT THÚC VÒNG** như bình thường
+
+#### simulate_qualifier_full.py
+
+**Location**: `scripts/simulate_qualifier_full.py`
+
+**Purpose**: Full 5-round batch simulation (non-interactive). Tự động chạy hết 5 vòng không cần admin.
+
+**Chạy**:
+```bash
+podman exec -it -w /backend/app app python simulate_qualifier_full.py --auto --burst --players 20
+```
+
 ---
 
 ## Related Documentation
