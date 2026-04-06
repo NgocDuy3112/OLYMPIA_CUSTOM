@@ -16,7 +16,7 @@ Examples:
     python scripts/seed_test_players.py --count 64 --create-match --match-code OC3_M_VL --match-name "Vong Loai Test"
 
     # Inside Docker/Podman app container (DB host is 'postgresql'):
-    python /scripts/seed_test_players.py --count 64 --create-match --match-code OC3_M_VL
+    python scripts/seed_test_players.py --count 64 --create-match --match-code OC3_M_VL
 
     # Override DB connection directly
     python scripts/seed_test_players.py --db-url postgresql+asyncpg://user:pass@localhost:5432/oc3
@@ -49,7 +49,7 @@ try:
 except ImportError as _e:
     print(f"Missing dependency: {_e}")
     print("Run this script from the backend virtualenv or inside the app container:")
-    print("  podman exec -w /backend/app app python /scripts/seed_test_players.py --count 64")
+    print("  podman exec -w /backend/app app python scripts/seed_test_players.py --count 64")
     sys.exit(1)
 
 

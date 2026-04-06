@@ -10,7 +10,7 @@ This script creates questions for:
   - Round 5 (backup): 8 questions (OC3_Q_VL_5_01 .. OC3_Q_VL_5_08)
 
 Run inside the app container:
-  podman exec -w /backend/app app python seed_qualifier_rounds.py
+  podman exec -w /backend/app app python scripts/seed_qualifier_rounds.py
 """
 
 import asyncio

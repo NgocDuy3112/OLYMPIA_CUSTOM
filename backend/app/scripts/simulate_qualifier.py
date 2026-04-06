@@ -13,7 +13,7 @@ Steps:
   8. Admin calls POST /qualifier/end-round to see who advances
 
 Run from repo root (backend venv or inside app container):
-  podman exec -w /backend/app app python simulate_qualifier.py \\
+  podman exec -w /backend/app app python scripts/simulate_qualifier.py \\
     --db-url postgresql+asyncpg://postgres:password@postgresql:5432/oc3 \\
     --api-url http://localhost:8000
 
@@ -46,7 +46,7 @@ try:
     from sqlalchemy.orm import sessionmaker
 except ImportError as e:
     print(f"Missing dependency: {e}")
-    print("Run inside the app container: podman exec -w /backend/app app python simulate_qualifier.py ...")
+    print("Run inside the app container: podman exec -w /backend/app app python scripts/simulate_qualifier.py ...")
     sys.exit(1)
 
 
@@ -355,7 +355,7 @@ async def run_simulation(db_url: str, api_url: str, advance_count: int) -> None:
         print(f"  Players authenticated: {len(player_tokens)}/{N_PLAYERS}")
 
         if not player_tokens:
-            print("  [!] No player tokens — check players seeded (run seed_test_players.py first).")
+            print("  [!] No player tokens — check players seeded (run scripts/seed_test_players.py first).")
             return
 
         player_codes = list(player_tokens.keys())

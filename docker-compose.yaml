@@ -46,6 +46,22 @@ services:
       - production
       - development
 
+  ocee-bot:
+    container_name: ocee-bot
+    build:
+      context: .
+      dockerfile: backend/ocee-bot/Dockerfile
+    env_file:
+      - ./configs/.env
+    depends_on:
+      - valkey
+    networks:
+      - olympia-custom-network
+    profiles:
+      - production
+      - development
+    restart: unless-stopped
+
 networks:
   olympia-custom-network:
     driver: bridge

@@ -17,10 +17,10 @@ Script này:
   • In status ra terminal để admin biết bots đang trả lời
 
 Chạy trong container:
-  podman exec -it -w /backend/app app python simulate_qualifier_bot.py
+  podman exec -it -w /backend/app app python scripts/simulate_qualifier_bot.py
 
 Hoặc local từ root repo:
-  python scripts/simulate_qualifier_bot.py --api-url http://localhost:8000
+  python backend/app/scripts/simulate_qualifier_bot.py --api-url http://localhost:8000
 
 Tuỳ chọn:
   --players N        Số bot players (default: 20)
@@ -374,7 +374,7 @@ async def main(
         print(f"  Đăng nhập thành công: {len(bots)}/{n_players}")
 
         if not bots:
-            print("  [!] Không có bot nào — hãy chạy seed_test_players.py trước.")
+            print("  [!] Không có bot nào — hãy chạy scripts/seed_test_players.py trước.")
             return
 
         # ── Connect WebSockets ─────────────────────────────────────────────
@@ -432,13 +432,13 @@ if __name__ == "__main__":
         epilog="""
 Ví dụ:
   # Chạy local
-  python scripts/simulate_qualifier_bot.py --api-url http://localhost:8000
+  python backend/app/scripts/simulate_qualifier_bot.py --api-url http://localhost:8000
 
   # Trong container
-  podman exec -it -w /backend/app app python simulate_qualifier_bot.py
+  podman exec -it -w /backend/app app python scripts/simulate_qualifier_bot.py
 
   # Tuỳ chọn nâng cao
-  python scripts/simulate_qualifier_bot.py --players 10 --correct-rate 0.8 --min-delay 2 --max-delay 7
+  python backend/app/scripts/simulate_qualifier_bot.py --players 10 --correct-rate 0.8 --min-delay 2 --max-delay 7
         """,
     )
     parser.add_argument(

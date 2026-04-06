@@ -14,10 +14,10 @@ Flow per question:
   6. Admin presses Enter → next question.
 
 Run inside the app container:
-  podman exec -it -w /backend/app app python simulate_qualifier_live.py
+  podman exec -it -w /backend/app app python scripts/simulate_qualifier_live.py
 
 Or locally with a venv that has httpx + sqlalchemy + passlib:
-  python scripts/simulate_qualifier_live.py
+  python backend/app/scripts/simulate_qualifier_live.py
 """
 
 import argparse

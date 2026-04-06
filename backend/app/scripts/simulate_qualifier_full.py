@@ -13,7 +13,7 @@ After each round, calls end-round API, then queries advancements
 to determine which players continue to the next round.
 
 Run inside the app container:
-  podman exec -it -w /backend/app app python simulate_qualifier_full.py --auto --burst --players 10
+  podman exec -it -w /backend/app app python scripts/simulate_qualifier_full.py --auto --burst --players 10
 """
 
 import argparse

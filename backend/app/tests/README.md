@@ -49,7 +49,7 @@ pip install pytest pytest-asyncio pytest-mock pytest-cov
 ### Running All Tests
 ```bash
 # Run all tests with coverage
-python run_tests.py
+python scripts/run_tests.py
 
 # Or run directly with pytest
 python -m pytest tests/ -v --cov=.
@@ -58,13 +58,13 @@ python -m pytest tests/ -v --cov=.
 ### Running Specific Test Types
 ```bash
 # Run only unit tests
-python run_tests.py --type unit
+python scripts/run_tests.py --type unit
 
 # Run only integration tests
-python run_tests.py --type integration
+python scripts/run_tests.py --type integration
 
 # Run E2E test
-python run_tests.py --type e2e
+python scripts/run_tests.py --type e2e
 ```
 
 ### Running Individual Test Files

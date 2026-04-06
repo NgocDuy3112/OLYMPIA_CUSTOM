@@ -5,10 +5,15 @@ RUN apk add --no-cache ffmpeg
 
 WORKDIR /app
 
-COPY requirements.txt .
+# Copy requirements first for better caching
+COPY backend/ocee-bot/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy bot source code
+COPY backend/ocee-bot/ .
+
+# Copy assets (BGM, SFX) into image
+COPY assets/ ./assets/
 
 # Default command — overridden by docker-compose per service
 CMD ["python", "music_bot.py"]
