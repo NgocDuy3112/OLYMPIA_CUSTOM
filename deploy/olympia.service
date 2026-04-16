@@ -26,13 +26,13 @@ RemainAfterExit=yes
 WorkingDirectory=/opt/olympia
 
 # Start all production containers
-ExecStart=/usr/bin/podman compose --profile production up -d
+ExecStart=/usr/bin/podman compose -f /opt/olympia/docker-compose.staging.yaml up -d
 
 # Graceful shutdown
-ExecStop=/usr/bin/podman compose --profile production down
+ExecStop=/usr/bin/podman compose -f /opt/olympia/docker-compose.staging.yaml down
 
 # Restart containers if any exit unexpectedly
-ExecReload=/usr/bin/podman compose --profile production up -d --force-recreate
+ExecReload=/usr/bin/podman compose -f /opt/olympia/docker-compose.staging.yaml up -d --force-recreate
 
 # Run as root (Podman rootless is possible but volumes + ports < 1024
 # are simpler with rootful for a single-app VPS)
