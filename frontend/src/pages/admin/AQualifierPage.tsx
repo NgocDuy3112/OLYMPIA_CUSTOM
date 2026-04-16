@@ -116,14 +116,15 @@ const AQualifierPage = () => {
 
     const applyPlayersSnapshot = useCallback(
         (payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
-            setPlayers((prev) =>
-                computePlayersSnapshot(
+            setPlayers((prev) => {
+                const snapshot = computePlayersSnapshot(
                     Array.isArray(payload?.players) ? payload.players : [],
                     Array.isArray(payload?.scoreboard) ? payload.scoreboard : [],
                     Array.isArray(payload?.profiles) ? payload.profiles : [],
                     prev,
-                ),
-            );
+                );
+                return [...snapshot].sort((a, b) => b.playerScore - a.playerScore);
+            });
         },
         [computePlayersSnapshot],
     );
@@ -152,7 +153,10 @@ const AQualifierPage = () => {
                 user_name: profileResponses[i]?.data?.user_name ?? "",
             }));
 
-            setPlayers((prev) => computePlayersSnapshot(playersList, [], profiles, prev));
+            setPlayers((prev) => {
+                const snapshot = computePlayersSnapshot(playersList, [], profiles, prev);
+                return [...snapshot].sort((a, b) => b.playerScore - a.playerScore);
+            });
             return { playersList, profiles };
         } catch (err) {
             logger.error("Failed to load players:", err);
@@ -325,13 +329,16 @@ const AQualifierPage = () => {
             case "qualifier_scores_updated":
                 setLastScoreResult({ correct_count: msg.correct_count, wrong_count: msg.wrong_count });
                 startTransition(() => {
-                    setPlayers((prev) =>
-                        prev.map((p) => {
+                    setPlayers((prev) => {
+                        const updated = prev.map((p) => {
                             const upd = (msg.score_updates as any[]).find((s: any) => s.user_code === p.playerCode);
                             return upd ? { ...p, playerScore: upd.new_total } : p;
-                        }),
-                    );
+                        });
+                        return [...updated].sort((a, b) => b.playerScore - a.playerScore);
+                    });
                 });
+                // Refresh standings from server so the right-panel advancement scores update immediately
+                void loadQualifierStandings();
                 break;
             case "send_answers_to_players": {
                 const answers = Array.isArray(msg.answers) ? msg.answers : [];
@@ -467,7 +474,7 @@ const AQualifierPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyPlayersSnapshot, loadAdvancements, currentQuestion, currentQuestionIndex, maxQuestionsForRound, sendPlayersSnapshot, sendMessage, parseOptions, token]);
+    }, [lastMessage, applyPlayersSnapshot, loadAdvancements, loadQualifierStandings, currentQuestion, currentQuestionIndex, maxQuestionsForRound, sendPlayersSnapshot, sendMessage, parseOptions, token]);
 
     // ── Timer ─────────────────────────────────────────────────────────────────
 
@@ -691,8 +698,10 @@ const AQualifierPage = () => {
                 <div className="space-y-4">
                     {roundKeys.map((r) => {
                         const items = grouped[r] ?? [];
-                        const passed = items.filter((it) => it.status === "passed");
-                        const reserved = items.filter((it) => it.status === "reserve");
+                        const byScore = (a: typeof items[0], b: typeof items[0]) =>
+                            (toPlayerStatus(b).playerScore) - (toPlayerStatus(a).playerScore);
+                        const passed = items.filter((it) => it.status === "passed").sort(byScore);
+                        const reserved = items.filter((it) => it.status === "reserve").sort(byScore);
                         return (
                             <div key={r}>
                                 <div className="flex items-center justify-between mb-2 px-1">
@@ -707,7 +716,6 @@ const AQualifierPage = () => {
                                                     key={p.user_code}
                                                     player={toPlayerStatus(p)}
                                                     isActive={true}
-                                                    disabled
                                                 />
                                             ))}
                                         </div>
@@ -721,7 +729,6 @@ const AQualifierPage = () => {
                                                     key={p.user_code}
                                                     player={toPlayerStatus(p)}
                                                     isActive={false}
-                                                    disabled
                                                 />
                                             ))}
                                         </div>
@@ -734,10 +741,15 @@ const AQualifierPage = () => {
             );
         }
 
-        // Fallback: no advancements yet — show live connected players
+        // Fallback: no advancements yet — show live connected players, sorted by score
+        const sortedPlayers = [...players].sort((a, b) => {
+            const scoreA = (standings.find((s) => s.user_code === a.playerCode)?.total_score ?? a.playerScore);
+            const scoreB = (standings.find((s) => s.user_code === b.playerCode)?.total_score ?? b.playerScore);
+            return scoreB - scoreA;
+        });
         return (
             <div className="space-y-2">
-                {players.map((p) => {
+                {sortedPlayers.map((p) => {
                     const standing = standings.find((s) => s.user_code === p.playerCode);
                     const displayScore = standing ? standing.total_score : p.playerScore;
                     const isNegative = displayScore < 0;
@@ -751,7 +763,6 @@ const AQualifierPage = () => {
                                 playerAvgResponseTime: standing?.avg_response_time,
                             }}
                             isActive={isNegative}
-                            disabled
                         />
                     );
                 })}
@@ -768,6 +779,11 @@ const AQualifierPage = () => {
         ? players.filter((p) => p.playerLastAnswer?.toUpperCase() === statsCorrectKey).length
         : 0;
     const statsWrongCount = statsAnsweredCount - statsCorrectCount;
+
+    // Per-option answer count: how many players chose each option in realtime
+    const optionAnswerCounts: Record<string, number> = Object.fromEntries(
+        QUALIFIER_OPTIONS.map((opt) => [opt, players.filter((p) => p.playerLastAnswer?.toUpperCase() === opt).length]),
+    );
 
     return (
         <ABasePageLayout
@@ -826,19 +842,6 @@ const AQualifierPage = () => {
                             {statsAnsweredCount}/{statsTotalPlayers} đã trả lời
                         </span>
                     </div>
-                    {/* Score result shown after "Tính điểm" */}
-                    {lastScoreResult && (
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <div className="ml-auto flex gap-2 text-xs font-mono">
-                                <span className="bg-green-700 text-green-100 px-2 py-1 rounded">
-                                    ✓ {lastScoreResult.correct_count} đúng (+{lastScoreResult.wrong_count} điểm)
-                                </span>
-                                <span className="bg-red-700 text-red-100 px-2 py-1 rounded">
-                                    ✗ {lastScoreResult.wrong_count} sai (-{lastScoreResult.correct_count} điểm)
-                                </span>
-                            </div>
-                        </div>
-                    )}
                 </>
             )}
             underQuestionBoard={(
@@ -847,13 +850,19 @@ const AQualifierPage = () => {
                         {QUALIFIER_OPTIONS.map((opt, idx) => {
                             const text = parsedOptions[idx] ?? "";
                             const isCorrect = currentQuestion.questionAnswer?.toUpperCase() === opt;
+                            const answerCount = optionAnswerCounts[opt] ?? 0;
                             return (
                                 <div
                                     key={opt}
-                                    className={`flex items-start gap-3 p-4 rounded-xl border-2 text-white font-bold text-sm ${OPTION_BG[opt]} ${isCorrect ? "ring-2 ring-white" : ""} h-28 shadow-md`}
+                                    className={`relative flex items-start gap-3 p-4 rounded-xl border-2 text-white font-bold text-sm ${OPTION_BG[opt]} ${isCorrect ? "ring-2 ring-white" : ""} h-28 shadow-md`}
                                 >
                                     <div className="text-3xl font-extrabold w-8 text-center">{opt}</div>
                                     <div className="leading-tight text-left">{text}</div>
+                                    {answerCount > 0 && (
+                                        <span className="absolute bottom-2 right-2 bg-white text-blue-900 text-xs font-extrabold px-2 py-0.5 rounded-full">
+                                            {answerCount}
+                                        </span>
+                                    )}
                                 </div>
                             );
                         })}
@@ -886,7 +895,7 @@ const AQualifierPage = () => {
                         <Calculator size={18} className="mr-2" /> TÍNH ĐIỂM
                     </AControlButton>
                     {/* XÓA ĐÁP ÁN button removed per request */}
-                    <AControlButton onClick={() => void loadQualifierStandings()}>
+                    <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }}>
                         <Trophy size={18} className="mr-2" /> TẢI BXH
                     </AControlButton>
                     <AControlButton onClick={handleEndRound}>

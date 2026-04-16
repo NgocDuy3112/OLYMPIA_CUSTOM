@@ -97,11 +97,14 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
             const basePath: unknown = msg?.path;
             if (typeof basePath !== "string") return;
 
-            // If message targets a specific user, respect it (empty string means broadcast)
-            const targetUser = (msg?.user_code ?? "") as string;
-            if (targetUser && targetUser !== playerCode) {
-                // message is for some other player
-                console.debug("[AutoNav] navigate message for different user, ignoring", { targetUser, playerCode });
+            // Backend overwrites user_code with the sender's JWT user_code.
+            // Admin navigate messages are always broadcasts; only filter when a
+            // peer-player sends a targeted message (role !== "admin").
+            const senderRole = (msg?.role ?? "") as string;
+            const senderCode = (msg?.user_code ?? "") as string;
+            if (senderRole !== "admin" && senderCode && senderCode !== playerCode) {
+                // message is targeted to a different player
+                console.debug("[AutoNav] navigate message for different user, ignoring", { senderCode, playerCode });
                 return;
             }
 

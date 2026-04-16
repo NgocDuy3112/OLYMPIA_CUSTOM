@@ -20,7 +20,7 @@ services:
     command: >
       valkey-server 
       --requirepass ${VALKEY_PASSWORD}
-      --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* +@all
+      --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* "&*" +@all
     networks:
       - olympia-custom-network
     profiles:

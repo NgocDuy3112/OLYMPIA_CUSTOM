@@ -4,7 +4,8 @@ simulate_qualifier_bot.py — Bot players phản ứng tự động với admin 
 
 Admin tự tay điều khiển trình duyệt:
   • BẮT ĐẦU VÒNG  → sync round cho players
-  • BẤM GIỜ       → broadcast send_question tới WS
+  • Chọn câu      → broadcast send_question tới WS (bot cache lại)
+  • BẤM GIỜ       → broadcast start_the_timer tới WS (bot submit đáp án)
   • HIỆN ĐÁP ÁN   → hiện đáp án
   • TÍNH ĐIỂM     → calculate scores
   • KẾT THÚC VÒNG → end round
@@ -12,7 +13,7 @@ Admin tự tay điều khiển trình duyệt:
 Script này:
   • Đăng nhập N players test
   • Kết nối từng player qua WebSocket
-  • Lắng nghe event "send_question" từ WS
+  • Lắng nghe event "start_the_timer" từ WS (admin click BẤM GIỜ)
   • Tự động submit đáp án với delay ngẫu nhiên (simulating human reaction)
   • In status ra terminal để admin biết bots đang trả lời
 
@@ -119,9 +120,15 @@ def _build_ws_url(api_url: str, token: str) -> str:
 
 
 def parse_ws_options(options: Any) -> list[str]:
-    """Extract option letters from various option formats sent in WS events."""
-    if isinstance(options, list):
-        return [str(o) for o in options if o]
+    """Extract option letters from various option formats sent in WS events.
+
+    The WS send_question event sends options as a list of display strings
+    (e.g. ["Sao Mộc", "Sao Thổ", ...]). We convert to letters by index:
+    index 0 → "A", 1 → "B", etc.
+    """
+    if isinstance(options, list) and options:
+        # options is a list of display strings — derive letter from position
+        return [OPTION_LETTERS[i] for i in range(len(options)) if i < len(OPTION_LETTERS)]
     if isinstance(options, dict):
         return list(options.keys())
     return OPTION_LETTERS
@@ -180,6 +187,8 @@ class PlayerBot:
         self._ws: Any = None
         self._answered: set[str] = set()
         self._pending_tasks: list[asyncio.Task] = []
+        self._pending_question_code: str | None = None
+        self._pending_question_options: list[str] = []
 
     async def connect(self, ws_url: str) -> None:
         self._ws = await websockets.connect(ws_url)
@@ -195,12 +204,16 @@ class PlayerBot:
         try:
             async for raw in self._ws:
                 try:
+                    if self.player_code.endswith("01"):
+                        print(f"[DEBUG RAW] {raw[:200]}", flush=True)
                     msg = json.loads(raw)
                     # Support { "message": {...} } envelope or raw frame
                     if "message" in msg and isinstance(msg["message"], dict):
                         msg = msg["message"]
                     await self._handle_message(msg)
-                except (json.JSONDecodeError, Exception):
+                except (json.JSONDecodeError, Exception) as e:
+                    if self.player_code.endswith("01"):
+                        print(f"[DEBUG ERR] {e}", flush=True)
                     continue
         except ConnectionClosed:
             pass
@@ -211,28 +224,45 @@ class PlayerBot:
 
     async def _handle_message(self, msg: dict) -> None:
         msg_type = msg.get("type")
+        if self.player_code.endswith("01"):  # Only log for P01 to avoid spam
+            print(f"[DEBUG P01] Received: {msg_type} | keys={list(msg.keys())}", flush=True)
 
         if msg_type == "send_question":
+            # Cache question info — answers are submitted when timer starts (start_the_timer)
             q_code = msg.get("question_code") or msg.get("code")
+            if not q_code:
+                return
+            self._pending_question_code = q_code
+            self._pending_question_options = parse_ws_options(msg.get("options"))
+
+        elif msg_type == "start_the_timer":
+            # Admin clicked BẤM GIỜ — now submit answers
+            q_code = msg.get("question_code") or self._pending_question_code
             if not q_code or q_code in self._answered:
                 return
-            options = parse_ws_options(msg.get("options"))
-            task = asyncio.create_task(self._delayed_answer(q_code, options))
+            options = self._pending_question_options or []
+            time_limit = msg.get("time_limit", self.max_delay)
+            effective_max = min(self.max_delay, float(time_limit) - 0.5)
+            effective_max = max(self.min_delay, effective_max)
+            task = asyncio.create_task(self._delayed_answer(q_code, options, effective_max))
             self._pending_tasks.append(task)
 
         elif msg_type == "clear_question":
-            # Cancel any pending answers — this question was cleared before timer ended
+            # Cancel any pending answers AND clear cached question
             for task in self._pending_tasks:
                 task.cancel()
             self._pending_tasks = [t for t in self._pending_tasks if not t.done()]
+            self._pending_question_code = None
+            self._pending_question_options = []
 
-    async def _delayed_answer(self, question_code: str, available_options: list[str]) -> None:
+    async def _delayed_answer(self, question_code: str, available_options: list[str], max_delay: float | None = None) -> None:
         """Wait a human-like random delay then submit answer via REST API."""
         try:
             if random.random() < self.skip_rate:
                 return  # This player decides not to answer
 
-            delay = random.uniform(self.min_delay, self.max_delay)
+            effective_max = max_delay if max_delay is not None else self.max_delay
+            delay = random.uniform(self.min_delay, effective_max)
             await asyncio.sleep(delay)
 
             # Check again after waking up (might have been answered already)

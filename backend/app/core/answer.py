@@ -93,7 +93,8 @@ async def post_answer_to_db(
         request_json = request.model_dump()
         try:
             await valkey.set(cache_key, json.dumps(request_json))
-            await valkey.publish(channel=request.match_code, message=json.dumps(request_json))
+            broadcast_payload = {**request_json, "type": "answer"}
+            await valkey.publish(channel=request.match_code, message=json.dumps(broadcast_payload))
             global_logger.info(f"Cached and published answer for key={cache_key}.")
         except Exception as e:
             # Log but do not fail the request since DB commit succeeded

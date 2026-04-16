@@ -16,7 +16,7 @@ Standings ranking hierarchy:
 import json
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, case, and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 from valkey.asyncio import Valkey
@@ -36,6 +36,89 @@ _QUALIFIER_LEADERBOARD_KEY = "qualifier_leaderboard:{match_code}"
 _QUALIFIER_CORRECT_SCORE_KEY = "qualifier_correct_score:{match_code}"
 _QUALIFIER_RESPONSE_TIME_KEY = "qualifier_response_time:{match_code}"
 _QUALIFIER_RESPONSE_COUNT_KEY = "qualifier_response_count:{match_code}"
+
+
+async def _rebuild_qualifier_leaderboard_from_db(
+    match_code: str,
+    session: AsyncSession,
+    valkey: Valkey,
+) -> None:
+    """Rebuild Valkey qualifier leaderboard keys from QualifierRecord rows in PostgreSQL.
+
+    Called automatically when the Valkey leaderboard key is missing (e.g. after a
+    Valkey restart) so that cumulative scores derived from the DB are never lost.
+    """
+    match_id = await session.scalar(
+        select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False)
+    )
+    if match_id is None:
+        return
+
+    result = await session.execute(
+        select(
+            User.user_code,
+            func.sum(QualifierRecord.points).label("total_points"),
+            func.sum(
+                case(
+                    (
+                        and_(QualifierRecord.is_correct == True, QualifierRecord.points > 0),
+                        QualifierRecord.points,
+                    ),
+                    else_=0,
+                )
+            ).label("correct_points"),
+            func.sum(
+                case(
+                    (
+                        and_(
+                            QualifierRecord.is_correct == True,
+                            QualifierRecord.points > 0,
+                            QualifierRecord.response_time.isnot(None),
+                        ),
+                        QualifierRecord.response_time,
+                    ),
+                    else_=None,
+                )
+            ).label("rt_sum"),
+            func.count(
+                case(
+                    (
+                        and_(QualifierRecord.is_correct == True, QualifierRecord.points > 0),
+                        1,
+                    ),
+                    else_=None,
+                )
+            ).label("rc"),
+        )
+        .join(QualifierRecord, QualifierRecord.player_id == User.id)
+        .where(
+            QualifierRecord.match_id == match_id,
+            QualifierRecord.is_deleted == False,
+        )
+        .group_by(User.user_code)
+    )
+    rows = result.all()
+    if not rows:
+        return
+
+    leaderboard_key = _QUALIFIER_LEADERBOARD_KEY.format(match_code=match_code)
+    correct_key = _QUALIFIER_CORRECT_SCORE_KEY.format(match_code=match_code)
+    rt_key = _QUALIFIER_RESPONSE_TIME_KEY.format(match_code=match_code)
+    rc_key = _QUALIFIER_RESPONSE_COUNT_KEY.format(match_code=match_code)
+
+    for user_code, total_points, correct_points, rt_sum, rc in rows:
+        await valkey.zadd(leaderboard_key, {user_code: float(total_points or 0)})
+        cp = float(correct_points or 0)
+        if cp > 0:
+            await valkey.zadd(correct_key, {user_code: cp})
+        if rt_sum is not None:
+            await valkey.zadd(rt_key, {user_code: float(rt_sum)})
+        if rc:
+            await valkey.zadd(rc_key, {user_code: float(rc)})
+
+    global_logger.info(
+        f"Rebuilt qualifier leaderboard for match={match_code} from DB: {len(rows)} players."
+    )
 
 
 async def calculate_and_apply_qualifier_scores(
@@ -161,13 +244,20 @@ async def calculate_and_apply_qualifier_scores(
                 )
             )
 
-        if new_records:
-            session.add_all(new_records)
-            await session.commit()
-
         # ── Update Valkey qualifier leaderboard ───────────────────────────────
         leaderboard_key = _QUALIFIER_LEADERBOARD_KEY.format(match_code=request.match_code)
         correct_key = _QUALIFIER_CORRECT_SCORE_KEY.format(match_code=request.match_code)
+
+        # Restore cumulative scores from DB *before* committing the current question's
+        # records. This guarantees the rebuild only covers previous questions, so the
+        # subsequent ZADD INCR loop below sees the correct baseline and does NOT
+        # double-count the current question.
+        if not await valkey.exists(leaderboard_key):
+            await _rebuild_qualifier_leaderboard_from_db(request.match_code, session, valkey)
+
+        if new_records:
+            session.add_all(new_records)
+            await session.commit()
 
         score_updates: list[dict] = []
         for player_code, delta, resp_time, is_correct in score_entries:
@@ -249,8 +339,13 @@ async def get_qualifier_standings(
         rt_key = _QUALIFIER_RESPONSE_TIME_KEY.format(match_code=match_code)
         rc_key = _QUALIFIER_RESPONSE_COUNT_KEY.format(match_code=match_code)
 
-        # Get all members with scores from the qualifier leaderboard
+        # Get all members with scores from the qualifier leaderboard.
+        # If the key is absent (e.g. after a Valkey restart) we rebuild it from the DB first
+        # so that previously persisted scores are not lost.
         raw = await valkey.zrangebyscore(leaderboard_key, "-inf", "+inf", withscores=True)
+        if not raw:
+            await _rebuild_qualifier_leaderboard_from_db(match_code, session, valkey)
+            raw = await valkey.zrangebyscore(leaderboard_key, "-inf", "+inf", withscores=True)
 
         # Resolve user names from DB
         user_name_map: dict[str, str] = {}

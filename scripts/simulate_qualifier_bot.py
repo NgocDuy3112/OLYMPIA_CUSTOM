@@ -180,6 +180,8 @@ class PlayerBot:
         self._ws: Any = None
         self._answered: set[str] = set()
         self._pending_tasks: list[asyncio.Task] = []
+        self._pending_question_code: str | None = None
+        self._pending_question_options: list[str] = []
 
     async def connect(self, ws_url: str) -> None:
         self._ws = await websockets.connect(ws_url)
@@ -213,26 +215,41 @@ class PlayerBot:
         msg_type = msg.get("type")
 
         if msg_type == "send_question":
+            # Cache question info — answers are submitted when timer starts (start_the_timer)
             q_code = msg.get("question_code") or msg.get("code")
+            if not q_code:
+                return
+            self._pending_question_code = q_code
+            self._pending_question_options = parse_ws_options(msg.get("options"))
+
+        elif msg_type == "start_the_timer":
+            # Admin clicked BẤM GIỜ — now submit answers
+            q_code = msg.get("question_code") or getattr(self, "_pending_question_code", None)
             if not q_code or q_code in self._answered:
                 return
-            options = parse_ws_options(msg.get("options"))
-            task = asyncio.create_task(self._delayed_answer(q_code, options))
+            options = getattr(self, "_pending_question_options", None) or []
+            time_limit = msg.get("time_limit", self.max_delay)
+            effective_max = min(self.max_delay, float(time_limit) - 0.5)
+            effective_max = max(self.min_delay, effective_max)
+            task = asyncio.create_task(self._delayed_answer(q_code, options, effective_max))
             self._pending_tasks.append(task)
 
         elif msg_type == "clear_question":
-            # Cancel any pending answers — this question was cleared before timer ended
+            # Cancel any pending answers — question was cleared before timer ended
             for task in self._pending_tasks:
                 task.cancel()
             self._pending_tasks = [t for t in self._pending_tasks if not t.done()]
+            self._pending_question_code = None
+            self._pending_question_options = []
 
-    async def _delayed_answer(self, question_code: str, available_options: list[str]) -> None:
+    async def _delayed_answer(self, question_code: str, available_options: list[str], max_delay: float | None = None) -> None:
         """Wait a human-like random delay then submit answer via REST API."""
         try:
             if random.random() < self.skip_rate:
                 return  # This player decides not to answer
 
-            delay = random.uniform(self.min_delay, self.max_delay)
+            effective_max = max_delay if max_delay is not None else self.max_delay
+            delay = random.uniform(self.min_delay, effective_max)
             await asyncio.sleep(delay)
 
             # Check again after waking up (might have been answered already)
