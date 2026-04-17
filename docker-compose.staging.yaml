@@ -15,7 +15,7 @@ services:
   # ── Database ──────────────────────────────────────────────
   postgresql:
     container_name: postgresql
-    image: postgres:17.5-bullseye
+    image: docker.io/library/postgres:17.5-bullseye
     environment:
       - POSTGRES_USER=${POSTGRES_DB_USER}
       - POSTGRES_PASSWORD=${POSTGRES_DB_PASSWORD}
@@ -29,7 +29,7 @@ services:
   # ── Cache + WebSocket pub/sub ──────────────────────────────
   valkey:
     container_name: valkey
-    image: valkey/valkey:9-alpine
+    image: docker.io/valkey/valkey:9-alpine
     command: >
       valkey-server
       --requirepass ${VALKEY_PASSWORD}
@@ -71,7 +71,7 @@ services:
   # ── Reverse proxy + static file server ────────────────────
   nginx:
     container_name: olympia-nginx
-    image: nginx:1.27-alpine
+    image: docker.io/library/nginx:1.27-alpine
     # envsubst substitutes ${DOMAIN} in the nginx config template at startup
     command: >
       /bin/sh -c
@@ -97,7 +97,7 @@ services:
   # For first-time issuance, run manually (see deploy/README.md)
   certbot:
     container_name: olympia-certbot
-    image: certbot/certbot:latest
+    image: docker.io/certbot/certbot:latest
     volumes:
       - certbot_webroot:/var/www/certbot
       - certbot_certs:/etc/letsencrypt
