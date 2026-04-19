@@ -34,6 +34,9 @@ services:
       context: ./backend/app
     env_file:
       - ./configs/.env
+    volumes:
+      # Make repo-level configs available inside the app container
+      - ./configs:/app/configs:ro
     depends_on:
       - postgresql
       - valkey
