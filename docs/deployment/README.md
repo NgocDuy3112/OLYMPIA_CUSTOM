@@ -255,6 +255,29 @@ curl http://localhost/docs
 
 ---
 
+## Ngrok Preview for Development
+
+If you want to expose the web app to the internet during development, use the shared-origin setup:
+
+1. Start the local stack with the frontend service enabled.
+
+```bash
+podman-compose -f docker-compose.yaml -p olympia-custom --profile development --env-file ./configs/.env up -d app frontend bgm-bot sfx-bot
+```
+
+2. Start ngrok using the provided tunnel config.
+
+```bash
+ngrok config add-authtoken "$NGROK_AUTHTOKEN"
+ngrok start web --config deploy/ngrok.yml
+```
+
+3. Open the forwarded ngrok URL shown in the terminal.
+
+The frontend container listens on port `8080` and proxies `/api` and `/ws` to the backend `app` service, so one tunnel is enough.
+
+If you prefer the local Vite dev server instead of the containerized frontend, run `npm run dev` inside `frontend/` and tunnel port `5173` with ngrok.
+
 ## Kubernetes Deployment
 
 ### Namespace and ConfigMap

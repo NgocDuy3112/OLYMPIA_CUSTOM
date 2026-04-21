@@ -52,6 +52,35 @@ python music_bot.py
 python sfx_bot.py
 ```
 
+### Run with Podman (recommended for development)
+
+If you use Podman / podman-compose to manage containers, the repository's top-level `docker-compose.yaml` defines `bgm-bot` and `sfx-bot` services. Start only the bots with:
+
+```bash
+podman-compose -f docker-compose.yaml -p olympia-custom --profile development --env-file ./configs/.env up -d bgm-bot sfx-bot
+```
+
+To rebuild the bot images and recreate the services:
+
+```bash
+podman-compose -f docker-compose.yaml -p olympia-custom build bgm-bot sfx-bot
+podman-compose -f docker-compose.yaml -p olympia-custom up -d bgm-bot sfx-bot
+```
+
+View logs:
+
+```bash
+podman logs bgm-bot -f
+podman logs sfx-bot -f
+```
+
+If you prefer to build/run a single bot container manually:
+
+```bash
+podman build -f backend/ocee-bot/Dockerfile -t bgm-bot ./
+podman run -d --env-file configs/.env --name bgm-bot --network olympia-custom-network bgm-bot
+```
+
 ## Audio Files
 
 Place MP3 files in the corresponding directories:

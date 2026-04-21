@@ -40,6 +40,11 @@ PHASE_MUSIC_MAP = {
     "vdr": "vdr",       # Về Đích Riêng
     "gm": "gm",         # Giải Mã
     "vl": "vl",         # Vòng Loại
+    # Short celebratory / reaction tracks
+    "applause": "applause",
+    "boo": "boo",
+    "big_correct": "big_correct",
+    "big_wrong": "big_wrong",
 }
 
 # Track current playback per guild
@@ -131,6 +136,22 @@ async def _valkey_listener():
                 await _stop_music(guild)
                 _current_track.pop(guild.id, None)
 
+        # Play short celebratory/reaction music on qualifier score updates
+        elif msg_type == "qualifier_scores_updated":
+            try:
+                correct = int(message.get("correct_count", 0) or 0)
+                wrong = int(message.get("wrong_count", 0) or 0)
+            except Exception:
+                correct = message.get("correct_count", 0) or 0
+                wrong = message.get("wrong_count", 0) or 0
+
+            phase = "applause" if correct >= wrong else "boo"
+            music_file = _find_music_file(phase)
+            guild = bot.guilds[0] if bot.guilds else None
+            if music_file and guild:
+                # Play short reaction music (non-blocking)
+                await _play_music(guild, music_file)
+
 
 def _extract_phase_from_path(path: str) -> str | None:
     """Extract game phase from a navigation path.
@@ -187,12 +208,12 @@ async def cmd_volume(ctx: commands.Context, volume: int):
 # ── Entry Point ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if not configs.MUSIC_BOT_TOKEN:
-        logger.error("MUSIC_BOT_TOKEN not set in .env")
+    if not configs.BGM_BOT_TOKEN:
+        logger.error("BGM_BOT_TOKEN not set in .env (or MUSIC_BOT_TOKEN)")
         sys.exit(1)
 
     if not os.path.isdir(configs.MUSIC_DIR):
         os.makedirs(configs.MUSIC_DIR, exist_ok=True)
         logger.info(f"Created music directory: {configs.MUSIC_DIR}")
 
-    bot.run(configs.MUSIC_BOT_TOKEN)
+    bot.run(configs.BGM_BOT_TOKEN)
