@@ -42,6 +42,13 @@ EVENT_SFX_MAP = {
     "navigate": "navigate",       # Page navigation
     "player_online": "join",      # Player joined
     "clear_answers": "clear",     # Answers cleared
+    # Qualifier-specific mappings
+    "qualifier_scores_updated": "VL_10s",
+    "VL_10s": "VL_10s",
+    "VL_cong_diem": "VL_cong_diem",
+    "big_correct": "big_correct",
+    "big_wrong": "big_wrong",
+    "wrong": "wrong",
 }
 
 # Queue for sequential SFX playback
@@ -138,6 +145,44 @@ async def _valkey_listener():
             if sfx_file:
                 await asyncio.sleep(time_limit)
                 await _sfx_queue.put(sfx_file)
+            # continue processing other special events
+
+        # Special handling for qualifier score updates
+        if msg_type == "qualifier_scores_updated":
+            correct = int(message.get("correct_count", 0) or 0)
+            wrong = int(message.get("wrong_count", 0) or 0)
+
+            # Prefer the VL_cong_diem file (user-provided), fallback to applause/correct/wrong
+            sfx_file = _find_sfx_file("VL_cong_diem") or _find_sfx_file("applause") or _find_sfx_file("correct")
+            if not sfx_file:
+                if correct > wrong:
+                    sfx_file = _find_sfx_file("correct")
+                elif wrong > correct:
+                    sfx_file = _find_sfx_file("wrong") or _find_sfx_file("boo")
+                else:
+                    sfx_file = _find_sfx_file("applause")
+
+            if sfx_file:
+                await _sfx_queue.put(sfx_file)
+
+            # Play special SFX for large deltas to highlight big swings
+            updates = message.get("score_updates", []) or []
+            for u in updates:
+                try:
+                    delta = int(u.get("delta", 0) or 0)
+                except Exception:
+                    delta = 0
+                if delta >= 10:
+                    f = _find_sfx_file("big_correct")
+                    if f:
+                        await _sfx_queue.put(f)
+                elif delta <= -10:
+                    f = _find_sfx_file("big_wrong")
+                    if f:
+                        await _sfx_queue.put(f)
+
+            # Don't fall through to the generic queueing for this event
+            continue
 
         # Queue SFX for other events
         sfx_file = _find_sfx_file(msg_type)

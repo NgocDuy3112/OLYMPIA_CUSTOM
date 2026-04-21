@@ -6,6 +6,7 @@ secrets/
 database/
 logs/
 temp/
+assets/
 *.log
 *.sqlite3
 

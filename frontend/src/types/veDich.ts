@@ -1,15 +1,17 @@
 /**
  * VỀ ĐÍCH (About Round) Types
- * 
+ *
  * Two variations:
  * - CHUNG (Joint): Pick 4 questions
  * - RIENG (Individual): Pick 3 questions
  */
 
-export enum VeDichRound {
-	CHUNG = 4,  // Lượt Chung - 4 questions
-	RIENG = 3,  // Lượt Riêng - 3 questions
-}
+export const VeDichRound = {
+	CHUNG: 4,
+	RIENG: 3,
+} as const;
+
+export type VeDichRound = (typeof VeDichRound)[keyof typeof VeDichRound];
 
 /**
  * Get human-readable label for VeDichRound

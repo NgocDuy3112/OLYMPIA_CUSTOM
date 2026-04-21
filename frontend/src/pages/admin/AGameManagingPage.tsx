@@ -40,7 +40,7 @@ const VaoPhongQualifierButton = ({ matchCode, disabled }: { matchCode: string; d
     const handleClick = () => {
         // Qualifier always uses OC3_M_VL so admin + player share the same WS channel
         try {
-            localStorage.setItem("matchCode", "OC3_M_VL");
+            localStorage.setItem("matchCode", matchCode || "OC3_M_VL");
         } catch {
             // ignore
         }

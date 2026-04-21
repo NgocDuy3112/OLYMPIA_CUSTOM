@@ -73,7 +73,6 @@ const AQualifierPage = () => {
     const [parsedOptions, setParsedOptions] = useState<string[]>([]);
 
     const [hasCalculatedScore, setHasCalculatedScore] = useState(false);
-    const [lastScoreResult, setLastScoreResult] = useState<{ correct_count: number; wrong_count: number } | null>(null);
     const [standings, setStandings] = useState<QualifierStandingEntry[]>([]);
     const [advancements, setAdvancements] = useState<Array<{ round_number: number; status: string; user_code: string; user_name: string }>>([]);
 
@@ -327,7 +326,6 @@ const AQualifierPage = () => {
                 break;
             }
             case "qualifier_scores_updated":
-                setLastScoreResult({ correct_count: msg.correct_count, wrong_count: msg.wrong_count });
                 startTransition(() => {
                     setPlayers((prev) => {
                         const updated = prev.map((p) => {
@@ -494,7 +492,6 @@ const AQualifierPage = () => {
 
     useEffect(() => {
         setHasCalculatedScore(false);
-        setLastScoreResult(null);
     }, [currentQuestionIndex, currentRound]);
 
     // Broadcast the new question count whenever admin switches rounds so players sync immediately
@@ -598,7 +595,6 @@ const AQualifierPage = () => {
             const json = await res.json();
             if (json.status === "success") {
                 setHasCalculatedScore(true);
-                setLastScoreResult(json.data);
                 await loadQualifierStandings();
             } else {
                 logger.error("Score calculation failed:", json.message);

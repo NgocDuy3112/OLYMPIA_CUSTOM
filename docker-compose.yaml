@@ -46,13 +46,55 @@ services:
       - production
       - development
 
-  ocee-bot:
-    container_name: ocee-bot
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    env_file:
+      - ./configs/.env
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+    networks:
+      - olympia-custom-network
+    profiles:
+      - production
+      - development
+    restart: unless-stopped
+
+  bgm-bot:
+    container_name: bgm-bot
     build:
       context: .
       dockerfile: backend/ocee-bot/Dockerfile
     env_file:
       - ./configs/.env
+    command: ["python", "bgm_bot.py"]
+    volumes:
+      - ./backend/ocee-bot:/app
+      - ./audios:/app/audios
+    depends_on:
+      - valkey
+    networks:
+      - olympia-custom-network
+    profiles:
+      - production
+      - development
+    restart: unless-stopped
+
+  sfx-bot:
+    container_name: sfx-bot
+    build:
+      context: .
+      dockerfile: backend/ocee-bot/Dockerfile
+    env_file:
+      - ./configs/.env
+    command: ["python", "sfx_bot.py"]
+    volumes:
+      - ./backend/ocee-bot:/app
+      - ./audios:/app/audios
     depends_on:
       - valkey
     networks:
