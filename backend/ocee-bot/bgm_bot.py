@@ -19,7 +19,7 @@ class BGMBot(discord.Client):
         logger.info(f"BGM Bot connected as {self.user}")
         
         # Join voice channel on startup
-        channel = self.get_channel(VOICE_CHANNEL_ID)
+        channel = self.get_channel(int(VOICE_CHANNEL_ID))
         if channel:
             self.voice_client = await channel.connect()
             logger.info(f"Joined voice channel: {channel.name}")
@@ -30,23 +30,32 @@ class BGMBot(discord.Client):
         asyncio.create_task(self.listen_valkey())
 
     async def listen_valkey(self):
-        try:
-            # Create valkey client from host/port/password configuration
-            vk = Valkey(host=VALKEY_HOST, port=VALKEY_PORT, password=VALKEY_PASSWORD, decode_responses=True)
-            pubsub = vk.pubsub()
-            await pubsub.subscribe(MATCH_CODE)
-            logger.info(f"Subscribed to Valkey channel: {MATCH_CODE}")
+        while True:
+            vk = None
+            try:
+                # Create valkey client from host/port/password configuration
+                vk = Valkey(host=VALKEY_HOST, port=VALKEY_PORT, password=VALKEY_PASSWORD, decode_responses=True, socket_timeout=None, socket_connect_timeout=10)
+                pubsub = vk.pubsub()
+                await pubsub.subscribe(MATCH_CODE)
+                logger.info(f"Subscribed to Valkey channel: {MATCH_CODE}")
 
-            async for message in pubsub.listen():
-                if message["type"] == "message":
+                async for message in pubsub.listen():
+                    if message["type"] == "message":
+                        try:
+                            data = json.loads(message["data"])
+                            await self.handle_event(data)
+                        except Exception as e:
+                            logger.error(f"Error parsing Valkey message: {e}")
+            except Exception as e:
+                logger.exception(f"Valkey listener crashed: {e} — reconnecting in 5 s")
+            finally:
+                if vk is not None:
                     try:
-                        data = json.loads(message["data"])
-                        await self.handle_event(data)
-                    except Exception as e:
-                        logger.error(f"Error parsing Valkey message: {e}")
-            await vk.aclose()
-        except Exception as e:
-            logger.exception(f"Valkey listener crashed: {e}")
+                        await vk.aclose()
+                    except Exception:
+                        pass
+
+            await asyncio.sleep(5)
 
     async def handle_event(self, data: dict):
         event_type = data.get("type")
@@ -123,5 +132,6 @@ class BGMBot(discord.Client):
 
 if __name__ == "__main__":
     intents = discord.Intents.default()
+    intents.voice_states = True
     client = BGMBot(intents=intents)
     client.run(BGM_BOT_TOKEN)

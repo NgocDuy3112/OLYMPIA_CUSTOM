@@ -71,18 +71,20 @@ def _find_sfx_file(event_type: str) -> str | None:
 
 async def _play_sfx(file_path: str) -> None:
     """Play a sound effect in the configured voice channel."""
-    global _is_playing
+    global _is_playing, _vc
 
-    voice_channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
-    if not voice_channel or not isinstance(voice_channel, discord.VoiceChannel):
-        logger.warning("No valid voice channel configured")
-        return
+    # Reconnect if vc was lost
+    if not _vc or not _vc.is_connected():
+        voice_channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
+        if not voice_channel or not isinstance(voice_channel, discord.VoiceChannel):
+            logger.warning("No valid voice channel configured")
+            return
+        try:
+            _vc = await voice_channel.connect()
+        except discord.ClientException:
+            _vc = bot.guilds[0].voice_client if bot.guilds else None
 
-    try:
-        vc = await voice_channel.connect()
-    except discord.ClientException:
-        vc = bot.guilds[0].voice_client if bot.guilds else None
-
+    vc = _vc
     if not vc:
         return
 
@@ -116,9 +118,26 @@ async def _sfx_player():
 
 # ── Event Handlers ───────────────────────────────────────────────────────────
 
+# Shared voice client reused across all SFX plays
+_vc: discord.VoiceClient | None = None
+
+
 @bot.event
 async def on_ready():
+    global _vc
     logger.info(f"SFX Bot logged in as {bot.user}")
+
+    # Join voice channel on startup
+    voice_channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
+    if voice_channel and isinstance(voice_channel, discord.VoiceChannel):
+        try:
+            _vc = await voice_channel.connect()
+            logger.info(f"SFX Bot joined voice channel: {voice_channel.name}")
+        except discord.ClientException:
+            _vc = bot.guilds[0].voice_client if bot.guilds else None
+            logger.info("SFX Bot already in voice channel")
+    else:
+        logger.warning(f"VOICE_CHANNEL_ID={configs.VOICE_CHANNEL_ID!r} not found or not a voice channel")
 
     # Start SFX player queue processor
     asyncio.create_task(_sfx_player())
@@ -128,66 +147,101 @@ async def on_ready():
 
 
 async def _valkey_listener():
-    """Listen to Valkey pub/sub for game events."""
-    valkey_client = get_valkey_client()
-    match_code = "OC3_M_VL"  # Default — discover from backend in production
+    """Listen to Valkey pub/sub for game events (async, with auto-reconnect)."""
+    import json
+    from valkey.asyncio import Valkey as AsyncValkey
 
-    logger.info(f"SFX Bot listening to channel '{match_code}'")
+    match_code = configs.MATCH_CODE
 
-    for message in subscribe_to_match_channels(valkey_client, match_code):
-        msg_type = message.get("type", "")
+    while True:
+        vk: AsyncValkey | None = None
+        try:
+            vk = AsyncValkey(
+                host=configs.VALKEY_HOST,
+                port=configs.VALKEY_PORT,
+                password=configs.VALKEY_PASSWORD,
+                db=configs.VALKEY_DB,
+                decode_responses=True,
+                socket_timeout=None,
+                socket_connect_timeout=10,
+            )
+            pubsub = vk.pubsub()
+            await pubsub.subscribe(match_code)
+            logger.info(f"SFX Bot subscribed to channel '{match_code}'")
 
-        # Special handling for timer_end (triggered by frontend after timer expires)
-        if msg_type == "start_the_timer":
-            # Queue timer_end SFX to play after the timer duration
-            time_limit = message.get("time_limit", 30)
-            sfx_file = _find_sfx_file("timer_end")
-            if sfx_file:
-                await asyncio.sleep(time_limit)
-                await _sfx_queue.put(sfx_file)
-            # continue processing other special events
-
-        # Special handling for qualifier score updates
-        if msg_type == "qualifier_scores_updated":
-            correct = int(message.get("correct_count", 0) or 0)
-            wrong = int(message.get("wrong_count", 0) or 0)
-
-            # Prefer the VL_cong_diem file (user-provided), fallback to applause/correct/wrong
-            sfx_file = _find_sfx_file("VL_cong_diem") or _find_sfx_file("applause") or _find_sfx_file("correct")
-            if not sfx_file:
-                if correct > wrong:
-                    sfx_file = _find_sfx_file("correct")
-                elif wrong > correct:
-                    sfx_file = _find_sfx_file("wrong") or _find_sfx_file("boo")
-                else:
-                    sfx_file = _find_sfx_file("applause")
-
-            if sfx_file:
-                await _sfx_queue.put(sfx_file)
-
-            # Play special SFX for large deltas to highlight big swings
-            updates = message.get("score_updates", []) or []
-            for u in updates:
+            async for raw in pubsub.listen():
+                if raw["type"] != "message":
+                    continue
                 try:
-                    delta = int(u.get("delta", 0) or 0)
+                    message = json.loads(raw["data"])
+                except (json.JSONDecodeError, TypeError):
+                    logger.warning(f"Invalid JSON on channel {match_code}: {raw['data']}")
+                    continue
+
+                msg_type = message.get("type", "")
+
+                # Special handling for timer_end (triggered by frontend after timer expires)
+                if msg_type == "start_the_timer":
+                    # Queue timer_end SFX to play after the timer duration
+                    time_limit = message.get("time_limit", 30)
+                    sfx_file = _find_sfx_file("timer_end")
+                    if sfx_file:
+                        await asyncio.sleep(time_limit)
+                        await _sfx_queue.put(sfx_file)
+                    # continue processing other special events
+
+                # Special handling for qualifier score updates
+                if msg_type == "qualifier_scores_updated":
+                    correct = int(message.get("correct_count", 0) or 0)
+                    wrong = int(message.get("wrong_count", 0) or 0)
+
+                    # Prefer the VL_cong_diem file (user-provided), fallback to applause/correct/wrong
+                    sfx_file = _find_sfx_file("VL_cong_diem") or _find_sfx_file("applause") or _find_sfx_file("correct")
+                    if not sfx_file:
+                        if correct > wrong:
+                            sfx_file = _find_sfx_file("correct")
+                        elif wrong > correct:
+                            sfx_file = _find_sfx_file("wrong") or _find_sfx_file("boo")
+                        else:
+                            sfx_file = _find_sfx_file("applause")
+
+                    if sfx_file:
+                        await _sfx_queue.put(sfx_file)
+
+                    # Play special SFX for large deltas to highlight big swings
+                    updates = message.get("score_updates", []) or []
+                    for u in updates:
+                        try:
+                            delta = int(u.get("delta", 0) or 0)
+                        except Exception:
+                            delta = 0
+                        if delta >= 10:
+                            f = _find_sfx_file("big_correct")
+                            if f:
+                                await _sfx_queue.put(f)
+                        elif delta <= -10:
+                            f = _find_sfx_file("big_wrong")
+                            if f:
+                                await _sfx_queue.put(f)
+
+                    # Don't fall through to the generic queueing for this event
+                    continue
+
+                # Queue SFX for other events
+                sfx_file = _find_sfx_file(msg_type)
+                if sfx_file:
+                    await _sfx_queue.put(sfx_file)
+
+        except Exception as e:
+            logger.error(f"SFX Valkey listener crashed: {e} — reconnecting in 5 s")
+        finally:
+            if vk is not None:
+                try:
+                    await vk.aclose()
                 except Exception:
-                    delta = 0
-                if delta >= 10:
-                    f = _find_sfx_file("big_correct")
-                    if f:
-                        await _sfx_queue.put(f)
-                elif delta <= -10:
-                    f = _find_sfx_file("big_wrong")
-                    if f:
-                        await _sfx_queue.put(f)
+                    pass
 
-            # Don't fall through to the generic queueing for this event
-            continue
-
-        # Queue SFX for other events
-        sfx_file = _find_sfx_file(msg_type)
-        if sfx_file:
-            await _sfx_queue.put(sfx_file)
+        await asyncio.sleep(5)
 
 
 # ── Commands ─────────────────────────────────────────────────────────────────

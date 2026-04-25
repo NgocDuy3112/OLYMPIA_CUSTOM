@@ -4,7 +4,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install build deps
+# Install minimal build deps on Alpine
 RUN apk add --no-cache libc6-compat
 
 # Copy package files and install dependencies

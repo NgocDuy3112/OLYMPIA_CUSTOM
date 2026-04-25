@@ -1,137 +1,156 @@
 services:
-
   # ── Database ──────────────────────────────────────────────
   postgresql:
-    container_name: postgresql
-    image: docker.io/library/postgres:17.5-bullseye
+    container_name: olympia-postgresql
+    image: postgres:17.5-bullseye
     environment:
-      - POSTGRES_USER=${POSTGRES_DB_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_DB_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB_NAME}
+      POSTGRES_USER: ${POSTGRES_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./database/postgres_data:/var/lib/postgresql/data
     networks:
       - olympia-network
     restart: unless-stopped
 
-  # ── Cache + WebSocket pub/sub ──────────────────────────────
+  # ── Cache + WebSocket pub/sub ─────────────────────────────
   valkey:
-    container_name: valkey
-    image: docker.io/valkey/valkey:9-alpine
+    container_name: olympia-valkey
+    image: valkey/valkey:9-alpine
     command: >
       valkey-server
       --requirepass ${VALKEY_PASSWORD}
       --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* "&*" +@all
+    volumes:
+      - ./database/valkey_data:/data
     networks:
       - olympia-network
     restart: unless-stopped
 
-  # ── FastAPI backend ────────────────────────────────────────
-  # Container named "olympia-app" to match nginx upstream
+  # ── FastAPI backend ───────────────────────────────────────
+  # Built into the image; only configs are mounted for runtime access.
   app:
     container_name: olympia-app
     build:
       context: ./backend/app
+      dockerfile: Dockerfile
     env_file:
       - ./configs/.env
+    environment:
+      APP_HOST: 0.0.0.0
+      # Keep password-reset and email links public when running on VPS via ngrok.
+      FRONTEND_URL: https://${NGROK_DOMAIN}
+      # Ensure Google Drive credential lookup works inside the container.
+      DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
+      # Explicit service discovery inside the compose network.
+      POSTGRES_DB_HOST: postgresql
+      POSTGRES_DB_PORT: 5432
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
     volumes:
-      # Make repo-level configs available inside the app container
       - ./configs:/app/configs:ro
     depends_on:
       - postgresql
       - valkey
-    # Port 8000 is NOT exposed publicly — nginx proxies to it
     networks:
       - olympia-network
     restart: unless-stopped
 
-  # ── Discord / BGM bot ──────────────────────────────────────
-  ocee-bot:
-    container_name: ocee-bot
+  # ── Frontend ──────────────────────────────────────────────
+  # Vite build baked into nginx image; this container already proxies /api and /ws to the backend.
+  frontend:
+    container_name: olympia-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - app
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+  # ── Discord / BGM bot ─────────────────────────────────────
+  bgm-bot:
+    container_name: olympia-bgm-bot
     build:
       context: .
       dockerfile: backend/ocee-bot/Dockerfile
     env_file:
       - ./configs/.env
+    command: ["python", "bgm_bot.py"]
+    volumes:
+      - ./audios:/app/audios:ro
     depends_on:
       - valkey
     networks:
       - olympia-network
     restart: unless-stopped
 
-  # ── Reverse proxy — ngrok mode (HTTP-only) ────────────────
-  # Active when: --profile ngrok
-  # ngrok container handles TLS externally; nginx only speaks HTTP.
-  nginx-ngrok:
-    container_name: olympia-nginx
-    image: docker.io/library/nginx:1.27-alpine
-    profiles: [ngrok]
-    command: ["nginx", "-g", "daemon off;"]
-    depends_on:
-      - app
-    ports:
-      - "80:80"
+  # ── Discord / SFX bot ─────────────────────────────────────
+  sfx-bot:
+    container_name: olympia-sfx-bot
+    build:
+      context: .
+      dockerfile: backend/ocee-bot/Dockerfile
+    env_file:
+      - ./configs/.env
+    command: ["python", "sfx_bot.py"]
     volumes:
-      - ./deploy/nginx-ngrok.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./audios:/app/audios:ro
+    depends_on:
+      - valkey
     networks:
       - olympia-network
     restart: unless-stopped
 
-  # ── ngrok tunnel ──────────────────────────────────────────
-  # Active when: --profile ngrok
-  # Reads NGROK_AUTHTOKEN and NGROK_DOMAIN from configs/.env
+  # ── ngrok tunnel (optional) ───────────────────────────────
+  # Activate with: --profile ngrok
+  # This exposes the frontend container, which already proxies /api and /ws to the app.
   ngrok:
     container_name: olympia-ngrok
-    image: docker.io/ngrok/ngrok:latest
-    profiles: [ngrok]
-    command: http nginx-ngrok:80 --domain=${NGROK_DOMAIN} --log=stdout
+    image: ngrok/ngrok:latest
+    command: http frontend:80 --domain=${NGROK_DOMAIN} --log=stdout
     environment:
       NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
     depends_on:
-      - nginx-ngrok
+      - frontend
     networks:
       - olympia-network
     restart: unless-stopped
 
-  # ── Reverse proxy — TLS mode (HTTPS + certbot) ────────────
-  # Active when: --profile tls
+  # ── Reverse proxy — TLS mode (HTTPS + certbot) ───────────
+  # Activate with: --profile tls
   nginx:
     container_name: olympia-nginx
-    image: docker.io/library/nginx:1.27-alpine
+    image: nginx:1.27-alpine
     profiles: [tls]
-    # envsubst substitutes ${DOMAIN} in the nginx config template at startup
     command: >
       /bin/sh -c
-      "envsubst '$$DOMAIN' < /etc/nginx/conf.d/default.conf.template
+      "envsubst '$$DOMAIN' < /etc/nginx/templates/default.conf.template
        > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
     environment:
-      - DOMAIN=${DOMAIN}
+      DOMAIN: ${DOMAIN}
     depends_on:
-      - app
+      - frontend
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf.template:ro
-      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./deploy/nginx-staging.conf.template:/etc/nginx/templates/default.conf.template:ro
       - certbot_webroot:/var/www/certbot:ro
       - certbot_certs:/etc/letsencrypt:ro
     networks:
       - olympia-network
     restart: unless-stopped
 
-  # ── TLS certificate auto-renewal ──────────────────────────
-  # Active when: --profile tls
-  # For first-time issuance, run manually (see deploy/README.md)
   certbot:
     container_name: olympia-certbot
-    image: docker.io/certbot/certbot:latest
+    image: certbot/certbot:latest
     profiles: [tls]
     volumes:
       - certbot_webroot:/var/www/certbot
       - certbot_certs:/etc/letsencrypt
-    # Renew certificates every 12 hours if expiry < 30 days
+    # Renew certificates every 12 hours.
     entrypoint: >
       /bin/sh -c
       "trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done"
@@ -145,5 +164,6 @@ networks:
 
 volumes:
   postgres_data:
+  valkey_data:
   certbot_webroot:
   certbot_certs:
