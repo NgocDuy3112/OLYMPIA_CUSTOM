@@ -41,11 +41,15 @@ class BGMBot(discord.Client):
 
                 async for message in pubsub.listen():
                     if message["type"] == "message":
+                        raw = message["data"]
+                        if not raw:
+                            logger.debug("Received empty Valkey message, skipping")
+                            continue
                         try:
-                            data = json.loads(message["data"])
+                            data = json.loads(raw)
                             await self.handle_event(data)
                         except Exception as e:
-                            logger.error(f"Error parsing Valkey message: {e}")
+                            logger.error(f"Error parsing Valkey message: {e} | raw={repr(raw)}")
             except Exception as e:
                 logger.exception(f"Valkey listener crashed: {e} — reconnecting in 5 s")
             finally:
@@ -72,7 +76,7 @@ class BGMBot(discord.Client):
             logger.info(f"Playing timer {time_limit}s -> key={key}")
             fp = BGM_FILES.get(key)
             if fp:
-                self.play_audio(fp)
+                await self.play_audio(fp)
             else:
                 logger.debug(f"No BGM file configured for key {key}")
 
@@ -81,7 +85,7 @@ class BGMBot(discord.Client):
             # For now, we check if it's a specific round or just a flag
             if "decoding" in data.get("round_name", "").lower():
                 logger.info("Playing decoding BGM")
-                self.play_audio(BGM_FILES["decoding"])
+                await self.play_audio(BGM_FILES["decoding"])
 
         elif event_type == "clear_question":
             logger.info("Stopping all BGM")
@@ -107,21 +111,25 @@ class BGMBot(discord.Client):
             try:
                 fp = BGM_FILES.get(key)
                 if fp:
-                    self.play_audio(fp)
+                    await self.play_audio(fp)
                 else:
                     logger.debug(f"No BGM file configured for key={key}")
             except Exception:
                 logger.exception("Failed to play BGM for qualifier_scores_updated")
 
-    def play_audio(self, file_path):
+    async def play_audio(self, file_path):
         if not self.voice_client:
             return
-        
+
         if self.voice_client.is_playing():
             self.voice_client.stop()
-            
+            await asyncio.sleep(0.3)  # wait for ffmpeg to fully release
+
         if file_path.exists():
-            self.voice_client.play(discord.FFmpegPCMAudio(str(file_path)))
+            try:
+                self.voice_client.play(discord.FFmpegPCMAudio(str(file_path)))
+            except Exception as e:
+                logger.error(f"Failed to play audio {file_path}: {e}")
         else:
             logger.warning(f"Audio file not found: {file_path}")
 
