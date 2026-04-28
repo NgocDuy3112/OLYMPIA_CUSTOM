@@ -73,6 +73,10 @@ const AQualifierPage = () => {
     const [parsedOptions, setParsedOptions] = useState<string[]>([]);
 
     const [hasCalculatedScore, setHasCalculatedScore] = useState(false);
+<<<<<<< HEAD
+=======
+    const [_lastScoreResult, setLastScoreResult] = useState<{ correct_count: number; wrong_count: number } | null>(null);
+>>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers)
     const [standings, setStandings] = useState<QualifierStandingEntry[]>([]);
     const [advancements, setAdvancements] = useState<Array<{ round_number: number; status: string; user_code: string; user_name: string }>>([]);
 

@@ -19,8 +19,12 @@ for _env_path in ("/app/.env", os.path.join(os.path.dirname(__file__), ".env")):
 
 # ── Discord ──────────────────────────────────────────────────────────────────
 
+<<<<<<< HEAD:backend/ocee-bot/configs.py
 # Backwards-compatible: prefer BGM_BOT_TOKEN, fall back to MUSIC_BOT_TOKEN if present
 BGM_BOT_TOKEN = os.getenv("BGM_BOT_TOKEN", os.getenv("MUSIC_BOT_TOKEN", ""))
+=======
+BGM_BOT_TOKEN = os.getenv("BGM_BOT_TOKEN", "")
+>>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers):backend/discord/configs.py
 SFX_BOT_TOKEN = os.getenv("SFX_BOT_TOKEN", "")
 VOICE_CHANNEL_ID = os.getenv("VOICE_CHANNEL_ID", "")
 
@@ -37,6 +41,7 @@ MATCH_CODE = os.getenv("MATCH_CODE", "OC3_M_VL")
 # ── Paths ────────────────────────────────────────────────────────────────────
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+<<<<<<< HEAD:backend/ocee-bot/configs.py
 
 # Locate the repository-level 'audios' directory. Support both local dev layout
 # (repo root contains 'audios/') and container layout where audios are copied to /app/audios.
@@ -75,6 +80,18 @@ BGM_FILES = {
     "boo": AUDIO_ROOT / "bgm" / "boo.mp3",
     "neutral": AUDIO_ROOT / "bgm" / "neutral.mp3",
 }
+=======
+# Dockerfile copies repo-level audios/ into /app/audios/
+MUSIC_DIR = os.path.join(BASE_DIR, "audios", "bgm")
+SFX_DIR = os.path.join(BASE_DIR, "audios", "sfx")
+
+# Valkey connection URL
+_password_part = f":{VALKEY_PASSWORD}@" if VALKEY_PASSWORD else ""
+VALKEY_URL = f"redis://{_password_part}{VALKEY_HOST}:{VALKEY_PORT}/{VALKEY_DB}"
+
+# Match code for Valkey pub/sub
+MATCH_CODE = os.getenv("MATCH_CODE", "OC3_M_VL")
+>>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers):backend/discord/configs.py
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 

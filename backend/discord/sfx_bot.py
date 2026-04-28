@@ -42,6 +42,7 @@ EVENT_SFX_MAP = {
     "navigate": "navigate",       # Page navigation
     "player_online": "join",      # Player joined
     "clear_answers": "clear",     # Answers cleared
+<<<<<<< HEAD:backend/ocee-bot/sfx_bot.py
     # Qualifier-specific mappings
     "qualifier_scores_updated": "VL_10s",
     "VL_10s": "VL_10s",
@@ -49,6 +50,9 @@ EVENT_SFX_MAP = {
     "big_correct": "big_correct",
     "big_wrong": "big_wrong",
     "wrong": "wrong",
+=======
+    "qualifier_scores_updated": "VL_cong_diem",  # Qualifier round score update
+>>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers):backend/discord/sfx_bot.py
 }
 
 # Queue for sequential SFX playback
@@ -69,10 +73,27 @@ def _find_sfx_file(event_type: str) -> str | None:
     return None
 
 
+async def _get_voice_client() -> discord.VoiceClient | None:
+    """Return the existing voice client, or connect if not already in channel."""
+    # Prefer already-connected voice client
+    vc: discord.VoiceClient | None = bot.guilds[0].voice_client if bot.guilds else None
+    if vc and vc.is_connected():
+        return vc
+    # Reconnect if disconnected
+    try:
+        channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
+        if isinstance(channel, discord.VoiceChannel):
+            return await channel.connect()
+    except Exception as e:
+        logger.warning(f"Cannot get voice client: {e}")
+    return None
+
+
 async def _play_sfx(file_path: str) -> None:
     """Play a sound effect in the configured voice channel."""
     global _is_playing, _vc
 
+<<<<<<< HEAD:backend/ocee-bot/sfx_bot.py
     # Reconnect if vc was lost
     if not _vc or not _vc.is_connected():
         voice_channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
@@ -85,6 +106,9 @@ async def _play_sfx(file_path: str) -> None:
             _vc = bot.guilds[0].voice_client if bot.guilds else None
 
     vc = _vc
+=======
+    vc = await _get_voice_client()
+>>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers):backend/discord/sfx_bot.py
     if not vc:
         return
 
@@ -93,7 +117,7 @@ async def _play_sfx(file_path: str) -> None:
         await asyncio.sleep(0.1)
 
     _is_playing = True
-    source = discord.FFmpegPCMAudio(file_path)
+    source = discord.FFmpegOpusAudio(file_path)
     vc.play(source, after=lambda e: setattr(sys.modules[__name__], "_is_playing", False))
     logger.info(f"Playing SFX: {os.path.basename(file_path)}")
 
@@ -118,14 +142,36 @@ async def _sfx_player():
 
 # ── Event Handlers ───────────────────────────────────────────────────────────
 
+<<<<<<< HEAD:backend/ocee-bot/sfx_bot.py
 # Shared voice client reused across all SFX plays
 _vc: discord.VoiceClient | None = None
+=======
+async def _auto_join_voice() -> None:
+    """Join the configured voice channel on startup."""
+    if not configs.VOICE_CHANNEL_ID:
+        logger.warning("VOICE_CHANNEL_ID not set — skipping auto-join")
+        return
+    try:
+        channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
+        if not isinstance(channel, discord.VoiceChannel):
+            logger.warning(f"Channel {configs.VOICE_CHANNEL_ID} is not a voice channel")
+            return
+        guild = channel.guild
+        if guild.voice_client:
+            logger.info("Already in a voice channel")
+            return
+        await channel.connect()
+        logger.info(f"Auto-joined voice channel: {channel.name} ({guild.name})")
+    except Exception as e:
+        logger.warning(f"Auto-join failed: {e}")
+>>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers):backend/discord/sfx_bot.py
 
 
 @bot.event
 async def on_ready():
     global _vc
     logger.info(f"SFX Bot logged in as {bot.user}")
+    await _auto_join_voice()
 
     # Join voice channel on startup
     voice_channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
@@ -146,6 +192,7 @@ async def on_ready():
     asyncio.create_task(_valkey_listener())
 
 
+<<<<<<< HEAD:backend/ocee-bot/sfx_bot.py
 async def _valkey_listener():
     """Listen to Valkey pub/sub for game events (async, with auto-reconnect)."""
     import json
@@ -242,6 +289,43 @@ async def _valkey_listener():
                     pass
 
         await asyncio.sleep(5)
+=======
+async def _handle_message(message: dict) -> None:
+    """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
+    msg_type = message.get("type", "")
+
+    # Queue timer_end SFX after the timer duration elapses
+    if msg_type == "start_the_timer":
+        time_limit = int(message.get("time_limit", 30))
+        sfx_file = _find_sfx_file("timer_end")
+        if sfx_file:
+            await asyncio.sleep(time_limit)
+            await _sfx_queue.put(sfx_file)
+
+    # Queue SFX for the event itself
+    sfx_file = _find_sfx_file(msg_type)
+    if sfx_file:
+        await _sfx_queue.put(sfx_file)
+
+
+async def _valkey_listener():
+    """Listen to Valkey pub/sub for game events.
+
+    Runs the blocking subscriber in a thread so it never stalls the Discord
+    heartbeat loop. Each message is dispatched back to the event loop via
+    run_coroutine_threadsafe.
+    """
+    valkey_client = get_valkey_client()
+    match_code = configs.MATCH_CODE
+    loop = asyncio.get_running_loop()
+    logger.info(f"SFX Bot listening to channel '{match_code}'")
+
+    def _sync_subscribe():
+        for message in subscribe_to_match_channels(valkey_client, match_code):
+            asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
+
+    await asyncio.to_thread(_sync_subscribe)
+>>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers):backend/discord/sfx_bot.py
 
 
 # ── Commands ─────────────────────────────────────────────────────────────────
