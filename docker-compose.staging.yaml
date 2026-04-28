@@ -103,6 +103,25 @@ services:
       - olympia-network
     restart: unless-stopped
 
+  # ── Qualifier bot — auto-seed 20 players + passive WS bots ──
+  qualifier-bot:
+    container_name: olympia-qualifier-bot
+    build:
+      context: .
+      dockerfile: backend/qualifier-bot/Dockerfile
+    env_file:
+      - ./configs/.env
+    environment:
+      POSTGRES_DB_HOST: postgresql
+      POSTGRES_DB_PORT: 5432
+      API_URL: http://app:8000
+    depends_on:
+      - postgresql
+      - app
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
   # ── ngrok tunnel (optional) ───────────────────────────────
   # Activate with: --profile ngrok
   # This exposes the frontend container, which already proxies /api and /ws to the app.

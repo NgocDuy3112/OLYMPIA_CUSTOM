@@ -880,9 +880,6 @@ const AQualifierPage = () => {
             }
             bottomActionButtons={
                 <>
-                    <AControlButton onClick={showAnswers} disabled={!canShowAnswers}>
-                        <Eye size={18} className="mr-2" /> HIỆN ĐÁP ÁN
-                    </AControlButton>
                     <AControlButton
                         onClick={handleCalculateScores}
                         disabled={!currentQuestion.questionCode || hasCalculatedScore}
