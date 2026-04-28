@@ -35,7 +35,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
 };
 
 // Navigate to qualifier (Vòng Loại) admin page
-const VaoPhongQualifierButton = ({ matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
+const VaoPhongQualifierButton = ({ matchCode: _matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
     const navigate = useNavigate();
     const handleClick = () => {
         // Qualifier always uses OC3_M_VL so admin + player share the same WS channel
