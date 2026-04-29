@@ -5,7 +5,6 @@ import {
     Play,
     Calculator,
     Power,
-    Eye,
     Trophy,
 } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -73,15 +72,12 @@ const AQualifierPage = () => {
     const [parsedOptions, setParsedOptions] = useState<string[]>([]);
 
     const [hasCalculatedScore, setHasCalculatedScore] = useState(false);
-<<<<<<< HEAD
-=======
-    const [_lastScoreResult, setLastScoreResult] = useState<{ correct_count: number; wrong_count: number } | null>(null);
->>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers)
+    const [_lastScoreResult, _setLastScoreResult] = useState<{ correct_count: number; wrong_count: number } | null>(null);
     const [standings, setStandings] = useState<QualifierStandingEntry[]>([]);
     const [advancements, setAdvancements] = useState<Array<{ round_number: number; status: string; user_code: string; user_name: string }>>([]);
 
     const maxQuestionsForRound = QUALIFIER_QUESTIONS_PER_ROUND[currentRound] ?? 0;
-    const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
+
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -186,14 +182,15 @@ const AQualifierPage = () => {
     const loadQualifierStandings = useCallback(async () => {
         if (!currentMatchCode || !token) return;
         try {
-            const json = await fetch(`${API_BASE_URL}/qualifier/standings/${currentMatchCode}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            }).then((r) => r.json());
+            const json = await fetch(
+                `${API_BASE_URL}/qualifier/standings/${currentMatchCode}?round_number=${currentRound}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+            ).then((r) => r.json());
             setStandings(json.data?.standings ?? []);
         } catch (err) {
             logger.error("Failed to load qualifier standings:", err);
         }
-    }, [currentMatchCode, token]);
+    }, [currentMatchCode, currentRound, token]);
 
     const loadAdvancements = useCallback(async () => {
         if (!currentMatchCode || !token) return;
@@ -584,7 +581,19 @@ const AQualifierPage = () => {
     }, [currentMatchCode, currentQuestionIndex, currentRound, resolveQuestionCode, sendMessage, timer, token]);
 
     const handleCalculateScores = useCallback(async () => {
-        if (!currentMatchCode || !token || !currentQuestion.questionCode || hasCalculatedScore) return;
+        if (!currentMatchCode || !token) {
+            alert("Chưa đăng nhập hoặc chưa chọn phòng thi.");
+            return;
+        }
+        if (!currentQuestion.questionCode) {
+            alert("Chưa chọn câu hỏi.");
+            return;
+        }
+        if (!currentQuestion.questionAnswer) {
+            alert("Câu hỏi này chưa có đáp án đúng trong hệ thống. Vui lòng kiểm tra lại dữ liệu câu hỏi.");
+            return;
+        }
+        if (hasCalculatedScore) return;
         try {
             const res = await fetch(`${API_BASE_URL}/qualifier/calculate-scores`, {
                 method: "POST",
@@ -597,43 +606,19 @@ const AQualifierPage = () => {
                 }),
             });
             const json = await res.json();
-            if (json.status === "success") {
+            if (res.ok && json.status === "success") {
                 setHasCalculatedScore(true);
                 await loadQualifierStandings();
             } else {
-                logger.error("Score calculation failed:", json.message);
+                const errMsg = json.message ?? (Array.isArray(json.detail) ? json.detail.map((d: { msg: string }) => d.msg).join("; ") : json.detail) ?? "Tính điểm thất bại";
+                logger.error("Score calculation failed:", errMsg, json);
+                alert(`❌ Tính điểm thất bại: ${errMsg}`);
             }
         } catch (err) {
             logger.error("Failed to calculate qualifier scores:", err);
+            alert("❌ Không thể kết nối server để tính điểm.");
         }
     }, [currentMatchCode, currentQuestion, currentRound, hasCalculatedScore, loadQualifierStandings, token]);
-
-    const showAnswers = useCallback(async () => {
-        if (!canShowAnswers) return;
-        const answersPayload: Array<{ user_code: string; content: string; timestamp: number }> = [];
-        for (const player of players) {
-            try {
-                const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(currentQuestion.questionCode)}`;
-                const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-                if (!res.ok) continue;
-                const json = await res.json();
-                const data = json.data;
-                if (!data) continue;
-                const answerObj = Array.isArray(data) ? data[0] : data;
-                if (answerObj?.answer_text) {
-                    answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: answerObj.timestamp ?? 0 });
-                }
-            } catch (err) {
-                logger.warn("showAnswers: failed for", player.playerCode, err);
-            }
-        }
-        try {
-            await sendMessage({ type: "send_answers_to_players", answers: answersPayload });
-        } catch (err) {
-            logger.error("showAnswers broadcast failed:", err);
-        }
-    }, [canShowAnswers, currentMatchCode, currentQuestion, players, sendMessage, token]);
-
 
     // Select a question by index (1-based). Loads question and broadcasts it to players.
     const handleSelectQuestion = useCallback(
@@ -886,7 +871,7 @@ const AQualifierPage = () => {
                 <>
                     <AControlButton
                         onClick={handleCalculateScores}
-                        disabled={!currentQuestion.questionCode || hasCalculatedScore}
+                        disabled={!currentQuestion.questionCode || !currentQuestion.questionAnswer || hasCalculatedScore}
                         className={hasCalculatedScore ? "opacity-60" : ""}
                     >
                         <Calculator size={18} className="mr-2" /> TÍNH ĐIỂM
