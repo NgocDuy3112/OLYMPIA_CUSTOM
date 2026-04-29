@@ -10,10 +10,7 @@ export const VeDichRound = {
 	CHUNG: 4,
 	RIENG: 3,
 } as const;
-<<<<<<< HEAD
 
-=======
->>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers)
 export type VeDichRound = (typeof VeDichRound)[keyof typeof VeDichRound];
 
 /**

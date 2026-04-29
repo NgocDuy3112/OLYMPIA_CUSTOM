@@ -148,7 +148,7 @@ async def _handle_message(message: dict) -> None:
         if timer_file:
             await _play(guild, timer_file)
 
-    elif msg_type in ("clear_question", "game_end"):
+    elif msg_type == "game_end":
         await _stop(guild)
         _current_track.pop(guild.id, None)
 

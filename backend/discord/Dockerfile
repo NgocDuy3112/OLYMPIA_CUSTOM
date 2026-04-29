@@ -1,5 +1,7 @@
 FROM python:3.12-alpine
 
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/
+
 WORKDIR /app
 
 # Copy requirements first for better caching
@@ -9,7 +11,7 @@ COPY backend/discord/requirements.txt .
 # Build tools grouped under .build-deps so apk del cleans them all at once.
 RUN apk add --no-cache ffmpeg libsodium \
     && apk add --no-cache --virtual .build-deps gcc musl-dev libffi-dev libsodium-dev \
-    && pip install --no-cache-dir -r requirements.txt \
+    && uv pip install --system --no-cache -r requirements.txt \
     && apk del .build-deps
 
 # Copy bot source code

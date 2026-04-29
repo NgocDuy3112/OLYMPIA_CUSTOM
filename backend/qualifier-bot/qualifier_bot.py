@@ -471,10 +471,12 @@ class PlayerBot:
 
 
 def _parse_options(options) -> list[str]:
+    # Always return letter keys (A-F), never full option texts.
+    # The WS message sends display text (e.g. "Sao Mộc"), not letters.
     if isinstance(options, list):
-        return [str(o) for o in options if o]
+        return OPTION_LETTERS[: len(options)]
     if isinstance(options, dict):
-        return list(options.keys())
+        return OPTION_LETTERS[: len(options)]
     return OPTION_LETTERS
 
 

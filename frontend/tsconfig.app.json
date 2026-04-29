@@ -23,10 +23,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
-<<<<<<< HEAD
-=======
     "ignoreDeprecations": "5.0",
->>>>>>> 8e9f349 (29-04_01-57 Fix staging branch, fixing containers)
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]
