@@ -5,7 +5,7 @@ from core.auth import *
 from schemas.user import *
 from models.user import *
 from dependencies.postgresql_db import get_db
-from dependencies.user_auth import require_roles
+from dependencies.user_auth import require_roles, get_current_user
 from dependencies.valkey_store import get_valkey
 from valkey.asyncio import Valkey
 from schemas.otp import OTPRequest, OTPVerifyRequest
@@ -157,6 +157,25 @@ async def test_email_api(
         status="success",
         message=f"Test email queued to {to} via {cfg.SMTP_HOST}:{cfg.SMTP_PORT} (user={cfg.SMTP_USER})",
     )
+
+
+@router.post(
+    "/change-password",
+    response_model=BaseResponse,
+    status_code=200,
+)
+async def change_password_api(
+    payload: UserChangePassword,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> BaseResponse:
+    """Change the caller's own password. Requires a valid JWT (any role)."""
+    try:
+        return await change_password(current_user["user_code"], payload.old_password, payload.new_password, session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 @router.post(

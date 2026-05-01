@@ -22,7 +22,7 @@ import { API_BASE_URL } from "@/configs";
 
 const logger = createLogger("AGiaiMa");
 
-const TIME_LIMIT = 90;
+const TIME_LIMIT = 15; // 15s per clue question per rules
 const CLUE_COUNT = 8; // 2 hàng × 4 cột
 const CLUE_QUESTION_PREFIX = "OC3_Q_GM_";
 

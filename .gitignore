@@ -9,6 +9,7 @@ database/
 logs/
 temp/
 assets/
+audios/
 *.log
 *.sqlite3
 

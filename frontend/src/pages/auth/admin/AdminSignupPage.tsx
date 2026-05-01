@@ -31,7 +31,7 @@ const AdminSignupPage: React.FC = () => {
             }
 
             alert("Admin account created successfully");
-            navigate("/admin/login");
+            navigate("/login");
         } catch (err: any) {
             alert(err.message);
         }
@@ -55,7 +55,7 @@ const AdminSignupPage: React.FC = () => {
                 <button type="submit" className="mt-4 btn-primary-full">
                     TẠO TÀI KHOẢN ADMIN
                 </button>
-                <a href="/admin/login" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Đã có tài khoản admin? Click vào đây!</a>
+                <a href="/login" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Đã có tài khoản admin? Click vào đây!</a>
             </form>
         </BaseAuthLayout>
     );

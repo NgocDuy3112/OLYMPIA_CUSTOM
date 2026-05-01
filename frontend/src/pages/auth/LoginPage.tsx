@@ -34,23 +34,24 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <BaseAuthLayout title="OLYMPIA CUSTOM 3" subtitle="Đăng nhập vào game">
+        <BaseAuthLayout title="OLYMPIA CUSTOM 3" subtitle="Đăng nhập">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <InputField 
-                    label="Username" 
-                    name="username" 
-                    value={credentials.username} onChange={handleChange} 
+                <InputField
+                    label="Tên / Mã thí sinh / Email"
+                    name="username"
+                    value={credentials.username} onChange={handleChange}
+                    placeholder="Nhập tên, mã hoặc email"
                 />
-                <InputField 
-                    label="Mật khẩu" 
-                    name="password" 
-                    type="password" 
-                    value={credentials.password} onChange={handleChange} 
+                <InputField
+                    label="Mật khẩu"
+                    name="password"
+                    type="password"
+                    value={credentials.password} onChange={handleChange}
                 />
                 <button type="submit" className="mt-4 btn-primary-full">
                     ĐĂNG NHẬP
                 </button>
-                <a href="/signup" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Chưa có tài khoản? Click vào đây!</a>
+                <a href="/player/signup" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Chưa có tài khoản? Click vào đây!</a>
             </form>
         </BaseAuthLayout>
     );

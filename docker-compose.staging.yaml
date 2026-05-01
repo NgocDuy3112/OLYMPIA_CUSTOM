@@ -87,13 +87,13 @@ services:
     env_file:
       - ./configs/.env
     volumes:
-      - ./audios:/app/audios:ro
+      - ./audios/bgm:/app/audios/bgm:ro
     depends_on:
       - valkey
     networks:
       - oc-network
     restart: unless-stopped
-  
+
   sfx-bot:
     container_name: sfx-bot
     build:
@@ -103,7 +103,7 @@ services:
     env_file:
       - ./configs/.env
     volumes:
-      - ./audios:/app/audios:ro
+      - ./audios/sfx:/app/audios/sfx:ro
     depends_on:
       - valkey
     networks:
@@ -122,27 +122,6 @@ services:
       - frontend
     volumes:
       - ./deploy/nginx-ngrok.conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - oc-network
-    restart: unless-stopped
-
-  # ── Qualifier bot — auto-seed 20 players + passive WS bots ──
-  qualifier-bot:
-    container_name: olympia-qualifier-bot
-    build:
-      context: .
-      dockerfile: backend/qualifier-bot/Dockerfile
-    env_file:
-      - ./configs/.env
-    environment:
-      POSTGRES_DB_HOST: postgresql
-      POSTGRES_DB_PORT: 5432
-      API_URL: http://app:8000
-    depends_on:
-      postgresql:
-        condition: service_healthy
-      app:
-        condition: service_started
     networks:
       - oc-network
     restart: unless-stopped

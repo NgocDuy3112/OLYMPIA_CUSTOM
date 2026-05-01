@@ -29,7 +29,7 @@ const PlayerSignupPage: React.FC = () => {
             }
 
             alert("Đăng ký thành công!");
-            navigate("/player/login");
+            navigate("/login");
         } catch (err: any) {
             alert(err.message);
         }
@@ -53,7 +53,7 @@ const PlayerSignupPage: React.FC = () => {
                 <button type="submit" className="mt-4 btn-primary-full">
                     TẠO TÀI KHOẢN
                 </button>
-                <a href="/player/login" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Đã có tài khoản? Click vào đây!</a>
+                <a href="/login" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Đã có tài khoản? Click vào đây!</a>
             </form>
         </BaseAuthLayout>
     );
