@@ -37,6 +37,7 @@ async def get_user_from_request_from_db(
             user_data = {
                 'user_code': user.user_code,
                 'user_name': user.user_name,
+                'email': user.email,
                 'role': user.role.value,
                 'created_at': user.created_at,
                 'updated_at': user.updated_at
@@ -65,6 +66,7 @@ async def get_user_from_request_from_db(
             {
                 'user_code': user.user_code,
                 'user_name': user.user_name,
+                'email': user.email,
                 'role': user.role.value,
                 'created_at': user.created_at,
                 'updated_at': user.updated_at
@@ -143,6 +145,9 @@ async def patch_user_to_db(
 
         if request.new_password is not None:
             user.hashed_password = hash_password(request.new_password)
+
+        if request.email is not None:
+            user.email = request.email if request.email.strip() else None
 
         await session.commit()
         log_message = f"User {user_code} updated successfully."

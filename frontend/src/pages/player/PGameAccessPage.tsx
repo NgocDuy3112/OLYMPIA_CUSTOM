@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
 
 
 const GameAccessPage: React.FC = () => {
     const [matchCode, setMatchCode] = useState("");
+    const [showChangePassword, setShowChangePassword] = useState(false);
+    const token = sessionStorage.getItem("jwtToken_player") ?? "";
     const navigate = useNavigate();
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -42,8 +45,24 @@ const GameAccessPage: React.FC = () => {
                     >
                         VÀO PHÒNG
                     </button>
+                    {token && (
+                        <button
+                            type="button"
+                            onClick={() => setShowChangePassword(true)}
+                            className="mt-2 text-sm text-blue-300 hover:text-white underline underline-offset-2 transition-colors"
+                        >
+                            Đổi mật khẩu
+                        </button>
+                    )}
                 </form>
             </div>
+
+            {showChangePassword && (
+                <ChangePasswordModal
+                    token={token}
+                    onClose={() => setShowChangePassword(false)}
+                />
+            )}
         </div>
     );
 };

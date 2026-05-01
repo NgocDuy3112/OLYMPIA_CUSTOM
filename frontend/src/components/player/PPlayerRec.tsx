@@ -51,7 +51,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
     return (
         <div
             key={player.playerCode}
-            className={`flex flex-col items-center p-2 rounded-lg transition duration-300 w-1/4 ml-1 mr-1 min-h-31.25 shadow-sm
+            className={`flex flex-col items-center p-2 rounded-lg transition duration-300 flex-1 ml-1 mr-1 min-h-31.25 shadow-sm
                 ${isCurrent
                     ? 'bg-blue-600 shadow-xl scale-100 ring-4 text-white ring-blue-300'
                     : 'ring-2 ring-blue-600 bg-blue-900 text-blue-300'

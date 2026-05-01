@@ -37,6 +37,7 @@ class UserUpdateRequest(BaseModel):
     user_name: str | None = None
     role: Role | None = None
     new_password: str | None = None
+    email: str | None = None
 
 
 class TokenResponse(BaseModel):

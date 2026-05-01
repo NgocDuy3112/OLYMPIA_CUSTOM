@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
 
 const logger = createLogger("AGameManaging");
 
@@ -65,7 +66,8 @@ const VaoPhongQualifierButton = ({ matchCode: _matchCode, disabled }: { matchCod
 /** Maps to backend `core/user.py` response fields */
 interface UserData {
     user_code: string;
-    user_name: string;       // backend returns `user_name` (not userPname)
+    user_name: string;
+    email: string | null;
     role: "guest" | "player" | "admin";
     created_at: string;
     updated_at: string;
@@ -100,6 +102,8 @@ interface ApiResponse {
 const AGameManagingPage = () => {
     const token = localStorage.getItem("jwtToken_admin") ?? "";
 
+    const [showChangePassword, setShowChangePassword] = useState(false);
+
     // ── Users state ──────────────────────────────────────────────────
     const [users, setUsers] = useState<UserData[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
@@ -108,27 +112,39 @@ const AGameManagingPage = () => {
     const [matchCode, setMatchCode] = useState(localStorage.getItem("matchCode") || "");
     const [matchName, setMatchName] = useState("");
     const [userCodes, setUserCodes] = useState<string[]>(["", "", "", ""]);
+    // Display values for the 4 position inputs — may be name or code
+    const [userInputs, setUserInputs] = useState<string[]>(["", "", "", ""]);
     const [matchExists, setMatchExists] = useState(false);
     const [matchLoading, setMatchLoading] = useState(false);
-
-    // ── Left-card tab ─────────────────────────────────────────────────
-    const [leftTab, setLeftTab] = useState<"players" | "createQuestion">("players");
 
     // ── Questions state ──────────────────────────────────────────────
     const [questions, setQuestions] = useState<QuestionData[]>([]);
     const [questionsLoading, setQuestionsLoading] = useState(false);
     const [questionsMatchCode, setQuestionsMatchCode] = useState(localStorage.getItem("matchCode") || "");
+    const [showCreateQuestion, setShowCreateQuestion] = useState(false);
     // Quick create-question form state (admin convenience)
     const [newQuestionCode, setNewQuestionCode] = useState("");
     const [newContent, setNewContent] = useState("");
     const [newAnswer, setNewAnswer] = useState("");
     const [newExplanation, setNewExplanation] = useState("");
     const [newMediaUrl, setNewMediaUrl] = useState("");
-    const [newOptions, setNewOptions] = useState<string[]>(["", "", "", "", "", ""]);
     const [creatingQuestion, setCreatingQuestion] = useState(false);
+
+    // ── Add player form state ────────────────────────────────────────
+    const [showAddPlayer, setShowAddPlayer] = useState(false);
+    const [newPlayerName, setNewPlayerName] = useState("");
+    const [newPlayerCode, setNewPlayerCode] = useState("");
+    const [newPlayerEmail, setNewPlayerEmail] = useState("");
+    const [addingPlayer, setAddingPlayer] = useState(false);
 
     // ── Send credentials state (tracks which user_code is in-flight) ─
     const [sendingCredentials, setSendingCredentials] = useState<string | null>(null);
+
+    // ── Edit player state ────────────────────────────────────────────
+    const [editingUser, setEditingUser] = useState<UserData | null>(null);
+    const [editName, setEditName] = useState("");
+    const [editEmail, setEditEmail] = useState("");
+    const [savingEdit, setSavingEdit] = useState(false);
 
     /* ================================================================
      *  API helpers
@@ -212,12 +228,18 @@ const AGameManagingPage = () => {
                     const codes = playersList
                         .slice(0, 4)
                         .map((p) => p.user_code ?? "");
-                    setUserCodes([
+                    const paddedCodes = [
                         codes[0] ?? "",
                         codes[1] ?? "",
                         codes[2] ?? "",
                         codes[3] ?? "",
-                    ]);
+                    ];
+                    setUserCodes(paddedCodes);
+                    // Show names when available, fall back to code
+                    setUserInputs(paddedCodes.map((c) => {
+                        const found = users.find((u: UserData) => u.user_code === c);
+                        return found ? found.user_name : c;
+                    }));
                 } catch {
                     logger.warn("Could not load players for match", matchCode);
                 }
@@ -232,12 +254,11 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, matchCode]);
 
-    // ── Create or Update match (PATCH /matches/{match_code}) ─────────
+    // ── Create (POST) or Update (PATCH) match ────────────────────────
     const createMatch = useCallback(async () => {
         if (!matchCode || !matchName) return;
         setMatchLoading(true);
 
-        // Map userCodes to MatchPlayerAssignment format expected by backend
         const players = userCodes
             .map((code, index) => ({
                 user_code: code.trim(),
@@ -246,26 +267,44 @@ const AGameManagingPage = () => {
             .filter((p) => p.user_code !== "");
 
         try {
-            const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}`, {
-                method: "PATCH",
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    match_name: matchName,
-                    players: players,
-                }),
-            });
-            const json: ApiResponse = await res.json();
-            if (json.status === "success") {
-                logger.info("Match updated/created:", matchCode);
+            let res: Response;
+            if (!matchExists) {
+                // Match chưa tồn tại → POST để tạo mới
+                res = await fetch(`${API_BASE_URL}/matches/`, {
+                    method: "POST",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        match_code: matchCode,
+                        match_name: matchName,
+                        players,
+                    }),
+                });
+            } else {
+                // Match đã tồn tại → PATCH để cập nhật
+                res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}`, {
+                    method: "PATCH",
+                    headers: authHeaders(),
+                    body: JSON.stringify({
+                        match_name: matchName,
+                        players,
+                    }),
+                });
+            }
+
+            const json = await res.json();
+            if (res.ok) {
+                logger.info("Match saved:", matchCode);
                 setMatchExists(true);
                 localStorage.setItem("matchCode", matchCode);
-                alert(matchExists ? "Cập nhật phòng thành công" : "Tạo/Cập nhật phòng thành công");
+                alert(matchExists ? "Cập nhật phòng thành công" : "Tạo phòng thành công");
             } else {
-                logger.warn("Match operation failed:", json.message);
-                alert(json.message);
+                const errMsg = json.detail ?? json.message ?? "Lỗi không xác định";
+                logger.warn("Match operation failed:", errMsg);
+                alert(`Thất bại: ${errMsg}`);
             }
         } catch (err) {
-            logger.error("Error updating match:", err);
+            logger.error("Error saving match:", err);
+            alert("Lỗi kết nối khi lưu phòng");
         } finally {
             setMatchLoading(false);
         }
@@ -297,15 +336,7 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, matchCode, questionsMatchCode]);
 
-    const setOptionAt = useCallback((idx: number, val: string) => {
-        setNewOptions((prev) => {
-            const next = [...prev];
-            next[idx] = val;
-            return next;
-        });
-    }, []);
-
-    const createQuestion = useCallback(async () => {
+const createQuestion = useCallback(async () => {
         const codeToUse = questionsMatchCode || matchCode;
         if (!codeToUse) {
             alert("Vui lòng nhập mã trận đấu trước khi tạo câu hỏi (Questions match code)");
@@ -327,8 +358,6 @@ const AGameManagingPage = () => {
                     answer: newAnswer,
                     explanation: newExplanation || null,
                     media_url: newMediaUrl || null,
-                    // send options as native array (backend accepts array or string)
-                    options: newOptions,
                 }),
             });
             const json: ApiResponse = await res.json();
@@ -340,7 +369,6 @@ const AGameManagingPage = () => {
                 setNewAnswer("");
                 setNewExplanation("");
                 setNewMediaUrl("");
-                setNewOptions(["", "", "", "", "", ""]);
                 // refresh list
                 await fetchQuestions();
             } else {
@@ -352,21 +380,94 @@ const AGameManagingPage = () => {
         } finally {
             setCreatingQuestion(false);
         }
-    }, [authHeaders, matchCode, questionsMatchCode, newQuestionCode, newContent, newAnswer, newExplanation, newMediaUrl, newOptions, fetchQuestions]);
+    }, [authHeaders, matchCode, questionsMatchCode, newQuestionCode, newContent, newAnswer, newExplanation, newMediaUrl, fetchQuestions]);
+
+    // ── Patch player (PATCH /users/{user_code}) ──────────────────────
+    const patchUser = useCallback(async () => {
+        if (!editingUser) return;
+        setSavingEdit(true);
+        try {
+            const body: Record<string, string | null> = {};
+            if (editName.trim()) body.user_name = editName.trim();
+            body.email = editEmail.trim() || null;
+            const res = await fetch(`${API_BASE_URL}/users/${editingUser.user_code}`, {
+                method: "PATCH",
+                headers: authHeaders(),
+                body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                setEditingUser(null);
+                await fetchUsers();
+            } else {
+                alert(`Thất bại: ${json.detail ?? json.message ?? "Lỗi không xác định"}`);
+            }
+        } catch (err) {
+            logger.error("Error patching user:", err);
+            alert("Lỗi kết nối khi sửa thông tin");
+        } finally {
+            setSavingEdit(false);
+        }
+    }, [authHeaders, editingUser, editName, editEmail, fetchUsers]);
 
     // ── Load users on mount ──────────────────────────────────────────
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
 
+    // ── Create player (POST /auth/signup) ────────────────────────────
+    const createPlayer = useCallback(async () => {
+        if (!newPlayerName.trim()) {
+            alert("Vui lòng nhập tên người chơi");
+            return;
+        }
+        setAddingPlayer(true);
+        try {
+            const body: Record<string, string> = { user_name: newPlayerName.trim(), role: "player" };
+            if (newPlayerCode.trim()) body.user_code = newPlayerCode.trim();
+            if (newPlayerEmail.trim()) body.email = newPlayerEmail.trim();
+            const res = await fetch(`${API_BASE_URL}/auth/signup`, {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify(body),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                alert("Thêm người chơi thành công");
+                setNewPlayerName("");
+                setNewPlayerCode("");
+                setNewPlayerEmail("");
+                setShowAddPlayer(false);
+                await fetchUsers();
+            } else {
+                const errMsg = json.detail ?? json.message ?? "Lỗi không xác định";
+                alert(`Thất bại: ${errMsg}`);
+            }
+        } catch (err) {
+            logger.error("Error creating player:", err);
+            alert("Lỗi khi thêm người chơi");
+        } finally {
+            setAddingPlayer(false);
+        }
+    }, [authHeaders, newPlayerName, newPlayerCode, newPlayerEmail, fetchUsers]);
+
     /* ================================================================
      *  Handlers
      * ================================================================ */
 
-    const handleUserCodeChange = (index: number, value: string) => {
-        setUserCodes((prev) => {
+    const handleUserInputChange = (index: number, value: string) => {
+        setUserInputs((prev: string[]) => {
             const next = [...prev];
             next[index] = value;
+            return next;
+        });
+        // Resolve to user_code: match by name first, then by code
+        const matched = users.find(
+            (u: UserData) => u.user_name === value || u.user_code === value,
+        );
+        setUserCodes((prev) => {
+            const next = [...prev];
+            next[index] = matched ? matched.user_code : value;
             return next;
         });
     };
@@ -377,112 +478,135 @@ const AGameManagingPage = () => {
 
     return (
         <div className="grid grid-cols-[1fr_1fr] grid-rows-[400px_1fr] gap-4 p-6 h-screen text-white">
+            {/* ─── Floating change-password button ───────────────────── */}
+            <button
+                onClick={() => setShowChangePassword(true)}
+                className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 hover:bg-blue-600 shadow-lg transition-colors text-sm font-semibold"
+                title="Đổi mật khẩu"
+            >
+                <KeyRound size={16} /> Đổi mật khẩu
+            </button>
+
+            {showChangePassword && (
+                <ChangePasswordModal
+                    token={token}
+                    onClose={() => setShowChangePassword(false)}
+                />
+            )}
+
+            {/* ─── Edit player modal ──────────────────────────────────── */}
+            {editingUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                    <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-blue-200">Sửa thông tin thí sinh</h3>
+                            <button onClick={() => setEditingUser(null)} className="p-1 rounded hover:bg-blue-800 transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-xs text-blue-400 font-mono -mt-2">Mã: {editingUser.user_code}</p>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-blue-300">Tên thí sinh</label>
+                                <input
+                                    type="text"
+                                    value={editName}
+                                    onChange={(e) => setEditName(e.target.value)}
+                                    className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-blue-300">Email</label>
+                                <input
+                                    type="email"
+                                    value={editEmail}
+                                    onChange={(e) => setEditEmail(e.target.value)}
+                                    placeholder="email@example.com"
+                                    className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setEditingUser(null)}
+                                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+                            >
+                                Huỷ
+                            </button>
+                            <button
+                                onClick={patchUser}
+                                disabled={savingEdit || !editName.trim()}
+                                className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+                            >
+                                {savingEdit ? "Đang lưu…" : "Lưu thay đổi"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ─── Card 1 : Users ────────────────────────────────────── */}
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
-                    <div className="flex gap-1">
+                    <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
+                        <Users size={20} /> Người chơi
+                    </h2>
+                    <div className="flex gap-2">
                         <button
-                            onClick={() => setLeftTab("players")}
+                            onClick={() => setShowAddPlayer((v: boolean) => !v)}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                                leftTab === "players"
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-blue-900/40 text-blue-300 hover:bg-blue-800"
+                                showAddPlayer
+                                    ? "bg-green-700 hover:bg-green-600 text-white"
+                                    : "bg-blue-700 hover:bg-blue-600 text-white"
                             }`}
                         >
-                            <Users size={16} /> Người chơi
+                            <Plus size={14} /> Thêm người chơi
                         </button>
                         <button
-                            onClick={() => setLeftTab("createQuestion")}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                                leftTab === "createQuestion"
-                                    ? "bg-blue-600 text-white"
-                                    : "bg-blue-900/40 text-blue-300 hover:bg-blue-800"
-                            }`}
+                            onClick={fetchUsers}
+                            disabled={usersLoading}
+                            className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                            title="Làm mới"
                         >
-                            <Plus size={16} /> Tạo câu hỏi
+                            <RefreshCw size={16} className={usersLoading ? "animate-spin" : ""} />
                         </button>
                     </div>
-                    <button
-                        onClick={fetchUsers}
-                        disabled={usersLoading}
-                        className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
-                        title="Làm mới"
-                    >
-                        <RefreshCw size={16} className={usersLoading ? "animate-spin" : ""} />
-                    </button>
                 </div>
 
-                {/* Quick create question form (admin) */}
-                {leftTab === "createQuestion" && (
-                    <div className="bg-blue-800/20 border border-blue-700 rounded-md p-3">
-                        <h3 className="text-sm font-semibold text-blue-200 mb-2">Tạo câu hỏi nhanh (admin)</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {showAddPlayer && (
+                    <div className="bg-blue-800/20 border border-blue-700 rounded-md p-3 flex flex-col gap-2">
                         <input
                             type="text"
-                            placeholder="question_code (OC3_Q_...)"
-                            value={newQuestionCode}
-                            onChange={(e) => setNewQuestionCode(e.target.value)}
-                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            placeholder="Tên người chơi *"
+                            value={newPlayerName}
+                            onChange={(e) => setNewPlayerName(e.target.value)}
+                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm"
                         />
                         <input
                             type="text"
-                            placeholder="answer (A..F)"
-                            value={newAnswer}
-                            onChange={(e) => setNewAnswer(e.target.value)}
-                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            placeholder="Mã đăng nhập (OC_U... — tuỳ chọn)"
+                            value={newPlayerCode}
+                            onChange={(e) => setNewPlayerCode(e.target.value)}
+                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm"
                         />
                         <input
-                            type="text"
-                            placeholder="media_url (optional)"
-                            value={newMediaUrl}
-                            onChange={(e) => setNewMediaUrl(e.target.value)}
-                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            type="email"
+                            placeholder="Email (tuỳ chọn)"
+                            value={newPlayerEmail}
+                            onChange={(e) => setNewPlayerEmail(e.target.value)}
+                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm"
                         />
-                    </div>
-
-                    <textarea
-                        placeholder="Nội dung câu hỏi"
-                        value={newContent}
-                        onChange={(e) => setNewContent(e.target.value)}
-                        className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
-                        rows={3}
-                    />
-
-                    <textarea
-                        placeholder="Giải thích (optional)"
-                        value={newExplanation}
-                        onChange={(e) => setNewExplanation(e.target.value)}
-                        className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
-                        rows={2}
-                    />
-
-                    <div className="mt-3 grid grid-cols-2 md:grid-cols-3 gap-2">
-                        {newOptions.map((opt, i) => (
-                            <input
-                                key={i}
-                                type="text"
-                                placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                                value={opt}
-                                onChange={(e) => setOptionAt(i, e.target.value)}
-                                className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
-                            />
-                        ))}
-                    </div>
-
-                    <div className="flex items-center gap-2 mt-3">
                         <button
-                            onClick={createQuestion}
-                            disabled={creatingQuestion}
-                            className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 font-medium"
+                            onClick={createPlayer}
+                            disabled={addingPlayer || !newPlayerName.trim()}
+                            className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 font-medium text-sm"
                         >
-                            {creatingQuestion ? "Đang tạo..." : "Tạo câu hỏi"}
+                            {addingPlayer ? "Đang thêm..." : "Xác nhận thêm"}
                         </button>
-                        <div className="text-sm text-blue-300">Match: <span className="font-mono">{questionsMatchCode || matchCode || "(chưa đặt)"}</span></div>
-                    </div>
                     </div>
                 )}
 
-                {leftTab === "players" && <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
                     {usersLoading && users.length === 0 ? (
                         <p className="text-gray-400 text-sm">Đang tải…</p>
                     ) : users.length === 0 ? (
@@ -493,6 +617,7 @@ const AGameManagingPage = () => {
                                 <tr className="text-left text-blue-300 border-b border-blue-700">
                                     <th className="py-2 px-2">Mã đăng nhập</th>
                                     <th className="py-2 px-2">Tên thí sinh</th>
+                                    <th className="py-2 px-2">Email</th>
                                     <th className="py-2 px-2">Vai trò</th>
                                     <th className="py-2 px-2"></th>
                                 </tr>
@@ -505,23 +630,37 @@ const AGameManagingPage = () => {
                                     >
                                         <td className="py-2 px-2 font-mono text-xs">{u.user_code}</td>
                                         <td className="py-2 px-2">{u.user_name}</td>
+                                        <td className="py-2 px-2 text-xs text-blue-300">{u.email ?? <span className="text-gray-500 italic">—</span>}</td>
                                         <td className="py-2 px-2 capitalize">{u.role}</td>
                                         <td className="py-2 px-2 text-right">
-                                            <button
-                                                onClick={() => sendCredentials(u.user_code)}
-                                                disabled={sendingCredentials === u.user_code}
-                                                className="text-xs px-2 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                                title="Gửi mã đăng nhập & mật khẩu qua email"
-                                            >
-                                                {sendingCredentials === u.user_code ? "Đang gửi…" : "Gửi thông tin"}
-                                            </button>
+                                            <div className="flex gap-1 justify-end">
+                                                <button
+                                                    onClick={() => {
+                                                        setEditingUser(u);
+                                                        setEditName(u.user_name);
+                                                        setEditEmail(u.email ?? "");
+                                                    }}
+                                                    className="p-1.5 rounded bg-yellow-600/70 hover:bg-yellow-500 transition-colors"
+                                                    title="Sửa thông tin"
+                                                >
+                                                    <Pencil size={13} />
+                                                </button>
+                                                <button
+                                                    onClick={() => sendCredentials(u.user_code)}
+                                                    disabled={sendingCredentials === u.user_code}
+                                                    className="text-xs px-2 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                                    title="Gửi mã đăng nhập & mật khẩu qua email"
+                                                >
+                                                    {sendingCredentials === u.user_code ? "Đang gửi…" : "Gửi thông tin"}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     )}
-                </div>}
+                </div>
             </div>
 
             {/* ─── Card 2 : Tạo phòng ───────────────────────────────── */}
@@ -566,25 +705,47 @@ const AGameManagingPage = () => {
 
                 {/* previously showed a green "match exists" helper; removed per UX request */}
 
-                {/* 4 userCode inputs */}
+                {/* 4 player inputs — accept name or code */}
+                <datalist id="player-list">
+                    {users.map((u: UserData) => (
+                        <option key={u.user_code} value={u.user_name} />
+                    ))}
+                </datalist>
                 <div className="grid grid-cols-2 gap-2">
-                            {userCodes.map((code, i) => (
-                        <input
-                            key={i}
-                                    type="text"
-                                    placeholder={`Mã đăng nhập vị trí #${i + 1} `}
-                            value={code}
-                            onChange={(e) => handleUserCodeChange(i, e.target.value)}
-                            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                        />
+                    {userInputs.map((input, i) => (
+                        <div key={i} className="relative">
+                            <input
+                                type="text"
+                                list="player-list"
+                                placeholder={`Tên / mã vị trí #${i + 1}`}
+                                value={input}
+                                onChange={(e) => handleUserInputChange(i, e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            />
+                            {userCodes[i] && userCodes[i] !== input && (
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400 font-mono pointer-events-none">
+                                    {userCodes[i]}
+                                </span>
+                            )}
+                        </div>
                     ))}
                 </div>
+
+                {/* Player count hint */}
+                {(() => {
+                    const filled = userCodes.filter((c) => c.trim() !== "").length;
+                    return (
+                        <p className={`text-xs -mt-2 ${filled >= 3 ? "text-green-400" : "text-yellow-400"}`}>
+                            {filled}/4 thí sinh — {filled < 3 ? "cần ít nhất 3" : filled === 4 ? "đủ 4 người" : "đủ 3 người"}
+                        </p>
+                    );
+                })()}
 
                 {/* Action button */}
                 <div className="flex gap-2">
                     <button
                         onClick={createMatch}
-                        disabled={matchLoading || !matchCode || !matchName}
+                        disabled={matchLoading || !matchCode || !matchName || userCodes.filter((c) => c.trim() !== "").length < 3}
                         className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
                     >
                         <Plus size={16} />
@@ -617,8 +778,70 @@ const AGameManagingPage = () => {
                         >
                             <Search size={14} /> Tải câu hỏi
                         </button>
+                        <button
+                            onClick={() => setShowCreateQuestion((v: boolean) => !v)}
+                            className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm font-semibold ${
+                                showCreateQuestion
+                                    ? "bg-green-700 hover:bg-green-600 text-white"
+                                    : "bg-blue-700 hover:bg-blue-600 text-white"
+                            }`}
+                        >
+                            <Plus size={14} /> Tạo câu hỏi
+                        </button>
                     </div>
                 </div>
+
+                {showCreateQuestion && (
+                    <div className="bg-blue-800/20 border border-blue-700 rounded-md p-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <input
+                                type="text"
+                                placeholder="question_code (OC3_Q_...)"
+                                value={newQuestionCode}
+                                onChange={(e) => setNewQuestionCode(e.target.value)}
+                                className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            />
+                            <input
+                                type="text"
+                                placeholder="answer"
+                                value={newAnswer}
+                                onChange={(e) => setNewAnswer(e.target.value)}
+                                className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            />
+                            <input
+                                type="text"
+                                placeholder="media_url (optional)"
+                                value={newMediaUrl}
+                                onChange={(e) => setNewMediaUrl(e.target.value)}
+                                className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            />
+                        </div>
+                        <textarea
+                            placeholder="Nội dung câu hỏi"
+                            value={newContent}
+                            onChange={(e) => setNewContent(e.target.value)}
+                            className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            rows={3}
+                        />
+                        <textarea
+                            placeholder="Giải thích (optional)"
+                            value={newExplanation}
+                            onChange={(e) => setNewExplanation(e.target.value)}
+                            className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                            rows={2}
+                        />
+                        <div className="flex items-center gap-2 mt-3">
+                            <button
+                                onClick={createQuestion}
+                                disabled={creatingQuestion}
+                                className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 font-medium"
+                            >
+                                {creatingQuestion ? "Đang tạo..." : "Tạo câu hỏi"}
+                            </button>
+                            <div className="text-sm text-blue-300">Match: <span className="font-mono">{questionsMatchCode || matchCode || "(chưa đặt)"}</span></div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="overflow-y-auto flex-1 -mr-2 pr-2">
                     {questionsLoading ? (

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
 	Play,
@@ -39,8 +40,8 @@ const DEFAULT_QUESTION: Question = {
 
 
 const AKhoiDongChungPage = () => {
-	// Prefer matchCode from localStorage, but fall back to URL path (e.g. /admin/kdc/OC3_M01T)
-	const currentMatchCode = localStorage.getItem("matchCode");
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const currentMatchCode = urlMatchCode ?? localStorage.getItem("matchCode");
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 

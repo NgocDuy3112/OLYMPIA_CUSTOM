@@ -210,16 +210,37 @@ async def reset_password_by_token(token: str, new_password: str, session: AsyncS
     return BaseResponse(status="success", message="Mật khẩu đã được cập nhật.")
 
 
+async def change_password(user_code: str, old_password: str, new_password: str, session: AsyncSession) -> BaseResponse:
+    """Verify old password then set a new one. Used by the authenticated user themselves."""
+    result = await session.execute(
+        select(User).where(User.user_code == user_code, User.is_deleted == False)
+    )
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy người dùng.")
+    if not verify_password(old_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không đúng.")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải có ít nhất 6 ký tự.")
+    user.hashed_password = hash_password(new_password)
+    await session.commit()
+    global_logger.info(f"Password changed for user_code={user_code}.")
+    return BaseResponse(status="success", message="Đổi mật khẩu thành công.")
+
+
 # magic-login removed: we only support reset-password (user sets password) and OTP flows
 
 
 async def login(form_data: OAuth2PasswordRequestForm, session: AsyncSession) -> TokenResponse:
     # Check both username and password
     uname = (form_data.username or "").strip()
-    # case-insensitive match for username/user_code to be more forgiving
+    # case-insensitive match for username/user_code/email to be more forgiving
     result = await session.execute(
         select(User).where(
-            (func.lower(User.user_code) == uname.lower()) | (func.lower(User.user_name) == uname.lower())
+            User.is_deleted == False,
+            (func.lower(User.user_code) == uname.lower())
+            | (func.lower(User.user_name) == uname.lower())
+            | (func.lower(User.email) == uname.lower()),
         )
     )
     user = result.scalar_one_or_none()
