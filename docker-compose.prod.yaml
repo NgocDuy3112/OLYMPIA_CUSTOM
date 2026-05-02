@@ -1,0 +1,164 @@
+services:
+  # ── Database ──────────────────────────────────────────────
+  postgresql:
+    container_name: olympia-postgresql
+    image: docker.io/library/postgres:17.5-bullseye
+    environment:
+      POSTGRES_USER: ${POSTGRES_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+    volumes:
+      - olympia_postgres_data:/var/lib/postgresql/data
+    networks:
+      - olympia-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Cache + WebSocket pub/sub ─────────────────────────────
+  valkey:
+    container_name: olympia-valkey
+    image: docker.io/valkey/valkey:9-alpine
+    command: valkey-server /etc/valkey/valkey.conf
+    volumes:
+      - ./configs/valkey.conf:/etc/valkey/valkey.conf:ro
+      - olympia_valkey_data:/data
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+  # ── FastAPI backend ───────────────────────────────────────
+  app:
+    container_name: olympia-app
+    build:
+      context: ./backend/app
+      dockerfile: Dockerfile
+    env_file:
+      - ./configs/.env
+    environment:
+      APP_HOST: 0.0.0.0
+      FRONTEND_URL: https://olympia-custom.io.vn
+      DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
+      POSTGRES_DB_HOST: postgresql
+      POSTGRES_DB_PORT: 5432
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+    volumes:
+      - ./configs:/app/configs:ro
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+  # ── Frontend (Vite build baked in; nginx serves SPA + proxies /api and /ws) ──
+  frontend:
+    container_name: olympia-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      - app
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+  # ── Discord / BGM bot ─────────────────────────────────────
+  bgm-bot:
+    container_name: olympia-bgm-bot
+    build:
+      context: .
+      dockerfile: backend/discord/Dockerfile
+    command: ["python", "bgm_bot.py"]
+    env_file:
+      - ./configs/.env
+    volumes:
+      - ./audios/bgm:/app/audios/bgm:ro
+    depends_on:
+      - valkey
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+  sfx-bot:
+    container_name: olympia-sfx-bot
+    build:
+      context: .
+      dockerfile: backend/discord/Dockerfile
+    command: ["python", "sfx_bot.py"]
+    env_file:
+      - ./configs/.env
+    volumes:
+      - ./audios/sfx:/app/audios/sfx:ro
+    depends_on:
+      - valkey
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+  # ── Reverse proxy — HTTPS with Let's Encrypt ─────────────
+  nginx:
+    container_name: olympia-nginx
+    image: docker.io/library/nginx:1.27-alpine
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    env_file:
+      - ./configs/.env
+    depends_on:
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx-entrypoint.sh:/entrypoint.sh:ro
+      - ./deploy/nginx-init.conf:/etc/nginx/init.conf:ro
+      - ./deploy/nginx-prod.conf.template:/etc/nginx/https.conf.template:ro
+      - olympia_certbot_webroot:/var/www/certbot:ro
+      - olympia_certbot_certs:/etc/letsencrypt:ro
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+  # ── TLS certificate management ────────────────────────────
+  certbot:
+    container_name: olympia-certbot
+    image: docker.io/certbot/certbot:latest
+    env_file:
+      - ./configs/.env
+    depends_on:
+      - nginx
+    volumes:
+      - olympia_certbot_webroot:/var/www/certbot
+      - olympia_certbot_certs:/etc/letsencrypt
+    # Issues cert on first run (retries every 30s if nginx not ready), then renews every 12h.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+          trap exit TERM
+          if [ ! -f /etc/letsencrypt/live/$${DOMAIN}/fullchain.pem ]; then
+            until certbot certonly --webroot --webroot-path=/var/www/certbot --email $${CERTBOT_EMAIL} --agree-tos --no-eff-email -d $${DOMAIN}; do
+              echo "Cert issuance failed, retrying in 30s..."
+              sleep 30
+            done
+          fi
+          while :; do certbot renew --quiet; sleep 12h & wait $${!}; done
+    networks:
+      - olympia-network
+    restart: unless-stopped
+
+networks:
+  olympia-network:
+    driver: bridge
+
+volumes:
+  olympia_postgres_data:
+  olympia_valkey_data:
+  olympia_certbot_webroot:
+  olympia_certbot_certs:
