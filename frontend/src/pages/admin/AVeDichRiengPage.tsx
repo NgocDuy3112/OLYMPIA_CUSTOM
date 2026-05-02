@@ -682,7 +682,8 @@ const AVeDichRiengPage = () => {
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
+			await sendMessage({ type: "round_start", round: "vdr" });
+		await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
 			await sendPlayersSnapshot();
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
@@ -695,7 +696,8 @@ const AVeDichRiengPage = () => {
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			await sendMessage({ type: "round_end", round: "vdr" });
+		await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
