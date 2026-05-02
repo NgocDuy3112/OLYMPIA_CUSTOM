@@ -519,6 +519,7 @@ const AQualifierPage = () => {
         setIsTimerRunning(false);
         if (!currentMatchCode) return;
         try {
+            await sendMessage({ type: "round_start", round: "vl" });
             await sendMessage({ type: "navigate", user_code: "", path: "/player/vl" });
             await sendPlayersSnapshot();
             await sendMessage({ type: "clear_question", user_code: "", count: maxQuestionsForRound });
@@ -535,6 +536,7 @@ const AQualifierPage = () => {
         setIsTimerRunning(false);
         if (!currentMatchCode) return;
         try {
+            await sendMessage({ type: "round_end", round: "vl" });
             await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
         } catch (err) {
             logger.error("Failed to end qualifier round:", err);

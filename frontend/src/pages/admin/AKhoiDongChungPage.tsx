@@ -326,6 +326,7 @@ const AKhoiDongChungPage = () => {
 			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
 			// (clients that mount after navigation will see the players snapshot as lastMessage).
 			try {
+				await sendMessage({ type: "round_start", round: "kdc" });
 				await sendMessage({ type: "navigate", user_code: "", path: `/player/kdc` });
 			} catch (err) {
 				logger.error("Failed to navigate players to player view:", err);
@@ -350,6 +351,7 @@ const AKhoiDongChungPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
+			await sendMessage({ type: "round_end", round: "kdc" });
 			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);

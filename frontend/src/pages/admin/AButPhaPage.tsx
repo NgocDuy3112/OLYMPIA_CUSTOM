@@ -243,6 +243,7 @@ const AButPhaPage = () => {
 		try {
 			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
 			try {
+				await sendMessage({ type: "round_start", round: "bp" });
 				await sendMessage({ type: "navigate", user_code: "", path: `/player/bp` });
 			} catch (err) {
 				logger.error("Failed to navigate players to player view:", err);
@@ -267,6 +268,7 @@ const AButPhaPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
+			await sendMessage({ type: "round_end", round: "bp" });
 			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
