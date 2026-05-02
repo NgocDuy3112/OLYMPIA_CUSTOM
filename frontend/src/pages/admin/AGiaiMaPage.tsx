@@ -431,6 +431,7 @@ const AGiaiMaPage = () => {
 		await clearQuestion();
 		if (!currentMatchCode) return;
 		try {
+			await sendMessage({ type: "round_start", round: "gm" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/gm" });
 			await sendPlayersSnapshot();
 		} catch (err) {
@@ -447,6 +448,7 @@ const AGiaiMaPage = () => {
 		await clearQuestion();
 		if (!currentMatchCode) return;
 		try {
+			await sendMessage({ type: "round_end", round: "gm" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
