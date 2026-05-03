@@ -26,6 +26,7 @@ const PGiaiMaPage = () => {
 	const [keyword, setKeyword] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
 	const [hasSubmittedKeyword, setHasSubmittedKeyword] = useState(false);
+	const [revealedHint, setRevealedHint] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -90,6 +91,20 @@ const PGiaiMaPage = () => {
 				setKeyword("");
 				setShowAnswers(false);
 				setHasSubmittedKeyword(false);
+				setRevealedHint(null);
+				break;
+			}
+
+			case "clear_question": {
+				setRevealedHint(null);
+				break;
+			}
+
+			case "show_hint": {
+				const targets: string[] = msg.target_players ?? [];
+				if (targets.length === 0 || targets.includes(playerCode)) {
+					setRevealedHint(msg.hint_content ?? null);
+				}
 				break;
 			}
 
@@ -281,6 +296,12 @@ const PGiaiMaPage = () => {
 					boardHeightClass="h-[38vh]"
 					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
 				/>
+
+				{revealedHint && (
+					<div className="mx-3 p-4 bg-yellow-600 border-2 border-yellow-400 rounded-xl text-center font-bold text-white text-xl">
+						GỢI Ý: {revealedHint}
+					</div>
+				)}
 
 				<div className="flex flex-col gap-3 p-3">
 					<PAnswerBox

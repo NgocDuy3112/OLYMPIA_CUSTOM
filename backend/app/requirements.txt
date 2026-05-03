@@ -16,9 +16,7 @@ bcrypt==4.3.0
 passlib==1.7.0
 python-jose
 
-google-api-python-client
-google-auth-httplib2
-google-auth-oauthlib
+aioboto3
 
 pytest
 pytest-asyncio

@@ -16,8 +16,10 @@ os.environ.setdefault("APP_PORT", "8000")
 os.environ.setdefault("SECRET_KEY", "secretkeyforlocaldev")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
-os.environ.setdefault("GOOGLE_DRIVE_SCOPE", "https://www.googleapis.com/auth/drive")
-os.environ.setdefault("DRIVE_CREDENTIALS_FILE", "/tmp/fake_creds.json")
+os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
+os.environ.setdefault("S3_ACCESS_KEY_ID", "test-key-id")
+os.environ.setdefault("S3_SECRET_ACCESS_KEY", "test-secret")
+os.environ.setdefault("S3_REGION", "us-east-1")
 
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
@@ -158,48 +160,44 @@ class TestJwtTampering:
 # ── SEC-04: Path Traversal in Media ──────────────────────────────────────────
 
 class TestPathTraversal:
-    """Verify that path traversal attempts in media file names are blocked."""
+    """Verify that invalid S3 key requests return an error, not file system content."""
 
-    def test_path_traversal_in_file_name(self, db_session, sample_user):
-        """Path traversal via file_name parameter should be rejected."""
+    def test_missing_key_param_rejected(self, db_session, sample_user):
+        """GET /media/ without key param should return 422."""
         from fastapi.testclient import TestClient
-        from unittest.mock import patch, MagicMock
 
         client = TestClient(app)
         player_token = _make_token(role="player")
 
-        # Mock the Drive service to avoid actual API calls
-        with patch("routes.media.get_google_drive_service") as mock_svc:
-            mock_service = MagicMock()
-            mock_svc.return_value = mock_service
+        response = client.get("/media/", headers=_auth_headers(player_token))
 
-            response = client.get(
-                "/media/drive/",
-                params={"file_name": "../../etc/passwd"},
-                headers=_auth_headers(player_token),
-            )
+        assert response.status_code == 422
 
-            # Should not return file system content
-            assert response.status_code != 200 or b"root:" not in response.content
-
-    def test_absolute_path_in_file_name(self, db_session, sample_user):
-        """Absolute paths in file_name should be rejected."""
+    def test_nonexistent_key_returns_404(self, db_session, sample_user):
+        """GET /media/ with a key that doesn't exist in S3 should return 404."""
         from fastapi.testclient import TestClient
-        from unittest.mock import patch, MagicMock
+        from unittest.mock import patch, AsyncMock
 
         client = TestClient(app)
         player_token = _make_token(role="player")
 
-        with patch("routes.media.get_google_drive_service") as mock_svc:
-            mock_svc.return_value = MagicMock()
+        error = Exception("Not Found")
+        error.response = {"Error": {"Code": "404"}}
+
+        with patch("routes.media.get_s3_client") as mock_dep:
+            mock_client = AsyncMock()
+            mock_client.head_object = AsyncMock(side_effect=error)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_dep.return_value = mock_client
 
             response = client.get(
-                "/media/drive/",
-                params={"file_name": "/etc/shadow"},
+                "/media/",
+                params={"key": "OC3_M01T/missing_file.png"},
                 headers=_auth_headers(player_token),
             )
 
-            assert response.status_code != 200
+            assert response.status_code in (404, 500)
 
 
 # ── SEC-06: Role Enforcement ─────────────────────────────────────────────────

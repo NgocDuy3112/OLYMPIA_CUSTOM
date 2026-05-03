@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
@@ -36,7 +36,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
 };
 
 // Navigate to qualifier (Vòng Loại) admin page
-const VaoPhongQualifierButton = ({ matchCode: _matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
+const VaoPhongQualifierButton = ({ matchCode: _matchCode }: { matchCode: string; disabled?: boolean }) => {
     const navigate = useNavigate();
     const handleClick = () => {
         // Qualifier always uses OC3_M_VL so admin + player share the same WS channel
@@ -51,7 +51,7 @@ const VaoPhongQualifierButton = ({ matchCode: _matchCode, disabled }: { matchCod
     return (
         <button
             onClick={handleClick}
-            disabled={disabled}
+            disabled={true}
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 font-medium transition-colors"
         >
             Vòng Loại
@@ -129,6 +129,12 @@ const AGameManagingPage = () => {
     const [newExplanation, setNewExplanation] = useState("");
     const [newMediaUrl, setNewMediaUrl] = useState("");
     const [creatingQuestion, setCreatingQuestion] = useState(false);
+    const [uploadingExcel, setUploadingExcel] = useState(false);
+    const [uploadingExcelQl, setUploadingExcelQl] = useState(false);
+    const [uploadingZip, setUploadingZip] = useState(false);
+    const excelInputRef = useRef<HTMLInputElement>(null);
+    const excelQlInputRef = useRef<HTMLInputElement>(null);
+    const zipInputRef = useRef<HTMLInputElement>(null);
 
     // ── Add player form state ────────────────────────────────────────
     const [showAddPlayer, setShowAddPlayer] = useState(false);
@@ -381,6 +387,67 @@ const createQuestion = useCallback(async () => {
             setCreatingQuestion(false);
         }
     }, [authHeaders, matchCode, questionsMatchCode, newQuestionCode, newContent, newAnswer, newExplanation, newMediaUrl, fetchQuestions]);
+
+    // ── Upload Excel (POST /questions/excel/ or /excel/qualifier/) ────
+    const uploadExcel = useCallback(async (file: File, isQualifier: boolean) => {
+        const code = questionsMatchCode || matchCode;
+        if (!isQualifier && !code) {
+            alert("Vui lòng nhập mã trận đấu trước khi nhập Excel");
+            return;
+        }
+        const setter = isQualifier ? setUploadingExcelQl : setUploadingExcel;
+        setter(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const url = isQualifier
+                ? `${API_BASE_URL}/questions/excel/qualifier/`
+                : `${API_BASE_URL}/questions/excel/?match_code=${encodeURIComponent(code)}`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success") {
+                alert("Nhập câu hỏi từ Excel thành công");
+                await fetchQuestions();
+            } else {
+                alert(`Nhập Excel thất bại: ${json.message}`);
+            }
+        } catch (err) {
+            logger.error("Error uploading Excel:", err);
+            alert("Lỗi khi nhập file Excel");
+        } finally {
+            setter(false);
+        }
+    }, [token, questionsMatchCode, matchCode, fetchQuestions]);
+
+    // ── Upload ZIP (POST /questions/zip/) ────────────────────────────
+    const uploadZip = useCallback(async (file: File) => {
+        setUploadingZip(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch(`${API_BASE_URL}/questions/zip/`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success") {
+                alert("Nhập câu hỏi từ ZIP thành công");
+                await fetchQuestions();
+            } else {
+                alert(`Nhập ZIP thất bại: ${json.message ?? (json as unknown as Record<string, string>).detail ?? "Lỗi không xác định"}`);
+            }
+        } catch (err) {
+            logger.error("Error uploading ZIP:", err);
+            alert("Lỗi khi nhập file ZIP");
+        } finally {
+            setUploadingZip(false);
+        }
+    }, [token, fetchQuestions]);
 
     // ── Patch player (PATCH /users/{user_code}) ──────────────────────
     const patchUser = useCallback(async () => {
@@ -763,7 +830,41 @@ const createQuestion = useCallback(async () => {
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
                         <HelpCircle size={22} /> Câu hỏi
                     </h2>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                        {/* Hidden file inputs */}
+                        <input
+                            ref={excelInputRef}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadExcel(file, false);
+                                e.target.value = "";
+                            }}
+                        />
+                        <input
+                            ref={excelQlInputRef}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadExcel(file, true);
+                                e.target.value = "";
+                            }}
+                        />
+                        <input
+                            ref={zipInputRef}
+                            type="file"
+                            accept=".zip"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadZip(file);
+                                e.target.value = "";
+                            }}
+                        />
                         <input
                             type="text"
                             placeholder="Mã trận đấu"
@@ -777,6 +878,33 @@ const createQuestion = useCallback(async () => {
                             className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm"
                         >
                             <Search size={14} /> Tải câu hỏi
+                        </button>
+                        <button
+                            onClick={() => excelInputRef.current?.click()}
+                            disabled={uploadingExcel || (!questionsMatchCode && !matchCode)}
+                            title="Nhập câu hỏi từ file Excel (.xlsx) — các vòng thường"
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 transition-colors text-sm"
+                        >
+                            <FileSpreadsheet size={14} />
+                            {uploadingExcel ? "Đang nhập…" : "Excel"}
+                        </button>
+                        <button
+                            onClick={() => excelQlInputRef.current?.click()}
+                            disabled={true}
+                            title="Nhập câu hỏi Vòng Loại từ file Excel (.xlsx) — tên file phải bắt đầu bằng OC3_VL"
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-50 transition-colors text-sm"
+                        >
+                            <FileSpreadsheet size={14} />
+                            {uploadingExcelQl ? "Đang nhập…" : "Excel VL"}
+                        </button>
+                        <button
+                            onClick={() => zipInputRef.current?.click()}
+                            disabled={uploadingZip}
+                            title="Nhập câu hỏi từ file ZIP chứa Excel + media (tên file ZIP = mã trận đấu)"
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 transition-colors text-sm"
+                        >
+                            <FileArchive size={14} />
+                            {uploadingZip ? "Đang nhập…" : "ZIP"}
                         </button>
                         <button
                             onClick={() => setShowCreateQuestion((v: boolean) => !v)}

@@ -30,10 +30,14 @@ class QuestionPostRequest(BaseRequest):
     @classmethod
     def ensure_media_url_is_valid(cls, value: str | None) -> str | None:
         if value is not None and value != "":
-            # allow a single URL or comma-separated URLs; validate the first non-empty token
             first = str(value).split(',')[0].strip()
-            if not (first.startswith("http://") or first.startswith("https://")):
-                raise ValueError(f"Invalid media URL: {first}")
+            is_http = first.startswith("http://") or first.startswith("https://")
+            is_s3_key = first.startswith("OC3_M") and "/" in first
+            if not is_http and not is_s3_key:
+                raise ValueError(
+                    f"Invalid media_url: {first!r}. "
+                    "Must be an http(s):// URL or an S3 key in format 'OC3_Mxxx/filename'."
+                )
         return value
 
 

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, ChevronDown, ChevronRight } from "lucide-react";
+import { LogOut, ChevronDown, ChevronRight, UserRound } from "lucide-react";
 
 
 const AdminGameplayNavBar: React.FC = () => {
@@ -15,6 +15,22 @@ const AdminGameplayNavBar: React.FC = () => {
         localStorage.removeItem("jwtToken_admin");
         localStorage.removeItem("matchCode");
         navigate("/login");
+    };
+
+    const handleJoinAsPlayer = () => {
+        const adminToken = localStorage.getItem("jwtToken_admin");
+        if (!adminToken) return;
+        try {
+            const payload = JSON.parse(atob(adminToken.split(".")[1]));
+            const userCode: string = payload.user_code ?? "";
+            if (!userCode) return;
+            sessionStorage.setItem("jwtToken_player", adminToken);
+            sessionStorage.setItem("playerCode", userCode);
+            sessionStorage.setItem("role", "admin");
+            navigate("/player/access");
+        } catch {
+            // ignore JWT decode errors
+        }
     };
 
     const isActive = (path: string) => {
@@ -137,6 +153,14 @@ const AdminGameplayNavBar: React.FC = () => {
                             {link.label}
                         </button>
                     ))}
+                    <button
+                        onClick={handleJoinAsPlayer}
+                        className="px-3 py-2 rounded transition-all duration-200 font-medium text-blue-100 hover:bg-blue-800 hover:text-white flex items-center gap-1"
+                        title="Tham gia trận đấu với tư cách thí sinh"
+                    >
+                        <UserRound size={18} />
+                        Tham gia
+                    </button>
                     <button
                         onClick={handleLogout}
                         className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded transition-all duration-200 flex items-center gap-2 font-medium"
