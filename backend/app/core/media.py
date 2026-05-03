@@ -1,157 +1,82 @@
-"""Business logic for media proxy operations."""
-
-import io
-
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
-
+import mimetypes
+from fastapi import UploadFile, HTTPException
 from logger import global_logger
 
-
 _ALLOWED_MIME_TYPES: frozenset[str] = frozenset({
-    # Images
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "image/svg+xml",
-    # Audio
-    "audio/mpeg",
-    "audio/ogg",
-    "audio/wav",
-    "audio/webm",
-    "audio/mp4",
-    "audio/aac",
-    # Video
-    "video/mp4",
-    "video/webm",
-    "video/ogg",
-    "video/quicktime",
+    "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+    "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm", "audio/mp4", "audio/aac",
+    "video/mp4", "video/webm", "video/ogg", "video/quicktime",
 })
 
-# Default chunk size for streaming: 1 MB (must be a multiple of 256 KB for Drive API)
-DEFAULT_CHUNK_SIZE = 1024 * 1024
 
-
-def get_drive_file_info(
-    google_drive_service, file_id: str
-) -> tuple[str, int | None]:
-    """Fetch MIME type and optional file size for a Google Drive file.
-
-    Args:
-        google_drive_service: Authenticated Google Drive API service instance.
-        file_id: Google Drive file ID.
-
-    Returns:
-        A tuple of (mime_type, file_size_or_None).
-
-    Raises:
-        FileNotFoundError: If the file ID is not found (HTTP 404).
-        PermissionError: If access is denied (HTTP 403).
-        ValueError: If the file MIME type is not an allowed media type.
-    """
-    try:
-        meta = google_drive_service.files().get(
-            fileId=file_id, fields="mimeType,name,size"
-        ).execute()
-    except HttpError as exc:
-        status = int(exc.resp.status) if exc.resp else 0
-        if status == 404:
-            raise FileNotFoundError(f"File '{file_id}' not found in Google Drive.")
-        if status == 403:
-            raise PermissionError(f"Access denied for Drive file '{file_id}'.")
-        raise
-
-    mime_type: str = meta.get("mimeType", "application/octet-stream")
-    if mime_type not in _ALLOWED_MIME_TYPES:
-        raise ValueError(f"Unsupported media type: {mime_type!r}")
-
-    file_size: int | None = None
-    if "size" in meta:
-        try:
-            file_size = int(meta["size"])
-        except (ValueError, TypeError):
-            pass
-
-    global_logger.debug(
-        f"Drive file {file_id!r} info: {mime_type}, {file_size or 'unknown'} bytes"
-    )
-    return mime_type, file_size
-
-
-def stream_drive_file_chunks(
-    google_drive_service,
-    file_id: str,
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
-):
-    """Yield chunks of a Google Drive file as they are downloaded.
-
-    Each call to ``next_chunk()`` downloads one chunk from Google Drive
-    and yields it immediately, keeping peak memory usage bounded to
-    *chunk_size* regardless of total file size.
-
-    Yields:
-        bytes: A chunk of the file content.
-
-    Raises:
-        HttpError: If the Google Drive API returns an error during download.
-    """
-    request = google_drive_service.files().get_media(fileId=file_id)
-
-    buffer = io.BytesIO()
-    downloader = MediaIoBaseDownload(buffer, request, chunksize=chunk_size)
-    done = False
-    while not done:
-        _, done = downloader.next_chunk()
-        chunk = buffer.getvalue()
-        if chunk:
-            yield chunk
-        buffer.truncate(0)
-        buffer.seek(0)
-
-    global_logger.debug(f"Drive file {file_id!r} streaming complete.")
-
-
-def resolve_drive_file_id_by_name(
-    google_drive_service, file_name: str
+async def upload_file_to_s3(
+    file: UploadFile,
+    match_code: str,
+    s3_client,
+    bucket: str,
+    max_size_bytes: int,
 ) -> str:
-    """Search Google Drive for a file by its exact name and return its ID.
+    """Upload a media file to S3 under {match_code}/{filename}. Returns the S3 object key."""
+    content_type = file.content_type or ""
+    if not content_type or content_type == "application/octet-stream":
+        guessed, _ = mimetypes.guess_type(file.filename or "")
+        content_type = guessed or "application/octet-stream"
 
-    Searches across all non-trashed files (images, audio, video). If multiple
-    files share the same name, the first result is returned.
+    if content_type not in _ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported media type: {content_type!r}. Allowed: image/*, audio/*, video/*",
+        )
 
-    Args:
-        google_drive_service: Authenticated Google Drive API service instance.
-        file_name: Exact filename to search for (e.g. ``"cau1_anh.jpg"``).
+    data = await file.read()
 
-    Returns:
-        The Google Drive file ID.
+    if len(data) > max_size_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large: {len(data)} bytes (max {max_size_bytes} bytes).",
+        )
 
-    Raises:
-        FileNotFoundError: If no file with the given name exists.
-    """
-    query = f"name = '{file_name}' and trashed = false"
-    results = google_drive_service.files().list(
-        q=query, fields="files(id, name, mimeType)", pageSize=10
-    ).execute()
-    files = results.get("files", [])
+    key = f"{match_code}/{file.filename}"
 
-    if not files:
-        raise FileNotFoundError(f"No Drive file found with name '{file_name}'.")
+    try:
+        await s3_client.put_object(Bucket=bucket, Key=key, Body=data, ContentType=content_type)
+    except Exception as exc:
+        global_logger.error(f"S3 upload failed for key={key!r}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to upload file to S3.")
 
-    # Prefer non-Google-Workspace files (actual media uploads)
-    for f in files:
-        mime = f.get("mimeType", "")
-        if not mime.startswith("application/vnd.google-apps."):
-            global_logger.debug(
-                f"Resolved '{file_name}' → file_id={f['id']!r} ({mime})"
-            )
-            return f["id"]
+    global_logger.info(f"S3 upload complete: bucket={bucket!r} key={key!r}")
+    return key
 
-    # Fallback: return the first result even if it's a Google Workspace file
-    chosen = files[0]
-    global_logger.warning(
-        f"Resolved '{file_name}' → file_id={chosen['id']!r} "
-        f"(Google Workspace type: {chosen.get('mimeType')})"
-    )
-    return chosen["id"]
+
+async def generate_presigned_url(
+    s3_client,
+    bucket: str,
+    key: str,
+    expiry: int,
+) -> str:
+    """Generate a presigned GET URL for an S3 object. Raises 404 if object doesn't exist."""
+    try:
+        await s3_client.head_object(Bucket=bucket, Key=key)
+    except Exception as exc:
+        error_code = ""
+        try:
+            error_code = exc.response["Error"]["Code"]
+        except Exception:
+            pass
+        if error_code in ("404", "NoSuchKey"):
+            raise HTTPException(status_code=404, detail=f"Media not found: {key!r}")
+        global_logger.error(f"S3 head_object error for key={key!r}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="S3 error checking media existence.")
+
+    try:
+        url = await s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": key},
+            ExpiresIn=expiry,
+        )
+    except Exception as exc:
+        global_logger.error(f"Failed to generate presigned URL for key={key!r}: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate media URL.")
+
+    global_logger.debug(f"Presigned URL generated for key={key!r}, expiry={expiry}s")
+    return url

@@ -1,11 +1,5 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field
-
-from google.oauth2.credentials import Credentials
-
-
-SCOPES = ['https://www.googleapis.com/auth/drive']
-DRIVE_CREDENTIALS_FILE = 'credentials.json'
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppSettings(BaseSettings):
@@ -55,18 +49,16 @@ class ValkeySettings(BaseSettings):
         return f"valkey://{self.VALKEY_USER}:{self.VALKEY_PASSWORD}@{self.VALKEY_HOST}:{self.VALKEY_PORT}"
 
 
-class GCPSettings(BaseSettings):
+class S3Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-    GOOGLE_DRIVE_SCOPE: str
-    DRIVE_CREDENTIALS_FILE: str
 
-    @computed_field
-    @property
-    def GCP_CREDS(self) -> Credentials:
-        return Credentials.from_authorized_user_file(
-            self.DRIVE_CREDENTIALS_FILE,
-            scopes=[self.GOOGLE_DRIVE_SCOPE]
-        )
+    S3_ENDPOINT_URL: str | None = None
+    S3_REGION: str = "us-east-1"
+    S3_BUCKET_NAME: str
+    S3_ACCESS_KEY_ID: str
+    S3_SECRET_ACCESS_KEY: str
+    S3_PRESIGNED_URL_EXPIRY: int = 3600
+    S3_MAX_UPLOAD_SIZE_MB: int = 50
 
 
 class EmailSettings(BaseSettings):

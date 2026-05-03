@@ -16,8 +16,10 @@ os.environ.setdefault("APP_PORT", "8000")
 os.environ.setdefault("SECRET_KEY", "secretkeyforlocaldev")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
-os.environ.setdefault("GOOGLE_DRIVE_SCOPE", "https://www.googleapis.com/auth/drive")
-os.environ.setdefault("DRIVE_CREDENTIALS_FILE", "/tmp/fake_creds.json")
+os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
+os.environ.setdefault("S3_ACCESS_KEY_ID", "test-key-id")
+os.environ.setdefault("S3_SECRET_ACCESS_KEY", "test-secret")
+os.environ.setdefault("S3_REGION", "us-east-1")
 
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
@@ -105,37 +107,26 @@ class TestDuplicateUserCode:
 # ── EDGE-05: Large media file handling ───────────────────────────────────────
 
 class TestLargeMediaFile:
-    """Verify that large media files are handled without OOM."""
+    """Verify that oversized file uploads are rejected before hitting S3."""
 
-    def test_stream_large_file_does_not_buffer_all(self):
-        """stream_drive_file_chunks should yield incrementally, not buffer all."""
-        from core.media import stream_drive_file_chunks, DEFAULT_CHUNK_SIZE
+    @pytest.mark.asyncio
+    async def test_oversized_upload_rejected(self):
+        """upload_file_to_s3 should raise 400 for files exceeding max_size_bytes."""
+        from io import BytesIO
+        from fastapi import UploadFile
+        from fastapi import HTTPException
+        from core.media import upload_file_to_s3
 
-        mock_service = MagicMock()
-        mock_service.files().get_media.return_value = MagicMock()
+        big_data = b"x" * (6 * 1024 * 1024)  # 6 MB
+        file = UploadFile(filename="big.jpg", file=BytesIO(big_data))
+        file.content_type = "image/jpeg"
+        s3_client = AsyncMock()
 
-        chunk_sizes = []
+        with pytest.raises(HTTPException) as exc_info:
+            await upload_file_to_s3(file, "OC3_M01T", s3_client, "oc3", max_size_bytes=5 * 1024 * 1024)
 
-        class FakeDownloader:
-            def __init__(self, buf, req, chunksize=None):
-                self.buf = buf
-                self.n = 0
-
-            def next_chunk(self):
-                self.n += 1
-                if self.n <= 5:
-                    # Simulate 5 chunks of 1 MB each
-                    self.buf.write(b"x" * DEFAULT_CHUNK_SIZE)
-                    return (MagicMock(), False)
-                return (MagicMock(), True)
-
-        with patch("core.media.MediaIoBaseDownload", FakeDownloader):
-            for chunk in stream_drive_file_chunks(mock_service, "bigfile", chunk_size=DEFAULT_CHUNK_SIZE):
-                chunk_sizes.append(len(chunk))
-
-        # Each chunk should be bounded by chunk_size
-        for size in chunk_sizes:
-            assert size <= DEFAULT_CHUNK_SIZE
+        assert exc_info.value.status_code == 400
+        assert "too large" in exc_info.value.detail
 
 
 # ── EDGE-06: Valkey connection lost ──────────────────────────────────────────

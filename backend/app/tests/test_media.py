@@ -1,8 +1,7 @@
-# Tests for the media proxy endpoint (GET /media/drive/)
+# Tests for S3 media upload and presigned URL generation.
 
 import sys
 import os
-import io
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(ROOT, 'app'))
@@ -17,28 +16,22 @@ os.environ.setdefault("APP_PORT", "8000")
 os.environ.setdefault("SECRET_KEY", "secretkeyforlocaldev")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
-os.environ.setdefault("GOOGLE_DRIVE_SCOPE", "https://www.googleapis.com/auth/drive")
-os.environ.setdefault("DRIVE_CREDENTIALS_FILE", "/tmp/fake_creds.json")
+os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
+os.environ.setdefault("S3_ACCESS_KEY_ID", "test-key-id")
+os.environ.setdefault("S3_SECRET_ACCESS_KEY", "test-secret")
+os.environ.setdefault("S3_REGION", "us-east-1")
 
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, MagicMock
 from fastapi import HTTPException
+from io import BytesIO
 
-from core.media import (
-    _ALLOWED_MIME_TYPES,
-    DEFAULT_CHUNK_SIZE,
-    get_drive_file_info,
-    stream_drive_file_chunks,
-    resolve_drive_file_id_by_name,
-)
+from core.media import _ALLOWED_MIME_TYPES, upload_file_to_s3, generate_presigned_url
 
 
-# ── Core logic tests ─────────────────────────────────────────────────────────
+# ── Allowed MIME types ────────────────────────────────────────────────────────
 
 class TestAllowedMimeTypes:
-    """Verify the allowed MIME types set covers expected media formats."""
-
     def test_image_types_allowed(self):
         for mime in ("image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"):
             assert mime in _ALLOWED_MIME_TYPES
@@ -52,162 +45,111 @@ class TestAllowedMimeTypes:
             assert mime in _ALLOWED_MIME_TYPES
 
     def test_non_media_types_rejected(self):
-        for mime in ("application/pdf", "text/plain", "application/zip",
-                     "application/vnd.google-apps.document"):
+        for mime in ("application/pdf", "text/plain", "application/zip"):
             assert mime not in _ALLOWED_MIME_TYPES
 
 
-class TestGetDriveFileInfo:
-    """Tests for get_drive_file_info()."""
+# ── upload_file_to_s3 ─────────────────────────────────────────────────────────
 
-    def test_returns_mime_and_size(self):
-        mock_service = MagicMock()
-        mock_service.files().get().execute.return_value = {
-            "mimeType": "image/jpeg",
-            "name": "photo.jpg",
-            "size": "123456",
-        }
+def _make_upload_file(filename: str, content: bytes, content_type: str):
+    from fastapi import UploadFile
+    f = UploadFile(filename=filename, file=BytesIO(content))
+    f.content_type = content_type
+    return f
 
-        mime, size = get_drive_file_info(mock_service, "abc123")
 
-        assert mime == "image/jpeg"
-        assert size == 123456
+class TestUploadFileToS3:
+    @pytest.mark.asyncio
+    async def test_upload_success_returns_key(self):
+        file = _make_upload_file("OC3_Q_KD_1_1.png", b"fake-image-data", "image/png")
+        s3_client = AsyncMock()
+        s3_client.put_object = AsyncMock()
 
-    def test_returns_none_size_when_missing(self):
-        mock_service = MagicMock()
-        mock_service.files().get().execute.return_value = {
-            "mimeType": "video/mp4",
-            "name": "clip.mp4",
-        }
+        key = await upload_file_to_s3(file, "OC3_M01T", s3_client, "oc3", 10 * 1024 * 1024)
 
-        mime, size = get_drive_file_info(mock_service, "abc123")
+        assert key == "OC3_M01T/OC3_Q_KD_1_1.png"
+        s3_client.put_object.assert_awaited_once()
 
-        assert mime == "video/mp4"
-        assert size is None
+    @pytest.mark.asyncio
+    async def test_upload_rejects_unsupported_mime(self):
+        file = _make_upload_file("doc.pdf", b"data", "application/pdf")
+        s3_client = AsyncMock()
 
-    def test_raises_on_unsupported_mime(self):
-        mock_service = MagicMock()
-        mock_service.files().get().execute.return_value = {
-            "mimeType": "application/pdf",
-            "name": "doc.pdf",
-        }
+        with pytest.raises(HTTPException) as exc_info:
+            await upload_file_to_s3(file, "OC3_M01T", s3_client, "oc3", 10 * 1024 * 1024)
 
-        with pytest.raises(ValueError, match="Unsupported media type"):
-            get_drive_file_info(mock_service, "abc123")
+        assert exc_info.value.status_code == 400
+        assert "Unsupported" in exc_info.value.detail
 
-    def test_raises_file_not_found_on_404(self):
-        from googleapiclient.errors import HttpError
-        mock_service = MagicMock()
-        mock_service.files().get().execute.side_effect = HttpError(
-            MagicMock(status=404), b'{"error": "notFound"}'
+    @pytest.mark.asyncio
+    async def test_upload_rejects_oversized_file(self):
+        file = _make_upload_file("big.jpg", b"x" * 100, "image/jpeg")
+        s3_client = AsyncMock()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await upload_file_to_s3(file, "OC3_M01T", s3_client, "oc3", max_size_bytes=50)
+
+        assert exc_info.value.status_code == 400
+        assert "too large" in exc_info.value.detail
+
+    @pytest.mark.asyncio
+    async def test_upload_s3_failure_raises_500(self):
+        file = _make_upload_file("img.jpg", b"data", "image/jpeg")
+        s3_client = AsyncMock()
+        s3_client.put_object = AsyncMock(side_effect=Exception("connection error"))
+
+        with pytest.raises(HTTPException) as exc_info:
+            await upload_file_to_s3(file, "OC3_M01T", s3_client, "oc3", 10 * 1024 * 1024)
+
+        assert exc_info.value.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_key_uses_match_code_prefix(self):
+        file = _make_upload_file("audio.mp3", b"data", "audio/mpeg")
+        s3_client = AsyncMock()
+        s3_client.put_object = AsyncMock()
+
+        key = await upload_file_to_s3(file, "OC3_M_VE_DICH", s3_client, "oc3", 10 * 1024 * 1024)
+
+        assert key.startswith("OC3_M_VE_DICH/")
+        assert key == "OC3_M_VE_DICH/audio.mp3"
+
+
+# ── generate_presigned_url ────────────────────────────────────────────────────
+
+class TestGeneratePresignedUrl:
+    @pytest.mark.asyncio
+    async def test_returns_presigned_url(self):
+        s3_client = AsyncMock()
+        s3_client.head_object = AsyncMock()
+        s3_client.generate_presigned_url = AsyncMock(
+            return_value="https://oc3.s3.example.com/OC3_M01T/img.png?X-Amz-Signature=abc"
         )
 
-        with pytest.raises(FileNotFoundError, match="not found"):
-            get_drive_file_info(mock_service, "nonexistent")
+        url = await generate_presigned_url(s3_client, "oc3", "OC3_M01T/img.png", expiry=3600)
 
-    def test_raises_permission_error_on_403(self):
-        from googleapiclient.errors import HttpError
-        mock_service = MagicMock()
-        mock_service.files().get().execute.side_effect = HttpError(
-            MagicMock(status=403), b'{"error": "forbidden"}'
-        )
+        assert url.startswith("https://")
+        s3_client.head_object.assert_awaited_once_with(Bucket="oc3", Key="OC3_M01T/img.png")
 
-        with pytest.raises(PermissionError, match="Access denied"):
-            get_drive_file_info(mock_service, "private-file")
+    @pytest.mark.asyncio
+    async def test_raises_404_when_object_missing(self):
+        s3_client = AsyncMock()
+        error = Exception("Not Found")
+        error.response = {"Error": {"Code": "404"}}
+        s3_client.head_object = AsyncMock(side_effect=error)
 
+        with pytest.raises(HTTPException) as exc_info:
+            await generate_presigned_url(s3_client, "oc3", "OC3_M01T/missing.png", expiry=3600)
 
-class TestResolveDriveFileIdByName:
-    """Tests for resolve_drive_file_id_by_name()."""
+        assert exc_info.value.status_code == 404
 
-    def test_finds_file_by_name(self):
-        mock_service = MagicMock()
-        mock_service.files().list().execute.return_value = {
-            "files": [
-                {"id": "file123", "name": "cau1.jpg", "mimeType": "image/jpeg"},
-            ]
-        }
+    @pytest.mark.asyncio
+    async def test_raises_500_when_presign_fails(self):
+        s3_client = AsyncMock()
+        s3_client.head_object = AsyncMock()
+        s3_client.generate_presigned_url = AsyncMock(side_effect=Exception("signing error"))
 
-        file_id = resolve_drive_file_id_by_name(mock_service, "cau1.jpg")
+        with pytest.raises(HTTPException) as exc_info:
+            await generate_presigned_url(s3_client, "oc3", "OC3_M01T/img.png", expiry=3600)
 
-        assert file_id == "file123"
-
-    def test_prefers_non_google_workspace_files(self):
-        mock_service = MagicMock()
-        mock_service.files().list().execute.return_value = {
-            "files": [
-                {"id": "doc1", "name": "report", "mimeType": "application/vnd.google-apps.document"},
-                {"id": "img1", "name": "report", "mimeType": "image/png"},
-            ]
-        }
-
-        file_id = resolve_drive_file_id_by_name(mock_service, "report")
-
-        # Should pick the image, not the Google Doc
-        assert file_id == "img1"
-
-    def test_raises_when_no_file_found(self):
-        mock_service = MagicMock()
-        mock_service.files().list().execute.return_value = {"files": []}
-
-        with pytest.raises(FileNotFoundError, match="No Drive file found"):
-            resolve_drive_file_id_by_name(mock_service, "missing.jpg")
-
-    def test_falls_back_to_first_result_if_all_workspace(self):
-        mock_service = MagicMock()
-        mock_service.files().list().execute.return_value = {
-            "files": [
-                {"id": "doc1", "name": "report", "mimeType": "application/vnd.google-apps.spreadsheet"},
-            ]
-        }
-
-        file_id = resolve_drive_file_id_by_name(mock_service, "report")
-        assert file_id == "doc1"
-
-
-class TestStreamDriveFileChunks:
-    """Tests for stream_drive_file_chunks() generator."""
-
-    def test_yields_chunks(self):
-        """Verify the generator yields data from the download."""
-        mock_service = MagicMock()
-        mock_request = MagicMock()
-
-        mock_service.files().get_media.return_value = mock_request
-
-        # Simulate MediaIoBaseDownload behavior
-        call_count = [0]
-        original_init = None
-
-        class FakeDownloader:
-            def __init__(self, buf, req, chunksize=None):
-                self.buf = buf
-                self.call = 0
-
-            def next_chunk(self):
-                self.call += 1
-                if self.call == 1:
-                    self.buf.write(b"chunk1-data")
-                    return (MagicMock(), False)
-                elif self.call == 2:
-                    self.buf.write(b"chunk2-data")
-                    return (MagicMock(), True)
-                return (MagicMock(), True)
-
-        with patch("core.media.MediaIoBaseDownload", FakeDownloader):
-            chunks = list(stream_drive_file_chunks(mock_service, "file123", chunk_size=1024))
-
-        assert len(chunks) >= 1
-        # Verify data was yielded
-        all_data = b"".join(chunks)
-        assert b"chunk" in all_data
-
-    def test_uses_correct_file_id(self):
-        """Verify the correct file ID is passed to the API."""
-        mock_service = MagicMock()
-        mock_service.files().get_media.return_value = MagicMock()
-
-        with patch("core.media.MediaIoBaseDownload") as mock_dl:
-            mock_dl.return_value.next_chunk.return_value = (MagicMock(), True)
-            list(stream_drive_file_chunks(mock_service, "my-file-id"))
-
-        mock_service.files().get_media.assert_called_once_with(fileId="my-file-id")
+        assert exc_info.value.status_code == 500

@@ -3,17 +3,15 @@ services:
   postgresql:
     container_name: oc-postgresql
     image: docker.io/library/postgres:17.5-bullseye
-    environment:
-      POSTGRES_USER: ${POSTGRES_DB_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB_NAME}
+    env_file:
+      - ./configs/.env
     volumes:
       - ./databases/postgres_data:/var/lib/postgresql/data:U
     networks:
       - oc-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_DB_USER -d $$POSTGRES_DB_NAME"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,10 +21,9 @@ services:
   valkey:
     container_name: oc-valkey
     image: docker.io/valkey/valkey:9-alpine
-    command: >
-      valkey-server
-      --requirepass ${VALKEY_PASSWORD}
-      --user ${VALKEY_USER} on >${VALKEY_PASSWORD} ~* "&*" +@all
+    command: ["sh", "-c", "valkey-server --requirepass \"$$VALKEY_PASSWORD\" --user \"$$VALKEY_USER\" on \">$$VALKEY_PASSWORD\" '~*' '&*' +@all"]
+    env_file:
+      - ./configs/.env
     volumes:
       - ./databases/valkey_data:/data
     networks:
@@ -46,15 +43,11 @@ services:
       APP_HOST: 0.0.0.0
       # Keep password-reset and email links public when running on VPS via ngrok.
       FRONTEND_URL: https://${NGROK_DOMAIN}
-      # Ensure Google Drive credential lookup works inside the container.
-      DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
       # Explicit service discovery inside the compose network.
       POSTGRES_DB_HOST: postgresql
       POSTGRES_DB_PORT: 5432
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
-    volumes:
-      - ./configs:/app/configs:ro
     depends_on:
       postgresql:
         condition: service_healthy
@@ -127,9 +120,10 @@ services:
   ngrok:
     container_name: oc-ngrok
     image: docker.io/ngrok/ngrok:latest
-    command: http frontend:80 --domain=${NGROK_DOMAIN} --log=stdout
-    environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    entrypoint: ["sh", "-c"]
+    command: ["ngrok http frontend:80 --domain=$$NGROK_DOMAIN --log=stdout"]
+    env_file:
+      - ./configs/.env
     depends_on:
       - frontend
     networks:

@@ -1,7 +1,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
@@ -24,6 +24,11 @@ const PKhoiDongChungPage = () => {
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
+	const audioRef = useRef<HTMLAudioElement | null>(null);
+
+	useEffect(() => {
+		return () => { audioRef.current?.pause(); };
+	}, []);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -86,6 +91,9 @@ const PKhoiDongChungPage = () => {
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setAnswer("");
 				setShowAnswers(false);
+				audioRef.current?.pause();
+				audioRef.current = new Audio('/audios/bgm/KD_60s.MP3');
+				audioRef.current.play().catch(() => {});
 				break;
 			}
 

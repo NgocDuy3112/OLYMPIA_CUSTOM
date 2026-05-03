@@ -6,6 +6,7 @@ import {
 	Power,
 	RefreshCw,
 	Eye,
+	Lightbulb,
 	Play,
 } from "lucide-react";
 
@@ -102,15 +103,21 @@ const AGiaiMaPage = () => {
 	// ─── Score state ──────────────────────────────────────────────────────────
 	const [hasAddedScore, setHasAddedScore] = useState(false);
 
+	// ─── Hint reveal state ────────────────────────────────────────────────────
+	const [shownHintContent, setShownHintContent] = useState<string | null>(null);
+
 	// ─── Keyword info banner ──────────────────────────────────────────────────
 	const keyInfo = "MẬT MÃ GỒM CÓ ... CHỮ CÁI";
 
 	const questionTitle = "GIẢI MÃ";
 	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
 
-	// Reset hasAddedScore when active clue changes
+	// Reset per-clue state when active clue changes
 	useEffect(() => {
-		Promise.resolve().then(() => setHasAddedScore(false));
+		Promise.resolve().then(() => {
+			setHasAddedScore(false);
+			setShownHintContent(null);
+		});
 	}, [activeClueIndex]);
 
 	// ─── Map API payload → Question shape ─────────────────────────────────────
@@ -515,6 +522,22 @@ const AGiaiMaPage = () => {
 		}
 	}, [canShowAnswers, currentMatchCode, token, currentQuestion, players, sendMessage]);
 
+	const handleShowHint = useCallback(async () => {
+		const hint = currentQuestion.questionExplanation || currentQuestion.questionAnswer;
+		if (!hint) return;
+		setShownHintContent(hint);
+		try {
+			await sendMessage({
+				type: "show_hint",
+				user_code: "",
+				hint_content: hint,
+				target_players: selectedPlayerCodes,
+			});
+		} catch (err) {
+			logger.error("handleShowHint failed:", err);
+		}
+	}, [currentQuestion, selectedPlayerCodes, sendMessage]);
+
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
 			if (!playerCode) return;
@@ -619,6 +642,12 @@ const AGiaiMaPage = () => {
 					/>
 				))}
 			</div>
+			{/* Hint reveal banner */}
+			{shownHintContent && (
+				<div className="w-full bg-yellow-600 border-2 border-yellow-400 rounded-xl px-6 py-4 text-center font-bold text-white text-2xl shadow">
+					GỢI Ý: {shownHintContent}
+				</div>
+			)}
 		</div>
 	);
 
@@ -671,6 +700,13 @@ const AGiaiMaPage = () => {
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleShowHint(); }}
+						disabled={!currentQuestion.questionCode || shownHintContent !== null}
+					>
+						<Lightbulb size={18} />
+						<span className="ml-2 font-bold">MỞ GỢI Ý</span>
 					</AControlButton>
 					<AControlButton onClick={() => { void loadPlayersState(); }}>
 						<RefreshCw size={18} />

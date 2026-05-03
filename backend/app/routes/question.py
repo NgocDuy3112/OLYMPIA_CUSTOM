@@ -3,7 +3,7 @@ from typing import Annotated
 
 from dependencies.postgresql_db import get_db
 from dependencies.user_auth import require_roles
-from dependencies.gcp_services import get_google_drive_service, get_google_sheets_service
+from dependencies.s3_services import get_s3_client, _s3_settings
 from schemas.question import *
 from models.question import *
 from core.question import *
@@ -11,36 +11,6 @@ from core.question import *
 
 
 router = APIRouter(prefix='/questions', tags=['Câu hỏi'])
-
-
-@router.post(
-    "/drive/",
-    dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse,
-    status_code=201
-)
-async def post_questions_from_google_drive(
-    match_code: str,
-    session: AsyncSession = Depends(get_db),
-    google_drive_service = Depends(get_google_drive_service),
-    google_sheets_service = Depends(get_google_sheets_service)
-) -> BaseResponse:
-    """
-    Endpoint to create a new question in the system.
-    Accessible only by users with the 'admin' role.
-    """
-    try:
-        return await post_questions_from_google_drive_to_db(
-            match_code, 
-            session, 
-            google_drive_service, 
-            google_sheets_service
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-
 
 
 @router.post(
@@ -95,6 +65,41 @@ async def post_qualifier_questions_from_excel(
     """
     try:
         return await post_qualifier_questions_from_excel_to_db(file, session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.post(
+    "/zip/",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=201,
+)
+async def post_questions_from_zip(
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_db),
+    s3_client=Depends(get_s3_client),
+) -> BaseResponse:
+    """Upload một file ZIP chứa Excel câu hỏi + file media.
+
+    Cấu trúc ZIP:
+      {match_code}.zip
+        {match_code}.xlsx
+        OC3_Q_KD_1_1.jpg
+        OC3_Q_GM_2_1.mp3
+        ...
+
+    Media lỗi upload sẽ bị bỏ qua (log warning), câu hỏi vẫn được import.
+    """
+    try:
+        return await post_questions_from_zip_to_db(
+            file=file,
+            s3_client=s3_client,
+            bucket=_s3_settings.S3_BUCKET_NAME,
+            session=session,
+        )
     except HTTPException:
         raise
     except Exception as e:

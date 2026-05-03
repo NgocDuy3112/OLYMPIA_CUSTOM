@@ -1,7 +1,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -19,6 +19,11 @@ const PKhoiDongRiengPage = () => {
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const audioRef = useRef<HTMLAudioElement | null>(null);
+
+	useEffect(() => {
+		return () => { audioRef.current?.pause(); };
+	}, []);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -60,6 +65,9 @@ const PKhoiDongRiengPage = () => {
 			case "start_the_timer": {
 				start(Number(msg.time_limit ?? 0));
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+				audioRef.current?.pause();
+				audioRef.current = new Audio('/audios/bgm/KD_30s.MP3');
+				audioRef.current.play().catch(() => {});
 				break;
 			}
 

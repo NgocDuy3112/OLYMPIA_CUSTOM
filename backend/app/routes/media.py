@@ -1,93 +1,81 @@
-"""Media proxy route — streams media files from Google Drive."""
-
-import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Depends, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi.responses import RedirectResponse
 
 from dependencies.user_auth import require_roles
-from dependencies.gcp_services import get_google_drive_service
-from core.media import (
-    get_drive_file_info,
-    stream_drive_file_chunks,
-    resolve_drive_file_id_by_name,
-)
-from logger import global_logger
+from dependencies.s3_services import get_s3_client, _s3_settings
+from core.media import upload_file_to_s3, generate_presigned_url
 
 
 router = APIRouter(prefix="/media", tags=["Media"])
 
 
-@router.get(
-    "/drive/",
-    dependencies=[Depends(require_roles(["admin", "player"]))],
-    status_code=200,
-    summary="Stream a media file from Google Drive",
+@router.post(
+    "/upload/",
+    dependencies=[Depends(require_roles(["admin"]))],
+    status_code=201,
+    summary="Upload a media file to S3",
     description=(
-        "Download and stream an image, audio, or video file from Google Drive. "
-        "Identify the file by either ``file_id`` (Drive file ID) or ``file_name`` "
-        "(exact filename, e.g. ``cau1_anh.jpg``). "
-        "Only image/*, audio/*, and video/* MIME types are proxied. "
-        "Responses are cached on the client for one hour."
+        "Upload an image, audio, or video file to S3. "
+        "Returns the S3 object key to store in questions.media_url."
     ),
 )
-async def get_drive_media(
-    file_id: Annotated[str | None, Query(description="Google Drive file ID")] = None,
-    file_name: Annotated[str | None, Query(description="Exact filename in Google Drive (e.g. cau1_anh.jpg)")] = None,
-    google_drive_service=Depends(get_google_drive_service),
-) -> StreamingResponse:
-    """Stream a Google Drive media file to the client using chunked transfer."""
-    if not file_id and not file_name:
-        raise HTTPException(
-            status_code=400,
-            detail="Either file_id or file_name must be provided.",
-        )
-    if file_id and file_name:
-        raise HTTPException(
-            status_code=400,
-            detail="Provide only one of file_id or file_name, not both.",
-        )
-
-    global_logger.info(
-        f"Media proxy request: file_id={file_id!r}, file_name={file_name!r}"
+async def upload_media(
+    match_code: str,
+    file: UploadFile = File(...),
+    s3_client=Depends(get_s3_client),
+) -> dict[str, str]:
+    key = await upload_file_to_s3(
+        file=file,
+        match_code=match_code,
+        s3_client=s3_client,
+        bucket=_s3_settings.S3_BUCKET_NAME,
+        max_size_bytes=_s3_settings.S3_MAX_UPLOAD_SIZE_MB * 1024 * 1024,
     )
-    try:
-        loop = asyncio.get_running_loop()
+    return {"key": key}
 
-        # Resolve file_id from name if needed
-        effective_file_id = file_id
-        if file_name:
-            effective_file_id = await loop.run_in_executor(
-                None, resolve_drive_file_id_by_name, google_drive_service, file_name
-            )
 
-        # Fetch MIME type and optional file size
-        mime_type, file_size = await loop.run_in_executor(
-            None, get_drive_file_info, google_drive_service, effective_file_id
-        )
+@router.get(
+    "/",
+    dependencies=[Depends(require_roles(["admin", "player"]))],
+    status_code=307,
+    summary="Get a presigned URL for a media file",
+    description=(
+        "Generate a presigned S3 URL and redirect the client directly to it. "
+        "URL is valid for the duration configured in S3_PRESIGNED_URL_EXPIRY."
+    ),
+)
+async def get_media(
+    key: Annotated[str, Query(description="S3 object key, e.g. OC3_M01T/OC3_Q_KD_1_1.png")],
+    s3_client=Depends(get_s3_client),
+) -> RedirectResponse:
+    url = await generate_presigned_url(
+        s3_client=s3_client,
+        bucket=_s3_settings.S3_BUCKET_NAME,
+        key=key,
+        expiry=_s3_settings.S3_PRESIGNED_URL_EXPIRY,
+    )
+    return RedirectResponse(url=url, status_code=307)
 
-        # Stream chunks
-        headers: dict[str, str] = {
-            "Cache-Control": "private, max-age=3600",
-        }
-        if file_size is not None:
-            headers["Content-Length"] = str(file_size)
 
-        return StreamingResponse(
-            stream_drive_file_chunks(google_drive_service, effective_file_id),
-            media_type=mime_type,
-            headers=headers,
-        )
-
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc))
-    except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:
-        global_logger.error(
-            f"Unexpected error fetching Drive media: {exc}", exc_info=True
-        )
-        raise HTTPException(status_code=500, detail="Failed to fetch media from Google Drive.")
+@router.get(
+    "/presign/",
+    dependencies=[Depends(require_roles(["admin", "player"]))],
+    summary="Get presigned S3 URL as JSON",
+    description=(
+        "Returns the presigned S3 URL as JSON instead of a redirect, "
+        "allowing the frontend to use it directly as a media src for streaming."
+    ),
+)
+async def get_presigned_url(
+    key: Annotated[str, Query(description="S3 object key, e.g. OC3_M01T/clip.mp4")],
+    s3_client=Depends(get_s3_client),
+) -> dict[str, str]:
+    url = await generate_presigned_url(
+        s3_client=s3_client,
+        bucket=_s3_settings.S3_BUCKET_NAME,
+        key=key,
+        expiry=_s3_settings.S3_PRESIGNED_URL_EXPIRY,
+    )
+    return {"url": url}

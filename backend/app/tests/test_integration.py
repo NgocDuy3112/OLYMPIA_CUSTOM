@@ -17,8 +17,10 @@ os.environ.setdefault("APP_PORT", "8000")
 os.environ.setdefault("SECRET_KEY", "secretkeyforlocaldev")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
-os.environ.setdefault("GOOGLE_DRIVE_SCOPE", "https://www.googleapis.com/auth/drive")
-os.environ.setdefault("DRIVE_CREDENTIALS_FILE", "/tmp/fake_creds.json")
+os.environ.setdefault("S3_BUCKET_NAME", "test-bucket")
+os.environ.setdefault("S3_ACCESS_KEY_ID", "test-key-id")
+os.environ.setdefault("S3_SECRET_ACCESS_KEY", "test-secret")
+os.environ.setdefault("S3_REGION", "us-east-1")
 
 import pytest
 from unittest.mock import MagicMock, patch
@@ -106,7 +108,7 @@ class TestMediaInQuestions:
                 "question_code": "OC3_Q_MEDIA01",
                 "content": "Đây là hình gì?",
                 "answer": "Hình tròn",
-                "media_url": "cau_hinh_tron.jpg",
+                "media_url": "OC3_M_MEDIA/OC3_Q_MEDIA01.jpg",
             },
             headers=_auth_headers(admin_token),
         )
@@ -122,7 +124,7 @@ class TestMediaInQuestions:
         data = response.json().get("data")
         if isinstance(data, list):
             data = data[0]
-        assert data.get("media_url") == "cau_hinh_tron.jpg"
+        assert data.get("media_url") == "OC3_M_MEDIA/OC3_Q_MEDIA01.jpg"
 
 
 # ── INT-02: WebSocket broadcast simulation ───────────────────────────────────
