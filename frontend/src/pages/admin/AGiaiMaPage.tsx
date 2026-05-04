@@ -7,6 +7,8 @@ import {
 	RefreshCw,
 	Eye,
 	Lightbulb,
+	KeyRound,
+	SendToBack,
 	Play,
 } from "lucide-react";
 
@@ -26,6 +28,7 @@ const logger = createLogger("AGiaiMa");
 const TIME_LIMIT = 15; // 15s per clue question per rules
 const CLUE_COUNT = 8; // 2 hàng × 4 cột
 const CLUE_QUESTION_PREFIX = "OC3_Q_GM_";
+const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY"; // holds the keyword answer
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -102,9 +105,18 @@ const AGiaiMaPage = () => {
 
 	// ─── Score state ──────────────────────────────────────────────────────────
 	const [hasAddedScore, setHasAddedScore] = useState(false);
+	const [hasAddedKeywordScore, setHasAddedKeywordScore] = useState(false);
 
 	// ─── Hint reveal state ────────────────────────────────────────────────────
 	const [shownHintContent, setShownHintContent] = useState<string | null>(null);
+
+	// ─── Keyword tracking state ───────────────────────────────────────────────
+	const [keywordSubmissions, setKeywordSubmissions] = useState<
+		Record<string, { text: string; timestamp: number }>
+	>({});
+	const [keywordAnswerRevealed, setKeywordAnswerRevealed] = useState(false);
+	const [keywordQuestion, setKeywordQuestion] = useState<Question | null>(null);
+	const keywordLockedSentRef = useRef(false);
 
 	// ─── Keyword info banner ──────────────────────────────────────────────────
 	const keyInfo = "MẬT MÃ GỒM CÓ ... CHỮ CÁI";
@@ -187,24 +199,47 @@ const AGiaiMaPage = () => {
 		void fetchAll();
 	}, [loadClueQuestion]);
 
+	// Load keyword question (OC3_Q_GM_0) which holds the correct keyword answer
+	useEffect(() => {
+		const fetchKeywordQ = async () => {
+			if (!currentMatchCode || !token) return;
+			try {
+				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(KEYWORD_QUESTION_CODE)}`;
+				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+				if (!res.ok) return;
+				const data = await res.json();
+				let payload: any = null;
+				if (Array.isArray(data.data)) {
+					payload = data.data.find((q: any) => String(q?.question_code) === KEYWORD_QUESTION_CODE) ?? data.data[0] ?? null;
+				} else {
+					payload = data.data ?? null;
+				}
+				if (payload) setKeywordQuestion(mapQuestionPayload(payload, KEYWORD_QUESTION_CODE));
+			} catch (err) {
+				logger.error("fetchKeywordQ failed:", err);
+			}
+		};
+		void fetchKeywordQ();
+	}, [currentMatchCode, token, mapQuestionPayload]);
+
 	// ─── Reveal a clue: send to players, update local state ───────────────────
 	const handleRevealClue = useCallback(
 		async (clueIndex: number) => {
 			const q = clueQuestions[clueIndex];
 			if (!q) return;
 
-			// Mark previous active as used
-			setClueStates((prev) => {
-				const next = [...prev];
-				if (activeClueIndex !== null && activeClueIndex !== clueIndex) {
-					next[activeClueIndex] = "used";
-				}
-				next[clueIndex] = "active";
-				return next;
+			// Compute next states explicitly to detect all-clues-opened in the same tick
+			const nextStates = clueStates.map((s, i) => {
+				if (i === activeClueIndex && activeClueIndex !== clueIndex) return "used" as ClueState;
+				if (i === clueIndex) return "active" as ClueState;
+				return s;
 			});
+			setClueStates(nextStates);
 			setActiveClueIndex(clueIndex);
 			setCurrentQuestion(q);
 			setSelectedPlayerCodes([]);
+
+			const allOpened = nextStates.every((s) => s !== "idle");
 
 			try {
 				await sendMessage({
@@ -214,11 +249,15 @@ const AGiaiMaPage = () => {
 					content: q.questionText,
 					media_source: q.questionMediaURL ?? undefined,
 				});
+				if (allOpened && !keywordLockedSentRef.current) {
+					keywordLockedSentRef.current = true;
+					await sendMessage({ type: "keyword_locked" });
+				}
 			} catch (err) {
 				logger.error("handleRevealClue: failed to send question via WS:", err);
 			}
 		},
-		[activeClueIndex, clueQuestions, sendMessage],
+		[activeClueIndex, clueQuestions, clueStates, sendMessage],
 	);
 
 	// ─── Players helpers ──────────────────────────────────────────────────────
@@ -390,6 +429,18 @@ const AGiaiMaPage = () => {
 				}
 				break;
 			}
+			case "keyword_submit": {
+				const { user_code, keyword_text, timestamp } = msg;
+				if (user_code && keyword_text) {
+					startTransition(() => {
+						setKeywordSubmissions((prev) => ({
+							...prev,
+							[user_code]: { text: keyword_text, timestamp: timestamp ?? 0 },
+						}));
+					});
+				}
+				break;
+			}
 			default:
 				break;
 		}
@@ -411,6 +462,16 @@ const AGiaiMaPage = () => {
 		}, 1000);
 		return () => window.clearInterval(id);
 	}, [isTimerRunning]);
+
+	// Auto-lock keyword when all players have submitted their keyword
+	useEffect(() => {
+		if (players.length === 0 || keywordLockedSentRef.current) return;
+		const allSubmitted = players.every((p) => !!keywordSubmissions[p.playerCode]);
+		if (allSubmitted) {
+			keywordLockedSentRef.current = true;
+			void sendMessage({ type: "keyword_locked" });
+		}
+	}, [keywordSubmissions, players, sendMessage]);
 
 	// Load players on mount
 	useEffect(() => {
@@ -435,6 +496,10 @@ const AGiaiMaPage = () => {
 		setActiveClueIndex(null);
 		setClueStates(Array(CLUE_COUNT).fill("idle"));
 		setSelectedPlayerCodes([]);
+		setKeywordSubmissions({});
+		setKeywordAnswerRevealed(false);
+		setHasAddedKeywordScore(false);
+		keywordLockedSentRef.current = false;
 		await clearQuestion();
 		if (!currentMatchCode) return;
 		try {
@@ -538,6 +603,31 @@ const AGiaiMaPage = () => {
 		}
 	}, [currentQuestion, selectedPlayerCodes, sendMessage]);
 
+	const handleRevealKeywordAnswer = useCallback(async () => {
+		const answer = keywordQuestion?.questionAnswer;
+		if (!answer) return;
+		setKeywordAnswerRevealed(true);
+		try {
+			await sendMessage({ type: "reveal_keyword_answer", answer });
+		} catch (err) {
+			logger.error("handleRevealKeywordAnswer failed:", err);
+		}
+	}, [keywordQuestion, sendMessage]);
+
+	const handleShowKeywordAnswers = useCallback(async () => {
+		if (!keywordAnswerRevealed) return;
+		const answers = Object.entries(keywordSubmissions).map(([user_code, { text, timestamp }]) => ({
+			user_code,
+			content: text,
+			timestamp,
+		}));
+		try {
+			await sendMessage({ type: "send_keyword_answers", answers });
+		} catch (err) {
+			logger.error("handleShowKeywordAnswers failed:", err);
+		}
+	}, [keywordAnswerRevealed, keywordSubmissions, sendMessage]);
+
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
 			if (!playerCode) return;
@@ -623,6 +713,26 @@ const AGiaiMaPage = () => {
 		}
 	}, [selectedPlayerCodes, handleAddScore, sendPlayersSnapshot, currentMatchCode, currentQuestion.questionCode]);
 
+	// Score = 100 - 10 * (number of clues opened so far)
+	const handleAddKeywordScoreToSelected = useCallback(async () => {
+		if (selectedPlayerCodes.length === 0) return;
+		const openedCount = clueStates.filter((s) => s !== "idle").length;
+		const score = Math.max(0, 100 - 10 * openedCount);
+		setHasAddedKeywordScore(true);
+		try {
+			for (const code of selectedPlayerCodes) {
+				await handleAddScore(code, score, false).catch((err) =>
+					logger.error("Keyword score failed for", code, err),
+				);
+			}
+			if (currentMatchCode) await sendPlayersSnapshot();
+			setSelectedPlayerCodes([]);
+		} catch (err) {
+			logger.error("handleAddKeywordScoreToSelected failed:", err);
+			setHasAddedKeywordScore(false);
+		}
+	}, [selectedPlayerCodes, clueStates, handleAddScore, sendPlayersSnapshot, currentMatchCode]);
+
 	// ─── Clue grid (2 rows × 4 columns) ──────────────────────────────────────
 	const clueGrid = (
 		<div className="flex flex-col gap-3 w-full">
@@ -695,6 +805,17 @@ const AGiaiMaPage = () => {
 						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
+						onClick={() => {
+							void handleAddKeywordScoreToSelected().catch((err) =>
+								logger.error("AddKeywordScore button failed:", err),
+							);
+						}}
+						disabled={selectedPlayerCodes.length === 0 || hasAddedKeywordScore}
+					>
+						<Calculator size={18} />
+						<span className="ml-2 font-bold">TÍNH ĐIỂM TỪ KHOÁ</span>
+					</AControlButton>
+					<AControlButton
 						onClick={() => { void showAnswers(); }}
 						disabled={!canShowAnswers}
 					>
@@ -707,6 +828,20 @@ const AGiaiMaPage = () => {
 					>
 						<Lightbulb size={18} />
 						<span className="ml-2 font-bold">MỞ GỢI Ý</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleRevealKeywordAnswer(); }}
+						disabled={!keywordQuestion?.questionAnswer || keywordAnswerRevealed}
+					>
+						<KeyRound size={18} />
+						<span className="ml-2 font-bold">MỞ ĐÁP ÁN</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleShowKeywordAnswers(); }}
+						disabled={!keywordAnswerRevealed || Object.keys(keywordSubmissions).length === 0}
+					>
+						<SendToBack size={18} />
+						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton onClick={() => { void loadPlayersState(); }}>
 						<RefreshCw size={18} />
