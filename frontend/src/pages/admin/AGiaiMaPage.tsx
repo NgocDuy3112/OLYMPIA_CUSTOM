@@ -381,7 +381,7 @@ const AGiaiMaPage = () => {
 						}
 						if (isTimerRunning && timerRef.current > 0) {
 							try {
-								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+								await sendMessage({ type: "start_the_timer", user_code: "", phase: "gm", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch { /* best-effort */ }
 						}
 						// Send players/scores last (requires API call) so game state appears first
@@ -547,6 +547,7 @@ const AGiaiMaPage = () => {
 			void sendMessage({
 				type: "start_the_timer",
 				user_code: "",
+				phase: "gm",
 				time_limit: TIME_LIMIT,
 				question_code: currentQuestion.questionCode,
 				started_at: Date.now(),

@@ -290,7 +290,7 @@ const AButPhaPage = () => {
 			setTimer(TIME_LIMIT);
 
 			try {
-				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
+				await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}
@@ -477,7 +477,7 @@ const AButPhaPage = () => {
 						}
 						if (timerRef.current > 0 && currentQuestion.questionCode) {
 							try {
-								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch { /* best-effort */ }
 						}
 						// Send players/scores last (requires API call) so game state appears first

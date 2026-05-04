@@ -462,6 +462,7 @@ const AQualifierPage = () => {
                         void sendMessage({
                             type: "start_the_timer",
                             user_code: "",
+                            phase: "vl",
                             time_limit: QUALIFIER_TIME_LIMIT,
                             question_code: currentQuestion.questionCode,
                             started_at: timerStartedAtRef.current,
@@ -573,6 +574,7 @@ const AQualifierPage = () => {
             await sendMessage({
                 type: "start_the_timer",
                 user_code: "",
+                phase: "vl",
                 time_limit: QUALIFIER_TIME_LIMIT,
                 question_code: questionCode,
                 started_at: startedAt,
