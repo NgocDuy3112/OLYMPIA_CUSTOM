@@ -50,6 +50,18 @@ EVENT_SFX_MAP = {
     "wrong": "wrong",
 }
 
+# Phase-specific overrides: { phase: { event_type: sfx_basename } }
+PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
+    "gm": {
+        "send_answers_to_players": "GM_mo_dap_an",
+    },
+    "bp": {
+        "send_answers_to_players": "BP_mo_dap_an",
+    },
+}
+
+_current_phase: str = ""
+
 # Queue for sequential SFX playback
 _sfx_queue: asyncio.Queue[str] = asyncio.Queue()
 _is_playing = False
@@ -150,9 +162,23 @@ async def on_ready():
     asyncio.create_task(_valkey_listener())
 
 
+def _extract_phase(path: str) -> str | None:
+    parts = path.strip("/").split("/")
+    if len(parts) >= 2 and parts[0] == "player":
+        return parts[1]
+    return None
+
+
 async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
+    global _current_phase
     msg_type = message.get("type", "")
+
+    # Track current game phase from navigate events
+    if msg_type == "navigate":
+        phase = _extract_phase(message.get("path", ""))
+        if phase:
+            _current_phase = phase
 
     # Queue timer_end SFX after the timer duration elapses
     if msg_type == "start_the_timer":
@@ -162,10 +188,18 @@ async def _handle_message(message: dict) -> None:
             await asyncio.sleep(time_limit)
             await _sfx_queue.put(sfx_file)
 
-    # Queue SFX for the event itself
-    sfx_file = _find_sfx_file(msg_type)
-    if sfx_file:
-        await _sfx_queue.put(sfx_file)
+    # Resolve SFX: phase-specific override takes priority over generic map
+    phase_override = PHASE_EVENT_SFX_MAP.get(_current_phase, {}).get(msg_type)
+    if phase_override:
+        for ext in (".mp3", ".ogg", ".wav"):
+            path = os.path.join(configs.SFX_DIR, f"{phase_override}{ext}")
+            if os.path.isfile(path):
+                await _sfx_queue.put(path)
+                break
+    else:
+        sfx_file = _find_sfx_file(msg_type)
+        if sfx_file:
+            await _sfx_queue.put(sfx_file)
 
 
 async def _valkey_listener():

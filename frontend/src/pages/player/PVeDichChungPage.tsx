@@ -287,7 +287,7 @@ const PVeDichChungPage = () => {
 							</div>
 							);
 						})
-							: Array.from({ length: 4 }).map((_, i) => (
+							: Array.from({ length: players.length || 4 }).map((_, i) => (
 								<div key={`ph-${i}`} className="w-60 shrink-0 h-9">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>

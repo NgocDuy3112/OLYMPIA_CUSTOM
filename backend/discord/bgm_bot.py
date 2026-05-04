@@ -42,10 +42,6 @@ PHASE_MUSIC_MAP = {
     "vl": "vl",     # Vòng Loại
 }
 
-# Map of timer duration (seconds) → audio file basename
-TIMER_BGM_MAP: dict[int, str] = {
-    10: "VL_10s",
-}
 
 _current_track: dict[int, str] = {}
 
@@ -53,10 +49,12 @@ _current_track: dict[int, str] = {}
 # ── Audio file helpers ────────────────────────────────────────────────────────
 
 def _find_file(basename: str) -> str | None:
-    for ext in (".ogg", ".mp3", ".wav"):
-        path = os.path.join(configs.MUSIC_DIR, f"{basename}{ext}")
-        if os.path.isfile(path):
-            return path
+    if not os.path.isdir(configs.MUSIC_DIR):
+        return None
+    for filename in os.listdir(configs.MUSIC_DIR):
+        name, ext = os.path.splitext(filename)
+        if name.lower() == basename.lower() and ext.lower() in (".ogg", ".mp3", ".wav"):
+            return os.path.join(configs.MUSIC_DIR, filename)
     return None
 
 
@@ -67,16 +65,6 @@ def _find_phase_file(phase: str) -> str | None:
     path = _find_file(basename)
     if not path:
         logger.warning(f"No audio file found for phase '{phase}'")
-    return path
-
-
-def _find_timer_file(time_limit: int) -> str | None:
-    basename = TIMER_BGM_MAP.get(time_limit)
-    if not basename:
-        return None
-    path = _find_file(basename)
-    if not path:
-        logger.warning(f"No timer BGM found for {time_limit}s")
     return path
 
 
@@ -99,7 +87,11 @@ async def _play(guild: discord.Guild, file_path: str) -> None:
     if vc.is_playing():
         vc.stop()
 
-    source = discord.FFmpegOpusAudio(file_path)
+    try:
+        source = discord.FFmpegOpusAudio(file_path)
+    except Exception as e:
+        logger.error(f"Failed to create audio source for '{file_path}': {e}")
+        return
     vc.play(source, after=lambda e: logger.error(f"Playback error: {e}") if e else None)
     logger.info(f"Playing: {os.path.basename(file_path)}")
 
@@ -137,16 +129,20 @@ async def _handle_message(message: dict) -> None:
         else:
             phase = _extract_phase(path)
             if phase:
+                _current_track[guild.id] = phase
                 music_file = _find_phase_file(phase)
                 if music_file:
                     await _play(guild, music_file)
-                    _current_track[guild.id] = phase
 
     elif msg_type == "start_the_timer":
         time_limit = int(message.get("time_limit", 0))
-        timer_file = _find_timer_file(time_limit)
-        if timer_file:
-            await _play(guild, timer_file)
+        current_phase = _current_track.get(guild.id, "")
+        if current_phase:
+            timer_file = _find_file(f"{current_phase}_{time_limit}s")
+            if timer_file:
+                await _play(guild, timer_file)
+            else:
+                logger.warning(f"No timer BGM for phase='{current_phase}' time={time_limit}s (looked for '{current_phase}_{time_limit}s')")
 
     elif msg_type == "game_end":
         await _stop(guild)
@@ -160,9 +156,14 @@ async def _valkey_listener() -> None:
     loop = asyncio.get_running_loop()
     logger.info(f"BGM Bot listening on channel '{match_code}'")
 
+    def _on_done(fut: asyncio.Future) -> None:
+        if not fut.cancelled() and fut.exception():
+            logger.error(f"Message handler error: {fut.exception()}")
+
     def _sync_subscribe():
         for message in subscribe_to_match_channels(valkey_client, match_code):
-            asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
+            fut = asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
+            fut.add_done_callback(_on_done)
 
     await asyncio.to_thread(_sync_subscribe)
 
