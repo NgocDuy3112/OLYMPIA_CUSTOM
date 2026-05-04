@@ -396,6 +396,7 @@ const AVeDichChungPage = () => {
 			void sendMessage({
 				type: "start_the_timer",
 				user_code: "",
+				phase: "vdc",
 				time_limit: timeLimit,
 				question_code: currentQuestion.questionCode,
 				started_at: Date.now(),
@@ -680,6 +681,7 @@ const AVeDichChungPage = () => {
 								await sendMessage({
 									type: "start_the_timer",
 									user_code: "",
+									phase: "vdc",
 									time_limit: timerRef.current,
 									question_code: currentQuestion.questionCode,
 									started_at: Date.now(),

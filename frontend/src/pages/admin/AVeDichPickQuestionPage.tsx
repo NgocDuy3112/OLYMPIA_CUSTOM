@@ -275,11 +275,16 @@ const AVeDichPickQuestion = () => {
 				// Sort by question_code for consistent ordering
 				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
 
-				if (mapped.length === 0) {
+				// Guard against duplicate question_codes (e.g. double import)
+				const deduped = mapped.filter((q, i, arr) =>
+					arr.findIndex((q2) => q2.questionCode === q.questionCode) === i,
+				);
+
+				if (deduped.length === 0) {
 					setErrorMessage("Không tìm thấy câu hỏi Về Đích cho trận đấu này");
 				}
 
-				setQuestions(mapped);
+				setQuestions(deduped);
 			} catch (err) {
 				logger.error("Failed to fetch questions:", err);
 				setErrorMessage("Lỗi khi tải câu hỏi");

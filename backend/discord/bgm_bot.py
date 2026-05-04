@@ -49,12 +49,12 @@ _current_track: dict[int, str] = {}
 # ── Audio file helpers ────────────────────────────────────────────────────────
 
 def _find_file(basename: str) -> str | None:
-    if not os.path.isdir(configs.MUSIC_DIR):
+    if not os.path.isdir(configs.BGM_DIR):
         return None
-    for filename in os.listdir(configs.MUSIC_DIR):
+    for filename in os.listdir(configs.BGM_DIR):
         name, ext = os.path.splitext(filename)
         if name.lower() == basename.lower() and ext.lower() in (".ogg", ".mp3", ".wav"):
-            return os.path.join(configs.MUSIC_DIR, filename)
+            return os.path.join(configs.BGM_DIR, filename)
     return None
 
 
@@ -117,6 +117,7 @@ def _extract_phase(path: str) -> str | None:
 async def _handle_message(message: dict) -> None:
     """Handle a single Valkey event on the asyncio event loop."""
     msg_type = message.get("type", "")
+    logger.debug(f"Received event: type={msg_type!r} keys={list(message.keys())}")
     guild = bot.guilds[0] if bot.guilds else None
     if not guild:
         return
@@ -136,13 +137,15 @@ async def _handle_message(message: dict) -> None:
 
     elif msg_type == "start_the_timer":
         time_limit = int(message.get("time_limit", 0))
-        current_phase = _current_track.get(guild.id, "")
+        current_phase = message.get("phase", "") or _current_track.get(guild.id, "")
         if current_phase:
             timer_file = _find_file(f"{current_phase}_{time_limit}s")
             if timer_file:
                 await _play(guild, timer_file)
             else:
                 logger.warning(f"No timer BGM for phase='{current_phase}' time={time_limit}s (looked for '{current_phase}_{time_limit}s')")
+        else:
+            logger.warning(f"start_the_timer: unknown phase, skipping (question_code={message.get('question_code')!r})")
 
     elif msg_type == "game_end":
         await _stop(guild)
@@ -239,5 +242,5 @@ if __name__ == "__main__":
         logger.error("BGM_BOT_TOKEN not set in .env")
         sys.exit(1)
 
-    os.makedirs(configs.MUSIC_DIR, exist_ok=True)
+    os.makedirs(configs.BGM_DIR, exist_ok=True)
     bot.run(configs.BGM_BOT_TOKEN)

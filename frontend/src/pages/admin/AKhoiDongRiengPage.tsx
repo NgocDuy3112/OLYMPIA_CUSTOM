@@ -371,7 +371,7 @@ const AKhoiDongRiengPage = () => {
 				content: fallbackQuestion.questionText,
 				media_source: fallbackQuestion.questionMediaURL,
 			});
-			void sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
+			void sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
 		}
 
 		// Fetch the authoritative question in background and re-broadcast when ready
@@ -665,7 +665,7 @@ const AKhoiDongRiengPage = () => {
 						if (timer > 0 && currentQuestionIndex > 0) {
 							try {
 								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timer, question_code: questionCode, started_at: Date.now() });
+								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: questionCode, started_at: Date.now() });
 								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
 							} catch (err) {
 								logger.error("Failed to resend timer on player_online:", err);

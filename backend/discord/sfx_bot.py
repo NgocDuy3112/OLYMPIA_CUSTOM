@@ -72,10 +72,12 @@ def _find_sfx_file(event_type: str) -> str | None:
     base_name = EVENT_SFX_MAP.get(event_type)
     if not base_name:
         return None
-    for ext in (".mp3", ".ogg", ".wav"):
-        path = os.path.join(configs.SFX_DIR, f"{base_name}{ext}")
-        if os.path.isfile(path):
-            return path
+    if not os.path.isdir(configs.SFX_DIR):
+        return None
+    for filename in os.listdir(configs.SFX_DIR):
+        name, ext = os.path.splitext(filename)
+        if name.lower() == base_name.lower() and ext.lower() in (".mp3", ".ogg", ".wav"):
+            return os.path.join(configs.SFX_DIR, filename)
     logger.debug(f"No SFX file found for event '{event_type}'")
     return None
 
@@ -109,7 +111,12 @@ async def _play_sfx(file_path: str) -> None:
         await asyncio.sleep(0.1)
 
     _is_playing = True
-    source = discord.FFmpegOpusAudio(file_path)
+    try:
+        source = discord.FFmpegOpusAudio(file_path)
+    except Exception as e:
+        logger.error(f"Failed to create audio source for '{file_path}': {e}")
+        _is_playing = False
+        return
     vc.play(source, after=lambda e: setattr(sys.modules[__name__], "_is_playing", False))
     logger.info(f"Playing SFX: {os.path.basename(file_path)}")
 
@@ -173,6 +180,7 @@ async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
     global _current_phase
     msg_type = message.get("type", "")
+    logger.debug(f"Received event: type={msg_type!r} keys={list(message.keys())}")
 
     # Track current game phase from navigate events
     if msg_type == "navigate":
@@ -182,6 +190,8 @@ async def _handle_message(message: dict) -> None:
 
     # Queue timer_end SFX after the timer duration elapses
     if msg_type == "start_the_timer":
+        if not _current_phase:
+            _current_phase = message.get("phase", "")
         time_limit = int(message.get("time_limit", 30))
         sfx_file = _find_sfx_file("timer_end")
         if sfx_file:
@@ -214,9 +224,14 @@ async def _valkey_listener():
     loop = asyncio.get_running_loop()
     logger.info(f"SFX Bot listening to channel '{match_code}'")
 
+    def _on_done(fut: asyncio.Future) -> None:
+        if not fut.cancelled() and fut.exception():
+            logger.error(f"Message handler error: {fut.exception()}")
+
     def _sync_subscribe():
         for message in subscribe_to_match_channels(valkey_client, match_code):
-            asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
+            fut = asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
+            fut.add_done_callback(_on_done)
 
     await asyncio.to_thread(_sync_subscribe)
 
