@@ -2,7 +2,6 @@ services:
   # ── Database ──────────────────────────────────────────────
   postgresql:
     container_name: olympia-postgresql
-    container_name: olympia-postgresql
     image: docker.io/library/postgres:17.5-bullseye
     environment:
       POSTGRES_USER: ${POSTGRES_DB_USER}
@@ -43,6 +42,7 @@ services:
     environment:
       APP_HOST: 0.0.0.0
       FRONTEND_URL: https://olympia-custom.io.vn
+      DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
       POSTGRES_DB_HOST: postgresql
       POSTGRES_DB_PORT: 5432
       VALKEY_HOST: valkey
@@ -158,5 +158,7 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
-  valkey_data:
+  olympia_postgres_data:
+  olympia_valkey_data:
+  olympia_certbot_webroot:
+  olympia_certbot_certs:

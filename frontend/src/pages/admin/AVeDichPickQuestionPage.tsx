@@ -9,6 +9,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import { VeDichRound, getVeDichRoundLabel } from "@/types/veDich";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
@@ -24,15 +25,6 @@ const logger = createLogger("AVeDichPick");
  * - /admin/vdr/pick/:matchCode → Lượt Riêng (3 questions)
  */
 
-// Question metadata (category labels). Format: "PRIMARY|SECONDARY" when a subcategory exists
-const CATEGORIES = [
-	"TOÁN - TIN - THỐNG KÊ",
-	"TỰ NHIÊN - SỰ SỐNG",
-	"KINH TẾ - XÃ HỘI",
-	"VĂN HỌC - NGHỆ THUẬT",
-	"VĂN HÓA - THỂ THAO",
-	"KIẾN THỨC TỔNG HỢP",
-];
 const AVeDichPickQuestion = () => {
 	const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
 	const currentMatchCode = localStorage.getItem("matchCode") || paramMatchCode || "";
@@ -60,17 +52,8 @@ const AVeDichPickQuestion = () => {
 	// Chung: questions = player count; Riêng: fixed 3 questions
 	const requiredCount = isChung ? players.length : round;
 
-	// Build question categories and points for display
-	// Assuming questions are ordered: 6 categories × 4 points each (24 total)
-	const questionCategories = questions.map((_, idx) => {
-		const categoryIdx = Math.floor(idx / 4);
-		return CATEGORIES[categoryIdx] || `Category ${categoryIdx + 1}`;
-	});
-
-	const questionPoints = questions.map((_, idx) => {
-		const pointIdx = idx % 4;
-		return [20, 30, 40, 50][pointIdx] || 0;
-	});
+	const questionCategories = questions.map((q, idx) => getVeDichMeta(q.questionCode, idx).category);
+	const questionPoints     = questions.map((q, idx) => getVeDichMeta(q.questionCode, idx).points);
 
 	// Track selected question codes
 	const toggleQuestionSelection = useCallback((questionCode: string) => {
@@ -273,7 +256,7 @@ const AVeDichPickQuestion = () => {
 				}
 
 				// Sort by question_code for consistent ordering
-				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
+				mapped.sort((a, b) => compareVeDichCodes(a.questionCode, b.questionCode));
 
 				// Guard against duplicate question_codes (e.g. double import)
 				const deduped = mapped.filter((q, i, arr) =>

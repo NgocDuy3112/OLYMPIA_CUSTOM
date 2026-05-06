@@ -39,7 +39,7 @@ async def upload_file_to_s3(
     key = f"{match_code}/{file.filename}"
 
     try:
-        await s3_client.put_object(Bucket=bucket, Key=key, Body=data, ContentType=content_type, ACL="private")
+        await s3_client.put_object(Bucket=bucket, Key=key, Body=data, ContentType=content_type)
     except Exception as exc:
         global_logger.error(f"S3 upload failed for key={key!r}: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to upload file to S3.")

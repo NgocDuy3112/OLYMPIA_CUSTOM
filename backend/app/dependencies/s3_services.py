@@ -8,7 +8,7 @@ _s3_settings = S3Settings()
 # Virtual-hosted-style (default) fails when the endpoint is not AWS S3.
 _S3_CONFIG = Config(
     s3={"addressing_style": "path"},
-    signature_version='s3v4',
+    signature_version='s3',
     retries={'max_attempts': 3}
 )
 
@@ -25,10 +25,7 @@ async def get_s3_client():
     )
     async with session.client(
         "s3",
-        endpoint_url="https://s3.vn-hcm-1.vietnix.cloud",
-        aws_access_key_id=aws_access_key_id,
-        aws_secret_access_key=aws_secret_access_key,
-        region_name=region_name, # Vietnix dùng region mặc định này
+        endpoint_url=_s3_settings.S3_ENDPOINT_URL,
         config=_S3_CONFIG
     ) as s3_client:
-        yield client
+        yield s3_client

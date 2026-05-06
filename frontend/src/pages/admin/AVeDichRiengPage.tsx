@@ -22,6 +22,7 @@ import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
@@ -39,15 +40,6 @@ const getTimeLimitForPoints = (points: number): number => {
 		default: return 30;
 	}
 };
-
-const CATEGORIES = [
-	"TOÁN - TIN - THỐNG KÊ",
-	"TỰ NHIÊN - SỰ SỐNG",
-	"KINH TẾ - XÃ HỘI",
-	"VĂN HỌC - NGHỆ THUẬT",
-	"VĂN HÓA - THỂ THAO",
-	"KIẾN THỨC TỔNG HỢP",
-];
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -280,16 +272,10 @@ const AVeDichRiengPage = () => {
 					questionExplanation: q.explanation ?? "",
 					questionMediaURL: q.media_url ?? undefined,
 				}));
-				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
+				mapped.sort((a, b) => compareVeDichCodes(a.questionCode, b.questionCode));
 
-				const cats = mapped.map((_, idx) => {
-					const catIdx = Math.floor(idx / 4);
-					return CATEGORIES[catIdx] || `Category ${catIdx + 1}`;
-				});
-				const pts = mapped.map((_, idx) => {
-					const ptIdx = idx % 4;
-					return [20, 30, 40, 50][ptIdx] || 0;
-				});
+				const cats = mapped.map((q, idx) => getVeDichMeta(q.questionCode, idx).category);
+				const pts  = mapped.map((q, idx) => getVeDichMeta(q.questionCode, idx).points);
 
 				setQuestions(mapped);
 				setQuestionCategories(cats);

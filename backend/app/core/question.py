@@ -24,7 +24,6 @@ from fastapi import HTTPException, UploadFile
 from openpyxl import load_workbook
 from io import BytesIO
 
-
 QUESTION_SHEET_NAMES = ['KHOI_DONG', 'GIAI_MA', 'BUT_PHA', 'VE_DICH']
 
 
@@ -660,15 +659,18 @@ async def post_questions_from_zip_to_db(
         key = f"{match_code}/{basename}"
         try:
             data = zf.read(entry)
-            print(f"    [ZIP] Đã đọc xong {basename}, dung lượng: {len(data)} bytes")
-            await s3_client.put_object(Bucket=bucket, Key=key, Body=data, ContentType=mime)
+            await s3_client.put_object(
+                Bucket=bucket, Key=key, Body=data,
+                ContentType=mime, ContentLength=len(data), ACL="private",
+            )
             media_ok.append(basename)
-            print(f"    [ZIP] Đã upload thành công")
-            global_logger.debug(f"ZIP: uploaded S3 key='{key}'")
+            global_logger.info(f"ZIP: S3 upload ok key='{key}' ({len(data)} bytes)")
         except Exception as exc:
             media_fail.append(basename)
-            print(f"    [ERROR] File {basename} lỗi: {str(exc)}")
-            global_logger.debug(f"ZIP: upload S3 thất bại cho '{key}': {exc}", exc_info=True)
+            global_logger.warning(
+                f"ZIP: S3 upload failed for key='{key}' ({len(data)} bytes): {exc}",
+                exc_info=True,
+            )
 
     # Import câu hỏi từ Excel (dùng lại hàm hiện có)
     excel_bytes = zf.read(excel_entry)
