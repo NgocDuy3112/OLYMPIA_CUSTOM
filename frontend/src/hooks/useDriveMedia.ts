@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 
+const EXT_TO_MIME: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+    gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+    mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav",
+    aac: "audio/aac", m4a: "audio/mp4", flac: "audio/flac",
+    mp4: "video/mp4", webm: "video/webm", ogv: "video/ogg", mov: "video/quicktime",
+};
+
+function mimeFromPath(path: string): string | null {
+    const ext = path.split(".").pop()?.toLowerCase() ?? "";
+    return EXT_TO_MIME[ext] ?? null;
+}
+
 /** Returns true when the URL points to Google Drive or Google Docs. */
 export function isDriveUrl(url: string): boolean {
     return url.includes("drive.google.com") || url.includes("docs.google.com");
@@ -89,7 +102,7 @@ export function useDriveMedia(
                     const { url } = await res.json() as { url: string };
                     if (cancelled) return;
                     // Presigned URL is not a blob — do not store in blobRef for revocation.
-                    setState({ blobUrl: url, mimeType: null, loading: false, error: null });
+                    setState({ blobUrl: url, mimeType: mimeFromPath(mediaUrl), loading: false, error: null });
                     return;
                 }
 
@@ -142,6 +155,7 @@ export function useDriveMedia(
                 blobRef.current = url;
                 setState({ blobUrl: url, mimeType, loading: false, error: null });
             } catch (err) {
+                console.error("[useDriveMedia] Failed to load media:", mediaUrl, err);
                 if (!cancelled) {
                     setState({
                         blobUrl: null,

@@ -42,21 +42,29 @@ EVENT_SFX_MAP = {
     "navigate": "navigate",       # Page navigation
     "player_online": "join",      # Player joined
     "clear_answers": "clear",     # Answers cleared
-    "qualifier_scores_updated": "VL_cong_diem",
+    "qualifier_scores_updated": "vl_cong_diem",
     "VL_10s": "VL_10s",
-    "VL_cong_diem": "VL_cong_diem",
+    "VL_cong_diem": "vl_cong_diem",
     "big_correct": "big_correct",
     "big_wrong": "big_wrong",
     "wrong": "wrong",
+    "kd_cong_diem": "kd_cong_diem",
+    "bp_dung": "bp_dung",
 }
 
 # Phase-specific overrides: { phase: { event_type: sfx_basename } }
 PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
     "gm": {
-        "send_answers_to_players": "GM_mo_dap_an",
+        "send_answers_to_players": "gm_mo_dap_an",
     },
     "bp": {
-        "send_answers_to_players": "BP_mo_dap_an",
+        "send_answers_to_players": "bp_mo_dap_an",
+    },
+    "kdc": {
+        "send_answers_to_players": "kd_mo_dap_an",
+    },
+    "vdr": {
+        "answering_window_activated": "vd_5s",
     },
 }
 

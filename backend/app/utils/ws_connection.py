@@ -35,7 +35,7 @@ class ConnectionManager:
                 try:
                     data = json.loads(message["data"])
                 except Exception:
-                    global_logger.warning(f"Invalid JSON from Valkey channel {room_id}: {message.get('data')}")
+                    global_logger.warning(f"Invalid JSON from Valkey channel {room_id}: {message.get('data')}", exc_info=True)
                     continue
 
                 # ✅ nhận từ Valkey => SEND ra websocket local

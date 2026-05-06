@@ -15,6 +15,11 @@ export const useAuthSession = () => {
             localStorage.setItem("jwtToken_admin", access_token);
             localStorage.setItem("role", role);
             navigate("/admin/game-managing");
+        } else if (role === "mc") {
+            sessionStorage.setItem("jwtToken_mc", access_token);
+            sessionStorage.setItem("role", role);
+            sessionStorage.setItem("mcCode", user_code || "");
+            navigate("/mc/access");
         } else {
             sessionStorage.setItem("jwtToken_player", access_token);
             sessionStorage.setItem("role", role);

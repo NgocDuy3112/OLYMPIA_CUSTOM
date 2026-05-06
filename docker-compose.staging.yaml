@@ -1,17 +1,19 @@
 services:
   # ── Database ──────────────────────────────────────────────
   postgresql:
-    container_name: oc-postgresql
+    container_name: olympia-postgresql
     image: docker.io/library/postgres:17.5-bullseye
-    env_file:
-      - ./configs/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
     volumes:
-      - ./databases/postgres_data:/var/lib/postgresql/data:U
+      - olympia_postgres_data:/var/lib/postgresql/data
     networks:
-      - oc-network
+      - olympia-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_DB_USER -d $$POSTGRES_DB_NAME"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -19,21 +21,19 @@ services:
 
   # ── Cache + WebSocket pub/sub ─────────────────────────────
   valkey:
-    container_name: oc-valkey
+    container_name: olympia-valkey
     image: docker.io/valkey/valkey:9-alpine
-    command: ["sh", "-c", "valkey-server --requirepass \"$$VALKEY_PASSWORD\" --user \"$$VALKEY_USER\" on \">$$VALKEY_PASSWORD\" '~*' '&*' +@all"]
-    env_file:
-      - ./configs/.env
+    command: valkey-server /etc/valkey/valkey.conf
     volumes:
-      - ./databases/valkey_data:/data
+      - ./configs/valkey.conf:/etc/valkey/valkey.conf:ro
+      - olympia_valkey_data:/data
     networks:
-      - oc-network
+      - olympia-network
     restart: unless-stopped
 
   # ── FastAPI backend ───────────────────────────────────────
-  # Built into the image; only configs are mounted for runtime access.
   app:
-    container_name: oc-app
+    container_name: olympia-app
     build:
       context: ./backend/app
       dockerfile: Dockerfile
@@ -41,38 +41,37 @@ services:
       - ./configs/.env
     environment:
       APP_HOST: 0.0.0.0
-      # Keep password-reset and email links public when running on VPS via ngrok.
-      FRONTEND_URL: https://${NGROK_DOMAIN}
-      # Explicit service discovery inside the compose network.
+      FRONTEND_URL: https://olympia-custom.io.vn
       POSTGRES_DB_HOST: postgresql
       POSTGRES_DB_PORT: 5432
       VALKEY_HOST: valkey
       VALKEY_PORT: 6379
+    volumes:
+      - ./configs:/app/configs:ro
     depends_on:
       postgresql:
         condition: service_healthy
       valkey:
         condition: service_started
     networks:
-      - oc-network
+      - olympia-network
     restart: unless-stopped
 
-  # ── Frontend ──────────────────────────────────────────────
-  # Vite build baked into nginx image; this container already proxies /api and /ws to the backend.
+  # ── Frontend (Vite build baked in; nginx serves SPA + proxies /api and /ws) ──
   frontend:
-    container_name: oc-frontend
+    container_name: olympia-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
     depends_on:
       - app
     networks:
-      - oc-network
+      - olympia-network
     restart: unless-stopped
 
-  # ── Discord / BGM bot ──────────────────────────────────────
+  # ── Discord / BGM bot ─────────────────────────────────────
   bgm-bot:
-    container_name: bgm-bot
+    container_name: olympia-bgm-bot
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
@@ -84,11 +83,11 @@ services:
     depends_on:
       - valkey
     networks:
-      - oc-network
+      - olympia-network
     restart: unless-stopped
 
   sfx-bot:
-    container_name: sfx-bot
+    container_name: olympia-sfx-bot
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
@@ -100,40 +99,65 @@ services:
     depends_on:
       - valkey
     networks:
-      - oc-network
+      - olympia-network
     restart: unless-stopped
 
-  # ── Reverse proxy (HTTP-only, TLS via ngrok) ─────────────
-  nginx-ngrok:
-    container_name: oc-nginx
+  # ── Reverse proxy — HTTPS with Let's Encrypt ─────────────
+  nginx:
+    container_name: olympia-nginx
     image: docker.io/library/nginx:1.27-alpine
-    command: ["nginx", "-g", "daemon off;"]
-    depends_on:
-      - frontend
-    volumes:
-      - ./deploy/nginx-ngrok.conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - oc-network
-    restart: unless-stopped
-
-  # ── ngrok tunnel ─────────────────────────────────────────
-  ngrok:
-    container_name: oc-ngrok
-    image: docker.io/ngrok/ngrok:latest
-    entrypoint: ["sh", "-c"]
-    command: ["ngrok http frontend:80 --domain=$$NGROK_DOMAIN --log=stdout"]
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     env_file:
       - ./configs/.env
     depends_on:
       - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx-entrypoint.sh:/entrypoint.sh:ro
+      - ./deploy/nginx-init.conf:/etc/nginx/init.conf:ro
+      - ./deploy/nginx-prod.conf.template:/etc/nginx/https.conf.template:ro
+      - olympia_certbot_webroot:/var/www/certbot:ro
+      - olympia_certbot_certs:/etc/letsencrypt:ro
     networks:
-      - oc-network
+      - olympia-network
+    restart: unless-stopped
+
+  # ── TLS certificate management ────────────────────────────
+  certbot:
+    container_name: olympia-certbot
+    image: docker.io/certbot/certbot:latest
+    env_file:
+      - ./configs/.env
+    depends_on:
+      - nginx
+    volumes:
+      - olympia_certbot_webroot:/var/www/certbot
+      - olympia_certbot_certs:/etc/letsencrypt
+    # Issues cert on first run (retries every 30s if nginx not ready), then renews every 12h.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+          trap exit TERM
+          if [ ! -f /etc/letsencrypt/live/$${DOMAIN}/fullchain.pem ]; then
+            until certbot certonly --webroot --webroot-path=/var/www/certbot --email $${CERTBOT_EMAIL} --agree-tos --no-eff-email -d $${DOMAIN}; do
+              echo "Cert issuance failed, retrying in 30s..."
+              sleep 30
+            done
+          fi
+          while :; do certbot renew --quiet; sleep 12h & wait $${!}; done
+    networks:
+      - olympia-network
     restart: unless-stopped
 
 networks:
-  oc-network:
+  olympia-network:
     driver: bridge
 
 volumes:
-  postgres_data:
-  valkey_data:
+  olympia_postgres_data:
+  olympia_valkey_data:
+  olympia_certbot_webroot:
+  olympia_certbot_certs:

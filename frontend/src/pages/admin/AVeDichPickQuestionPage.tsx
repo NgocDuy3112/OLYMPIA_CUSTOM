@@ -496,7 +496,7 @@ const AVeDichPickQuestion = () => {
 	return (
 		<AVeDichPickLayout
 			title={roundTitle}
-			round={round}
+			maxQuestions={requiredCount}
 			questions={questions}
 			categories={questionCategories}
 			points={questionPoints}

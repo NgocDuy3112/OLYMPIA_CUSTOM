@@ -98,7 +98,7 @@ async def post_answer_to_db(
             global_logger.info(f"Cached and published answer for key={cache_key}.")
         except Exception as e:
             # Log but do not fail the request since DB commit succeeded
-            global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}")
+            global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}", exc_info=True)
 
         log_message = f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
         global_logger.info(log_message)
@@ -224,7 +224,7 @@ async def delete_answer_from_db(match_code: str, user_code: str, question_code: 
         except Exception as e:
             await session.rollback()
             log_message = f"Model 'Answer' might not have 'is_deleted' attribute yet: {str(e)}"
-            global_logger.error(log_message)
+            global_logger.error(log_message, exc_info=True)
             raise HTTPException(status_code=500, detail="Failed to soft delete answer. Model might need update.")
 
         log_message = f"Answer for question_code={question_code} in match_code={match_code} from user_code={user_code} has been soft deleted successfully."
