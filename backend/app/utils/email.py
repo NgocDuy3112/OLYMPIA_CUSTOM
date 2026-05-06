@@ -114,7 +114,8 @@ async def send_credentials_email_safe(
         )
     except Exception as cfg_err:
         global_logger.error(
-            f"EmailSettings could not be loaded — SMTP credentials missing from .env: {cfg_err}"
+            f"EmailSettings could not be loaded — SMTP credentials missing from .env: {cfg_err}",
+            exc_info=True,
         )
         return
 

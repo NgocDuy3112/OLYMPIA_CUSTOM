@@ -85,6 +85,10 @@ const PButPhaPage = () => {
 				break;
 			}
 
+			case "clear_question": {
+				break;
+			}
+
 			case "start_the_timer": {
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setAnswer("");

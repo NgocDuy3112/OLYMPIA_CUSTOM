@@ -81,14 +81,14 @@ async def lifespan(app: FastAPI):
     try:
         await manager.shutdown()
     except Exception as e:
-        global_logger.warning(f"Error shutting down ConnectionManager: {e}")
+        global_logger.warning(f"Error shutting down ConnectionManager: {e}", exc_info=True)
     
     if valkey:
         try:
             await valkey.close()
             global_logger.info("Valkey connection pool closed.")
         except Exception as e:
-            global_logger.warning(f"Error closing Valkey connection: {e}")
+            global_logger.warning(f"Error closing Valkey connection: {e}", exc_info=True)
     
     if engine: 
         await engine.dispose()
@@ -114,8 +114,8 @@ def health_check():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Vite dev server; override in production
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # must be False when allow_origins=["*"]; app uses Bearer tokens, not cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )

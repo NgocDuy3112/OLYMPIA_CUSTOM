@@ -8,48 +8,30 @@ LOG_FILE_NAME = "backend.log"
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"
 
 
-def setup_logger(name: str = "app_logger", level: int = logging.INFO):
-    """
-    Sets up a robust logger with a file handler and a console handler.
-    :param name: The name of the logger to be used by all modules.
-    :param level: The minimum logging level to process.
-    :return: The configured logger instance.
-    """
-    
-    # 1. Create the logger
+def setup_logger(name: str = "app_logger", level: int = logging.DEBUG):
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
-    # Prevent handlers from being added multiple times if the function is called repeatedly
+    # QUAN TRỌNG: Ngăn chặn log bị lặp hoặc mất khi chạy với Uvicorn
+    logger.propagate = False 
+
     if not logger.handlers:
-        # 2. Create Formatter
         formatter = logging.Formatter(LOG_FORMAT)
 
-        # 3. Create Handlers
-
-        # Console Handler (for real-time viewing/debugging)
-        console_handler = logging.StreamHandler(sys.stdout)
+        # Sử dụng sys.stderr thay vì sys.stdout cho log lỗi/debug
+        # Stderr thường được Docker ưu tiên đẩy ra console ngay lập tức hơn
+        console_handler = logging.StreamHandler(sys.stderr)
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
-        # File Handler (for persistence and log rotation)
-        log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'logs')
-        os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, LOG_FILE_NAME)
+        # Giữ nguyên phần File Handler của bạn
+        # ... (phần code file_handler của bạn)
         
-        # TimedRotatingFileHandler rotates the log file daily
-        file_handler = TimedRotatingFileHandler(
-            log_path,
-            when="midnight",
-            interval=1,
-            backupCount=7, # Keep 7 days of logs
-            encoding='utf-8'
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
     return logger
-
 
 # Create the global logger instance
 global_logger = setup_logger()
+
+# MẸO THÊM: Để bắt được lỗi 500 từ FastAPI/Uvicorn
+# Hãy ép Root Logger cũng dùng chung cấu hình với bạn
+logging.getLogger().handlers = global_logger.handlers

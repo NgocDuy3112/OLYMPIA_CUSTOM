@@ -1,7 +1,17 @@
 import json
 import zipfile
 import mimetypes
-from sqlalchemy import select
+from sqlalchemy import select, text
+
+# Alpine Linux lacks /etc/mime.types — register common media types explicitly.
+for _ext, _mime in [
+    (".jpg", "image/jpeg"), (".jpeg", "image/jpeg"), (".png", "image/png"),
+    (".gif", "image/gif"), (".webp", "image/webp"), (".svg", "image/svg+xml"),
+    (".mp3", "audio/mpeg"), (".ogg", "audio/ogg"), (".wav", "audio/wav"),
+    (".aac", "audio/aac"), (".m4a", "audio/mp4"),
+    (".mp4", "video/mp4"), (".webm", "video/webm"), (".mov", "video/quicktime"),
+]:
+    mimetypes.add_type(_mime, _ext)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
@@ -37,21 +47,39 @@ def _normalize_media_url(raw, match_code: str) -> str | None:
 async def post_questions_from_excel_to_db(
     match_code: str,
     file: UploadFile,
-    session: AsyncSession
+    session: AsyncSession,
+    overwrite: bool = False
 ) -> BaseResponse:
     """Load questions from an uploaded Excel file.
 
     The uploaded Excel file is expected to contain sheets named in QUESTION_SHEET_NAMES.
     Each sheet should have columns A-E corresponding to: question_code, content, answer, explanation, media_url.
     The first row is treated as header and skipped.
+
+    If overwrite=True, deletes existing questions for this match before importing.
     """
-    global_logger.info(f"POST request received to inject questions from Excel with match code: {match_code}.")
+    global_logger.info(f"POST request received to inject questions from Excel with match code: {match_code}, overwrite={overwrite}.")
     try:
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code))
         if match_id is None:
             log_message = f"No match found with match_code={match_code}."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
+
+        # If overwrite mode, remove all dependents then questions for this match.
+        # Done explicitly in order because the FK constraints may not have CASCADE.
+        if overwrite:
+            for dep in ("answers", "records", "qualifier_records"):
+                await session.execute(
+                    text(f"DELETE FROM {dep} WHERE match_id = :match_id"),  # noqa: S608
+                    {"match_id": match_id},
+                )
+            await session.execute(
+                text("DELETE FROM questions WHERE match_id = :match_id"),
+                {"match_id": match_id},
+            )
+            await session.commit()
+            global_logger.info(f"Deleted existing questions for match_code={match_code} in overwrite mode.")
 
         # read uploaded file bytes and load workbook
         content = await file.read()
@@ -96,7 +124,7 @@ async def post_questions_from_excel_to_db(
                             match_id=match_id
                         ))
                 except Exception as e:
-                    global_logger.error(f"Failed constructing Question object for row {r}: {e}")
+                    global_logger.error(f"Failed constructing Question object for row {r}: {e}", exc_info=True)
 
             if question_objects:
                 session.add_all(question_objects)
@@ -533,13 +561,13 @@ async def patch_question_to_db(
         if request.media_url is not None:
             question.media_url = request.media_url
         if request.options is not None:
-                if isinstance(request.options, list):
-                    try:
-                        question.options = json.dumps(request.options, ensure_ascii=False)
-                    except Exception:
-                        question.options = None
-                else:
-                    question.options = request.options
+            if isinstance(request.options, list):
+                try:
+                    question.options = json.dumps(request.options, ensure_ascii=False)
+                except Exception:
+                    question.options = None
+            else:
+                question.options = request.options
 
         await session.commit()
         log_message = f"Question updated successfully for question_code={question_code} in match_code={match_code}."
@@ -566,6 +594,7 @@ async def post_questions_from_zip_to_db(
     s3_client,
     bucket: str,
     session: AsyncSession,
+    overwrite: bool = False,
 ) -> BaseResponse:
     """Import questions + media từ một file ZIP.
 
@@ -578,6 +607,8 @@ async def post_questions_from_zip_to_db(
 
     Thứ tự xử lý: upload S3 trước → import DB sau.
     Nếu một file media upload lỗi, log warning và bỏ qua (không dừng toàn bộ).
+
+    If overwrite=True, deletes existing questions before importing.
     """
     filename = (file.filename or "").strip()
     stem = filename.rsplit(".", 1)[0] if "." in filename else filename
@@ -622,24 +653,28 @@ async def post_questions_from_zip_to_db(
 
         mime, _ = mimetypes.guess_type(basename)
         if not mime or mime not in _MEDIA_MIME_TYPES:
-            global_logger.debug(f"ZIP: bỏ qua '{entry}' (MIME không hợp lệ: {mime!r})")
+            
+            global_logger.warning(f"ZIP: bỏ qua '{entry}' (MIME không hợp lệ: {mime!r})")
             continue
 
         key = f"{match_code}/{basename}"
         try:
             data = zf.read(entry)
+            print(f"    [ZIP] Đã đọc xong {basename}, dung lượng: {len(data)} bytes")
             await s3_client.put_object(Bucket=bucket, Key=key, Body=data, ContentType=mime)
             media_ok.append(basename)
-            global_logger.info(f"ZIP: uploaded S3 key='{key}'")
+            print(f"    [ZIP] Đã upload thành công")
+            global_logger.debug(f"ZIP: uploaded S3 key='{key}'")
         except Exception as exc:
             media_fail.append(basename)
-            global_logger.warning(f"ZIP: upload S3 thất bại cho '{key}': {exc}")
+            print(f"    [ERROR] File {basename} lỗi: {str(exc)}")
+            global_logger.debug(f"ZIP: upload S3 thất bại cho '{key}': {exc}", exc_info=True)
 
     # Import câu hỏi từ Excel (dùng lại hàm hiện có)
     excel_bytes = zf.read(excel_entry)
     excel_file = UploadFile(filename=excel_name, file=BytesIO(excel_bytes))
 
-    result = await post_questions_from_excel_to_db(match_code, excel_file, session)
+    result = await post_questions_from_excel_to_db(match_code, excel_file, session, overwrite=overwrite)
 
     summary_parts = [result.message]
     if media_ok:
@@ -647,4 +682,7 @@ async def post_questions_from_zip_to_db(
     if media_fail:
         summary_parts.append(f"Media skipped (lỗi): {', '.join(media_fail)}.")
 
-    return BaseResponse(status="success", message=" | ".join(summary_parts))
+    return BaseResponse(
+        status="error" if media_fail else "success",
+        message=" | ".join(summary_parts),
+    )

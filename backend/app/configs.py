@@ -52,8 +52,8 @@ class ValkeySettings(BaseSettings):
 class S3Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    S3_ENDPOINT_URL: str | None = None
-    S3_REGION: str = "us-east-1"
+    S3_ENDPOINT_URL: str | None = 'https://s3.vn-hcm-1.vietnix.cloud'
+    S3_REGION: str = "vn-hcm-1"
     S3_BUCKET_NAME: str
     S3_ACCESS_KEY_ID: str
     S3_SECRET_ACCESS_KEY: str

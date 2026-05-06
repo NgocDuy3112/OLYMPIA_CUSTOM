@@ -532,6 +532,7 @@ const AKhoiDongRiengPage = () => {
 
 		try {
 			if (score > 0) {
+				void sendMessage({ type: "kd_cong_diem" });
 				try {
 					await handleAddScore(selectedPlayerCode, score, true);
 					logger.info("handleAddScoreToSelected: applied", selectedPlayerCode, score);

@@ -2,6 +2,8 @@ FROM python:3.12-alpine
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+RUN apk add --no-cache mailcap
+
 RUN uv python pin 3.12
 
 ADD . /app

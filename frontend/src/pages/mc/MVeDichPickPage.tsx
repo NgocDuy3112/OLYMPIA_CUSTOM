@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useMcWebSocket } from "@/hooks/useMcWebSocket";
+import { useMcSession } from "@/hooks/useMcSession";
+import { useMcPlayers } from "@/hooks/useMcPlayers";
 import { VeDichRound, getVeDichRoundLabel } from "@/types/veDich";
-import type { PlayerStatus } from "@/types/player";
 
 const CATEGORIES = [
 	"TOÁN - TIN - THỐNG KÊ",
@@ -18,48 +17,42 @@ const CATEGORIES = [
 	"KIẾN THỨC TỔNG HỢP",
 ];
 
-interface PVeDichPickPageProps {
+interface MVeDichPickPageProps {
 	round: VeDichRound;
 }
 
 /**
- * PVeDichPickPage — Read-only player view of the admin's question-picking screen.
+ * MVeDichPickPage — Read-only MC view of the admin's question-picking screen.
  *
- * Players see the full Jeopardy-style question grid.
- * As the admin selects questions, this page highlights them in real-time via WebSocket.
- * When the admin confirms, transitions to the gameplay page automatically.
+ * MC sees the full Jeopardy-style question grid and selected preview.
+ * Updates in real-time via WebSocket as admin toggles selections.
  *
  * WS messages consumed:
  *   - "send_players_info"       → update player scoreboard
  *   - "veDich_selection_update" → live highlight as admin toggles
  *   - "veDich_questions_selected" → admin confirmed selection
- *   - "navigate"                → handled by global AutoNavigator in PlayerRoutes
+ *   - "veDich_questions_meta"   → question metadata broadcast
  */
-const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
-	const { playerCode: paramPlayerCode, matchCode: paramMatchCode } = useParams<{
-		matchCode: string;
-		playerCode: string;
-	}>();
-	const { playerCode: sessionPlayerCode } = usePlayerSession();
-	const playerCode = paramPlayerCode || sessionPlayerCode;
-	const { lastMessage } = usePlayerWebSocket();
+const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
+	const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
+	const { matchCode: sessionMatchCode } = useMcSession();
+	const matchCode = paramMatchCode || sessionMatchCode;
+	const { lastMessage } = useMcWebSocket();
+	const { players, applyPlayersInfo } = useMcPlayers();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	// Sorted list of all question codes — received from admin via veDich_selection_update
-	// Initialized from localStorage to handle the race where admin sends before player mounts
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
-		if (!paramMatchCode) return [];
+		if (!matchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_pick_all_codes_${paramMatchCode}`);
+			const stored = localStorage.getItem(`veDich_pick_all_codes_${matchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
 	// Live selection as admin toggles (before confirm)
-	// Also initialized from localStorage so late-arriving players see current selection
 	const [liveSelectedCodes, setLiveSelectedCodes] = useState<string[]>(() => {
-		if (!paramMatchCode) return [];
+		if (!matchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_pick_selected_${paramMatchCode}`);
+			const stored = localStorage.getItem(`veDich_pick_selected_${matchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
@@ -75,64 +68,17 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 		switch (msg?.type) {
 			case "send_players_info": {
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = playersList.map((p: any) => {
-					const code = String(p?.user_code ?? "");
-
-					let name = "";
-					if (p?.user_name) {
-						name = p.user_name;
-					} else {
-						const prof = profiles.find((pr: any) => String(pr?.user_code) === code);
-						if (prof) {
-							name = prof.user_name ?? "";
-						} else {
-							const scoreEntry = scoreboard.find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
-					else {
-						const scoreEntry = scoreboard.find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry)
-							scoreVal =
-								scoreEntry?.cumulative_score ??
-								scoreEntry?.cummulative_score ??
-								scoreEntry?.total_score ??
-								scoreEntry?.score ??
-								0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: undefined,
-					};
-				});
-
-				setPlayers(finalPlayers);
+				applyPlayersInfo(msg);
 				break;
 			}
 
 			case "veDich_selection_update": {
-				// Live highlight as admin toggles individual questions
 				const codes = msg.selected_question_codes ?? [];
 				setLiveSelectedCodes(Array.isArray(codes) ? codes : []);
-				// Build the question grid from the broadcasted full list
 				const allCodes = msg.all_question_codes;
 				if (Array.isArray(allCodes) && allCodes.length > 0) {
 					setAllQuestionCodes(allCodes as string[]);
 				}
-				// Sync used (grayed-out) question codes from admin
 				const usedCodes = msg.used_question_codes;
 				if (Array.isArray(usedCodes)) {
 					setUsedQuestionCodes(usedCodes as string[]);
@@ -140,13 +86,12 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_questions_selected": {
-				// Admin confirmed — lock in the final selection
+			case "veDich_questions_selected":
+			case "veDich_questions_meta": {
 				const codes = msg.selected_question_codes ?? [];
 				const finalCodes = Array.isArray(codes) ? codes : [];
 				setConfirmedCodes(finalCodes);
 				setLiveSelectedCodes(finalCodes);
-				// Also update the grid if all_question_codes is present
 				const allCodes2 = msg.all_question_codes;
 				if (Array.isArray(allCodes2) && allCodes2.length > 0) {
 					setAllQuestionCodes(allCodes2 as string[]);
@@ -157,7 +102,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 			default:
 				break;
 		}
-	}, [lastMessage]);
+	}, [lastMessage, applyPlayersInfo]);
 
 	const maxQuestions = round === VeDichRound.CHUNG ? Math.max(players.length, 1) : round;
 	const title = getVeDichRoundLabel(round);
@@ -166,7 +111,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	const displayCodes = confirmedCodes.length > 0 ? confirmedCodes : liveSelectedCodes;
 
 	return (
-		<PBasePageLayout players={players} currentPlayerCode={playerCode}>
+		<PBasePageLayout players={players} currentPlayerCode="">
 			<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 w-full">
 				{/* Board header */}
 				<div className="flex items-center gap-4 pb-1">
@@ -238,24 +183,23 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 						const point = ([20, 30, 40, 50])[idx % 4] || 0;
 						const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
 						const isSelected = displayCodes.includes(questionCode);
-					const isUsed = usedQuestionCodes.includes(questionCode);
+						const isUsed = usedQuestionCodes.includes(questionCode);
 
-					return (
-						<VeDichQuestionCard
-							key={questionCode}
-							category={catPrimary || rawCategory}
-							subcategory={catSecondary}
-							points={point}
-							isSelected={isSelected}
-							disabled={isUsed}
+						return (
+							<VeDichQuestionCard
+								key={questionCode}
+								category={catPrimary || rawCategory}
+								subcategory={catSecondary}
+								points={point}
+								isSelected={isSelected}
+								disabled={isUsed}
 							/>
 						);
 					})}
 				</div>
-
 			</div>
 		</PBasePageLayout>
 	);
 };
 
-export default PVeDichPickPage;
+export default MVeDichPickPage;

@@ -543,6 +543,7 @@ const AKhoiDongChungPage = () => {
 		const score = 10; // always award 10 points
 		logger.info("handleAddScoreToSelected: starting for players=", selectedPlayerCodes);
 		setHasAddedScore(true);
+		void sendMessage({ type: "kd_cong_diem" });
 		try {
 			// Apply score sequentially to avoid race conditions updating scoreboard
 			for (const code of selectedPlayerCodes) {
