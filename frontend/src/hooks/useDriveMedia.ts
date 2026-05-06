@@ -1,9 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 
+const EXT_TO_MIME: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+    gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+    mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav",
+    aac: "audio/aac", m4a: "audio/mp4", flac: "audio/flac",
+    mp4: "video/mp4", webm: "video/webm", ogv: "video/ogg", mov: "video/quicktime",
+};
+
+function mimeFromPath(path: string): string | null {
+    const ext = path.split(".").pop()?.toLowerCase() ?? "";
+    return EXT_TO_MIME[ext] ?? null;
+}
+
 /** Returns true when the URL points to Google Drive or Google Docs. */
 export function isDriveUrl(url: string): boolean {
     return url.includes("drive.google.com") || url.includes("docs.google.com");
+}
+
+/**
+ * Returns true when the value looks like an S3 object key stored in the DB,
+ * e.g. "OC3_M01T/clip.mp4" or "OC3_M_BP/image.jpg".
+ */
+export function isS3Key(url: string): boolean {
+    return url.startsWith("OC3_M") && url.includes("/");
 }
 
 /**
@@ -37,17 +58,14 @@ export interface DriveMediaState {
 }
 
 /**
- * Fetches media through the backend `/media/drive/` proxy and returns a safe
- * blob URL along with the resolved MIME type.
+ * Resolves a media URL to a usable src string.
  *
- * The `mediaUrl` value can be either:
- *  - A **Drive share URL** (e.g. `https://drive.google.com/file/d/...`) — the
- *    hook extracts the file ID and calls `?file_id=...`.
- *  - A **plain filename** (e.g. `cau1_anh.jpg`) — the hook calls
- *    `?file_name=...` and the backend resolves the ID server-side.
- *
- * For values that are neither a Drive URL nor a non-empty string, all fields
- * are null so callers can skip rendering.
+ * Supported `mediaUrl` formats:
+ *  - **S3 key** (e.g. `OC3_M01T/clip.mp4`) — fetches a presigned URL from
+ *    `GET /media/presign/` and returns it directly as src for native streaming.
+ *  - **Drive share URL** (e.g. `https://drive.google.com/file/d/...`) — proxied
+ *    through the backend and returned as a blob URL.
+ *  - **Plain HTTP(S) URL** — returned as-is without any fetching.
  */
 export function useDriveMedia(
     mediaUrl: string | undefined,
@@ -72,26 +90,50 @@ export function useDriveMedia(
         let cancelled = false;
         setState((prev) => ({ ...prev, loading: true, error: null }));
 
-        // Build query params: file_id for Drive URLs, file_name for plain filenames
-        const params = new URLSearchParams();
-        if (isDriveShareUrl(mediaUrl)) {
-            const fileId = extractDriveFileId(mediaUrl);
-            if (!fileId) {
-                setState({
-                    blobUrl: null,
-                    mimeType: null,
-                    loading: false,
-                    error: "Cannot extract Drive file ID from URL.",
-                });
-                return;
-            }
-            params.set("file_id", fileId);
-        } else {
-            params.set("file_name", mediaUrl);
-        }
-
         const run = async () => {
             try {
+                // ── S3 key: fetch presigned URL, use directly as src ──────────
+                if (isS3Key(mediaUrl)) {
+                    const res = await fetch(
+                        `${API_BASE_URL}/media/presign/?key=${encodeURIComponent(mediaUrl)}`,
+                        token ? { headers: { Authorization: `Bearer ${token}` } } : {},
+                    );
+                    if (!res.ok) throw new Error(`Presign failed: HTTP ${res.status}`);
+                    const { url } = await res.json() as { url: string };
+                    if (cancelled) return;
+                    // Presigned URL is not a blob — do not store in blobRef for revocation.
+                    setState({ blobUrl: url, mimeType: mimeFromPath(mediaUrl), loading: false, error: null });
+                    return;
+                }
+
+                // ── Direct HTTP(S) URL: use as-is ────────────────────────────
+                if (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://")) {
+                    if (!isDriveShareUrl(mediaUrl)) {
+                        if (!cancelled) {
+                            setState({ blobUrl: mediaUrl, mimeType: null, loading: false, error: null });
+                        }
+                        return;
+                    }
+                }
+
+                // ── Drive share URL: proxy through backend ────────────────────
+                const params = new URLSearchParams();
+                if (isDriveShareUrl(mediaUrl)) {
+                    const fileId = extractDriveFileId(mediaUrl);
+                    if (!fileId) {
+                        setState({
+                            blobUrl: null,
+                            mimeType: null,
+                            loading: false,
+                            error: "Cannot extract Drive file ID from URL.",
+                        });
+                        return;
+                    }
+                    params.set("file_id", fileId);
+                } else {
+                    params.set("file_name", mediaUrl);
+                }
+
                 const res = await fetch(
                     `${API_BASE_URL}/media/drive/?${params.toString()}`,
                     token ? { headers: { Authorization: `Bearer ${token}` } } : {},
@@ -101,19 +143,19 @@ export function useDriveMedia(
                     throw new Error(`Drive media fetch failed: HTTP ${res.status}`);
                 }
 
-                // Strip charset and boundary suffixes from Content-Type
                 const mimeType = (res.headers.get("Content-Type") ?? "").split(";")[0].trim();
                 const blob = await res.blob();
 
                 if (cancelled) return;
 
-                // Revoke previous blob URL to prevent memory leaks
-                if (blobRef.current) URL.revokeObjectURL(blobRef.current);
+                // Revoke previous blob URL to prevent memory leaks.
+                if (blobRef.current?.startsWith("blob:")) URL.revokeObjectURL(blobRef.current);
 
                 const url = URL.createObjectURL(blob);
                 blobRef.current = url;
                 setState({ blobUrl: url, mimeType, loading: false, error: null });
             } catch (err) {
+                console.error("[useDriveMedia] Failed to load media:", mediaUrl, err);
                 if (!cancelled) {
                     setState({
                         blobUrl: null,
@@ -131,10 +173,10 @@ export function useDriveMedia(
         };
     }, [mediaUrl, token]);
 
-    // Revoke the blob URL when the component using this hook unmounts.
+    // Revoke blob URLs on unmount (skip presigned/direct URLs).
     useEffect(() => {
         return () => {
-            if (blobRef.current) URL.revokeObjectURL(blobRef.current);
+            if (blobRef.current?.startsWith("blob:")) URL.revokeObjectURL(blobRef.current);
         };
     }, []);
 

@@ -1,5 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from routes import (
@@ -80,14 +81,14 @@ async def lifespan(app: FastAPI):
     try:
         await manager.shutdown()
     except Exception as e:
-        global_logger.warning(f"Error shutting down ConnectionManager: {e}")
+        global_logger.warning(f"Error shutting down ConnectionManager: {e}", exc_info=True)
     
     if valkey:
         try:
             await valkey.close()
             global_logger.info("Valkey connection pool closed.")
         except Exception as e:
-            global_logger.warning(f"Error closing Valkey connection: {e}")
+            global_logger.warning(f"Error closing Valkey connection: {e}", exc_info=True)
     
     if engine: 
         await engine.dispose()
@@ -97,6 +98,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, description="OLYMPIA CUSTOM 3 MATCH - API ENDPOINTS", version="0.0.1")
 
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"status": "error", "message": exc.detail, "data": None},
+    )
+
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
@@ -104,8 +114,8 @@ def health_check():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Vite dev server; override in production
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,  # must be False when allow_origins=["*"]; app uses Bearer tokens, not cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )

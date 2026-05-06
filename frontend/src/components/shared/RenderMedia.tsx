@@ -58,6 +58,7 @@ export const RenderMedia: React.FC<RenderMediaProps> = ({ mediaUrl }) => {
     const token =
         localStorage.getItem("jwtToken_admin") ??
         sessionStorage.getItem("jwtToken_player") ??
+        sessionStorage.getItem("jwtToken_mc") ??
         "";
 
     const driveMedia = useDriveMedia(mediaUrl, token);
@@ -68,6 +69,13 @@ export const RenderMedia: React.FC<RenderMediaProps> = ({ mediaUrl }) => {
         return (
             <div className={CONTAINER_CLASS}>
                 <div className="text-blue-300 text-sm animate-pulse">Đang tải media…</div>
+            </div>
+        );
+    }
+    if (driveMedia.error) {
+        return (
+            <div className={CONTAINER_CLASS}>
+                <div className="text-red-400 text-sm text-center">Không tải được media</div>
             </div>
         );
     }

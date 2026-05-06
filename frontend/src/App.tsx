@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PlayerRoutes from "@/routes/PlayerRoutes";
 import AdminRoutes from "@/routes/AdminRoutes";
+import MCRoutes from "@/routes/MCRoutes";
 import LoginPage from "@/pages/auth/LoginPage";
 import PlayerSignupPage from "@/pages/auth/player/PlayerSignupPage";
 import AdminSignupPage from "@/pages/auth/admin/AdminSignupPage";
@@ -25,6 +26,8 @@ function App() {
           <Route path="/player/*" element={<PlayerRoutes />}/>
           {/* Admin Routes */}
           <Route path="/admin/*" element={<AdminRoutes />} />
+          {/* MC Routes */}
+          <Route path="/mc/*" element={<MCRoutes />} />
         </Routes>
       </div>
     </BrowserRouter>

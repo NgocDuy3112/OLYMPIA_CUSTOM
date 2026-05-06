@@ -36,7 +36,7 @@ MATCH_CODE = os.getenv("MATCH_CODE", "OC3_M_VL")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Dockerfile copies repo-level audios/ into /app/audios/
-MUSIC_DIR = os.path.join(BASE_DIR, "audios", "bgm")
+BGM_DIR = os.path.join(BASE_DIR, "audios", "bgm")
 SFX_DIR = os.path.join(BASE_DIR, "audios", "sfx")
 
 # Valkey connection URL
@@ -45,4 +45,4 @@ VALKEY_URL = f"redis://{_password_part}{VALKEY_HOST}:{VALKEY_PORT}/{VALKEY_DB}"
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")

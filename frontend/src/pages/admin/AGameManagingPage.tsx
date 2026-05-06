@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
@@ -36,7 +36,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
 };
 
 // Navigate to qualifier (Vòng Loại) admin page
-const VaoPhongQualifierButton = ({ matchCode: _matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
+const VaoPhongQualifierButton = ({ matchCode: _matchCode }: { matchCode: string; disabled?: boolean }) => {
     const navigate = useNavigate();
     const handleClick = () => {
         // Qualifier always uses OC3_M_VL so admin + player share the same WS channel
@@ -51,7 +51,7 @@ const VaoPhongQualifierButton = ({ matchCode: _matchCode, disabled }: { matchCod
     return (
         <button
             onClick={handleClick}
-            disabled={disabled}
+            disabled={true}
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 font-medium transition-colors"
         >
             Vòng Loại
@@ -68,7 +68,7 @@ interface UserData {
     user_code: string;
     user_name: string;
     email: string | null;
-    role: "guest" | "player" | "admin";
+    role: "guest" | "player" | "mc" | "admin";
     created_at: string;
     updated_at: string;
 }
@@ -129,13 +129,30 @@ const AGameManagingPage = () => {
     const [newExplanation, setNewExplanation] = useState("");
     const [newMediaUrl, setNewMediaUrl] = useState("");
     const [creatingQuestion, setCreatingQuestion] = useState(false);
+    // ── Edit question state ──────────────────────────────────────────
+    const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(null);
+    const [editQContent, setEditQContent] = useState("");
+    const [editQAnswer, setEditQAnswer] = useState("");
+    const [editQExplanation, setEditQExplanation] = useState("");
+    const [editQMediaUrl, setEditQMediaUrl] = useState("");
+    const [savingQuestionEdit, setSavingQuestionEdit] = useState(false);
+    const [uploadingExcel, setUploadingExcel] = useState(false);
+    const [uploadingExcelQl, setUploadingExcelQl] = useState(false);
+    const [uploadingZip, setUploadingZip] = useState(false);
+    const excelInputRef = useRef<HTMLInputElement>(null);
+    const excelQlInputRef = useRef<HTMLInputElement>(null);
+    const zipInputRef = useRef<HTMLInputElement>(null);
 
-    // ── Add player form state ────────────────────────────────────────
+    // ── Add user form state ──────────────────────────────────────────
     const [showAddPlayer, setShowAddPlayer] = useState(false);
     const [newPlayerName, setNewPlayerName] = useState("");
     const [newPlayerCode, setNewPlayerCode] = useState("");
     const [newPlayerEmail, setNewPlayerEmail] = useState("");
+    const [newUserRole, setNewUserRole] = useState<"guest" | "player" | "mc" | "admin">("player");
     const [addingPlayer, setAddingPlayer] = useState(false);
+
+    // ── User list role filter ────────────────────────────────────────
+    const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
 
     // ── Send credentials state (tracks which user_code is in-flight) ─
     const [sendingCredentials, setSendingCredentials] = useState<string | null>(null);
@@ -158,11 +175,11 @@ const AGameManagingPage = () => {
         [token],
     );
 
-    // ── Fetch users (GET /users?user_role=player) ────────────────────
+    // ── Fetch users (GET /users) ─────────────────────────────────────
     const fetchUsers = useCallback(async () => {
         setUsersLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/users/?user_role=player`, {
+            const res = await fetch(`${API_BASE_URL}/users/`, {
                 headers: authHeaders(),
             });
             const json: ApiResponse = await res.json();
@@ -382,6 +399,102 @@ const createQuestion = useCallback(async () => {
         }
     }, [authHeaders, matchCode, questionsMatchCode, newQuestionCode, newContent, newAnswer, newExplanation, newMediaUrl, fetchQuestions]);
 
+    // ── Patch question (PATCH /questions/{match_code}/{question_code}) ─
+    const patchQuestion = useCallback(async () => {
+        if (!editingQuestion) return;
+        const code = questionsMatchCode || matchCode;
+        setSavingQuestionEdit(true);
+        try {
+            const body: Record<string, string | null> = {
+                content: editQContent.trim() || null,
+                answer: editQAnswer.trim() || null,
+                explanation: editQExplanation.trim() || null,
+                media_url: editQMediaUrl.trim() || null,
+            };
+            const res = await fetch(
+                `${API_BASE_URL}/questions/${encodeURIComponent(code)}/${encodeURIComponent(editingQuestion.question_code)}`,
+                { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) },
+            );
+            const json: ApiResponse = await res.json();
+            if (json.status === "success") {
+                setEditingQuestion(null);
+                await fetchQuestions();
+            } else {
+                alert(`Thất bại: ${json.message ?? "Lỗi không xác định"}`);
+            }
+        } catch (err) {
+            logger.error("Error patching question:", err);
+            alert("Lỗi kết nối khi sửa câu hỏi");
+        } finally {
+            setSavingQuestionEdit(false);
+        }
+    }, [authHeaders, editingQuestion, editQContent, editQAnswer, editQExplanation, editQMediaUrl, questionsMatchCode, matchCode, fetchQuestions]);
+
+    // ── Upload Excel (POST /questions/excel/ or /excel/qualifier/) ────
+    const uploadExcel = useCallback(async (file: File, isQualifier: boolean) => {
+        const code = questionsMatchCode || matchCode;
+        if (!isQualifier && !code) {
+            alert("Vui lòng nhập mã trận đấu trước khi nhập Excel");
+            return;
+        }
+        const setter = isQualifier ? setUploadingExcelQl : setUploadingExcel;
+        setter(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const url = isQualifier
+                ? `${API_BASE_URL}/questions/excel/qualifier/`
+                : `${API_BASE_URL}/questions/excel/?match_code=${encodeURIComponent(code)}`;
+            const res = await fetch(url, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success") {
+                alert("Nhập câu hỏi từ Excel thành công");
+                await fetchQuestions();
+            } else {
+                alert(`Nhập Excel thất bại: ${json.message}`);
+            }
+        } catch (err) {
+            logger.error("Error uploading Excel:", err);
+            alert("Lỗi khi nhập file Excel");
+        } finally {
+            setter(false);
+        }
+    }, [token, questionsMatchCode, matchCode, fetchQuestions]);
+
+    // ── Upload ZIP (POST /questions/zip/) ──────────────────
+    // Luôn dùng overwrite: xóa câu hỏi cũ → upload media lên S3 → import DB mới.
+    const uploadZip = useCallback(async (file: File) => {
+        if (!confirm("Upload ZIP sẽ XÓA câu hỏi cũ và thay bằng nội dung mới (cả media trên S3). Tiếp tục?")) {
+            return;
+        }
+        setUploadingZip(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch(`${API_BASE_URL}/questions/zip/`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success") {
+                alert(`Upload ZIP thành công:\n${json.message}`);
+                await fetchQuestions();
+            } else {
+                alert(`Upload ZIP thất bại: ${json.message ?? (json as unknown as Record<string, string>).detail ?? "Lỗi không xác định"}`);
+            }
+        } catch (err) {
+            logger.error("Error uploading ZIP:", err);
+            alert("Lỗi khi upload file ZIP");
+        } finally {
+            setUploadingZip(false);
+        }
+    }, [token, fetchQuestions]);
+
     // ── Patch player (PATCH /users/{user_code}) ──────────────────────
     const patchUser = useCallback(async () => {
         if (!editingUser) return;
@@ -415,15 +528,15 @@ const createQuestion = useCallback(async () => {
         fetchUsers();
     }, [fetchUsers]);
 
-    // ── Create player (POST /auth/signup) ────────────────────────────
-    const createPlayer = useCallback(async () => {
+    // ── Create user (POST /auth/signup) ─────────────────────────────
+    const createUser = useCallback(async () => {
         if (!newPlayerName.trim()) {
-            alert("Vui lòng nhập tên người chơi");
+            alert("Vui lòng nhập tên người dùng");
             return;
         }
         setAddingPlayer(true);
         try {
-            const body: Record<string, string> = { user_name: newPlayerName.trim(), role: "player" };
+            const body: Record<string, string> = { user_name: newPlayerName.trim(), role: newUserRole };
             if (newPlayerCode.trim()) body.user_code = newPlayerCode.trim();
             if (newPlayerEmail.trim()) body.email = newPlayerEmail.trim();
             const res = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -433,10 +546,11 @@ const createQuestion = useCallback(async () => {
             });
             const json = await res.json();
             if (res.ok) {
-                alert("Thêm người chơi thành công");
+                alert("Thêm người dùng thành công");
                 setNewPlayerName("");
                 setNewPlayerCode("");
                 setNewPlayerEmail("");
+                setNewUserRole("player");
                 setShowAddPlayer(false);
                 await fetchUsers();
             } else {
@@ -444,12 +558,12 @@ const createQuestion = useCallback(async () => {
                 alert(`Thất bại: ${errMsg}`);
             }
         } catch (err) {
-            logger.error("Error creating player:", err);
-            alert("Lỗi khi thêm người chơi");
+            logger.error("Error creating user:", err);
+            alert("Lỗi khi thêm người dùng");
         } finally {
             setAddingPlayer(false);
         }
-    }, [authHeaders, newPlayerName, newPlayerCode, newPlayerEmail, fetchUsers]);
+    }, [authHeaders, newPlayerName, newPlayerCode, newPlayerEmail, newUserRole, fetchUsers]);
 
     /* ================================================================
      *  Handlers
@@ -492,6 +606,76 @@ const createQuestion = useCallback(async () => {
                     token={token}
                     onClose={() => setShowChangePassword(false)}
                 />
+            )}
+
+            {/* ─── Edit question modal ────────────────────────────────── */}
+            {editingQuestion && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                    <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-2xl">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-blue-200">Sửa câu hỏi</h3>
+                            <button onClick={() => setEditingQuestion(null)} className="p-1 rounded hover:bg-blue-800 transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-xs text-blue-400 font-mono -mt-2">{editingQuestion.question_code}</p>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-blue-300">Nội dung</label>
+                                <textarea
+                                    rows={3}
+                                    value={editQContent}
+                                    onChange={(e) => setEditQContent(e.target.value)}
+                                    className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-blue-300">Đáp án</label>
+                                <input
+                                    type="text"
+                                    value={editQAnswer}
+                                    onChange={(e) => setEditQAnswer(e.target.value)}
+                                    className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-blue-300">Giải thích</label>
+                                <input
+                                    type="text"
+                                    value={editQExplanation}
+                                    onChange={(e) => setEditQExplanation(e.target.value)}
+                                    placeholder="(tuỳ chọn)"
+                                    className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-xs text-blue-300">Media URL / S3 key</label>
+                                <input
+                                    type="text"
+                                    value={editQMediaUrl}
+                                    onChange={(e) => setEditQMediaUrl(e.target.value)}
+                                    placeholder="OC3_M01T/filename.jpg (tuỳ chọn)"
+                                    className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setEditingQuestion(null)}
+                                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+                            >
+                                Huỷ
+                            </button>
+                            <button
+                                onClick={patchQuestion}
+                                disabled={savingQuestionEdit || !editQContent.trim() || !editQAnswer.trim()}
+                                className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+                            >
+                                {savingQuestionEdit ? "Đang lưu…" : "Lưu thay đổi"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* ─── Edit player modal ──────────────────────────────────── */}
@@ -548,9 +732,22 @@ const createQuestion = useCallback(async () => {
             {/* ─── Card 1 : Users ────────────────────────────────────── */}
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
-                    <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
-                        <Users size={20} /> Người chơi
-                    </h2>
+                    <div className="flex items-center gap-3">
+                        <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
+                            <Users size={20} /> Người dùng
+                        </h2>
+                        <select
+                            value={userRoleFilter}
+                            onChange={(e) => setUserRoleFilter(e.target.value)}
+                            className="px-2 py-1 rounded bg-blue-950 border border-blue-700 text-blue-200 text-xs"
+                        >
+                            <option value="all">Tất cả</option>
+                            <option value="player">Thí sinh</option>
+                            <option value="mc">MC</option>
+                            <option value="admin">Admin</option>
+                            <option value="guest">Guest</option>
+                        </select>
+                    </div>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setShowAddPlayer((v: boolean) => !v)}
@@ -560,7 +757,7 @@ const createQuestion = useCallback(async () => {
                                     : "bg-blue-700 hover:bg-blue-600 text-white"
                             }`}
                         >
-                            <Plus size={14} /> Thêm người chơi
+                            <Plus size={14} /> Thêm người dùng
                         </button>
                         <button
                             onClick={fetchUsers}
@@ -577,7 +774,7 @@ const createQuestion = useCallback(async () => {
                     <div className="bg-blue-800/20 border border-blue-700 rounded-md p-3 flex flex-col gap-2">
                         <input
                             type="text"
-                            placeholder="Tên người chơi *"
+                            placeholder="Tên người dùng *"
                             value={newPlayerName}
                             onChange={(e) => setNewPlayerName(e.target.value)}
                             className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm"
@@ -596,8 +793,18 @@ const createQuestion = useCallback(async () => {
                             onChange={(e) => setNewPlayerEmail(e.target.value)}
                             className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm"
                         />
+                        <select
+                            value={newUserRole}
+                            onChange={(e) => setNewUserRole(e.target.value as "guest" | "player" | "mc" | "admin")}
+                            className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
+                        >
+                            <option value="player">Thí sinh (player)</option>
+                            <option value="mc">MC</option>
+                            <option value="admin">Admin</option>
+                            <option value="guest">Guest</option>
+                        </select>
                         <button
-                            onClick={createPlayer}
+                            onClick={createUser}
                             disabled={addingPlayer || !newPlayerName.trim()}
                             className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 font-medium text-sm"
                         >
@@ -616,14 +823,14 @@ const createQuestion = useCallback(async () => {
                             <thead className="sticky top-0 bg-blue-900">
                                 <tr className="text-left text-blue-300 border-b border-blue-700">
                                     <th className="py-2 px-2">Mã đăng nhập</th>
-                                    <th className="py-2 px-2">Tên thí sinh</th>
+                                    <th className="py-2 px-2">Tên người dùng</th>
                                     <th className="py-2 px-2">Email</th>
                                     <th className="py-2 px-2">Vai trò</th>
                                     <th className="py-2 px-2"></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.map((u) => (
+                                {users.filter((u: UserData) => userRoleFilter === "all" || u.role === userRoleFilter).map((u: UserData) => (
                                     <tr
                                         key={u.user_code}
                                         className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors"
@@ -763,7 +970,41 @@ const createQuestion = useCallback(async () => {
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
                         <HelpCircle size={22} /> Câu hỏi
                     </h2>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                        {/* Hidden file inputs */}
+                        <input
+                            ref={excelInputRef}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadExcel(file, false);
+                                e.target.value = "";
+                            }}
+                        />
+                        <input
+                            ref={excelQlInputRef}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadExcel(file, true);
+                                e.target.value = "";
+                            }}
+                        />
+                        <input
+                            ref={zipInputRef}
+                            type="file"
+                            accept=".zip"
+                            className="hidden"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) void uploadZip(file);
+                                e.target.value = "";
+                            }}
+                        />
                         <input
                             type="text"
                             placeholder="Mã trận đấu"
@@ -777,6 +1018,33 @@ const createQuestion = useCallback(async () => {
                             className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm"
                         >
                             <Search size={14} /> Tải câu hỏi
+                        </button>
+                        <button
+                            onClick={() => excelInputRef.current?.click()}
+                            disabled={uploadingExcel || (!questionsMatchCode && !matchCode)}
+                            title="Nhập câu hỏi từ file Excel (.xlsx) — các vòng thường"
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 transition-colors text-sm"
+                        >
+                            <FileSpreadsheet size={14} />
+                            {uploadingExcel ? "Đang nhập…" : "Excel"}
+                        </button>
+                        <button
+                            onClick={() => excelQlInputRef.current?.click()}
+                            disabled={true}
+                            title="Nhập câu hỏi Vòng Loại từ file Excel (.xlsx) — tên file phải bắt đầu bằng OC3_VL"
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-50 transition-colors text-sm"
+                        >
+                            <FileSpreadsheet size={14} />
+                            {uploadingExcelQl ? "Đang nhập…" : "Excel VL"}
+                        </button>
+                        <button
+                            onClick={() => zipInputRef.current?.click()}
+                            disabled={uploadingZip}
+                            title="Upload ZIP (Excel + media) → xóa câu hỏi cũ, upload media lên S3, import câu hỏi mới vào DB"
+                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 transition-colors text-sm"
+                        >
+                            <FileArchive size={14} />
+                            {uploadingZip ? "Đang upload…" : "ZIP"}
                         </button>
                         <button
                             onClick={() => setShowCreateQuestion((v: boolean) => !v)}
@@ -859,6 +1127,7 @@ const createQuestion = useCallback(async () => {
                                     <th className="py-2 px-2">Đáp án</th>
                                     <th className="py-2 px-2">Giải thích</th>
                                     <th className="py-2 px-2">Media</th>
+                                    <th className="py-2 px-2"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -889,6 +1158,21 @@ const createQuestion = useCallback(async () => {
                                                       </a>
                                                   ))
                                                 : "—"}
+                                        </td>
+                                        <td className="py-2 px-2">
+                                            <button
+                                                onClick={() => {
+                                                    setEditingQuestion(q);
+                                                    setEditQContent(q.content);
+                                                    setEditQAnswer(q.answer);
+                                                    setEditQExplanation(q.explanation ?? "");
+                                                    setEditQMediaUrl(q.media_url ?? "");
+                                                }}
+                                                className="p-1 rounded hover:bg-blue-700 transition-colors"
+                                                title="Sửa câu hỏi"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

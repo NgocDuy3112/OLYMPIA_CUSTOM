@@ -42,13 +42,33 @@ EVENT_SFX_MAP = {
     "navigate": "navigate",       # Page navigation
     "player_online": "join",      # Player joined
     "clear_answers": "clear",     # Answers cleared
-    "qualifier_scores_updated": "VL_cong_diem",
+    "qualifier_scores_updated": "vl_cong_diem",
     "VL_10s": "VL_10s",
-    "VL_cong_diem": "VL_cong_diem",
+    "VL_cong_diem": "vl_cong_diem",
     "big_correct": "big_correct",
     "big_wrong": "big_wrong",
     "wrong": "wrong",
+    "kd_cong_diem": "kd_cong_diem",
+    "bp_dung": "bp_dung",
 }
+
+# Phase-specific overrides: { phase: { event_type: sfx_basename } }
+PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
+    "gm": {
+        "send_answers_to_players": "gm_mo_dap_an",
+    },
+    "bp": {
+        "send_answers_to_players": "bp_mo_dap_an",
+    },
+    "kdc": {
+        "send_answers_to_players": "kd_mo_dap_an",
+    },
+    "vdr": {
+        "answering_window_activated": "vd_5s",
+    },
+}
+
+_current_phase: str = ""
 
 # Queue for sequential SFX playback
 _sfx_queue: asyncio.Queue[str] = asyncio.Queue()
@@ -60,10 +80,12 @@ def _find_sfx_file(event_type: str) -> str | None:
     base_name = EVENT_SFX_MAP.get(event_type)
     if not base_name:
         return None
-    for ext in (".mp3", ".ogg", ".wav"):
-        path = os.path.join(configs.SFX_DIR, f"{base_name}{ext}")
-        if os.path.isfile(path):
-            return path
+    if not os.path.isdir(configs.SFX_DIR):
+        return None
+    for filename in os.listdir(configs.SFX_DIR):
+        name, ext = os.path.splitext(filename)
+        if name.lower() == base_name.lower() and ext.lower() in (".mp3", ".ogg", ".wav"):
+            return os.path.join(configs.SFX_DIR, filename)
     logger.debug(f"No SFX file found for event '{event_type}'")
     return None
 
@@ -97,7 +119,12 @@ async def _play_sfx(file_path: str) -> None:
         await asyncio.sleep(0.1)
 
     _is_playing = True
-    source = discord.FFmpegOpusAudio(file_path)
+    try:
+        source = discord.FFmpegOpusAudio(file_path)
+    except Exception as e:
+        logger.error(f"Failed to create audio source for '{file_path}': {e}")
+        _is_playing = False
+        return
     vc.play(source, after=lambda e: setattr(sys.modules[__name__], "_is_playing", False))
     logger.info(f"Playing SFX: {os.path.basename(file_path)}")
 
@@ -150,22 +177,47 @@ async def on_ready():
     asyncio.create_task(_valkey_listener())
 
 
+def _extract_phase(path: str) -> str | None:
+    parts = path.strip("/").split("/")
+    if len(parts) >= 2 and parts[0] == "player":
+        return parts[1]
+    return None
+
+
 async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
+    global _current_phase
     msg_type = message.get("type", "")
+    logger.debug(f"Received event: type={msg_type!r} keys={list(message.keys())}")
+
+    # Track current game phase from navigate events
+    if msg_type == "navigate":
+        phase = _extract_phase(message.get("path", ""))
+        if phase:
+            _current_phase = phase
 
     # Queue timer_end SFX after the timer duration elapses
     if msg_type == "start_the_timer":
+        if not _current_phase:
+            _current_phase = message.get("phase", "")
         time_limit = int(message.get("time_limit", 30))
         sfx_file = _find_sfx_file("timer_end")
         if sfx_file:
             await asyncio.sleep(time_limit)
             await _sfx_queue.put(sfx_file)
 
-    # Queue SFX for the event itself
-    sfx_file = _find_sfx_file(msg_type)
-    if sfx_file:
-        await _sfx_queue.put(sfx_file)
+    # Resolve SFX: phase-specific override takes priority over generic map
+    phase_override = PHASE_EVENT_SFX_MAP.get(_current_phase, {}).get(msg_type)
+    if phase_override:
+        for ext in (".mp3", ".ogg", ".wav"):
+            path = os.path.join(configs.SFX_DIR, f"{phase_override}{ext}")
+            if os.path.isfile(path):
+                await _sfx_queue.put(path)
+                break
+    else:
+        sfx_file = _find_sfx_file(msg_type)
+        if sfx_file:
+            await _sfx_queue.put(sfx_file)
 
 
 async def _valkey_listener():
@@ -180,9 +232,14 @@ async def _valkey_listener():
     loop = asyncio.get_running_loop()
     logger.info(f"SFX Bot listening to channel '{match_code}'")
 
+    def _on_done(fut: asyncio.Future) -> None:
+        if not fut.cancelled() and fut.exception():
+            logger.error(f"Message handler error: {fut.exception()}")
+
     def _sync_subscribe():
         for message in subscribe_to_match_channels(valkey_client, match_code):
-            asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
+            fut = asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
+            fut.add_done_callback(_on_done)
 
     await asyncio.to_thread(_sync_subscribe)
 

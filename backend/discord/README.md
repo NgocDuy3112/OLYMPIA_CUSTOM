@@ -83,26 +83,60 @@ podman run -d --env-file configs/.env --name bgm-bot --network olympia-custom-ne
 
 ## Audio Files
 
-Place MP3 files in the corresponding directories:
+Place MP3/OGG/WAV files in the corresponding directories:
 
 ```
-audio/
-├── music/              # Music Bot
-│   ├── kdc.mp3         # Khởi Động Chung BGM
-│   ├── kdr.mp3         # Khởi Động Riêng BGM
-│   ├── bp.mp3          # Bứt Phá BGM
-│   ├── vdc.mp3         # Về Đích Chung BGM
-│   ├── vdr.mp3         # Về Đích Riêng BGM
-│   └── gm.mp3          # Giải Mã BGM
-└── sfx/                # SFX Bot
-    ├── buzzer.mp3      # Buzzer press
-    ├── correct.mp3     # Correct answer
-    ├── wrong.mp3       # Wrong answer
-    ├── timer_end.mp3   # Timer expired
-    ├── winner.mp3      # Winner celebration
-    ├── navigate.mp3    # Page navigation
-    └── join.mp3        # Player joined
+audios/
+├── bgm/                      # Music Bot
+│   ├── kdc.mp3               # Khởi Động Chung – phase BGM
+│   ├── kdc_30s.mp3           # Khởi Động Chung – timer 30s
+│   ├── kdc_60s.mp3           # Khởi Động Chung – timer 60s
+│   ├── kdr.mp3               # Khởi Động Riêng – phase BGM
+│   ├── kdr_30s.mp3           # Khởi Động Riêng – timer 30s
+│   ├── kdr_60s.mp3           # Khởi Động Riêng – timer 60s
+│   ├── bp.mp3                # Bứt Phá – phase BGM
+│   ├── bp_30s.mp3            # Bứt Phá – timer 30s
+│   ├── vdc.mp3               # Về Đích Chung – phase BGM
+│   ├── vdc_15s.mp3           # Về Đích Chung – timer 15s
+│   ├── vdc_20s.mp3           # ...
+│   ├── vdc_30s.mp3
+│   ├── vdc_45s.mp3
+│   ├── vdr.mp3               # Về Đích Riêng – phase BGM
+│   ├── vdr_15s.mp3 ...       # (tương tự vdc)
+│   ├── gm.mp3                # Giải Mã – phase BGM
+│   ├── gm_15s.mp3            # Giải Mã – timer 15s
+│   ├── vl.mp3                # Vòng Loại – phase BGM
+│   └── vl_10s.mp3            # Vòng Loại – timer 10s
+└── sfx/                      # SFX Bot
+    ├── buzzer.mp3             # Buzzer press
+    ├── correct.mp3            # Correct answer
+    ├── wrong.mp3              # Wrong answer
+    ├── timer_end.mp3          # Timer expired
+    ├── winner.mp3             # Winner celebration
+    ├── navigate.mp3           # Page navigation
+    ├── join.mp3               # Player joined
+    ├── GM_mo_dap_an.mp3       # Giải Mã – reveal answers SFX (overrides generic)
+    └── BP_mo_dap_an.mp3       # Bứt Phá  – reveal answers SFX (overrides generic)
 ```
+
+### Naming Convention – Timer BGM
+
+Timer BGM được tìm tự động theo pattern **`{phase}_{duration}s`**. Ví dụ:
+- Phase `vdc`, timer 30 giây → file `vdc_30s.mp3`
+- Phase `gm`, timer 15 giây → file `gm_15s.mp3`
+
+Không cần hardcode mapping trong code. Chỉ cần đặt file đúng tên là bot tự nhận.
+
+> **Lưu ý**: Nếu hai phase dùng chung file timer (ví dụ kdc và kdr cùng dùng nhạc 30s giống nhau), cần đặt hai bản copy riêng: `kdc_30s.mp3` và `kdr_30s.mp3`.
+
+**SFX Bot – event SFX** (`PHASE_EVENT_SFX_MAP`):
+
+| Phase | Event | File |
+|-------|-------|------|
+| `gm` | `send_answers_to_players` | `GM_mo_dap_an` |
+| `bp` | `send_answers_to_players` | `BP_mo_dap_an` |
+
+The SFX Bot tracks the current phase by listening for `navigate` events on the Valkey channel and parsing the `/player/<phase>` path.
 
 ## Docker
 

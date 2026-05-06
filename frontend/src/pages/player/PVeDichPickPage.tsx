@@ -159,7 +159,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 		}
 	}, [lastMessage]);
 
-	const maxQuestions = round;
+	const maxQuestions = round === VeDichRound.CHUNG ? Math.max(players.length, 1) : round;
 	const title = getVeDichRoundLabel(round);
 
 	// Prefer confirmed codes; fall back to live selection

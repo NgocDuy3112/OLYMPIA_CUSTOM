@@ -63,7 +63,7 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
     except IntegrityError as e:
         await session.rollback()
         log_message = f"Integrity error: {str(e)}"
-        global_logger.error(log_message)
+        global_logger.error(log_message, exc_info=True)
         raise HTTPException(status_code=400, detail="Match code or Player position already exists/occupied.")
     except Exception:
         await session.rollback()
@@ -138,7 +138,7 @@ async def patch_match_to_db(
     except IntegrityError as e:
         await session.rollback()
         log_message = f"Integrity error while updating match_code={match_code}: {str(e)}"
-        global_logger.warning(log_message)
+        global_logger.warning(log_message, exc_info=True)
         raise HTTPException(status_code=400, detail="Invalid match update payload or duplicate values")
     except Exception:
         await session.rollback()

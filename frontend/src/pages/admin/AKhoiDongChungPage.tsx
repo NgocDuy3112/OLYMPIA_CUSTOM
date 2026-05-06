@@ -398,7 +398,7 @@ const AKhoiDongChungPage = () => {
 					content: fallbackQuestion.questionText,
 					media_source: fallbackQuestion.questionMediaURL,
 				});
-				void sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
+				void sendMessage({ type: "start_the_timer", user_code: "", phase: "kdc", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
 			}
 
 			// Fetch the authoritative question in background and re-broadcast when ready
@@ -543,6 +543,7 @@ const AKhoiDongChungPage = () => {
 		const score = 10; // always award 10 points
 		logger.info("handleAddScoreToSelected: starting for players=", selectedPlayerCodes);
 		setHasAddedScore(true);
+		void sendMessage({ type: "kd_cong_diem" });
 		try {
 			// Apply score sequentially to avoid race conditions updating scoreboard
 			for (const code of selectedPlayerCodes) {
@@ -674,7 +675,7 @@ const AKhoiDongChungPage = () => {
 						if (timer > 0 && currentQuestionIndex > 0) {
 							try {
 								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timer, question_code: questionCode, started_at: Date.now() });
+								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdc", time_limit: timer, question_code: questionCode, started_at: Date.now() });
 								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
 							} catch (err) {
 								logger.error("Failed to resend timer on player_online:", err);

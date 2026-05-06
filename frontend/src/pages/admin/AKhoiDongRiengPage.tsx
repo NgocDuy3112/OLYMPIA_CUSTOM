@@ -62,6 +62,7 @@ const AKhoiDongRiengPage = () => {
 
 	// Track whether admin has already applied score for the current question
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
+	const [isSkipping, setIsSkipping] = useState<boolean>(false);
 
 	// Track per-player attempt counts for the current question (0 = not attempted, 1 = one wrong, 2 = exhausted)
 	const [attempts, setAttempts] = useState<Record<string, number>>({});
@@ -370,7 +371,7 @@ const AKhoiDongRiengPage = () => {
 				content: fallbackQuestion.questionText,
 				media_source: fallbackQuestion.questionMediaURL,
 			});
-			void sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
+			void sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
 		}
 
 		// Fetch the authoritative question in background and re-broadcast when ready
@@ -503,6 +504,7 @@ const AKhoiDongRiengPage = () => {
 			// schedule state update async to avoid cascading renders
 			Promise.resolve().then(() => {
 				setHasAddedScore(false);
+				setIsSkipping(false);
 				// clear attempts for the new question
 				setAttempts({});
 			});
@@ -517,6 +519,8 @@ const AKhoiDongRiengPage = () => {
 			return;
 		}
 
+		setHasAddedScore(true);
+
 		// Determine points based on attempt count: 0 -> first try (+10), 1 -> second try (+5), >=2 -> no points
 		const attemptCount = attempts[selectedPlayerCode] ?? 0;
 		let score = 0;
@@ -528,6 +532,7 @@ const AKhoiDongRiengPage = () => {
 
 		try {
 			if (score > 0) {
+				void sendMessage({ type: "kd_cong_diem" });
 				try {
 					await handleAddScore(selectedPlayerCode, score, true);
 					logger.info("handleAddScoreToSelected: applied", selectedPlayerCode, score);
@@ -542,6 +547,7 @@ const AKhoiDongRiengPage = () => {
 			void handleNextQuestion(currentQuestionIndex);
 		} catch (err) {
 			logger.error("Failed adding score to selected player:", err);
+			setHasAddedScore(false);
 		}
 	}, [selectedPlayerCode, handleAddScore, currentQuestionIndex, attempts, handleNextQuestion]);
 
@@ -567,6 +573,7 @@ const AKhoiDongRiengPage = () => {
 	const handleSkip = useCallback(async () => {
 		if (!selectedPlayerCode) return;
 		if (currentQuestionIndex <= 0) return;
+		setIsSkipping(true);
 		// Bỏ qua: chuyển câu sau 1s
 		setAttempts((prev) => ({ ...prev, [selectedPlayerCode]: 2 }));
 		await new Promise(resolve => setTimeout(resolve, 1000));
@@ -659,7 +666,7 @@ const AKhoiDongRiengPage = () => {
 						if (timer > 0 && currentQuestionIndex > 0) {
 							try {
 								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timer, question_code: questionCode, started_at: Date.now() });
+								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: questionCode, started_at: Date.now() });
 								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
 							} catch (err) {
 								logger.error("Failed to resend timer on player_online:", err);
@@ -872,7 +879,7 @@ const AKhoiDongRiengPage = () => {
 						onClick={() => {
 							void handleAddScoreToSelected();
 						}}
-						disabled={!selectedPlayerCode}
+						disabled={!selectedPlayerCode || isSkipping}
 					>
 						<Plus size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
@@ -888,7 +895,7 @@ const AKhoiDongRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleSkip(); }}
-						disabled={!selectedPlayerCode}
+						disabled={!selectedPlayerCode || hasAddedScore}
 					>
 						<SkipForward size={18} />
 						<span className="ml-2 font-bold">BỎ QUA</span>

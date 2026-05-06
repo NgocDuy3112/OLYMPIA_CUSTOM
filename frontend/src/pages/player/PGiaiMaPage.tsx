@@ -26,6 +26,10 @@ const PGiaiMaPage = () => {
 	const [keyword, setKeyword] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
 	const [hasSubmittedKeyword, setHasSubmittedKeyword] = useState(false);
+	const [revealedHint, setRevealedHint] = useState<string | null>(null);
+	const [isKeywordLocked, setIsKeywordLocked] = useState(false);
+	const [showKeywordConfirm, setShowKeywordConfirm] = useState(false);
+	const [keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -89,7 +93,21 @@ const PGiaiMaPage = () => {
 				setQuestionAnswer("");
 				setKeyword("");
 				setShowAnswers(false);
-				setHasSubmittedKeyword(false);
+				setRevealedHint(null);
+				break;
+			}
+
+			case "clear_question": {
+				setRevealedHint(null);
+				setKeywordAnswer(null);
+				break;
+			}
+
+			case "show_hint": {
+				const targets: string[] = msg.target_players ?? [];
+				if (targets.length === 0 || targets.includes(playerCode)) {
+					setRevealedHint(msg.hint_content ?? null);
+				}
 				break;
 			}
 
@@ -116,7 +134,6 @@ const PGiaiMaPage = () => {
 				setQuestionAnswer("");
 				setKeyword("");
 				setShowAnswers(true);
-				setHasSubmittedKeyword(false);
 				break;
 			}
 
@@ -154,6 +171,28 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
+			case "keyword_locked": {
+				setIsKeywordLocked(true);
+				break;
+			}
+
+			case "reveal_keyword_answer": {
+				setKeywordAnswer(msg.answer ?? null);
+				break;
+			}
+
+			case "send_keyword_answers": {
+				const answers: { user_code: string; content: string; timestamp: number }[] = msg.answers ?? [];
+				setPlayers((prev) =>
+					prev.map((p) => {
+						const a = answers.find((x: any) => x.user_code === p.playerCode);
+						return a ? { ...p, playerLastAnswer: a.content, playerTimestamp: a.timestamp } : p;
+					}),
+				);
+				setShowAnswers(true);
+				break;
+			}
+
 			default:
 				break;
 		}
@@ -163,7 +202,6 @@ const PGiaiMaPage = () => {
 		const trimmed = questionAnswer.trim();
 		if (!trimmed) return;
 		if (!isConnected) return;
-		if (timer <= 0) return;
 		if (!currentQuestion.questionCode) return;
 
 		const elapsed = getElapsedSeconds();
@@ -203,28 +241,22 @@ const PGiaiMaPage = () => {
 			timestamp: ts,
 		});
 		setQuestionAnswer("");
-	}, [questionAnswer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
+	}, [questionAnswer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, token, matchCode]);
 
-	const handleSubmitKeyword = useCallback(async () => {
-		const trimmed = keyword.trim();
-		if (!trimmed) return;
-		if (!isConnected) return;
-		if (timer <= 0) return;
+	// Opens confirmation popup; actual submission happens in handleConfirmKeyword
+	const handleSubmitKeyword = useCallback(() => {
+		if (!keyword.trim()) return;
+		if (hasSubmittedKeyword || isKeywordLocked) return;
 		if (!currentQuestion.questionCode) return;
+		setShowKeywordConfirm(true);
+	}, [keyword, hasSubmittedKeyword, isKeywordLocked, currentQuestion.questionCode]);
 
-		const elapsed = getElapsedSeconds();
-		const ts = Math.max(0, Math.min(timeLimit, elapsed));
-
-		setPlayers((prev) =>
-			prev.map((p) =>
-				p.playerCode === playerCode
-					? { ...p, playerLastAnswer: trimmed, playerTimestamp: Number(ts.toFixed(3)) }
-					: p,
-			),
-		);
+	const handleConfirmKeyword = useCallback(async () => {
+		const trimmed = keyword.trim();
+		setShowKeywordConfirm(false);
+		if (!trimmed || !currentQuestion.questionCode) return;
 
 		try {
-			// Persist keyword via REST
 			const res = await fetch(`${API_BASE_URL}/answers/`, {
 				method: "POST",
 				headers: {
@@ -237,7 +269,7 @@ const PGiaiMaPage = () => {
 					question_code: currentQuestion.questionCode,
 					answer_text: trimmed,
 					has_buzzed: false,
-					timestamp: ts,
+					timestamp: 0,
 				}),
 			});
 			if (!res.ok) {
@@ -248,20 +280,21 @@ const PGiaiMaPage = () => {
 			console.warn("Failed to POST keyword:", err);
 		}
 
-		// Send real-time frame
 		await sendMessage({
-			type: "answer",
+			type: "keyword_submit",
 			user_code: playerCode,
-			question_code: currentQuestion.questionCode,
-			answer_text: trimmed,
-			timestamp: ts,
+			keyword_text: trimmed,
+			timestamp: 0,
 		});
-		setKeyword("");
-		setHasSubmittedKeyword(true);
-	}, [keyword, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
 
-	const isSubmissionDisabled = !isConnected || timer <= 0;
-	const isLockedAfterKeyword = isSubmissionDisabled || hasSubmittedKeyword;
+		setHasSubmittedKeyword(true);
+		setKeyword("");
+	}, [keyword, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode]);
+
+	// Question answer box: unlocked by timer, only locked if no active question or already submitted keyword
+	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode;
+	// Keyword box: additionally locked by isKeywordLocked (broadcast when all clues open or all players submitted)
+	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || !currentQuestion.questionCode;
 
 	// Always show the current player's own answer; hide others until admin reveals
 	const displayPlayers = players.map((p) =>
@@ -282,28 +315,66 @@ const PGiaiMaPage = () => {
 					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
 				/>
 
+				{revealedHint && (
+					<div className="mx-3 p-4 bg-yellow-600 border-2 border-yellow-400 rounded-xl text-center font-bold text-white text-xl">
+						GỢI Ý: {revealedHint}
+					</div>
+				)}
+
+				{keywordAnswer && (
+					<div className="mx-3 p-4 bg-green-700 border-2 border-green-400 rounded-xl text-center font-bold text-white text-xl">
+						ĐÁP ÁN: {keywordAnswer}
+					</div>
+				)}
+
 				<div className="flex flex-col gap-3 p-3">
 					<PAnswerBox
 						answer={questionAnswer}
 						setAnswer={setQuestionAnswer}
-						isDisabled={isLockedAfterKeyword}
+						isDisabled={isQuestionAnswerDisabled}
 						onSubmit={handleSubmitQuestionAnswer}
-						placeholderString={isLockedAfterKeyword ? "Bạn không thể nhập câu trả lời tại thời điểm này" : "Nhập câu trả lời và nhấn Enter"}
+						placeholderString={isQuestionAnswerDisabled ? "Bạn không thể nhập câu trả lời tại thời điểm này" : "Nhập câu trả lời và nhấn Enter"}
 					/>
 					<PAnswerBox
 						answer={keyword}
 						setAnswer={setKeyword}
-						isDisabled={isLockedAfterKeyword}
+						isDisabled={isKeywordInputDisabled}
 						onSubmit={handleSubmitKeyword}
-						placeholderString={isLockedAfterKeyword ? "Bạn không thể nhập từ khoá tại thời điểm này" : "Nhập từ khoá và nhấn Enter"}
+						placeholderString={isKeywordInputDisabled ? "Bạn không thể nhập từ khoá tại thời điểm này" : "Nhập từ khoá và nhấn Enter"}
 					/>
 					<PSubmitButton
-						isEnabled={!isLockedAfterKeyword && keyword.trim().length > 0}
+						isEnabled={!isKeywordInputDisabled && keyword.trim().length > 0}
 						isKeywordMode={true}
 						label="NỘP TỪ KHOÁ"
 						onSubmit={handleSubmitKeyword}
 					/>
 				</div>
+
+				{showKeywordConfirm && (
+					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+						<div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-8 flex flex-col gap-5 max-w-sm w-full mx-4">
+							<p className="text-white font-bold text-xl text-center">Xác nhận nộp Từ khoá</p>
+							<p className="text-blue-200 text-center text-sm">
+								Bạn chỉ được nộp <strong>1 lần</strong>. Không thể thay đổi sau khi xác nhận.
+							</p>
+							<p className="text-white font-bold text-center text-lg">"{keyword}"</p>
+							<div className="flex gap-4 justify-center">
+								<button
+									onClick={() => setShowKeywordConfirm(false)}
+									className="px-5 py-2 rounded-lg bg-slate-600 text-white font-bold hover:bg-slate-500"
+								>
+									HỦY
+								</button>
+								<button
+									onClick={() => { void handleConfirmKeyword(); }}
+									className="px-5 py-2 rounded-lg bg-blue-500 text-white font-bold hover:bg-blue-400"
+								>
+									XÁC NHẬN
+								</button>
+							</div>
+						</div>
+					</div>
+				)}
 			</>
 		</PBasePageLayout>
 	);

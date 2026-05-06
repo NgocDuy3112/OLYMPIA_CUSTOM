@@ -25,7 +25,6 @@ import { API_BASE_URL } from "@/configs";
 
 const logger = createLogger("AVeDichChung");
 
-const ROUND_QUESTION_COUNT = 4; // Lượt Chung: 4 questions
 
 const getTimeLimitForPoints = (points: number): number => {
 	switch (points) {
@@ -397,6 +396,7 @@ const AVeDichChungPage = () => {
 			void sendMessage({
 				type: "start_the_timer",
 				user_code: "",
+				phase: "vdc",
 				time_limit: timeLimit,
 				question_code: currentQuestion.questionCode,
 				started_at: Date.now(),
@@ -681,6 +681,7 @@ const AVeDichChungPage = () => {
 								await sendMessage({
 									type: "start_the_timer",
 									user_code: "",
+									phase: "vdc",
 									time_limit: timerRef.current,
 									question_code: currentQuestion.questionCode,
 									started_at: Date.now(),
@@ -812,7 +813,7 @@ const AVeDichChungPage = () => {
 			timerDuration={timer}
 			controlsChildren={() => (
 				<div className="flex gap-3">
-					{Array.from({ length: ROUND_QUESTION_COUNT }).map((_, i) => {
+					{Array.from({ length: Math.max(roundQuestionCodes.length, players.length) }).map((_, i) => {
 						const code = roundQuestionCodes[i];
 						if (!code) {
 							return (

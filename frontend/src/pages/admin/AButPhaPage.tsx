@@ -13,7 +13,6 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
-
 const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 5;
 const QUESTION_PREFIX = "OC3_Q_BP"; // Bứt Phá question naming convention.
@@ -50,7 +49,6 @@ const AButPhaPage = () => {
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
 	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
-
 	const computePlayersSnapshot = useCallback(
 		(
 			playersList: any[],
@@ -162,10 +160,10 @@ const AButPhaPage = () => {
 	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
 		return {
 			questionCode: payload?.question_code ?? fallbackCode ?? "",
-			questionText: payload?.question?.content ?? payload?.question_content ?? "",
-			questionAnswer: payload?.question?.correct_answers ?? payload?.correct_answer ?? "",
-			questionExplanation: payload?.question?.explanation ?? payload?.question_explanation ?? "",
-			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? undefined,
+			questionText: payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
+			questionAnswer: payload?.question?.correct_answers ?? payload?.correct_answer ?? payload?.answer ?? "",
+			questionExplanation: payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
+			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? payload?.media_url ?? undefined,
 		};
 	}, []);
 
@@ -290,7 +288,7 @@ const AButPhaPage = () => {
 			setTimer(TIME_LIMIT);
 
 			try {
-				await sendMessage({ type: "start_the_timer", user_code: "", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
+				await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}
@@ -370,6 +368,7 @@ const AButPhaPage = () => {
 	const handleCalculateScore = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		setHasAddedScore(true);
+		void sendMessage({ type: "bp_dung" });
 		try {
 			// Fetch the LAST answer timestamp for each selected player
 			const playerAnswers: Array<{ playerCode: string; timestamp: number }> = [];
@@ -477,7 +476,7 @@ const AButPhaPage = () => {
 						}
 						if (timerRef.current > 0 && currentQuestion.questionCode) {
 							try {
-								await sendMessage({ type: "start_the_timer", user_code: "", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch { /* best-effort */ }
 						}
 						// Send players/scores last (requires API call) so game state appears first
@@ -646,6 +645,7 @@ const AButPhaPage = () => {
 					})}
 				</div>
 			)}
+			underQuestionBoard={null}
 			topControlButtons={null}
 			bottomActionButtons={
 				<>

@@ -57,6 +57,9 @@ const AVeDichPickQuestion = () => {
 	const [errorMessage, setErrorMessage] = useState<string>("");
 	const [successMessage, setSuccessMessage] = useState<string>("");
 
+	// Chung: questions = player count; Riêng: fixed 3 questions
+	const requiredCount = isChung ? players.length : round;
+
 	// Build question categories and points for display
 	// Assuming questions are ordered: 6 categories × 4 points each (24 total)
 	const questionCategories = questions.map((_, idx) => {
@@ -76,14 +79,14 @@ const AVeDichPickQuestion = () => {
 			if (isSelected) {
 				return prev.filter((code) => code !== questionCode);
 			} else {
-				// Only allow selecting up to maxQuestions
-				if (prev.length < round) {
+				// Only allow selecting up to requiredCount (= number of players)
+				if (prev.length < requiredCount) {
 					return [...prev, questionCode];
 				}
 				return prev;
 			}
 		});
-	}, [round]);
+	}, [requiredCount]);
 
 	// Broadcast live selection updates so players can see highlighted questions in real-time
 	// Also sends all_question_codes so the player pick page can build the grid without API access
@@ -272,11 +275,16 @@ const AVeDichPickQuestion = () => {
 				// Sort by question_code for consistent ordering
 				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
 
-				if (mapped.length === 0) {
+				// Guard against duplicate question_codes (e.g. double import)
+				const deduped = mapped.filter((q, i, arr) =>
+					arr.findIndex((q2) => q2.questionCode === q.questionCode) === i,
+				);
+
+				if (deduped.length === 0) {
 					setErrorMessage("Không tìm thấy câu hỏi Về Đích cho trận đấu này");
 				}
 
-				setQuestions(mapped);
+				setQuestions(deduped);
 			} catch (err) {
 				logger.error("Failed to fetch questions:", err);
 				setErrorMessage("Lỗi khi tải câu hỏi");
@@ -304,8 +312,12 @@ const AVeDichPickQuestion = () => {
 
 	// Handle sending selected questions to backend
 	const handleConfirmSelection = useCallback(async () => {
-		if (selectedQuestionCodes.length !== round) {
-			setErrorMessage(`Vui lòng chọn đủ ${round} câu hỏi`);
+		if (requiredCount === 0) {
+			setErrorMessage("Chưa tải được danh sách thí sinh");
+			return;
+		}
+		if (selectedQuestionCodes.length !== requiredCount) {
+			setErrorMessage(`Vui lòng chọn đủ ${requiredCount} câu hỏi`);
 			return;
 		}
 
@@ -361,7 +373,7 @@ const AVeDichPickQuestion = () => {
 					localStorage.setItem(selKey, selectedPlayerCode ?? "");
 				}
 			}
-			setSuccessMessage(`Đã chọn ${round} câu hỏi. Chuyển đến vòng thi...`);
+			setSuccessMessage(`Đã chọn ${requiredCount} câu hỏi. Chuyển đến vòng thi...`);
 
 			// Navigate players to the appropriate game page
 			const playerPath = isChung ? "/player/vdc" : "/player/vdr";
@@ -378,7 +390,7 @@ const AVeDichPickQuestion = () => {
 			logger.error("Failed to confirm selection:", err);
 			setErrorMessage("Lỗi khi xác nhận câu hỏi");
 		}
-	}, [selectedQuestionCodes, questions, round, currentMatchCode, isChung, sendMessage, navigate, selectedPlayerCode, questionCategories, questionPoints]);
+	}, [selectedQuestionCodes, questions, requiredCount, currentMatchCode, isChung, sendMessage, navigate, selectedPlayerCode, questionCategories, questionPoints]);
 
 	const handleResetSelection = useCallback(() => {
 		setSelectedQuestionCodes([]);
@@ -446,7 +458,7 @@ const AVeDichPickQuestion = () => {
 
 			<AControlButton
 				onClick={handleConfirmSelection}
-				disabled={selectedQuestionCodes.length !== round || isLoading}
+				disabled={selectedQuestionCodes.length !== requiredCount || requiredCount === 0 || isLoading}
 			>
 				<CheckCircle size={20} />
 				<span className="ml-2 font-bold">XÁC NHẬN</span>
@@ -484,7 +496,7 @@ const AVeDichPickQuestion = () => {
 	return (
 		<AVeDichPickLayout
 			title={roundTitle}
-			round={round}
+			maxQuestions={requiredCount}
 			questions={questions}
 			categories={questionCategories}
 			points={questionPoints}

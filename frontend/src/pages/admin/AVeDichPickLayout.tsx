@@ -2,12 +2,10 @@ import type { ReactNode } from "react";
 import AdminGameplayNavBar from "@/navigation/ANavBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import type { Question } from "@/types/question";
-import type { VeDichRound } from "@/types/veDich";
-
 interface AVeDichPickLayoutProps {
 	// Title and round info
 	title: string;
-	round: VeDichRound;  // Determines maxQuestions (4 for CHUNG, 3 for RIENG)
+	maxQuestions: number;  // Dynamic: players.length for CHUNG, 3 for RIENG
 
 	// Questions data
 	questions: Question[];  // All available questions
@@ -39,7 +37,7 @@ interface AVeDichPickLayoutProps {
  * AVeDichPickLayout - Layout for VỀ ĐÍCH (Pick Questions) pages
  *
  * Displays a responsive grid of VeDichQuestionCard components.
- * Used for admin to pick questions for Lượt Chung (4) or Lượt Riêng (3).
+ * Used for admin to pick questions for Lượt Chung (dynamic player count) or Lượt Riêng (3).
  *
  * Structure:
  * - Top: Title + NavBar
@@ -64,7 +62,7 @@ interface AVeDichPickLayoutProps {
  */
 const AVeDichPickLayout = ({
 	title,
-	round,
+	maxQuestions,
 	questions,
 	categories,
 	points,
@@ -77,7 +75,6 @@ const AVeDichPickLayout = ({
 	statusMessages,
 	renderPlayerList,
 }: AVeDichPickLayoutProps) => {
-	const maxQuestions = round;  // Enum value IS the max count
 	const canSelectMore = selectedQuestionCodes.length < maxQuestions;
 
 	const getQuestionState = (questionCode: string): "answered" | "answered-wrong" | "available" => {
