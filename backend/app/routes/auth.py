@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from logger import global_logger
 from core.auth import *
 from schemas.user import *
 from models.user import *
@@ -30,6 +31,7 @@ async def signup_api(user_data: UserCreate, background_tasks: BackgroundTasks, s
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        global_logger.exception("signup_api failed")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
@@ -50,6 +52,7 @@ async def send_credentials_api(
     except HTTPException:
         raise
     except Exception as e:
+        global_logger.exception("send_credentials_api failed")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 

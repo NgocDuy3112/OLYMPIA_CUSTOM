@@ -43,6 +43,14 @@ SFX_DIR = os.path.join(BASE_DIR, "audios", "sfx")
 _password_part = f":{VALKEY_PASSWORD}@" if VALKEY_PASSWORD else ""
 VALKEY_URL = f"redis://{_password_part}{VALKEY_HOST}:{VALKEY_PORT}/{VALKEY_DB}"
 
+# ── S3 ───────────────────────────────────────────────────────────────────────
+
+S3_ENDPOINT_URL      = os.getenv("S3_ENDPOINT_URL", "")
+S3_REGION            = os.getenv("S3_REGION", "us-east-1")
+S3_BUCKET_NAME       = os.getenv("S3_BUCKET_NAME", "")
+S3_ACCESS_KEY_ID     = os.getenv("S3_ACCESS_KEY_ID", "")
+S3_SECRET_ACCESS_KEY = os.getenv("S3_SECRET_ACCESS_KEY", "")
+
 # ── Logging ──────────────────────────────────────────────────────────────────
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "DEBUG")

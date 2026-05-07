@@ -18,6 +18,7 @@ const MAX_QUESTION_INDEX = 5;
 const QUESTION_PREFIX = "OC3_Q_BP"; // Bứt Phá question naming convention.
 
 
+
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
 	questionText: "",
@@ -163,7 +164,7 @@ const AButPhaPage = () => {
 			questionText: payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
 			questionAnswer: payload?.question?.correct_answers ?? payload?.correct_answer ?? payload?.answer ?? "",
 			questionExplanation: payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? payload?.media_url ?? undefined,
+			questionMediaURL: undefined,
 		};
 	}, []);
 
@@ -181,8 +182,20 @@ const AButPhaPage = () => {
 				const res = await fetch(`${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(questionCode)}`, {
 					headers: { Authorization: `Bearer ${token}` },
 				});
+				if (!res.ok) {
+					logger.warn(`loadQuestion: server returned ${res.status} for ${questionCode}`);
+					const mapped = mapQuestionPayload(null, questionCode);
+					setCurrentQuestion(mapped);
+					return mapped;
+				}
 				const data = await res.json();
-				const mapped = mapQuestionPayload(data.data, questionCode);
+				let payload: any = null;
+				if (Array.isArray(data.data)) {
+					payload = data.data.find((q: any) => String(q?.question_code) === questionCode) ?? data.data[0] ?? null;
+				} else {
+					payload = data.data ?? null;
+				}
+				const mapped = mapQuestionPayload(payload, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			} catch (error) {
@@ -209,7 +222,6 @@ const AButPhaPage = () => {
 					user_code: "",
 					question_code: questionCode,
 					content: payloadQuestion.questionText ?? "",
-					media_source: payloadQuestion.questionMediaURL ?? undefined,
 				});
 			} catch (error) {
 				logger.error("Failed to broadcast question via WS:", error);
@@ -291,6 +303,11 @@ const AButPhaPage = () => {
 				await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
+			}
+			try {
+				await sendMessage({ type: "play_video" });
+			} catch (error) {
+				logger.error("Failed to send play_video via WS:", error);
 			}
 		},
 		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer],

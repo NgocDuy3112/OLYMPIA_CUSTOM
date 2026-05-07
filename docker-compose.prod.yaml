@@ -79,8 +79,6 @@ services:
     command: ["python", "bgm_bot.py"]
     env_file:
       - ./configs/.env
-    volumes:
-      - ./audios/bgm:/app/audios/bgm:ro
     depends_on:
       - valkey
     networks:
@@ -95,8 +93,6 @@ services:
     command: ["python", "sfx_bot.py"]
     env_file:
       - ./configs/.env
-    volumes:
-      - ./audios/sfx:/app/audios/sfx:ro
     depends_on:
       - valkey
     networks:

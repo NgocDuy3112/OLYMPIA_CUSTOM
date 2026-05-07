@@ -1,14 +1,29 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useDriveMedia } from "@/hooks/useDriveMedia";
 
 interface RenderMediaProps {
     mediaUrl: string | undefined;
+    videoPlayState?: "playing" | "paused" | null;
 }
 
-const MEDIA_CLASS = "object-contain w-full h-full";
-const CONTAINER_CLASS = "py-4 flex justify-center pb-1";
+const MEDIA_CLASS = "object-contain max-w-full max-h-full";
+const CONTAINER_CLASS = "h-full flex items-center justify-center";
 
-function resolveMediaElement(src: string, mimeType: string | null | undefined): React.ReactNode {
+const VideoElement: React.FC<{ src: string; className: string; playState?: "playing" | "paused" | null }> = ({ src, className, playState }) => {
+    const ref = useRef<HTMLVideoElement>(null);
+    useEffect(() => {
+        if (!ref.current || playState == null) return;
+        if (playState === "playing") ref.current.play().catch(() => {});
+        else ref.current.pause();
+    }, [playState]);
+    return (
+        <video ref={ref} controls src={src} className={className}>
+            Trình duyệt của bạn không hỗ trợ video.
+        </video>
+    );
+};
+
+function resolveMediaElement(src: string, mimeType: string | null | undefined, videoPlayState?: "playing" | "paused" | null): React.ReactNode {
     const type = mimeType ?? "";
     const urlLower = src.toLowerCase();
 
@@ -43,9 +58,7 @@ function resolveMediaElement(src: string, mimeType: string | null | undefined): 
     if (isVideo) {
         return (
             <div className={CONTAINER_CLASS}>
-                <video controls src={src} className={MEDIA_CLASS}>
-                    Trình duyệt của bạn không hỗ trợ video.
-                </video>
+                <VideoElement src={src} className={MEDIA_CLASS} playState={videoPlayState} />
             </div>
         );
     }
@@ -53,7 +66,7 @@ function resolveMediaElement(src: string, mimeType: string | null | undefined): 
     return null;
 }
 
-export const RenderMedia: React.FC<RenderMediaProps> = ({ mediaUrl }) => {
+export const RenderMedia: React.FC<RenderMediaProps> = ({ mediaUrl, videoPlayState }) => {
     // Try admin token first (localStorage), then player token (sessionStorage).
     const token =
         localStorage.getItem("jwtToken_admin") ??
@@ -80,5 +93,5 @@ export const RenderMedia: React.FC<RenderMediaProps> = ({ mediaUrl }) => {
         );
     }
     if (!driveMedia.blobUrl) return null;
-    return <>{resolveMediaElement(driveMedia.blobUrl, driveMedia.mimeType)}</>;
+    return <>{resolveMediaElement(driveMedia.blobUrl, driveMedia.mimeType, videoPlayState)}</>;
 };

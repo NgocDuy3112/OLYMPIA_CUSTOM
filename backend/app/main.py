@@ -14,16 +14,14 @@ from routes import (
     qualifier,
     media,
 )
+from sqlalchemy import text
 from dependencies.postgresql_db import *
 from dependencies.valkey_store import get_valkey
 from dependencies.ws_manager import get_ws_manager
 from dependencies.user_auth import get_ws_user
 from utils.ws_connection import ConnectionManager
 from logger import global_logger
-from alembic.config import Config
-from alembic import command
 import asyncio
-from pathlib import Path
 from jwt import PyJWTError
 
 
@@ -47,30 +45,15 @@ async def lifespan(app: FastAPI):
             exc_info=True
         )
         # Continue startup without Valkey - REST API will still work
-    # Ensure database schema is up-to-date by running Alembic migrations.
-    # Run upgrades in a thread to avoid nesting event loops (env.py uses asyncio.run()).
-    alembic_applied = False
-    try:
-        def _run_alembic_upgrade():
-            cfg_path = Path(__file__).resolve().parents[0] / "alembic.ini"
-            cfg = Config(str(cfg_path))
-            # alembic.env.py will set the sqlalchemy.url from app configs
-            command.upgrade(cfg, "head")
-
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _run_alembic_upgrade)
-        global_logger.info("Alembic migrations applied successfully.")
-        alembic_applied = True
-    except Exception as e:
-        global_logger.error(f"Failed to apply Alembic migrations: {e}", exc_info=True)
-
-    # Only run SQLAlchemy's metadata.create_all as a fallback when Alembic
-    # migrations could not be applied. Running both can attempt to create the
-    # same DB types (e.g., PostgreSQL ENUMs) twice and lead to "type already exists" errors.
-    if not alembic_applied:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            global_logger.info("Database tables ensured via SQLAlchemy metadata.create_all.")
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "DO $$ BEGIN "
+            "CREATE TYPE roleenum AS ENUM ('guest', 'player', 'mc', 'admin'); "
+            "EXCEPTION WHEN duplicate_object THEN NULL; "
+            "END $$"
+        ))
+        await conn.run_sync(Base.metadata.create_all)
+        global_logger.info("Database tables ensured via SQLAlchemy metadata.create_all.")
     
     yield
     

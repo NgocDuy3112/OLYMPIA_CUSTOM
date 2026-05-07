@@ -13,10 +13,11 @@ interface PQuestionBoardProps {
     children?: React.ReactNode;
     /** Tailwind height class applied to the board container. Defaults to h-[40vh]. */
     boardHeightClass?: string;
+    videoPlayState?: "playing" | "paused" | null;
 }
 
 
-const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[40vh]" }) => {
+const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[40vh]", videoPlayState }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const activeIndices = controls?.activeIndices ?? [];
@@ -89,8 +90,8 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerD
                                 {question.questionText}
                             </p>
                         </div>
-                        <div className="flex-1 flex items-center justify-center">
-                            <RenderMedia mediaUrl={question.questionMediaURL} />
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                            <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>
                 ) : (

@@ -24,6 +24,7 @@ const PButPhaPage = () => {
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const [submitDisabledTemporarily, setSubmitDisabledTemporarily] = useState(false);
 	const submitTimeoutRef = useRef<number | null>(null);
 	const [submitDisableSecondsLeft, setSubmitDisableSecondsLeft] = useState(0);
@@ -86,6 +87,22 @@ const PButPhaPage = () => {
 			}
 
 			case "clear_question": {
+				setVideoPlayState(null);
+				break;
+			}
+
+			case "send_question": {
+				setVideoPlayState(null);
+				break;
+			}
+
+			case "play_video": {
+				setVideoPlayState("playing");
+				break;
+			}
+
+			case "pause_video": {
+				setVideoPlayState("paused");
 				break;
 			}
 
@@ -276,6 +293,7 @@ const PButPhaPage = () => {
 						question={currentQuestion}
 						timerDuration={timer}
 						controls={{ variant: 'numbers', count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+						videoPlayState={videoPlayState}
 					/>
 
 				<PAnswerBox

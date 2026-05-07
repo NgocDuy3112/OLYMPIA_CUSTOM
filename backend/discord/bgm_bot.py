@@ -13,6 +13,7 @@ import discord
 from discord.ext import commands
 
 import configs
+import s3_audio
 from valkey_listener import get_valkey_client, subscribe_to_match_channels
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -196,6 +197,7 @@ async def _auto_join_voice() -> None:
 @bot.event
 async def on_ready():
     logger.info(f"BGM Bot logged in as {bot.user}")
+    await asyncio.to_thread(s3_audio.sync_audio_from_s3)
     await _auto_join_voice()
     asyncio.create_task(_valkey_listener())
 
@@ -242,5 +244,4 @@ if __name__ == "__main__":
         logger.error("BGM_BOT_TOKEN not set in .env")
         sys.exit(1)
 
-    os.makedirs(configs.BGM_DIR, exist_ok=True)
     bot.run(configs.BGM_BOT_TOKEN)

@@ -111,6 +111,11 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
+			case "hide_hint": {
+				setRevealedHint(null);
+				break;
+			}
+
 			case "player_score_updated": {
 				if (msg.user_code && typeof msg.new_total_score === "number") {
 					setPlayers((prev) =>

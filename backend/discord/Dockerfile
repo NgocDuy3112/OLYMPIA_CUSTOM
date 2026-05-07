@@ -16,5 +16,3 @@ RUN apk add --no-cache ffmpeg libsodium \
 
 # Copy bot source code
 COPY backend/discord/ .
-
-COPY audios/ ./audios/

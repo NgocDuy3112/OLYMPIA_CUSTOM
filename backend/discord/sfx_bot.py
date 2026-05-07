@@ -14,6 +14,7 @@ import discord
 from discord.ext import commands
 
 import configs
+import s3_audio
 from valkey_listener import get_valkey_client, subscribe_to_match_channels
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -172,6 +173,7 @@ async def _auto_join_voice() -> None:
 @bot.event
 async def on_ready():
     logger.info(f"SFX Bot logged in as {bot.user}")
+    await asyncio.to_thread(s3_audio.sync_audio_from_s3)
     await _auto_join_voice()
     asyncio.create_task(_sfx_player())
     asyncio.create_task(_valkey_listener())
@@ -286,9 +288,5 @@ if __name__ == "__main__":
     if not configs.SFX_BOT_TOKEN:
         logger.error("SFX_BOT_TOKEN not set in .env")
         sys.exit(1)
-
-    if not os.path.isdir(configs.SFX_DIR):
-        os.makedirs(configs.SFX_DIR, exist_ok=True)
-        logger.info(f"Created SFX directory: {configs.SFX_DIR}")
 
     bot.run(configs.SFX_BOT_TOKEN)

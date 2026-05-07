@@ -130,7 +130,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                             </p>
                         </div>
                         {/* Right side: media (50% width) */}
-                        <div className="flex-1 flex items-center justify-center">
+                        <div className="flex-1 min-h-0 overflow-hidden">
                             <RenderMedia mediaUrl={question.questionMediaURL} />
                         </div>
                     </>

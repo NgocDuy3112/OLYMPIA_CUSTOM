@@ -51,6 +51,9 @@ const MGiaiMaPage = () => {
             case "show_hint":
                 setRevealedHint(msg.hint_content ?? null);
                 break;
+            case "hide_hint":
+                setRevealedHint(null);
+                break;
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;

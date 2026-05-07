@@ -14,6 +14,7 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 const MButPhaPage = () => {
     const { matchCode, token } = useMcSession();
     const [revealedHints, setRevealedHints] = useState<Record<number, { type: "text" | "image"; content: string }>>({});
+    const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
@@ -41,9 +42,17 @@ const MButPhaPage = () => {
                 break;
             case "send_question":
                 void fetchAnswer(msg.question_code ?? "");
+                setVideoPlayState(null);
                 break;
             case "clear_question":
                 clearAnswer();
+                setVideoPlayState(null);
+                break;
+            case "play_video":
+                setVideoPlayState("playing");
+                break;
+            case "pause_video":
+                setVideoPlayState("paused");
                 break;
             case "show_hint": {
                 const idx = Number(msg.hint_index);
@@ -77,6 +86,7 @@ const MButPhaPage = () => {
                     question={currentQuestion}
                     timerDuration={timer}
                     controls={{ variant: "numbers", count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+                    videoPlayState={videoPlayState}
                 />
                 <div className="grid grid-cols-5 gap-3 px-3">
                     {Array.from({ length: 5 }).map((_, i) => {

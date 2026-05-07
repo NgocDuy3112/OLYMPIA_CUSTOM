@@ -6,6 +6,7 @@ import {
 	Power,
 	RefreshCw,
 	Eye,
+	EyeOff,
 	Lightbulb,
 	KeyRound,
 	SendToBack,
@@ -13,6 +14,7 @@ import {
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
+import { RenderMedia } from "@/components/shared/RenderMedia";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
@@ -39,6 +41,7 @@ const DEFAULT_QUESTION: Question = {
 };
 
 type ClueState = "idle" | "active" | "used";
+type RevealedHint = { text?: string; mediaUrl?: string };
 
 // ─── Clue Card component ──────────────────────────────────────────────────────
 
@@ -47,16 +50,18 @@ interface ClueCardProps {
 	state: ClueState;
 	onClick: () => void;
 	disabled?: boolean;
+	hintContent?: RevealedHint;
 }
 
-const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled }) => {
+const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled, hintContent }) => {
 	const base =
-		"flex-1 h-60 flex items-center justify-center rounded-xl font-bold font-[SVN-Gratelos_Display] text-[80pt] cursor-pointer transition-all duration-200 select-none border-2";
+		"flex-1 h-60 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
 	const styles: Record<ClueState, string> = {
 		idle: "bg-blue-900 border-blue-600 text-white hover:bg-blue-700 shadow",
 		active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
-		used: "bg-slate-700 border-slate-500 text-slate-400 cursor-default",
+		used: "bg-blue-700 border-blue-500 text-white cursor-default",
 	};
+	const showHint = (state === "active" || state === "used") && !!(hintContent?.text || hintContent?.mediaUrl);
 	return (
 		<button
 			type="button"
@@ -66,7 +71,17 @@ const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled }) 
 			aria-pressed={state === "active"}
 			aria-label={`Gợi ý ${index}`}
 		>
-			{index}
+			{showHint ? (
+				<div className="flex items-center justify-center w-full h-full p-3">
+					{hintContent!.mediaUrl ? (
+						<RenderMedia mediaUrl={hintContent!.mediaUrl} />
+					) : (
+						<span className="text-2xl font-bold text-center leading-snug">{hintContent!.text}</span>
+					)}
+				</div>
+			) : (
+				<span className="font-[SVN-Gratelos_Display] text-[80pt]">{index}</span>
+			)}
 		</button>
 	);
 };
@@ -109,6 +124,9 @@ const AGiaiMaPage = () => {
 
 	// ─── Hint reveal state ────────────────────────────────────────────────────
 	const [shownHintContent, setShownHintContent] = useState<string | null>(null);
+	const [hintHidden, setHintHidden] = useState(false);
+	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
+	const [_correctClues, setCorrectClues] = useState<Set<number>>(new Set());
 
 	// ─── Keyword tracking state ───────────────────────────────────────────────
 	const [keywordSubmissions, setKeywordSubmissions] = useState<
@@ -129,6 +147,7 @@ const AGiaiMaPage = () => {
 		Promise.resolve().then(() => {
 			setHasAddedScore(false);
 			setShownHintContent(null);
+			setHintHidden(false);
 		});
 	}, [activeClueIndex]);
 
@@ -495,6 +514,8 @@ const AGiaiMaPage = () => {
 		setIsTimerRunning(false);
 		setActiveClueIndex(null);
 		setClueStates(Array(CLUE_COUNT).fill("idle"));
+		setRevealedHints({});
+		setCorrectClues(new Set());
 		setSelectedPlayerCodes([]);
 		setKeywordSubmissions({});
 		setKeywordAnswerRevealed(false);
@@ -592,6 +613,14 @@ const AGiaiMaPage = () => {
 		const hint = currentQuestion.questionExplanation || currentQuestion.questionAnswer;
 		if (!hint) return;
 		setShownHintContent(hint);
+		if (activeClueIndex !== null) {
+			const idx = activeClueIndex;
+			setRevealedHints((prev) => {
+				const next: Record<number, RevealedHint> = { ...prev };
+				next[idx] = { text: hint || undefined, mediaUrl: currentQuestion.questionMediaURL || undefined };
+				return next;
+			});
+		}
 		try {
 			await sendMessage({
 				type: "show_hint",
@@ -603,6 +632,15 @@ const AGiaiMaPage = () => {
 			logger.error("handleShowHint failed:", err);
 		}
 	}, [currentQuestion, selectedPlayerCodes, sendMessage]);
+
+	const handleHideHint = useCallback(async () => {
+		setHintHidden(true);
+		try {
+			await sendMessage({ type: "hide_hint", user_code: "" });
+		} catch (err) {
+			logger.error("handleHideHint failed:", err);
+		}
+	}, [sendMessage]);
 
 	const handleRevealKeywordAnswer = useCallback(async () => {
 		const answer = keywordQuestion?.questionAnswer;
@@ -700,6 +738,9 @@ const AGiaiMaPage = () => {
 		}
 		const score = 10;
 		setHasAddedScore(true);
+		if (activeClueIndex !== null) {
+			setCorrectClues((prev) => new Set([...prev, activeClueIndex]));
+		}
 		try {
 			for (const code of selectedPlayerCodes) {
 				await handleAddScore(code, score, false).catch((err) =>
@@ -750,15 +791,10 @@ const AGiaiMaPage = () => {
 						state={clueStates[i]}
 						onClick={() => { void handleRevealClue(i); }}
 						disabled={isTimerRunning}
+						hintContent={revealedHints[i]}
 					/>
 				))}
 			</div>
-			{/* Hint reveal banner */}
-			{shownHintContent && (
-				<div className="w-full bg-yellow-600 border-2 border-yellow-400 rounded-xl px-6 py-4 text-center font-bold text-white text-2xl shadow">
-					GỢI Ý: {shownHintContent}
-				</div>
-			)}
 		</div>
 	);
 
@@ -829,6 +865,13 @@ const AGiaiMaPage = () => {
 					>
 						<Lightbulb size={18} />
 						<span className="ml-2 font-bold">MỞ GỢI Ý</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleHideHint(); }}
+						disabled={!shownHintContent || hintHidden}
+					>
+						<EyeOff size={18} />
+						<span className="ml-2 font-bold">KHOÁ GỢI Ý</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleRevealKeywordAnswer(); }}
