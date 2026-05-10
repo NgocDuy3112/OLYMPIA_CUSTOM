@@ -34,8 +34,11 @@ export function useCountdownTimer(): CountdownTimerState {
         const elapsedSec = (Date.now() - ref) / 1000;
         const remaining = Math.max(0, timeLimitSeconds - elapsedSec);
         const normalized = Math.max(0, Math.round(remaining));
-        setTimeLimit(normalized);
-        setTimer(normalized);
+        // If sync math collapses to 0 but the time limit is positive, start from the full limit
+        // to guard against clock skew between admin and player browsers.
+        const safeTimer = normalized > 0 ? normalized : Math.max(0, Math.round(timeLimitSeconds));
+        setTimeLimit(safeTimer);
+        setTimer(safeTimer);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
     }, []);

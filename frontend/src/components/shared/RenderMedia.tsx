@@ -17,7 +17,7 @@ const VideoElement: React.FC<{ src: string; className: string; playState?: "play
         else ref.current.pause();
     }, [playState]);
     return (
-        <video ref={ref} controls src={src} className={className}>
+        <video ref={ref} src={src} className={className}>
             Trình duyệt của bạn không hỗ trợ video.
         </video>
     );

@@ -43,6 +43,7 @@ const AButPhaPage = () => {
 		setSelectedPlayerCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
 	}, []);
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
 	const timerStartedAtRef = useRef<number>(0);
@@ -164,7 +165,7 @@ const AButPhaPage = () => {
 			questionText: payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
 			questionAnswer: payload?.question?.correct_answers ?? payload?.correct_answer ?? payload?.answer ?? "",
 			questionExplanation: payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL: undefined,
+			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.media_url ?? undefined,
 		};
 	}, []);
 
@@ -222,6 +223,7 @@ const AButPhaPage = () => {
 					user_code: "",
 					question_code: questionCode,
 					content: payloadQuestion.questionText ?? "",
+					media_source: payloadQuestion.questionMediaURL ?? undefined,
 				});
 			} catch (error) {
 				logger.error("Failed to broadcast question via WS:", error);
@@ -233,6 +235,7 @@ const AButPhaPage = () => {
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setVideoPlayState(null);
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (error) {
@@ -306,6 +309,7 @@ const AButPhaPage = () => {
 			}
 			try {
 				await sendMessage({ type: "play_video" });
+				setVideoPlayState("playing");
 			} catch (error) {
 				logger.error("Failed to send play_video via WS:", error);
 			}
@@ -327,7 +331,7 @@ const AButPhaPage = () => {
 				const json = await res.json();
 				const data = json.data;
 				if (!data) continue;
-				const answerObj = Array.isArray(data) ? data[0] : data;
+				const answerObj = Array.isArray(data) ? data.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), data[0]) : data;
 				if (answerObj?.answer_text) {
 					answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: answerObj.timestamp ?? 0 });
 				}
@@ -614,13 +618,14 @@ const AButPhaPage = () => {
 	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot]);
 
 	const hasQuestionSelected = currentQuestionIndex > 0;
-	const questionTitle = `BỨT PHÁ${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
+	const questionTitle = `BỨT PHÁ`;
 
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
 			timerDuration={timer}
+			videoPlayState={videoPlayState}
 			controls={{
 				variant: 'numbers',
 				count: MAX_QUESTION_INDEX,
@@ -640,6 +645,7 @@ const AButPhaPage = () => {
 									const qIndex = idx + 1;
 									if (!isActive) {
 											setCurrentQuestionIndex(qIndex);
+											setVideoPlayState(null);
 											try {
 												const q = await loadQuestion(qIndex);
 												await sendQuestionToplayers(qIndex, q);

@@ -18,6 +18,7 @@ const MVeDichChungPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
+    const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
     const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
 
@@ -51,9 +52,17 @@ const MVeDichChungPage = () => {
                 break;
             case "send_question":
                 void fetchAnswer(msg.question_code ?? "");
+                setVideoPlayState(null);
                 break;
             case "clear_question":
                 clearAnswer();
+                setVideoPlayState(null);
+                break;
+            case "play_video":
+                setVideoPlayState("playing");
+                break;
+            case "pause_video":
+                setVideoPlayState("paused");
                 break;
             case "send_answers_to_players":
                 applyAnswers(msg);
@@ -89,14 +98,15 @@ const MVeDichChungPage = () => {
                     title="VỀ ĐÍCH - LƯỢT CHUNG"
                     question={currentQuestion}
                     timerDuration={timer}
+                    videoPlayState={videoPlayState}
                 >
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 overflow-x-auto">
                         {roundQuestionsData.length > 0
                             ? roundQuestionsData.map((q) => {
                                 const qState = questionStates[q.code] ?? "available";
                                 const isActive = currentQuestion.questionCode === q.code;
                                 return (
-                                    <div key={q.code} className="w-60 shrink-0 h-9">
+                                    <div key={q.code} className="w-55 shrink-0 h-20">
                                         <VeDichQuestionCard
                                             category={q.category}
                                             points={q.points}
@@ -108,7 +118,7 @@ const MVeDichChungPage = () => {
                                 );
                             })
                             : Array.from({ length: players.length || 4 }).map((_, i) => (
-                                <div key={`ph-${i}`} className="w-60 shrink-0 h-9">
+                                <div key={`ph-${i}`} className="w-55 shrink-0 h-20">
                                     <VeDichQuestionCard placeholder category="" disabled />
                                 </div>
                             ))}

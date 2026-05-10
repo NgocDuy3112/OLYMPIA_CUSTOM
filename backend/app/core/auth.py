@@ -111,11 +111,12 @@ async def signup(user_data: UserCreate, session: AsyncSession, background_tasks:
 
 
 async def send_credentials(user_code: str, session: AsyncSession) -> BaseResponse:
-    """Reset a user's password to a new random one and email their credentials.
+    """Reset a user's password to a new random one.
 
-    Generates an 8-character alphanumeric password, hashes it, persists it,
-    then fires an email to the user's registered email address.
-    Raises HTTP 404 if user not found, 400 if user has no email on file.
+    Generates an 8-character alphanumeric password, hashes and persists it,
+    returns the plain password in the response data.
+    If the user has an email, also sends credentials via email.
+    Raises HTTP 404 if user not found.
     """
     import secrets
     import string
@@ -126,30 +127,28 @@ async def send_credentials(user_code: str, session: AsyncSession) -> BaseRespons
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy người dùng với mã {user_code}.")
-    if not user.email:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Người dùng {user_code} chưa có địa chỉ email. Vui lòng cập nhật email trước."
-        )
 
-    # Generate a new random password: 8 chars, letters + digits
     alphabet = string.ascii_letters + string.digits
     new_password = "".join(secrets.choice(alphabet) for _ in range(8))
 
     user.hashed_password = hash_password(new_password)
     await session.commit()
 
-    await send_credentials_email_safe(
-        to=user.email,
-        user_name=user.user_name,
-        user_code=user.user_code,
-        password=new_password,
-    )
+    email_note = ""
+    if user.email:
+        await send_credentials_email_safe(
+            to=user.email,
+            user_name=user.user_name,
+            user_code=user.user_code,
+            password=new_password,
+        )
+        email_note = f" và gửi email đến {user.email}"
 
-    global_logger.info(f"Credentials reset and email queued for user_code={user_code}.")
+    global_logger.info(f"Credentials reset{email_note} for user_code={user_code}.")
     return BaseResponse(
         status="success",
-        message=f"Đã đặt lại mật khẩu và gửi thông tin đăng nhập đến {user.email}.",
+        message=f"Đã đặt lại mật khẩu{email_note}.",
+        data={"plain_password": new_password, "user_code": user.user_code},
     )
 
 

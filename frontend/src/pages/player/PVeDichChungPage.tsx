@@ -20,6 +20,7 @@ const PVeDichChungPage = () => {
 	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, applyWsMessage } = useQuestionState();
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 
 	type RoundQuestion = { code: string; category: string; points: number };
 	const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
@@ -45,6 +46,7 @@ const PVeDichChungPage = () => {
 
 		// Let the question hook handle send_question/clear_question
 		applyWsMessage(msg);
+		if (msg?.type === "send_question" || msg?.type === "clear_question") setVideoPlayState(null);
 
 		switch (msg?.type) {
 			case "send_players_info": {
@@ -98,6 +100,14 @@ const PVeDichChungPage = () => {
 				setShowAnswers(false);
 				break;
 			}
+
+			case "play_video":
+				setVideoPlayState("playing");
+				break;
+
+			case "pause_video":
+				setVideoPlayState("paused");
+				break;
 
 			case "player_score_updated": {
 				if (msg.user_code && typeof msg.new_total_score === "number") {
@@ -269,14 +279,15 @@ const PVeDichChungPage = () => {
 					title="VỀ ĐÍCH - LƯỢT CHUNG"
 					question={currentQuestion}
 					timerDuration={timer}
+					videoPlayState={videoPlayState}
 				>
-					<div className="flex gap-2">
+					<div className="flex gap-1 overflow-x-auto">
 						{roundQuestionsData.length > 0
 						? roundQuestionsData.map((q) => {
 							const qState = questionStates[q.code] ?? "available";
 							const isActive = currentQuestion.questionCode === q.code;
 							return (
-							<div key={q.code} className="w-60 shrink-0 h-9">
+							<div key={q.code} className="w-55 shrink-0 h-20">
 								<VeDichQuestionCard
 									category={q.category}
 									points={q.points}
@@ -288,7 +299,7 @@ const PVeDichChungPage = () => {
 							);
 						})
 							: Array.from({ length: players.length || 4 }).map((_, i) => (
-								<div key={`ph-${i}`} className="w-60 shrink-0 h-9">
+								<div key={`ph-${i}`} className="w-55 shrink-0 h-20">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>
 							))}

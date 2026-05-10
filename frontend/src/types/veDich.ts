@@ -23,7 +23,7 @@ export const getVeDichRoundLabel = (round: VeDichRound): string => {
 		case VeDichRound.CHUNG:
 			return "VỀ ĐÍCH - LƯỢT CHUNG";
 		case VeDichRound.RIENG:
-			return "VỀ ĐÍCH - LƯỢT RIÊNG";
+			return "VỀ ĐÍCH - LƯỢT CÁ NHÂN";
 		default:
 			return "VỀ ĐÍCH";
 	}

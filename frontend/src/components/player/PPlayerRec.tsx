@@ -1,5 +1,5 @@
 import React from "react";
-import { Zap, Mic } from "lucide-react";
+import { Zap, Mic, KeyRound } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
 
@@ -62,6 +62,9 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
                     <span className="truncate">{player.playerName}</span>
                     {player.playerIsTurn && (
                         <Mic size={20} className="text-white inline-block" />
+                    )}
+                    {player.playerHasSubmittedKeyword && (
+                        <KeyRound size={16} className="text-yellow-400 shrink-0" />
                     )}
                 </p>
                 <div className="flex items-center">

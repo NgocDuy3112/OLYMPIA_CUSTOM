@@ -37,7 +37,7 @@ interface AVeDichPickLayoutProps {
  * AVeDichPickLayout - Layout for VỀ ĐÍCH (Pick Questions) pages
  *
  * Displays a responsive grid of VeDichQuestionCard components.
- * Used for admin to pick questions for Lượt Chung (dynamic player count) or Lượt Riêng (3).
+ * Used for admin to pick questions for Lượt Chung (dynamic player count) or Lượt CÁ NHÂN (3).
  *
  * Structure:
  * - Top: Title + NavBar
@@ -104,16 +104,16 @@ const AVeDichPickLayout = ({
 	return (
 		<>
 			<AdminGameplayNavBar />
-			<div className="flex flex-row w-full h-screen p-6 gap-8 overflow-hidden">
+			<div className="flex flex-row w-full h-screen p-3 xl:p-6 gap-4 xl:gap-8 overflow-hidden">
 				{/* Left section: Board + controls (same flex-3 as ABasePageLayout) */}
-				<div className="flex flex-col flex-3 gap-6">
+				<div className="flex flex-col flex-3 gap-4 xl:gap-6">
 
 					{/* Board — mirrors AQuestionBoard shell */}
-					<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4">
+					<div className="p-3 xl:p-4 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 xl:gap-3">
 
 						{/* Board header: title + selected preview + counter — all in one row */}
 						<div className="flex items-center gap-4 pb-1">
-							<p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
+							<p className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
 								{title}
 							</p>
 
@@ -121,12 +121,12 @@ const AVeDichPickLayout = ({
 							<div className="flex-1" />
 
 							{/* Selected questions preview — grouped near counter */}
-							<div className="flex gap-3">
+							<div className="flex gap-0.5 overflow-x-auto">
 								{Array.from({ length: maxQuestions }).map((_, i) => {
 									const code = selectedQuestionCodes[i];
 									if (!code) {
 										return (
-											<div key={`selected-empty-${i}`} className="w-60 shrink-0 h-9">
+											<div key={`selected-empty-${i}`} className="w-55 shrink-0 h-20">
 												<VeDichQuestionCard placeholder category="" points={undefined} disabled />
 											</div>
 										);
@@ -138,7 +138,7 @@ const AVeDichPickLayout = ({
 									const [catPrimary, catSecondary] = (rawCategory || "").split("|").map((s) => s?.trim());
 
 									return (
-										<div key={`selected-${code}`} className="w-60 shrink-0 h-9">
+										<div key={`selected-${code}`} className="w-55 shrink-0 h-20">
 											<VeDichQuestionCard
 												category={catPrimary || rawCategory}
 												subcategory={catSecondary}
@@ -163,8 +163,8 @@ const AVeDichPickLayout = ({
 
 						{/* Questions Grid — 6×4 */}
 						<div
-							className="grid gap-3"
-						style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(58px, 58px)" }}
+							className="grid gap-1.5"
+						style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(80px, 80px)" }}
 						>
 							{Array.from({ length: 6 * 4 }).map((_, idx) => {
 								const question = questions[idx];
@@ -199,7 +199,7 @@ const AVeDichPickLayout = ({
 					</div>
 
 					{/* Control buttons — same structure as ABasePageLayout */}
-					<div className="flex flex-wrap items-center justify-center gap-4 max-w-220 mx-auto">
+					<div className="flex flex-wrap items-center justify-center gap-3 xl:gap-4 max-w-220 mx-auto">
 						{topControlButtons}
 						{bottomActionButtons}
 					</div>
@@ -207,7 +207,7 @@ const AVeDichPickLayout = ({
 				</div>
 
 				{/* Right section: Player list (same flex-1 as ABasePageLayout) */}
-			<div className="flex flex-col flex-1 gap-5 overflow-hidden pr-2">{renderPlayerList()}</div>
+			<div className="flex flex-col flex-1 gap-3 xl:gap-5 overflow-hidden pr-2">{renderPlayerList()}</div>
 			</div>
 		</>
 	);

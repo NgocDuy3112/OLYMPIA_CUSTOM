@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
+import { Star, Shield } from "lucide-react";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
@@ -21,6 +22,8 @@ const MVeDichRiengPage = () => {
     const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyBuzz, clearAnswers } = useMcPlayers();
     const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
 
+    const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+    const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
@@ -61,11 +64,22 @@ const MVeDichRiengPage = () => {
             case "buzz":
                 applyBuzz(msg);
                 break;
+            case "veDich_power_activated":
+                setActivePower((msg.power as "star" | "shield") ?? null);
+                break;
             case "send_question":
                 void fetchAnswer(msg.question_code ?? "");
+                setVideoPlayState(null);
                 break;
             case "clear_question":
                 clearAnswer();
+                setVideoPlayState(null);
+                break;
+            case "play_video":
+                setVideoPlayState("playing");
+                break;
+            case "pause_video":
+                setVideoPlayState("paused");
                 break;
             case "answering_window_activated":
                 setAnsweringWindowTimer(msg.countdown ?? 5);
@@ -108,14 +122,15 @@ const MVeDichRiengPage = () => {
                     title="VỀ ĐÍCH - LƯỢT CÁ NHÂN"
                     question={currentQuestion}
                     timerDuration={answeringWindowTimer > 0 ? answeringWindowTimer : timer}
+                    videoPlayState={videoPlayState}
                 >
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 overflow-x-auto">
                         {roundQuestionsData.length > 0
                             ? roundQuestionsData.map((q) => {
                                 const qState = questionStates[q.code] ?? "available";
                                 const isActive = currentQuestion.questionCode === q.code;
                                 return (
-                                    <div key={q.code} className="w-60 shrink-0 h-9">
+                                    <div key={q.code} className="w-55 shrink-0 h-20">
                                         <VeDichQuestionCard
                                             category={q.category}
                                             points={q.points}
@@ -127,12 +142,28 @@ const MVeDichRiengPage = () => {
                                 );
                             })
                             : Array.from({ length: 3 }).map((_, i) => (
-                                <div key={`ph-${i}`} className="w-60 shrink-0 h-9">
+                                <div key={`ph-${i}`} className="w-55 shrink-0 h-20">
                                     <VeDichQuestionCard placeholder category="" disabled />
                                 </div>
                             ))}
                     </div>
                 </PQuestionBoard>
+
+                {activePower && (
+                    <div className="mx-3 mt-2 p-3 bg-blue-800 border-2 border-blue-400 rounded-xl flex items-center gap-3">
+                        {activePower === 'star' ? (
+                            <>
+                                <Star size={20} className="text-yellow-400 shrink-0" />
+                                <span className="font-bold text-yellow-300 uppercase tracking-wide">Ngôi sao hy vọng đang kích hoạt</span>
+                            </>
+                        ) : (
+                            <>
+                                <Shield size={20} className="text-green-400 shrink-0" />
+                                <span className="font-bold text-green-300 uppercase tracking-wide">Bảo hộ miễn trừ đang kích hoạt</span>
+                            </>
+                        )}
+                    </div>
+                )}
 
                 {buzzerWinnerName && (
                     <div className="mx-3 mt-2 p-4 bg-yellow-600 border-2 border-yellow-400 rounded-xl text-center font-bold text-white text-xl">

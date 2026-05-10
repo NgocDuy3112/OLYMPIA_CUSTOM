@@ -34,11 +34,11 @@ Comprehensive overview of the OLYMPIA CUSTOM 3 frontend architecture.
 |------|------------|---------|------|
 | **VL** | Vòng Loại | Qualifier | Preliminary qualification round |
 | **KDC** | Khởi Động Chung | Group Warm-up | All players answer same questions |
-| **KDR** | Khởi Động Riêng | Individual Warm-up | Individual questions |
+| **KDR** | Khởi Động CÁ NHÂN | Individual Warm-up | Individual questions |
 | **BP** | Bứt Phá | Sprint | Fast-paced buzzer round |
 | **VD** | Vượt Đèo | Escape | Clue-based challenge |
 | **VDC** | Về Đích Chung | Final Group Stage | Final group round |
-| **VDR** | Về Đích Riêng | Final Individual Stage | Final individual round |
+| **VDR** | Về Đích CÁ NHÂN | Final Individual Stage | Final individual round |
 | **GM** | Giải Mã | Decode | Mystery/decoding round |
 
 ---

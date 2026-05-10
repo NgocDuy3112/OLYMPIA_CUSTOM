@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useState } from "react";
+import { Star, Shield } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
@@ -22,6 +23,8 @@ const PVeDichRiengPage = () => {
 	const { currentQuestion, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+	const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
 	const [hasPinged, setHasPinged] = useState(false);
 	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 	const [blockedPlayerCode, setBlockedPlayerCode] = useState<string | null>(null);
@@ -40,6 +43,7 @@ const PVeDichRiengPage = () => {
 
 		// Handles send_question/clear_question
 		applyWsMessage(msg);
+		if (msg?.type === "send_question" || msg?.type === "clear_question") setVideoPlayState(null);
 
 		switch (msg?.type) {
 			case "send_players_info": {
@@ -96,6 +100,18 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 
+			case "play_video":
+				setVideoPlayState("playing");
+				break;
+
+			case "pause_video":
+				setVideoPlayState("paused");
+				break;
+
+			case "veDich_power_activated":
+				setActivePower((msg.power as "star" | "shield") ?? null);
+				break;
+
 			case "buzzer_winner": {
 				const winner = msg.user_code;
 				setBuzzerWinnerCode(winner ?? null);
@@ -134,7 +150,7 @@ const PVeDichRiengPage = () => {
 			case "veDich_rieng_questions_meta": {
 				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
 				if (metadata.length > 0) setRoundQuestionsData(metadata);
-				// Track whose turn it is (only for riêng round)
+				// Track whose turn it is (only for CÁ NHÂN round)
 				if (msg.round === "rieng" && msg.selected_player_code) {
 					setCurrentTurnPlayerCode(msg.selected_player_code);
 				}
@@ -216,14 +232,15 @@ const PVeDichRiengPage = () => {
 					title="VỀ ĐÍCH - LƯỢT CÁ NHÂN"
 					question={currentQuestion}
 					timerDuration={answeringWindowTimer > 0 ? answeringWindowTimer : timer}
+					videoPlayState={videoPlayState}
 				>
-					<div className="flex gap-2">
+					<div className="flex gap-1 overflow-x-auto">
 						{roundQuestionsData.length > 0
 							? roundQuestionsData.map((q) => {
 									const qState = questionStates[q.code] ?? "available";
 									const isActive = currentQuestion.questionCode === q.code;
 									return (
-										<div key={q.code} className="w-60 shrink-0 h-9">
+										<div key={q.code} className="w-55 shrink-0 h-20">
 											<VeDichQuestionCard
 												category={q.category}
 												points={q.points}
@@ -235,12 +252,28 @@ const PVeDichRiengPage = () => {
 									);
 								})
 							: Array.from({ length: 3 }).map((_, i) => (
-									<div key={`ph-${i}`} className="w-60 shrink-0 h-9">
+									<div key={`ph-${i}`} className="w-55 shrink-0 h-20">
 										<VeDichQuestionCard placeholder category="" disabled />
 									</div>
 								))}
 						</div>
 					</PQuestionBoard>
+
+				{activePower && (
+					<div className="mx-3 mt-2 p-3 bg-blue-800 border-2 border-blue-400 rounded-xl flex items-center gap-3">
+						{activePower === 'star' ? (
+							<>
+								<Star size={20} className="text-yellow-400 shrink-0" />
+								<span className="font-bold text-yellow-300 uppercase tracking-wide">Ngôi sao hy vọng</span>
+							</>
+						) : (
+							<>
+								<Shield size={20} className="text-green-400 shrink-0" />
+								<span className="font-bold text-green-300 uppercase tracking-wide">Bảo hộ miễn trừ</span>
+							</>
+						)}
+					</div>
+				)}
 
 				<div className="p-3">
 					<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />

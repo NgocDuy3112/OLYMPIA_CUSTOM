@@ -102,6 +102,27 @@ async def get_match_by_match_code(
 
 
 @router.get(
+    "/{match_code}/room",
+    dependencies=[Depends(require_roles(['admin', 'player', 'mc']))],
+    response_model=MatchRoomResponse,
+    status_code=200
+)
+async def get_match_room_for_players(
+    match_code: str,
+    session: AsyncSession = Depends(get_db)
+) -> MatchRoomResponse:
+    """Room info (match_name + players) accessible by player/mc/admin."""
+    try:
+        return await get_match_by_match_code_from_db(match_code, session)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
+
+@router.get(
     "/{match_code}/players",
     dependencies=[Depends(require_roles(['admin']))],
     response_model=BaseResponse,

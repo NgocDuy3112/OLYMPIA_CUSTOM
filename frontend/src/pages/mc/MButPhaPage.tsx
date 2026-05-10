@@ -83,7 +83,7 @@ const MButPhaPage = () => {
             <>
                 <PQuestionBoard
                     title="BỨT PHÁ"
-                    question={currentQuestion}
+                    question={{ ...currentQuestion, questionMediaURL: videoPlayState ? currentQuestion.questionMediaURL : undefined }}
                     timerDuration={timer}
                     controls={{ variant: "numbers", count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
                     videoPlayState={videoPlayState}

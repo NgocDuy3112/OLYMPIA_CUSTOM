@@ -177,12 +177,12 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 					<div className="flex-1" />
 
 					{/* Selected questions preview */}
-					<div className="flex gap-3">
+					<div className="flex gap-1">
 						{Array.from({ length: maxQuestions }).map((_, i) => {
 							const code = displayCodes[i];
 							if (!code) {
 								return (
-									<div key={`slot-empty-${i}`} className="w-48 shrink-0 h-9">
+									<div key={`slot-empty-${i}`} className="w-55 shrink-0 h-20">
 										<VeDichQuestionCard placeholder category="" points={undefined} disabled />
 									</div>
 								);
@@ -194,7 +194,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 							const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
 
 							return (
-								<div key={`slot-${code}`} className="w-48 shrink-0 h-9">
+								<div key={`slot-${code}`} className="w-55 shrink-0 h-20">
 									<VeDichQuestionCard
 										category={catPrimary || rawCategory}
 										subcategory={catSecondary}
@@ -217,8 +217,8 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 				{/* Read-only question grid — 6 categories × 4 point values */}
 				<div
-					className="grid gap-3"
-					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(58px, 58px)" }}
+					className="grid gap-4"
+					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(70px, 70px)" }}
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];

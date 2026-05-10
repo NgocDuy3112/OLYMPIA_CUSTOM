@@ -14,14 +14,15 @@ interface AQuestionBoardProps {
     children?: (api: ControlsRenderApi) => React.ReactNode;
     /** Tailwind height class applied to the board container. Defaults to h-[50vh]. */
     boardHeightClass?: string;
-    /** Tailwind height class applied to the answer/explanation box. Defaults to h-28. */
+    /** Tailwind height class applied to the answer/explanation box. Defaults to h-24. */
     answerBoxHeightClass?: string;
     /** When true, hides the answer/explanation box (e.g. while timer is running) */
     hideAnswerBox?: boolean;
+    videoPlayState?: "playing" | "paused" | null;
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[50vh]", answerBoxHeightClass = "h-[15vh]", hideAnswerBox = false, titleExtra }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[50vh]", answerBoxHeightClass = "h-[15vh]", hideAnswerBox = false, titleExtra, videoPlayState }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -52,7 +53,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                             aria-pressed={active}
                             aria-label={`control-${idx + 1}`}
                             onClick={() => toggleBox(idx)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}
+                            className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}
                         >
                             {idx + 1}
                         </button>
@@ -75,7 +76,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                             onClick={() => toggleBox(idx)}
                             className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-blue-800 text-white border border-blue-600 hover:bg-blue-700'}`}
                         >
-                            <div className="text-3xl font-extrabold w-16 text-left">
+                            <div className="text-2xl tablet:text-3xl font-extrabold w-12 tablet:w-16 text-left">
                                 {score}
                             </div>
                             <div className="text-right text-sm leading-tight">
@@ -90,11 +91,11 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
     );
 
     return (
-        <div className={`p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 ${boardHeightClass}`}>
+        <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${boardHeightClass}`}>
             {/* Header: title, timer and six control boxes */}
             <div className="flex justify-between items-center pb-1">
                 <div className="flex items-center gap-4">
-                    <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                    <p className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
                         {title}
                     </p>
                     {titleExtra && <div className="ml-2">{titleExtra}</div>}
@@ -113,7 +114,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                             : renderDefaultControls()}
                     </div>
                     {/* give timer a fixed width so its digit changes won't shift surrounding layout */}
-                    <div className="text-5xl font-[SVN-Gratelos_Display] font-extrabold px-3 py-1 transition-colors duration-500 text-white w-20 text-center shrink-0">
+                    <div className="text-3xl tablet:text-3xl xl:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-1 tablet:px-2 xl:px-3 py-1 transition-colors duration-500 text-white w-12 tablet:w-14 xl:w-20 text-center shrink-0">
                         {timerDuration.toString().padStart(2, '0')}
                     </div>
                 </div>
@@ -131,7 +132,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                         </div>
                         {/* Right side: media (50% width) */}
                         <div className="flex-1 min-h-0 overflow-hidden">
-                            <RenderMedia mediaUrl={question.questionMediaURL} />
+                            <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>
                 ) : (
@@ -144,8 +145,8 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
 
             {/* Fixed-height answer and explanation box — hidden during timer */}
             {!hideAnswerBox && (
-                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-4 gap-2`}>
-                    <div className="text-2xl text-center line-clamp-2">
+                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-3 gap-2`}>
+                    <div className="text-xl tablet:text-2xl text-center line-clamp-2">
                         {question.questionAnswer}
                     </div>
                     <div className="text-sm text-center line-clamp-2 overflow-y-auto">

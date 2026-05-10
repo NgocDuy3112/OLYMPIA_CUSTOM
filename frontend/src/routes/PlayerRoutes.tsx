@@ -115,13 +115,16 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
 
             const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 
-            // Some admin paths are full player routes (no match/player params expected)
-            // — e.g. "/player/waiting" should navigate exactly to that path.
-            const noParamsPaths: string[] = ["/player/waiting"];
+            // Paths that take only matchCode (no playerCode), e.g. waiting room.
+            const matchCodeOnlyPaths: string[] = ["/player/waiting"];
+            // Paths that take no params at all.
+            const noParamsPaths: string[] = [];
 
             const target = noParamsPaths.includes(normalized)
                 ? normalized
-                : `${normalized}/${matchCode}/${playerCode}`;
+                : matchCodeOnlyPaths.includes(normalized)
+                    ? `${normalized}/${matchCode}`
+                    : `${normalized}/${matchCode}/${playerCode}`;
 
             // Normalize trailing slash when comparing current location
             const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
@@ -150,7 +153,7 @@ const PlayerRoutes = () => {
             <Routes>
                 <Route path="/" element={<Navigate to="/player/access" replace />} />
                 <Route path="/access" element={<PGameAccessPage />} />
-                <Route path="/waiting" element={<PWaitingPage />} />
+                <Route path="/waiting/:matchCode" element={<PWaitingPage />} />
                 <Route
                     path="/kdc/:matchCode/:playerCode"
                     element={

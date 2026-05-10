@@ -24,7 +24,7 @@ const logger = createLogger("AKhoiDongRieng");
 
 
 const TIME_LIMIT = 30;
-const QUESTION_PREFIX = "OC3_Q_KD"; // Matches the Khởi Động Riêng question naming convention.
+const QUESTION_PREFIX = "OC3_Q_KD"; // Matches the Khởi Động CÁ NHÂN question naming convention.
 
 
 const DEFAULT_QUESTION: Question = {
@@ -71,7 +71,7 @@ const AKhoiDongRiengPage = () => {
 	const [isPlayerLocked, setIsPlayerLocked] = useState<boolean>(false);
 
 
-	const questionTitle = "KHỞI ĐỘNG - LƯỢT RIÊNG";
+	const questionTitle = "KHỞI ĐỘNG - LƯỢT CÁ NHÂN";
 
 	// use shared helper for mapping players + profiles + scoreboard into PlayerStatus[]
 	// keep the same pure function semantics as before

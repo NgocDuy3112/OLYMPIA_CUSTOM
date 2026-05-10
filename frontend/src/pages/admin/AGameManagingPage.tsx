@@ -156,6 +156,8 @@ const AGameManagingPage = () => {
 
     // ── Send credentials state (tracks which user_code is in-flight) ─
     const [sendingCredentials, setSendingCredentials] = useState<string | null>(null);
+    // ── Revealed password after reset ───────────────────────────────
+    const [revealedPassword, setRevealedPassword] = useState<{ userCode: string; password: string } | null>(null);
 
     // ── Edit player state ────────────────────────────────────────────
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
@@ -205,7 +207,12 @@ const AGameManagingPage = () => {
             });
             const body = await res.json();
             if (!res.ok) throw new Error(body.detail ?? "Lỗi không xác định");
-            alert(`✅ ${body.message}`);
+            const plainPassword = (body.data as { plain_password?: string } | null)?.plain_password;
+            if (plainPassword) {
+                setRevealedPassword({ userCode, password: plainPassword });
+            } else {
+                alert(`✅ ${body.message}`);
+            }
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             alert(`❌ Gửi thất bại: ${msg}`);
@@ -608,6 +615,42 @@ const createQuestion = useCallback(async () => {
                 />
             )}
 
+            {revealedPassword && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+                    <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-blue-200">Mật khẩu mới</h3>
+                            <button onClick={() => setRevealedPassword(null)} className="p-1 rounded hover:bg-blue-800 transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <p className="text-xs text-blue-400 font-mono -mt-2">Mã: {revealedPassword.userCode}</p>
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs text-blue-300">Mật khẩu thô (plain password)</label>
+                            <div className="flex items-center gap-2">
+                                <span className="flex-1 px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white font-mono text-lg tracking-widest select-all">
+                                    {revealedPassword.password}
+                                </span>
+                                <button
+                                    onClick={() => navigator.clipboard.writeText(revealedPassword.password)}
+                                    className="px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-xs transition-colors"
+                                    title="Sao chép"
+                                >
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+                        <p className="text-xs text-yellow-400">Lưu ý: mật khẩu này chỉ hiển thị một lần. Hãy sao chép lại.</p>
+                        <button
+                            onClick={() => setRevealedPassword(null)}
+                            className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-sm transition-colors self-end"
+                        >
+                            Đóng
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* ─── Edit question modal ────────────────────────────────── */}
             {editingQuestion && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -959,7 +1002,7 @@ const createQuestion = useCallback(async () => {
                         {matchExists ? "Cập nhật phòng" : "Tạo phòng"}
                     </button>
 
-                    <VaoPhongButton matchCode={matchCode} disabled={!matchCode} />
+                    <VaoPhongButton matchCode={matchCode} disabled={!matchCode || !matchExists} />
                     <VaoPhongQualifierButton matchCode={matchCode} />
                 </div>
             </div>

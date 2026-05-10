@@ -35,10 +35,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Map of game phase (from navigate path) → audio file basename
 PHASE_MUSIC_MAP = {
     "kdc": "kdc",   # Khởi Động Chung
-    "kdr": "kdr",   # Khởi Động Riêng
+    "kdr": "kdr",   # Khởi Động CÁ NHÂN
     "bp": "bp",     # Bứt Phá
     "vdc": "vdc",   # Về Đích Chung
-    "vdr": "vdr",   # Về Đích Riêng
+    "vdr": "vdr",   # Về Đích CÁ NHÂN
     "gm": "gm",     # Giải Mã
     "vl": "vl",     # Vòng Loại
 }

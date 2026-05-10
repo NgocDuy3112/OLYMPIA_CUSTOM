@@ -843,7 +843,7 @@ const AQualifierPage = () => {
                             return (
                                 <div
                                     key={opt}
-                                    className={`relative flex items-start gap-3 p-4 rounded-xl border-2 text-white font-bold text-sm ${OPTION_BG[opt]} ${isCorrect ? "ring-2 ring-white" : ""} h-28 shadow-md`}
+                                    className={`relative flex items-start gap-3 p-4 rounded-xl border-2 text-white font-bold text-sm ${OPTION_BG[opt]} ${isCorrect ? "ring-2 ring-white" : ""} h-24 shadow-md`}
                                 >
                                     <div className="text-3xl font-extrabold w-8 text-center">{opt}</div>
                                     <div className="leading-tight text-left">{text}</div>

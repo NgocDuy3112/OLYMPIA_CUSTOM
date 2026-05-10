@@ -61,7 +61,7 @@ const MKhoiDongRiengPage = () => {
         <PBasePageLayout players={players} currentPlayerCode="">
             <>
                 <PQuestionBoard
-                    title="KHỞI ĐỘNG - LƯỢT RIÊNG"
+                    title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
                     question={currentQuestion}
                     timerDuration={timer}
                     controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}

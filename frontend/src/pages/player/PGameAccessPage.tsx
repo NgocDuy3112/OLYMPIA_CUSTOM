@@ -19,7 +19,7 @@ const GameAccessPage: React.FC = () => {
         } catch {
             // ignore if dispatch fails for any reason
         }
-        navigate(`/player/waiting`);
+        navigate(`/player/waiting/${matchCode}`);
     };
 
     return (

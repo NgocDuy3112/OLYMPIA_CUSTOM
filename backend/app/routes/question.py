@@ -99,6 +99,7 @@ async def post_questions_from_zip(
             s3_client=s3_client,
             bucket=_s3_settings.S3_BUCKET_NAME,
             session=session,
+            overwrite=True,
         )
     except HTTPException:
         raise

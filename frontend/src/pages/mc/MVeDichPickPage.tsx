@@ -122,12 +122,12 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 					<div className="flex-1" />
 
 					{/* Selected questions preview */}
-					<div className="flex gap-3">
+					<div className="flex gap-1">
 						{Array.from({ length: maxQuestions }).map((_, i) => {
 							const code = displayCodes[i];
 							if (!code) {
 								return (
-									<div key={`slot-empty-${i}`} className="w-48 shrink-0 h-9">
+									<div key={`slot-empty-${i}`} className="w-55 shrink-0 h-20">
 										<VeDichQuestionCard placeholder category="" points={undefined} disabled />
 									</div>
 								);
@@ -139,7 +139,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 							const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
 
 							return (
-								<div key={`slot-${code}`} className="w-48 shrink-0 h-9">
+								<div key={`slot-${code}`} className="w-55 shrink-0 h-20">
 									<VeDichQuestionCard
 										category={catPrimary || rawCategory}
 										subcategory={catSecondary}

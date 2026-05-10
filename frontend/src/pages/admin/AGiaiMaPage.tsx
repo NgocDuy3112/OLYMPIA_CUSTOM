@@ -55,7 +55,7 @@ interface ClueCardProps {
 
 const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled, hintContent }) => {
 	const base =
-		"flex-1 h-60 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
+		"flex-1 h-40 lg:h-48 xl:h-60 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
 	const styles: Record<ClueState, string> = {
 		idle: "bg-blue-900 border-blue-600 text-white hover:bg-blue-700 shadow",
 		active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
@@ -80,7 +80,7 @@ const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled, hi
 					)}
 				</div>
 			) : (
-				<span className="font-[SVN-Gratelos_Display] text-[80pt]">{index}</span>
+				<span className="font-[SVN-Gratelos_Display] text-[50pt] lg:text-[65pt] xl:text-[80pt]">{index}</span>
 			)}
 		</button>
 	);
@@ -126,14 +126,16 @@ const AGiaiMaPage = () => {
 	const [shownHintContent, setShownHintContent] = useState<string | null>(null);
 	const [hintHidden, setHintHidden] = useState(false);
 	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
-	const [_correctClues, setCorrectClues] = useState<Set<number>>(new Set());
-
+	const [, setCorrectClues] = useState<Set<number>>(new Set());
+	const [pendingClueAction, setPendingClueAction] = useState(false);
+	
 	// ─── Keyword tracking state ───────────────────────────────────────────────
 	const [keywordSubmissions, setKeywordSubmissions] = useState<
 		Record<string, { text: string; timestamp: number }>
 	>({});
 	const [keywordAnswerRevealed, setKeywordAnswerRevealed] = useState(false);
 	const [keywordQuestion, setKeywordQuestion] = useState<Question | null>(null);
+	const [keywordRevealedCodes, setKeywordRevealedCodes] = useState<Set<string>>(new Set());
 	const keywordLockedSentRef = useRef(false);
 
 	// ─── Keyword info banner ──────────────────────────────────────────────────
@@ -255,8 +257,9 @@ const AGiaiMaPage = () => {
 			});
 			setClueStates(nextStates);
 			setActiveClueIndex(clueIndex);
-			setCurrentQuestion(q);
+			setCurrentQuestion({ ...q });
 			setSelectedPlayerCodes([]);
+			setPendingClueAction(true);
 
 			const allOpened = nextStates.every((s) => s !== "idle");
 
@@ -266,7 +269,6 @@ const AGiaiMaPage = () => {
 					user_code: "",
 					question_code: q.questionCode,
 					content: q.questionText,
-					media_source: q.questionMediaURL ?? undefined,
 				});
 				if (allOpened && !keywordLockedSentRef.current) {
 					keywordLockedSentRef.current = true;
@@ -516,9 +518,11 @@ const AGiaiMaPage = () => {
 		setClueStates(Array(CLUE_COUNT).fill("idle"));
 		setRevealedHints({});
 		setCorrectClues(new Set());
+		setPendingClueAction(false);
 		setSelectedPlayerCodes([]);
 		setKeywordSubmissions({});
 		setKeywordAnswerRevealed(false);
+		setKeywordRevealedCodes(new Set());
 		setHasAddedKeywordScore(false);
 		keywordLockedSentRef.current = false;
 		await clearQuestion();
@@ -551,6 +555,7 @@ const AGiaiMaPage = () => {
 	const startTheClock = useCallback(async () => {
 		setSelectedPlayerCodes([]);
 		setHasAddedScore(false);
+		setKeywordRevealedCodes(new Set());
 		setPlayers((prev) =>
 			prev.map((p) => ({
 				...p,
@@ -578,40 +583,24 @@ const AGiaiMaPage = () => {
 
 	const showAnswers = useCallback(async () => {
 		if (!canShowAnswers) return;
-		const questionCode = currentQuestion.questionCode;
-		const answersPayload: Array<{ user_code: string; content: string; timestamp: number }> = [];
-
-		for (const player of players) {
-			try {
-				const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`;
-				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-				if (!res.ok) continue;
-				const json = await res.json();
-				const data = json.data;
-				if (!data) continue;
-				const answerObj = Array.isArray(data) ? data[0] : data;
-				if (answerObj?.answer_text) {
-					answersPayload.push({
-						user_code: player.playerCode,
-						content: answerObj.answer_text,
-						timestamp: answerObj.timestamp ?? 0,
-					});
-				}
-			} catch (err) {
-				logger.warn("showAnswers: failed for", player.playerCode, err);
-			}
-		}
-
+		const answersPayload = players
+			.filter((p) => p.playerLastAnswer && !keywordRevealedCodes.has(p.playerCode))
+			.map((p) => ({
+				user_code: p.playerCode,
+				content: p.playerLastAnswer!,
+				timestamp: p.playerTimestamp ?? 0,
+			}));
 		try {
 			await sendMessage({ type: "send_answers_to_players", answers: answersPayload });
 		} catch (err) {
 			logger.error("showAnswers: failed to broadcast:", err);
 		}
-	}, [canShowAnswers, currentMatchCode, token, currentQuestion, players, sendMessage]);
+	}, [canShowAnswers, keywordRevealedCodes, players, sendMessage]);
 
 	const handleShowHint = useCallback(async () => {
 		const hint = currentQuestion.questionExplanation || currentQuestion.questionAnswer;
-		if (!hint) return;
+		if (!hint && !currentQuestion.questionMediaURL) return;
+		setPendingClueAction(false);
 		setShownHintContent(hint);
 		if (activeClueIndex !== null) {
 			const idx = activeClueIndex;
@@ -626,6 +615,7 @@ const AGiaiMaPage = () => {
 				type: "show_hint",
 				user_code: "",
 				hint_content: hint,
+				hint_media_source: currentQuestion.questionMediaURL ?? undefined,
 				target_players: selectedPlayerCodes,
 			});
 		} catch (err) {
@@ -634,6 +624,7 @@ const AGiaiMaPage = () => {
 	}, [currentQuestion, selectedPlayerCodes, sendMessage]);
 
 	const handleHideHint = useCallback(async () => {
+		setPendingClueAction(false);
 		setHintHidden(true);
 		try {
 			await sendMessage({ type: "hide_hint", user_code: "" });
@@ -654,7 +645,25 @@ const AGiaiMaPage = () => {
 	}, [keywordQuestion, sendMessage]);
 
 	const handleShowKeywordAnswers = useCallback(async () => {
-		if (!keywordAnswerRevealed) return;
+		const answer = keywordQuestion?.questionAnswer;
+		if (!answer) return;
+		// Reveal keyword answer if not already done
+		if (!keywordAnswerRevealed) {
+			setKeywordAnswerRevealed(true);
+			try {
+				await sendMessage({ type: "reveal_keyword_answer", answer });
+			} catch (err) {
+				logger.error("handleShowKeywordAnswers: reveal failed:", err);
+			}
+		}
+		// Update admin's local player bars with submitted keyword text
+		setKeywordRevealedCodes(new Set(Object.keys(keywordSubmissions)));
+		setPlayers((prev) =>
+			prev.map((p) => ({
+				...p,
+				playerLastAnswer: keywordSubmissions[p.playerCode]?.text ?? p.playerLastAnswer,
+			})),
+		);
 		const answers = Object.entries(keywordSubmissions).map(([user_code, { text, timestamp }]) => ({
 			user_code,
 			content: text,
@@ -665,7 +674,7 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("handleShowKeywordAnswers failed:", err);
 		}
-	}, [keywordAnswerRevealed, keywordSubmissions, sendMessage]);
+	}, [keywordAnswerRevealed, keywordQuestion, keywordSubmissions, sendMessage]);
 
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -790,7 +799,7 @@ const AGiaiMaPage = () => {
 						index={i + 1}
 						state={clueStates[i]}
 						onClick={() => { void handleRevealClue(i); }}
-						disabled={isTimerRunning}
+						disabled={isTimerRunning || (pendingClueAction && clueStates[i] !== "active")}
 						hintContent={revealedHints[i]}
 					/>
 				))}
@@ -802,7 +811,7 @@ const AGiaiMaPage = () => {
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}
-			question={currentQuestion}
+			question={{ ...currentQuestion, questionMediaURL: undefined }}
 			timerDuration={timer}
 			aboveQuestionBoard={clueGrid}
 			boardHeightClass="h-[30vh]"
@@ -831,6 +840,13 @@ const AGiaiMaPage = () => {
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
 					<AControlButton
+						onClick={() => { void showAnswers(); }}
+						disabled={!canShowAnswers}
+					>
+						<Eye size={18} />
+						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+					</AControlButton>
+					<AControlButton
 						onClick={() => {
 							void handleAddScoreToSelected().catch((err) =>
 								logger.error("AddScore button failed:", err),
@@ -839,7 +855,7 @@ const AGiaiMaPage = () => {
 						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
 					>
 						<Calculator size={18} />
-						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
+						<span className="ml-2 font-bold">TÍNH GỢI Ý</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => {
@@ -850,14 +866,7 @@ const AGiaiMaPage = () => {
 						disabled={selectedPlayerCodes.length === 0 || hasAddedKeywordScore}
 					>
 						<Calculator size={18} />
-						<span className="ml-2 font-bold">TÍNH ĐIỂM TỪ KHOÁ</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
-					>
-						<Eye size={18} />
-						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+						<span className="ml-2 font-bold">TÍNH TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleShowHint(); }}
@@ -868,7 +877,7 @@ const AGiaiMaPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleHideHint(); }}
-						disabled={!shownHintContent || hintHidden}
+						disabled={!currentQuestion.questionCode || hintHidden}
 					>
 						<EyeOff size={18} />
 						<span className="ml-2 font-bold">KHOÁ GỢI Ý</span>
@@ -882,7 +891,7 @@ const AGiaiMaPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleShowKeywordAnswers(); }}
-						disabled={!keywordAnswerRevealed || Object.keys(keywordSubmissions).length === 0}
+						disabled={!keywordQuestion?.questionAnswer || Object.keys(keywordSubmissions).length === 0}
 					>
 						<SendToBack size={18} />
 						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
@@ -900,6 +909,7 @@ const AGiaiMaPage = () => {
 							player={player}
 							isActive={selectedPlayerCodes.includes(player.playerCode)}
 							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
+							hasKeywordSubmission={!!keywordSubmissions[player.playerCode] && !keywordRevealedCodes.has(player.playerCode)}
 							onClick={toggleSelectedPlayer}
 							disabled={timer > 0}
 						/>

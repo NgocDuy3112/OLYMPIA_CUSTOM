@@ -27,11 +27,11 @@ Complete documentation for the OLYMPIA CUSTOM 3 quiz game frontend application.
 |-------|------------|---------|-------------|
 | **VL** | Vòng Loại | Qualifier | Preliminary qualification round (5 rounds: 8→4→2→2→8 questions) |
 | **KDC** | Khởi Động Chung | Group Warm-up | All players answer same questions |
-| **KDR** | Khởi Động Riêng | Individual Warm-up | Players answer individual questions |
+| **KDR** | Khởi Động CÁ NHÂN | Individual Warm-up | Players answer individual questions |
 | **BP** | Bứt Phá | Sprint | Fast-paced buzzer round |
 | **VD** | Vượt Đèo | Escape | Clue-based challenge round |
 | **VDC** | Về Đích Chung | Final Group Stage | Final group round |
-| **VDR** | Về Đích Riêng | Final Individual Stage | Final individual round |
+| **VDR** | Về Đích CÁ NHÂN | Final Individual Stage | Final individual round |
 | **GM** | Giải Mã | Decode | Mystery/decoding round |
 
 ### Qualifier Round Details

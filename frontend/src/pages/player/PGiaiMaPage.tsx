@@ -1,17 +1,60 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { usePlayerSession } from "@/hooks/usePlayerSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
+
+const CLUE_COUNT = 8;
+const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
+type ClueState = "idle" | "active" | "used";
+type RevealedHint = { text?: string; mediaUrl?: string };
+
+function buildKeywordBanner(answer: string): string {
+	const len = answer.length;
+	if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(answer)) return `TỪ KHOÁ GỒM CÓ ${len} CHỮ CÁI`;
+	if (/^\d+$/.test(answer)) return `TỪ KHOÁ GỒM CÓ ${len} CHỮ SỐ`;
+	return `TỪ KHOÁ GỒM CÓ ${len} KÝ TỰ`;
+}
+
+interface PlayerClueCardProps {
+	index: number;
+	state: ClueState;
+	hintContent?: RevealedHint;
+}
+
+const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintContent }) => {
+	const base = "flex-1 h-32 sm:h-40 lg:h-56 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
+	const styles: Record<ClueState, string> = {
+		idle:   "bg-blue-900 border-blue-600 text-white",
+		active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
+		used:   "bg-blue-700 border-blue-500 text-white",
+	};
+	const showHint = (state === "active" || state === "used") && !!(hintContent?.text || hintContent?.mediaUrl);
+	return (
+		<div className={`${base} ${styles[state]}`} aria-label={`Gợi ý ${index}`}>
+			{showHint ? (
+				<div className="flex items-center justify-center w-full h-full p-2">
+					{hintContent!.mediaUrl
+						? <RenderMedia mediaUrl={hintContent!.mediaUrl} />
+						: <span className="text-xl font-bold text-center leading-snug">{hintContent!.text}</span>
+					}
+				</div>
+			) : (
+				<span className="font-[SVN-Gratelos_Display] text-[60pt]">{index}</span>
+			)}
+		</div>
+	);
+};
 
 
 
@@ -19,17 +62,49 @@ const PGiaiMaPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
 	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
-	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
+	const { currentQuestion, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const [keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
 	const [questionAnswer, setQuestionAnswer] = useState("");
 	const [keyword, setKeyword] = useState("");
-	const [showAnswers, setShowAnswers] = useState(false);
 	const [hasSubmittedKeyword, setHasSubmittedKeyword] = useState(false);
-	const [revealedHint, setRevealedHint] = useState<string | null>(null);
+	const [timerHasStarted, setTimerHasStarted] = useState(false);
 	const [isKeywordLocked, setIsKeywordLocked] = useState(false);
 	const [showKeywordConfirm, setShowKeywordConfirm] = useState(false);
 	const [keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
+	const [clueStates, setClueStates] = useState<ClueState[]>(() => Array(CLUE_COUNT).fill("idle"));
+	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
+	const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
+	const activeClueIdxRef = useRef<number | null>(null);
+
+	useEffect(() => {
+		if (!matchCode || !token) return;
+		const fetchKeywordQ = async () => {
+			try {
+				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}&question_code=${encodeURIComponent(KEYWORD_QUESTION_CODE)}`;
+				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+				if (!res.ok) return;
+				const data = await res.json();
+				let payload: any = null;
+				if (Array.isArray(data.data)) {
+					payload = data.data.find((q: any) => String(q?.question_code) === KEYWORD_QUESTION_CODE) ?? data.data[0] ?? null;
+				} else {
+					payload = data.data ?? null;
+				}
+				const answer: string =
+					payload?.question?.correct_answers ??
+					payload?.question?.correct_answer ??
+					payload?.answer ??
+					payload?.correct_answer ??
+					"";
+				if (answer) setKeywordBanner(buildKeywordBanner(answer));
+			} catch {
+				// keep default banner
+			}
+		};
+		void fetchKeywordQ();
+	}, [matchCode, token]);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -88,31 +163,76 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
+			case "send_question": {
+				const code: string = msg.question_code ?? "";
+				const m = String(code).match(/(\d+)\s*$/);
+				const newClueNumber = m ? Number(m[1]) : 0;
+				if (newClueNumber >= 1 && newClueNumber <= CLUE_COUNT) {
+					const newIdx = newClueNumber - 1;
+					activeClueIdxRef.current = newIdx;
+					setClueStates((prev) =>
+						prev.map((s, i) => {
+							if (i === newIdx) return "active";
+							if (s === "active") return "used";
+							return s;
+						})
+					);
+				}
+				break;
+			}
+
 			case "start_the_timer": {
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				setTimerHasStarted(true);
 				setQuestionAnswer("");
 				setKeyword("");
-				setShowAnswers(false);
-				setRevealedHint(null);
 				break;
 			}
 
 			case "clear_question": {
-				setRevealedHint(null);
 				setKeywordAnswer(null);
+				setClueStates(Array(CLUE_COUNT).fill("idle"));
+				setRevealedHints({});
+				setKeywordSubmittedCodes(new Set());
+				setTimerHasStarted(false);
+				activeClueIdxRef.current = null;
+				break;
+			}
+
+			case "round_start": {
+				setKeywordAnswer(null);
+				setClueStates(Array(CLUE_COUNT).fill("idle"));
+				setRevealedHints({});
+				setKeywordSubmittedCodes(new Set());
+				setTimerHasStarted(false);
+				activeClueIdxRef.current = null;
 				break;
 			}
 
 			case "show_hint": {
-				const targets: string[] = msg.target_players ?? [];
-				if (targets.length === 0 || targets.includes(playerCode)) {
-					setRevealedHint(msg.hint_content ?? null);
+				const idx = activeClueIdxRef.current;
+				if (idx !== null) {
+					const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players : [];
+					const isTargeted = targets.length === 0 || targets.includes(playerCode);
+					if (isTargeted) {
+						setRevealedHints((prev) => ({
+							...prev,
+							[idx]: { text: msg.hint_content ?? undefined, mediaUrl: msg.hint_media_source ?? undefined },
+						}));
+					}
 				}
 				break;
 			}
 
 			case "hide_hint": {
-				setRevealedHint(null);
+				const idx = activeClueIdxRef.current;
+				if (idx !== null) {
+					setRevealedHints((prev) => {
+						const next = { ...prev };
+						delete next[idx];
+						return next;
+					});
+				}
 				break;
 			}
 
@@ -136,9 +256,9 @@ const PGiaiMaPage = () => {
 						playerHasBuzzed: undefined,
 					})),
 				);
+				setTimerHasStarted(false);
 				setQuestionAnswer("");
 				setKeyword("");
-				setShowAnswers(true);
 				break;
 			}
 
@@ -186,6 +306,12 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
+			case "keyword_submit": {
+				const { user_code } = msg;
+				if (user_code) setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
+				break;
+			}
+
 			case "send_keyword_answers": {
 				const answers: { user_code: string; content: string; timestamp: number }[] = msg.answers ?? [];
 				setPlayers((prev) =>
@@ -194,7 +320,19 @@ const PGiaiMaPage = () => {
 						return a ? { ...p, playerLastAnswer: a.content, playerTimestamp: a.timestamp } : p;
 					}),
 				);
-				setShowAnswers(true);
+				setKeywordSubmittedCodes(new Set());
+				break;
+			}
+
+			case "send_answers_to_players": {
+				const answers = msg.answers ?? [];
+				setPlayers((prev) =>
+					prev.map((p) => {
+						const ans = answers.find((a: any) => a.user_code === p.playerCode);
+						if (!ans) return p;
+						return { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp };
+					}),
+				);
 				break;
 			}
 
@@ -245,6 +383,13 @@ const PGiaiMaPage = () => {
 			answer_text: trimmed,
 			timestamp: ts,
 		});
+		setPlayers((prev) =>
+			prev.map((p) =>
+				p.playerCode === playerCode
+					? { ...p, playerLastAnswer: trimmed, playerTimestamp: Number(ts.toFixed(3)) }
+					: p,
+			),
+		);
 		setQuestionAnswer("");
 	}, [questionAnswer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, token, matchCode]);
 
@@ -293,17 +438,36 @@ const PGiaiMaPage = () => {
 		});
 
 		setHasSubmittedKeyword(true);
+		setKeywordSubmittedCodes((prev) => new Set([...prev, playerCode]));
 		setKeyword("");
 	}, [keyword, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode]);
 
-	// Question answer box: unlocked by timer, only locked if no active question or already submitted keyword
-	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode;
+	const isTimerExpired = timeLimit > 0 && timer === 0;
+	// Question answer box: only enabled after admin starts the clock; also disabled after expiry or keyword submitted
+	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired;
 	// Keyword box: additionally locked by isKeywordLocked (broadcast when all clues open or all players submitted)
 	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || !currentQuestion.questionCode;
 
-	// Always show the current player's own answer; hide others until admin reveals
 	const displayPlayers = players.map((p) =>
-		showAnswers || p.playerCode === playerCode ? p : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
+		keywordSubmittedCodes.has(p.playerCode) ? { ...p, playerHasSubmittedKeyword: true } : p,
+	);
+
+	const clueGrid = (
+		<div className="flex flex-col gap-3 w-full mb-3 px-3">
+			<div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-4 py-2 text-center font-[SVN-Gratelos_Display] text-2xl lg:text-3xl font-bold text-white uppercase shadow">
+				{keywordBanner}
+			</div>
+			<div className="grid grid-cols-4 gap-2 w-full">
+				{Array.from({ length: CLUE_COUNT }, (_, i) => (
+					<PlayerClueCard
+						key={i}
+						index={i + 1}
+						state={clueStates[i]}
+						hintContent={revealedHints[i]}
+					/>
+				))}
+			</div>
+		</div>
 	);
 
 	return (
@@ -312,19 +476,15 @@ const PGiaiMaPage = () => {
 			currentPlayerCode={playerCode}
 		>
 			<>
+				{clueGrid}
+
 				<PQuestionBoard
 					title="GIẢI MÃ"
-					question={currentQuestion}
+					question={{ ...currentQuestion, questionMediaURL: undefined }}
 					timerDuration={timer}
-					boardHeightClass="h-[38vh]"
-					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-				/>
-
-				{revealedHint && (
-					<div className="mx-3 p-4 bg-yellow-600 border-2 border-yellow-400 rounded-xl text-center font-bold text-white text-xl">
-						GỢI Ý: {revealedHint}
-					</div>
-				)}
+					boardHeightClass="h-[14vh] lg:h-[20vh]"
+					controls={{ variant: 'numbers', count: 0 }}
+					/>
 
 				{keywordAnswer && (
 					<div className="mx-3 p-4 bg-green-700 border-2 border-green-400 rounded-xl text-center font-bold text-white text-xl">
@@ -332,7 +492,7 @@ const PGiaiMaPage = () => {
 					</div>
 				)}
 
-				<div className="flex flex-col gap-3 p-3">
+				<div className="flex flex-col gap-2 p-2 lg:p-3">
 					<PAnswerBox
 						answer={questionAnswer}
 						setAnswer={setQuestionAnswer}

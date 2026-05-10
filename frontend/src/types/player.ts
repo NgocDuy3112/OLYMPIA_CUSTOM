@@ -9,6 +9,8 @@ export interface PlayerStatus {
     playerConnected?: boolean;
     // indicates whether this player is the currently active/selected player for solo rounds
     playerIsTurn?: boolean;
+    // indicates that this player has submitted a keyword (giải mã round), icon shown until admin reveals
+    playerHasSubmittedKeyword?: boolean;
     // Qualifier-specific tie-breaker fields (only used in AQualifierPage)
     playerCorrectScore?: number;
     playerAvgResponseTime?: number;

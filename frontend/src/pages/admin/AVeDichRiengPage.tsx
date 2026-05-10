@@ -29,7 +29,7 @@ import { API_BASE_URL } from "@/configs";
 
 const logger = createLogger("AVeDichRieng");
 
-const ROUND_QUESTION_COUNT = 3; // Lượt Riêng: 3 questions
+const ROUND_QUESTION_COUNT = 3; // Lượt CÁ NHÂN: 3 questions
 
 const getTimeLimitForPoints = (points: number): number => {
 	switch (points) {
@@ -88,7 +88,7 @@ const AVeDichRiengPage = () => {
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
-	// The player whose Lượt Riêng it is — persisted from the pick page.
+	// The player whose Lượt CÁ NHÂN it is — persisted from the pick page.
 	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(() => {
 		if (!currentMatchCode) return null;
 		try {
@@ -113,11 +113,12 @@ const AVeDichRiengPage = () => {
 	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const wasTimerRunningRef = useRef<boolean>(false); // Track state transitions to prevent premature window activation
 
 	// ─── Score state ──────────────────────────────────────────────────────────────
 
-	const questionTitle = "VỀ ĐÍCH - LƯỢT RIÊNG";
+	const questionTitle = "VỀ ĐÍCH - LƯỢT CÁ NHÂN";
 
 	// Point value of the currently active question
 	const currentPoints = (() => {
@@ -334,6 +335,7 @@ const AVeDichRiengPage = () => {
 		setTimer(0);
 		setAnsweringWindowTimer(0); // Reset answering window
 		setIsTimerRunning(false);
+		setVideoPlayState(null);
 		wasTimerRunningRef.current = false; // Reset state transition tracker
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
@@ -354,6 +356,7 @@ const AVeDichRiengPage = () => {
 			}
 
 			setSelectedPlayerCodes([]);
+			setVideoPlayState(null);
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -423,6 +426,10 @@ const AVeDichRiengPage = () => {
 		setAnsweringWindowTimer(0); // Reset answering window when starting new question
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
+			if (currentQuestion.questionMediaURL) {
+				void sendMessage({ type: "play_video" });
+				setVideoPlayState("playing");
+			}
 			void sendMessage({
 				type: "start_the_timer",
 				user_code: "",
@@ -496,6 +503,12 @@ const AVeDichRiengPage = () => {
 	}, [answeringWindowTimer, currentMatchCode, sendMessage]);
 
 	
+	// Broadcast power state whenever activePower changes
+	useEffect(() => {
+		if (!currentMatchCode) return;
+		void sendMessage({ type: "veDich_power_activated", power: activePower ?? null });
+	}, [activePower, currentMatchCode, sendMessage]);
+
 	// ─── Score management ─────────────────────────────────────────────────────────
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -567,22 +580,25 @@ const AVeDichRiengPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
-	// Lượt Riêng: individual round — only the selected player(s) get +points.
-	// Calculate score: add to selected players only (Lượt Riêng logic)
+	// Lượt CÁ NHÂN: individual round — only the selected player(s) get +points.
+	// Calculate score: add to selected players only (Lượt CÁ NHÂN logic)
 
-	// Add points: +100% default, +150% with star, +50% with shield
+	// Add points: +100% default, +150% with star (turn player only), +50% with shield (turn player only)
 	const handleAddPoints = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
-		let points: number;
-		if (activePower === 'star') points = Math.round(currentPoints * 1.5);
-		else if (activePower === 'shield') points = Math.round(currentPoints * 0.5);
-		else points = currentPoints;
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
 		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
 
 		try {
 			for (const playerCode of selectedPlayerCodes) {
+				let points: number;
+				if (playerCode === currentTurnPlayerCode && activePower === 'star')
+					points = Math.round(currentPoints * 1.5);
+				else if (playerCode === currentTurnPlayerCode && activePower === 'shield')
+					points = Math.round(currentPoints * 0.5);
+				else
+					points = currentPoints;
 				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
@@ -618,12 +634,14 @@ const AVeDichRiengPage = () => {
 		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
 
 		try {
-			// Shield: no deduction — skip score call
-			if (activePower !== 'shield') {
-				const points = activePower === 'star' ? -currentPoints : Math.floor(currentPoints * -0.5);
-				for (const playerCode of selectedPlayerCodes) {
-					await handleAddScore(playerCode, points, false);
-				}
+			for (const playerCode of selectedPlayerCodes) {
+				const isCurrentTurnPlayer = playerCode === currentTurnPlayerCode;
+				// Shield (turn player only): no deduction
+				if (isCurrentTurnPlayer && activePower === 'shield') continue;
+				const points = (isCurrentTurnPlayer && activePower === 'star')
+					? -currentPoints
+					: Math.floor(currentPoints * -0.5);
+				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
 			// Mark power as consumed for the turn player
@@ -697,7 +715,7 @@ const AVeDichRiengPage = () => {
 
 		switch (msg?.type) {
 			case "veDich_questions_selected": {
-				// Receive the 3 question codes confirmed from the pick page (riêng round)
+				// Receive the 3 question codes confirmed from the pick page (CÁ NHÂN round)
 				if (Array.isArray(msg.selected_question_codes) && msg.round === "rieng") {
 					if (currentMatchCode) {
 						localStorage.setItem(`veDich_rieng_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
@@ -898,14 +916,15 @@ const AVeDichRiengPage = () => {
 		<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
+			videoPlayState={videoPlayState}
 			timerDuration={timer}
 			controlsChildren={() => (
-				<div className="flex gap-3">
+				<div className="flex gap-3 overflow-x-auto">
 					{Array.from({ length: ROUND_QUESTION_COUNT }).map((_, i) => {
 						const code = roundQuestionCodes[i];
 						if (!code) {
 							return (
-								<div key={`rq-empty-${i}`} className="w-60 shrink-0 h-9">
+								<div key={`rq-empty-${i}`} className="w-55 shrink-0 h-20">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>
 							);
@@ -914,7 +933,7 @@ const AVeDichRiengPage = () => {
 						const state = questionStates[code] || "available";
 						const isActive = currentQuestion.questionCode === code;
 						return (
-							<div key={`rq-${code}`} className="w-60 shrink-0 h-9">
+							<div key={`rq-${code}`} className="w-55 shrink-0 h-20">
 								<VeDichQuestionCard
 									category={catPrimary}
 									subcategory={catSecondary}
@@ -934,29 +953,26 @@ const AVeDichRiengPage = () => {
 				</div>
 			)}
 			topControlButtons={
-				<div className="flex items-center gap-3 flex-wrap">
-					<span className="text-blue-300 font-bold text-sm uppercase tracking-wide shrink-0">Trợ giúp:</span>
-					<AControlButton
-						onClick={() => setActivePower((prev) => (prev === 'star' ? null : 'star'))}
-						disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star)}
-						className={activePower === 'star' ? 'bg-yellow-500 ring-yellow-400 text-blue-900' : undefined}
-					>
-						<Star size={18} />
-						<span className="ml-2 font-bold">
-							{currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star ? 'NGÔI SAO (đã dùng)' : 'NGÔI SAO HY VỌNG'}
-						</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => setActivePower((prev) => (prev === 'shield' ? null : 'shield'))}
-						disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield)}
-						className={activePower === 'shield' ? 'bg-green-500 ring-green-400 text-blue-900' : undefined}
-					>
-						<Shield size={18} />
-						<span className="ml-2 font-bold">
-							{currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield ? 'BẢO HỘ (đã dùng)' : 'BẢO HỘ MIỄN TRỪ'}
-						</span>
-					</AControlButton>
-				</div>
+				<>
+					<div className="flex items-center justify-center gap-3 flex-wrap w-full">
+						<AControlButton
+							onClick={() => setActivePower((prev) => (prev === 'star' ? null : 'star'))}
+							disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star)}
+							className={activePower === 'star' ? 'bg-yellow-500 ring-yellow-400 text-blue-900' : undefined}
+						>
+							<Star size={18} />
+							<span className="ml-2 font-bold">NGÔI SAO HY VỌNG</span>
+						</AControlButton>
+						<AControlButton
+							onClick={() => setActivePower((prev) => (prev === 'shield' ? null : 'shield'))}
+							disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield)}
+							className={activePower === 'shield' ? 'bg-green-500 ring-green-400 text-blue-900' : undefined}
+						>
+							<Shield size={18} />
+							<span className="ml-2 font-bold">BẢO HỘ MIỄN TRỪ</span>
+						</AControlButton>
+					</div>
+				</>
 			}
 			playerSectionButtons={
 				<>

@@ -93,7 +93,7 @@ const AKhoiDongChungPage = () => {
 				const data = json.data;
 				if (!data) continue;
 				// chuẩn hóa thành một object answer
-				const answerObj = Array.isArray(data) ? data[0] : data;
+				const answerObj = Array.isArray(data) ? data.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), data[0]) : data;
 				if (answerObj?.answer_text) {
 					answersPayload.push({
 						user_code: player.playerCode,

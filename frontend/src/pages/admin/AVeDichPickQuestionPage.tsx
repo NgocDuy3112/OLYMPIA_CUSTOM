@@ -22,7 +22,7 @@ const logger = createLogger("AVeDichPick");
  *
  * Handles both:
  * - /admin/vdc/pick/:matchCode → Lượt Chung (4 questions)
- * - /admin/vdr/pick/:matchCode → Lượt Riêng (3 questions)
+ * - /admin/vdr/pick/:matchCode → Lượt CÁ NHÂN (3 questions)
  */
 
 const AVeDichPickQuestion = () => {
@@ -40,7 +40,7 @@ const AVeDichPickQuestion = () => {
 
 	// State
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	// Selected player for Riêng round (admin click)
+	// Selected player for CÁ NHÂN round (admin click)
 	const [selectedPlayerCode, setSelectedPlayerCode] = useState<string | null>(null);
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>([]);
@@ -49,7 +49,7 @@ const AVeDichPickQuestion = () => {
 	const [errorMessage, setErrorMessage] = useState<string>("");
 	const [successMessage, setSuccessMessage] = useState<string>("");
 
-	// Chung: questions = player count; Riêng: fixed 3 questions
+	// Chung: questions = player count; CÁ NHÂN: fixed 3 questions
 	const requiredCount = isChung ? players.length : round;
 
 	const questionCategories = questions.map((q, idx) => getVeDichMeta(q.questionCode, idx).category);
@@ -96,10 +96,10 @@ const AVeDichPickQuestion = () => {
 		}
 	}, [selectedQuestionCodes, questions, currentMatchCode, isChung, sendMessage]);
 
-	// Broadcast selected player (blocked buzzer) for Riêng
+	// Broadcast selected player (blocked buzzer) for CÁ NHÂN
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		if (isChung) return; // only for Riêng
+		if (isChung) return; // only for CÁ NHÂN
 		// send blocked_buzz message (user_code null clears)
 		sendMessage({ type: "blocked_buzz", user_code: selectedPlayerCode ?? null, match_code: currentMatchCode });
 		// persist selection
@@ -232,7 +232,7 @@ const AVeDichPickQuestion = () => {
 					.map((q: { question_code: string }) => q.question_code);
 
 				// Also treat questions already answered in ANY VỀ ĐÍCH round as used.
-				// Unified key written by both AVeDichChungPage and future Riêng page.
+				// Unified key written by both AVeDichChungPage and future CÁ NHÂN page.
 				try {
 					const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
 					if (storedUsed) {

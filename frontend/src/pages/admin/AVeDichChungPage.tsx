@@ -89,6 +89,7 @@ const AVeDichChungPage = () => {
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 
 	// ─── Score state ──────────────────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ const AVeDichChungPage = () => {
 	})();
 
 	// Persist questionStates for CHỌN LẠI within this round, and accumulate answered codes
-	// into a unified cross-round key so the Lượt Riêng pick page can also see them as used.
+	// into a unified cross-round key so the Lượt CÁ NHÂN pick page can also see them as used.
 	useEffect(() => {
 		if (!currentMatchCode) return;
 		// Per-round state (used by CHỌN LẠI to restore board)
@@ -292,6 +293,7 @@ const AVeDichChungPage = () => {
 
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setVideoPlayState(null);
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (err) {
@@ -311,6 +313,7 @@ const AVeDichChungPage = () => {
 			}
 
 			setSelectedPlayerCodes([]);
+			setVideoPlayState(null);
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -387,8 +390,12 @@ const AVeDichChungPage = () => {
 				question_code: currentQuestion.questionCode,
 				started_at: Date.now(),
 			});
+			if (currentQuestion.questionMediaURL) {
+				void sendMessage({ type: "play_video" });
+				setVideoPlayState("playing");
+			}
 		}
-	}, [currentQuestion.questionCode, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
+	}, [currentQuestion.questionCode, currentQuestion.questionMediaURL, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
 
 	useEffect(() => {
 		timerRef.current = timer;
@@ -430,7 +437,7 @@ const AVeDichChungPage = () => {
 				const json = await res.json();
 				const data = json.data;
 				if (!data) continue;
-				const answerObj = Array.isArray(data) ? data[0] : data;
+				const answerObj = Array.isArray(data) ? data.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), data[0]) : data;
 				if (answerObj?.answer_text) {
 					answersPayload.push({
 						user_code: player.playerCode,
@@ -796,14 +803,15 @@ const AVeDichChungPage = () => {
 		<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
+			videoPlayState={videoPlayState}
 			timerDuration={timer}
 			controlsChildren={() => (
-				<div className="flex gap-3">
+				<div className="flex gap-3 overflow-x-auto">
 					{Array.from({ length: Math.max(roundQuestionCodes.length, players.length) }).map((_, i) => {
 						const code = roundQuestionCodes[i];
 						if (!code) {
 							return (
-								<div key={`rq-empty-${i}`} className="w-60 shrink-0 h-9">
+								<div key={`rq-empty-${i}`} className="w-55 shrink-0 h-20">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>
 							);
@@ -812,7 +820,7 @@ const AVeDichChungPage = () => {
 						const state = questionStates[code] || "available";
 						const isActive = currentQuestion.questionCode === code;
 						return (
-							<div key={`rq-${code}`} className="w-60 shrink-0 h-9">
+							<div key={`rq-${code}`} className="w-55 shrink-0 h-20">
 								<VeDichQuestionCard
 									category={catPrimary}
 									subcategory={catSecondary}

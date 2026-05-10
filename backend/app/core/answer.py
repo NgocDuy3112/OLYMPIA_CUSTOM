@@ -56,37 +56,35 @@ async def post_answer_to_db(
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
 
-        # Enforce single-answer-per-player for qualifier questions (and generally avoid duplicates)
+        # UPSERT: update existing answer if one exists, otherwise insert a new one.
+        # Players can revise their answer multiple times; only the last submission is kept.
         cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
-        cached = await valkey.get(cache_key)
-        if cached is not None:
-            log_message = f"Player {request.user_code} already submitted answer for question {request.question_code}; rejecting duplicate."
-            global_logger.warning(log_message)
-            raise HTTPException(status_code=400, detail=log_message)
 
-        # Fallback DB check in case cache missed
         db_res = await session.execute(
-            select(Answer.id).where(
+            select(Answer).where(
                 Answer.player_id == player_id,
                 Answer.match_id == match_id,
                 Answer.question_id == question_id,
                 Answer.is_deleted == False,
             )
         )
-        if db_res.first() is not None:
-            log_message = f"Player {request.user_code} already has a stored answer for question {request.question_code}; rejecting duplicate."
-            global_logger.warning(log_message)
-            raise HTTPException(status_code=400, detail=log_message)
-        # Now create the answer and then cache + broadcast
-        new_answer = Answer(
-            answer_text = request.answer_text,
-            has_buzzed = request.has_buzzed,
-            timestamp = request.timestamp,
-            player_id = player_id,
-            match_id = match_id,
-            question_id = question_id,
-        )
-        session.add(new_answer)
+        existing_answer = db_res.scalars().first()
+
+        if existing_answer is not None:
+            existing_answer.answer_text = request.answer_text
+            existing_answer.timestamp = request.timestamp
+            existing_answer.has_buzzed = request.has_buzzed
+            global_logger.info(f"Updating existing answer for question_code={request.question_code} from user_code={request.user_code}.")
+        else:
+            new_answer = Answer(
+                answer_text=request.answer_text,
+                has_buzzed=request.has_buzzed,
+                timestamp=request.timestamp,
+                player_id=player_id,
+                match_id=match_id,
+                question_id=question_id,
+            )
+            session.add(new_answer)
         await session.commit()
 
         # Cache the answer for fast reads and publish to match channel
