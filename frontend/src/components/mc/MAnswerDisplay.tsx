@@ -9,7 +9,7 @@ const MAnswerDisplay: React.FC<MAnswerDisplayProps> = ({ answer, explanation }) 
     if (!answer) return null;
     return (
         <div className="mx-3 mt-3 flex flex-col gap-2">
-            <div className="p-4 bg-green-700 border-2 border-green-400 rounded-xl text-center font-bold text-white text-xl">
+            <div className="p-4 bg-blue-700 border-2 border-blue-400 rounded-xl text-center font-bold text-white text-xl">
                 ĐÁP ÁN: {answer}
             </div>
             {explanation && (

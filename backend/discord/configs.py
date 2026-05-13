@@ -26,6 +26,7 @@ VOICE_CHANNEL_ID = os.getenv("VOICE_CHANNEL_ID", "")
 
 VALKEY_HOST = os.getenv("VALKEY_HOST", "localhost")
 VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
+VALKEY_USER = os.getenv("VALKEY_USER", "") or None
 VALKEY_PASSWORD = os.getenv("VALKEY_PASSWORD", "") or None
 VALKEY_DB = int(os.getenv("VALKEY_DB", "0"))
 
@@ -40,8 +41,8 @@ BGM_DIR = os.path.join(BASE_DIR, "audios", "bgm")
 SFX_DIR = os.path.join(BASE_DIR, "audios", "sfx")
 
 # Valkey connection URL
-_password_part = f":{VALKEY_PASSWORD}@" if VALKEY_PASSWORD else ""
-VALKEY_URL = f"redis://{_password_part}{VALKEY_HOST}:{VALKEY_PORT}/{VALKEY_DB}"
+_auth_part = f"{VALKEY_USER or ''}:{VALKEY_PASSWORD}@" if VALKEY_PASSWORD else ""
+VALKEY_URL = f"redis://{_auth_part}{VALKEY_HOST}:{VALKEY_PORT}/{VALKEY_DB}"
 
 # ── S3 ───────────────────────────────────────────────────────────────────────
 

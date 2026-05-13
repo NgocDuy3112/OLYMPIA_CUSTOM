@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { Star, Shield } from "lucide-react";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
@@ -17,10 +16,10 @@ type RoundQuestion = { code: string; category: string; points: number };
 const MVeDichRiengPage = () => {
     const { matchCode, token } = useMcSession();
     const { lastMessage } = useMcWebSocket();
-    const { timer, start } = useCountdownTimer();
+    const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyBuzz, clearAnswers } = useMcPlayers();
-    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
 
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
@@ -28,6 +27,7 @@ const MVeDichRiengPage = () => {
     const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
     const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
+    const [currentPlayerCode, setCurrentPlayerCode] = useState("");
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -37,11 +37,15 @@ const MVeDichRiengPage = () => {
         switch (msg?.type) {
             case "send_players_info":
                 applyPlayersInfo(msg);
+                {
+                    const current = (msg?.players ?? []).find((p: any) => p?.is_current);
+                    setCurrentPlayerCode(current ? String(current.user_code ?? "") : "");
+                }
                 break;
             case "start_the_timer":
                 setBuzzerWinnerCode(null);
                 setAnsweringWindowTimer(0);
-                start(Number(msg.time_limit ?? 0));
+                startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
                 clearAnswers();
                 break;
@@ -100,7 +104,7 @@ const MVeDichRiengPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, start, applyPlayersInfo, applyScoreUpdate, applyBuzz, setPlayers, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyBuzz, setPlayers, clearAnswers, fetchAnswer, clearAnswer, setCurrentPlayerCode]);
 
     // Countdown answering window timer
     useEffect(() => {
@@ -115,39 +119,48 @@ const MVeDichRiengPage = () => {
         ? (players.find((p) => p.playerCode === buzzerWinnerCode)?.playerName ?? buzzerWinnerCode)
         : null;
 
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+    };
+
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
+        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode}>
             <>
-                <PQuestionBoard
+                <AQuestionBoard
                     title="VỀ ĐÍCH - LƯỢT CÁ NHÂN"
-                    question={currentQuestion}
+                    question={questionWithAnswer}
                     timerDuration={answeringWindowTimer > 0 ? answeringWindowTimer : timer}
                     videoPlayState={videoPlayState}
+                    boardHeightClass="h-[55vh]"
+                    answerBoxHeightClass="min-h-[4rem]"
                 >
-                    <div className="flex gap-1 overflow-x-auto">
-                        {roundQuestionsData.length > 0
-                            ? roundQuestionsData.map((q) => {
-                                const qState = questionStates[q.code] ?? "available";
-                                const isActive = currentQuestion.questionCode === q.code;
-                                return (
-                                    <div key={q.code} className="w-55 shrink-0 h-20">
-                                        <VeDichQuestionCard
-                                            category={q.category}
-                                            points={q.points}
-                                            state={qState}
-                                            isSelected={isActive}
-                                            disabled={qState !== "available"}
-                                        />
+                    {() => (
+                        <div className="flex gap-1 overflow-x-auto">
+                            {roundQuestionsData.length > 0
+                                ? roundQuestionsData.map((q) => {
+                                    const qState = questionStates[q.code] ?? "available";
+                                    const isActive = currentQuestion.questionCode === q.code;
+                                    return (
+                                        <div key={q.code} className="w-55 shrink-0 h-20">
+                                            <VeDichQuestionCard
+                                                category={q.category}
+                                                points={q.points}
+                                                state={qState}
+                                                isSelected={isActive}
+                                                disabled={qState !== "available"}
+                                            />
+                                        </div>
+                                    );
+                                })
+                                : Array.from({ length: 3 }).map((_, i) => (
+                                    <div key={`ph-${i}`} className="w-55 shrink-0 h-20">
+                                        <VeDichQuestionCard placeholder category="" disabled />
                                     </div>
-                                );
-                            })
-                            : Array.from({ length: 3 }).map((_, i) => (
-                                <div key={`ph-${i}`} className="w-55 shrink-0 h-20">
-                                    <VeDichQuestionCard placeholder category="" disabled />
-                                </div>
-                            ))}
-                    </div>
-                </PQuestionBoard>
+                                ))}
+                        </div>
+                    )}
+                </AQuestionBoard>
 
                 {activePower && (
                     <div className="mx-3 mt-2 p-3 bg-blue-800 border-2 border-blue-400 rounded-xl flex items-center gap-3">
@@ -155,11 +168,13 @@ const MVeDichRiengPage = () => {
                             <>
                                 <Star size={20} className="text-yellow-400 shrink-0" />
                                 <span className="font-bold text-yellow-300 uppercase tracking-wide">Ngôi sao hy vọng đang kích hoạt</span>
+                                <span className="text-yellow-200 text-sm">Đúng: +150% · Sai: -100%</span>
                             </>
                         ) : (
                             <>
-                                <Shield size={20} className="text-green-400 shrink-0" />
-                                <span className="font-bold text-green-300 uppercase tracking-wide">Bảo hộ miễn trừ đang kích hoạt</span>
+                                <Shield size={20} className="text-blue-400 shrink-0" />
+                                <span className="font-bold text-blue-300 uppercase tracking-wide">Bảo hộ miễn trừ đang kích hoạt</span>
+                                <span className="text-blue-200 text-sm">Đúng: +50% · Sai: không trừ</span>
                             </>
                         )}
                     </div>
@@ -170,8 +185,6 @@ const MVeDichRiengPage = () => {
                         BUZZER: {buzzerWinnerName}
                     </div>
                 )}
-
-                <MAnswerDisplay answer={questionAnswer} explanation={questionExplanation} />
             </>
         </PBasePageLayout>
     );

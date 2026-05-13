@@ -1,15 +1,11 @@
-import React, { useEffect, useState, useContext } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useCallback, useEffect, useState, useContext } from "react";
 import { useParams } from "react-router-dom";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
 import { PlayerWebSocketContext } from "@/contexts/playerWsImpl";
-
-interface RoomPlayer {
-	user_code: string;
-	user_name: string;
-	position: number;
-}
+import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 
 const PWaitingPage: React.FC = () => {
 	const { matchCode: matchCodeParam } = useParams<{ matchCode: string }>();
@@ -24,58 +20,88 @@ const PWaitingPage: React.FC = () => {
 	const wsCtx = useContext(PlayerWebSocketContext);
 	const lastMessage = wsCtx?.lastMessage ?? null;
 
-	useEffect(() => {
+	const loadPlayersWithScores = useCallback(async () => {
 		if (!matchCode || !token) {
 			setLoaded(true);
 			return;
 		}
-		fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/room`, {
-			headers: { Authorization: `Bearer ${token}` },
-		})
-			.then((res) => res.json())
-			.then((json) => {
-				const data = json?.data ?? {};
-				setMatchName(data.match_name ?? "");
-				const roomPlayers: RoomPlayer[] = data.players ?? [];
-				setPlayers(
-					roomPlayers.map((p) => ({
-						playerCode: p.user_code,
-						playerName: p.user_name,
-						playerScore: 0,
-					})),
-				);
-			})
-			.catch(() => {})
-			.finally(() => setLoaded(true));
+		try {
+			const [roomRes, scoreRes] = await Promise.all([
+				fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/room`, {
+					headers: { Authorization: `Bearer ${token}` },
+				}).then((r) => r.json()),
+				fetch(`${API_BASE_URL}/scoreboard/${encodeURIComponent(matchCode)}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				}).then((r) => r.json()).catch(() => null),
+			]);
+
+			const roomData = roomRes?.data ?? {};
+			setMatchName(roomData.match_name ?? "");
+
+			const roomPlayers: any[] = roomData.players ?? [];
+			const scoreboardList: any[] = scoreRes?.data?.scoreboard ?? [];
+
+			const profiles = roomPlayers.map((p: any) => ({
+				user_code: p.user_code,
+				user_name: p.user_name ?? "",
+			}));
+
+			setPlayers((prev) => buildPlayersSnapshot(roomPlayers, scoreboardList, profiles, prev));
+		} catch {
+			try {
+				const roomRes2 = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/room`, {
+					headers: { Authorization: `Bearer ${token}` },
+				}).then((r) => r.json());
+				const roomData = roomRes2?.data ?? {};
+				setMatchName(roomData.match_name ?? "");
+				const roomPlayers: any[] = roomData.players ?? [];
+				setPlayers(roomPlayers.map((p: any) => ({
+					playerCode: p.user_code,
+					playerName: p.user_name,
+					playerScore: 0,
+				})));
+			} catch { /* ignore */ }
+		} finally {
+			setLoaded(true);
+		}
 	}, [matchCode, token]);
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	useEffect(() => {
+		void loadPlayersWithScores();
+	}, [loadPlayersWithScores]);
+
+	const applyPlayersSnapshot = useCallback(
+		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
+			const playersList = Array.isArray(payload?.players) ? payload.players : [];
+			const scoreboardList = Array.isArray(payload?.scoreboard) ? payload.scoreboard : [];
+			const profileList = Array.isArray(payload?.profiles) ? payload.profiles : [];
+			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreboardList, profileList, prev));
+		},
+		[],
+	);
+
 	useEffect(() => {
 		if (!lastMessage) return;
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const raw = lastMessage as any;
 		const msg = raw?.message ?? raw;
 
-		if (msg?.type === "send_players_info") {
-			const list: unknown[] = msg?.players ?? [];
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			setPlayers(list.map((p: any) => ({
-				playerCode: String(p?.user_code ?? ""),
-				playerName: p?.user_name ?? "",
-				playerScore:
-					typeof p?.cumulative_score === "number" ? p.cumulative_score :
-					typeof p?.cummulative_score === "number" ? p.cummulative_score : 0,
-			})));
-		} else if (msg?.type === "player_score_updated") {
-			if (msg?.user_code && typeof msg?.new_total_score === "number") {
-				setPlayers((prev) =>
-					prev.map((p) =>
-						p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-					),
-				);
+		switch (msg?.type) {
+			case "send_players_info": {
+				applyPlayersSnapshot(msg);
+				break;
+			}
+			case "player_score_updated": {
+				if (msg.user_code && typeof msg.new_total_score === "number") {
+					setPlayers((prev) =>
+						prev.map((p) =>
+							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
+						),
+					);
+				}
+				break;
 			}
 		}
-	}, [lastMessage]);
+	}, [applyPlayersSnapshot, lastMessage]);
 
 	return (
 		<div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
@@ -104,11 +130,6 @@ const PWaitingPage: React.FC = () => {
 					))}
 				</div>
 			)}
-
-			{/* Status */}
-			<p className="mt-8 text-sm text-white/60 text-center">
-				Vui lòng đợi — hệ thống sẽ đưa bạn vào lượt khi trận đấu bắt đầu.
-			</p>
 		</div>
 	);
 };

@@ -89,10 +89,20 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
             const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
             const msg = raw?.message ?? raw;
 
-            // Debugging: log the incoming message and routing context so we can trace why navigation may be skipped
             console.info("[AutoNav] received WS message:", { raw, msg, matchCode, playerCode, pathname: location.pathname });
 
-            if (msg?.type !== "navigate") return;
+            const msgType = msg?.type ?? "";
+
+            if (msgType === "end_match" || msgType === "open_match") {
+                const target = `/player/waiting/${matchCode}`;
+                if (location.pathname !== target) {
+                    console.info(`[AutoNav] ${msgType} → navigating to`, target);
+                    navigate(target, { replace: true });
+                }
+                return;
+            }
+
+            if (msgType !== "navigate") return;
 
             const basePath: unknown = msg?.path;
             if (typeof basePath !== "string") return;
@@ -133,7 +143,8 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
                 console.info("[AutoNav] navigating to", target, "from", location.pathname);
                 navigate(target, { replace: true });
             }
-        }, [lastMessage, playerCode, navigate, location.pathname]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- matchCode comes from outer state but is needed in navigation paths
+        }, [lastMessage, matchCode, playerCode, navigate, location.pathname]);
 
         return null;
     };

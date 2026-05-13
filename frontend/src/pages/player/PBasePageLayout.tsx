@@ -26,7 +26,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
             </div>
 
             <div className="p-2 lg:p-5 w-full flex justify-center flex-1 min-h-0 overflow-y-auto">
-                <div className="w-full max-w-7xl">
+                <div className="w-full max-w-7xl flex flex-col gap-4">
                     {children}
                 </div>
             </div>

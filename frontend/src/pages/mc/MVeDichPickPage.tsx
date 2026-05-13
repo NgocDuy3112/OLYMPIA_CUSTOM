@@ -127,7 +127,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 							const code = displayCodes[i];
 							if (!code) {
 								return (
-									<div key={`slot-empty-${i}`} className="w-55 shrink-0 h-20">
+									<div key={`slot-empty-${i}`} className="w-55 shrink-0 h-24">
 										<VeDichQuestionCard placeholder category="" points={undefined} disabled />
 									</div>
 								);
@@ -163,7 +163,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 				{/* Read-only question grid — 6 categories × 4 point values */}
 				<div
 					className="grid gap-3"
-					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(58px, 58px)" }}
+					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(76px, 76px)" }}
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];

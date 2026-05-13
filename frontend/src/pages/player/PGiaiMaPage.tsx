@@ -487,7 +487,7 @@ const PGiaiMaPage = () => {
 					/>
 
 				{keywordAnswer && (
-					<div className="mx-3 p-4 bg-green-700 border-2 border-green-400 rounded-xl text-center font-bold text-white text-xl">
+					<div className="mx-3 p-4 bg-blue-700 border-2 border-blue-400 rounded-xl text-center font-bold text-white text-xl">
 						ĐÁP ÁN: {keywordAnswer}
 					</div>
 				)}

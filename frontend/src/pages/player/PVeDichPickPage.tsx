@@ -218,7 +218,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				{/* Read-only question grid — 6 categories × 4 point values */}
 				<div
 					className="grid gap-4"
-					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(70px, 70px)" }}
+					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(76px, 76px)" }}
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];

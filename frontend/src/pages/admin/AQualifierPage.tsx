@@ -60,6 +60,8 @@ const AQualifierPage = () => {
     const [players, setPlayers] = useState<PlayerStatus[]>([]);
     usePlayerPresence({ lastMessage, setPlayers });
 
+    const [isRoundStarting, setIsRoundStarting] = useState(false);
+
     const [timer, setTimer] = useState<number>(0);
     const timerRef = useRef<number>(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -471,6 +473,10 @@ const AQualifierPage = () => {
                 }
                 break;
             }
+            case "navigate_audio_done": {
+                setIsRoundStarting(false);
+                break;
+            }
             default:
                 break;
         }
@@ -513,6 +519,8 @@ const AQualifierPage = () => {
     // ── Action handlers ───────────────────────────────────────────────────────
 
     const handleStartRound = useCallback(async () => {
+        setIsRoundStarting(true);
+        setTimeout(() => setIsRoundStarting(false), 10000);
         setCurrentQuestionIndex(0);
         setCurrentQuestion({ ...DEFAULT_QUESTION });
         setParsedOptions([]);
@@ -530,6 +538,8 @@ const AQualifierPage = () => {
     }, [currentMatchCode, maxQuestionsForRound, sendMessage, sendPlayersSnapshot]);
 
     const handleEndRound = useCallback(async () => {
+        setIsRoundStarting(true);
+        setTimeout(() => setIsRoundStarting(false), 10000);
         setCurrentQuestionIndex(0);
         setCurrentQuestion({ ...DEFAULT_QUESTION });
         setParsedOptions([]);
@@ -815,7 +825,7 @@ const AQualifierPage = () => {
                     {/* Real-time answer stats bar */}
                     <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm">
                         <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
-                        <span className="flex items-center gap-1 bg-green-700 text-white font-bold px-3 py-1 rounded-lg">
+                        <span className="flex items-center gap-1 bg-blue-700 text-white font-bold px-3 py-1 rounded-lg">
                             ✓&nbsp;<span className="text-base">{statsCorrectCount}</span>
                             <span className="font-normal text-xs ml-0.5">đúng</span>
                         </span>
@@ -860,7 +870,7 @@ const AQualifierPage = () => {
             )}
             topControlButtons={
                 <>
-                    <AControlButton onClick={handleStartRound}>
+                    <AControlButton onClick={handleStartRound} disabled={isRoundStarting}>
                         <Power size={18} className="mr-2" /> BẮT ĐẦU VÒNG
                     </AControlButton>
                     <AControlButton
@@ -884,7 +894,7 @@ const AQualifierPage = () => {
                     <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }}>
                         <Trophy size={18} className="mr-2" /> TẢI BXH
                     </AControlButton>
-                    <AControlButton onClick={handleEndRound}>
+                    <AControlButton onClick={handleEndRound} disabled={isRoundStarting}>
                         <Play size={18} className="mr-2" /> KẾT THÚC VÒNG
                     </AControlButton>
                 </>

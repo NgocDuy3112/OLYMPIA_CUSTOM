@@ -24,6 +24,7 @@ const PButPhaPage = () => {
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
+	const [timerHasStarted, setTimerHasStarted] = useState(false);
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const [submitDisabledTemporarily, setSubmitDisabledTemporarily] = useState(false);
 	const submitTimeoutRef = useRef<number | null>(null);
@@ -88,6 +89,7 @@ const PButPhaPage = () => {
 
 			case "clear_question": {
 				setVideoPlayState(null);
+				setTimerHasStarted(false);
 				break;
 			}
 
@@ -108,6 +110,7 @@ const PButPhaPage = () => {
 
 			case "start_the_timer": {
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				setTimerHasStarted(true);
 				setAnswer("");
 				setShowAnswers(false);
 				break;
@@ -135,6 +138,7 @@ const PButPhaPage = () => {
 				);
 				setAnswer("");
 				setShowAnswers(false);
+				setTimerHasStarted(false);
 				break;
 			}
 
@@ -191,7 +195,7 @@ const PButPhaPage = () => {
 		if (!trimmed) return;
 		if (submitDisabledTemporarily) return;
 		if (!isConnected) return;
-		if (timer <= 0) return;
+		if (!timerHasStarted || timer <= 0) return;
 		if (!currentQuestion.questionCode) return;
 
 		const elapsed = getElapsedSeconds();
@@ -240,25 +244,27 @@ const PButPhaPage = () => {
 						timestamp: ts,
 					}),
 			});
-			if (!res.ok) {
+			if (res.ok) {
+				// Only broadcast via WS after successful HTTP persist
+				await sendMessage({
+					type: "answer",
+					user_code: playerCode,
+					question_code: currentQuestion.questionCode,
+					answer_text: trimmed,
+					timestamp: ts,
+				});
+			} else {
 				const body = await res.text().catch(() => "");
 				console.warn("Failed to POST answer:", res.status, body);
 			}
 		} catch (err) {
 			console.warn("Failed to POST answer:", err);
 		}
-
-		await sendMessage({
-			type: "answer",
-			user_code: playerCode,
-			question_code: currentQuestion.questionCode,
-			answer_text: trimmed,
-			timestamp: ts,
-		});
 		setAnswer("");
 	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode, submitDisabledTemporarily]);
 
-	const isSubmissionDisabled = !isConnected || timer <= 0 || submitDisabledTemporarily;
+	const isTimerExpired = timerHasStarted && timeLimit > 0 && timer === 0;
+	const isSubmissionDisabled = !isConnected || !timerHasStarted || isTimerExpired || submitDisabledTemporarily;
 
 	useEffect(() => {
 		return () => {
@@ -269,12 +275,12 @@ const PButPhaPage = () => {
 		};
 	}, []);
 
-	const answerPlaceholder =
-		// when time is up, always show the 'cannot submit' message
-		timer <= 0
-			? "Bạn không thể nhập đáp án tại thời điểm này"
-			: submitDisabledTemporarily
-				? `Vui lòng đợi trong ${submitDisableSecondsLeft} giây`
+	const answerPlaceholder = isTimerExpired
+		? "Bạn không thể nhập đáp án tại thời điểm này"
+		: submitDisabledTemporarily
+			? `Vui lòng đợi trong ${submitDisableSecondsLeft} giây`
+			: !timerHasStarted
+				? "Chờ admin bắt đầu đếm giờ..."
 				: "Nhập đáp án và nhấn Enter";
 
 	// Always show the current player's own answer; hide others until admin reveals

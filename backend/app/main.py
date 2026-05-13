@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -90,14 +92,26 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     )
 
 
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    global_logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": "Internal server error", "data": None},
+    )
+
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
 
 
+_cors_origins = os.getenv("CORS_ORIGINS", "").strip()
+_allowed_origins = [o.strip() for o in _cors_origins.split(",") if o.strip()] if _cors_origins else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_credentials=False,  # must be False when allow_origins=["*"]; app uses Bearer tokens, not cookies
     allow_methods=["*"],
     allow_headers=["*"],
@@ -112,6 +126,56 @@ app.include_router(scoreboard.router)
 app.include_router(qualifier.router)
 app.include_router(media.router)
 
+
+
+# Message types that non-admin users are allowed to broadcast.
+# Admin can send any type. This prevents player/MC from injecting
+# privileged messages like score updates, navigation commands, etc.
+_PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
+    "answer",
+    "buzz",
+    "player_heartbeat",
+    "player_online",
+    "mc_online",
+    "request_presence",
+})
+
+_MC_ALLOWED_TYPES: frozenset[str] = frozenset({
+    "answer",
+    "buzz",
+    "mc_online",
+    "player_heartbeat",
+    "player_online",
+    "request_presence",
+    "send_question",
+    "clear_question",
+    "start_the_timer",
+    "send_answers_to_players",
+    "clear_answers",
+    "round_start",
+    "round_end",
+    "navigate",
+    "play_video",
+    "pause_video",
+    "send_players_info",
+    "player_score_updated",
+    "player_offline",
+    "answering_window_activated",
+    "veDich_power_activated",
+    "veDich_question_state",
+    "veDich_questions_selected",
+    "veDich_rieng_questions_meta",
+    "bp_dung",
+    "bp_chon_cau_hoi",
+    "wrong",
+    "skip",
+    "game_end",
+    "open_match",
+    "end_match",
+    "show_hint",
+    "introduce_players",
+    "show_scoreboard",
+})
 
 
 @app.websocket("/ws/{match_code}")
@@ -134,9 +198,10 @@ async def websocket_endpoint(
         await websocket.close(code=4001, reason="Authentication failed")
         return
 
+    user_role = user_info.get("role", "")
     global_logger.info(
         f"WebSocket authenticated: user={user_info['user_code']!r} "
-        f"role={user_info['role']!r} room={match_code!r}"
+        f"role={user_role!r} room={match_code!r}"
     )
 
     ws_manager: ConnectionManager = await get_ws_manager()
@@ -147,7 +212,26 @@ async def websocket_endpoint(
             data = await websocket.receive_json()
             # Inject authenticated user info into inbound messages
             data["user_code"] = user_info["user_code"]
-            data["role"] = user_info["role"]
+            data["role"] = user_role
+
+            msg_type = data.get("type", "")
+
+            # Role-based message filtering: only admin and mc can send
+            # privileged control messages. Players are restricted to a
+            # small set of allowed types to prevent injection attacks.
+            if user_role == "player" and msg_type not in _PLAYER_ALLOWED_TYPES:
+                global_logger.warning(
+                    f"Blocked player message: type={msg_type!r} "
+                    f"user={user_info['user_code']!r} room={match_code!r}"
+                )
+                continue
+            elif user_role == "mc" and msg_type not in _MC_ALLOWED_TYPES:
+                global_logger.warning(
+                    f"Blocked mc message: type={msg_type!r} "
+                    f"user={user_info['user_code']!r} room={match_code!r}"
+                )
+                continue
+
             global_logger.info(
                 f"Received message from {user_info['user_code']!r} "
                 f"in room {match_code!r}: {data}"

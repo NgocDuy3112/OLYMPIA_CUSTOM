@@ -37,6 +37,7 @@ const AButPhaPage = () => {
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	// Allow multi-selection in this page
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((code: string) => {
@@ -250,11 +251,11 @@ const AButPhaPage = () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
+		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
-			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
 			try {
 				await sendMessage({ type: "round_start", round: "bp" });
 				await sendMessage({ type: "navigate", user_code: "", path: `/player/bp` });
@@ -262,7 +263,6 @@ const AButPhaPage = () => {
 				logger.error("Failed to navigate players to player view:", err);
 			}
 
-			// send current players snapshot to players when starting the round
 			try {
 				await sendPlayersSnapshot();
 			} catch (err) {
@@ -271,21 +271,24 @@ const AButPhaPage = () => {
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
+		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_end", round: "bp" });
 			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(
@@ -474,6 +477,7 @@ const AButPhaPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
+			case "mc_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -605,11 +609,8 @@ const AButPhaPage = () => {
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : TIME_LIMIT);
-				});
+			case "navigate_audio_done": {
+				setIsRoundStarting(false);
 				break;
 			}
 			default:
@@ -647,6 +648,7 @@ const AButPhaPage = () => {
 											setCurrentQuestionIndex(qIndex);
 											setVideoPlayState(null);
 											try {
+												await sendMessage({ type: "bp_chon_cau_hoi" });
 												const q = await loadQuestion(qIndex);
 												await sendQuestionToplayers(qIndex, q);
 											} catch (err) {
@@ -676,6 +678,7 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleStartRound();
 						}}
+						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -684,6 +687,7 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleEndRound();
 						}}
+						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>

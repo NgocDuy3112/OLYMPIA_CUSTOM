@@ -1,3 +1,5 @@
+import time
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +23,22 @@ async def post_answer_to_db(
 ) -> BaseResponse:
     global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
     try:
+        # Use server-side timestamp to prevent client manipulation.
+        # The client's timestamp is accepted but clamped to a reasonable range
+        # relative to the server clock; if missing or out of bounds, use server time.
+        server_time = time.time()
+        client_ts = request.timestamp if request.timestamp is not None else None
+        if client_ts is not None:
+            try:
+                client_ts = float(client_ts)
+            except (ValueError, TypeError):
+                client_ts = None
+        # Clamp timestamp: must be within 60 seconds of server time
+        if client_ts is not None and abs(client_ts - server_time) <= 60:
+            effective_timestamp = client_ts
+        else:
+            effective_timestamp = server_time
+
         # Validate existence of match, player and question first
         match_id = await session.scalar(
             select(Match.id).where(
@@ -72,14 +90,14 @@ async def post_answer_to_db(
 
         if existing_answer is not None:
             existing_answer.answer_text = request.answer_text
-            existing_answer.timestamp = request.timestamp
+            existing_answer.timestamp = effective_timestamp
             existing_answer.has_buzzed = request.has_buzzed
             global_logger.info(f"Updating existing answer for question_code={request.question_code} from user_code={request.user_code}.")
         else:
             new_answer = Answer(
                 answer_text=request.answer_text,
                 has_buzzed=request.has_buzzed,
-                timestamp=request.timestamp,
+                timestamp=effective_timestamp,
                 player_id=player_id,
                 match_id=match_id,
                 question_id=question_id,
@@ -88,11 +106,19 @@ async def post_answer_to_db(
         await session.commit()
 
         # Cache the answer for fast reads and publish to match channel
-        request_json = request.model_dump()
+        # Use effective_timestamp (server-clamped) instead of raw client timestamp
+        cache_payload = {
+            "match_code": request.match_code,
+            "user_code": request.user_code,
+            "question_code": request.question_code,
+            "answer_text": request.answer_text,
+            "has_buzzed": request.has_buzzed,
+            "timestamp": effective_timestamp,
+            "type": "answer",
+        }
         try:
-            await valkey.set(cache_key, json.dumps(request_json))
-            broadcast_payload = {**request_json, "type": "answer"}
-            await valkey.publish(channel=request.match_code, message=json.dumps(broadcast_payload))
+            await valkey.set(cache_key, json.dumps(cache_payload))
+            await valkey.publish(channel=request.match_code, message=json.dumps(cache_payload))
             global_logger.info(f"Cached and published answer for key={cache_key}.")
         except Exception as e:
             # Log but do not fail the request since DB commit succeeded

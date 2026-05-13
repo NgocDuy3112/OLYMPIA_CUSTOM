@@ -9,6 +9,7 @@ import AVeDichRiengPage from "@/pages/admin/AVeDichRiengPage";
 import AGiaiMaPage from "@/pages/admin/AGiaiMaPage";
 import AQualifierPage from "@/pages/admin/AQualifierPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
+import AWaitingPage from "@/pages/admin/AWaitingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 
 
@@ -55,6 +56,14 @@ const AdminRoutes = () => {
         <AdminWebSocketProvider matchCode={matchCode}>
             <Routes>
             <Route path="/" element={<Navigate to="/admin/waiting" replace />} />
+            <Route
+                path="/waiting"
+                element={
+                    <ProtectedAdminRoute>
+                        <AWaitingPage />
+                    </ProtectedAdminRoute>
+                }
+            />
             {/* <Route path="/dashboard" element={} /> */}
             <Route
                 path="/kdc/:matchCode"

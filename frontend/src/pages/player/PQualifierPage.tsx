@@ -349,7 +349,7 @@ const PQualifierPage = () => {
                         {showAnswers ? (
                             <>
                                 <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
-                                <span className="flex items-center gap-1 bg-green-700 text-white font-bold px-3 py-1 rounded-lg">
+                                <span className="flex items-center gap-1 bg-blue-700 text-white font-bold px-3 py-1 rounded-lg">
                                     ✓&nbsp;<span className="text-base">{statsCorrect}</span>
                                     <span className="font-normal text-xs ml-0.5">đúng</span>
                                 </span>
@@ -368,7 +368,7 @@ const PQualifierPage = () => {
                         ) : (
                             <>
                                 <span className="text-blue-300 font-semibold mr-1 shrink-0">Đã trả lời:</span>
-                                <span className="flex items-center gap-1 bg-green-800 text-white font-bold px-3 py-1 rounded-lg">
+                                <span className="flex items-center gap-1 bg-blue-800 text-white font-bold px-3 py-1 rounded-lg">
                                     <span className="text-base">{statsAnswered}</span>
                                     <span className="font-normal text-xs ml-0.5">người</span>
                                 </span>

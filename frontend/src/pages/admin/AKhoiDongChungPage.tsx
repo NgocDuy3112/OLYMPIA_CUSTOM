@@ -47,6 +47,7 @@ const AKhoiDongChungPage = () => {
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	// allow multi-selection of players on this page
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
@@ -319,12 +320,11 @@ const AKhoiDongChungPage = () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
+		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
-			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
-			// (clients that mount after navigation will see the players snapshot as lastMessage).
 			try {
 				await sendMessage({ type: "round_start", round: "kdc" });
 				await sendMessage({ type: "navigate", user_code: "", path: `/player/kdc` });
@@ -332,7 +332,6 @@ const AKhoiDongChungPage = () => {
 				logger.error("Failed to navigate players to player view:", err);
 			}
 
-			// send current players snapshot to players when starting the round
 			try {
 				await sendPlayersSnapshot();
 			} catch (err) {
@@ -341,21 +340,25 @@ const AKhoiDongChungPage = () => {
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
 		}
+		// Fallback: re-enable buttons after 10s if bot never responds
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
+		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_end", round: "kdc" });
 			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 		const startTheClock = useCallback(async () => {
@@ -648,6 +651,7 @@ const AKhoiDongChungPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
+			case "mc_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -790,11 +794,8 @@ const AKhoiDongChungPage = () => {
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : TIME_LIMIT);
-				});
+			case "navigate_audio_done": {
+				setIsRoundStarting(false);
 				break;
 			}
 			default:
@@ -861,12 +862,14 @@ const AKhoiDongChungPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { handleStartRound() }}
+						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { handleEndRound() }}
+						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>

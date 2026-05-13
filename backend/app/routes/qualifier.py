@@ -36,7 +36,7 @@ async def post_qualifier_calculate_scores(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -56,12 +56,12 @@ async def post_end_round(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(
     "/advancements/{match_code}",
-    dependencies=[Depends(require_roles(["admin"]))],
+    dependencies=[Depends(require_roles(["admin", "mc"]))],
     response_model=BaseResponse,
     status_code=200,
 )
@@ -74,12 +74,12 @@ async def get_advancements(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(
     "/standings/{match_code}",
-    dependencies=[Depends(require_roles(["admin", "player"]))],
+    dependencies=[Depends(require_roles(["admin", "player", "mc"]))],
     response_model=BaseResponse,
     status_code=200,
 )
@@ -95,4 +95,4 @@ async def get_standings(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

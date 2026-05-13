@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import { useEffect, useState } from "react";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
@@ -13,10 +12,11 @@ import { useQuestionState } from "@/hooks/useQuestionState";
 const MKhoiDongRiengPage = () => {
     const { matchCode, token } = useMcSession();
     const { lastMessage } = useMcWebSocket();
-    const { timer, start } = useCountdownTimer();
+    const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers } = useMcPlayers();
+    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers } = useMcPlayers();
     const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const [currentPlayerCode, setCurrentPlayerCode] = useState("");
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -26,9 +26,14 @@ const MKhoiDongRiengPage = () => {
         switch (msg?.type) {
             case "send_players_info":
                 applyPlayersInfo(msg);
+                // derive whose turn it is from is_current flag
+                {
+                    const current = (msg?.players ?? []).find((p: any) => p?.is_current);
+                    setCurrentPlayerCode(current ? String(current.user_code ?? "") : "");
+                }
                 break;
             case "start_the_timer":
-                start(Number(msg.time_limit ?? 0));
+                startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
                 break;
             case "player_score_updated":
@@ -52,22 +57,37 @@ const MKhoiDongRiengPage = () => {
             case "buzz":
                 applyBuzz(msg);
                 break;
+            case "buzzer_winner": {
+                const winner: string = msg.user_code ?? "";
+                setPlayers((prev) =>
+                    prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
+                );
+                break;
+            }
+            case "clear_buzz":
+                setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+                break;
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, start, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, setPlayers]);
+
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+        questionExplanation: questionExplanation ?? currentQuestion.questionExplanation,
+    };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
-            <>
-                <PQuestionBoard
-                    title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
-                    question={currentQuestion}
-                    timerDuration={timer}
-                    controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-                />
-                <MAnswerDisplay answer={questionAnswer} explanation={questionExplanation} />
-            </>
+        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode}>
+            <AQuestionBoard
+                title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
+                question={questionWithAnswer}
+                timerDuration={timer}
+                controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+                boardHeightClass="h-[60vh]"
+                answerBoxHeightClass="h-[15vh]"
+            />
         </PBasePageLayout>
     );
 };

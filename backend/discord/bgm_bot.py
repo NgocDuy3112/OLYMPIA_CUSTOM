@@ -32,15 +32,16 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Map of game phase (from navigate path) → audio file basename
-PHASE_MUSIC_MAP = {
-    "kdc": "kdc",   # Khởi Động Chung
-    "kdr": "kdr",   # Khởi Động CÁ NHÂN
-    "bp": "bp",     # Bứt Phá
-    "vdc": "vdc",   # Về Đích Chung
-    "vdr": "vdr",   # Về Đích CÁ NHÂN
-    "gm": "gm",     # Giải Mã
-    "vl": "vl",     # Vòng Loại
+# Map of game phase (from navigate path) → audio file basename played on navigation.
+PHASE_MUSIC_MAP: dict[str, str] = {
+    # Navigate intro do SFX bot đảm nhiệm — BGM chỉ phát timer music (start_the_timer)
+}
+
+# Phases whose timer files use a shorter prefix than the phase name.
+# e.g. phase "vdc" → timer file "vd_30s.mp3" (not "vdc_30s.mp3")
+_TIMER_PHASE_MAP = {
+    "vdc": "vd",
+    "vdr": "vd",
 }
 
 
@@ -71,7 +72,18 @@ def _find_phase_file(phase: str) -> str | None:
 
 # ── Playback ──────────────────────────────────────────────────────────────────
 
-async def _play(guild: discord.Guild, file_path: str) -> None:
+async def _publish_navigate_done() -> None:
+    """Publish navigate_audio_done so admin UI can re-enable round buttons."""
+    import json
+    try:
+        vc_client = get_valkey_client()
+        vc_client.publish(configs.MATCH_CODE, json.dumps({"type": "navigate_audio_done"}))
+        logger.info("Published navigate_audio_done")
+    except Exception as e:
+        logger.warning(f"Failed to publish navigate_audio_done: {e}")
+
+
+async def _play(guild: discord.Guild, file_path: str, notify_done: bool = False) -> None:
     # Reuse existing voice client; reconnect if disconnected
     vc: discord.VoiceClient | None = guild.voice_client
     if not vc or not vc.is_connected():
@@ -80,7 +92,7 @@ async def _play(guild: discord.Guild, file_path: str) -> None:
             if not isinstance(channel, discord.VoiceChannel):
                 logger.warning("VOICE_CHANNEL_ID is not a voice channel")
                 return
-            vc = await channel.connect()
+            vc = await channel.connect(self_deaf=True)
         except Exception as e:
             logger.error(f"Cannot connect to voice channel: {e}")
             return
@@ -88,22 +100,30 @@ async def _play(guild: discord.Guild, file_path: str) -> None:
     if vc.is_playing():
         vc.stop()
 
+    loop = asyncio.get_running_loop()
+
+    def _after(err: Exception | None, notify: bool) -> None:
+        if err:
+            logger.error(f"Playback error: {err}")
+        if notify:
+            asyncio.run_coroutine_threadsafe(_publish_navigate_done(), loop)
+
     try:
         source = discord.FFmpegOpusAudio(file_path)
     except Exception as e:
         logger.error(f"Failed to create audio source for '{file_path}': {e}")
+        if notify_done:
+            await _publish_navigate_done()
         return
-    vc.play(source, after=lambda e: logger.error(f"Playback error: {e}") if e else None)
+    vc.play(source, after=lambda e: _after(e, notify_done))
     logger.info(f"Playing: {os.path.basename(file_path)}")
 
 
 async def _stop(guild: discord.Guild) -> None:
     vc = guild.voice_client
-    if vc:
-        if vc.is_playing():
-            vc.stop()
-        await vc.disconnect(force=True)
-        logger.info("Stopped and disconnected")
+    if vc and vc.is_playing():
+        vc.stop()
+        logger.info("Playback stopped")
 
 
 # ── Valkey event handler ──────────────────────────────────────────────────────
@@ -128,25 +148,51 @@ async def _handle_message(message: dict) -> None:
         if path == "/player/access":
             await _stop(guild)
             _current_track.pop(guild.id, None)
+            await _publish_navigate_done()
         else:
             phase = _extract_phase(path)
             if phase:
                 _current_track[guild.id] = phase
                 music_file = _find_phase_file(phase)
                 if music_file:
-                    await _play(guild, music_file)
+                    await _play(guild, music_file, notify_done=True)
+                else:
+                    # No audio for this phase — notify immediately so admin isn't blocked
+                    await _publish_navigate_done()
 
     elif msg_type == "start_the_timer":
-        time_limit = int(message.get("time_limit", 0))
+        try:
+            time_limit = int(message.get("time_limit") or 0)
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid time_limit in start_the_timer: {message.get('time_limit')!r}")
+            return
         current_phase = message.get("phase", "") or _current_track.get(guild.id, "")
         if current_phase:
-            timer_file = _find_file(f"{current_phase}_{time_limit}s")
+            timer_prefix = _TIMER_PHASE_MAP.get(current_phase, current_phase)
+            timer_file = _find_file(f"{timer_prefix}_{time_limit}s")
             if timer_file:
                 await _play(guild, timer_file)
             else:
-                logger.warning(f"No timer BGM for phase='{current_phase}' time={time_limit}s (looked for '{current_phase}_{time_limit}s')")
+                logger.warning(f"No timer BGM for phase='{current_phase}' time={time_limit}s (looked for '{timer_prefix}_{time_limit}s')")
         else:
             logger.warning(f"start_the_timer: unknown phase, skipping (question_code={message.get('question_code')!r})")
+
+    elif msg_type == "play_bgm":
+        phase = message.get("phase", "")
+        if phase:
+            _current_track[guild.id] = phase
+            music_file = _find_phase_file(phase)
+            if music_file:
+                await _play(guild, music_file)
+            else:
+                logger.warning(f"play_bgm: no audio file for phase '{phase}'")
+
+    elif msg_type == "answering_window_activated":
+        buzzer_file = _find_file("vd_5s")
+        if buzzer_file:
+            await _play(guild, buzzer_file)
+        else:
+            logger.warning("No audio file found for 'vd_5s'")
 
     elif msg_type == "game_end":
         await _stop(guild)
@@ -154,22 +200,33 @@ async def _handle_message(message: dict) -> None:
 
 
 async def _valkey_listener() -> None:
-    """Subscribe to Valkey pub/sub in a thread to avoid blocking the event loop."""
-    valkey_client = get_valkey_client()
+    """Subscribe to Valkey pub/sub in a thread to avoid blocking the event loop.
+
+    Automatically reconnects with exponential backoff if the connection drops.
+    """
     match_code = configs.MATCH_CODE
     loop = asyncio.get_running_loop()
     logger.info(f"BGM Bot listening on channel '{match_code}'")
+    retry_delay = 2
 
     def _on_done(fut: asyncio.Future) -> None:
         if not fut.cancelled() and fut.exception():
             logger.error(f"Message handler error: {fut.exception()}")
 
     def _sync_subscribe():
+        valkey_client = get_valkey_client()
         for message in subscribe_to_match_channels(valkey_client, match_code):
             fut = asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
             fut.add_done_callback(_on_done)
 
-    await asyncio.to_thread(_sync_subscribe)
+    while True:
+        try:
+            await asyncio.to_thread(_sync_subscribe)
+            logger.warning("Valkey listener exited — reconnecting...")
+        except Exception as e:
+            logger.error(f"Valkey listener error: {e} — retrying in {retry_delay}s")
+        await asyncio.sleep(retry_delay)
+        retry_delay = min(retry_delay * 2, 60)
 
 
 # ── Discord event handlers ────────────────────────────────────────────────────
@@ -188,7 +245,7 @@ async def _auto_join_voice() -> None:
         if guild.voice_client:
             logger.info("Already in a voice channel")
             return
-        await channel.connect()
+        await channel.connect(self_deaf=True)
         logger.info(f"Auto-joined voice channel: {channel.name} ({guild.name})")
     except Exception as e:
         logger.warning(f"Auto-join failed: {e}")
@@ -197,9 +254,36 @@ async def _auto_join_voice() -> None:
 @bot.event
 async def on_ready():
     logger.info(f"BGM Bot logged in as {bot.user}")
-    await asyncio.to_thread(s3_audio.sync_audio_from_s3)
+    try:
+        await asyncio.to_thread(s3_audio.sync_audio_from_s3)
+    except Exception as e:
+        logger.error(f"S3 audio sync failed: {e}")
     await _auto_join_voice()
-    asyncio.create_task(_valkey_listener())
+    task = asyncio.create_task(_valkey_listener())
+    task.add_done_callback(
+        lambda t: logger.error(f"_valkey_listener task ended: {t.exception()}")
+        if not t.cancelled() and t.exception() else None
+    )
+
+
+@bot.event
+async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    if member != bot.user:
+        return
+    # Bot was disconnected
+    if before.channel and not after.channel:
+        logger.warning("BGM Bot was disconnected from voice — rejoining with backoff...")
+        for attempt in range(1, 6):
+            try:
+                await asyncio.sleep(2 * attempt)
+                await _auto_join_voice()
+                vc = bot.guilds[0].voice_client if bot.guilds else None
+                if vc and vc.is_connected():
+                    logger.info(f"Successfully rejoined voice (attempt {attempt})")
+                    return
+            except Exception as e:
+                logger.warning(f"Reconnect attempt {attempt} failed: {e}")
+        logger.error("Failed to reconnect after 5 attempts")
 
 
 # ── Commands ─────────────────────────────────────────────────────────────────

@@ -58,6 +58,7 @@ const AVeDichRiengPage = () => {
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -97,12 +98,25 @@ const AVeDichRiengPage = () => {
 	});
 
 	// ─── Power state ─────────────────────────────────────────────────────────────
-	// Track which powers each player has used. Persisted across navigation.
-	const [usedPowers, setUsedPowers] = useState<Record<string, { star: boolean; shield: boolean }>>(() => {
+	// Track which power each player has used (one per player: star OR shield). Persisted across navigation.
+	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!currentMatchCode) return {};
 		try {
 			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
-			return stored ? (JSON.parse(stored) as Record<string, { star: boolean; shield: boolean }>) : {};
+			if (!stored) return {};
+			const parsed = JSON.parse(stored);
+			// Migrate from old format { star: boolean, shield: boolean } → string | null
+			const migrated: Record<string, string | null> = {};
+			for (const [code, val] of Object.entries(parsed)) {
+				if (typeof val === "string" || val === null) {
+					migrated[code] = val;
+				} else if (typeof val === "object" && val !== null) {
+					migrated[code] = (val as any).star ? "star" : (val as any).shield ? "shield" : null;
+				} else {
+					migrated[code] = null;
+				}
+			}
+			return migrated;
 		} catch { return {}; }
 	});
 	// Active power for the current question (cleared after scoring or question change)
@@ -589,6 +603,7 @@ const AVeDichRiengPage = () => {
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
 		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "answer", phase: "vdr" });
 
 		try {
 			for (const playerCode of selectedPlayerCodes) {
@@ -602,11 +617,11 @@ const AVeDichRiengPage = () => {
 				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
-			// Mark power as consumed for the turn player
+			// Mark power as consumed for the turn player (one power per player)
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
 					...prev,
-					[currentTurnPlayerCode]: { ...(prev[currentTurnPlayerCode] ?? { star: false, shield: false }), [activePower]: true },
+					[currentTurnPlayerCode]: activePower,
 				}));
 			}
 			setActivePower(null);
@@ -632,6 +647,7 @@ const AVeDichRiengPage = () => {
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
 		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "wrong", phase: "vdr" });
 
 		try {
 			for (const playerCode of selectedPlayerCodes) {
@@ -644,11 +660,11 @@ const AVeDichRiengPage = () => {
 				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
-			// Mark power as consumed for the turn player
+			// Mark power as consumed for the turn player (one power per player)
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
 					...prev,
-					[currentTurnPlayerCode]: { ...(prev[currentTurnPlayerCode] ?? { star: false, shield: false }), [activePower]: true },
+					[currentTurnPlayerCode]: activePower,
 				}));
 			}
 			setActivePower(null);
@@ -661,7 +677,7 @@ const AVeDichRiengPage = () => {
 		currentQuestion.questionCode,
 		currentPoints,
 		activePower,
-		currentTurnPlayerCode,
+	[currentTurnPlayerCode],
 		handleAddScore,
 		sendPlayersSnapshot,
 		sendMessage,
@@ -685,27 +701,31 @@ const AVeDichRiengPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		if (!currentMatchCode) return;
+		setIsRoundStarting(true);
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_start", round: "vdr" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
+			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
 			await sendPlayersSnapshot();
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		if (!currentMatchCode) return;
+		setIsRoundStarting(true);
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_end", round: "vdr" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage]);
 
 	// ─── WebSocket message handling ───────────────────────────────────────────────
@@ -733,6 +753,7 @@ const AVeDichRiengPage = () => {
 				}
 				break;
 			}
+			case "mc_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -890,11 +911,8 @@ const AVeDichRiengPage = () => {
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : 30);
-				});
+			case "navigate_audio_done": {
+				setIsRoundStarting(false);
 				break;
 			}
 			default:
@@ -957,7 +975,8 @@ const AVeDichRiengPage = () => {
 					<div className="flex items-center justify-center gap-3 flex-wrap w-full">
 						<AControlButton
 							onClick={() => setActivePower((prev) => (prev === 'star' ? null : 'star'))}
-							disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star)}
+							disabled={!currentTurnPlayerCode || !!usedPowers[currentTurnPlayerCode!]}
+							title={usedPowers[currentTurnPlayerCode!] ? `Đã dùng: ${usedPowers[currentTurnPlayerCode!] === 'star' ? 'Ngôi sao hy vọng' : 'Bảo hộ miễn trừ'}` : 'Trả lời đúng: +150% điểm. Trả lời sai: -100% điểm'}
 							className={activePower === 'star' ? 'bg-yellow-500 ring-yellow-400 text-blue-900' : undefined}
 						>
 							<Star size={18} />
@@ -965,8 +984,9 @@ const AVeDichRiengPage = () => {
 						</AControlButton>
 						<AControlButton
 							onClick={() => setActivePower((prev) => (prev === 'shield' ? null : 'shield'))}
-							disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield)}
-							className={activePower === 'shield' ? 'bg-green-500 ring-green-400 text-blue-900' : undefined}
+							disabled={!currentTurnPlayerCode || !!usedPowers[currentTurnPlayerCode!]}
+							title={usedPowers[currentTurnPlayerCode!] ? `Đã dùng: ${usedPowers[currentTurnPlayerCode!] === 'star' ? 'Ngôi sao hy vọng' : 'Bảo hộ miễn trừ'}` : 'Trả lời đúng: +50% điểm. Trả lời sai: không trừ điểm'}
+							className={activePower === 'shield' ? 'bg-blue-500 ring-blue-400 text-blue-900' : undefined}
 						>
 							<Shield size={18} />
 							<span className="ml-2 font-bold">BẢO HỘ MIỄN TRỪ</span>
@@ -1024,6 +1044,7 @@ const AVeDichRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { void handleStartRound(); }}
+						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -1037,6 +1058,7 @@ const AVeDichRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
+						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>

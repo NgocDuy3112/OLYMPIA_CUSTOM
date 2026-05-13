@@ -54,6 +54,7 @@ const AVeDichChungPage = () => {
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -538,6 +539,7 @@ const AVeDichChungPage = () => {
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
 		// Broadcast so player chips update too
 		void sendMessage({ type: "veDich_question_state", question_code: currentQuestion.questionCode, state: "answered" });
+		void sendMessage({ type: selectedPlayerCodes.length > 0 ? "answer" : "wrong", phase: "vdc" });
 
 		try {
 			if (selectedPlayerCodes.length === 0) {
@@ -582,27 +584,31 @@ const AVeDichChungPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		if (!currentMatchCode) return;
+		setIsRoundStarting(true);
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_start", round: "vdc" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/vdc" });
+			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdc" });
 			await sendPlayersSnapshot();
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		if (!currentMatchCode) return;
+		setIsRoundStarting(true);
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_end", round: "vdc" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage]);
 
 	// ─── WebSocket message handling ───────────────────────────────────────────────
@@ -623,6 +629,7 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
+			case "mc_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -777,11 +784,8 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : 30);
-				});
+			case "navigate_audio_done": {
+				setIsRoundStarting(false);
 				break;
 			}
 			default:
@@ -885,8 +889,9 @@ const AVeDichChungPage = () => {
 						<span className="ml-2 font-bold">CHỌN LẠI</span>
 					</AControlButton>
 
-					<AControlButton						
+					<AControlButton
 						onClick={() => { void handleStartRound(); }}
+						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -894,6 +899,7 @@ const AVeDichChungPage = () => {
 
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
+						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>

@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
@@ -20,7 +19,7 @@ const MVeDichChungPage = () => {
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
-    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
 
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
         if (!matchCode) return [];
@@ -91,15 +90,22 @@ const MVeDichChungPage = () => {
         }
     }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer, matchCode]);
 
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+    };
+
     return (
         <PBasePageLayout players={players} currentPlayerCode="">
-            <>
-                <PQuestionBoard
-                    title="VỀ ĐÍCH - LƯỢT CHUNG"
-                    question={currentQuestion}
-                    timerDuration={timer}
-                    videoPlayState={videoPlayState}
-                >
+            <AQuestionBoard
+                title="VỀ ĐÍCH - LƯỢT CHUNG"
+                question={questionWithAnswer}
+                timerDuration={timer}
+                videoPlayState={videoPlayState}
+                boardHeightClass="h-[60vh]"
+                answerBoxHeightClass="min-h-[4rem]"
+            >
+                {() => (
                     <div className="flex gap-1 overflow-x-auto">
                         {roundQuestionsData.length > 0
                             ? roundQuestionsData.map((q) => {
@@ -123,10 +129,8 @@ const MVeDichChungPage = () => {
                                 </div>
                             ))}
                     </div>
-                </PQuestionBoard>
-
-                <MAnswerDisplay answer={questionAnswer} explanation={questionExplanation} />
-            </>
+                )}
+            </AQuestionBoard>
         </PBasePageLayout>
     );
 };

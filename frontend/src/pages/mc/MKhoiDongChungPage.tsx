@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect } from "react";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
@@ -16,7 +15,7 @@ const MKhoiDongChungPage = () => {
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
     const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers } = useMcPlayers();
-    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -57,17 +56,21 @@ const MKhoiDongChungPage = () => {
         }
     }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer]);
 
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+    };
+
     return (
         <PBasePageLayout players={players} currentPlayerCode="">
-            <>
-                <PQuestionBoard
-                    title="KHỞI ĐỘNG - LƯỢT CHUNG"
-                    question={currentQuestion}
-                    timerDuration={timer}
-                    controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-                />
-                <MAnswerDisplay answer={questionAnswer} explanation={questionExplanation} />
-            </>
+            <AQuestionBoard
+                title="KHỞI ĐỘNG - LƯỢT CHUNG"
+                question={questionWithAnswer}
+                timerDuration={timer}
+                controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+                boardHeightClass="h-[60vh]"
+                answerBoxHeightClass="min-h-[4rem]"
+            />
         </PBasePageLayout>
     );
 };

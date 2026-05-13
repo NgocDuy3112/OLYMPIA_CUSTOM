@@ -9,6 +9,7 @@ def get_valkey_client() -> valkey.Valkey:
     return valkey.Valkey(
         host=configs.VALKEY_HOST,
         port=configs.VALKEY_PORT,
+        username=configs.VALKEY_USER,
         password=configs.VALKEY_PASSWORD,
         db=configs.VALKEY_DB,
         decode_responses=True,

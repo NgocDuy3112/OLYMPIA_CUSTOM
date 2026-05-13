@@ -19,7 +19,7 @@ type RoundQuestion = { code: string; category: string; points: number };
 const PVeDichRiengPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
 	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
-	const { timer, start } = useCountdownTimer();
+	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
@@ -95,7 +95,7 @@ const PVeDichRiengPage = () => {
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
 				setAnsweringWindowTimer(0); // Reset answering window when new timer starts
-				start(Number(msg.time_limit ?? 0));
+				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
@@ -173,7 +173,7 @@ const PVeDichRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, start]);
+	}, [applyWsMessage, lastMessage, startSynced]);
 
 	const handlePing = useCallback(async () => {
 		if (!isConnected) return;
@@ -183,7 +183,7 @@ const PVeDichRiengPage = () => {
 		if (!currentQuestion.questionCode) return;
 
 		try {
-			await fetch(`${API_BASE_URL}/answers/`, {
+			const res = await fetch(`${API_BASE_URL}/answers/`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -196,10 +196,14 @@ const PVeDichRiengPage = () => {
 					has_buzzed: true,
 				}),
 			});
+			if (!res.ok) {
+				console.warn("Failed to POST buzz:", res.status);
+			}
 		} catch (err) {
 			console.warn("Failed to POST buzz:", err);
 		}
 
+		// Only broadcast buzz if persisted (or if offline, still broadcast for real-time)
 		const success = await sendMessage({ type: "buzz", user_code: playerCode, question_code: currentQuestion.questionCode, has_buzzed: true });
 		if (success) setHasPinged(true);
 	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, timer, token, matchCode]);
@@ -265,11 +269,13 @@ const PVeDichRiengPage = () => {
 							<>
 								<Star size={20} className="text-yellow-400 shrink-0" />
 								<span className="font-bold text-yellow-300 uppercase tracking-wide">Ngôi sao hy vọng</span>
+								<span className="text-yellow-200 text-sm">Đúng: +150% · Sai: -100%</span>
 							</>
 						) : (
 							<>
-								<Shield size={20} className="text-green-400 shrink-0" />
-								<span className="font-bold text-green-300 uppercase tracking-wide">Bảo hộ miễn trừ</span>
+								<Shield size={20} className="text-blue-400 shrink-0" />
+								<span className="font-bold text-blue-300 uppercase tracking-wide">Bảo hộ miễn trừ</span>
+								<span className="text-blue-200 text-sm">Đúng: +50% · Sai: không trừ</span>
 							</>
 						)}
 					</div>

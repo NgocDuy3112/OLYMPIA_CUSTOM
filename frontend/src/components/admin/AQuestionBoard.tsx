@@ -22,7 +22,7 @@ interface AQuestionBoardProps {
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[50vh]", answerBoxHeightClass = "h-[15vh]", hideAnswerBox = false, titleExtra, videoPlayState }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[50vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, titleExtra, videoPlayState }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -143,14 +143,11 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                 )}
             </div>
 
-            {/* Fixed-height answer and explanation box — hidden during timer */}
+            {/* Answer box — hidden during timer */}
             {!hideAnswerBox && (
-                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-3 gap-2`}>
-                    <div className="text-xl tablet:text-2xl text-center line-clamp-2">
+                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-3`}>
+                    <div className="text-xl tablet:text-2xl text-center line-clamp-3">
                         {question.questionAnswer}
-                    </div>
-                    <div className="text-sm text-center line-clamp-2 overflow-y-auto">
-                        {question.questionExplanation}
                     </div>
                 </div>
             )}

@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useEffect, useRef, useState } from "react";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
@@ -60,7 +59,7 @@ const MGiaiMaPage = () => {
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
-    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
     const [keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
     const [revealedHint, setRevealedHint] = useState<string | null>(null);
     const [keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
@@ -207,6 +206,12 @@ const MGiaiMaPage = () => {
         </div>
     );
 
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionMediaURL: undefined,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+    };
+
     return (
         <PBasePageLayout
             players={players.map((p) =>
@@ -217,11 +222,12 @@ const MGiaiMaPage = () => {
             <>
                 {clueGrid}
 
-                <PQuestionBoard
+                <AQuestionBoard
                     title="GIẢI MÃ"
-                    question={{ ...currentQuestion, questionMediaURL: undefined }}
+                    question={questionWithAnswer}
                     timerDuration={timer}
-                    boardHeightClass="h-[14vh] lg:h-[20vh]"
+                    boardHeightClass="h-[22vh]"
+                    answerBoxHeightClass="min-h-[4rem]"
                 />
 
                 {revealedHint && (
@@ -231,12 +237,10 @@ const MGiaiMaPage = () => {
                 )}
 
                 {keywordAnswer && (
-                    <div className="mx-3 mt-2 p-4 bg-green-700 border-2 border-green-400 rounded-xl text-center font-bold text-white text-xl">
+                    <div className="mx-3 mt-2 p-4 bg-blue-700 border-2 border-blue-400 rounded-xl text-center font-bold text-white text-xl">
                         TỪ KHOÁ: {keywordAnswer}
                     </div>
                 )}
-
-                <MAnswerDisplay answer={questionAnswer} explanation={questionExplanation} />
             </>
         </PBasePageLayout>
     );

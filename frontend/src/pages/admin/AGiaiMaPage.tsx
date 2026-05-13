@@ -96,6 +96,7 @@ const AGiaiMaPage = () => {
 	// ─── Player state ─────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -137,6 +138,9 @@ const AGiaiMaPage = () => {
 	const [keywordQuestion, setKeywordQuestion] = useState<Question | null>(null);
 	const [keywordRevealedCodes, setKeywordRevealedCodes] = useState<Set<string>>(new Set());
 	const keywordLockedSentRef = useRef(false);
+
+	// ─── Keyword phase activation ─────────────────────────────────────────────
+	const [keywordPhaseActive, setKeywordPhaseActive] = useState(false);
 
 	// ─── Keyword info banner ──────────────────────────────────────────────────
 	const keyInfo = "MẬT MÃ GỒM CÓ ... CHỮ CÁI";
@@ -269,6 +273,7 @@ const AGiaiMaPage = () => {
 					user_code: "",
 					question_code: q.questionCode,
 					content: q.questionText,
+					media_source: q.questionMediaURL ?? undefined,
 				});
 				if (allOpened && !keywordLockedSentRef.current) {
 					keywordLockedSentRef.current = true;
@@ -379,6 +384,7 @@ const AGiaiMaPage = () => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
+			case "mc_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -462,6 +468,10 @@ const AGiaiMaPage = () => {
 				}
 				break;
 			}
+			case "navigate_audio_done": {
+				setIsRoundStarting(false);
+				break;
+			}
 			default:
 				break;
 		}
@@ -524,9 +534,11 @@ const AGiaiMaPage = () => {
 		setKeywordAnswerRevealed(false);
 		setKeywordRevealedCodes(new Set());
 		setHasAddedKeywordScore(false);
+		setKeywordPhaseActive(false);
 		keywordLockedSentRef.current = false;
+		setIsRoundStarting(true);
 		await clearQuestion();
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_start", round: "gm" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/gm" });
@@ -534,6 +546,7 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
@@ -542,14 +555,16 @@ const AGiaiMaPage = () => {
 		setIsTimerRunning(false);
 		setActiveClueIndex(null);
 		setClueStates(Array(CLUE_COUNT).fill("idle"));
+		setIsRoundStarting(true);
 		await clearQuestion();
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_end", round: "gm" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
@@ -787,10 +802,14 @@ const AGiaiMaPage = () => {
 	// ─── Clue grid (2 rows × 4 columns) ──────────────────────────────────────
 	const clueGrid = (
 		<div className="flex flex-col gap-3 w-full">
-			{/* Keyword info banner */}
-			<div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-6 py-6 text-center font-[SVN-Gratelos_Display] text-5xl font-bold text-white uppercase shadow">
+			{/* Keyword info banner — click to activate keyword phase */}
+			<button
+				type="button"
+				onClick={() => setKeywordPhaseActive((prev) => !prev)}
+				className={`w-full rounded-xl px-6 py-6 text-center font-[SVN-Gratelos_Display] text-5xl font-bold text-white uppercase shadow border-2 transition-colors duration-200 cursor-pointer select-none ${keywordPhaseActive ? "bg-blue-500 border-blue-300 ring-2 ring-blue-300" : "bg-blue-900 border-blue-600 hover:bg-blue-800"}`}
+			>
 				{keyInfo}
-			</div>
+			</button>
 			{/* Grid */}
 			<div className="grid grid-cols-4 gap-3 w-full">
 				{Array.from({ length: CLUE_COUNT }, (_, i) => (
@@ -815,16 +834,16 @@ const AGiaiMaPage = () => {
 			timerDuration={timer}
 			aboveQuestionBoard={clueGrid}
 			boardHeightClass="h-[30vh]"
-			answerBoxHeightClass="h-25"
+			answerBoxHeightClass="min-h-[4rem]"
 			controlsChildren={() => null}
 			topControlButtons={null}
 			bottomActionButtons={
 				<>
-					<AControlButton onClick={() => { void handleStartRound(); }}>
+					<AControlButton onClick={() => { void handleStartRound(); }} disabled={isRoundStarting}>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
-					<AControlButton onClick={() => { void handleEndRound(); }}>
+					<AControlButton onClick={() => { void handleEndRound(); }} disabled={isRoundStarting}>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</AControlButton>
@@ -884,14 +903,14 @@ const AGiaiMaPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleRevealKeywordAnswer(); }}
-						disabled={!keywordQuestion?.questionAnswer || keywordAnswerRevealed}
+						disabled={!keywordPhaseActive || keywordAnswerRevealed}
 					>
 						<KeyRound size={18} />
 						<span className="ml-2 font-bold">MỞ ĐÁP ÁN</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleShowKeywordAnswers(); }}
-						disabled={!keywordQuestion?.questionAnswer || Object.keys(keywordSubmissions).length === 0}
+						disabled={!keywordPhaseActive}
 					>
 						<SendToBack size={18} />
 						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>

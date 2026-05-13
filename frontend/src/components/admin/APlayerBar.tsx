@@ -51,7 +51,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                         {/* connection indicator */}
                         <span
                             title={player.playerConnected ? "Connected" : "Disconnected"}
-                            className={`w-3 h-3 rounded-full shrink-0 ${player.playerConnected ? 'bg-green-400' : 'bg-gray-600'}`}
+                            className={`w-3 h-3 rounded-full shrink-0 ${player.playerConnected ? 'bg-blue-400' : 'bg-gray-600'}`}
                         />
 
                         {player.playerName && (

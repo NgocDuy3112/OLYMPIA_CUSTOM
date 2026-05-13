@@ -8,7 +8,7 @@
  *
  * States:
  * - available (blue): Can answer
- * - answered (green): Already answered correctly
+ * - answered (blue): Already answered correctly
  * - answered-wrong (red): Answered but wrong
  *
  * Usage:
@@ -60,9 +60,9 @@ const VeDichQuestionCard = ({
 		}
 
 		// Answered state always wins — must be checked before disabled to ensure
-		// green/red is shown even when the card is also disabled.
+		// blue/red is shown even when the card is also disabled.
 		if (state === "answered") {
-			return "bg-green-700 text-white ring-2 ring-green-500 shadow-md shadow-green-900/50 pointer-events-none";
+			return "bg-blue-700 text-white ring-2 ring-blue-500 shadow-md shadow-blue-900/50 pointer-events-none";
 		}
 		if (state === "answered-wrong") {
 			return "bg-red-800/80 text-white ring-2 ring-red-600 shadow-md shadow-red-900/50 pointer-events-none";
@@ -89,7 +89,7 @@ const VeDichQuestionCard = ({
 			disabled={disabled || placeholder}
 			aria-hidden={placeholder}
 			className={`
-					flex flex-col justify-between px-3 py-2 rounded-lg
+					flex flex-col items-stretch justify-between px-3 py-2.5 rounded-lg
 				border-2 border-transparent
 				transition-all duration-150 font-bold w-full h-full
 				${getStateStyles()}
@@ -98,13 +98,13 @@ const VeDichQuestionCard = ({
 			`}
 		>
 			{/* Category + subcategory */}
-			<span className="text-[11px] font-bold uppercase leading-tight line-clamp-2 tracking-wide drop-shadow-sm">
+			<span className="text-xs font-bold uppercase leading-tight line-clamp-2 tracking-wide drop-shadow-sm">
 				{catPrimary || category}{(subcategory ?? catSecondary) ? ` / ${subcategory ?? catSecondary}` : ""}
 			</span>
 
 			{/* Points — large, centered */}
 			{typeof points === "number" && (
-				<span className="font-[SVN-Gratelos_Display] text-3xl font-extrabold leading-none self-center drop-shadow-md">{points}</span>
+				<span className="font-[SVN-Gratelos_Display] text-2xl font-extrabold leading-none self-center drop-shadow-md">{points}</span>
 			)}
 		</button>
 	);

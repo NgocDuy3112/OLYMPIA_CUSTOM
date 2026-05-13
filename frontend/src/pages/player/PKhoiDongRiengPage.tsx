@@ -15,7 +15,7 @@ import type { PlayerStatus } from "@/types/player";
 const PKhoiDongRiengPage = () => {
 	const { playerCode } = usePlayerSession();
 	const { lastMessage } = usePlayerWebSocket();
-	const { timer, start } = useCountdownTimer();
+	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
@@ -50,7 +50,7 @@ const PKhoiDongRiengPage = () => {
 					return {
 						playerCode: code,
 						playerName: p?.user_name ?? profile?.user_name ?? "",
-						playerScore: p?.cumulativeScore ?? score?.cumulative_score ?? score?.cummulative_score ?? score?.new_total_score ?? 0,
+						playerScore: p?.cumulative_score ?? score?.cumulative_score ?? score?.cummulative_score ?? score?.new_total_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: false,
@@ -63,7 +63,7 @@ const PKhoiDongRiengPage = () => {
 			}
 
 			case "start_the_timer": {
-				start(Number(msg.time_limit ?? 0));
+				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				audioRef.current?.pause();
 				audioRef.current = new Audio('/audios/bgm/KD_30s.MP3');
@@ -103,7 +103,7 @@ const PKhoiDongRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, start]);
+	}, [applyWsMessage, lastMessage, startSynced]);
 
 
 	return (

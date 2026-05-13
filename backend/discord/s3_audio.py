@@ -17,7 +17,7 @@ logger = logging.getLogger("s3-audio")
 
 _S3_CONFIG = Config(
     s3={"addressing_style": "path"},
-    signature_version="s3",
+    signature_version="s3v4",
     retries={"max_attempts": 3},
 )
 

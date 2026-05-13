@@ -213,22 +213,22 @@ const PKhoiDongChungPage = () => {
 						timestamp: ts,
 					}),
 			});
-			if (!res.ok) {
+			if (res.ok) {
+				// Only broadcast via WS after successful HTTP persist
+				await sendMessage({
+					type: "answer",
+					user_code: playerCode,
+					question_code: currentQuestion.questionCode,
+					answer_text: trimmed,
+					timestamp: ts,
+				});
+			} else {
 				const body = await res.text().catch(() => "");
 				console.warn("Failed to POST answer:", res.status, body);
 			}
 		} catch (err) {
 			console.warn("Failed to POST answer:", err);
 		}
-
-		// Send real-time frame
-		await sendMessage({
-			type: "answer",
-			user_code: playerCode,
-			question_code: currentQuestion.questionCode,
-			answer_text: trimmed,
-			timestamp: ts,
-		});
 		setAnswer("");
 	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
 

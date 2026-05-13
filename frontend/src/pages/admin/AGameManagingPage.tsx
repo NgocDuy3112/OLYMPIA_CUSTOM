@@ -21,7 +21,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
         } catch {
             // ignore
         }
-        navigate(`/admin/kdc/${codeToUse}`);
+        navigate("/admin/waiting");
     };
 
     return (

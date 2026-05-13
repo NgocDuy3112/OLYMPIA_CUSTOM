@@ -58,11 +58,13 @@ const AKhoiDongRiengPage = () => {
 
 	// countdown running state & auto-advance interval ref
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	const autoAdvanceRef = useRef<number | null>(null);
 
 	// Track whether admin has already applied score for the current question
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
 	const [isSkipping, setIsSkipping] = useState<boolean>(false);
+	const [isAdvancing, setIsAdvancing] = useState<boolean>(false);
 
 	// Track per-player attempt counts for the current question (0 = not attempted, 1 = one wrong, 2 = exhausted)
 	const [attempts, setAttempts] = useState<Record<string, number>>({});
@@ -162,7 +164,7 @@ const AKhoiDongRiengPage = () => {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
-					cumulativeScore: cumulativeScore,
+					cumulative_score: cumulativeScore,
 					is_current: selectedPlayerCode ? selectedPlayerCode === String(userCode) : false,
 				};
 			});
@@ -284,14 +286,13 @@ const AKhoiDongRiengPage = () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
-		setIsPlayerLocked(false); // allow selecting a player before the round starts
+		setIsPlayerLocked(false);
 		setSelectedPlayerCode(null);
+		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
-			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
-			// (clients that mount after navigation will see the players snapshot as lastMessage).
 			try {
 				await sendMessage({ type: "round_start", round: "kdr" });
 				await sendMessage({ type: "navigate", user_code: "", path: `/player/kdr` });
@@ -299,7 +300,6 @@ const AKhoiDongRiengPage = () => {
 				logger.error("Failed to navigate players to player view:", err);
 			}
 
-			// send current players snapshot to players when starting the round
 			try {
 				await sendPlayersSnapshot();
 			} catch (err) {
@@ -308,6 +308,7 @@ const AKhoiDongRiengPage = () => {
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
@@ -315,16 +316,18 @@ const AKhoiDongRiengPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setSelectedPlayerCode(null);
-		setIsPlayerLocked(false); // unlock so next round can pick a different player
+		setIsPlayerLocked(false);
+		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { setIsRoundStarting(false); return; }
 		try {
 			await sendMessage({ type: "round_end", round: "kdr" });
 			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
+		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
@@ -505,6 +508,7 @@ const AKhoiDongRiengPage = () => {
 			Promise.resolve().then(() => {
 				setHasAddedScore(false);
 				setIsSkipping(false);
+				setIsAdvancing(false);
 				// clear attempts for the new question
 				setAttempts({});
 			});
@@ -555,20 +559,21 @@ const AKhoiDongRiengPage = () => {
 		if (!selectedPlayerCode) return;
 		if (currentQuestionIndex <= 0) return;
 
-		let exhausted = false;
-		setAttempts((prev) => {
-			const current = prev[selectedPlayerCode] ?? 0;
-			const nextCount = current + 1;
-			exhausted = nextCount >= 2;
-			return { ...prev, [selectedPlayerCode]: nextCount };
-		});
+		const currentAttempts = attempts[selectedPlayerCode] ?? 0;
+		const nextCount = currentAttempts + 1;
+		const exhausted = nextCount >= 2;
+
+		setAttempts((prev) => ({ ...prev, [selectedPlayerCode]: nextCount }));
+
+		void sendMessage({ type: "wrong", user_code: selectedPlayerCode, phase: "kdr" });
 
 		if (exhausted) {
+			setIsAdvancing(true);
 			// Sai lần 2: chuyển câu sau 1s
 			await new Promise(resolve => setTimeout(resolve, 1000));
 			void handleNextQuestion(currentQuestionIndex);
 		}
-	}, [selectedPlayerCode, currentQuestionIndex, handleNextQuestion]);
+	}, [selectedPlayerCode, currentQuestionIndex, attempts, handleNextQuestion, sendMessage]);
 
 	const handleSkip = useCallback(async () => {
 		if (!selectedPlayerCode) return;
@@ -576,9 +581,10 @@ const AKhoiDongRiengPage = () => {
 		setIsSkipping(true);
 		// Bỏ qua: chuyển câu sau 1s
 		setAttempts((prev) => ({ ...prev, [selectedPlayerCode]: 2 }));
+		void sendMessage({ type: "skip", user_code: selectedPlayerCode, phase: "kdr" });
 		await new Promise(resolve => setTimeout(resolve, 1000));
 		void handleNextQuestion(currentQuestionIndex);
-	}, [selectedPlayerCode, currentQuestionIndex, handleNextQuestion]);
+	}, [selectedPlayerCode, currentQuestionIndex, handleNextQuestion, sendMessage]);
 
 	// Global error hooks to capture unexpected runtime errors for diagnostics
 	useEffect(() => {
@@ -639,6 +645,7 @@ const AKhoiDongRiengPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
+			case "mc_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -781,11 +788,8 @@ const AKhoiDongRiengPage = () => {
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : TIME_LIMIT);
-				});
+			case "navigate_audio_done": {
+				setIsRoundStarting(false);
 				break;
 			}
 			default:
@@ -852,12 +856,14 @@ const AKhoiDongRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { handleStartRound() }}
+						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { handleEndRound() }}
+						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
@@ -879,14 +885,14 @@ const AKhoiDongRiengPage = () => {
 						onClick={() => {
 							void handleAddScoreToSelected();
 						}}
-						disabled={!selectedPlayerCode || isSkipping}
+						disabled={!selectedPlayerCode || isSkipping || isAdvancing}
 					>
 						<Plus size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleMarkWrong(); }}
-						disabled={!selectedPlayerCode || (selectedPlayerCode ? (attempts[selectedPlayerCode] ?? 0) >= 2 : false)}
+						disabled={!selectedPlayerCode || isAdvancing || (selectedPlayerCode ? (attempts[selectedPlayerCode] ?? 0) >= 2 : false)}
 					>
 						<X size={18} />
 						<span className="ml-2 font-bold">
@@ -895,7 +901,7 @@ const AKhoiDongRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleSkip(); }}
-						disabled={!selectedPlayerCode || hasAddedScore}
+						disabled={!selectedPlayerCode || hasAddedScore || isAdvancing}
 					>
 						<SkipForward size={18} />
 						<span className="ml-2 font-bold">BỎ QUA</span>

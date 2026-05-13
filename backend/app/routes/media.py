@@ -38,7 +38,7 @@ async def upload_media(
 
 @router.get(
     "/",
-    dependencies=[Depends(require_roles(["admin", "player"]))],
+    dependencies=[Depends(require_roles(["admin", "player", "mc"]))],
     status_code=307,
     summary="Get a presigned URL for a media file",
     description=(
@@ -61,7 +61,7 @@ async def get_media(
 
 @router.get(
     "/presign/",
-    dependencies=[Depends(require_roles(["admin", "player"]))],
+    dependencies=[Depends(require_roles(["admin", "player", "mc"]))],
     summary="Get presigned S3 URL as JSON",
     description=(
         "Returns the presigned S3 URL as JSON instead of a redirect, "

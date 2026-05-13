@@ -68,7 +68,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ token, onClos
 
                 {success ? (
                     <div className="text-center py-4">
-                        <p className="text-green-400 font-semibold mb-4">Đổi mật khẩu thành công!</p>
+                        <p className="text-blue-400 font-semibold mb-4">Đổi mật khẩu thành công!</p>
                         <button
                             onClick={onClose}
                             className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 font-medium"

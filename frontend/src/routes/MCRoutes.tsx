@@ -36,7 +36,17 @@ const MCAutoNavigator: React.FC = () => {
         const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
         const msg = (raw as any)?.message ?? raw;
 
-        if (msg?.type !== "navigate") return;
+        const msgType = msg?.type ?? "";
+
+        if (msgType === "end_match" || msgType === "open_match") {
+            const target = "/mc/waiting";
+            if (location.pathname !== target) {
+                navigate(target, { replace: true });
+            }
+            return;
+        }
+
+        if (msgType !== "navigate") return;
         const basePath: unknown = msg?.path;
         if (typeof basePath !== "string") return;
 

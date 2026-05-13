@@ -20,6 +20,10 @@ export function useCountdownTimer(): CountdownTimerState {
 
     const startTimeMsRef = useRef<number | null>(null);
     const runningRef = useRef(false);
+    // Incremented on each start/startSynced so the interval effect re-runs only
+    // when a new countdown session begins, not on every tick.
+    const [sessionId, setSessionId] = useState(0);
+    const intervalRef = useRef<number | null>(null);
 
     const start = useCallback((timeLimitSeconds: number) => {
         const normalized = Math.max(0, Math.round(timeLimitSeconds));
@@ -27,6 +31,7 @@ export function useCountdownTimer(): CountdownTimerState {
         setTimer(normalized);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
+        setSessionId((s) => s + 1);
     }, []);
 
     const startSynced = useCallback((timeLimitSeconds: number, startedAt?: number) => {
@@ -41,15 +46,24 @@ export function useCountdownTimer(): CountdownTimerState {
         setTimer(safeTimer);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
+        setSessionId((s) => s + 1);
     }, []);
 
     const stop = useCallback(() => {
         runningRef.current = false;
+        if (intervalRef.current !== null) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
     }, []);
 
     const reset = useCallback(() => {
         runningRef.current = false;
         startTimeMsRef.current = null;
+        if (intervalRef.current !== null) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
         setTimeLimit(0);
         setTimer(0);
     }, []);
@@ -59,25 +73,44 @@ export function useCountdownTimer(): CountdownTimerState {
         return (Date.now() - startTimeMsRef.current) / 1000;
     }, []);
 
+    // One stable interval per countdown session — does not restart every tick.
     useEffect(() => {
         if (!runningRef.current) return;
-        if (timer <= 0) return;
 
-        const id = window.setInterval(() => {
+        if (intervalRef.current !== null) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+
+        intervalRef.current = window.setInterval(() => {
+            if (!runningRef.current) {
+                if (intervalRef.current !== null) {
+                    window.clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+                return;
+            }
             setTimer((prev) => {
-                if (!runningRef.current) return prev;
-                return Math.max(0, prev - 1);
+                const next = Math.max(0, prev - 1);
+                if (next === 0) {
+                    runningRef.current = false;
+                    if (intervalRef.current !== null) {
+                        window.clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                }
+                return next;
             });
         }, 1000);
 
-        return () => window.clearInterval(id);
-    }, [timer]);
-
-    useEffect(() => {
-        if (timer === 0) {
-            runningRef.current = false;
-        }
-    }, [timer]);
+        return () => {
+            if (intervalRef.current !== null) {
+                window.clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionId]);
 
     const timerDisplay = useMemo(() => timer.toString().padStart(2, "0"), [timer]);
 
