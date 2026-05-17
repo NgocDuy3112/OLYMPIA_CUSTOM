@@ -95,6 +95,7 @@ const MQualifierPage = () => {
                 clearAnswers();
                 setShowAnswers(false);
                 break;
+            case "player_answer":
             case "answer": {
                 applyRealTimeAnswer(msg);
                 const code = String(msg.user_code ?? "");

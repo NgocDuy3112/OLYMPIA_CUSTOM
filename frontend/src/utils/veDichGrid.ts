@@ -65,3 +65,16 @@ export function getVeDichMeta(
 		points: VEDICH_POINTS[fallbackIdx % 4] ?? 0,
 	};
 }
+
+/** Generate 24 placeholder question codes for Về Đích grid (6 categories × 4 point values) */
+export function generateVeDichPlaceholderCodes(): string[] {
+	const codes: string[] = [];
+	for (let catIdx = 0; catIdx < 6; catIdx++) {
+		for (let tierIdx = 0; tierIdx < 4; tierIdx++) {
+			const abbrev = Object.keys(ABBREV_TO_CAT_IDX).find(key => ABBREV_TO_CAT_IDX[key] === catIdx) || "KTTH";
+			const points = VEDICH_POINTS[tierIdx];
+			codes.push(`OC3_Q_VD_${abbrev}_${points}`);
+		}
+	}
+	return codes;
+}

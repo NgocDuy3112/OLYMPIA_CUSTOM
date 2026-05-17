@@ -661,7 +661,7 @@ async def post_questions_from_zip_to_db(
             data = zf.read(entry)
             await s3_client.put_object(
                 Bucket=bucket, Key=key, Body=data,
-                ContentType=mime, ContentLength=len(data), ACL="private",
+                ContentType=mime, ContentLength=len(data),
             )
             media_ok.append(basename)
             global_logger.info(f"ZIP: S3 upload ok key='{key}' ({len(data)} bytes)")

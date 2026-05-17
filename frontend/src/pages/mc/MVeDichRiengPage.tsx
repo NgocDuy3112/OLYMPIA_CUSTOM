@@ -23,7 +23,7 @@ const MVeDichRiengPage = () => {
 
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
-    const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
+	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
     const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
@@ -54,19 +54,24 @@ const MVeDichRiengPage = () => {
                 break;
             case "buzzer_winner": {
                 const winner = msg.user_code;
-                setBuzzerWinnerCode(winner ?? null);
-                setPlayers((prev) =>
-                    prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
-                );
+                console.info(`[VDR MC] Received buzzer_winner: winner=${winner}, current=${buzzerWinnerCode}`);
+                // Only accept the first buzzer_winner to avoid overriding
+                if (winner && !buzzerWinnerCode) {
+                    setBuzzerWinnerCode(winner);
+                    setPlayers((prev) =>
+                        prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })),
+                    );
+                }
                 break;
             }
             case "clear_buzz":
                 setBuzzerWinnerCode(null);
                 setAnsweringWindowTimer(0);
-                setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+                setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));  
                 break;
             case "buzz":
-                applyBuzz(msg);
+                // Don't show lightning icon yet — wait for admin's buzzer_winner broadcast
+                // so only the fastest buzzer gets the icon
                 break;
             case "veDich_power_activated":
                 setActivePower((msg.power as "star" | "shield") ?? null);
@@ -115,17 +120,13 @@ const MVeDichRiengPage = () => {
         return () => window.clearInterval(intervalId);
     }, [answeringWindowTimer]);
 
-    const buzzerWinnerName = buzzerWinnerCode
-        ? (players.find((p) => p.playerCode === buzzerWinnerCode)?.playerName ?? buzzerWinnerCode)
-        : null;
-
     const questionWithAnswer = {
         ...currentQuestion,
         questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode}>
+        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
             <>
                 <AQuestionBoard
                     title="VỀ ĐÍCH - LƯỢT CÁ NHÂN"
@@ -177,12 +178,6 @@ const MVeDichRiengPage = () => {
                                 <span className="text-blue-200 text-sm">Đúng: +50% · Sai: không trừ</span>
                             </>
                         )}
-                    </div>
-                )}
-
-                {buzzerWinnerName && (
-                    <div className="mx-3 mt-2 p-4 bg-yellow-600 border-2 border-yellow-400 rounded-xl text-center font-bold text-white text-xl">
-                        BUZZER: {buzzerWinnerName}
                     </div>
                 )}
             </>

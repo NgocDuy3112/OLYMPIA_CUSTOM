@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { AlarmClockCheck, Calculator, Eye, Power, RefreshCw, Play } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
@@ -31,13 +32,34 @@ const DEFAULT_QUESTION: Question = {
 
 
 const AButPhaPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode") ?? "";
+	const navigate = useNavigate();
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const storedMatchCode = localStorage.getItem("matchCode");
+	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
+	// Sync matchCode from URL to localStorage
+	useEffect(() => {
+		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
+			try {
+				localStorage.setItem("matchCode", urlMatchCode);
+			} catch {
+				// ignore
+			}
+		}
+	}, [urlMatchCode, storedMatchCode]);
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
+
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
-	const [isRoundStarting, setIsRoundStarting] = useState(false);
+
 	// Allow multi-selection in this page
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((code: string) => {
@@ -135,7 +157,7 @@ const AButPhaPage = () => {
 				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 
 				const cumulativeScore =
-					scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+					scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 
 				return {
 					user_code: userCode,
@@ -251,16 +273,20 @@ const AButPhaPage = () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
-		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) { return; }
 		try {
 			try {
 				await sendMessage({ type: "round_start", round: "bp" });
-				await sendMessage({ type: "navigate", user_code: "", path: `/player/bp` });
 			} catch (err) {
-				logger.error("Failed to navigate players to player view:", err);
+				logger.error("Failed to start round via WS:", err);
+			}
+
+			try {
+				await sendMessage({ type: "navigate", user_code: "", path: "/player/bp" });
+			} catch (err) {
+				logger.error("Failed to send navigate on start:", err);
 			}
 
 			try {
@@ -271,24 +297,21 @@ const AButPhaPage = () => {
 		} catch (error) {
 			logger.error("Failed to start round via WS:", error);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
-		setIsRoundStarting(true);
 		await clearQuestion();
 
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) { return; }
 		try {
 			await sendMessage({ type: "round_end", round: "bp" });
-			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
+		// Removed navigate to waiting page - players and MC stay on BP page to preserve score context
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(
@@ -336,7 +359,8 @@ const AButPhaPage = () => {
 				if (!data) continue;
 				const answerObj = Array.isArray(data) ? data.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), data[0]) : data;
 				if (answerObj?.answer_text) {
-					answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: answerObj.timestamp ?? 0 });
+					const ts = answerObj.timestamp || 0;
+					answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: ts });
 				}
 			} catch (err) {
 				logger.warn("showAnswers: failed for", player.playerCode, err);
@@ -352,7 +376,6 @@ const AButPhaPage = () => {
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
 			if (!playerCode) return;
-			setPlayers((prev) => prev.map((p) => p.playerCode === playerCode ? { ...p, playerScore: (p.playerScore ?? 0) + delta } : p));
 			if (!currentMatchCode || !token) return;
 			const questionCode = currentQuestion.questionCode;
 			try {
@@ -367,6 +390,8 @@ const AButPhaPage = () => {
 			} catch (err) {
 				logger.error("handleAddScore: record POST error:", err);
 			}
+			// Wait a bit for Valkey to update, then fetch fresh scoreboard
+			await new Promise(resolve => setTimeout(resolve, 100));
 			try {
 				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, { headers: { Authorization: `Bearer ${token}` } });
 				const scoreJson: any = await scoreRes.json().catch(() => ({}));
@@ -376,7 +401,7 @@ const AButPhaPage = () => {
 				else if (Array.isArray(scoreJson.scoreboard)) scoreboardArr = scoreJson.scoreboard;
 				setPlayers((prev) => prev.map((p) => {
 					const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
-					const updated = entry?.cumulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
+					const updated = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
 					return typeof updated === "number" ? { ...p, playerScore: updated } : p;
 				}));
 			} catch (err) {
@@ -389,13 +414,32 @@ const AButPhaPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
+	// Handle manual score editing from APlayerBar
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
+		// Update local state immediately
+		setPlayers((prev) =>
+			prev.map((player) =>
+				player.playerCode === playerCode
+					? { ...player, playerScore: newScore }
+					: player,
+			),
+		);
+		// Refresh scoreboard from server to ensure consistency
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot]);
+
 	const handleCalculateScore = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		setHasAddedScore(true);
 		void sendMessage({ type: "bp_dung" });
 		try {
 			// Fetch the LAST answer timestamp for each selected player
-			const playerAnswers: Array<{ playerCode: string; timestamp: number }> = [];
+			const playerAnswers: Array<{ playerCode: string; timestamp: number; elapsedSeconds: number }> = [];
+			const startedAt = timerStartedAtRef.current;
+			const hasValidStartTime = startedAt > 0;
+			logger.info(`handleCalculateScore: startedAt=${startedAt}, hasValidStartTime=${hasValidStartTime}, current time=${Date.now()}`);
+			
 			for (const code of selectedPlayerCodes) {
 				try {
 					const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(code)}&question_code=${encodeURIComponent(currentQuestion.questionCode)}`;
@@ -407,37 +451,55 @@ const AButPhaPage = () => {
 							// Take the LAST answer submitted (highest timestamp)
 							const answers = Array.isArray(data) ? data : [data];
 							const last = answers.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), answers[0]);
-							playerAnswers.push({ playerCode: code, timestamp: last?.timestamp ?? Date.now() });
+							const answerTimestamp = last?.timestamp ?? 0;
+							// Server stores elapsed seconds (0-3600), NOT epoch ms.
+							// Use elapsed seconds directly if valid, otherwise fallback to TIME_LIMIT.
+							let elapsedSeconds: number;
+							if (typeof answerTimestamp === 'number' && answerTimestamp >= 0 && answerTimestamp <= 3600) {
+								// Valid elapsed seconds from server
+								elapsedSeconds = answerTimestamp;
+								logger.info(`handleCalculateScore: ${code} using server elapsed=${elapsedSeconds.toFixed(1)}s`);
+							} else if (hasValidStartTime && answerTimestamp >= startedAt) {
+								// Legacy: answerTimestamp is epoch ms (should not happen with current server)
+								elapsedSeconds = (answerTimestamp - startedAt) / 1000;
+								elapsedSeconds = Math.min(elapsedSeconds, TIME_LIMIT);
+								logger.info(`handleCalculateScore: ${code} epoch ms mode, elapsed=${elapsedSeconds.toFixed(1)}s`);
+							} else {
+								// Fallback: use full time limit
+								elapsedSeconds = TIME_LIMIT;
+								logger.warn(`handleCalculateScore: ${code} using fallback elapsedSeconds=${TIME_LIMIT} (answerTimestamp=${answerTimestamp})`);
+							}
+							logger.info(`handleCalculateScore: ${code} answerTimestamp=${answerTimestamp} elapsed=${elapsedSeconds.toFixed(1)}s`);
+							playerAnswers.push({ playerCode: code, timestamp: answerTimestamp, elapsedSeconds });
 							continue;
 						}
 					}
 				} catch (err) {
 					logger.warn("handleCalculateScore: failed to fetch answer for", code, err);
 				}
-				// Fallback: use current time if fetch fails
-				playerAnswers.push({ playerCode: code, timestamp: Date.now() });
+				// Fallback: use full time limit if fetch fails
+				playerAnswers.push({ playerCode: code, timestamp: 0, elapsedSeconds: TIME_LIMIT });
 			}
 
 			// Sort ascending by timestamp to determine answer order
 			playerAnswers.sort((a, b) => a.timestamp - b.timestamp);
 
-			// Base points determined by the LAST correct answer's elapsed time
-			const lastTimestamp = Math.max(...playerAnswers.map((p) => p.timestamp));
-			const startedAt = timerStartedAtRef.current || (lastTimestamp - TIME_LIMIT * 1000);
-			const elapsedSeconds = Math.max(0, (lastTimestamp - startedAt) / 1000);
-			let basePoints: number;
-			if (elapsedSeconds < 10) basePoints = 30;
-			else if (elapsedSeconds < 20) basePoints = 20;
-			else basePoints = 10;
-
 			// Multipliers by answer order: 1st x2, 2nd x1.5, 3rd x1, 4th+ x0.5
 			const ORDER_MULTIPLIERS = [2, 1.5, 1, 0.5];
 
 			for (let i = 0; i < playerAnswers.length; i++) {
-				const { playerCode } = playerAnswers[i];
+				const { playerCode, elapsedSeconds } = playerAnswers[i];
+				
+				// Base points determined by THIS player's elapsed time
+				let basePoints: number;
+				if (elapsedSeconds < 10) basePoints = 30;
+				else if (elapsedSeconds < 20) basePoints = 20;
+				else basePoints = 10;
+				
+				// Apply multiplier based on answer order
 				const multiplier = ORDER_MULTIPLIERS[Math.min(i, ORDER_MULTIPLIERS.length - 1)];
 				const score = Math.round(basePoints * multiplier);
-				logger.info(`handleCalculateScore: ${playerCode} rank=${i + 1} base=${basePoints} x${multiplier} = ${score}`);
+				logger.info(`handleCalculateScore: ${playerCode} rank=${i + 1} elapsed=${elapsedSeconds.toFixed(1)}s base=${basePoints} x${multiplier} = ${score}`);
 				await handleAddScore(playerCode, score, false).catch((err) =>
 					logger.error("Score failed for", playerCode, err),
 				);
@@ -484,10 +546,12 @@ const AButPhaPage = () => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
 					// Route the late-joining player directly to the current round
+					try {
+						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/bp" });
+					} catch (err) {
+						logger.error("Failed to navigate player on reconnect:", err);
+					}
 					(async () => {
-						try {
-							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/bp" });
-						} catch { /* best-effort */ }
 						if (currentQuestion.questionCode) {
 							try {
 								await sendMessage({
@@ -503,8 +567,10 @@ const AButPhaPage = () => {
 							try {
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch { /* best-effort */ }
+							try {
+								await sendMessage({ type: "play_video" });
+							} catch { /* best-effort */ }
 						}
-						// Send players/scores last (requires API call) so game state appears first
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort */ }
@@ -562,7 +628,7 @@ const AButPhaPage = () => {
 							return {
 								...player,
 								playerLastAnswer: answer.content ?? answer.answer_text ?? player.playerLastAnswer,
-								playerTimestamp: answer.timestamp ?? player.playerTimestamp,
+								playerTimestamp: answer.timestamp || player.playerTimestamp,
 							};
 						}),
 					);
@@ -570,10 +636,12 @@ const AButPhaPage = () => {
 				break;
 			}
 
+			case "player_answer":
 			case "answer": {
 				// Real-time answer from player via WebSocket
-				const { user_code, answer_text, timestamp } = msg;
+				const { user_code, answer_text, timestamp, question_code } = msg;
 				if (user_code && answer_text) {
+					logger.info(`[BP ANSWER SYNC] Admin received WebSocket answer: user=${user_code} answer=${answer_text} ts=${timestamp} question=${question_code}`);
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((player) =>
@@ -581,13 +649,15 @@ const AButPhaPage = () => {
 									? {
 										...player,
 										playerLastAnswer: answer_text,
-										playerTimestamp: timestamp ?? player.playerTimestamp,
+										playerTimestamp: timestamp || player.playerTimestamp,
 									}
-								: player,
+									: player,
 							),
 						);
 					});
 					logger.info("Received answer from", user_code, ":", answer_text);
+				} else {
+					logger.warn(`[BP ANSWER SYNC] Admin received empty answer: user_code=${user_code} answer_text=${answer_text} msg=${JSON.stringify(msg)}`);
 				}
 				break;
 			}
@@ -609,10 +679,7 @@ const AButPhaPage = () => {
 				}
 				break;
 			}
-			case "navigate_audio_done": {
-				setIsRoundStarting(false);
-				break;
-			}
+
 			default:
 				break;
 		}
@@ -627,6 +694,7 @@ const AButPhaPage = () => {
 			question={currentQuestion}
 			timerDuration={timer}
 			videoPlayState={videoPlayState}
+			hideMediaUntilPlayed
 			controls={{
 				variant: 'numbers',
 				count: MAX_QUESTION_INDEX,
@@ -678,7 +746,6 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleStartRound();
 						}}
-						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -687,7 +754,6 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleEndRound();
 						}}
-						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
@@ -732,6 +798,10 @@ const AButPhaPage = () => {
 							isActive={selectedPlayerCodes.includes(player.playerCode)}
 							onClick={toggleSelectedPlayer}
 							disabled={timer > 0}
+							onEditScore={handleEditScore}
+							token={token}
+							matchCode={currentMatchCode}
+							sendMessage={sendMessage}
 						/>
 					</div>
 				))

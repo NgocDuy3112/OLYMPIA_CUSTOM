@@ -46,12 +46,14 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	// Sorted list of all question codes — received from admin via veDich_selection_update
-	// Initialized from localStorage to handle the race where admin sends before player mounts
+	// Fallback: generate placeholder codes if not received yet
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!paramMatchCode) return [];
 		try {
 			const stored = localStorage.getItem(`veDich_pick_all_codes_${paramMatchCode}`);
-			return stored ? (JSON.parse(stored) as string[]) : [];
+			const codes = stored ? (JSON.parse(stored) as string[]) : [];
+			// If we have codes, use them; otherwise return empty array (will use fallback in render)
+			return codes.length > 0 ? codes : [];
 		} catch { return []; }
 	});
 	// Live selection as admin toggles (before confirm)
@@ -97,13 +99,13 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else {
 						const scoreEntry = scoreboard.find((s: any) => String(s?.user_code) === code);
 						if (scoreEntry)
 							scoreVal =
 								scoreEntry?.cumulative_score ??
-								scoreEntry?.cummulative_score ??
+								scoreEntry?.cumulative_score ??
 								scoreEntry?.total_score ??
 								scoreEntry?.score ??
 								0;
@@ -222,32 +224,24 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];
-						if (!questionCode) {
-							return (
-								<VeDichQuestionCard
-									key={`slot-${idx}`}
-									placeholder
-									category=""
-									points={undefined}
-									disabled
-								/>
-							);
-						}
+						// Fallback: use placeholder code if allQuestionCodes is empty
+						const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
+						const displayCode = questionCode || fallbackCode;
 
 						const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";
 						const point = ([20, 30, 40, 50])[idx % 4] || 0;
 						const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
-						const isSelected = displayCodes.includes(questionCode);
-					const isUsed = usedQuestionCodes.includes(questionCode);
+						const isSelected = displayCodes.includes(displayCode);
+						const isUsed = usedQuestionCodes.includes(displayCode);
 
-					return (
-						<VeDichQuestionCard
-							key={questionCode}
-							category={catPrimary || rawCategory}
-							subcategory={catSecondary}
-							points={point}
-							isSelected={isSelected}
-							disabled={isUsed}
+						return (
+							<VeDichQuestionCard
+								key={displayCode}
+								category={catPrimary || rawCategory}
+								subcategory={catSecondary}
+								points={point}
+								isSelected={isSelected}
+								disabled={isUsed || !questionCode}
 							/>
 						);
 					})}

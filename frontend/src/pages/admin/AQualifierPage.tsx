@@ -60,8 +60,6 @@ const AQualifierPage = () => {
     const [players, setPlayers] = useState<PlayerStatus[]>([]);
     usePlayerPresence({ lastMessage, setPlayers });
 
-    const [isRoundStarting, setIsRoundStarting] = useState(false);
-
     const [timer, setTimer] = useState<number>(0);
     const timerRef = useRef<number>(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -473,10 +471,6 @@ const AQualifierPage = () => {
                 }
                 break;
             }
-            case "navigate_audio_done": {
-                setIsRoundStarting(false);
-                break;
-            }
             default:
                 break;
         }
@@ -519,8 +513,6 @@ const AQualifierPage = () => {
     // ── Action handlers ───────────────────────────────────────────────────────
 
     const handleStartRound = useCallback(async () => {
-        setIsRoundStarting(true);
-        setTimeout(() => setIsRoundStarting(false), 10000);
         setCurrentQuestionIndex(0);
         setCurrentQuestion({ ...DEFAULT_QUESTION });
         setParsedOptions([]);
@@ -538,8 +530,6 @@ const AQualifierPage = () => {
     }, [currentMatchCode, maxQuestionsForRound, sendMessage, sendPlayersSnapshot]);
 
     const handleEndRound = useCallback(async () => {
-        setIsRoundStarting(true);
-        setTimeout(() => setIsRoundStarting(false), 10000);
         setCurrentQuestionIndex(0);
         setCurrentQuestion({ ...DEFAULT_QUESTION });
         setParsedOptions([]);
@@ -548,7 +538,7 @@ const AQualifierPage = () => {
         if (!currentMatchCode) return;
         try {
             await sendMessage({ type: "round_end", round: "vl" });
-            await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+            // Removed navigate to waiting page - players and MC stay on VL page to preserve score context
         } catch (err) {
             logger.error("Failed to end qualifier round:", err);
         }
@@ -870,7 +860,7 @@ const AQualifierPage = () => {
             )}
             topControlButtons={
                 <>
-                    <AControlButton onClick={handleStartRound} disabled={isRoundStarting}>
+                    <AControlButton onClick={handleStartRound}>
                         <Power size={18} className="mr-2" /> BẮT ĐẦU VÒNG
                     </AControlButton>
                     <AControlButton
@@ -894,7 +884,7 @@ const AQualifierPage = () => {
                     <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }}>
                         <Trophy size={18} className="mr-2" /> TẢI BXH
                     </AControlButton>
-                    <AControlButton onClick={handleEndRound} disabled={isRoundStarting}>
+                    <AControlButton onClick={handleEndRound}>
                         <Play size={18} className="mr-2" /> KẾT THÚC VÒNG
                     </AControlButton>
                 </>

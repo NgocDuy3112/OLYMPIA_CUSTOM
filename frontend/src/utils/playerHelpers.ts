@@ -4,14 +4,12 @@ interface RawPlayer {
   user_code?: string | number;
   user_name?: string;
   position?: number;
-  cummulative_score?: number;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
 }
 interface RawScore {
   user_code?: string | number;
-  cummulative_score?: number;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
@@ -42,8 +40,8 @@ export function buildPlayersSnapshot(
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
 
-      // Prefer the correctly spelled 'cumulative_score' but accept the legacy 'cummulative_score' shape
-      const playerScore = (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cummulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ?? previous?.playerScore ?? 0;
+      // Backend returns 'cumulative_score' (with typo), but accept 'cumulative_score' and other variants for defensive coding
+      const playerScore = (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ?? previous?.playerScore ?? 0;
 
       return {
         playerCode: code,

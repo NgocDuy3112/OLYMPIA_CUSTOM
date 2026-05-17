@@ -72,19 +72,7 @@ def _find_phase_file(phase: str) -> str | None:
 
 # ── Playback ──────────────────────────────────────────────────────────────────
 
-async def _publish_navigate_done() -> None:
-    """Publish navigate_audio_done so admin UI can re-enable round buttons."""
-    import json
-    try:
-        vc_client = get_valkey_client()
-        vc_client.publish(configs.MATCH_CODE, json.dumps({"type": "navigate_audio_done"}))
-        logger.info("Published navigate_audio_done")
-    except Exception as e:
-        logger.warning(f"Failed to publish navigate_audio_done: {e}")
-
-
-async def _play(guild: discord.Guild, file_path: str, notify_done: bool = False) -> None:
-    # Reuse existing voice client; reconnect if disconnected
+async def _play(guild: discord.Guild, file_path: str) -> None:
     vc: discord.VoiceClient | None = guild.voice_client
     if not vc or not vc.is_connected():
         try:
@@ -100,22 +88,12 @@ async def _play(guild: discord.Guild, file_path: str, notify_done: bool = False)
     if vc.is_playing():
         vc.stop()
 
-    loop = asyncio.get_running_loop()
-
-    def _after(err: Exception | None, notify: bool) -> None:
-        if err:
-            logger.error(f"Playback error: {err}")
-        if notify:
-            asyncio.run_coroutine_threadsafe(_publish_navigate_done(), loop)
-
     try:
         source = discord.FFmpegOpusAudio(file_path)
     except Exception as e:
         logger.error(f"Failed to create audio source for '{file_path}': {e}")
-        if notify_done:
-            await _publish_navigate_done()
         return
-    vc.play(source, after=lambda e: _after(e, notify_done))
+    vc.play(source)
     logger.info(f"Playing: {os.path.basename(file_path)}")
 
 
@@ -144,21 +122,9 @@ async def _handle_message(message: dict) -> None:
         return
 
     if msg_type == "navigate":
-        path = message.get("path", "")
-        if path == "/player/access":
-            await _stop(guild)
-            _current_track.pop(guild.id, None)
-            await _publish_navigate_done()
-        else:
-            phase = _extract_phase(path)
-            if phase:
-                _current_track[guild.id] = phase
-                music_file = _find_phase_file(phase)
-                if music_file:
-                    await _play(guild, music_file, notify_done=True)
-                else:
-                    # No audio for this phase — notify immediately so admin isn't blocked
-                    await _publish_navigate_done()
+        phase = _extract_phase(message.get("path", ""))
+        if phase:
+            _current_track[guild.id] = phase
 
     elif msg_type == "start_the_timer":
         try:

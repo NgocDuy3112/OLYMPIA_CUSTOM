@@ -36,6 +36,38 @@ const PVeDichChungPage = () => {
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
 
+	// Auto-fetch scoreboard on mount to ensure accurate initial scores
+	useEffect(() => {
+		if (!matchCode || !token) return;
+		let mounted = true;
+		const fetchScores = async () => {
+			try {
+				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) return;
+				const json = await res.json();
+				const scoreboardList: any[] = json.data?.scoreboard ?? [];
+				if (mounted && scoreboardList.length > 0) {
+					setPlayers((prev) =>
+						prev.map((p) => {
+							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
+							if (scoreEntry) {
+								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
+								return { ...p, playerScore: newScore };
+							}
+							return p;
+						}),
+					);
+				}
+			} catch (err) {
+				console.warn("Failed to fetch scoreboard on mount:", err);
+			}
+		};
+		void fetchScores();
+		return () => { mounted = false; };
+	}, [matchCode, token]);
+
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
@@ -74,10 +106,10 @@ const PVeDichChungPage = () => {
 					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else {
 						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 					}
 
 					return {
@@ -143,7 +175,7 @@ const PVeDichChungPage = () => {
 						return {
 							...p,
 							playerLastAnswer: ans.content,
-							playerTimestamp: ans.timestamp,
+							playerTimestamp: ans.timestamp || p.playerTimestamp,
 						};
 					}),
 				);
@@ -161,7 +193,7 @@ const PVeDichChungPage = () => {
 								? {
 										...p,
 										playerLastAnswer: answer_text,
-										playerTimestamp: timestamp ?? p.playerTimestamp,
+										playerTimestamp: timestamp || p.playerTimestamp,
 									}
 								: p,
 						),
@@ -253,7 +285,7 @@ const PVeDichChungPage = () => {
 
 		// Send real-time frame
 		await sendMessage({
-			type: "answer",
+			type: "player_answer",
 			user_code: playerCode,
 			question_code: currentQuestion.questionCode,
 			answer_text: trimmed,

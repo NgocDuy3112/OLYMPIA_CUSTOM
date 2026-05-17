@@ -23,15 +23,23 @@ export function usePlayerPresence({ lastMessage, setPlayers }: UsePlayerPresence
     const lastSeenRef = useRef<Record<string, number>>({});
 
     // Mark player as connected when their heartbeat arrives.
+    // Also add unknown players as placeholders so they appear in the list
+    // even if loadPlayersState hasn't run yet or missed them.
     useEffect(() => {
         if (!lastMessage) return;
         const msg = lastMessage as Record<string, unknown>;
         if (msg.type !== "player_heartbeat" || !msg.user_code) return;
         const code = String(msg.user_code);
         lastSeenRef.current[code] = Date.now();
-        setPlayers((prev) =>
-            prev.map((p) => (p.playerCode === code ? { ...p, playerConnected: true } : p)),
-        );
+        setPlayers((prev) => {
+            if (prev.some((p) => p.playerCode === code)) {
+                return prev.map((p) =>
+                    p.playerCode === code ? { ...p, playerConnected: true } : p,
+                );
+            }
+            // Unknown player — add placeholder; name will be filled by player_online or API fetch
+            return [...prev, { playerCode: code, playerName: "", playerScore: 0, playerConnected: true }];
+        });
     }, [lastMessage, setPlayers]);
 
     // Update last-seen when player_online fires so we don't immediately flip them offline

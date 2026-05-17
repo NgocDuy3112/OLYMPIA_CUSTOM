@@ -540,7 +540,7 @@ const scoreboard = data.data.scoreboard;
       {
         "user_code": "OC_U001",
         "user_name": "Nguyen Van A",
-        "cummulative_score": 250
+        "cumulative_score": 250
       }
     ]
   }

@@ -83,24 +83,32 @@ class ConnectionManager:
     async def send_to_room_local(self, room_id: str, payload: dict):
         conns = list(self.rooms.get(room_id, []))
         if not conns:
+            global_logger.warning(f"[BP ANSWER SYNC] send_to_room_local: No connections in room {room_id!r}")
             return
 
         dead: list[WebSocket] = []
         for ws in conns:
             try:
                 await ws.send_json(payload)
-            except Exception:
+            except Exception as e:
+                global_logger.error(f"[BP ANSWER SYNC] Failed to send to connection: {e}")
                 dead.append(ws)
 
         for ws in dead:
             self.disconnect(ws, room_id)
 
-        global_logger.debug(f"Sent local room={room_id} conns={len(conns)} dead={len(dead)} type={payload.get('type')}")
+        global_logger.info(f"[BP ANSWER SYNC] Sent local room={room_id!r} conns={len(conns)} dead={len(dead)} type={payload.get('type')!r}")
 
     async def broadcast_to_room(self, room_id: str, payload: dict):
+        global_logger.info(f"[BP ANSWER SYNC] broadcast_to_room: room={room_id!r} type={payload.get('type')!r} user={payload.get('user_code')!r}")
         if self.valkey:
-            await self.valkey.publish(room_id, json.dumps(payload))
+            try:
+                await self.valkey.publish(room_id, json.dumps(payload))
+                global_logger.info(f"[BP ANSWER SYNC] Published to Valkey channel {room_id!r}")
+            except Exception as e:
+                global_logger.error(f"[BP ANSWER SYNC] Failed to publish to Valkey: {e}", exc_info=True)
         else:
+            global_logger.warning(f"[BP ANSWER SYNC] Valkey not set, sending local only")
             await self.send_to_room_local(room_id, payload)
 
     async def shutdown(self):

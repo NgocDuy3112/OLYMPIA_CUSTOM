@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
+import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 
 const logger = createLogger("AGameManaging");
 
@@ -21,7 +22,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
         } catch {
             // ignore
         }
-        navigate("/admin/waiting");
+        navigate(`/admin/waiting/${codeToUse}`);
     };
 
     return (
@@ -77,6 +78,7 @@ interface UserData {
 interface MatchData {
     match_code: string;
     match_name: string;
+    match_status?: string;
 }
 
 /** Maps to backend `core/question.py` response fields */
@@ -101,12 +103,17 @@ interface ApiResponse {
 
 const AGameManagingPage = () => {
     const token = localStorage.getItem("jwtToken_admin") ?? "";
+    const { sendMessage } = useAdminWebSocket();
 
     const [showChangePassword, setShowChangePassword] = useState(false);
 
     // ── Users state ──────────────────────────────────────────────────
     const [users, setUsers] = useState<UserData[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
+
+    // ── All matches list state ───────────────────────────────────────
+    const [allMatches, setAllMatches] = useState<MatchData[]>([]);
+    const [allMatchesLoading, setAllMatchesLoading] = useState(false);
 
     // ── Room (match) state ───────────────────────────────────────────
     const [matchCode, setMatchCode] = useState(localStorage.getItem("matchCode") || "");
@@ -165,6 +172,13 @@ const AGameManagingPage = () => {
     const [editEmail, setEditEmail] = useState("");
     const [savingEdit, setSavingEdit] = useState(false);
 
+    // ── Score adjustment state ───────────────────────────────────────
+    const [scoreboard, setScoreboard] = useState<{ user_code: string; user_name: string; cumulative_score: number }[]>([]);
+    const [scoreboardLoading, setScoreboardLoading] = useState(false);
+    const [editingScoreUser, setEditingScoreUser] = useState<string | null>(null); // user_code being edited
+    const [editScoreValue, setEditScoreValue] = useState("");
+    const [savingScore, setSavingScore] = useState(false);
+
     /* ================================================================
      *  API helpers
      * ================================================================ */
@@ -222,13 +236,13 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders]);
 
-    // ── Look up existing match (GET /matches?match_code=...) ─────────
-    const lookupMatch = useCallback(async () => {
-        if (!matchCode) return;
+    // ── Look up existing match by code ───────────────────────────────
+    const lookupMatchByCode = useCallback(async (code: string) => {
+        if (!code) return;
         setMatchLoading(true);
         try {
             const res = await fetch(
-                `${API_BASE_URL}/matches/?match_code=${encodeURIComponent(matchCode)}`,
+                `${API_BASE_URL}/matches/?match_code=${encodeURIComponent(code)}`,
                 { headers: authHeaders() },
             );
             const json: ApiResponse = await res.json();
@@ -240,7 +254,7 @@ const AGameManagingPage = () => {
                 // Try to load players that already belong to this match
                 try {
                     const playersRes = await fetch(
-                        `${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/players`,
+                        `${API_BASE_URL}/matches/${encodeURIComponent(code)}/players`,
                         { headers: authHeaders() },
                     );
                     const playersJson = await playersRes.json();
@@ -259,13 +273,12 @@ const AGameManagingPage = () => {
                         codes[3] ?? "",
                     ];
                     setUserCodes(paddedCodes);
-                    // Show names when available, fall back to code
                     setUserInputs(paddedCodes.map((c) => {
                         const found = users.find((u: UserData) => u.user_code === c);
                         return found ? found.user_name : c;
                     }));
                 } catch {
-                    logger.warn("Could not load players for match", matchCode);
+                    logger.warn("Could not load players for match", code);
                 }
             } else {
                 setMatchExists(false);
@@ -276,7 +289,31 @@ const AGameManagingPage = () => {
         } finally {
             setMatchLoading(false);
         }
-    }, [authHeaders, matchCode]);
+    }, [authHeaders, users]);
+
+    const lookupMatch = useCallback(async () => {
+        await lookupMatchByCode(matchCode);
+    }, [matchCode, lookupMatchByCode]);
+
+    // ── Fetch all matches (GET /matches/all) ─────────────────────────
+    const fetchAllMatches = useCallback(async () => {
+        setAllMatchesLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/matches/all`, {
+                headers: authHeaders(),
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success" && Array.isArray(json.data)) {
+                setAllMatches(json.data as unknown as MatchData[]);
+            } else {
+                logger.warn("Fetch all matches failed:", json.message);
+            }
+        } catch (err) {
+            logger.error("Error fetching all matches:", err);
+        } finally {
+            setAllMatchesLoading(false);
+        }
+    }, [authHeaders]);
 
     // ── Create (POST) or Update (PATCH) match ────────────────────────
     const createMatch = useCallback(async () => {
@@ -530,10 +567,122 @@ const createQuestion = useCallback(async () => {
         }
     }, [authHeaders, editingUser, editName, editEmail, fetchUsers]);
 
-    // ── Load users on mount ──────────────────────────────────────────
+    // ── Delete user (DELETE /users/{user_code}) ──────────────────────
+    const deleteUser = useCallback(async (userCode: string, userName: string) => {
+        const confirmed = window.confirm(
+            `Bạn có chắc muốn xoá thí sinh "${userName}" (${userCode})?\nHành động này không thể hoàn tác.`
+        );
+        if (!confirmed) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/users/${encodeURIComponent(userCode)}`, {
+                method: "DELETE",
+                headers: authHeaders(),
+            });
+            const json = await res.json();
+            if (res.ok) {
+                await fetchUsers();
+            } else {
+                alert(`Xoá thất bại: ${json.detail ?? json.message ?? "Lỗi không xác định"}`);
+            }
+        } catch (err) {
+            logger.error("Error deleting user:", err);
+            alert("Lỗi kết nối khi xoá thí sinh");
+        }
+    }, [authHeaders, fetchUsers]);
+
+    // ── Fetch scoreboard (GET /scoreboard/{match_code}) ──────────────
+    const fetchScoreboard = useCallback(async () => {
+        const code = matchCode;
+        if (!code) return;
+        setScoreboardLoading(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/scoreboard/${encodeURIComponent(code)}`, {
+                headers: authHeaders(),
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success" && json.data) {
+                const list = (json.data as { scoreboard?: { user_code: string; user_name: string; cumulative_score: number }[] }).scoreboard ?? [];
+                setScoreboard(list);
+            } else {
+                setScoreboard([]);
+            }
+        } catch (err) {
+            logger.error("Error fetching scoreboard:", err);
+            setScoreboard([]);
+        } finally {
+            setScoreboardLoading(false);
+        }
+    }, [authHeaders, matchCode]);
+
+    // ── Adjust player score (PATCH /scoreboard/adjust) ──────────────
+    const adjustScore = useCallback(async () => {
+        if (!editingScoreUser || !editScoreValue || !matchCode) return;
+        const newScore = parseInt(editScoreValue, 10);
+        if (isNaN(newScore) || newScore % 5 !== 0) {
+            alert("Điểm phải là bội số của 5 (0, 5, 10, 15, …)");
+            return;
+        }
+        setSavingScore(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+                method: "PATCH",
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    match_code: matchCode,
+                    user_code: editingScoreUser,
+                    new_score: newScore,
+                    reason: "admin_manual_adjust",
+                }),
+            });
+            const json: ApiResponse = await res.json();
+            if (json.status === "success" && json.data) {
+                const list = (json.data as { scoreboard?: { user_code: string; user_name: string; cumulative_score: number }[] }).scoreboard ?? [];
+                setScoreboard(list);
+                setEditingScoreUser(null);
+                setEditScoreValue("");
+                // Broadcast score update to all connected clients via WebSocket
+                try {
+                    await sendMessage({
+                        type: "player_score_updated",
+                        user_code: editingScoreUser,
+                        new_total_score: newScore,
+                    });
+                    // Also send full players snapshot so all clients sync
+                    const playersSnapshot = list.map((entry) => ({
+                        user_code: entry.user_code,
+                        user_name: entry.user_name,
+                        cumulative_score: entry.cumulative_score,
+                    }));
+                    await sendMessage({
+                        type: "send_players_info",
+                        players: playersSnapshot,
+                    });
+                } catch (wsErr) {
+                    logger.warn("Failed to broadcast score update via WebSocket:", wsErr);
+                }
+            } else {
+                alert(`Thất bại: ${json.message ?? "Lỗi không xác định"}`);
+            }
+        } catch (err) {
+            logger.error("Error adjusting score:", err);
+            alert("Lỗi kết nối khi sửa điểm");
+        } finally {
+            setSavingScore(false);
+        }
+    }, [authHeaders, editingScoreUser, editScoreValue, matchCode, sendMessage]);
+
+    // ── Load users and matches on mount ─────────────────────────────
     useEffect(() => {
         fetchUsers();
-    }, [fetchUsers]);
+        void fetchAllMatches();
+    }, [fetchUsers, fetchAllMatches]);
+
+    // ── Load scoreboard when match exists ───────────────────────────
+    useEffect(() => {
+        if (matchCode && matchExists) {
+            void fetchScoreboard();
+        }
+    }, [matchCode, matchExists, fetchScoreboard]);
 
     // ── Create user (POST /auth/signup) ─────────────────────────────
     const createUser = useCallback(async () => {
@@ -598,7 +747,7 @@ const createQuestion = useCallback(async () => {
      * ================================================================ */
 
     return (
-        <div className="grid grid-cols-[1fr_1fr] grid-rows-[400px_1fr] gap-4 p-6 h-screen text-white">
+        <div className="grid grid-cols-2 grid-rows-2 gap-4 p-6 h-screen text-white overflow-y-auto">
             {/* ─── Floating change-password button ───────────────────── */}
             <button
                 onClick={() => setShowChangePassword(true)}
@@ -903,6 +1052,13 @@ const createQuestion = useCallback(async () => {
                                                 >
                                                     {sendingCredentials === u.user_code ? "Đang gửi…" : "Gửi thông tin"}
                                                 </button>
+                                                <button
+                                                    onClick={() => deleteUser(u.user_code, u.user_name)}
+                                                    className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
+                                                    title="Xoá thí sinh"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -1007,8 +1163,70 @@ const createQuestion = useCallback(async () => {
                 </div>
             </div>
 
-            {/* ─── Card 3 : Câu hỏi (full width) ────────────────────── */}
-            <div className="col-span-2 bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
+            {/* ─── Card 2b : Danh sách trận đấu ──────────────────────── */}
+            <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-3 overflow-hidden">
+                <div className="flex items-center justify-between">
+                    <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
+                        <Gamepad2 size={20} /> Danh sách trận đấu
+                    </h2>
+                    <button
+                        onClick={fetchAllMatches}
+                        disabled={allMatchesLoading}
+                        className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
+                        title="Làm mới"
+                    >
+                        <RefreshCw size={16} className={allMatchesLoading ? "animate-spin" : ""} />
+                    </button>
+                </div>
+                <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                    {allMatchesLoading ? (
+                        <p className="text-gray-400 text-sm">Đang tải…</p>
+                    ) : allMatches.length === 0 ? (
+                        <p className="text-gray-400 text-sm">Chưa có trận đấu nào.</p>
+                    ) : (
+                        <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-blue-900">
+                                <tr className="text-left text-blue-300 border-b border-blue-700">
+                                    <th className="py-2 px-2">Mã trận</th>
+                                    <th className="py-2 px-2">Tên trận đấu</th>
+                                    <th className="py-2 px-2">Trạng thái</th>
+                                    <th className="py-2 px-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {allMatches.map((m) => (
+                                    <tr
+                                        key={m.match_code}
+                                        className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors"
+                                    >
+                                        <td className="py-2 px-2 font-mono text-xs">{m.match_code}</td>
+                                        <td className="py-2 px-2">{m.match_name}</td>
+                                        <td className="py-2 px-2 text-xs text-blue-300 capitalize">{m.match_status ?? "—"}</td>
+                                        <td className="py-2 px-2 text-right">
+                                            <button
+                                                onClick={() => {
+                                                    setMatchCode(m.match_code);
+                                                    setQuestionsMatchCode(m.match_code);
+                                                    localStorage.setItem("matchCode", m.match_code);
+                                                    setMatchExists(false);
+                                                    void lookupMatchByCode(m.match_code);
+                                                }}
+                                                className="text-xs px-3 py-1 rounded bg-blue-700 hover:bg-blue-500 transition-colors font-semibold"
+                                                title="Tải vào ô Tạo phòng để chỉnh sửa"
+                                            >
+                                                Tải vào
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            </div>
+
+            {/* ─── Card 3 : Câu hỏi ───────────────────────────────────── */}
+            <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
                         <HelpCircle size={22} /> Câu hỏi
@@ -1224,6 +1442,99 @@ const createQuestion = useCallback(async () => {
                     )}
                 </div>
             </div>
+
+            {/* ─── Card 4 : Sửa điểm (ẩn) ────────────────────────────── */}
+            {false && <div className="col-span-2 bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
+                <div className="flex items-center justify-between">
+                    <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
+                        <Trophy size={22} /> Sửa điểm trực tiếp
+                    </h2>
+                    <button
+                        onClick={fetchScoreboard}
+                        disabled={scoreboardLoading || !matchCode}
+                        className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm"
+                    >
+                        <RefreshCw size={14} className={scoreboardLoading ? "animate-spin" : ""} /> Tải bảng điểm
+                    </button>
+                </div>
+
+                {!matchCode ? (
+                    <p className="text-gray-400 text-sm">Nhập mã trận đấu ở phần "Tạo phòng" để xem và sửa điểm.</p>
+                ) : scoreboard.length === 0 && !scoreboardLoading ? (
+                    <p className="text-gray-400 text-sm">Chưa có điểm. Bấm "Tải bảng điểm" để lấy dữ liệu.</p>
+                ) : (
+                    <div className="overflow-y-auto flex-1 -mr-2 pr-2">
+                        <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-blue-900">
+                                <tr className="text-left text-blue-300 border-b border-blue-700">
+                                    <th className="py-2 px-2">Vị trí</th>
+                                    <th className="py-2 px-2">Mã thí sinh</th>
+                                    <th className="py-2 px-2">Tên</th>
+                                    <th className="py-2 px-2">Điểm hiện tại</th>
+                                    <th className="py-2 px-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {scoreboard.map((entry, idx) => (
+                                    <tr
+                                        key={entry.user_code}
+                                        className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors"
+                                    >
+                                        <td className="py-2 px-2 font-bold text-blue-200">#{idx + 1}</td>
+                                        <td className="py-2 px-2 font-mono text-xs">{entry.user_code}</td>
+                                        <td className="py-2 px-2">{entry.user_name}</td>
+                                        <td className="py-2 px-2 font-bold text-yellow-400 text-lg">
+                                            {editingScoreUser === entry.user_code ? (
+                                                <input
+                                                    type="number"
+                                                    step={5}
+                                                    value={editScoreValue}
+                                                    onChange={(e) => setEditScoreValue(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") void adjustScore();
+                                                        if (e.key === "Escape") { setEditingScoreUser(null); setEditScoreValue(""); }
+                                                    }}
+                                                    className="w-24 px-2 py-1 rounded bg-blue-950 border border-blue-500 text-white text-center focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                                    autoFocus
+                                                />
+                                            ) : (
+                                                entry.cumulative_score
+                                            )}
+                                        </td>
+                                        <td className="py-2 px-2 text-right">
+                                            {editingScoreUser === entry.user_code ? (
+                                                <div className="flex gap-1 justify-end">
+                                                    <button
+                                                        onClick={() => void adjustScore()}
+                                                        disabled={savingScore || !editScoreValue}
+                                                        className="px-3 py-1 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 text-xs font-semibold transition-colors"
+                                                    >
+                                                        {savingScore ? "Đang lưu…" : "✓ Lưu"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => { setEditingScoreUser(null); setEditScoreValue(""); }}
+                                                        className="px-3 py-1 rounded bg-blue-800 hover:bg-blue-700 text-xs transition-colors"
+                                                    >
+                                                        Huỷ
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => { setEditingScoreUser(entry.user_code); setEditScoreValue(String(entry.cumulative_score)); }}
+                                                    className="p-1.5 rounded bg-yellow-600/70 hover:bg-yellow-500 transition-colors"
+                                                    title="Sửa điểm"
+                                                >
+                                                    <Pencil size={13} />
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>}
         </div>
     );
 };

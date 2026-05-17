@@ -1,5 +1,3 @@
-import time
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
@@ -23,21 +21,19 @@ async def post_answer_to_db(
 ) -> BaseResponse:
     global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
     try:
-        # Use server-side timestamp to prevent client manipulation.
-        # The client's timestamp is accepted but clamped to a reasonable range
-        # relative to the server clock; if missing or out of bounds, use server time.
-        server_time = time.time()
+        # Accept elapsed seconds from client (e.g., 13.456 seconds since timer start).
+        # The client sends elapsed time, not Unix timestamp.
+        # Clamp to reasonable range: 0 to 3600 seconds (1 hour max)
         client_ts = request.timestamp if request.timestamp is not None else None
         if client_ts is not None:
             try:
                 client_ts = float(client_ts)
+                # Clamp elapsed seconds to [0, 3600]
+                effective_timestamp = max(0.0, min(3600.0, client_ts))
             except (ValueError, TypeError):
-                client_ts = None
-        # Clamp timestamp: must be within 60 seconds of server time
-        if client_ts is not None and abs(client_ts - server_time) <= 60:
-            effective_timestamp = client_ts
+                effective_timestamp = 0.0
         else:
-            effective_timestamp = server_time
+            effective_timestamp = 0.0
 
         # Validate existence of match, player and question first
         match_id = await session.scalar(
@@ -119,7 +115,7 @@ async def post_answer_to_db(
         try:
             await valkey.set(cache_key, json.dumps(cache_payload))
             await valkey.publish(channel=request.match_code, message=json.dumps(cache_payload))
-            global_logger.info(f"Cached and published answer for key={cache_key}.")
+            global_logger.info(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
         except Exception as e:
             # Log but do not fail the request since DB commit succeeded
             global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}", exc_info=True)
@@ -149,12 +145,13 @@ async def get_answer_from_db(
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    global_logger.info(f"GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
+    global_logger.info(f"[KDC ANSWER SYNC] GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
     try:
         cache_key = f"answer:{match_code}:{user_code}:{question_code}"
         cached = await valkey.get(cache_key)
         if cached is not None:
             record_json = json.loads(cached)
+            global_logger.info(f"[KDC ANSWER SYNC] CACHE HIT for key={cache_key} answer={record_json.get('answer_text')} ts={record_json.get('timestamp')}")
             log_message = f"Fetched an answer from cache for key={cache_key}."
             global_logger.info(log_message)
             return BaseResponse(
@@ -162,6 +159,7 @@ async def get_answer_from_db(
                 message=log_message,
                 data=record_json
             )
+        global_logger.info(f"[KDC ANSWER SYNC] CACHE MISS for key={cache_key}, fetching from DB")
         result = await session.execute(
             select(
                 Answer

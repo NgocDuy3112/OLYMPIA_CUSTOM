@@ -99,6 +99,7 @@ async def patch_match_to_db(
             old_positions = old_positions_result.scalars().all()
             for old_position in old_positions:
                 await session.delete(old_position)
+            await session.flush()
 
             # Validate request players payload before insert
             seen_positions: set[int] = set()
@@ -220,6 +221,30 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
         raise
     except Exception:
         log_message = f"An unexpected error occurred while fetching match room with match_code={match_code}."
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)
+
+
+async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
+    """Return all non-deleted matches ordered by creation date descending."""
+    global_logger.info("GET request received to fetch all active matches.")
+    try:
+        query = select(Match).where(Match.is_deleted == False).order_by(Match.created_at.desc())
+        result = await session.execute(query)
+        matches = result.scalars().all()
+        data = [
+            {
+                "match_code": m.match_code,
+                "match_name": m.match_name,
+                "match_status": m.match_status,
+            }
+            for m in matches
+        ]
+        log_message = f"Fetched {len(matches)} active matches."
+        global_logger.info(log_message)
+        return BaseResponse(status="success", message=log_message, data=data)
+    except Exception:
+        log_message = "An unexpected error occurred while fetching all matches."
         global_logger.exception(log_message)
         raise HTTPException(status_code=500, detail=log_message)
 

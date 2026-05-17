@@ -8,7 +8,7 @@ function buildMcPlayers(playersList: any[]): PlayerStatus[] {
         let name = p?.user_name ?? "";
         let scoreVal = 0;
         if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-        else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+        else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
         return {
             playerCode: code,
             playerName: name,
@@ -45,7 +45,7 @@ export function useMcPlayers() {
             prev.map((p) => {
                 const ans = answers.find((a: any) => a.user_code === p.playerCode);
                 if (!ans) return p;
-                return { ...p, playerLastAnswer: ans.content ?? ans.answer_text, playerTimestamp: ans.timestamp };
+                return { ...p, playerLastAnswer: ans.content ?? ans.answer_text, playerTimestamp: ans.timestamp || p.playerTimestamp };
             }),
         );
     }, []);
@@ -56,7 +56,7 @@ export function useMcPlayers() {
             setPlayers((prev) =>
                 prev.map((p) =>
                     p.playerCode === user_code
-                        ? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp ?? p.playerTimestamp }
+                        ? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp || p.playerTimestamp }
                         : p,
                 ),
             );

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
@@ -11,6 +11,7 @@ import { useQuestionState } from "@/hooks/useQuestionState";
 
 const MKhoiDongChungPage = () => {
     const { matchCode, token } = useMcSession();
+    const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
@@ -26,10 +27,14 @@ const MKhoiDongChungPage = () => {
             case "send_players_info":
                 applyPlayersInfo(msg);
                 break;
-            case "start_the_timer":
-                startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+            case "start_the_timer": {
+                const timeLimit = Number(msg.time_limit ?? 60);
+                const startedAt = msg.started_at ?? Date.now();
+                startSynced(timeLimit, startedAt);
                 clearAnswers();
+                setBuzzerWinnerCode(null);
                 break;
+            }
             case "player_score_updated":
                 applyScoreUpdate(msg);
                 break;
@@ -45,16 +50,20 @@ const MKhoiDongChungPage = () => {
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
+            case "player_answer":
             case "answer":
                 applyRealTimeAnswer(msg);
                 break;
             case "buzz":
                 applyBuzz(msg);
+                if (msg.user_code && !buzzerWinnerCode) {
+                    setBuzzerWinnerCode(msg.user_code);
+                }
                 break;
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -62,7 +71,7 @@ const MKhoiDongChungPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
+        <PBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
             <AQuestionBoard
                 title="KHỞI ĐỘNG - LƯỢT CHUNG"
                 question={questionWithAnswer}

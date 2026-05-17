@@ -14,7 +14,7 @@ const MGameAccessPage: React.FC = () => {
         } catch {
             // ignore
         }
-        navigate("/mc/waiting");
+        navigate(`/mc/waiting/${matchCode}`);
     };
 
     return (

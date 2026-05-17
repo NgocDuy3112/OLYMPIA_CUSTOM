@@ -102,6 +102,24 @@ async def get_match_by_match_code(
 
 
 @router.get(
+    "/all",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def get_all_matches(
+    session: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    """Endpoint to fetch all non-deleted matches. Accessible only by admin."""
+    try:
+        return await get_all_matches_from_db(session)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get(
     "/{match_code}/room",
     dependencies=[Depends(require_roles(['admin', 'player', 'mc']))],
     response_model=MatchRoomResponse,

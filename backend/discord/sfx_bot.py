@@ -50,40 +50,34 @@ EVENT_SFX_MAP = {
 # Takes priority over EVENT_SFX_MAP when the bot is in a matching phase.
 PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
     "kdc": {
-        "navigate":                "kd_bat_dau",
         "send_answers_to_players": "kd_hien_tra_loi",
         "round_end":               "kd_ket_thuc",
     },
     "kdr": {
-        "navigate":                "kd_bat_dau",
         "send_answers_to_players": "kd_hien_tra_loi",
         "wrong":                   "kd_sai",
         "skip":                    "kd_sai",
         "round_end":               "kd_ket_thuc",
     },
     "vdc": {
-        "navigate":                "vd_bat_dau",
         "wrong":                   "vd_sai",
         "send_answers_to_players": "vd_hien_tra_loi",
-        "answer":                  "vd_dung",
+        # Removed "answer" SFX - no sound when player submits answer
     },
     "vdr": {
-        "navigate":                "vd_bat_dau",
         "wrong":                   "vd_sai",
         "send_answers_to_players": "vd_hien_tra_loi",
-        "answer":                  "vd_dung",
+        # Removed "answer" SFX - no sound when player submits answer
         "power_star":              "vd_nshv",
         "power_shield":            "vd_bhmt",
     },
     "bp": {
-        "navigate":                "bp_bat_dau",
         "bp_chon_cau_hoi":         "bp_chon_cau_hoi",
-        "answer":                  "bp_dung",
+        # Removed "answer" SFX - no sound when player submits answer
         "send_answers_to_players": "bp_hien_tra_loi",
     },
     "gm": {
-        "navigate":                "gm_bat_dau",
-        "answer":                  "gm_dung",
+        # Removed "answer" SFX - no sound when player submits answer
         "send_answers_to_players": "gm_hien_tra_loi",
         "show_hint":               "gm_chon_goi_y",
         "keyword_correct":         "gm_dung_tu_khoa",
@@ -278,6 +272,15 @@ async def _handle_message(message: dict) -> None:
             _recent_events.clear()  # Clear debounce tracking on phase change
             logger.info(f"Navigated to phase '{phase}' — queue cleared and debounce reset")
 
+    # Track phase from round_start events (set phase before navigate completes)
+    if msg_type == "round_start":
+        round_phase = message.get("round", "")
+        if round_phase and round_phase != _current_phase:
+            logger.info(f"Round started: '{round_phase}' — updating phase from '{_current_phase}'")
+            _current_phase = round_phase
+            # Clear debounce tracking when round starts
+            _recent_events.clear()
+
     # Track phase from round_end events
     if msg_type == "round_end":
         round_phase = message.get("round", "")
@@ -301,6 +304,12 @@ async def _handle_message(message: dict) -> None:
             _timer_task = asyncio.create_task(
                 _schedule_timer_end(time_limit, sfx_file)
             )
+
+    # Log wrong/skip events for debugging
+    if msg_type in ("wrong", "skip"):
+        user_code = message.get("user_code", "unknown")
+        phase = message.get("phase", _current_phase)
+        logger.info(f"Received '{msg_type}' event for user={user_code!r} in phase={phase!r}")
 
     # Debounce: skip if the same event was queued recently
     current_time = time.time() * 1000  # milliseconds

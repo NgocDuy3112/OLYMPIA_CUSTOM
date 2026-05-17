@@ -42,11 +42,13 @@ export function useCountdownTimer(): CountdownTimerState {
         // If sync math collapses to 0 but the time limit is positive, start from the full limit
         // to guard against clock skew between admin and player browsers.
         const safeTimer = normalized > 0 ? normalized : Math.max(0, Math.round(timeLimitSeconds));
+        console.info(`[BP TIMER DEBUG] startSynced called: timeLimit=${timeLimitSeconds}s, startedAt=${startedAt}, elapsedSec=${elapsedSec.toFixed(3)}, remaining=${remaining.toFixed(3)}, normalized=${normalized}, safeTimer=${safeTimer}`);
         setTimeLimit(safeTimer);
         setTimer(safeTimer);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
         setSessionId((s) => s + 1);
+        console.info(`[BP TIMER DEBUG] startSynced state after: timeLimit=${safeTimer}, timer=${safeTimer}, running=${runningRef.current}`);
     }, []);
 
     const stop = useCallback(() => {

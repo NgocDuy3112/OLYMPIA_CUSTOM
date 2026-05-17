@@ -6,18 +6,19 @@ import type { PlayerStatus } from "@/types/player";
 interface PPlayerRecProps {
     player: PlayerStatus;
     isCurrent: boolean;
+    isBuzzerWinner?: boolean;  // Show lightning icon next to name
 }
 
 
 
-const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
+const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinner }) => {
     const answerContent = player.playerLastAnswer?.trim() ?? '';
     const isAnswered = answerContent !== '---' && answerContent !== '';
     let displayAnswer: string | null = null;
     let displayTime: string | null = null;
 
     let answerClasses = 'text-white/60';
-    const showPingBell = (player.playerHasBuzzed === true);
+    const showPingBell = isBuzzerWinner === true;
     let content: React.ReactNode;
     if (showPingBell) {
         content = (
@@ -29,7 +30,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
         );
     } else if (isAnswered) {
         displayAnswer = answerContent.toUpperCase();
-        if (typeof player.playerTimestamp === 'number') {
+        if (typeof player.playerTimestamp === 'number' && player.playerTimestamp !== 0) {
             displayTime = player.playerTimestamp.toFixed(3);
         }
         answerClasses = 'text-white';
@@ -60,6 +61,9 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
             <div className="flex justify-between items-center w-full">
                 <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%] flex items-center gap-2">
                     <span className="truncate">{player.playerName}</span>
+                    {isBuzzerWinner && (
+                        <Zap size={20} className="text-yellow-400 shrink-0" />
+                    )}
                     {player.playerIsTurn && (
                         <Mic size={20} className="text-white inline-block" />
                     )}

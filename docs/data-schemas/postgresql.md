@@ -124,7 +124,7 @@ Stores player responses to questions.
 | `updated_at` | TIMESTAMPTZ | DEFAULT NOW() | Last update timestamp |
 | `answer_text` | TEXT | NULLABLE | Answer text |
 | `has_buzzed` | BOOLEAN | DEFAULT FALSE | Buzz flag |
-| `timestamp` | NUMERIC(6,3) | NULLABLE | Response time (seconds) |
+| `timestamp` | NUMERIC(16,3) | NULLABLE | Response time (seconds) |
 | `is_deleted` | BOOLEAN | DEFAULT FALSE | Soft delete flag |
 | `player_id` | UUID | FOREIGN KEY → users(id) | Player reference |
 | `match_id` | UUID | FOREIGN KEY → matches(id) | Match reference |

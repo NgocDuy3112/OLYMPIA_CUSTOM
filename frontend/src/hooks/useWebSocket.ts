@@ -15,6 +15,11 @@ export const useWebSocket = (matchCode: string, token?: string) => {
   const pendingMessagesRef = useRef<any[]>([]);
   const isDrainingMessagesRef = useRef(false);
 
+  // Debounce: track last send time for events that trigger audio/navigation
+  // Prevents duplicate events when user clicks buttons rapidly
+  const lastEventTimeRef = useRef<Record<string, number>>({});
+  const DEBOUNCE_MS = 500; // Minimum time between identical events
+
   const [rawIsConnected, setRawIsConnected] = useState(false);
   const [rawLastMessage, setRawLastMessage] = useState<any>(null);
 
@@ -163,6 +168,23 @@ export const useWebSocket = (matchCode: string, token?: string) => {
 
   const sendMessage = useCallback(async (payload: Record<string, unknown>): Promise<boolean> => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Debounce logic for audio/navigation events
+      const eventType = payload.type as string;
+      const eventsToDebounce = ['navigate', 'start_the_timer', 'play_bgm', 'round_start'];
+      
+      if (eventsToDebounce.includes(eventType)) {
+        const now = Date.now();
+        const lastTime = lastEventTimeRef.current[eventType] || 0;
+        
+        // Skip if this event was sent too recently
+        if (now - lastTime < DEBOUNCE_MS) {
+          logger.debug(`Debounced ${eventType} event (${now - lastTime}ms < ${DEBOUNCE_MS}ms)`);
+          return true; // Return true to avoid error handling in UI
+        }
+        
+        lastEventTimeRef.current[eventType] = now;
+      }
+      
       wsRef.current.send(JSON.stringify(payload));
       logger.debug("Sent payload:", payload);
       return true;

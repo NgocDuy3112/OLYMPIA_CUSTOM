@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
 import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
 import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-
 
 import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
@@ -17,38 +15,113 @@ import PGameAccessPage from "@/pages/player/PGameAccessPage";
 import PWaitingPage from "@/pages/player/PWaitingPage";
 import { VeDichRound } from "@/types/veDich";
 
-
-
 interface PProtectedRouteProps {
     children: React.ReactNode;
 }
 
 export const ProtectedPlayerRoute: React.FC<PProtectedRouteProps> = ({ children }) => {
-    const { playerCode } = useParams<{ playerCode: string }>();
     const token = sessionStorage.getItem("jwtToken_player");
     const storedPlayer = sessionStorage.getItem("playerCode");
 
-    if (!token || !storedPlayer || (playerCode && playerCode !== storedPlayer)) {
+    if (!token || !storedPlayer) {
         return <Navigate to="/login" replace />;
     }
 
     return <>{children}</>;
 };
 
+const PlayerAutoNavigator: React.FC = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const playerCode = sessionStorage.getItem("playerCode") || "";
+    const matchCode = sessionStorage.getItem("matchCode") || "";
+    const { lastMessage } = usePlayerWebSocket();
 
+    useEffect(() => {
+        if (!lastMessage) return;
+        
+        // Backend sends raw payload objects (not wrapped in { message: payload })
+        const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
+        const msgType = msg?.type ?? "";
+        
+        console.info("[PlayerAutoNavigator] Received message:", msgType, msg);
 
-// Component to conditionally render WebSocket provider only when matchCode is available
+        if (msgType === "end_match" || msgType === "open_match") {
+            const target = `/player/waiting/${matchCode}`;
+            if (location.pathname !== target) {
+                console.info("[PlayerAutoNavigator] Navigating to waiting:", target);
+                navigate(target, { replace: true });
+            }
+            return;
+        }
+
+        if (msgType !== "navigate") return;
+
+        const basePath: unknown = msg?.path;
+        if (typeof basePath !== "string") {
+            console.warn("[PlayerAutoNavigator] No path in navigate message");
+            return;
+        }
+
+        console.info("[PlayerAutoNavigator] Processing navigate message:", { basePath, matchCode, playerCode });
+
+        const senderRole = (msg?.role ?? "") as string;
+        const senderCode = (msg?.user_code ?? "") as string;
+        if (senderRole !== "admin" && senderCode && senderCode !== playerCode) {
+            console.warn("[PlayerAutoNavigator] Ignoring message from non-admin:", senderRole, senderCode);
+            return;
+        }
+
+        if (!matchCode) {
+            console.warn("[PlayerAutoNavigator] No matchCode, skipping navigation");
+            return;
+        }
+
+        const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
+
+        // Only handle /player/* paths — ignore /mc/* or /admin/* paths
+        // which are intended for other roles
+        if (!normalized.startsWith("/player/")) {
+            console.warn("[PlayerAutoNavigator] Ignoring non-player path:", normalized);
+            return;
+        }
+
+        // Qualifier (Vòng Loại) always uses OC3_M_VL as matchCode
+        const isQualifier = normalized === "/player/vl";
+        const target = isQualifier
+            ? `${normalized}/OC3_M_VL`
+            : `${normalized}/${matchCode}`;
+
+        const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
+
+        console.info("[PlayerAutoNavigator] Navigating:", { currentPath, target });
+        if (currentPath !== target) {
+            navigate(target, { replace: true });
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [lastMessage, matchCode, playerCode, navigate, location.pathname]);
+
+    return null;
+};
+
 const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // Track matchCode in state so we can react to it being set during the same page session
+    const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+    const location = useLocation();
     const [matchCode, setMatchCode] = useState<string>(() => {
         const s = sessionStorage.getItem("matchCode");
         return s && s.trim() !== "" ? s : "";
     });
-    const location = useLocation();
-    // Listen for a custom event that signals matchCode was set by the access page.
-    // This useEffect must be called unconditionally to satisfy the rules-of-hooks.
+
+    // Sync matchCode from URL to sessionStorage
     useEffect(() => {
-        if (matchCode) return; // already have matchCode, nothing to do
+        if (urlMatchCode && urlMatchCode !== matchCode) {
+            sessionStorage.setItem("matchCode", urlMatchCode);
+            setMatchCode(urlMatchCode);
+        }
+    }, [urlMatchCode, matchCode]);
+
+    useEffect(() => {
+        if (matchCode) return;
 
         const onMatchCodeSet = () => {
             const s = sessionStorage.getItem("matchCode") || "";
@@ -59,12 +132,10 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
     }, [matchCode]);
 
-    // If user visits the qualifier player route and no matchCode is set, default to OC3_Q
     useEffect(() => {
         if (matchCode) return;
         try {
             if (location.pathname.startsWith("/player/vl")) {
-                // Use OC3_M_VL as the default qualifier match code (real match-style code)
                 const defaultCode = "OC3_M_VL";
                 sessionStorage.setItem("matchCode", defaultCode);
                 setMatchCode(defaultCode);
@@ -74,84 +145,11 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         }
     }, [location.pathname, matchCode]);
 
-    // If matchCode is not set yet, render children without WebSocket provider
     if (!matchCode) return <>{children}</>;
-
-    // AutoNavigator component that uses WebSocket - only rendered inside provider
-    const PlayerAutoNavigatorWithWs: React.FC = () => {
-        const navigate = useNavigate();
-        const location = useLocation();
-        const playerCode = sessionStorage.getItem("playerCode") || "";
-        const { lastMessage } = usePlayerWebSocket();
-
-        useEffect(() => {
-            if (!lastMessage) return;
-            const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
-            const msg = raw?.message ?? raw;
-
-            console.info("[AutoNav] received WS message:", { raw, msg, matchCode, playerCode, pathname: location.pathname });
-
-            const msgType = msg?.type ?? "";
-
-            if (msgType === "end_match" || msgType === "open_match") {
-                const target = `/player/waiting/${matchCode}`;
-                if (location.pathname !== target) {
-                    console.info(`[AutoNav] ${msgType} → navigating to`, target);
-                    navigate(target, { replace: true });
-                }
-                return;
-            }
-
-            if (msgType !== "navigate") return;
-
-            const basePath: unknown = msg?.path;
-            if (typeof basePath !== "string") return;
-
-            // Backend overwrites user_code with the sender's JWT user_code.
-            // Admin navigate messages are always broadcasts; only filter when a
-            // peer-player sends a targeted message (role !== "admin").
-            const senderRole = (msg?.role ?? "") as string;
-            const senderCode = (msg?.user_code ?? "") as string;
-            if (senderRole !== "admin" && senderCode && senderCode !== playerCode) {
-                // message is targeted to a different player
-                console.debug("[AutoNav] navigate message for different user, ignoring", { senderCode, playerCode });
-                return;
-            }
-
-            if (!matchCode || !playerCode) {
-                console.warn("[AutoNav] missing matchCode or playerCode, cannot navigate", { matchCode, playerCode });
-                return;
-            }
-
-            const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
-
-            // Paths that take only matchCode (no playerCode), e.g. waiting room.
-            const matchCodeOnlyPaths: string[] = ["/player/waiting"];
-            // Paths that take no params at all.
-            const noParamsPaths: string[] = [];
-
-            const target = noParamsPaths.includes(normalized)
-                ? normalized
-                : matchCodeOnlyPaths.includes(normalized)
-                    ? `${normalized}/${matchCode}`
-                    : `${normalized}/${matchCode}/${playerCode}`;
-
-            // Normalize trailing slash when comparing current location
-            const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
-
-            if (currentPath !== target) {
-                console.info("[AutoNav] navigating to", target, "from", location.pathname);
-                navigate(target, { replace: true });
-            }
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- matchCode comes from outer state but is needed in navigation paths
-        }, [lastMessage, matchCode, playerCode, navigate, location.pathname]);
-
-        return null;
-    };
 
     return (
         <PlayerWebSocketProvider matchCode={matchCode}>
-            <PlayerAutoNavigatorWithWs />
+            <PlayerAutoNavigator />
             {children}
         </PlayerWebSocketProvider>
     );
@@ -166,7 +164,7 @@ const PlayerRoutes = () => {
                 <Route path="/access" element={<PGameAccessPage />} />
                 <Route path="/waiting/:matchCode" element={<PWaitingPage />} />
                 <Route
-                    path="/kdc/:matchCode/:playerCode"
+                    path="/kdc/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PKhoiDongChungPage />
@@ -174,7 +172,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/kdr/:matchCode/:playerCode"
+                    path="/kdr/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PKhoiDongRiengPage />
@@ -182,7 +180,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/bp/:matchCode/:playerCode"
+                    path="/bp/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PButPhaPage />
@@ -190,7 +188,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/vdc/pick/:matchCode/:playerCode"
+                    path="/vdc/pick/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichPickPage round={VeDichRound.CHUNG} />
@@ -198,7 +196,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/vdc/:matchCode/:playerCode"
+                    path="/vdc/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichChungPage />
@@ -206,7 +204,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/vdr/pick/:matchCode/:playerCode"
+                    path="/vdr/pick/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichPickPage round={VeDichRound.RIENG} />
@@ -214,7 +212,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/vdr/:matchCode/:playerCode"
+                    path="/vdr/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichRiengPage />
@@ -230,7 +228,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/vl/:matchCode/:playerCode"
+                    path="/vl/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PQualifierPage />
@@ -238,7 +236,7 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/gm/:matchCode/:playerCode"
+                    path="/gm/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
                             <PGiaiMaPage />

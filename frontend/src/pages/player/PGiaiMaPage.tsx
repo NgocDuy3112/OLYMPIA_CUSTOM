@@ -20,10 +20,11 @@ type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
 function buildKeywordBanner(answer: string): string {
-	const len = answer.length;
-	if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(answer)) return `TỪ KHOÁ GỒM CÓ ${len} CHỮ CÁI`;
-	if (/^\d+$/.test(answer)) return `TỪ KHOÁ GỒM CÓ ${len} CHỮ SỐ`;
-	return `TỪ KHOÁ GỒM CÓ ${len} KÝ TỰ`;
+	const trimmedLen = answer.replace(/\s/g, '').length;
+	const noSpaceAnswer = answer.replace(/\s/g, '');
+	if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ CÁI`;
+	if (/^\d+$/.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ SỐ`;
+	return `TỪ KHOÁ GỒM CÓ ${trimmedLen} KÝ TỰ`;
 }
 
 interface PlayerClueCardProps {
@@ -72,11 +73,44 @@ const PGiaiMaPage = () => {
 	const [timerHasStarted, setTimerHasStarted] = useState(false);
 	const [isKeywordLocked, setIsKeywordLocked] = useState(false);
 	const [showKeywordConfirm, setShowKeywordConfirm] = useState(false);
+	const [keywordToConfirm, setKeywordToConfirm] = useState("");
 	const [keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
 	const [clueStates, setClueStates] = useState<ClueState[]>(() => Array(CLUE_COUNT).fill("idle"));
 	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
 	const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
 	const activeClueIdxRef = useRef<number | null>(null);
+
+	// Auto-fetch scoreboard on mount to ensure accurate initial scores
+	useEffect(() => {
+		if (!matchCode || !token) return;
+		let mounted = true;
+		const fetchScores = async () => {
+			try {
+				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) return;
+				const json = await res.json();
+				const scoreboardList: any[] = json.data?.scoreboard ?? [];
+				if (mounted && scoreboardList.length > 0) {
+					setPlayers((prev) =>
+						prev.map((p) => {
+							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
+							if (scoreEntry) {
+								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
+								return { ...p, playerScore: newScore };
+							}
+							return p;
+						}),
+					);
+				}
+			} catch (err) {
+				console.warn("Failed to fetch scoreboard on mount:", err);
+			}
+		};
+		void fetchScores();
+		return () => { mounted = false; };
+	}, [matchCode, token]);
 
 	useEffect(() => {
 		if (!matchCode || !token) return;
@@ -143,10 +177,10 @@ const PGiaiMaPage = () => {
 					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else {
 						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 					}
 
 					return {
@@ -213,7 +247,8 @@ const PGiaiMaPage = () => {
 				const idx = activeClueIdxRef.current;
 				if (idx !== null) {
 					const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players : [];
-					const isTargeted = targets.length === 0 || targets.includes(playerCode);
+					// Chỉ thí sinh được admin chọn mới thấy gợi ý
+					const isTargeted = targets.length > 0 && targets.includes(playerCode);
 					if (isTargeted) {
 						setRevealedHints((prev) => ({
 							...prev,
@@ -272,7 +307,7 @@ const PGiaiMaPage = () => {
 								? {
 										...p,
 										playerLastAnswer: answer_text,
-										playerTimestamp: timestamp ?? p.playerTimestamp,
+										playerTimestamp: timestamp || p.playerTimestamp,
 									}
 								: p,
 						),
@@ -301,6 +336,12 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
+			case "start_keyword_timer": {
+				// Admin bắt đầu timer 15s cho từ khoá
+				console.info("[KEYWORD TIMER] Starting 15s keyword timer");
+				break;
+			}
+
 			case "reveal_keyword_answer": {
 				setKeywordAnswer(msg.answer ?? null);
 				break;
@@ -308,7 +349,16 @@ const PGiaiMaPage = () => {
 
 			case "keyword_submit": {
 				const { user_code } = msg;
-				if (user_code) setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
+				if (user_code) {
+					setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
+					// Update player list to show key icon
+					setPlayers((prev) =>
+						prev.map((p) =>
+							p.playerCode === user_code ? { ...p, playerHasSubmittedKeyword: true } : p,
+						),
+					);
+					console.info("Player received keyword_submit from", user_code);
+				}
 				break;
 			}
 
@@ -330,7 +380,7 @@ const PGiaiMaPage = () => {
 					prev.map((p) => {
 						const ans = answers.find((a: any) => a.user_code === p.playerCode);
 						if (!ans) return p;
-						return { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp };
+						return { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp || p.playerTimestamp };
 					}),
 				);
 				break;
@@ -377,7 +427,7 @@ const PGiaiMaPage = () => {
 
 		// Send real-time frame
 		await sendMessage({
-			type: "answer",
+			type: "player_answer",
 			user_code: playerCode,
 			question_code: currentQuestion.questionCode,
 			answer_text: trimmed,
@@ -398,13 +448,18 @@ const PGiaiMaPage = () => {
 		if (!keyword.trim()) return;
 		if (hasSubmittedKeyword || isKeywordLocked) return;
 		if (!currentQuestion.questionCode) return;
+		setKeywordToConfirm(keyword.trim());
 		setShowKeywordConfirm(true);
 	}, [keyword, hasSubmittedKeyword, isKeywordLocked, currentQuestion.questionCode]);
 
 	const handleConfirmKeyword = useCallback(async () => {
-		const trimmed = keyword.trim();
+		const trimmed = keywordToConfirm.trim();
+		console.info("[KEYWORD SUBMIT] Player:", playerCode, "submitting:", trimmed);
 		setShowKeywordConfirm(false);
-		if (!trimmed || !currentQuestion.questionCode) return;
+		if (!trimmed || !currentQuestion.questionCode) {
+			console.warn("[KEYWORD SUBMIT] Blocked: trimmed=", trimmed, "questionCode=", currentQuestion.questionCode);
+			return;
+		}
 
 		try {
 			const res = await fetch(`${API_BASE_URL}/answers/`, {
@@ -425,22 +480,28 @@ const PGiaiMaPage = () => {
 			if (!res.ok) {
 				const body = await res.text().catch(() => "");
 				console.warn("Failed to POST keyword:", res.status, body);
+			} else {
+				console.info("[KEYWORD SUBMIT] POST success");
 			}
 		} catch (err) {
 			console.warn("Failed to POST keyword:", err);
 		}
 
+		console.info("[KEYWORD SUBMIT] Sending WebSocket message...");
 		await sendMessage({
 			type: "keyword_submit",
 			user_code: playerCode,
 			keyword_text: trimmed,
 			timestamp: 0,
 		});
+		console.info("[KEYWORD SUBMIT] WebSocket message sent");
 
+		// Mark self as submitted and show key icon immediately
 		setHasSubmittedKeyword(true);
 		setKeywordSubmittedCodes((prev) => new Set([...prev, playerCode]));
+		console.info("[KEYWORD SUBMIT] State updated, keyword cleared");
 		setKeyword("");
-	}, [keyword, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode]);
+	}, [keywordToConfirm, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode]);
 
 	const isTimerExpired = timeLimit > 0 && timer === 0;
 	// Question answer box: only enabled after admin starts the clock; also disabled after expiry or keyword submitted
@@ -522,7 +583,7 @@ const PGiaiMaPage = () => {
 							<p className="text-blue-200 text-center text-sm">
 								Bạn chỉ được nộp <strong>1 lần</strong>. Không thể thay đổi sau khi xác nhận.
 							</p>
-							<p className="text-white font-bold text-center text-lg">"{keyword}"</p>
+							<p className="text-white font-bold text-center text-lg">"{keywordToConfirm}"</p>
 							<div className="flex gap-4 justify-center">
 								<button
 									onClick={() => setShowKeywordConfirm(false)}

@@ -3,6 +3,7 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import type { Question } from "@/types/question";
 import type { AdminQuestionBoardControls, ControlsRenderApi } from "@/types/questionBoardTypes";
 
+
 interface AQuestionBoardProps {
     title: string;
     question: Question;
@@ -19,10 +20,12 @@ interface AQuestionBoardProps {
     /** When true, hides the answer/explanation box (e.g. while timer is running) */
     hideAnswerBox?: boolean;
     videoPlayState?: "playing" | "paused" | null;
+    /** When true, media is hidden until videoPlayState becomes non-null (e.g. until timer starts). */
+    hideMediaUntilPlayed?: boolean;
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[50vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, titleExtra, videoPlayState }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[50vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -122,7 +125,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
 
             {/* Content area: question text and optional media - takes remaining space */}
             <div className="flex flex-row flex-1 gap-4">
-                {question.questionMediaURL ? (
+                {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
                         {/* Left side: question text (50% width) */}
                         <div className="flex-1 flex flex-col justify-start">
@@ -144,8 +147,9 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
             </div>
 
             {/* Answer box — hidden during timer */}
-            {!hideAnswerBox && (
-                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-3`}>
+            {!hideAnswerBox && question.questionAnswer && (
+                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-3 gap-2`}>
+
                     <div className="text-xl tablet:text-2xl text-center line-clamp-3">
                         {question.questionAnswer}
                     </div>

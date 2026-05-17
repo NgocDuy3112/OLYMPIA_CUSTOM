@@ -31,7 +31,39 @@ const PVeDichRiengPage = () => {
 	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(null);
 	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
 	const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
-	const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});;
+	const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
+
+	// Auto-fetch scoreboard on mount to ensure accurate initial scores
+	useEffect(() => {
+		if (!matchCode || !token) return;
+		let mounted = true;
+		const fetchScores = async () => {
+			try {
+				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) return;
+				const json = await res.json();
+				const scoreboardList: any[] = json.data?.scoreboard ?? [];
+				if (mounted && scoreboardList.length > 0) {
+					setPlayers((prev) =>
+						prev.map((p) => {
+							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
+							if (scoreEntry) {
+								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
+								return { ...p, playerScore: newScore };
+							}
+							return p;
+						}),
+					);
+				}
+			} catch (err) {
+				console.warn("Failed to fetch scoreboard on mount:", err);
+			}
+		};
+		void fetchScores();
+		return () => { mounted = false; };
+	}, [matchCode, token]);;
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -70,10 +102,10 @@ const PVeDichRiengPage = () => {
 					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else {
 						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 					}
 
 					return {
@@ -112,12 +144,24 @@ const PVeDichRiengPage = () => {
 				setActivePower((msg.power as "star" | "shield") ?? null);
 				break;
 
+			case "buzz": {
+				// Don't show lightning icon yet — wait for admin's buzzer_winner broadcast
+				// so only the fastest buzzer gets the icon
+				console.info(`[VDR PLAYER] Received buzz: user_code=${msg.user_code}`);
+				break;
+			}
+
 			case "buzzer_winner": {
+				// Admin broadcasted the winner - show lightning icon for them
 				const winner = msg.user_code;
-				setBuzzerWinnerCode(winner ?? null);
-				setPlayers((prev) =>
-					prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
-				);
+				console.info(`[VDR PLAYER] Received buzzer_winner: winner=${winner}, myCode=${playerCode}, current=${buzzerWinnerCode}`);
+				// Only accept the first buzzer_winner to avoid overriding
+				if (winner && !buzzerWinnerCode) {
+					setBuzzerWinnerCode(winner);
+					setPlayers((prev) =>
+						prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })),
+					);
+				}
 				break;
 			}
 
@@ -135,7 +179,6 @@ const PVeDichRiengPage = () => {
 			case "clear_buzz": {
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
-				setAnsweringWindowTimer(0); // Reset answering window
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
@@ -154,6 +197,10 @@ const PVeDichRiengPage = () => {
 				if (msg.round === "rieng" && msg.selected_player_code) {
 					setCurrentTurnPlayerCode(msg.selected_player_code);
 				}
+				// Reset buzz state when new question is selected so players can buzz again
+				setHasPinged(false);
+				setBuzzerWinnerCode(null);
+				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
 
@@ -176,11 +223,36 @@ const PVeDichRiengPage = () => {
 	}, [applyWsMessage, lastMessage, startSynced]);
 
 	const handlePing = useCallback(async () => {
-		if (!isConnected) return;
-		if (hasPinged) return;
-		if (timer <= 0) return;
-		if (buzzerWinnerCode) return;
-		if (!currentQuestion.questionCode) return;
+		console.info(`[VDR BUZZ] handlePing called: connected=${isConnected}, hasPinged=${hasPinged}, buzzerWinner=${buzzerWinnerCode}, answeringWindow=${answeringWindowTimer}`);
+		if (!isConnected) {
+			console.warn("[VDR BUZZ] Not connected");
+			return;
+		}
+		if (hasPinged) {
+			console.warn("[VDR BUZZ] Already pinged");
+			return;
+		}
+		if (buzzerWinnerCode) {
+			console.warn("[VDR BUZZ] Buzzer winner already exists");
+			return;
+		}
+		if (blockedPlayerCode === playerCode) {
+			console.warn("[VDR BUZZ] Player is blocked");
+			return;
+		}
+		if (currentTurnPlayerCode === playerCode) {
+			console.warn("[VDR BUZZ] Current turn player cannot buzz");
+			return;
+		}
+		if (!currentQuestion.questionCode) {
+			console.warn("[VDR BUZZ] No question selected");
+			return;
+		}
+		// Only allow buzz when answering window is active (admin clicked "Mở chuông")
+		if (answeringWindowTimer <= 0) {
+			console.warn(`[VDR BUZZ] Cannot buzz: answeringWindow=${answeringWindowTimer}`);
+			return;
+		}
 
 		try {
 			const res = await fetch(`${API_BASE_URL}/answers/`, {
@@ -205,17 +277,20 @@ const PVeDichRiengPage = () => {
 
 		// Only broadcast buzz if persisted (or if offline, still broadcast for real-time)
 		const success = await sendMessage({ type: "buzz", user_code: playerCode, question_code: currentQuestion.questionCode, has_buzzed: true });
+		console.info(`[VDR BUZZ] Buzz sent: success=${success}`);
 		if (success) setHasPinged(true);
-	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, timer, token, matchCode]);
+	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, token, matchCode, blockedPlayerCode, currentTurnPlayerCode, answeringWindowTimer]);
 
 	const isPingDisabled =
 		hasPinged ||
 		!isConnected ||
 		!!buzzerWinnerCode ||
 		blockedPlayerCode === playerCode ||
-		currentTurnPlayerCode === playerCode ||
-		timer > 0 || // Main timer running - only allow current player to think
-		answeringWindowTimer <= 0; // No answering window active - cannot buzz
+		currentTurnPlayerCode === playerCode || // Current turn player cannot buzz (already has the floor)
+		answeringWindowTimer <= 0; // Can only buzz when answering window is active (admin clicked "Mở chuông")
+
+	// Debug logging
+	console.info(`[VDR BUZZ DEBUG] isPingDisabled=${isPingDisabled}, hasPinged=${hasPinged}, connected=${isConnected}, buzzerWinner=${buzzerWinnerCode}, blocked=${blockedPlayerCode}, currentTurn=${currentTurnPlayerCode}, timer=${timer}, answeringWindow=${answeringWindowTimer}`);
 
 	// Countdown answering window timer
 	useEffect(() => {
@@ -230,6 +305,7 @@ const PVeDichRiengPage = () => {
 		<PBasePageLayout
 			players={players}
 			currentPlayerCode={playerCode}
+			buzzerWinnerCode={buzzerWinnerCode}
 		>
 			<>
 				<PQuestionBoard

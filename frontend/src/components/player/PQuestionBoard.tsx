@@ -14,10 +14,12 @@ interface PQuestionBoardProps {
     /** Tailwind height class applied to the board container. Defaults to h-[40vh]. */
     boardHeightClass?: string;
     videoPlayState?: "playing" | "paused" | null;
+    /** When true, media is hidden until videoPlayState becomes non-null (e.g. until timer starts). */
+    hideMediaUntilPlayed?: boolean;
 }
 
 
-const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[40vh]", videoPlayState }) => {
+const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[40vh]", videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const activeIndices = controls?.activeIndices ?? [];
@@ -83,7 +85,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerD
             </div>
 
             <div className="flex flex-row flex-1 gap-4">
-                {question.questionMediaURL ? (
+                {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
                         <div className="flex-1 flex flex-col justify-start">
                             <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">

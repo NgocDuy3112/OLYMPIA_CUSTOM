@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
 	Calculator,
@@ -42,6 +43,14 @@ const DEFAULT_QUESTION: Question = {
 
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
+
+function buildKeywordBanner(answer: string): string {
+	const trimmedLen = answer.replace(/\s/g, '').length;
+	const noSpaceAnswer = answer.replace(/\s/g, '');
+	if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ CÁI`;
+	if (/^\d+$/.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ SỐ`;
+	return `TỪ KHOÁ GỒM CÓ ${trimmedLen} KÝ TỰ`;
+}
 
 // ─── Clue Card component ──────────────────────────────────────────────────────
 
@@ -89,14 +98,34 @@ const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled, hi
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 const AGiaiMaPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode");
+	const navigate = useNavigate();
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const storedMatchCode = localStorage.getItem("matchCode");
+	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
+
+	// Sync matchCode from URL to localStorage
+	useEffect(() => {
+		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
+			try {
+				localStorage.setItem("matchCode", urlMatchCode);
+			} catch {
+				// ignore
+			}
+		}
+	}, [urlMatchCode, storedMatchCode]);
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	// ─── Player state ─────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
-	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -141,9 +170,11 @@ const AGiaiMaPage = () => {
 
 	// ─── Keyword phase activation ─────────────────────────────────────────────
 	const [keywordPhaseActive, setKeywordPhaseActive] = useState(false);
+	const [keywordTimerRunning, setKeywordTimerRunning] = useState(false);
+	const keywordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	// ─── Keyword info banner ──────────────────────────────────────────────────
-	const keyInfo = "MẬT MÃ GỒM CÓ ... CHỮ CÁI";
+	const [keyInfo, setKeyInfo] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
 
 	const questionTitle = "GIẢI MÃ";
 	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
@@ -224,7 +255,7 @@ const AGiaiMaPage = () => {
 		void fetchAll();
 	}, [loadClueQuestion]);
 
-	// Load keyword question (OC3_Q_GM_0) which holds the correct keyword answer
+	// Load keyword question (OC3_Q_GM_KEY) which holds the correct keyword answer
 	useEffect(() => {
 		const fetchKeywordQ = async () => {
 			if (!currentMatchCode || !token) return;
@@ -239,7 +270,12 @@ const AGiaiMaPage = () => {
 				} else {
 					payload = data.data ?? null;
 				}
-				if (payload) setKeywordQuestion(mapQuestionPayload(payload, KEYWORD_QUESTION_CODE));
+				if (payload) {
+					const q = mapQuestionPayload(payload, KEYWORD_QUESTION_CODE);
+					setKeywordQuestion(q);
+					const answer: string = q.questionAnswer ?? "";
+					if (answer) setKeyInfo(buildKeywordBanner(answer));
+				}
 			} catch (err) {
 				logger.error("fetchKeywordQ failed:", err);
 			}
@@ -354,7 +390,7 @@ const AGiaiMaPage = () => {
 					(scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 				const cumulativeScore =
 					scoreEntry?.cumulative_score ??
-					scoreEntry?.cummulative_score ??
+					scoreEntry?.cumulative_score ??
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
@@ -391,10 +427,12 @@ const AGiaiMaPage = () => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
 					// Route the late-joining player directly to the current round
+					try {
+						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
+					} catch (err) {
+						logger.error("Failed to navigate player on reconnect:", err);
+					}
 					(async () => {
-						try {
-							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
-						} catch { /* best-effort */ }
 						if (currentQuestion.questionCode) {
 							try {
 								await sendMessage({
@@ -437,6 +475,7 @@ const AGiaiMaPage = () => {
 				}
 				break;
 			}
+			case "player_answer":
 			case "answer": {
 				const { user_code, answer_text, timestamp } = msg;
 				if (user_code && answer_text) {
@@ -458,20 +497,28 @@ const AGiaiMaPage = () => {
 			}
 			case "keyword_submit": {
 				const { user_code, keyword_text, timestamp } = msg;
+				logger.info("ADMIN received keyword_submit:", { user_code, keyword_text, timestamp });
 				if (user_code && keyword_text) {
 					startTransition(() => {
 						setKeywordSubmissions((prev) => ({
 							...prev,
 							[user_code]: { text: keyword_text, timestamp: timestamp ?? 0 },
 						}));
+						// Update player list to show key icon immediately
+						setPlayers((prev) =>
+							prev.map((p) =>
+								p.playerCode === user_code ? { ...p, playerHasSubmittedKeyword: true } : p,
+							),
+						);
 					});
+					// NOTE: Backend already broadcasts to all players via Valkey pub/sub
+					// No need to forward manually - players receive directly from backend
+				} else {
+					logger.warn("ADMIN received invalid keyword_submit:", { user_code, keyword_text, timestamp });
 				}
 				break;
 			}
-			case "navigate_audio_done": {
-				setIsRoundStarting(false);
-				break;
-			}
+	
 			default:
 				break;
 		}
@@ -536,9 +583,8 @@ const AGiaiMaPage = () => {
 		setHasAddedKeywordScore(false);
 		setKeywordPhaseActive(false);
 		keywordLockedSentRef.current = false;
-		setIsRoundStarting(true);
 		await clearQuestion();
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) { return; }
 		try {
 			await sendMessage({ type: "round_start", round: "gm" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/gm" });
@@ -546,7 +592,6 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
@@ -555,16 +600,19 @@ const AGiaiMaPage = () => {
 		setIsTimerRunning(false);
 		setActiveClueIndex(null);
 		setClueStates(Array(CLUE_COUNT).fill("idle"));
-		setIsRoundStarting(true);
+		if (keywordTimerRef.current) {
+			clearTimeout(keywordTimerRef.current);
+			keywordTimerRef.current = null;
+		}
+		setKeywordTimerRunning(false);
 		await clearQuestion();
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) { return; }
 		try {
 			await sendMessage({ type: "round_end", round: "gm" });
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			// Removed navigate to waiting page - players and MC stay on GM page to preserve score context
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
@@ -596,10 +644,36 @@ const AGiaiMaPage = () => {
 		}
 	}, [currentMatchCode, currentQuestion.questionCode, sendMessage]);
 
+	const startKeywordTimer = useCallback(async () => {
+		if (!keywordPhaseActive || keywordTimerRunning || !currentMatchCode) return;
+		
+		setKeywordTimerRunning(true);
+		
+		// Send WebSocket message to players
+		await sendMessage({
+			type: "start_keyword_timer",
+			user_code: "",
+			time_limit: 15,
+			started_at: Date.now(),
+		});
+
+		// Set timer to lock keywords after 15s
+		keywordTimerRef.current = setTimeout(() => {
+			setKeywordTimerRunning(false);
+			// Send keyword_locked to lock all players
+			void sendMessage({ type: "keyword_locked" });
+		}, 15000);
+	}, [keywordPhaseActive, keywordTimerRunning, currentMatchCode, sendMessage]);
+
 	const showAnswers = useCallback(async () => {
 		if (!canShowAnswers) return;
+		// Lọc chỉ hiển thị đáp án của câu hỏi thường (không phải từ khoá)
 		const answersPayload = players
-			.filter((p) => p.playerLastAnswer && !keywordRevealedCodes.has(p.playerCode))
+			.filter((p) => {
+				// Chỉ hiển thị nếu có đáp án VÀ không phải là submission từ khoá
+				const isKeywordSubmission = keywordSubmissions[p.playerCode] !== undefined;
+				return p.playerLastAnswer && !keywordRevealedCodes.has(p.playerCode) && !isKeywordSubmission;
+			})
 			.map((p) => ({
 				user_code: p.playerCode,
 				content: p.playerLastAnswer!,
@@ -610,7 +684,7 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("showAnswers: failed to broadcast:", err);
 		}
-	}, [canShowAnswers, keywordRevealedCodes, players, sendMessage]);
+	}, [canShowAnswers, keywordRevealedCodes, keywordSubmissions, players, sendMessage]);
 
 	const handleShowHint = useCallback(async () => {
 		const hint = currentQuestion.questionExplanation || currentQuestion.questionAnswer;
@@ -735,8 +809,7 @@ const AGiaiMaPage = () => {
 				setPlayers((prev) =>
 					prev.map((p) => {
 						const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
-						const updated =
-							entry?.cumulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
+						const updated = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
 						return typeof updated === "number" ? { ...p, playerScore: updated } : p;
 					}),
 				);
@@ -753,6 +826,21 @@ const AGiaiMaPage = () => {
 		},
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
+
+	// Handle manual score editing from APlayerBar
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
+		// Update local state immediately
+		setPlayers((prev) =>
+			prev.map((p) =>
+				p.playerCode === playerCode
+					? { ...p, playerScore: newScore }
+					: p,
+			),
+		);
+		// Refresh scoreboard from server to ensure consistency
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot]);
 
 	const handleAddScoreToSelected = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0) return;
@@ -839,11 +927,11 @@ const AGiaiMaPage = () => {
 			topControlButtons={null}
 			bottomActionButtons={
 				<>
-					<AControlButton onClick={() => { void handleStartRound(); }} disabled={isRoundStarting}>
+					<AControlButton onClick={() => { void handleStartRound(); }}>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
-					<AControlButton onClick={() => { void handleEndRound(); }} disabled={isRoundStarting}>
+					<AControlButton onClick={() => { void handleEndRound(); }}>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</AControlButton>
@@ -857,6 +945,13 @@ const AGiaiMaPage = () => {
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void startKeywordTimer(); }}
+						disabled={!keywordPhaseActive || keywordTimerRunning || !currentQuestion.questionCode}
+					>
+						<AlarmClockCheck size={18} />
+						<span className="ml-2 font-bold">BẮT ĐẦU TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
@@ -928,9 +1023,13 @@ const AGiaiMaPage = () => {
 							player={player}
 							isActive={selectedPlayerCodes.includes(player.playerCode)}
 							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
-							hasKeywordSubmission={!!keywordSubmissions[player.playerCode] && !keywordRevealedCodes.has(player.playerCode)}
+							hasKeywordSubmission={!!keywordSubmissions[player.playerCode]}
 							onClick={toggleSelectedPlayer}
 							disabled={timer > 0}
+							onEditScore={handleEditScore}
+							token={token}
+							matchCode={currentMatchCode}
+							sendMessage={sendMessage}
 						/>
 					</div>
 				))

@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useRef, useState } from "react";
+import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -13,13 +14,75 @@ import type { PlayerStatus } from "@/types/player";
 
 
 const PKhoiDongRiengPage = () => {
-	const { playerCode } = usePlayerSession();
-	const { lastMessage } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = usePlayerSession();
+	const { lastMessage, isConnected } = usePlayerWebSocket();
 	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
+
+	// Auto-fetch scoreboard on mount AND on WebSocket reconnect to ensure accurate initial scores
+	useEffect(() => {
+		if (!matchCode || !token) return;
+		let mounted = true;
+		const fetchScores = async () => {
+			try {
+				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) return;
+				const json = await res.json();
+				const scoreboardList: any[] = json.data?.scoreboard ?? [];
+				if (mounted && scoreboardList.length > 0) {
+					setPlayers((prev) =>
+						prev.map((p) => {
+							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
+							if (scoreEntry) {
+								const newScore = scoreEntry.cumulative_score ?? 0;
+								return { ...p, playerScore: newScore };
+							}
+							return p;
+						}),
+					);
+				}
+			} catch (err) {
+				console.warn("Failed to fetch scoreboard on mount:", err);
+			}
+		};
+		void fetchScores();
+		return () => { mounted = false; };
+	}, [matchCode, token]);
+
+	// Re-fetch scoreboard when WebSocket reconnects (e.g., after round restart)
+	useEffect(() => {
+		if (!isConnected || !matchCode || !token) return;
+		const refreshScores = async () => {
+			try {
+				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) return;
+				const json = await res.json();
+				const scoreboardList: any[] = json.data?.scoreboard ?? [];
+				setPlayers((prev) =>
+					prev.map((p) => {
+						const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
+						if (scoreEntry) {
+							return { ...p, playerScore: scoreEntry.cumulative_score ?? 0 };
+						}
+						return p;
+					}),
+				);
+				console.info("Refreshed scoreboard after WebSocket reconnect");
+			} catch (err) {
+				console.warn("Failed to refresh scoreboard after reconnect:", err);
+			}
+		};
+		// Delay slightly to let admin send players snapshot first
+		const timer = setTimeout(refreshScores, 500);
+		return () => clearTimeout(timer);
+	}, [isConnected, matchCode, token]);
 
 	useEffect(() => {
 		return () => { audioRef.current?.pause(); };
@@ -39,6 +102,7 @@ const PKhoiDongRiengPage = () => {
 		switch (msg?.type) {
 			case "send_players_info": {
 				// Receive player information through WebSocket instead of API
+				// Admin sends mergedPlayers array with cumulative_score included
 				const playersList = msg.players ?? [];
 				const scoreboard = msg.scoreboard ?? [];
 				const profiles = msg.profiles ?? [];
@@ -50,7 +114,8 @@ const PKhoiDongRiengPage = () => {
 					return {
 						playerCode: code,
 						playerName: p?.user_name ?? profile?.user_name ?? "",
-						playerScore: p?.cumulative_score ?? score?.cumulative_score ?? score?.cummulative_score ?? score?.new_total_score ?? 0,
+						// Priority: cumulative_score from mergedPlayers > scoreboard > default 0
+						playerScore: p?.cumulative_score ?? score?.cumulative_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: false,

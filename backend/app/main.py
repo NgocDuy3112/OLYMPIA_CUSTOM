@@ -133,15 +133,18 @@ app.include_router(media.router)
 # privileged messages like score updates, navigation commands, etc.
 _PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "answer",
+    "player_answer",
     "buzz",
     "player_heartbeat",
     "player_online",
     "mc_online",
     "request_presence",
+    "keyword_submit",
 })
 
 _MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "answer",
+    "player_answer",
     "buzz",
     "mc_online",
     "player_heartbeat",
@@ -150,6 +153,7 @@ _MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "send_question",
     "clear_question",
     "start_the_timer",
+    "start_keyword_timer",
     "send_answers_to_players",
     "clear_answers",
     "round_start",
@@ -175,6 +179,8 @@ _MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "show_hint",
     "introduce_players",
     "show_scoreboard",
+    "keyword_submit",
+    "keyword_locked",
 })
 
 
@@ -221,8 +227,8 @@ async def websocket_endpoint(
             # small set of allowed types to prevent injection attacks.
             if user_role == "player" and msg_type not in _PLAYER_ALLOWED_TYPES:
                 global_logger.warning(
-                    f"Blocked player message: type={msg_type!r} "
-                    f"user={user_info['user_code']!r} room={match_code!r}"
+                    f"[BP ANSWER SYNC] Blocked player message: type={msg_type!r} "
+                    f"user={user_info['user_code']!r} room={match_code!r} allowed={_PLAYER_ALLOWED_TYPES}"
                 )
                 continue
             elif user_role == "mc" and msg_type not in _MC_ALLOWED_TYPES:
@@ -233,10 +239,13 @@ async def websocket_endpoint(
                 continue
 
             global_logger.info(
-                f"Received message from {user_info['user_code']!r} "
-                f"in room {match_code!r}: {data}"
+                f"[BP ANSWER SYNC] Received message from {user_info['user_code']!r} "
+                f"role={user_role!r} in room {match_code!r}: {data}"
             )
             await ws_manager.broadcast_to_room(match_code, data)
+            global_logger.info(
+                f"[BP ANSWER SYNC] Broadcasted message to room {match_code!r}: type={msg_type!r}"
+            )
 
     except WebSocketDisconnect:
         global_logger.info(

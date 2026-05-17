@@ -241,7 +241,7 @@ The `GET /scoreboard/{match_code}` endpoint:
 2. Fetches player names from PostgreSQL
 3. Assembles and returns the scoreboard
 
-If no cache exists, players are returned with `cummulative_score: 0`.
+If no cache exists, players are returned with `cumulative_score: 0`.
 
 ---
 

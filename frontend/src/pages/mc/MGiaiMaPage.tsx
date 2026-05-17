@@ -17,10 +17,11 @@ type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
 function buildKeywordBanner(answer: string): string {
-    const len = answer.length;
-    if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(answer)) return `TỪ KHOÁ GỒM CÓ ${len} CHỮ CÁI`;
-    if (/^\d+$/.test(answer)) return `TỪ KHOÁ GỒM CÓ ${len} CHỮ SỐ`;
-    return `TỪ KHOÁ GỒM CÓ ${len} KÝ TỰ`;
+    const trimmedLen = answer.replace(/\s/g, '').length;
+    const noSpaceAnswer = answer.replace(/\s/g, '');
+    if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ CÁI`;
+    if (/^\d+$/.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ SỐ`;
+    return `TỪ KHOÁ GỒM CÓ ${trimmedLen} KÝ TỰ`;
 }
 
 interface PlayerClueCardProps {
@@ -60,9 +61,9 @@ const MGiaiMaPage = () => {
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
     const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
-    const [keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
-    const [revealedHint, setRevealedHint] = useState<string | null>(null);
-    const [keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
+    const [_keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
+    const [_revealedHint, setRevealedHint] = useState<string | null>(null);
+    const [_keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
     const [clueStates, setClueStates] = useState<ClueState[]>(() => Array(CLUE_COUNT).fill("idle"));
     const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
     const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
@@ -136,7 +137,10 @@ const MGiaiMaPage = () => {
             }
             case "keyword_submit": {
                 const { user_code } = msg;
-                if (user_code) setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
+                if (user_code) {
+                    setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
+                    // MC view should not show keyword submission status
+                }
                 break;
             }
             case "clear_question":
@@ -177,6 +181,7 @@ const MGiaiMaPage = () => {
                 applyAnswers(msg);
                 setKeywordSubmittedCodes(new Set());
                 break;
+            case "player_answer":
             case "answer":
                 applyRealTimeAnswer(msg);
                 break;
@@ -214,9 +219,7 @@ const MGiaiMaPage = () => {
 
     return (
         <PBasePageLayout
-            players={players.map((p) =>
-                keywordSubmittedCodes.has(p.playerCode) ? { ...p, playerHasSubmittedKeyword: true } : p
-            )}
+            players={players}
             currentPlayerCode=""
         >
             <>
@@ -229,18 +232,6 @@ const MGiaiMaPage = () => {
                     boardHeightClass="h-[22vh]"
                     answerBoxHeightClass="min-h-[4rem]"
                 />
-
-                {revealedHint && (
-                    <div className="mx-3 mt-2 p-4 bg-yellow-600 border-2 border-yellow-400 rounded-xl text-center font-bold text-white text-xl">
-                        GỢI Ý: {revealedHint}
-                    </div>
-                )}
-
-                {keywordAnswer && (
-                    <div className="mx-3 mt-2 p-4 bg-blue-700 border-2 border-blue-400 rounded-xl text-center font-bold text-white text-xl">
-                        TỪ KHOÁ: {keywordAnswer}
-                    </div>
-                )}
             </>
         </PBasePageLayout>
     );

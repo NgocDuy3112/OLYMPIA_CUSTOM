@@ -212,7 +212,7 @@ const PQualifierPage = () => {
                 setPlayers((prev) =>
                     prev.map((p) => {
                         const ans = answers.find((a: any) => a.user_code === p.playerCode);
-                        return ans ? { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp } : p;
+                        return ans ? { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp || p.playerTimestamp } : p;
                     }),
                 );
                 setShowAnswers(true);

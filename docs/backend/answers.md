@@ -215,7 +215,7 @@ interface AnswerPostRequest {
   question_code: string; // Must start with 'OC3_Q'
   answer_text: string;
   has_buzzed: boolean;
-  timestamp: number;     // Elapsed seconds, stored as Numeric(6,3)
+  timestamp: number;     // Elapsed seconds, stored as Numeric(16,3)
 }
 ```
 

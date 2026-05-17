@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
 	Calculator,
@@ -46,15 +46,35 @@ const DEFAULT_QUESTION: Question = {
 };
 
 const AVeDichChungPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode");
-	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
 	const navigate = useNavigate();
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const storedMatchCode = localStorage.getItem("matchCode");
+	const currentMatchCode = urlMatchCode || storedMatchCode || "";
+	const token = localStorage.getItem("jwtToken_admin") ?? "";
+
+	// Sync matchCode from URL to localStorage
+	useEffect(() => {
+		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
+			try {
+				localStorage.setItem("matchCode", urlMatchCode);
+			} catch {
+				// ignore
+			}
+		}
+	}, [urlMatchCode, storedMatchCode]);
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
+	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
-	const [isRoundStarting, setIsRoundStarting] = useState(false);
+
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -194,7 +214,7 @@ const AVeDichChungPage = () => {
 					(scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 				const cumulativeScore =
 					scoreEntry?.cumulative_score ??
-					scoreEntry?.cummulative_score ??
+					scoreEntry?.cumulative_score ??
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
@@ -443,7 +463,7 @@ const AVeDichChungPage = () => {
 					answersPayload.push({
 						user_code: player.playerCode,
 						content: answerObj.answer_text,
-						timestamp: answerObj.timestamp ?? 0,
+						timestamp: answerObj.timestamp || 0,
 					});
 				}
 			} catch (err) {
@@ -506,7 +526,7 @@ const AVeDichChungPage = () => {
 								);
 								const updatedScore =
 									entry?.cumulative_score ??
-									entry?.cummulative_score ??
+									entry?.cumulative_score ??
 									entry?.total_score ??
 									entry?.score;
 								return typeof updatedScore === "number"
@@ -528,6 +548,21 @@ const AVeDichChungPage = () => {
 		},
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
+
+	// Handle manual score editing from APlayerBar
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
+		// Update local state immediately
+		setPlayers((prev) =>
+			prev.map((player) =>
+				player.playerCode === playerCode
+					? { ...player, playerScore: newScore }
+					: player,
+			),
+		);
+		// Refresh scoreboard from server to ensure consistency
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot]);
 
 	// Calculate score: if there are selected players, award them and deduct 50% from everyone;
 	// if no one is selected, deduct 50% from all players (Lượt Chung special rule).
@@ -584,8 +619,7 @@ const AVeDichChungPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		setIsRoundStarting(true);
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_start", round: "vdc" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdc" });
@@ -593,22 +627,19 @@ const AVeDichChungPage = () => {
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		setIsRoundStarting(true);
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_end", round: "vdc" });
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			// Removed navigate to waiting page - players and MC stay on VDC page to preserve score context
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage]);
 
 	// ─── WebSocket message handling ───────────────────────────────────────────────
@@ -639,11 +670,10 @@ const AVeDichChungPage = () => {
 							),
 						);
 					});
+					try {
+						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdc" });
+					} catch { /* best-effort */ }
 					(async () => {
-						// Route the late-joining player directly to the current round
-						try {
-							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdc" });
-						} catch { /* best-effort */ }
 						// Resend board metadata so the player can see the 4 question cards
 						if (roundQuestionCodes.length > 0 && questions.length > 0 && currentMatchCode) {
 							try {
@@ -756,6 +786,7 @@ const AVeDichChungPage = () => {
 				});
 				break;
 			}
+			case "player_answer":
 			case "answer": {
 				const { user_code, answer_text, timestamp } = msg;
 				if (user_code && answer_text) {
@@ -784,10 +815,7 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
-			case "navigate_audio_done": {
-				setIsRoundStarting(false);
-				break;
-			}
+
 			default:
 				break;
 		}
@@ -891,7 +919,6 @@ const AVeDichChungPage = () => {
 
 					<AControlButton
 						onClick={() => { void handleStartRound(); }}
-						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -899,7 +926,6 @@ const AVeDichChungPage = () => {
 
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
-						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
@@ -915,6 +941,10 @@ const AVeDichChungPage = () => {
 							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
 							onClick={toggleSelectedPlayer}
 							disabled={timer > 0}
+							onEditScore={handleEditScore}
+							token={token}
+							matchCode={currentMatchCode}
+							sendMessage={sendMessage}
 						/>
 					</div>
 				))

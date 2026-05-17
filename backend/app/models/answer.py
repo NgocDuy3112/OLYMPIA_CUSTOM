@@ -21,7 +21,7 @@ class Answer(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     answer_text: Mapped[str] = mapped_column(String, nullable=True)
     has_buzzed: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
-    timestamp: Mapped[float] = mapped_column(Numeric(6, 3), nullable=True)
+    timestamp: Mapped[float] = mapped_column(Numeric(16, 3), nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
     # Foreign Keys
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)

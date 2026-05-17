@@ -30,6 +30,38 @@ const PButPhaPage = () => {
 	const submitTimeoutRef = useRef<number | null>(null);
 	const [submitDisableSecondsLeft, setSubmitDisableSecondsLeft] = useState(0);
 
+	// Auto-fetch scoreboard on mount to ensure accurate initial scores
+	useEffect(() => {
+		if (!matchCode || !token) return;
+		let mounted = true;
+		const fetchScores = async () => {
+			try {
+				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) return;
+				const json = await res.json();
+				const scoreboardList: any[] = json.data?.scoreboard ?? [];
+				if (mounted && scoreboardList.length > 0) {
+					setPlayers((prev) =>
+						prev.map((p) => {
+							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
+							if (scoreEntry) {
+								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
+								return { ...p, playerScore: newScore };
+							}
+							return p;
+						}),
+					);
+				}
+			} catch (err) {
+				console.warn("Failed to fetch scoreboard on mount:", err);
+			}
+		};
+		void fetchScores();
+		return () => { mounted = false; };
+	}, [matchCode, token]);
+
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
@@ -67,10 +99,10 @@ const PButPhaPage = () => {
 					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else {
 						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.new_total_score ?? scoreEntry?.score ?? 0;
+						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.new_total_score ?? scoreEntry?.score ?? 0;
 					}
 
 					return {
@@ -89,7 +121,7 @@ const PButPhaPage = () => {
 
 			case "clear_question": {
 				setVideoPlayState(null);
-				setTimerHasStarted(false);
+				// Keep timerHasStarted unchanged - do not lock input when admin switches questions
 				break;
 			}
 
@@ -109,10 +141,15 @@ const PButPhaPage = () => {
 			}
 
 			case "start_the_timer": {
-				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				const timeLimitNum = Number(msg.time_limit ?? 0);
+				const startedAtNum = typeof msg.started_at === 'string' ? parseInt(msg.started_at, 10) : Number(msg.started_at ?? Date.now());
+				console.info("[BP TIMER] start_the_timer received:", { time_limit: timeLimitNum, started_at: startedAtNum, started_at_raw: msg.started_at, now: Date.now() });
+				startSynced(timeLimitNum, startedAtNum);
+				console.info("[BP TIMER] startSynced called, timer state:", { timeLimit: timeLimitNum, started_at: startedAtNum });
 				setTimerHasStarted(true);
 				setAnswer("");
 				setShowAnswers(false);
+				setVideoPlayState("playing");
 				break;
 			}
 
@@ -151,7 +188,7 @@ const PButPhaPage = () => {
 						return {
 							...p,
 							playerLastAnswer: ans.content,
-							playerTimestamp: ans.timestamp,
+							playerTimestamp: ans.timestamp || p.playerTimestamp,
 						};
 					}),
 				);
@@ -163,14 +200,16 @@ const PButPhaPage = () => {
 				// Real-time answer from another player via WebSocket
 				const { user_code, answer_text, timestamp } = msg;
 				if (user_code && user_code !== playerCode && answer_text) {
+					console.info(`[BP ANSWER SYNC] Player received answer from user=${user_code} answer=${answer_text} ts=${timestamp}`);
 					setPlayers((prev) =>
 						prev.map((p) =>
 							p.playerCode === user_code
-								? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp ?? p.playerTimestamp }
+								? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp || p.playerTimestamp }
 								: p,
 						),
 					);
-					console.info("Player received answer from", user_code, ":", answer_text);
+				} else {
+					console.warn(`[BP ANSWER SYNC] Player received empty answer: user_code=${user_code} answer_text=${answer_text}`);
 				}
 				break;
 			}
@@ -195,11 +234,14 @@ const PButPhaPage = () => {
 		if (!trimmed) return;
 		if (submitDisabledTemporarily) return;
 		if (!isConnected) return;
-		if (!timerHasStarted || timer <= 0) return;
 		if (!currentQuestion.questionCode) return;
+		// Allow submission if timer hasn't started yet (pre-timer typing) OR if timer is still running
+		if (timerHasStarted && timer <= 0) return;
 
-		const elapsed = getElapsedSeconds();
+			const elapsed = getElapsedSeconds();
 		const ts = Math.max(0, Math.min(timeLimit, elapsed));
+
+		console.info(`[BP ANSWER SYNC] Player submitting answer: user=${playerCode} question=${currentQuestion.questionCode} answer=${trimmed} ts=${ts} connected=${isConnected}`);
 
 		// disable submission for a short period to prevent rapid re-submits
 		const DISABLE_SECONDS = 3;
@@ -245,26 +287,32 @@ const PButPhaPage = () => {
 					}),
 			});
 			if (res.ok) {
+				console.info(`[BP ANSWER SYNC] Player POST answer success: user=${playerCode} question=${currentQuestion.questionCode} answer=${trimmed} ts=${ts}`);
 				// Only broadcast via WS after successful HTTP persist
-				await sendMessage({
-					type: "answer",
+				const wsPayload = {
+					type: "player_answer",
 					user_code: playerCode,
 					question_code: currentQuestion.questionCode,
 					answer_text: trimmed,
 					timestamp: ts,
-				});
+				};
+				console.info(`[BP ANSWER SYNC] Broadcasting WebSocket message:`, wsPayload);
+				await sendMessage(wsPayload);
+				console.info(`[BP ANSWER SYNC] WebSocket broadcast completed`);
 			} else {
 				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST answer:", res.status, body);
+				console.warn(`[BP ANSWER SYNC] Player POST answer failed: status=${res.status} body=${body}`);
 			}
 		} catch (err) {
-			console.warn("Failed to POST answer:", err);
+			console.warn("[BP ANSWER SYNC] Failed to POST answer:", err);
 		}
 		setAnswer("");
 	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode, submitDisabledTemporarily]);
 
 	const isTimerExpired = timerHasStarted && timeLimit > 0 && timer === 0;
-	const isSubmissionDisabled = !isConnected || !timerHasStarted || isTimerExpired || submitDisabledTemporarily;
+	// Disable input by default until admin selects a question AND starts the timer.
+	// Only enable submission when timer has started and hasn't expired.
+	const isSubmissionDisabled = !isConnected || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired || submitDisabledTemporarily;
 
 	useEffect(() => {
 		return () => {
@@ -275,13 +323,15 @@ const PButPhaPage = () => {
 		};
 	}, []);
 
-	const answerPlaceholder = isTimerExpired
-		? "Bạn không thể nhập đáp án tại thời điểm này"
-		: submitDisabledTemporarily
-			? `Vui lòng đợi trong ${submitDisableSecondsLeft} giây`
-			: !timerHasStarted
-				? "Chờ admin bắt đầu đếm giờ..."
-				: "Nhập đáp án và nhấn Enter";
+	const answerPlaceholder = !currentQuestion.questionCode
+		? "Chờ admin chọn câu hỏi..."
+		: !timerHasStarted
+			? "Chờ admin bắt đầu tính giờ..."
+			: isTimerExpired
+				? "Bạn không thể nhập đáp án tại thời điểm này"
+				: submitDisabledTemporarily
+					? `Vui lòng đợi trong ${submitDisableSecondsLeft} giây`
+					: "Nhập đáp án và nhấn Enter";
 
 	// Always show the current player's own answer; hide others until admin reveals
 	const displayPlayers = players.map((p) =>
@@ -296,10 +346,11 @@ const PButPhaPage = () => {
 			<>
 					<PQuestionBoard
 						title="BỨT PHÁ"
-						question={{ ...currentQuestion, questionMediaURL: videoPlayState ? currentQuestion.questionMediaURL : undefined }}
+						question={currentQuestion}
 						timerDuration={timer}
 						controls={{ variant: 'numbers', count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
 						videoPlayState={videoPlayState}
+						hideMediaUntilPlayed
 					/>
 
 				<PAnswerBox

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
 	ListRestart,
@@ -50,15 +50,34 @@ const DEFAULT_QUESTION: Question = {
 };
 
 const AVeDichRiengPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode");
-	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
 	const navigate = useNavigate();
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const storedMatchCode = localStorage.getItem("matchCode");
+	const currentMatchCode = urlMatchCode || storedMatchCode || "";
+	const token = localStorage.getItem("jwtToken_admin") ?? "";
+
+	// Sync matchCode from URL to localStorage
+	useEffect(() => {
+		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
+			try {
+				localStorage.setItem("matchCode", urlMatchCode);
+			} catch {
+				// ignore
+			}
+		}
+	}, [urlMatchCode, storedMatchCode]);
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
+	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
-	const [isRoundStarting, setIsRoundStarting] = useState(false);
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -121,6 +140,10 @@ const AVeDichRiengPage = () => {
 	});
 	// Active power for the current question (cleared after scoring or question change)
 	const [activePower, setActivePower] = useState<'star' | 'shield' | null>(null);
+
+	// ─── Buzzer winner state ─────────────────────────────────────────────────────
+	// Track who buzzed first - only the first buzz gets the lightning icon
+	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 
 	// ─── Timer state ──────────────────────────────────────────────────────────────
 	const [timer, setTimer] = useState<number>(0);
@@ -242,7 +265,7 @@ const AVeDichRiengPage = () => {
 					(scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 				const cumulativeScore =
 					scoreEntry?.cumulative_score ??
-					scoreEntry?.cummulative_score ??
+					scoreEntry?.cumulative_score ??
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
@@ -438,6 +461,8 @@ const AVeDichRiengPage = () => {
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
 		setAnsweringWindowTimer(0); // Reset answering window when starting new question
+		// Reset buzzer winner when starting new question
+		setBuzzerWinnerCode(null);
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
 			if (currentQuestion.questionMediaURL) {
@@ -571,7 +596,7 @@ const AVeDichRiengPage = () => {
 								);
 								const updatedScore =
 									entry?.cumulative_score ??
-									entry?.cummulative_score ??
+									entry?.cumulative_score ??
 									entry?.total_score ??
 									entry?.score;
 								return typeof updatedScore === "number"
@@ -593,6 +618,21 @@ const AVeDichRiengPage = () => {
 		},
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
+
+	// Handle manual score editing from APlayerBar
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
+		// Update local state immediately
+		setPlayers((prev) =>
+			prev.map((player) =>
+				player.playerCode === playerCode
+					? { ...player, playerScore: newScore }
+					: player,
+			),
+		);
+		// Refresh scoreboard from server to ensure consistency
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot]);
 
 	// Lượt CÁ NHÂN: individual round — only the selected player(s) get +points.
 	// Calculate score: add to selected players only (Lượt CÁ NHÂN logic)
@@ -701,8 +741,7 @@ const AVeDichRiengPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		setIsRoundStarting(true);
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_start", round: "vdr" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
@@ -710,22 +749,19 @@ const AVeDichRiengPage = () => {
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		setIsRoundStarting(true);
-		if (!currentMatchCode) { setIsRoundStarting(false); return; }
+		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_end", round: "vdr" });
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			// Removed navigate to waiting page - players and MC stay on VDR page to preserve score context
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-		setTimeout(() => setIsRoundStarting(false), 10000);
 	}, [currentMatchCode, sendMessage]);
 
 	// ─── WebSocket message handling ───────────────────────────────────────────────
@@ -742,6 +778,8 @@ const AVeDichRiengPage = () => {
 					}
 					startTransition(() => {
 						setRoundQuestionCodes(msg.selected_question_codes);
+						// Reset buzzer winner when new questions are selected
+						setBuzzerWinnerCode(null);
 					});
 				}
 				// Track which player's turn it is
@@ -881,6 +919,7 @@ const AVeDichRiengPage = () => {
 				});
 				break;
 			}
+			case "player_answer":
 			case "answer": {
 				const { user_code, answer_text, timestamp } = msg;
 				if (user_code && answer_text) {
@@ -898,7 +937,16 @@ const AVeDichRiengPage = () => {
 			}
 			case "buzz": {
 				const { user_code } = msg;
-				if (user_code) {
+				// Only accept buzz from actual players (not admin)
+				// Admin user_code typically starts with "ADMIN" or doesn't match player pattern
+				const isAdminBuzz = !user_code || user_code.startsWith("ADMIN");
+				if (user_code && !isAdminBuzz) {
+					// Verify this user is actually in the players list
+					const isPlayer = players.some((p) => p.playerCode === user_code);
+					if (!isPlayer) {
+						console.warn(`[VDR ADMIN] Ignoring buzz from unknown user: ${user_code}`);
+						break;
+					}
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((p) =>
@@ -906,15 +954,20 @@ const AVeDichRiengPage = () => {
 							),
 						);
 					});
-					// Broadcast to all players so their screens show the buzzer icon
-					void sendMessage({ type: "buzzer_winner", user_code, match_code: currentMatchCode });
+					// Broadcast to all players so their screens show the buzzer icon for the first person
+					// Only send buzzer_winner for the first buzz
+					if (!buzzerWinnerCode) {
+						console.info(`[VDR ADMIN] Broadcasting buzzer_winner: user_code=${user_code}`);
+						void sendMessage({ type: "buzzer_winner", user_code, match_code: currentMatchCode });
+					} else {
+						console.info(`[VDR ADMIN] Ignoring buzz from ${user_code} - winner already set: ${buzzerWinnerCode}`);
+					}
+				} else {
+					console.warn(`[VDR ADMIN] Ignoring invalid buzz: user_code=${user_code}, isAdmin=${isAdminBuzz}`);
 				}
 				break;
 			}
-			case "navigate_audio_done": {
-				setIsRoundStarting(false);
-				break;
-			}
+
 			default:
 				break;
 		}
@@ -998,14 +1051,16 @@ const AVeDichRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={startTheClock}
-						disabled={!currentQuestion.questionCode || isTimerRunning}
+						disabled={!currentQuestion.questionCode || isTimerRunning || !currentTurnPlayerCode}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
 					<AControlButton
 						onClick={handleOpenBuzzer}
-						disabled={timer > 0 || answeringWindowTimer > 0}
+						disabled={timer > 0 || answeringWindowTimer > 0 || !currentTurnPlayerCode}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Zap size={18} />
 						<span className="ml-2 font-bold">MỞ CHUÔNG</span>
@@ -1016,7 +1071,8 @@ const AVeDichRiengPage = () => {
 								logger.error("Cộng điểm handler failed:", err);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
+						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Plus size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
@@ -1027,13 +1083,16 @@ const AVeDichRiengPage = () => {
 								logger.error("Trừ điểm handler failed:", err);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
+						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Minus size={18} />
 						<span className="ml-2 font-bold">TRỪ ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void loadPlayersState(); }}
+						disabled={!currentTurnPlayerCode}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT</span>
@@ -1044,7 +1103,6 @@ const AVeDichRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { void handleStartRound(); }}
-						disabled={isRoundStarting}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -1058,7 +1116,6 @@ const AVeDichRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
-						disabled={isRoundStarting}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
@@ -1074,6 +1131,10 @@ const AVeDichRiengPage = () => {
 							isCurrent={player.playerCode === currentTurnPlayerCode}
 							onClick={toggleSelectedPlayer}
 							disabled={timer > 0}
+							onEditScore={handleEditScore}
+							token={token}
+							matchCode={currentMatchCode}
+							sendMessage={sendMessage}
 						/>
 					</div>
 				))

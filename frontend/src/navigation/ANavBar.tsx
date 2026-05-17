@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, ChevronDown } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { LogOut } from "lucide-react";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 
 const ADMIN_TO_PLAYER_NAV: Record<string, string> = {
@@ -17,25 +15,9 @@ const ADMIN_TO_PLAYER_NAV: Record<string, string> = {
 };
 
 const AdminGameplayNavBar: React.FC = () => {
-	const {matchCode} = useParams<{matchCode: string}>();
-	const [isVongThiOpen, setIsVongThiOpen] = useState(false);
 	const navigate = useNavigate();
 	const location = useLocation();
-	const navRef = useRef<HTMLDivElement>(null);
 	const { sendMessage } = useAdminWebSocket();
-
-	useEffect(() => {
-		const handler = (e: MouseEvent | TouchEvent) => {
-			if (navRef.current && !navRef.current.contains(e.target as Node))
-				setIsVongThiOpen(false);
-		};
-		document.addEventListener("mousedown", handler);
-		document.addEventListener("touchstart", handler);
-		return () => {
-			document.removeEventListener("mousedown", handler);
-			document.removeEventListener("touchstart", handler);
-		};
-	}, []);
 
 	const handleLogout = () => {
 		localStorage.removeItem("jwtToken_admin");
@@ -58,15 +40,6 @@ const AdminGameplayNavBar: React.FC = () => {
 		}
 	};
 
-	const vongThiItems = [
-		{ label: "Khởi động (Cá nhân)", path: `/admin/kdr/${matchCode}` },
-		{ label: "Khởi động (Chung)",   path: `/admin/kdc/${matchCode}` },
-		{ label: "Giải mã",             path: `/admin/gm/${matchCode}` },
-		{ label: "Bứt phá",             path: `/admin/bp/${matchCode}` },
-		{ label: "Về đích (Chung)",     path: `/admin/vdc/pick/${matchCode}` },
-		{ label: "Về đích (Cá nhân)",   path: `/admin/vdr/pick/${matchCode}` },
-	];
-
 	return (
 		<nav className="bg-blue-900 bg-opacity-90 text-white shadow-lg sticky top-0 z-50">
 			<div className="px-4 py-3 flex justify-between items-center">
@@ -82,37 +55,6 @@ const AdminGameplayNavBar: React.FC = () => {
 
 				{/* Desktop Navigation only */}
 				<div className="hidden md:flex items-center gap-6">
-					{/* Vòng thi dropdown */}
-					<div
-						className="relative"
-						ref={navRef}
-					>
-						<button
-							className="px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base text-blue-100 hover:bg-blue-800 hover:text-white flex items-center gap-1"
-							onClick={() => setIsVongThiOpen(prev => !prev)}
-						>
-							Vòng thi
-							<ChevronDown size={18} className={`transition-transform duration-200 ${isVongThiOpen ? "rotate-180" : ""}`} />
-						</button>
-
-						{isVongThiOpen && (
-							<div className="absolute left-0 mt-0 bg-blue-800 rounded shadow-lg border border-blue-700">
-								{vongThiItems.map((item, index) => (
-									<button
-										key={item.path}
-										onClick={() => {
-											navigateAndBroadcast(item.path);
-											setIsVongThiOpen(false);
-										}}
-										className={`w-full text-left px-4 py-2 hover:bg-blue-700 transition-all duration-200 text-blue-100 hover:text-white font-medium whitespace-nowrap ${index === 0 ? "rounded-t" : ""} ${index === vongThiItems.length - 1 ? "rounded-b" : ""} ${isActive(item.path) ? "bg-blue-700 text-white" : ""}`}
-									>
-										{item.label}
-									</button>
-								))}
-							</div>
-						)}
-					</div>
-
 					{/* Sảnh chờ */}
 					<button
 						onClick={() => navigateAndBroadcast("/admin/waiting")}

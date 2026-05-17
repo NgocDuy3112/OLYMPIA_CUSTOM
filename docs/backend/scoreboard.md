@@ -50,22 +50,22 @@ curl -X GET http://localhost:8000/scoreboard/OC3_M001 \
       {
         "user_code": "OC_U001",
         "user_name": "Nguyen Van A",
-        "cummulative_score": 250
+        "cumulative_score": 250
       },
       {
         "user_code": "OC_U002",
         "user_name": "Tran Thi B",
-        "cummulative_score": 200
+        "cumulative_score": 200
       },
       {
         "user_code": "OC_U003",
         "user_name": "Le Van C",
-        "cummulative_score": 150
+        "cumulative_score": 150
       },
       {
         "user_code": "OC_U004",
         "user_name": "Pham Thi D",
-        "cummulative_score": 100
+        "cumulative_score": 100
       }
     ]
   }
@@ -86,7 +86,7 @@ curl -X GET http://localhost:8000/scoreboard/OC3_M001 \
 |-------|------|-------------|
 | `user_code` | string | Player's unique code |
 | `user_name` | string | Player's name |
-| `cummulative_score` | integer | Total accumulated score |
+| `cumulative_score` | integer | Total accumulated score |
 
 ### Error Responses
 
@@ -98,6 +98,84 @@ curl -X GET http://localhost:8000/scoreboard/OC3_M001 \
 | `500` | Server Error | Database or server error |
 
 ---
+
+## PATCH `/scoreboard/adjust`
+
+Set a player's cumulative score to a specific value (admin only). This endpoint computes the delta between the current and target score, applies it to the Valkey leaderboard, and creates an audit Record in PostgreSQL. Returns the updated full scoreboard.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/scoreboard/adjust` |
+| **Method** | `PATCH` |
+| **Auth** | Admin role required |
+
+### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `match_code` | string | ✅ | Match code (must start with `OC3_M`) |
+| `user_code` | string | ✅ | Player's user code (must start with `OC_U`) |
+| `new_score` | integer | ✅ | Target cumulative score (must be a multiple of 5) |
+| `reason` | string | ❌ | Optional audit reason (defaults to `admin_adjust`) |
+
+### Request Example
+
+```bash
+curl -X PATCH http://localhost:8000/scoreboard/adjust \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "match_code": "OC3_M001",
+    "user_code": "OC_U001",
+    "new_score": 150,
+    "reason": "admin_manual_adjust"
+  }'
+```
+
+### Success Response
+
+**Status**: `200 OK`
+
+Returns the full updated scoreboard (same format as GET `/scoreboard/{match_code}`):
+
+```json
+{
+  "status": "success",
+  "message": "Score adjusted: OC_U001 in OC3_M001: 100 → 150 (delta=50)",
+  "data": {
+    "scoreboard": [
+      {
+        "user_code": "OC_U001",
+        "user_name": "Nguyen Van A",
+        "cumulative_score": 150
+      },
+      {
+        "user_code": "OC_U002",
+        "user_name": "Tran Thi B",
+        "cumulative_score": 200
+      }
+    ]
+  }
+}
+```
+
+### Error Responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Invalid match_code, user_code format, or score not multiple of 5 |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Match or player not found |
+| `500` | Server Error | Database or server error |
+
+### Notes
+
+- The score delta is recorded as a `Record` in PostgreSQL with question code `OC3_Q_ADMIN_ADJUST` for audit purposes.
+- If the player's current score already equals `new_score`, no change is made to the Valkey leaderboard (but the request still succeeds).
+- After a successful adjustment, the admin frontend broadcasts `player_score_updated` and `send_players_info` WebSocket events so all connected clients update their scores in real-time.
 
 ## Implementation Notes
 
@@ -142,7 +220,7 @@ When `GET /scoreboard/{match_code}` is called:
 
 ### Fallback Behavior
 
-- If no cache exists, players are returned with `cummulative_score: 0`
+- If no cache exists, players are returned with `cumulative_score: 0`
 - The cache is updated whenever records are created via `POST /records/`
 
 ### Performance Benefits

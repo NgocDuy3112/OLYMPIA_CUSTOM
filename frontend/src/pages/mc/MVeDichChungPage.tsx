@@ -14,6 +14,7 @@ type RoundQuestion = { code: string; category: string; points: number };
 
 const MVeDichChungPage = () => {
     const { matchCode, token } = useMcSession();
+    const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
@@ -42,6 +43,7 @@ const MVeDichChungPage = () => {
             case "start_the_timer":
                 startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
+                setBuzzerWinnerCode(null);
                 break;
             case "player_score_updated":
                 applyScoreUpdate(msg);
@@ -66,6 +68,12 @@ const MVeDichChungPage = () => {
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
+            case "buzz":
+                if (msg.user_code && !buzzerWinnerCode) {
+                    setBuzzerWinnerCode(msg.user_code);
+                }
+                break;
+            case "player_answer":
             case "answer":
                 applyRealTimeAnswer(msg);
                 break;
@@ -88,7 +96,7 @@ const MVeDichChungPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer, matchCode]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer, matchCode, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -96,7 +104,7 @@ const MVeDichChungPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
+        <PBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
             <AQuestionBoard
                 title="VỀ ĐÍCH - LƯỢT CHUNG"
                 question={questionWithAnswer}

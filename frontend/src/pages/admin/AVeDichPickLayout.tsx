@@ -15,6 +15,7 @@ interface AVeDichPickLayoutProps {
 	// Selection state
 	selectedQuestionCodes: string[];  // Which questions are selected
 	onQuestionSelect?: (questionCode: string) => void;
+	canSelectQuestions?: boolean;  // Whether question selection is enabled (e.g., player selected for RIENG round)
 
 	// Question states
 	disabledQuestionCodes?: string[];  // Questions that can't be selected
@@ -69,6 +70,7 @@ const AVeDichPickLayout = ({
 	selectedQuestionCodes,
 	onQuestionSelect,
 	disabledQuestionCodes = [],
+	canSelectQuestions = true,
 	questionStates = {},
 	topControlButtons,
 	bottomActionButtons,
@@ -90,6 +92,8 @@ const AVeDichPickLayout = ({
 	};
 
 	const handleQuestionClick = (questionCode: string) => {
+		// Block selection if canSelectQuestions is false (e.g., no player selected for RIENG)
+		if (!canSelectQuestions) return;
 		if (isQuestionDisabled(questionCode)) return;
 
 		if (isQuestionSelected(questionCode)) {
@@ -145,8 +149,8 @@ const AVeDichPickLayout = ({
 												points={point}
 												state={getQuestionState(code)}
 												isSelected={true}
-												disabled={false}
-												onClick={() => onQuestionSelect?.(code)}
+												disabled={!canSelectQuestions}
+												onClick={() => canSelectQuestions && onQuestionSelect?.(code)}
 											/>
 										</div>
 									);

@@ -41,11 +41,14 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const { players, applyPlayersInfo } = useMcPlayers();
 
 	// Sorted list of all question codes — received from admin via veDich_selection_update
+	// Fallback: generate placeholder codes if not received yet
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
 			const stored = localStorage.getItem(`veDich_pick_all_codes_${matchCode}`);
-			return stored ? (JSON.parse(stored) as string[]) : [];
+			const codes = stored ? (JSON.parse(stored) as string[]) : [];
+			// If we have codes, use them; otherwise return empty array (will use fallback in render)
+			return codes.length > 0 ? codes : [];
 		} catch { return []; }
 	});
 	// Live selection as admin toggles (before confirm)
@@ -167,32 +170,24 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];
-						if (!questionCode) {
-							return (
-								<VeDichQuestionCard
-									key={`slot-${idx}`}
-									placeholder
-									category=""
-									points={undefined}
-									disabled
-								/>
-							);
-						}
+						// Fallback: use placeholder code if allQuestionCodes is empty
+						const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
+						const displayCode = questionCode || fallbackCode;
 
 						const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";
 						const point = ([20, 30, 40, 50])[idx % 4] || 0;
 						const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
-						const isSelected = displayCodes.includes(questionCode);
-						const isUsed = usedQuestionCodes.includes(questionCode);
+						const isSelected = displayCodes.includes(displayCode);
+						const isUsed = usedQuestionCodes.includes(displayCode);
 
 						return (
 							<VeDichQuestionCard
-								key={questionCode}
+								key={displayCode}
 								category={catPrimary || rawCategory}
 								subcategory={catSecondary}
 								points={point}
 								isSelected={isSelected}
-								disabled={isUsed}
+								disabled={isUsed || !questionCode}
 							/>
 						);
 					})}

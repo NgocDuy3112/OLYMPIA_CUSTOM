@@ -12,6 +12,7 @@ import { useQuestionState } from "@/hooks/useQuestionState";
 const MButPhaPage = () => {
     const { matchCode, token } = useMcSession();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+    const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
@@ -30,6 +31,8 @@ const MButPhaPage = () => {
             case "start_the_timer":
                 startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
+                setVideoPlayState("playing");
+                setBuzzerWinnerCode(null);
                 break;
             case "player_score_updated":
                 applyScoreUpdate(msg);
@@ -43,7 +46,7 @@ const MButPhaPage = () => {
                 break;
             case "clear_question":
                 clearAnswer();
-                setVideoPlayState(null);
+                // Keep videoPlayState unchanged - do not reset when admin switches questions
                 break;
             case "play_video":
                 setVideoPlayState("playing");
@@ -54,25 +57,29 @@ const MButPhaPage = () => {
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
+            case "player_answer":
             case "answer":
                 applyRealTimeAnswer(msg);
                 break;
             case "buzz":
                 applyBuzz(msg);
+                // Only first buzzer gets the lightning icon
+                if (msg.user_code && !buzzerWinnerCode) {
+                    setBuzzerWinnerCode(msg.user_code);
+                }
                 break;
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,
-        questionMediaURL: videoPlayState ? currentQuestion.questionMediaURL : undefined,
         questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
+        <PBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
             <>
                 <AQuestionBoard
                     title="BỨT PHÁ"
@@ -80,6 +87,7 @@ const MButPhaPage = () => {
                     timerDuration={timer}
                     controls={{ variant: "numbers", count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
                     videoPlayState={videoPlayState}
+                    hideMediaUntilPlayed
                     boardHeightClass="h-[45vh]"
                     answerBoxHeightClass="min-h-[4rem]"
                 />
