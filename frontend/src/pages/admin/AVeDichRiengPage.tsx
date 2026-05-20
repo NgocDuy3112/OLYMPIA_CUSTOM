@@ -394,6 +394,8 @@ const AVeDichRiengPage = () => {
 
 			setSelectedPlayerCodes([]);
 			setVideoPlayState(null);
+			// Reset buzzer state when switching to a new question
+			setBuzzerWinnerCode(null);
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -402,6 +404,10 @@ const AVeDichRiengPage = () => {
 					playerHasBuzzed: undefined,
 				})),
 			);
+			// Send clear_buzz to reset player buzzer state
+			if (currentMatchCode) {
+				void sendMessage({ type: "clear_buzz" });
+			}
 
 			// Set fallback immediately for responsive UI
 			const fallback: Question = { ...DEFAULT_QUESTION, questionCode };
@@ -728,11 +734,16 @@ const AVeDichRiengPage = () => {
 	const handleOpenBuzzer = useCallback(async () => {
 		if (timer !== 0) return; // Only allow when main timer is finished
 		setAnsweringWindowTimer(5);
+		// Reset buzzer winner when opening new buzzer window
+		setBuzzerWinnerCode(null);
+		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (currentMatchCode) {
 			void sendMessage({
 				type: "answering_window_activated",
 				countdown: 5,
 			});
+			// Also send clear_buzz to reset player buzzer state
+			void sendMessage({ type: "clear_buzz" });
 		}
 	}, [timer, currentMatchCode, sendMessage]);
 

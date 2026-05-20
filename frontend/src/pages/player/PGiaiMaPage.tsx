@@ -69,6 +69,7 @@ const PGiaiMaPage = () => {
 	const [keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
 	const [questionAnswer, setQuestionAnswer] = useState("");
 	const [keyword, setKeyword] = useState("");
+	const [showAnswers, setShowAnswers] = useState(false);
 	const [hasSubmittedKeyword, setHasSubmittedKeyword] = useState(false);
 	const [timerHasStarted, setTimerHasStarted] = useState(false);
 	const [isKeywordLocked, setIsKeywordLocked] = useState(false);
@@ -228,6 +229,8 @@ const PGiaiMaPage = () => {
 				setClueStates(Array(CLUE_COUNT).fill("idle"));
 				setRevealedHints({});
 				setKeywordSubmittedCodes(new Set());
+				setShowAnswers(false);
+				setHasSubmittedKeyword(false);
 				setTimerHasStarted(false);
 				activeClueIdxRef.current = null;
 				break;
@@ -238,6 +241,8 @@ const PGiaiMaPage = () => {
 				setClueStates(Array(CLUE_COUNT).fill("idle"));
 				setRevealedHints({});
 				setKeywordSubmittedCodes(new Set());
+				setShowAnswers(false);
+				setHasSubmittedKeyword(false);
 				setTimerHasStarted(false);
 				activeClueIdxRef.current = null;
 				break;
@@ -294,6 +299,7 @@ const PGiaiMaPage = () => {
 				setTimerHasStarted(false);
 				setQuestionAnswer("");
 				setKeyword("");
+				setShowAnswers(false);
 				break;
 			}
 
@@ -383,6 +389,7 @@ const PGiaiMaPage = () => {
 						return { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp || p.playerTimestamp };
 					}),
 				);
+				setShowAnswers(true);
 				break;
 			}
 
@@ -509,9 +516,16 @@ const PGiaiMaPage = () => {
 	// Keyword box: additionally locked by isKeywordLocked (broadcast when all clues open or all players submitted)
 	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || !currentQuestion.questionCode;
 
-	const displayPlayers = players.map((p) =>
-		keywordSubmittedCodes.has(p.playerCode) ? { ...p, playerHasSubmittedKeyword: true } : p,
-	);
+	const displayPlayers = players.map((p) => {
+		const withKeyword = keywordSubmittedCodes.has(p.playerCode)
+			? { ...p, playerHasSubmittedKeyword: true }
+			: p;
+		// Hide other players' answers until this player has submitted their own
+		if (p.playerCode !== playerCode && !showAnswers) {
+			return { ...withKeyword, playerLastAnswer: undefined, playerTimestamp: undefined };
+		}
+		return withKeyword;
+	});
 
 	const clueGrid = (
 		<div className="flex flex-col gap-3 w-full mb-3 px-3">

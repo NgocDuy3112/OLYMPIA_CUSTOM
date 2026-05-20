@@ -43,12 +43,16 @@ export function useCountdownTimer(): CountdownTimerState {
         // to guard against clock skew between admin and player browsers.
         const safeTimer = normalized > 0 ? normalized : Math.max(0, Math.round(timeLimitSeconds));
         console.info(`[BP TIMER DEBUG] startSynced called: timeLimit=${timeLimitSeconds}s, startedAt=${startedAt}, elapsedSec=${elapsedSec.toFixed(3)}, remaining=${remaining.toFixed(3)}, normalized=${normalized}, safeTimer=${safeTimer}`);
-        setTimeLimit(safeTimer);
-        setTimer(safeTimer);
+        
+        // Guard against negative elapsed time (clock skew)
+        const finalTimer = safeTimer > 0 ? safeTimer : timeLimitSeconds;
+        
+        setTimeLimit(finalTimer);
+        setTimer(finalTimer);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
         setSessionId((s) => s + 1);
-        console.info(`[BP TIMER DEBUG] startSynced state after: timeLimit=${safeTimer}, timer=${safeTimer}, running=${runningRef.current}`);
+        console.info(`[BP TIMER DEBUG] startSynced state after: timeLimit=${finalTimer}, timer=${finalTimer}, running=${runningRef.current}`);
     }, []);
 
     const stop = useCallback(() => {

@@ -213,6 +213,20 @@ async def websocket_endpoint(
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code)
 
+    # ── Reconnect: Resend current game state to player ─────────────────────
+    # When a player reconnects, they need to receive the current game state
+    # to avoid missing timer/question events
+    if user_role == "player":
+        try:
+            # Request current state from admin (admin should be listening for this)
+            await ws_manager.broadcast_to_room(match_code, {
+                "type": "player_reconnected",
+                "user_code": user_info["user_code"],
+            })
+            global_logger.info(f"[WS] Player reconnected, requesting state: {user_info['user_code']!r}")
+        except Exception as e:
+            global_logger.warning(f"[WS] Failed to request state for reconnected player: {e}")
+
     try:
         while True:
             data = await websocket.receive_json()

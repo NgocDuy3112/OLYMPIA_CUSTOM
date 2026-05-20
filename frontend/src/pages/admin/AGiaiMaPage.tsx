@@ -158,6 +158,7 @@ const AGiaiMaPage = () => {
 	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
 	const [, setCorrectClues] = useState<Set<number>>(new Set());
 	const [pendingClueAction, setPendingClueAction] = useState(false);
+	const [totalOpenedCluesCount, setTotalOpenedCluesCount] = useState(0); // Track total clues opened in entire round (never resets between questions)
 	
 	// ─── Keyword tracking state ───────────────────────────────────────────────
 	const [keywordSubmissions, setKeywordSubmissions] = useState<
@@ -300,6 +301,11 @@ const AGiaiMaPage = () => {
 			setCurrentQuestion({ ...q });
 			setSelectedPlayerCodes([]);
 			setPendingClueAction(true);
+			// Increment total opened clues count (only if this clue wasn't already opened)
+			setTotalOpenedCluesCount((prev) => {
+				const wasAlreadyOpened = clueStates[clueIndex] !== "idle";
+				return wasAlreadyOpened ? prev : prev + 1;
+			});
 
 			const allOpened = nextStates.every((s) => s !== "idle");
 
@@ -582,6 +588,7 @@ const AGiaiMaPage = () => {
 		setKeywordRevealedCodes(new Set());
 		setHasAddedKeywordScore(false);
 		setKeywordPhaseActive(false);
+		setTotalOpenedCluesCount(0); // Reset total opened clues counter on round start
 		keywordLockedSentRef.current = false;
 		await clearQuestion();
 		if (!currentMatchCode) { return; }
@@ -867,11 +874,10 @@ const AGiaiMaPage = () => {
 		}
 	}, [selectedPlayerCodes, handleAddScore, sendPlayersSnapshot, currentMatchCode, currentQuestion.questionCode]);
 
-	// Score = 100 - 10 * (number of clues opened so far)
+	// Score = 100 - 10 * (total number of clues opened in the round)
 	const handleAddKeywordScoreToSelected = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0) return;
-		const openedCount = clueStates.filter((s) => s !== "idle").length;
-		const score = Math.max(0, 100 - 10 * openedCount);
+		const score = Math.max(0, 100 - 10 * totalOpenedCluesCount);
 		setHasAddedKeywordScore(true);
 		try {
 			for (const code of selectedPlayerCodes) {
@@ -885,7 +891,7 @@ const AGiaiMaPage = () => {
 			logger.error("handleAddKeywordScoreToSelected failed:", err);
 			setHasAddedKeywordScore(false);
 		}
-	}, [selectedPlayerCodes, clueStates, handleAddScore, sendPlayersSnapshot, currentMatchCode]);
+	}, [selectedPlayerCodes, totalOpenedCluesCount, handleAddScore, sendPlayersSnapshot, currentMatchCode]);
 
 	// ─── Clue grid (2 rows × 4 columns) ──────────────────────────────────────
 	const clueGrid = (

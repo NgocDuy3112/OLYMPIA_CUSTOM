@@ -150,6 +150,7 @@ const PButPhaPage = () => {
 				setAnswer("");
 				setShowAnswers(false);
 				setVideoPlayState("playing");
+				console.info("[BP INPUT] Enabling input - timer started");
 				break;
 			}
 
@@ -310,9 +311,16 @@ const PButPhaPage = () => {
 	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode, submitDisabledTemporarily]);
 
 	const isTimerExpired = timerHasStarted && timeLimit > 0 && timer === 0;
-	// Disable input by default until admin selects a question AND starts the timer.
-	// Only enable submission when timer has started and hasn't expired.
-	const isSubmissionDisabled = !isConnected || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired || submitDisabledTemporarily;
+	// Disable input only when:
+	// - Not connected
+	// - No question selected
+	// - Timer expired (timer === 0 after running)
+	// - Temporarily disabled after recent submission
+	// Allow input when timer hasn't started yet (pre-timer typing) OR when timer is running
+	const isSubmissionDisabled = !isConnected || !currentQuestion.questionCode || (timerHasStarted && isTimerExpired) || submitDisabledTemporarily;
+
+	// Debug logging
+	console.info(`[BP INPUT DEBUG] isConnected=${isConnected}, hasQuestion=${!!currentQuestion.questionCode}, timerHasStarted=${timerHasStarted}, timer=${timer}, isTimerExpired=${isTimerExpired}, submitDisabledTemporarily=${submitDisabledTemporarily}, FINAL_DISABLED=${isSubmissionDisabled}`);
 
 	useEffect(() => {
 		return () => {
@@ -328,7 +336,7 @@ const PButPhaPage = () => {
 		: !timerHasStarted
 			? "Chờ admin bắt đầu tính giờ..."
 			: isTimerExpired
-				? "Bạn không thể nhập đáp án tại thời điểm này"
+				? "Thời gian đã hết!"
 				: submitDisabledTemporarily
 					? `Vui lòng đợi trong ${submitDisableSecondsLeft} giây`
 					: "Nhập đáp án và nhấn Enter";

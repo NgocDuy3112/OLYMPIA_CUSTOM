@@ -325,11 +325,14 @@ const AButPhaPage = () => {
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
-			timerStartedAtRef.current = Date.now();
+			// Capture started_at BEFORE sending to ensure consistent timing
+			const startedAt = Date.now();
+			timerStartedAtRef.current = startedAt;
 			setTimer(TIME_LIMIT);
 
+			logger.info(`startTheClock: Sending start_the_timer with started_at=${startedAt}`);
 			try {
-				await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
+				await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: TIME_LIMIT, question_code: questionCode, started_at: startedAt });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}
@@ -539,6 +542,42 @@ const AButPhaPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
+			case "player_reconnected": {
+				// Player has reconnected - resend current game state
+				const user_code = msg.user_code;
+				logger.info(`[BP RECONNECT] Player ${user_code} reconnected, resending state...`);
+				
+				// Resend question if active
+				if (currentQuestion.questionCode) {
+					void sendMessage({
+						type: "send_question",
+						user_code: "",
+						question_code: currentQuestion.questionCode,
+						content: currentQuestion.questionText ?? "",
+						media_source: currentQuestion.questionMediaURL ?? undefined,
+					});
+					logger.info(`[BP RECONNECT] Resent question to ${user_code}`);
+				}
+				
+				// Resend timer state if running
+				if (timer > 0 && timerStartedAtRef.current) {
+					void sendMessage({
+						type: "start_the_timer",
+						user_code: "",
+						phase: "bp",
+						time_limit: TIME_LIMIT,
+						question_code: currentQuestion.questionCode,
+						started_at: timerStartedAtRef.current,
+					});
+					logger.info(`[BP RECONNECT] Resent timer to ${user_code} (started_at=${timerStartedAtRef.current})`);
+				}
+				
+				// Resend players snapshot
+				void sendPlayersSnapshot();
+				logger.info(`[BP RECONNECT] Resent players snapshot to ${user_code}`);
+				break;
+			}
+
 			case "mc_online":
 			case "player_online": {
 				if (msg.user_code) {
