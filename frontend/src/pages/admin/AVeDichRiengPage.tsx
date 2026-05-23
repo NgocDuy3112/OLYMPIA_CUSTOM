@@ -269,20 +269,24 @@ const AVeDichRiengPage = () => {
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
+				// Only mark as current if currentTurnPlayerCode matches and is not an admin code
+				const isAdminCode = currentTurnPlayerCode?.startsWith("ADMIN") ?? false;
+				const isCurrent = !isAdminCode && currentTurnPlayerCode === userCode;
 				return {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
 					cumulative_score: cumulativeScore,
-					is_current: Array.isArray(selectedPlayerCodes) ? selectedPlayerCodes.includes(String(userCode)) : false,
+					is_current: isCurrent,
 				};
 			});
 
+			logger.info(`Sending players snapshot: currentTurnPlayerCode=${currentTurnPlayerCode}, isAdmin=${currentTurnPlayerCode?.startsWith("ADMIN")}`);
 			await sendMessage({ type: "send_players_info", players: mergedPlayers });
 		} catch (err) {
 			logger.error("Failed to send players snapshot:", err);
 		}
-	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCodes]);
+	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCodes, currentTurnPlayerCode]);
 
 	// ─── Question fetch ───────────────────────────────────────────────────────────
 	useEffect(() => {
@@ -795,9 +799,16 @@ const AVeDichRiengPage = () => {
 				}
 				// Track which player's turn it is
 				if (msg.selected_player_code) {
-					startTransition(() => setCurrentTurnPlayerCode(msg.selected_player_code));
-					if (currentMatchCode) {
-						localStorage.setItem(`veDich_rieng_selected_player_${currentMatchCode}`, msg.selected_player_code);
+					// Validate: reject admin codes
+					const isAdminCode = String(msg.selected_player_code).startsWith("ADMIN");
+					if (isAdminCode) {
+						logger.warn(`[VDR ADMIN] Rejecting selected_player_code because it's an admin code: ${msg.selected_player_code}`);
+					} else {
+						logger.info(`[VDR ADMIN] Setting current turn player: ${msg.selected_player_code}`);
+						startTransition(() => setCurrentTurnPlayerCode(msg.selected_player_code));
+						if (currentMatchCode) {
+							localStorage.setItem(`veDich_rieng_selected_player_${currentMatchCode}`, msg.selected_player_code);
+						}
 					}
 				}
 				break;
@@ -951,11 +962,12 @@ const AVeDichRiengPage = () => {
 				// Only accept buzz from actual players (not admin)
 				// Admin user_code typically starts with "ADMIN" or doesn't match player pattern
 				const isAdminBuzz = !user_code || user_code.startsWith("ADMIN");
+				logger.info(`[VDR ADMIN] Received buzz: user_code=${user_code}, isAdminBuzz=${isAdminBuzz}, buzzerWinnerCode=${buzzerWinnerCode}`);
 				if (user_code && !isAdminBuzz) {
 					// Verify this user is actually in the players list
 					const isPlayer = players.some((p) => p.playerCode === user_code);
 					if (!isPlayer) {
-						console.warn(`[VDR ADMIN] Ignoring buzz from unknown user: ${user_code}`);
+						logger.warn(`[VDR ADMIN] Ignoring buzz from unknown user: ${user_code}`);
 						break;
 					}
 					startTransition(() => {
@@ -968,13 +980,35 @@ const AVeDichRiengPage = () => {
 					// Broadcast to all players so their screens show the buzzer icon for the first person
 					// Only send buzzer_winner for the first buzz
 					if (!buzzerWinnerCode) {
-						console.info(`[VDR ADMIN] Broadcasting buzzer_winner: user_code=${user_code}`);
+						logger.info(`[VDR ADMIN] Broadcasting buzzer_winner: user_code=${user_code}`);
+						// Set immediately to prevent race condition with multiple buzzes
+						setBuzzerWinnerCode(user_code);
 						void sendMessage({ type: "buzzer_winner", user_code, match_code: currentMatchCode });
 					} else {
-						console.info(`[VDR ADMIN] Ignoring buzz from ${user_code} - winner already set: ${buzzerWinnerCode}`);
+						logger.info(`[VDR ADMIN] Ignoring buzz from ${user_code} - winner already set: ${buzzerWinnerCode}`);
 					}
 				} else {
-					console.warn(`[VDR ADMIN] Ignoring invalid buzz: user_code=${user_code}, isAdmin=${isAdminBuzz}`);
+					logger.warn(`[VDR ADMIN] Ignoring invalid buzz: user_code=${user_code}, isAdmin=${isAdminBuzz}`);
+				}
+				break;
+			}
+
+			case "buzzer_winner": {
+				const { user_code } = msg;
+				if (user_code && user_code !== buzzerWinnerCode) {
+					console.info(`[VDR ADMIN] Received buzzer_winner: user_code=${user_code}`);
+					setBuzzerWinnerCode(user_code);
+					// Update playerHasBuzzed for the winner
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((p) =>
+								p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p,
+							),
+						);
+					});
+					// Lock all players' buzzers immediately
+					console.info(`[VDR ADMIN] Locking all buzzers after winner: ${user_code}`);
+					void sendMessage({ type: "blocked_buzz", user_code: null });
 				}
 				break;
 			}

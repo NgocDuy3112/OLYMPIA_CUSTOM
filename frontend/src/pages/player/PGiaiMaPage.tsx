@@ -19,6 +19,10 @@ const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
+function isMediaFilename(value: string): boolean {
+	return /\.(mp3|ogg|wav|aac|m4a|mp4|webm|mov|jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value.trim());
+}
+
 function buildKeywordBanner(answer: string): string {
 	const trimmedLen = answer.replace(/\s/g, '').length;
 	const noSpaceAnswer = answer.replace(/\s/g, '');
@@ -34,7 +38,7 @@ interface PlayerClueCardProps {
 }
 
 const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintContent }) => {
-	const base = "flex-1 h-32 sm:h-40 lg:h-56 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
+	const base = "flex-1 h-28 sm:h-36 lg:h-48 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
 	const styles: Record<ClueState, string> = {
 		idle:   "bg-blue-900 border-blue-600 text-white",
 		active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
@@ -51,7 +55,7 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
 					}
 				</div>
 			) : (
-				<span className="font-[SVN-Gratelos_Display] text-[60pt]">{index}</span>
+				<span className="font-[SVN-Gratelos_Display] text-[50pt]">{index}</span>
 			)}
 		</div>
 	);
@@ -255,9 +259,15 @@ const PGiaiMaPage = () => {
 					// Chỉ thí sinh được admin chọn mới thấy gợi ý
 					const isTargeted = targets.length > 0 && targets.includes(playerCode);
 					if (isTargeted) {
+						const hintContent = msg.hint_content ?? "";
+						const hintMediaSource = msg.hint_media_source ?? "";
+						// If hint content itself is a media filename, swap roles
+						const contentIsMedia = isMediaFilename(hintContent);
+						const displayText = contentIsMedia ? hintMediaSource : hintContent;
+						const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
 						setRevealedHints((prev) => ({
 							...prev,
-							[idx]: { text: msg.hint_content ?? undefined, mediaUrl: msg.hint_media_source ?? undefined },
+							[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
 						}));
 					}
 				}
@@ -555,9 +565,9 @@ const PGiaiMaPage = () => {
 
 				<PQuestionBoard
 					title="GIẢI MÃ"
-					question={{ ...currentQuestion, questionMediaURL: undefined }}
+					question={currentQuestion}
 					timerDuration={timer}
-					boardHeightClass="h-[14vh] lg:h-[20vh]"
+					boardHeightClass="h-[20vh] lg:h-[26vh]"
 					controls={{ variant: 'numbers', count: 0 }}
 					/>
 

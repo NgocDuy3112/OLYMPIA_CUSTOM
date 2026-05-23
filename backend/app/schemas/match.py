@@ -33,6 +33,7 @@ class MatchRoomResponse(BaseResponse):
 
 class MatchUpdateRequest(BaseModel):
     match_name: str | None = None
+    match_status: str | None = None
     players: list[MatchPlayerAssignment] | None = None
 
 

@@ -44,6 +44,10 @@ const DEFAULT_QUESTION: Question = {
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
+function isMediaFilename(value: string): boolean {
+	return /\.(mp3|ogg|wav|aac|m4a|mp4|webm|mov|jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value.trim());
+}
+
 function buildKeywordBanner(answer: string): string {
 	const trimmedLen = answer.replace(/\s/g, '').length;
 	const noSpaceAnswer = answer.replace(/\s/g, '');
@@ -64,7 +68,7 @@ interface ClueCardProps {
 
 const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled, hintContent }) => {
 	const base =
-		"flex-1 h-40 lg:h-48 xl:h-60 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
+		"flex-1 h-36 lg:h-44 xl:h-52 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
 	const styles: Record<ClueState, string> = {
 		idle: "bg-blue-900 border-blue-600 text-white hover:bg-blue-700 shadow",
 		active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
@@ -89,7 +93,7 @@ const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled, hi
 					)}
 				</div>
 			) : (
-				<span className="font-[SVN-Gratelos_Display] text-[50pt] lg:text-[65pt] xl:text-[80pt]">{index}</span>
+				<span className="font-[SVN-Gratelos_Display] text-[40pt] lg:text-[50pt] xl:text-[60pt]">{index}</span>
 			)}
 		</button>
 	);
@@ -694,15 +698,23 @@ const AGiaiMaPage = () => {
 	}, [canShowAnswers, keywordRevealedCodes, keywordSubmissions, players, sendMessage]);
 
 	const handleShowHint = useCallback(async () => {
-		const hint = currentQuestion.questionExplanation || currentQuestion.questionAnswer;
-		if (!hint && !currentQuestion.questionMediaURL) return;
+		const answer = currentQuestion.questionAnswer ?? "";
+		const explanation = currentQuestion.questionExplanation ?? "";
+		const mediaUrl = currentQuestion.questionMediaURL;
+
+		// Determine hint content: if answer looks like a media filename, treat it as media
+		const answerIsMedia = isMediaFilename(answer);
+		const hintText = answerIsMedia ? explanation : (explanation || answer);
+		const hintMediaUrl = answerIsMedia ? answer : (mediaUrl || undefined);
+
+		if (!hintText && !hintMediaUrl) return;
 		setPendingClueAction(false);
-		setShownHintContent(hint);
+		setShownHintContent(hintText);
 		if (activeClueIndex !== null) {
 			const idx = activeClueIndex;
 			setRevealedHints((prev) => {
 				const next: Record<number, RevealedHint> = { ...prev };
-				next[idx] = { text: hint || undefined, mediaUrl: currentQuestion.questionMediaURL || undefined };
+				next[idx] = { text: hintText || undefined, mediaUrl: hintMediaUrl || undefined };
 				return next;
 			});
 		}
@@ -710,8 +722,8 @@ const AGiaiMaPage = () => {
 			await sendMessage({
 				type: "show_hint",
 				user_code: "",
-				hint_content: hint,
-				hint_media_source: currentQuestion.questionMediaURL ?? undefined,
+				hint_content: hintText,
+				hint_media_source: hintMediaUrl ?? undefined,
 				target_players: selectedPlayerCodes,
 			});
 		} catch (err) {
@@ -924,10 +936,10 @@ const AGiaiMaPage = () => {
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}
-			question={{ ...currentQuestion, questionMediaURL: undefined }}
+			question={currentQuestion}
 			timerDuration={timer}
 			aboveQuestionBoard={clueGrid}
-			boardHeightClass="h-[30vh]"
+			boardHeightClass="h-[35vh]"
 			answerBoxHeightClass="min-h-[4rem]"
 			controlsChildren={() => null}
 			topControlButtons={null}

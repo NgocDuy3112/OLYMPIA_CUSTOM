@@ -35,7 +35,8 @@ ws://localhost:8000/ws/{match_code}
 ### Example Connection
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/OC3_M001');
+const token = localStorage.getItem('access_token');
+const ws = new WebSocket(`ws://localhost:8000/ws/OC3_M001?token=${token}`);
 
 ws.onopen = () => {
   console.log('Connected to match room');
@@ -60,21 +61,14 @@ ws.onerror = (error) => {
 
 ## Authentication
 
-WebSocket connections do **not** enforce JWT authentication by default.
-
-### Adding Authentication
-
-To implement authentication, validate tokens using `get_ws_user(token)` from `dependencies/user_auth.py`:
+WebSocket connections **require** a valid JWT passed as the `token` query parameter. Connections without a valid token are rejected immediately.
 
 ```javascript
-// Client-side: Send token after connection
-ws.onopen = () => {
-  ws.send(JSON.stringify({
-    type: "auth",
-    token: "jwt-token-here"
-  }));
-};
+const token = localStorage.getItem('access_token');
+const ws = new WebSocket(`ws://localhost:8000/ws/OC3_M001?token=${token}`);
 ```
+
+Token validation uses `get_ws_user(token)` from `dependencies/user_auth.py`. The authenticated user's `user_code` and `role` are injected into every broadcasted message by the server.
 
 ---
 
@@ -436,17 +430,11 @@ The `ConnectionManager` in `backend/app/utils/ws_connection.py` handles:
 
 For multi-instance deployments, WebSocket messages are synchronized via Valkey:
 
-**Publish**:
-```python
-await redis.publish(f"room:{match_code}", json.dumps({
-  "__origin": instance_id,
-  "__payload": message
-}))
-```
+**Publish**: Messages are published to the Valkey channel named `{match_code}` (e.g. `OC3_M001`). Discord bots subscribe to the same channel.
 
 **Subscribe**:
-- Each instance subscribes to its rooms
-- Messages include `__origin` to prevent broadcast loops
+- Each backend instance subscribes to its active rooms
+- Discord bots (BGM + SFX) also subscribe to the match channel from env var `MATCH_CODE`
 
 ### Message Broadcasting Flow
 

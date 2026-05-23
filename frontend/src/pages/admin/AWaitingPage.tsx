@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Play, UserCheck, Trophy, Flag } from "lucide-react";
+import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
@@ -54,6 +54,8 @@ const AWaitingPage = () => {
 	const [isIntroducingPlayers, setIsIntroducingPlayers] = useState(false);
 	const [isShowingScoreboard, setIsShowingScoreboard] = useState(false);
 	const [isEndingMatch, setIsEndingMatch] = useState(false);
+	const [isFinishingMatch, setIsFinishingMatch] = useState(false);
+	const [matchFinished, setMatchFinished] = useState(false);
 
 	const applyPlayersSnapshot = useCallback(
 		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
@@ -68,6 +70,15 @@ const AWaitingPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
+			// Check match status
+			const matchRes = await fetch(`${API_BASE_URL}/matches/?match_code=${encodeURIComponent(currentMatchCode)}`, {
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			const matchJson = await matchRes.json();
+			if (matchJson.data?.match_status === "finished") {
+				setMatchFinished(true);
+			}
+
 			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
 				headers: { Authorization: `Bearer ${token}` },
 			});
@@ -186,6 +197,10 @@ const AWaitingPage = () => {
 				}
 				break;
 			}
+			case "finish_match": {
+				setMatchFinished(true);
+				break;
+			}
 		}
 	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendMessage]);
 
@@ -238,6 +253,31 @@ const AWaitingPage = () => {
 			setIsEndingMatch(false);
 		}
 	}, [currentMatchCode, sendMessage]);
+
+	const handleFinishMatch = useCallback(async () => {
+		if (!currentMatchCode || !token) return;
+		const confirmed = window.confirm("Xác nhận hoàn thành trận đấu? Sau khi xác nhận, trận đấu sẽ chỉ có thể xem kết quả và không thể tương tác vòng thi nữa.");
+		if (!confirmed) return;
+		setIsFinishingMatch(true);
+		try {
+			const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(currentMatchCode)}/finish`, {
+				method: "PATCH",
+				headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+			});
+			const json = await res.json();
+			if (json.status === "success") {
+				setMatchFinished(true);
+				await sendMessage({ type: "finish_match" });
+			} else {
+				alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành trận đấu"}`);
+			}
+		} catch (err) {
+			logger.error("Failed to finish match:", err);
+			alert("Lỗi kết nối khi hoàn thành trận đấu");
+		} finally {
+			setIsFinishingMatch(false);
+		}
+	}, [currentMatchCode, token, sendMessage]);
 
 	const handleNavigateToKDC = useCallback(() => {
 		if (!currentMatchCode) return;
@@ -306,7 +346,7 @@ const AWaitingPage = () => {
 					<div className="flex flex-wrap gap-4 items-center justify-center">
 						<AControlButton
 							onClick={handleOpenMatch}
-							disabled={isOpeningMatch || !currentMatchCode}
+							disabled={isOpeningMatch || !currentMatchCode || matchFinished}
 							className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
 						>
 							<Play size={18} />
@@ -315,7 +355,7 @@ const AWaitingPage = () => {
 
 						<AControlButton
 							onClick={handleIntroducePlayers}
-							disabled={isIntroducingPlayers || !currentMatchCode}
+							disabled={isIntroducingPlayers || !currentMatchCode || matchFinished}
 							className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
 						>
 							<UserCheck size={18} />
@@ -333,11 +373,20 @@ const AWaitingPage = () => {
 
 						<AControlButton
 							onClick={handleEndMatch}
-							disabled={isEndingMatch || !currentMatchCode}
+							disabled={isEndingMatch || !currentMatchCode || matchFinished}
 							className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
 						>
 							<Flag size={18} />
 							{isEndingMatch ? "Đang gửi..." : "Kết thúc trận đấu"}
+						</AControlButton>
+
+						<AControlButton
+							onClick={handleFinishMatch}
+							disabled={isFinishingMatch || !currentMatchCode || matchFinished}
+							className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:bg-green-800"
+						>
+							<CheckCircle size={18} />
+							{isFinishingMatch ? "Đang xác nhận..." : matchFinished ? "Đã hoàn thành" : "Xác nhận hoàn thành"}
 						</AControlButton>
 
 					</div>
@@ -345,8 +394,15 @@ const AWaitingPage = () => {
 
 				{/* Quick navigation to rounds */}
 				<div className="flex flex-col gap-4 w-full max-w-2xl">
-					<p className="text-white/60 text-xs uppercase tracking-widest text-center">Vòng chơi</p>
-					<div className="flex flex-wrap gap-4 items-center justify-center">
+				{matchFinished && (
+					<div className="bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center w-full max-w-2xl">
+						<p className="text-green-300 font-semibold text-lg">✅ Trận đấu đã hoàn thành</p>
+						<p className="text-green-200/70 text-sm mt-1">Các vòng thi đã bị khoá. Thí sinh chỉ có thể xem kết quả.</p>
+					</div>
+				)}
+
+				<p className="text-white/60 text-xs uppercase tracking-widest text-center">Vòng chơi</p>
+				<div className={`flex flex-wrap gap-4 items-center justify-center${matchFinished ? " pointer-events-none opacity-50" : ""}`}>
 						<AControlButton
 							onClick={handleNavigateToKDR}
 							disabled={!currentMatchCode}

@@ -16,6 +16,10 @@ const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
+function isMediaFilename(value: string): boolean {
+    return /\.(mp3|ogg|wav|aac|m4a|mp4|webm|mov|jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value.trim());
+}
+
 function buildKeywordBanner(answer: string): string {
     const trimmedLen = answer.replace(/\s/g, '').length;
     const noSpaceAnswer = answer.replace(/\s/g, '');
@@ -31,7 +35,7 @@ interface PlayerClueCardProps {
 }
 
 const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintContent }) => {
-    const base = "flex-1 h-24 sm:h-36 lg:h-44 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
+    const base = "flex-1 h-20 sm:h-28 lg:h-36 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
     const styles: Record<ClueState, string> = {
         idle:   "bg-blue-900 border-blue-600 text-white",
         active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
@@ -48,7 +52,7 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
                     }
                 </div>
             ) : (
-                <span className="font-[SVN-Gratelos_Display] text-[60pt]">{index}</span>
+                <span className="font-[SVN-Gratelos_Display] text-[50pt]">{index}</span>
             )}
         </div>
     );
@@ -161,12 +165,18 @@ const MGiaiMaPage = () => {
                 activeClueIdxRef.current = null;
                 break;
             case "show_hint": {
-                setRevealedHint(msg.hint_content ?? null);
+                const hintContent = msg.hint_content ?? "";
+                const hintMediaSource = msg.hint_media_source ?? "";
+                // If hint content itself is a media filename, swap roles
+                const contentIsMedia = isMediaFilename(hintContent);
+                const displayText = contentIsMedia ? hintMediaSource : hintContent;
+                const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
+                setRevealedHint(displayText ?? null);
                 const idx = activeClueIdxRef.current;
                 if (idx !== null) {
                     setRevealedHints((prev) => ({
                         ...prev,
-                        [idx]: { text: msg.hint_content ?? undefined, mediaUrl: msg.hint_media_source ?? undefined },
+                        [idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
                     }));
                 }
                 break;
@@ -213,7 +223,6 @@ const MGiaiMaPage = () => {
 
     const questionWithAnswer = {
         ...currentQuestion,
-        questionMediaURL: undefined,
         questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
     };
 
@@ -229,7 +238,7 @@ const MGiaiMaPage = () => {
                     title="GIẢI MÃ"
                     question={questionWithAnswer}
                     timerDuration={timer}
-                    boardHeightClass="h-[22vh]"
+                    boardHeightClass="h-[28vh]"
                     answerBoxHeightClass="min-h-[4rem]"
                 />
             </>

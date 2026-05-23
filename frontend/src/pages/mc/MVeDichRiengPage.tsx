@@ -69,6 +69,19 @@ const MVeDichRiengPage = () => {
                 setAnsweringWindowTimer(0);
                 setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));  
                 break;
+            case "blocked_buzz": {
+                // msg.user_code may be null/empty to block all players or clear the blocked player
+                if (msg.user_code === null || msg.user_code === undefined) {
+                    // Block all players - no one can buzz anymore
+                    console.info("[VDR MC] Blocking all buzzers");
+                    // MC page doesn't have buzz functionality, but track state for consistency
+                } else if (msg.user_code === "") {
+                    // Clear blocked player
+                } else {
+                    // Block specific player
+                }
+                break;
+            }
             case "buzz":
                 // Don't show lightning icon yet — wait for admin's buzzer_winner broadcast
                 // so only the fastest buzzer gets the icon

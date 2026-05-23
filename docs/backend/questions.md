@@ -11,6 +11,7 @@ Question management endpoints for importing, creating, retrieving, and deleting 
 - [POST `/questions/drive/`](#post-questionsdrive)
 - [POST `/questions/excel/`](#post-questionsexcel)
 - [POST `/questions/excel/qualifier/`](#post-questionsexcelqualifier)
+- [POST `/questions/zip/`](#post-questionszip)
 - [POST `/questions/`](#post-questions)
 - [GET `/questions/`](#get-questions)
 - [PATCH `/questions/{match_code}/{question_code}`](#patch-questionsmatch_codequestion_code)
@@ -201,6 +202,68 @@ curl -X POST "http://localhost:8000/questions/excel/qualifier/?match_code=OC3_M0
 
 ---
 
+## POST `/questions/zip/`
+
+Import questions and their associated media files from a single ZIP archive. The ZIP must contain an Excel file (`.xlsx`) at the root plus any media files referenced by `media_url` columns.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/questions/zip/` |
+| **Method** | `POST` |
+| **Auth** | Admin role required |
+| **Content-Type** | `multipart/form-data` |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `match_code` | string | ❌ | Match code. If omitted, derived from the Excel filename |
+
+### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | file | ✅ | ZIP archive containing `.xlsx` + media files |
+
+### Request Example
+
+```bash
+curl -X POST "http://localhost:8000/questions/zip/?match_code=OC3_M001" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@OC3_M001_questions.zip"
+```
+
+### Success Response
+
+**Status**: `201 Created`
+
+```json
+{
+  "status": "success",
+  "message": "Questions imported successfully",
+  "data": null
+}
+```
+
+### Error Responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `400` | Validation Error | Invalid ZIP, missing Excel file, or duplicate questions |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Match not found |
+| `500` | Server Error | Database or file processing error |
+
+### Notes
+
+- Media files inside the ZIP are uploaded to S3 under `{match_code}/{filename}`
+- The Excel file format is identical to `POST /questions/excel/`
+
+---
+
 ## POST `/questions/`
 
 Create a question manually.
@@ -225,7 +288,7 @@ Create a question manually.
 | `content` | string | ✅ | Question text |
 | `answer` | string | ✅ | Correct answer |
 | `explanation` | string | ❌ | Explanation for the answer |
-| `media_url` | string | ❌ | Single or comma-separated media URLs (must start with `http://` or `https://`) |
+| `media_url` | string | ❌ | Single or comma-separated URLs (`http/https`) or S3 object keys |
 | `options` | array\|string | ❌ | (Qualifier only) Six answer options. Can be JSON array or JSON-encoded string |
 
 ### Request Example

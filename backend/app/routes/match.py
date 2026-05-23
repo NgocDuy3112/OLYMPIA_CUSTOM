@@ -159,3 +159,22 @@ async def get_players_for_match(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch(
+    "/{match_code}/finish",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def finish_match(
+    match_code: str,
+    session: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    """Mark a match as finished. Only admin can do this."""
+    try:
+        return await finish_match_in_db(match_code, session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")

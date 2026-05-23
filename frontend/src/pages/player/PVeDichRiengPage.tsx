@@ -157,10 +157,15 @@ const PVeDichRiengPage = () => {
 				console.info(`[VDR PLAYER] Received buzzer_winner: winner=${winner}, myCode=${playerCode}, current=${buzzerWinnerCode}`);
 				// Only accept the first buzzer_winner to avoid overriding
 				if (winner && !buzzerWinnerCode) {
+					console.info(`[VDR PLAYER] Setting buzzer winner: ${winner}`);
 					setBuzzerWinnerCode(winner);
-					setPlayers((prev) =>
-						prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })),
-					);
+					setPlayers((prev) => {
+						const updated = prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner }));
+						console.info(`[VDR PLAYER] Updated players:`, updated);
+						return updated;
+					});
+				} else {
+					console.warn(`[VDR PLAYER] Ignoring buzzer_winner: winner=${winner}, existing=${buzzerWinnerCode}`);
 				}
 				break;
 			}
@@ -184,8 +189,18 @@ const PVeDichRiengPage = () => {
 			}
 
 			case "blocked_buzz": {
-				// msg.user_code may be null/empty to clear the blocked player
-				setBlockedPlayerCode(msg.user_code ?? null);
+				// msg.user_code may be null/empty to block all players or clear the blocked player
+				if (msg.user_code === null || msg.user_code === undefined) {
+					// Block all players - no one can buzz anymore
+					console.info("[VDR PLAYER] Blocking all buzzers");
+					setBlockedPlayerCode("*ALL*");
+				} else if (msg.user_code === "") {
+					// Clear blocked player
+					setBlockedPlayerCode(null);
+				} else {
+					// Block specific player
+					setBlockedPlayerCode(msg.user_code);
+				}
 				break;
 			}
 

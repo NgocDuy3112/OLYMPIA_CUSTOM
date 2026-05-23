@@ -73,19 +73,29 @@ def _find_phase_file(phase: str) -> str | None:
 # ── Playback ──────────────────────────────────────────────────────────────────
 
 async def _play(guild: discord.Guild, file_path: str) -> None:
+    logger.info(f"Attempting to play: {file_path}")
+    
+    # Check if file exists
+    if not os.path.isfile(file_path):
+        logger.error(f"Audio file not found: {file_path}")
+        return
+    
     vc: discord.VoiceClient | None = guild.voice_client
     if not vc or not vc.is_connected():
+        logger.info("Not connected to voice channel, attempting to connect...")
         try:
             channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
             if not isinstance(channel, discord.VoiceChannel):
                 logger.warning("VOICE_CHANNEL_ID is not a voice channel")
                 return
             vc = await channel.connect(self_deaf=True)
+            logger.info(f"Connected to voice channel: {channel.name}")
         except Exception as e:
             logger.error(f"Cannot connect to voice channel: {e}")
             return
 
     if vc.is_playing():
+        logger.info("Stopping current playback")
         vc.stop()
 
     try:
@@ -127,19 +137,26 @@ async def _handle_message(message: dict) -> None:
             _current_track[guild.id] = phase
 
     elif msg_type == "start_the_timer":
+        logger.info(f"Received start_the_timer event: {message}")
         try:
             time_limit = int(message.get("time_limit") or 0)
         except (ValueError, TypeError):
             logger.warning(f"Invalid time_limit in start_the_timer: {message.get('time_limit')!r}")
             return
         current_phase = message.get("phase", "") or _current_track.get(guild.id, "")
+        logger.info(f"Current phase: {current_phase}, time_limit: {time_limit}s")
         if current_phase:
             timer_prefix = _TIMER_PHASE_MAP.get(current_phase, current_phase)
             timer_file = _find_file(f"{timer_prefix}_{time_limit}s")
             if timer_file:
+                logger.info(f"Found timer file: {timer_file}")
                 await _play(guild, timer_file)
             else:
                 logger.warning(f"No timer BGM for phase='{current_phase}' time={time_limit}s (looked for '{timer_prefix}_{time_limit}s')")
+                # List available files for debugging
+                if os.path.isdir(configs.BGM_DIR):
+                    available = os.listdir(configs.BGM_DIR)
+                    logger.info(f"Available BGM files: {available}")
         else:
             logger.warning(f"start_the_timer: unknown phase, skipping (question_code={message.get('question_code')!r})")
 
@@ -220,8 +237,17 @@ async def _auto_join_voice() -> None:
 @bot.event
 async def on_ready():
     logger.info(f"BGM Bot logged in as {bot.user}")
+    logger.info(f"BGM_DIR: {configs.BGM_DIR}")
+    logger.info(f"S3_BUCKET_NAME: {configs.S3_BUCKET_NAME}")
+    logger.info(f"VOICE_CHANNEL_ID: {configs.VOICE_CHANNEL_ID}")
     try:
         await asyncio.to_thread(s3_audio.sync_audio_from_s3)
+        # Log available audio files after sync
+        if os.path.isdir(configs.BGM_DIR):
+            bgm_files = os.listdir(configs.BGM_DIR)
+            logger.info(f"BGM files available: {len(bgm_files)} files - {bgm_files[:5]}...")
+        else:
+            logger.error(f"BGM_DIR does not exist: {configs.BGM_DIR}")
     except Exception as e:
         logger.error(f"S3 audio sync failed: {e}")
     await _auto_join_voice()

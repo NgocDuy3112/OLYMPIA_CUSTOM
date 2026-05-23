@@ -44,13 +44,13 @@ git clone https://github.com/your-org/olympia-custom.git
 cd olympia-custom
 ```
 
-**2. Start with Docker Compose**:
+**2. Deploy with Podman Compose**:
 ```bash
-# Start all services
-docker-compose up -d --profile development
+# Start all services (production)
+./scripts/deploy.sh
 
 # Check status
-docker-compose ps
+podman-compose ps
 ```
 
 **3. Access the application**:
@@ -88,7 +88,7 @@ curl -X POST http://localhost:8000/auth/signup \
 | [Scoreboard API](./backend/scoreboard.md) | Leaderboard retrieval |
 | [Qualifier API](./backend/qualifier.md) | Qualifier round management |
 | [WebSocket API](./backend/websocket.md) | Real-time communication |
-| [Media API](./backend/media.md) | Media proxy for Google Drive |
+| [Media API](./backend/media.md) | Media upload/proxy (S3 + Google Drive) |
 | [Errors & Envelope](./backend/errors-and-envelope.md) | Error handling patterns |
 
 ---
@@ -166,53 +166,39 @@ curl -X POST http://localhost:8000/auth/signup \
 ### System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Client Layer                          │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────┐           ┌─────────────────┐         │
-│  │   Admin Web     │           │   Player Web    │         │
-│  │   Interface     │           │   Interface     │         │
-│  │   (React SPA)   │           │   (React SPA)   │         │
-│  └────────┬────────┘           └────────┬────────┘         │
-│           │                              │                   │
-│           └──────────────┬───────────────┘                   │
-│                          │                                   │
-│                    ┌─────▼─────┐                            │
-│                    │   Nginx   │                            │
-│                    │  (Proxy)  │                            │
-│                    └─────┬─────┘                            │
-└──────────────────────────┼──────────────────────────────────┘
-                           │
-┌──────────────────────────┼──────────────────────────────────┐
-│                      API Layer                               │
-│              ┌──────────▼──────────┐                        │
-│              │   FastAPI Backend   │                        │
-│              │   (Python 3.12+)    │                        │
-│              └──────────┬──────────┘                        │
-│                         │                                    │
-│         ┌───────────────┼───────────────┐                   │
-│         │               │               │                    │
-│  ┌──────▼──────┐ ┌──────▼──────┐ ┌──────▼──────┐           │
-│  │  PostgreSQL │ │    Valkey   │ │    Google   │           │
-│  │  (Primary)  │ │   (Cache)   │ │    Drive    │           │
-│  │  Port: 5432 │ │  Port: 6379 │ │    (OAuth)  │           │
-│  └─────────────┘ └─────────────┘ └─────────────┘           │
-└─────────────────────────────────────────────────────────────┘
+Browser (React SPA — Admin / MC / Player)
+  ├─ HTTP /api/*  ──────────────► FastAPI Backend
+  └─ WebSocket /ws/{match_code}?token=JWT
+                                    │
+                               Valkey pub/sub
+                             (channel = match_code)
+                                    │
+                         ┌──────────┴──────────┐
+                       BGM Bot              SFX Bot
+                    (bgm_bot.py)         (sfx_bot.py)
+                    Discord voice        Discord voice
+
+FastAPI Backend
+  ├─ PostgreSQL 17  (persistence)
+  ├─ Valkey 9       (cache + leaderboard + pub/sub)
+  └─ S3             (question media + audio files)
+
+Production reverse proxy: Nginx + Let's Encrypt (certbot)
 ```
 
 ### Technology Stack
 
-| Layer | Technology | Version |
-|-------|------------|---------|
-| **Frontend** | React + TypeScript | 19.2.0 |
-| **Styling** | Tailwind CSS | 4.1.18 |
-| **Build Tool** | Vite | 7.2.4 |
-| **Backend** | FastAPI | Latest |
-| **Database** | PostgreSQL | 17 |
-| **Cache** | Valkey | 9 |
-| **ORM** | SQLAlchemy | 2.0 Async |
-| **Auth** | JWT (HS256) | - |
-| **Container** | Docker | 24+ |
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| **Frontend** | React + TypeScript | Vite build tool |
+| **Styling** | Tailwind CSS | - |
+| **Backend** | FastAPI (Python 3.12+) | Async, SQLAlchemy 2.0 |
+| **Database** | PostgreSQL 17 | Persistence |
+| **Cache / Pub-Sub** | Valkey 9 | Leaderboard ZSET + bot events |
+| **Auth** | JWT HS256 | Query param for WebSocket |
+| **Discord Bots** | discord.py | BGM + SFX audio in voice channel |
+| **Object Storage** | S3-compatible | Audio + question media |
+| **Container** | Podman Compose | Production deployment |
 
 ---
 
@@ -221,39 +207,31 @@ curl -X POST http://localhost:8000/auth/signup \
 ### 1. Local Setup
 
 ```bash
-# Backend
-cd backend/app
-pip install -r requirements.txt
+# Backend (dependencies managed with uv — no pip install needed)
 cp configs/.env.example configs/.env
 # Edit configs/.env with your settings
 
 # Frontend
 cd frontend
 npm install
-cp .env.example .env
 ```
 
 ### 2. Start Services
 
 ```bash
 # Start databases
-docker-compose up -d postgres valkey
+docker-compose up -d postgresql valkey
 
 # Start backend (development mode)
 cd backend/app
-uvicorn main:app --reload
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # Start frontend (development mode)
 cd frontend
 npm run dev
 ```
 
-### 3. Run Migrations
-
-```bash
-cd backend/app
-alembic upgrade head
-```
+> **Note**: No migrations needed — tables are auto-created on startup via `Base.metadata.create_all`.
 
 ### 4. Run Tests
 
@@ -288,11 +266,10 @@ npm run lint
 |------|------------|---------|-------------|
 | **VL** | Vòng Loại | Qualifier | Preliminary qualification |
 | **KDC** | Khởi Động Chung | Group Warm-up | All players answer same questions |
-| **KDR** | Khởi Động CÁ NHÂN | Individual Warm-up | Individual questions |
-| **BP** | Bứt Phá | Sprint | Fast-paced buzzer round |
-| **VD** | Vượt Đèo | Escape | Clue-based challenge |
-| **VDC** | Về Đích Chung | Final Group Stage | Final group round |
-| **VDR** | Về Đích CÁ NHÂN | Final Individual Stage | Final individual round |
+| **KDR** | Khởi Động Cá Nhân | Individual Warm-up | Individual questions per player |
+| **BP** | Bứt Phá | Buzzer Sprint | Fast-paced buzzer round |
+| **VDC** | Về Đích Chung | Final Group Stage | Final group round (4 questions, with pick sub-step) |
+| **VDR** | Về Đích Cá Nhân | Final Individual Stage | Final individual round (3 questions, with pick sub-step) |
 | **GM** | Giải Mã | Decode | Mystery/decoding round |
 
 ---

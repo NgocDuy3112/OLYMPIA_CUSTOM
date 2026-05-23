@@ -176,6 +176,7 @@ _MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "game_end",
     "open_match",
     "end_match",
+    "finish_match",
     "show_hint",
     "introduce_players",
     "show_scoreboard",
@@ -231,7 +232,10 @@ async def websocket_endpoint(
         while True:
             data = await websocket.receive_json()
             # Inject authenticated user info into inbound messages
-            data["user_code"] = user_info["user_code"]
+            # Only inject user_code if not already present so admin can proxy
+            # player-specific messages (e.g. buzzer_winner) without overwriting.
+            if "user_code" not in data:
+                data["user_code"] = user_info["user_code"]
             data["role"] = user_role
 
             msg_type = data.get("type", "")

@@ -14,6 +14,7 @@ const MWaitingPage: React.FC = () => {
     const [matchName, setMatchName] = useState<string>("");
     const [players, setPlayers] = useState<PlayerStatus[]>([]);
     const [loaded, setLoaded] = useState(false);
+    const [matchFinished, setMatchFinished] = useState(false);
 
     const loadPlayersWithScores = useCallback(async () => {
         if (!matchCode || !token) {
@@ -33,6 +34,11 @@ const MWaitingPage: React.FC = () => {
             const roomData = roomRes?.data ?? {};
             setMatchName(roomData.match_name ?? "");
 
+            // Check if match is finished
+            if (roomData.match_status === "finished") {
+                setMatchFinished(true);
+            }
+
             const roomPlayers: any[] = roomData.players ?? [];
             const scoreboardList: any[] = scoreRes?.data?.scoreboard ?? [];
 
@@ -49,6 +55,9 @@ const MWaitingPage: React.FC = () => {
                 }).then((r) => r.json());
                 const roomData = roomRes2?.data ?? {};
                 setMatchName(roomData.match_name ?? "");
+                if (roomData.match_status === "finished") {
+                    setMatchFinished(true);
+                }
                 const roomPlayers: any[] = roomData.players ?? [];
                 setPlayers(roomPlayers.map((p: any) => ({
                     playerCode: p.user_code,
@@ -95,11 +104,23 @@ const MWaitingPage: React.FC = () => {
                 }
                 break;
             }
+            case "finish_match": {
+                setMatchFinished(true);
+                break;
+            }
         }
     }, [applyPlayersSnapshot, lastMessage]);
 
     return (
         <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
+            {/* Match finished banner */}
+            {matchFinished && (
+                <div className="w-full max-w-3xl mb-4 bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center">
+                    <p className="text-green-300 font-semibold text-lg">✅ Trận đấu đã hoàn thành</p>
+                    <p className="text-green-200/70 text-sm mt-1">Các vòng thi đã kết thúc. Chỉ có thể xem kết quả.</p>
+                </div>
+            )}
+
             {/* Match name banner */}
             <div className="mt-8 text-center">
                 <h1 className="font-[SVN-Gratelos_Display] text-5xl font-bold text-white uppercase tracking-wide">

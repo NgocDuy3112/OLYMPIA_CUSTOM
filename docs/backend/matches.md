@@ -10,8 +10,11 @@ Match management endpoints for creating, retrieving, updating, and deleting matc
 
 - [POST `/matches/`](#post-matches)
 - [GET `/matches/`](#get-matches)
+- [GET `/matches/all`](#get-matchesall)
+- [GET `/matches/{match_code}/room`](#get-matchesmatch_coderoom)
 - [GET `/matches/{match_code}/players`](#get-matchesmatch_codeplayers)
 - [PATCH `/matches/{match_code}`](#patch-matchesmatch_code)
+- [PATCH `/matches/{match_code}/finish`](#patch-matchesmatch_codefinish)
 - [DELETE `/matches/{match_code}`](#delete-matchesmatch_code)
 
 ---
@@ -91,7 +94,7 @@ curl -X POST http://localhost:8000/matches/ \
 
 ## GET `/matches/`
 
-Retrieve match details by match code.
+Retrieve match details by match code (includes players).
 
 ### Request
 
@@ -118,8 +121,6 @@ curl -X GET "http://localhost:8000/matches/?match_code=OC3_M001" \
 
 **Status**: `200 OK`
 
-**Schema**: `MatchRoomResponse`
-
 ```json
 {
   "status": "success",
@@ -128,26 +129,7 @@ curl -X GET "http://localhost:8000/matches/?match_code=OC3_M001" \
     "match_code": "OC3_M001",
     "match_name": "Vòng loại 1",
     "players": [
-      {
-        "user_code": "OC_U001",
-        "user_name": "Nguyen Van A",
-        "position": 1
-      },
-      {
-        "user_code": "OC_U002",
-        "user_name": "Tran Thi B",
-        "position": 2
-      },
-      {
-        "user_code": "OC_U003",
-        "user_name": "Le Van C",
-        "position": 3
-      },
-      {
-        "user_code": "OC_U004",
-        "user_name": "Pham Thi D",
-        "position": 4
-      }
+      { "user_code": "OC_U001", "user_name": "Nguyen Van A", "position": 1 }
     ]
   }
 }
@@ -164,6 +146,101 @@ curl -X GET "http://localhost:8000/matches/?match_code=OC3_M001" \
 | `500` | Server Error | Database or server error |
 
 ---
+
+## GET `/matches/all`
+
+Retrieve all non-deleted matches.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/matches/all` |
+| **Method** | `GET` |
+| **Auth** | Admin role required |
+
+### Request Example
+
+```bash
+curl -X GET "http://localhost:8000/matches/all" \
+  -H "Authorization: Bearer <token>"
+```
+
+### Success Response
+
+**Status**: `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "Matches retrieved successfully",
+  "data": [
+    { "match_code": "OC3_M001", "match_name": "Vòng loại 1" },
+    { "match_code": "OC3_M002", "match_name": "Trận chung kết" }
+  ]
+}
+```
+
+---
+
+## GET `/matches/{match_code}/room`
+
+Retrieve match room info for a player, MC, or admin joining a room. Returns match metadata and current player list.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/matches/{match_code}/room` |
+| **Method** | `GET` |
+| **Auth** | Any authenticated user |
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `match_code` | string | ✅ | Match code |
+
+### Request Example
+
+```bash
+curl -X GET "http://localhost:8000/matches/OC3_M001/room" \
+  -H "Authorization: Bearer <token>"
+```
+
+### Success Response
+
+**Status**: `200 OK`
+
+**Schema**: `MatchRoomResponse`
+
+```json
+{
+  "status": "success",
+  "message": "Match room retrieved successfully",
+  "data": {
+    "match_code": "OC3_M001",
+    "match_name": "Vòng loại 1",
+    "players": [
+      { "user_code": "OC_U001", "user_name": "Nguyen Van A", "position": 1 }
+    ]
+  }
+}
+```
+
+### Error Responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
+| `401` | Authentication Error | Missing or invalid token |
+| `404` | Not Found Error | Match not found |
+| `500` | Server Error | Database or server error |
+
+---
+
+## GET `/matches/{match_code}/players`
+
+Retrieve the list of players in a match.
 
 ## GET `/matches/{match_code}/players`
 
@@ -280,6 +357,54 @@ curl -X PATCH http://localhost:8000/matches/OC3_M001 \
 | Status | Error | Description |
 |--------|-------|-------------|
 | `400` | Validation Error | Invalid input data |
+| `401` | Authentication Error | Missing or invalid token |
+| `403` | Authorization Error | Not an admin user |
+| `404` | Not Found Error | Match not found |
+| `500` | Server Error | Database or server error |
+
+---
+
+## PATCH `/matches/{match_code}/finish`
+
+Mark a match as finished. Sets `match_status` to `finished`.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/matches/{match_code}/finish` |
+| **Method** | `PATCH` |
+| **Auth** | Admin role required |
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `match_code` | string | ✅ | Match code to finish |
+
+### Request Example
+
+```bash
+curl -X PATCH http://localhost:8000/matches/OC3_M001/finish \
+  -H "Authorization: Bearer <token>"
+```
+
+### Success Response
+
+**Status**: `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "Match finished successfully",
+  "data": null
+}
+```
+
+### Error Responses
+
+| Status | Error | Description |
+|--------|-------|-------------|
 | `401` | Authentication Error | Missing or invalid token |
 | `403` | Authorization Error | Not an admin user |
 | `404` | Not Found Error | Match not found |

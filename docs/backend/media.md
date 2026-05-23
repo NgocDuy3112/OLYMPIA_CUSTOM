@@ -2,13 +2,134 @@
 
 **Tag**: `Media`
 
-Proxy endpoint for streaming media files (images, audio, video) from Google Drive.
+Endpoints for uploading media to S3 and proxying files from S3 or Google Drive.
 
 ---
 
 ## Table of Contents
 
+- [POST `/media/upload/`](#post-mediaupload)
+- [GET `/media/`](#get-media)
+- [GET `/media/presign/`](#get-mediapresign)
 - [GET `/media/drive/`](#get-mediadrive)
+
+---
+
+## POST `/media/upload/`
+
+Upload a file to S3. The file is stored under `{match_code}/{filename}`.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/media/upload/` |
+| **Method** | `POST` |
+| **Auth** | Admin role required |
+| **Content-Type** | `multipart/form-data` |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `match_code` | string | ✅ | S3 key prefix (match code) |
+
+### Request Body
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | file | ✅ | File to upload |
+
+### Request Example
+
+```bash
+curl -X POST "http://localhost:8000/media/upload/?match_code=OC3_M001" \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@question_image.png"
+```
+
+### Success Response
+
+**Status**: `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "File uploaded successfully",
+  "data": { "s3_key": "OC3_M001/question_image.png" }
+}
+```
+
+---
+
+## GET `/media/`
+
+Fetch a file from S3 by key and redirect the client to a short-lived presigned URL.
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/media/` |
+| **Method** | `GET` |
+| **Auth** | Any authenticated user |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `key` | string | ✅ | S3 object key (e.g. `OC3_M001/image.png`) |
+
+### Request Example
+
+```bash
+curl -X GET "http://localhost:8000/media/?key=OC3_M001/image.png" \
+  -H "Authorization: Bearer <token>" \
+  -L
+```
+
+### Success Response
+
+**Status**: `302 Found` — redirects to presigned S3 URL.
+
+---
+
+## GET `/media/presign/`
+
+Return a short-lived presigned S3 URL as JSON (instead of redirecting).
+
+### Request
+
+| Property | Value |
+|----------|-------|
+| **URL** | `/media/presign/` |
+| **Method** | `GET` |
+| **Auth** | Any authenticated user |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `key` | string | ✅ | S3 object key |
+
+### Request Example
+
+```bash
+curl -X GET "http://localhost:8000/media/presign/?key=OC3_M001/image.png" \
+  -H "Authorization: Bearer <token>"
+```
+
+### Success Response
+
+**Status**: `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "Presigned URL generated",
+  "data": { "url": "https://s3.example.com/olympia-custom/OC3_M001/image.png?X-Amz-..." }
+}
+```
 
 ---
 

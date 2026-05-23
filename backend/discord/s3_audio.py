@@ -33,6 +33,12 @@ def sync_audio_from_s3() -> None:
     Skips files already present with the same size.
     No-ops silently when S3 is not configured (local dev fallback).
     """
+    logger.info(f"Starting S3 audio sync...")
+    logger.info(f"S3_BUCKET_NAME: {configs.S3_BUCKET_NAME}")
+    logger.info(f"S3_ENDPOINT_URL: {configs.S3_ENDPOINT_URL}")
+    logger.info(f"BGM_DIR: {configs.BGM_DIR}")
+    logger.info(f"SFX_DIR: {configs.SFX_DIR}")
+    
     if not configs.S3_BUCKET_NAME:
         logger.warning("S3_BUCKET_NAME not set — skipping S3 audio sync")
         return
@@ -54,6 +60,7 @@ def sync_audio_from_s3() -> None:
     skipped = 0
 
     for prefix, local_dir in _PREFIX_DIR_MAP.items():
+        logger.info(f"Processing prefix: {prefix} -> {local_dir}")
         os.makedirs(local_dir, exist_ok=True)
 
         try:
@@ -64,7 +71,9 @@ def sync_audio_from_s3() -> None:
             continue
 
         for page in pages:
-            for obj in page.get("Contents", []):
+            objects = page.get("Contents", [])
+            logger.info(f"Found {len(objects)} objects in {prefix}")
+            for obj in objects:
                 key = obj["Key"]
                 filename = os.path.basename(key)
                 if not filename:
@@ -75,12 +84,13 @@ def sync_audio_from_s3() -> None:
 
                 if os.path.isfile(local_path) and os.path.getsize(local_path) == remote_size:
                     skipped += 1
+                    logger.debug(f"Skipping (already exists): {key}")
                     continue
 
                 try:
                     client.download_file(configs.S3_BUCKET_NAME, key, local_path)
                     downloaded += 1
-                    logger.debug(f"Downloaded: {key} → {local_path}")
+                    logger.info(f"Downloaded: {key} -> {local_path}")
                 except (BotoCoreError, ClientError) as e:
                     logger.error(f"Failed to download '{key}': {e}")
 

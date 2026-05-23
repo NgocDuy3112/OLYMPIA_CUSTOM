@@ -46,7 +46,7 @@ const PlayerAutoNavigator: React.FC = () => {
         
         console.info("[PlayerAutoNavigator] Received message:", msgType, msg);
 
-        if (msgType === "end_match" || msgType === "open_match") {
+        if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
             const target = `/player/waiting/${matchCode}`;
             if (location.pathname !== target) {
                 console.info("[PlayerAutoNavigator] Navigating to waiting:", target);

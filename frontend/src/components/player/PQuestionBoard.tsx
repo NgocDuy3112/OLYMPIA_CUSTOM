@@ -19,7 +19,16 @@ interface PQuestionBoardProps {
 }
 
 
-const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[40vh]", videoPlayState, hideMediaUntilPlayed }) => {
+const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ 
+    title, 
+    question, 
+    timerDuration, 
+    controls, 
+    children, 
+    boardHeightClass = "h-[45vh]", 
+    videoPlayState, 
+    hideMediaUntilPlayed 
+}) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const activeIndices = controls?.activeIndices ?? [];
@@ -84,15 +93,15 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ title, question, timerD
                 </div>
             </div>
 
-            <div className="flex flex-row flex-1 gap-4">
+            <div className="flex flex-row flex-1 gap-4 min-h-0">
                 {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
-                        <div className="flex-1 flex flex-col justify-start">
+                        <div className="flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
                                 {question.questionText}
                             </p>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-hidden">
+                        <div className="flex-[2] min-h-0 overflow-hidden">
                             <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>

@@ -25,7 +25,7 @@ interface AQuestionBoardProps {
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[50vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[55vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -124,17 +124,17 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
             </div>
 
             {/* Content area: question text and optional media - takes remaining space */}
-            <div className="flex flex-row flex-1 gap-4">
+            <div className="flex flex-row flex-1 gap-4 min-h-0">
                 {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
-                        {/* Left side: question text (50% width) */}
-                        <div className="flex-1 flex flex-col justify-start">
+                        {/* Left side: question text (60% width) */}
+                        <div className="flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
                                 {question.questionText}
                             </p>
                         </div>
-                        {/* Right side: media (50% width) */}
-                        <div className="flex-1 min-h-0 overflow-hidden">
+                        {/* Right side: media (40% width) */}
+                        <div className="flex-[2] min-h-0 overflow-hidden">
                             <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>
