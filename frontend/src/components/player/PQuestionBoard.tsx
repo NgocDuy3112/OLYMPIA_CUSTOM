@@ -101,7 +101,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
                                 {question.questionText}
                             </p>
                         </div>
-                        <div className="flex-[2] min-h-0 overflow-hidden">
+                        <div className="flex-[2] h-full min-h-0 overflow-hidden">
                             <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>

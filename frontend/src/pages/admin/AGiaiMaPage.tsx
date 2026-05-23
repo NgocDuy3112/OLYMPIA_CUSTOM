@@ -914,7 +914,7 @@ const AGiaiMaPage = () => {
 				onClick={() => setKeywordPhaseActive((prev) => !prev)}
 				className={`w-full rounded-xl px-6 py-6 text-center font-[SVN-Gratelos_Display] text-5xl font-bold text-white uppercase shadow border-2 transition-colors duration-200 cursor-pointer select-none ${keywordPhaseActive ? "bg-blue-500 border-blue-300 ring-2 ring-blue-300" : "bg-blue-900 border-blue-600 hover:bg-blue-800"}`}
 			>
-				{keyInfo}
+				{keywordAnswerRevealed && keywordQuestion?.questionAnswer ? `${keywordQuestion.questionAnswer}` : keyInfo}
 			</button>
 			{/* Grid */}
 			<div className="grid grid-cols-4 gap-3 w-full">
@@ -979,6 +979,13 @@ const AGiaiMaPage = () => {
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
 					</AControlButton>
 					<AControlButton
+						onClick={() => { void handleShowKeywordAnswers(); }}
+						disabled={!keywordPhaseActive}
+					>
+						<SendToBack size={18} />
+						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
+					</AControlButton>
+					<AControlButton
 						onClick={() => {
 							void handleAddScoreToSelected().catch((err) =>
 								logger.error("AddScore button failed:", err),
@@ -1019,15 +1026,9 @@ const AGiaiMaPage = () => {
 						disabled={!keywordPhaseActive || keywordAnswerRevealed}
 					>
 						<KeyRound size={18} />
-						<span className="ml-2 font-bold">MỞ ĐÁP ÁN</span>
+						<span className="ml-2 font-bold">MỞ TỪ KHOÁ</span>
 					</AControlButton>
-					<AControlButton
-						onClick={() => { void handleShowKeywordAnswers(); }}
-						disabled={!keywordPhaseActive}
-					>
-						<SendToBack size={18} />
-						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
-					</AControlButton>
+					
 					<AControlButton onClick={() => { void loadPlayersState(); }}>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT</span>

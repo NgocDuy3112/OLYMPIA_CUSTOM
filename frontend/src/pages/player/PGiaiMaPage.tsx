@@ -123,7 +123,10 @@ const PGiaiMaPage = () => {
 			try {
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}&question_code=${encodeURIComponent(KEYWORD_QUESTION_CODE)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-				if (!res.ok) return;
+				if (!res.ok) {
+					console.warn("[KEYWORD BANNER] Fetch failed with status:", res.status);
+					return;
+				}
 				const data = await res.json();
 				let payload: any = null;
 				if (Array.isArray(data.data)) {
@@ -131,14 +134,24 @@ const PGiaiMaPage = () => {
 				} else {
 					payload = data.data ?? null;
 				}
+				console.info("[KEYWORD BANNER] Raw payload:", payload);
+				// Use same extraction logic as Admin
 				const answer: string =
 					payload?.question?.correct_answers ??
 					payload?.question?.correct_answer ??
 					payload?.answer ??
 					payload?.correct_answer ??
 					"";
-				if (answer) setKeywordBanner(buildKeywordBanner(answer));
-			} catch {
+				console.info("[KEYWORD BANNER] Extracted answer:", answer, "length:", answer.replace(/\s/g, '').length);
+				if (answer) {
+					const newBanner = buildKeywordBanner(answer);
+					console.info("[KEYWORD BANNER] Setting banner:", newBanner);
+					setKeywordBanner(newBanner);
+				} else {
+					console.warn("[KEYWORD BANNER] No answer found in payload");
+				}
+			} catch (err) {
+				console.warn("[KEYWORD BANNER] Fetch error:", err);
 				// keep default banner
 			}
 		};
@@ -540,7 +553,7 @@ const PGiaiMaPage = () => {
 	const clueGrid = (
 		<div className="flex flex-col gap-3 w-full mb-3 px-3">
 			<div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-4 py-2 text-center font-[SVN-Gratelos_Display] text-2xl lg:text-3xl font-bold text-white uppercase shadow">
-				{keywordBanner}
+				{keywordAnswer ? `${keywordAnswer}` : keywordBanner}
 			</div>
 			<div className="grid grid-cols-4 gap-2 w-full">
 				{Array.from({ length: CLUE_COUNT }, (_, i) => (
@@ -571,11 +584,7 @@ const PGiaiMaPage = () => {
 					controls={{ variant: 'numbers', count: 0 }}
 					/>
 
-				{keywordAnswer && (
-					<div className="mx-3 p-4 bg-blue-700 border-2 border-blue-400 rounded-xl text-center font-bold text-white text-xl">
-						ĐÁP ÁN: {keywordAnswer}
-					</div>
-				)}
+
 
 				<div className="flex flex-col gap-2 p-2 lg:p-3">
 					<PAnswerBox

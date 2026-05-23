@@ -44,54 +44,57 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         });
     };
 
-    const renderDefaultControls = () => (
-        <div className="flex gap-2">
-            {variant === "numbers" ? (
-                boxStates.map((on, idx) => {
-                    const active = controls?.activeIndices?.includes(idx) ?? on;
-                    return (
-                        <button
-                            key={idx}
-                            type="button"
-                            aria-pressed={active}
-                            aria-label={`control-${idx + 1}`}
-                            onClick={() => toggleBox(idx)}
-                            className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}
-                        >
-                            {idx + 1}
-                        </button>
-                    );
-                })
-            ) : (
-                // subjects variant: render larger rectangles with score and two-line subject name
-                Array.from({ length: count }).map((_, idx) => {
-                    const active = controls?.activeIndices?.includes(idx) ?? boxStates[idx];
-                    const subject = controls?.subjects?.[idx] ?? "";
-                    const words = subject.split(/\s+/).filter(Boolean).slice(0, 4);
-                    const line1 = (words[0] ?? "") + (words[1] ? ` ${words[1]}` : "");
-                    const line2 = (words[2] ?? "") + (words[3] ? ` ${words[3]}` : "");
-                    const score = controls?.scores?.[idx] ?? 0;
-                    return (
-                        <button
-                            key={idx}
-                            type="button"
-                            aria-pressed={active}
-                            onClick={() => toggleBox(idx)}
-                            className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-blue-800 text-white border border-blue-600 hover:bg-blue-700'}`}
-                        >
-                            <div className="text-2xl tablet:text-3xl font-extrabold w-12 tablet:w-16 text-left">
-                                {score}
-                            </div>
-                            <div className="text-right text-sm leading-tight">
-                                <div>{line1}</div>
-                                <div>{line2}</div>
-                            </div>
-                        </button>
-                    );
-                })
-            )}
-        </div>
-    );
+    const renderDefaultControls = () => {
+        if (count === 0) return null;
+        return (
+            <div className="flex gap-2">
+                {variant === "numbers" ? (
+                    boxStates.map((on, idx) => {
+                        const active = controls?.activeIndices?.includes(idx) ?? on;
+                        return (
+                            <button
+                                key={idx}
+                                type="button"
+                                aria-pressed={active}
+                                aria-label={`control-${idx + 1}`}
+                                onClick={() => toggleBox(idx)}
+                                className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}
+                            >
+                                {idx + 1}
+                            </button>
+                        );
+                    })
+                ) : (
+                    // subjects variant: render larger rectangles with score and two-line subject name
+                    Array.from({ length: count }).map((_, idx) => {
+                        const active = controls?.activeIndices?.includes(idx) ?? boxStates[idx];
+                        const subject = controls?.subjects?.[idx] ?? "";
+                        const words = subject.split(/\s+/).filter(Boolean).slice(0, 4);
+                        const line1 = (words[0] ?? "") + (words[1] ? ` ${words[1]}` : "");
+                        const line2 = (words[2] ?? "") + (words[3] ? ` ${words[3]}` : "");
+                        const score = controls?.scores?.[idx] ?? 0;
+                        return (
+                            <button
+                                key={idx}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => toggleBox(idx)}
+                                className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-blue-800 text-white border border-blue-600 hover:bg-blue-700'}`}
+                            >
+                                <div className="text-2xl tablet:text-3xl font-extrabold w-12 tablet:w-16 text-left">
+                                    {score}
+                                </div>
+                                <div className="text-right text-sm leading-tight">
+                                    <div>{line1}</div>
+                                    <div>{line2}</div>
+                                </div>
+                            </button>
+                        );
+                    })
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${boardHeightClass}`}>
@@ -134,7 +137,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                             </p>
                         </div>
                         {/* Right side: media (40% width) */}
-                        <div className="flex-[2] min-h-0 overflow-hidden">
+                        <div className="flex-[2] h-full min-h-0 overflow-hidden">
                             <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>

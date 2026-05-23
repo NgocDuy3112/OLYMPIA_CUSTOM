@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, CheckCircle } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, ChevronDown } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
@@ -32,30 +32,6 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 disabled:opacity-50 font-medium transition-colors"
         >
             Vào phòng
-        </button>
-    );
-};
-
-// Navigate to qualifier (Vòng Loại) admin page
-const VaoPhongQualifierButton = ({ matchCode: _matchCode }: { matchCode: string; disabled?: boolean }) => {
-    const navigate = useNavigate();
-    const handleClick = () => {
-        // Qualifier always uses OC3_M_VL so admin + player share the same WS channel
-        try {
-            localStorage.setItem("matchCode", _matchCode || "OC3_M_VL");
-        } catch {
-            // ignore
-        }
-        navigate("/admin/vl");
-    };
-
-    return (
-        <button
-            onClick={handleClick}
-            disabled={true}
-            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-500 disabled:opacity-50 font-medium transition-colors"
-        >
-            Vòng Loại
         </button>
     );
 };
@@ -123,13 +99,14 @@ const AGameManagingPage = () => {
     const [userInputs, setUserInputs] = useState<string[]>(["", "", "", ""]);
     const [matchExists, setMatchExists] = useState(false);
     const [matchLoading, setMatchLoading] = useState(false);
-    const [matchStatus, setMatchStatus] = useState<string | undefined>(undefined);
 
     // ── Questions state ──────────────────────────────────────────────
     const [questions, setQuestions] = useState<QuestionData[]>([]);
     const [questionsLoading, setQuestionsLoading] = useState(false);
     const [questionsMatchCode, setQuestionsMatchCode] = useState(localStorage.getItem("matchCode") || "");
     const [showCreateQuestion, setShowCreateQuestion] = useState(false);
+    const [showImportMenu, setShowImportMenu] = useState(false);
+    const importMenuRef = useRef<HTMLDivElement>(null);
     // Quick create-question form state (admin convenience)
     const [newQuestionCode, setNewQuestionCode] = useState("");
     const [newContent, setNewContent] = useState("");
@@ -226,6 +203,19 @@ const AGameManagingPage = () => {
         }
     }, [editingQuestion, questionsMatchCode, matchCode, editQMediaFile]);
 
+    // Close import dropdown when clicking outside
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (importMenuRef.current && !importMenuRef.current.contains(e.target as Node)) {
+                setShowImportMenu(false);
+            }
+        };
+        if (showImportMenu) {
+            document.addEventListener("mousedown", handleClick);
+            return () => document.removeEventListener("mousedown", handleClick);
+        }
+    }, [showImportMenu]);
+
     // ── Fetch users (GET /users) ─────────────────────────────────────
     const fetchUsers = useCallback(async () => {
         setUsersLoading(true);
@@ -284,7 +274,6 @@ const AGameManagingPage = () => {
             if (json.status === "success" && json.data && !Array.isArray(json.data)) {
                 const match = json.data as unknown as MatchData;
                 setMatchName(match.match_name);
-                setMatchStatus(match.match_status);
                 setMatchExists(true);
 
                 // Try to load players that already belong to this match
@@ -392,12 +381,6 @@ const AGameManagingPage = () => {
             if (res.ok) {
                 logger.info("Match saved:", matchCode);
                 setMatchExists(true);
-                // Fetch match status after saving
-                const matchRes = await fetch(`${API_BASE_URL}/matches/?match_code=${encodeURIComponent(matchCode)}`, { headers: authHeaders() });
-                const matchJson = await matchRes.json();
-                if (matchJson.data) {
-                    setMatchStatus(matchJson.data.match_status);
-                }
                 localStorage.setItem("matchCode", matchCode);
                 alert(matchExists ? "Cập nhật phòng thành công" : "Tạo phòng thành công");
             } else {
@@ -849,7 +832,7 @@ const createQuestion = useCallback(async () => {
      * ================================================================ */
 
     return (
-        <div className="grid grid-cols-2 grid-rows-2 gap-4 p-6 h-screen text-white overflow-y-auto">
+        <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-4 p-6 h-screen text-white overflow-hidden">
             {/* ─── Floating change-password button ───────────────────── */}
             <button
                 onClick={() => setShowChangePassword(true)}
@@ -1163,7 +1146,7 @@ const createQuestion = useCallback(async () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {users.filter((u: UserData) => userRoleFilter === "all" || u.role === userRoleFilter).map((u: UserData) => (
+                                {users.filter((u: UserData) => userRoleFilter === "all" || u.role === userRoleFilter).slice().reverse().map((u: UserData) => (
                                     <tr
                                         key={u.user_code}
                                         className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors"
@@ -1211,7 +1194,7 @@ const createQuestion = useCallback(async () => {
             </div>
 
             {/* ─── Card 2 : Tạo phòng & Danh sách trận đấu ───────────────────────────────── */}
-            <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
+            <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden row-span-2">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
                         <Gamepad2 size={22} /> Tạo phòng & Quản lý trận đấu
@@ -1314,37 +1297,6 @@ const createQuestion = useCallback(async () => {
                     </button>
 
                     <VaoPhongButton matchCode={matchCode} disabled={!matchCode || !matchExists} />
-                    <VaoPhongQualifierButton matchCode={matchCode} />
-                    
-                    {matchExists && matchStatus !== 'finished' && (
-                        <button
-                            onClick={async () => {
-                                if (!confirm(`Xác nhận hoàn thành trận đấu "${matchName}" (${matchCode})? Hành động này không thể hoàn tác.`)) return;
-                                try {
-                                    const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/finish`, {
-                                        method: "PATCH",
-                                        headers: authHeaders(),
-                                    });
-                                    const json = await res.json();
-                                    if (json.status === "success") {
-                                        alert("✅ Đã hoàn thành trận đấu!");
-                                        setMatchStatus('finished');
-                                        await fetchAllMatches();
-                                    } else {
-                                        alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành"}`);
-                                    }
-                                } catch (err) {
-                                    logger.error("Error finishing match:", err);
-                                    alert("Lỗi kết nối khi hoàn thành trận đấu");
-                                }
-                            }}
-                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-50 font-semibold transition-colors"
-                            title="Đánh dấu trận đấu đã hoàn thành"
-                        >
-                            <CheckCircle size={16} />
-                            Hoàn thành
-                        </button>
-                    )}
                 </div>
                 </div>
 
@@ -1352,9 +1304,9 @@ const createQuestion = useCallback(async () => {
                 <div className="border-t border-blue-700 my-2"></div>
 
                 {/* Danh sách trận đấu */}
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 flex-1 min-h-0">
                     <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Danh sách trận đấu</h3>
-                    <div className="overflow-y-auto max-h-64 -mr-2 pr-2">
+                    <div className="overflow-y-auto flex-1 min-h-0 -mr-2 pr-2">
                         {allMatchesLoading ? (
                             <p className="text-gray-400 text-sm">Đang tải…</p>
                         ) : allMatches.length === 0 ? (
@@ -1435,7 +1387,7 @@ const createQuestion = useCallback(async () => {
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
                         <HelpCircle size={22} /> Câu hỏi
                     </h2>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
                         {/* Hidden file inputs */}
                         <input
                             ref={excelInputRef}
@@ -1475,7 +1427,7 @@ const createQuestion = useCallback(async () => {
                             placeholder="Mã trận đấu"
                             value={questionsMatchCode}
                             onChange={(e) => setQuestionsMatchCode(e.target.value)}
-                            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-48"
+                            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-40"
                         />
                         <button
                             onClick={fetchQuestions}
@@ -1484,33 +1436,40 @@ const createQuestion = useCallback(async () => {
                         >
                             <Search size={14} /> Tải câu hỏi
                         </button>
-                        <button
-                            onClick={() => excelInputRef.current?.click()}
-                            disabled={uploadingExcel || (!questionsMatchCode && !matchCode)}
-                            title="Nhập câu hỏi từ file Excel (.xlsx) — các vòng thường"
-                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 transition-colors text-sm"
-                        >
-                            <FileSpreadsheet size={14} />
-                            {uploadingExcel ? "Đang nhập…" : "Excel"}
-                        </button>
-                        <button
-                            onClick={() => excelQlInputRef.current?.click()}
-                            disabled={true}
-                            title="Nhập câu hỏi Vòng Loại từ file Excel (.xlsx) — tên file phải bắt đầu bằng OC3_VL"
-                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-50 transition-colors text-sm"
-                        >
-                            <FileSpreadsheet size={14} />
-                            {uploadingExcelQl ? "Đang nhập…" : "Excel VL"}
-                        </button>
-                        <button
-                            onClick={() => zipInputRef.current?.click()}
-                            disabled={uploadingZip}
-                            title="Upload ZIP (Excel + media) → xóa câu hỏi cũ, upload media lên S3, import câu hỏi mới vào DB"
-                            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 transition-colors text-sm"
-                        >
-                            <FileArchive size={14} />
-                            {uploadingZip ? "Đang upload…" : "ZIP"}
-                        </button>
+                        {/* Import dropdown */}
+                        <div className="relative" ref={importMenuRef}>
+                            <button
+                                onClick={() => setShowImportMenu((v) => !v)}
+                                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 transition-colors text-sm"
+                            >
+                                <FileSpreadsheet size={14} /> Import <ChevronDown size={14} />
+                            </button>
+                            {showImportMenu && (
+                                <div className="absolute right-0 top-full mt-1 z-30 bg-blue-950 border border-blue-700 rounded-lg shadow-xl flex flex-col min-w-[10rem]">
+                                    <button
+                                        onClick={() => { excelInputRef.current?.click(); setShowImportMenu(false); }}
+                                        disabled={uploadingExcel || (!questionsMatchCode && !matchCode)}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
+                                    >
+                                        <FileSpreadsheet size={14} /> Excel thường
+                                    </button>
+                                    <button
+                                        onClick={() => { excelQlInputRef.current?.click(); setShowImportMenu(false); }}
+                                        disabled={uploadingExcelQl}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
+                                    >
+                                        <FileSpreadsheet size={14} /> Excel VL
+                                    </button>
+                                    <button
+                                        onClick={() => { zipInputRef.current?.click(); setShowImportMenu(false); }}
+                                        disabled={uploadingZip}
+                                        className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
+                                    >
+                                        <FileArchive size={14} /> ZIP
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <button
                             onClick={() => setShowCreateQuestion((v: boolean) => !v)}
                             className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm font-semibold ${
@@ -1610,12 +1569,12 @@ const createQuestion = useCallback(async () => {
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-blue-900">
                                 <tr className="text-left text-blue-300 border-b border-blue-700">
+                                    <th className="py-2 px-2 w-10"></th>
                                     <th className="py-2 px-2">Mã câu hỏi</th>
                                     <th className="py-2 px-2">Nội dung</th>
                                     <th className="py-2 px-2">Đáp án</th>
                                     <th className="py-2 px-2">Giải thích</th>
                                     <th className="py-2 px-2">Media</th>
-                                    <th className="py-2 px-2"></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1624,29 +1583,6 @@ const createQuestion = useCallback(async () => {
                                         key={q.question_code}
                                         className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors align-top"
                                     >
-                                        <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">
-                                            {q.question_code}
-                                        </td>
-                                        <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
-                                        <td className="py-2 px-2 font-semibold">{q.answer}</td>
-                                        <td className="py-2 px-2 text-gray-300 max-w-xs truncate">
-                                            {q.explanation ?? "—"}
-                                        </td>
-                        <td className="py-2 px-2 text-xs">
-                                            {q.media_url
-                                                ? q.media_url.split(',').map((url, i) => (
-                                                      <a
-                                                          key={i}
-                                                          href={url.trim()}
-                                                          target="_blank"
-                                                          rel="noreferrer"
-                                                          className="text-blue-400 hover:underline block truncate max-w-40"
-                                                      >
-                                                          {url.trim()}
-                                                      </a>
-                                                  ))
-                                                : "—"}
-                                        </td>
                                         <td className="py-2 px-2">
                                             <button
                                                 onClick={() => {
@@ -1661,6 +1597,29 @@ const createQuestion = useCallback(async () => {
                                             >
                                                 <Pencil size={14} />
                                             </button>
+                                        </td>
+                                        <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">
+                                            {q.question_code}
+                                        </td>
+                                        <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
+                                        <td className="py-2 px-2 font-semibold">{q.answer}</td>
+                                        <td className="py-2 px-2 text-gray-300 max-w-xs truncate">
+                                            {q.explanation ?? "—"}
+                                        </td>
+                                        <td className="py-2 px-2 text-xs">
+                                            {q.media_url
+                                                ? q.media_url.split(',').map((url, i) => (
+                                                      <a
+                                                          key={i}
+                                                          href={url.trim()}
+                                                          target="_blank"
+                                                          rel="noreferrer"
+                                                          className="text-blue-400 hover:underline block truncate max-w-40"
+                                                      >
+                                                          {url.trim()}
+                                                      </a>
+                                                  ))
+                                                : "—"}
                                         </td>
                                     </tr>
                                 ))}
