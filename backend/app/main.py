@@ -182,6 +182,8 @@ _MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "show_scoreboard",
     "keyword_submit",
     "keyword_locked",
+    "buzzer_winner",
+    "blocked_buzz",
 })
 
 

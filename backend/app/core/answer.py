@@ -13,6 +13,25 @@ from models.user import User
 from schemas.answer import *
 
 
+async def get_first_buzzer(
+    match_id,
+    question_id,
+    session: AsyncSession,
+) -> Answer | None:
+    """Return the first buzz (has_buzzed=True) for a given match+question, ordered by created_at."""
+    result = await session.execute(
+        select(Answer)
+        .where(
+            Answer.match_id == match_id,
+            Answer.question_id == question_id,
+            Answer.has_buzzed == True,
+            Answer.is_deleted == False,
+        )
+        .order_by(Answer.created_at.asc())
+        .limit(1)
+    )
+    return result.scalars().first()
+
 
 async def post_answer_to_db(
     request: AnswerPostRequest, 
@@ -70,6 +89,26 @@ async def post_answer_to_db(
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
 
+        # ── Server-side buzz winner logic ─────────────────────────────────────
+        # When a player buzzes, we use DB created_at as the authoritative timestamp.
+        # The first buzzer (by created_at) is the winner.
+        is_buzz = request.has_buzzed is True
+        if is_buzz:
+            # Check if this player already buzzed for this question
+            existing_buzz = await session.scalar(
+                select(Answer.id).where(
+                    Answer.player_id == player_id,
+                    Answer.match_id == match_id,
+                    Answer.question_id == question_id,
+                    Answer.has_buzzed == True,
+                    Answer.is_deleted == False,
+                )
+            )
+            if existing_buzz is not None:
+                log_message = f"Player {request.user_code} already buzzed for question {request.question_code}."
+                global_logger.info(log_message)
+                return BaseResponse(status="success", message=log_message)
+
         # UPSERT: update existing answer if one exists, otherwise insert a new one.
         # Players can revise their answer multiple times; only the last submission is kept.
         cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
@@ -100,6 +139,42 @@ async def post_answer_to_db(
             )
             session.add(new_answer)
         await session.commit()
+
+        # ── Determine buzz winner after commit ────────────────────────────────
+        if is_buzz:
+            first_buzzer = await get_first_buzzer(match_id, question_id, session)
+            if first_buzzer is not None:
+                winner_user = await session.scalar(
+                    select(User.user_code).where(User.id == first_buzzer.player_id)
+                )
+                if winner_user == request.user_code:
+                    # This player is the first buzzer — broadcast winner
+                    winner_payload = {
+                        "type": "buzzer_winner",
+                        "user_code": request.user_code,
+                        "match_code": request.match_code,
+                        "question_code": request.question_code,
+                    }
+                    block_payload = {
+                        "type": "blocked_buzz",
+                        "user_code": None,
+                        "match_code": request.match_code,
+                    }
+                    try:
+                        await valkey.publish(
+                            channel=request.match_code,
+                            message=json.dumps(winner_payload),
+                        )
+                        await valkey.publish(
+                            channel=request.match_code,
+                            message=json.dumps(block_payload),
+                        )
+                        global_logger.info(
+                            f"[BUZZ WINNER] Player {request.user_code} is the first buzzer "
+                            f"for question {request.question_code} in match {request.match_code}"
+                        )
+                    except Exception as e:
+                        global_logger.error(f"Failed to publish buzz winner: {e}", exc_info=True)
 
         # Cache the answer for fast reads and publish to match channel
         # Use effective_timestamp (server-clamped) instead of raw client timestamp

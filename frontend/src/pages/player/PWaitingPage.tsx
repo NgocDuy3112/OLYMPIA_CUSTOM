@@ -6,8 +6,10 @@ import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
 import { PlayerWebSocketContext } from "@/contexts/playerWsImpl";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { usePlayerProtection } from "@/hooks/usePlayerProtection";
 
 const PWaitingPage: React.FC = () => {
+    usePlayerProtection(true);
 	const { matchCode: matchCodeParam } = useParams<{ matchCode: string }>();
 	const matchCode = matchCodeParam ?? sessionStorage.getItem("matchCode") ?? "";
 	const playerCode = sessionStorage.getItem("playerCode") ?? "";

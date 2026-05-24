@@ -1,6 +1,7 @@
 import React from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
+import { usePlayerProtection } from "@/hooks/usePlayerProtection";
 
 
 interface PBasePageLayoutProps {
@@ -19,6 +20,8 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
     buzzerWinnerCode,
     children,
 }) => {
+    usePlayerProtection(true);
+
     return (
         <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-2 lg:p-4">
             <div className="flex gap-2 lg:gap-4 max-w-7xl w-full justify-center mt-2 lg:mt-4">

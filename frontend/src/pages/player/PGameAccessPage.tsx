@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
+import { usePlayerProtection } from "@/hooks/usePlayerProtection";
 
 
 const GameAccessPage: React.FC = () => {
+    usePlayerProtection(true);
     const [matchCode, setMatchCode] = useState("");
     const [showChangePassword, setShowChangePassword] = useState(false);
     const token = sessionStorage.getItem("jwtToken_player") ?? "";
