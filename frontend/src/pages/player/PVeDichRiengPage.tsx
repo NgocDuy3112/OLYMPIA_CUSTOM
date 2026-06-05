@@ -172,7 +172,13 @@ const PVeDichRiengPage = () => {
 				const { user_code, power } = msg;
 				if (user_code && (power === "star" || power === "shield")) {
 					// Update usedPowers state
-					setUsedPowers((prev) => ({ ...prev, [user_code]: power }));
+					setUsedPowers((prev) => {
+						const next = { ...prev, [user_code]: power };
+						// Persist immediately so the choice survives page reloads
+						// (admin may not have broadcast vd_powers_used yet).
+						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch { /* ignore */ }
+						return next;
+					});
 					// Update playerPower in players array for display
 					setPlayers((prev) =>
 						prev.map((p) =>
@@ -513,17 +519,22 @@ const PVeDichRiengPage = () => {
 					</div>
 				)}
 
-				{/* Power already used indicator */}
-				{!activePower && usedPowers[playerCode ?? ''] && (
-					<div className={`mx-3 mt-2 p-2 rounded-xl flex items-center gap-2 font-bold text-sm bg-white-500/20 text-blue-300 border border-white-500/50`}>
-						{usedPowers[playerCode ?? ''] === 'star' ? <Star size={16} /> : <Shield size={16} />}
-						<span>Đã dùng {usedPowers[playerCode ?? ''] === 'star' ? 'Ngôi Sao Hy Vọng' : 'Bảo Hộ Miễn Trừ'}</span>
-					</div>
-				)}
-
 				<div className="p-3">
 					<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />
 				</div>
+
+				{/* Power already used indicator (used in VDC or earlier in VDR) */}
+				{!activePower && usedPowers[playerCode ?? ''] && (
+					<div className="mx-3 mt-2 p-3 bg-blue-900/60 border-2 border-blue-400 rounded-xl flex items-center gap-2 font-bold text-sm text-blue-100">
+						{usedPowers[playerCode ?? ''] === 'star' ? <Star size={18} className="shrink-0" /> : <Shield size={18} className="shrink-0" />}
+						<span>
+							Bạn đã dùng Quyền năng {usedPowers[playerCode ?? ''] === 'star' ? 'Ngôi Sao Hy Vọng' : 'Bảo Hộ Miễn Trừ'}.
+							Bạn KHÔNG THỂ sử dụng Quyền năng trong phần còn lại của vòng thi.
+						</span>
+					</div>
+				)}
+
+				
 			</>
 		</PBasePageLayout>
 	);

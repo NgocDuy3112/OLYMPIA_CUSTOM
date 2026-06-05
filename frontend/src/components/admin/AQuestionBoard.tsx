@@ -115,8 +115,17 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         return <span>{t}</span>;
     };
 
+    // When the content area is hidden (e.g. Mở/Khoá gợi ý in Giải Mã round),
+    // the question text + media are removed from the DOM. Keeping a fixed
+    // `boardHeightClass` (e.g. h-[35vh]) would force the answer box — which is
+    // `shrink-0` — to dock at the top of the container and leave an empty
+    // gutter below. Drop the fixed height in that case so the container
+    // collapses to fit the remaining children (header + answer box) and the
+    // answer stays anchored at the bottom of the page.
+    const containerHeightClass = hideContent ? "" : boardHeightClass;
+
     return (
-        <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${boardHeightClass}`}>
+        <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${containerHeightClass}`}>
             {/* Header: title, timer and six control boxes */}
             <div className="flex justify-between items-center pb-1">
                 <div className="flex items-center gap-4">

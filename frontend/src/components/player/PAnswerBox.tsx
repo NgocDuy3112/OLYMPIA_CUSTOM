@@ -33,6 +33,9 @@ const PAnswerBox: React.FC<PAnswerBoxProps> = ({
     }
     return (
         <div className="relative w-full">
+            {showKeyIcon && (
+                <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-blue-600 pointer-events-none" />
+            )}
             <input
                 type="text"
                 value={answer}
