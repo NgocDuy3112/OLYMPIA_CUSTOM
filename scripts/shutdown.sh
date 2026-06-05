@@ -1,7 +1,16 @@
 #!/bin/bash
 set -e
 
-podman-compose -p olympia-custom \
-  -f docker-compose.prod.yaml \
-  --env-file ./configs/.env \
+source "$(dirname "$0")/.env.scripts"
+
+# Stop and remove all containers, networks for beta-olympia-custom
+podman-compose -p ${PROJECT} \
+  -f ${COMPOSE_FILE} \
+  --env-file ${ENV_FILE} \
   down
+
+# Remove any remaining containers with the beta-olympia-custom label
+podman ps -a --filter "${LABEL}" --format "{{.ID}}" | xargs -r podman rm -f
+
+# Remove images built for beta-olympia-custom services
+podman image prune --all --external --filter "${LABEL}" -f 2>/dev/null || true

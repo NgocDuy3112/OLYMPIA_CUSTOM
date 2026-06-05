@@ -1,11 +1,7 @@
-databases/
-.playright-mcp/
 secrets/
-database/
+data/
 logs/
 temp/
-assets/
-audios/
 *.log
 *.sqlite3
 

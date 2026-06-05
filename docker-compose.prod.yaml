@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB_NAME}
     volumes:
-      - olympia_postgres_data:/var/lib/postgresql/data
+      - ./data/postgresql:/var/lib/postgresql/data
     networks:
       - olympia-network
     restart: unless-stopped
@@ -26,7 +26,7 @@ services:
     command: valkey-server /etc/valkey/valkey.conf
     volumes:
       - ./configs/valkey.conf:/etc/valkey/valkey.conf:ro
-      - olympia_valkey_data:/data
+      - ./data/valkey:/data
     networks:
       - olympia-network
     restart: unless-stopped
@@ -115,8 +115,8 @@ services:
       - ./deploy/nginx-entrypoint.sh:/entrypoint.sh:ro
       - ./deploy/nginx-init.conf:/etc/nginx/init.conf:ro
       - ./deploy/nginx-prod.conf.template:/etc/nginx/https.conf.template:ro
-      - olympia_certbot_webroot:/var/www/certbot:ro
-      - olympia_certbot_certs:/etc/letsencrypt:ro
+      - ./data/certbot/webroot:/var/www/certbot:ro
+      - ./data/certbot/certs:/etc/letsencrypt:ro
     networks:
       - olympia-network
     restart: unless-stopped
@@ -130,8 +130,8 @@ services:
     depends_on:
       - nginx
     volumes:
-      - olympia_certbot_webroot:/var/www/certbot
-      - olympia_certbot_certs:/etc/letsencrypt
+      - ./data/certbot/webroot:/var/www/certbot
+      - ./data/certbot/certs:/etc/letsencrypt
     # Issues cert on first run (retries every 30s if nginx not ready), then renews every 12h.
     entrypoint:
       - /bin/sh
@@ -152,9 +152,3 @@ services:
 networks:
   olympia-network:
     driver: bridge
-
-volumes:
-  olympia_postgres_data:
-  olympia_valkey_data:
-  olympia_certbot_webroot:
-  olympia_certbot_certs:
