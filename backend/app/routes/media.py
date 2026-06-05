@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import RedirectResponse
 
 from dependencies.user_auth import require_roles
-from dependencies.s3_services import get_s3_client, _s3_settings
+from dependencies.s3_services import get_s3_client, s3_settings
 from core.media import upload_file_to_s3, generate_presigned_url
 
 
@@ -30,8 +30,8 @@ async def upload_media(
         file=file,
         match_code=match_code,
         s3_client=s3_client,
-        bucket=_s3_settings.S3_BUCKET_NAME,
-        max_size_bytes=_s3_settings.S3_MAX_UPLOAD_SIZE_MB * 1024 * 1024,
+        bucket=s3_settings.S3_BUCKET_NAME,
+        max_size_bytes=s3_settings.S3_MAX_UPLOAD_SIZE_MB * 1024 * 1024,
     )
     return {"key": key}
 
@@ -52,9 +52,9 @@ async def get_media(
 ) -> RedirectResponse:
     url = await generate_presigned_url(
         s3_client=s3_client,
-        bucket=_s3_settings.S3_BUCKET_NAME,
+        bucket=s3_settings.S3_BUCKET_NAME,
         key=key,
-        expiry=_s3_settings.S3_PRESIGNED_URL_EXPIRY,
+        expiry=s3_settings.S3_PRESIGNED_URL_EXPIRY,
     )
     return RedirectResponse(url=url, status_code=307)
 
@@ -74,8 +74,8 @@ async def get_presigned_url(
 ) -> dict[str, str]:
     url = await generate_presigned_url(
         s3_client=s3_client,
-        bucket=_s3_settings.S3_BUCKET_NAME,
+        bucket=s3_settings.S3_BUCKET_NAME,
         key=key,
-        expiry=_s3_settings.S3_PRESIGNED_URL_EXPIRY,
+        expiry=s3_settings.S3_PRESIGNED_URL_EXPIRY,
     )
     return {"url": url}

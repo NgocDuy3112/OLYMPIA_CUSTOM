@@ -3,7 +3,7 @@ from typing import Annotated
 
 from dependencies.postgresql_db import get_db
 from dependencies.user_auth import require_roles
-from dependencies.s3_services import get_s3_client, _s3_settings
+from dependencies.s3_services import get_s3_client, s3_settings
 from schemas.question import *
 from models.question import *
 from core.question import *
@@ -97,7 +97,7 @@ async def post_questions_from_zip(
         return await post_questions_from_zip_to_db(
             file=file,
             s3_client=s3_client,
-            bucket=_s3_settings.S3_BUCKET_NAME,
+            bucket=s3_settings.S3_BUCKET_NAME,
             session=session,
             overwrite=True,
         )

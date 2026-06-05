@@ -2,7 +2,7 @@
  * API and WebSocket base URLs.
  *
  * Defaults are relative to the current origin so the app can work behind a
- * reverse proxy (nginx/ngrok) in dev and production.
+ * reverse proxy (nginx) in dev and production.
  *
  * You can still override them at build time if you want to force a specific host:
  *
