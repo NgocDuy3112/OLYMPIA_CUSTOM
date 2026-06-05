@@ -96,6 +96,8 @@ const AVeDichChungPage = () => {
 		} catch { return {}; }
 	});
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+	// Store pending question data to broadcast after power window closes
+	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
 	// The 4 questions locked in for this round — set via WS from the pick page.
 	// Persisted in localStorage so navigating to this page after confirming still shows them.
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
@@ -111,6 +113,62 @@ const AVeDichChungPage = () => {
 	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+
+	// ─── Power state ─────────────────────────────────────────────────────────────
+	// Track which power each player has used (one per player: star OR shield). Shared across VDC + VDR.
+	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
+		if (!currentMatchCode) return {};
+		try {
+			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
+			if (!stored) return {};
+			const parsed = JSON.parse(stored);
+			const migrated: Record<string, string | null> = {};
+			for (const [code, val] of Object.entries(parsed)) {
+				if (typeof val === "string" || val === null) {
+					migrated[code] = val;
+			} else if (typeof val === "object" && val !== null) {
+					migrated[code] = (val as any).star ? "star" : (val as any).shield ? "shield" : null;
+				} else {
+					migrated[code] = null;
+				}
+			}
+			return migrated;
+		} catch { return {}; }
+	});
+	// Per-player power selection for the current question (cleared after scoring)
+	const [playerPowers, setPlayerPowers] = useState<Record<string, "star" | "shield" | null>>({});
+
+	// Persist usedPowers to localStorage whenever it changes (shared with VDR)
+	useEffect(() => {
+		if (!currentMatchCode) return;
+		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
+	}, [usedPowers, currentMatchCode]);
+
+	// Reset playerPowers whenever the active question changes
+	useEffect(() => {
+		setPlayerPowers({});
+	}, [currentQuestion.questionCode]);
+
+	// Listen for power window close event and broadcast pending question immediately
+	useEffect(() => {
+		if (!lastMessage) return;
+		const msg = lastMessage as Record<string, any> | null;
+		if (msg?.type === "vd_power_window_closed") {
+			// Power window closed - immediately broadcast the full question (admin manually starts timer)
+			if (pendingQuestionRef.current && currentMatchCode) {
+				const { questionCode, question } = pendingQuestionRef.current;
+				logger.info(`[VDC] Power window closed, immediately broadcasting question ${questionCode}`);
+				void sendMessage({
+					type: "send_question",
+					user_code: "",
+					question_code: questionCode,
+					content: question.questionText ?? "",
+					media_source: question.questionMediaURL ?? undefined,
+				});
+				pendingQuestionRef.current = null;
+			}
+		}
+	}, [lastMessage, currentMatchCode, sendMessage, questions, questionPoints]);
 
 	// ─── Score state ──────────────────────────────────────────────────────────────
 
@@ -289,7 +347,7 @@ const AVeDichChungPage = () => {
 			const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
 			return { code, category: catPrimary || rawCategory, points: pts };
 		});
-		void sendMessage({ type: "veDich_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+		void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
 
@@ -329,11 +387,15 @@ const AVeDichChungPage = () => {
 			// Toggle: clicking the active question clears it
 			if (currentQuestion.questionCode === questionCode) {
 				setSelectedPlayerCodes([]);
+				setPlayerPowers({});
+				setUsedPowers({});
 				await clearQuestion();
 				return;
 			}
 
 			setSelectedPlayerCodes([]);
+			setPlayerPowers({});
+			setUsedPowers({});
 			setVideoPlayState(null);
 			setPlayers((prev) =>
 				prev.map((p) => ({
@@ -357,9 +419,11 @@ const AVeDichChungPage = () => {
 					content: "",
 					media_source: undefined,
 				});
+				// Open 5s power selection window for players
+				void sendMessage({ type: "vd_power_window_open", duration: 5 });
 			}
 
-			// Fetch full details in background and re-broadcast
+			// Fetch full details in background but DON'T broadcast yet - wait for power window to close
 			try {
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode ?? "")}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -380,15 +444,9 @@ const AVeDichChungPage = () => {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
 				setCurrentQuestion(q);
-				if (currentMatchCode) {
-					void sendMessage({
-						type: "send_question",
-						user_code: "",
-						question_code: questionCode,
-						content: q.questionText ?? "",
-						media_source: q.questionMediaURL ?? undefined,
-					});
-				}
+				// Store in ref to broadcast after power window closes (5s)
+				pendingQuestionRef.current = { questionCode, question: q };
+				logger.info(`[VDC] Question ${questionCode} fetched, waiting for power window to close`);
 			} catch (err) {
 				logger.error("handleQuestionActivate: failed to load question:", err);
 			}
@@ -566,40 +624,72 @@ const AVeDichChungPage = () => {
 
 	// Calculate score: if there are selected players, award them and deduct 50% from everyone;
 	// if no one is selected, deduct 50% from all players (Lượt Chung special rule).
+	// Power modifiers: NSHV (star) → correct +150%, wrong -100%; BHMT (shield) → correct +50%, wrong 0.
 	const handleCalculateScore = useCallback(async () => {
 		if (!currentQuestion.questionCode) return;
 		const points = currentPoints;
-		const deduction = -Math.floor(points * 0.5);
 		// Mark question as answered on the board
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
 		// Broadcast so player chips update too
-		void sendMessage({ type: "veDich_question_state", question_code: currentQuestion.questionCode, state: "answered" });
+		void sendMessage({ type: "vdc_question_state", question_code: currentQuestion.questionCode, state: "answered" });
 		void sendMessage({ type: selectedPlayerCodes.length > 0 ? "answer" : "wrong", phase: "vdc" });
 
 		try {
 			if (selectedPlayerCodes.length === 0) {
-				// No correct answers: apply deduction to all players
+				// No correct answers: apply deduction to all players (respecting shields)
 				for (const player of players) {
+					const power = playerPowers[player.playerCode];
+					if (power === 'shield') {
+						// BHMT: no deduction
+						continue;
+					}
+					const deduction = power === 'star'
+						? -points // NSHV: -100%
+						: -Math.floor(points * 0.5); // Default: -50%
 					await handleAddScore(player.playerCode, deduction, false);
 				}
 			} else {
-				// Add points to selected players
+				// Add points to selected players (respecting powers)
 				for (const playerCode of selectedPlayerCodes) {
-					await handleAddScore(playerCode, points, false);
+					const power = playerPowers[playerCode];
+					let awarded: number;
+					if (power === 'star') awarded = Math.round(points * 1.5); // NSHV: +150%
+					else if (power === 'shield') awarded = Math.round(points * 0.5); // BHMT: +50%
+					else awarded = points; // Default: +100%
+					await handleAddScore(playerCode, awarded, false);
 				}
 
-				// Deduct 50% from non-selected players only
+				// Deduct 50% from non-selected players only (respecting shields)
 				for (const player of players) {
 					if (!selectedPlayerCodes.includes(player.playerCode)) {
+						const power = playerPowers[player.playerCode];
+						if (power === 'shield') {
+							// BHMT: no deduction
+							continue;
+						}
+						const deduction = power === 'star'
+							? -points // NSHV: -100%
+							: -Math.floor(points * 0.5); // Default: -50%
 						await handleAddScore(player.playerCode, deduction, false);
 					}
 				}
 			}
 
+			// Mark powers as consumed for players who used them
+			const newUsedPowers = { ...usedPowers };
+			for (const [code, power] of Object.entries(playerPowers)) {
+				if (power) newUsedPowers[code] = power;
+			}
+			setUsedPowers(newUsedPowers);
+
+			// Broadcast all player powers so MC/player views update
+			void sendMessage({ type: "vd_powers_used", used_powers: newUsedPowers });
+
 			if (currentMatchCode) {
 				await sendPlayersSnapshot();
 			}
 			setSelectedPlayerCodes([]);
+			setPlayerPowers({});
 		} catch (err: any) {
 			logger.error("handleCalculateScore failed:", err);
 		}
@@ -608,6 +698,8 @@ const AVeDichChungPage = () => {
 		currentQuestion.questionCode,
 		currentPoints,
 		players,
+		playerPowers,
+		usedPowers,
 		handleAddScore,
 		sendPlayersSnapshot,
 		currentMatchCode,
@@ -648,7 +740,7 @@ const AVeDichChungPage = () => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
-			case "veDich_questions_selected": {
+			case "vd_questions_selected": {
 				// Receive the 4 question codes confirmed from the pick page
 				if (Array.isArray(msg.selected_question_codes)) {
 					if (currentMatchCode) {
@@ -684,14 +776,14 @@ const AVeDichChungPage = () => {
 									const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
 									return { code, category: catPrimary || rawCategory, points: pts };
 								});
-								await sendMessage({ type: "veDich_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+								await sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 							} catch { /* best-effort */ }
 						}
 						// Resend answered question states so the board chips reflect reality
 						for (const [code, state] of Object.entries(questionStates)) {
 							if (state === "answered" || state === "answered-wrong") {
 								try {
-									await sendMessage({ type: "veDich_question_state", question_code: code, state });
+									await sendMessage({ type: "vdc_question_state", question_code: code, state });
 								} catch { /* best-effort */ }
 							}
 						}
@@ -722,6 +814,12 @@ const AVeDichChungPage = () => {
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort on reconnect */ }
+						// Resend used powers so the reconnecting player knows their power status
+						if (Object.keys(usedPowers).length > 0) {
+							try {
+								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
+							} catch { /* best-effort */ }
+						}
 					})();
 				}
 				break;
@@ -742,6 +840,20 @@ const AVeDichChungPage = () => {
 				startTransition(() => {
 					applyPlayersSnapshot(msg);
 				});
+				break;
+			}
+			case "vd_questions_meta_request": {
+				// Player is requesting question metadata (e.g., joined late)
+				if (msg.match_code === currentMatchCode && roundQuestionCodes.length > 0 && questions.length > 0) {
+					const metadata = roundQuestionCodes.map((code) => {
+						const idx = questions.findIndex((q) => q.questionCode === code);
+						const rawCategory = questionCategories[idx] || "Unknown";
+						const pts = questionPoints[idx] || 0;
+						const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
+						return { code, category: catPrimary || rawCategory, points: pts };
+					});
+					void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+				}
 				break;
 			}
 			case "player_score_updated": {
@@ -815,6 +927,26 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
+			case "vd_player_power": {
+				// Player activated a power (star/shield) during the 5s window
+				const { user_code, power } = msg;
+				if (user_code && (power === "star" || power === "shield") && !usedPowers[user_code]) {
+					logger.info(`[VDC POWER] Player ${user_code} activated ${power}`);
+					startTransition(() => {
+						setPlayerPowers((prev) => ({ ...prev, [user_code]: power }));
+					});
+				}
+				break;
+			}
+			case "vd_powers_used": {
+				// Sync used powers from another source (e.g. VDR page)
+				if (msg.used_powers) {
+					startTransition(() => {
+						setUsedPowers(msg.used_powers);
+					});
+				}
+				break;
+			}
 
 			default:
 				break;
@@ -843,7 +975,7 @@ const AVeDichChungPage = () => {
 						const code = roundQuestionCodes[i];
 						if (!code) {
 							return (
-								<div key={`rq-empty-${i}`} className="w-55 shrink-0 h-20">
+								<div key={`rq-empty-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>
 							);
@@ -852,7 +984,7 @@ const AVeDichChungPage = () => {
 						const state = questionStates[code] || "available";
 						const isActive = currentQuestion.questionCode === code;
 						return (
-							<div key={`rq-${code}`} className="w-55 shrink-0 h-20">
+								<div key={`rq-${code}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 								<VeDichQuestionCard
 									category={catPrimary}
 									subcategory={catSecondary}
@@ -871,7 +1003,7 @@ const AVeDichChungPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={null}
+			
 			playerSectionButtons={
 				<>
 					<AControlButton
@@ -932,21 +1064,22 @@ const AVeDichChungPage = () => {
 					</AControlButton>
 				</>
 			}
+			topControlButtons={null}
 			renderPlayerList={() =>
 				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar
-							player={player}
-							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
-							onClick={toggleSelectedPlayer}
-							disabled={timer > 0}
-							onEditScore={handleEditScore}
-							token={token}
-							matchCode={currentMatchCode}
-							sendMessage={sendMessage}
-						/>
-					</div>
+					<APlayerBar
+						key={player.playerCode}
+						player={player}
+						isActive={selectedPlayerCodes.includes(player.playerCode)}
+						isCurrent={selectedPlayerCodes.includes(player.playerCode)}
+						playerPower={(playerPowers[player.playerCode] || usedPowers[player.playerCode]) as "star" | "shield" | undefined}
+						onClick={toggleSelectedPlayer}
+						disabled={timer > 0}
+						onEditScore={handleEditScore}
+						token={token}
+						matchCode={currentMatchCode}
+						sendMessage={sendMessage}
+					/>
 				))
 			}
 		/>

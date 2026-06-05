@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlarmClockCheck, Calculator, Eye, Power, RefreshCw, Play } from "lucide-react";
+import { AlarmClockCheck, Calculator, Eye, Play, Power } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -72,6 +72,41 @@ const AButPhaPage = () => {
 	const timerStartedAtRef = useRef<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+	const hasQuestionSelected = currentQuestionIndex > 0;
+
+	// ─── Timestamp validity (Bứt Phá) ────────────────────────────────────────────
+	// After admin clicks "HIỆN TRẢ LỜI", each player has a `playerTimestamp` set
+	// via the `send_answers_to_players` WS event. A player is considered to have a
+	// valid timestamp for scoring when:
+	//   1. The BP round is active (timer > 0 OR a question is selected), AND
+	//   2. The player has actually submitted an answer (playerLastAnswer present), AND
+	//   3. The recorded timestamp is a server-side elapsed-seconds value (0-3600).
+	// Otherwise the player cannot be selected for "TÍNH ĐIỂM" and a tooltip explains why.
+	const isValidBpTimestamp = useCallback((p: PlayerStatus): boolean => {
+		if (!hasQuestionSelected) return false; // no question → nothing to score yet
+		if (timer > 0) {
+			// Round running: only players who already pressed an answer are valid
+			if (!p.playerLastAnswer) return false;
+			const ts = p.playerTimestamp;
+			return typeof ts === "number" && ts >= 0 && ts <= 3600;
+		}
+		// Timer not running: still allow selection so admin can preview,
+		// but require a real timestamp that was fetched via "HIỆN TRẢ LỜI".
+		const ts = p.playerTimestamp;
+		return typeof ts === "number" && ts > 0 && ts <= 3600;
+	}, [hasQuestionSelected, timer]);
+
+	// Auto-deselect players that lost their valid timestamp (e.g. after clear_answers)
+	useEffect(() => {
+		setSelectedPlayerCodes((prev) => {
+			if (prev.length === 0) return prev;
+			const stillValid = prev.filter((code) => {
+				const p = players.find((pl) => pl.playerCode === code);
+				return p ? isValidBpTimestamp(p) : false;
+			});
+			return stillValid.length === prev.length ? prev : stillValid;
+		});
+	}, [players, isValidBpTimestamp]);
 
 	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
 	const computePlayersSnapshot = useCallback(
@@ -724,7 +759,6 @@ const AButPhaPage = () => {
 		}
 	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot]);
 
-	const hasQuestionSelected = currentQuestionIndex > 0;
 	const questionTitle = `BỨT PHÁ`;
 
 	return (
@@ -813,6 +847,7 @@ const AButPhaPage = () => {
 					<AControlButton
 						onClick={() => { void handleCalculateScore(); }}
 						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
+						title={selectedPlayerCodes.length === 0 ? "Chọn ít nhất 1 player có timestamp hợp lệ" : undefined}
 					>
 						<Calculator size={18} />
 						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
@@ -824,26 +859,31 @@ const AButPhaPage = () => {
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
 					</AControlButton>
-					<AControlButton onClick={() => { void loadPlayersState(); }}>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
-					</AControlButton>
 				</>
 			}			renderPlayerList={() =>
-				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar
-							player={player}
-							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							onClick={toggleSelectedPlayer}
-							disabled={timer > 0}
-							onEditScore={handleEditScore}
-							token={token}
-							matchCode={currentMatchCode}
-							sendMessage={sendMessage}
-						/>
-					</div>
-				))
+				players.map((player) => {
+					const validTs = isValidBpTimestamp(player);
+					const disableReason = hasQuestionSelected && !validTs
+						? (!player.playerLastAnswer
+							? "Chưa có câu trả lời từ player"
+							: "Chưa bấm HIỆN TRẢ LỜI hoặc timestamp không hợp lệ")
+						: undefined;
+					return (
+						<div className="flex flex-col gap-3" key={player.playerCode}>
+							<APlayerBar
+								player={player}
+								isActive={selectedPlayerCodes.includes(player.playerCode)}
+								onClick={toggleSelectedPlayer}
+								disabled={timer > 0 || !validTs}
+								disableReason={disableReason}
+								onEditScore={handleEditScore}
+								token={token}
+								matchCode={currentMatchCode}
+								sendMessage={sendMessage}
+							/>
+						</div>
+					);
+				})
 			}
 		/>
 	);

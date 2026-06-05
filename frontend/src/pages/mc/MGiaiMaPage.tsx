@@ -35,7 +35,7 @@ interface PlayerClueCardProps {
 }
 
 const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintContent }) => {
-    const base = "flex-1 h-20 sm:h-28 lg:h-36 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
+    const base = "flex-1 h-16 sm:h-20 lg:h-28 xl:h-36 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
     const styles: Record<ClueState, string> = {
         idle:   "bg-blue-900 border-blue-600 text-white",
         active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
@@ -48,11 +48,11 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
                 <div className="flex items-center justify-center w-full h-full p-2">
                     {hintContent!.mediaUrl
                         ? <RenderMedia mediaUrl={hintContent!.mediaUrl} />
-                        : <span className="text-xl font-bold text-center leading-snug">{hintContent!.text}</span>
+                        : <span className="text-sm sm:text-base lg:text-lg xl:text-xl font-bold text-center leading-snug">{hintContent!.text}</span>
                     }
                 </div>
             ) : (
-                <span className="font-[SVN-Gratelos_Display] text-[50pt]">{index}</span>
+                <span className="font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-[40pt] xl:text-[50pt]">{index}</span>
             )}
         </div>
     );
@@ -63,7 +63,7 @@ const MGiaiMaPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyKeywordSubmit, clearAnswers } = useMcPlayers();
     const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
     const [_keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
     const [_revealedHint, setRevealedHint] = useState<string | null>(null);
@@ -72,6 +72,10 @@ const MGiaiMaPage = () => {
     const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
     const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
     const activeClueIdxRef = useRef<number | null>(null);
+    // Hide the question-board content when admin opens/locks the hint
+    const [hideQuestionContent, setHideQuestionContent] = useState(false);
+    // True while the QuestionBoard timer is the keyword phase
+    const [isKeywordPhase, setIsKeywordPhase] = useState(false);
 
     useEffect(() => {
         if (!matchCode || !token) return;
@@ -114,6 +118,12 @@ const MGiaiMaPage = () => {
                 startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
                 setRevealedHint(null);
+                setIsKeywordPhase(msg.phase === "gm_keyword");
+                break;
+            case "start_keyword_timer":
+                // Deprecated — keyword timer now rides on `start_the_timer` with `phase: "gm_keyword"`.
+                startSynced(Number(msg.time_limit ?? 15), msg.started_at);
+                setIsKeywordPhase(true);
                 break;
             case "player_score_updated":
                 applyScoreUpdate(msg);
@@ -137,14 +147,25 @@ const MGiaiMaPage = () => {
                         })
                     );
                 }
+                // New clue means a fresh question text/media on the board — show it again.
+                setHideQuestionContent(false);
                 break;
             }
             case "keyword_submit": {
                 const { user_code } = msg;
                 if (user_code) {
                     setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
-                    // MC view should not show keyword submission status
+                    // MC view also shows the 🔑 + "Sau N gợi ý" badge immediately
+                    // (no need to wait for admin to press "HIỆN TỪ KHOÁ")
+                    applyKeywordSubmit(msg);
                 }
+                break;
+            }
+            case "keyword_clues_locked": {
+                // Admin pressed "ĐẾM GIỜ TỪ KHOÁ" — subsequent submissions are N = 8.
+                // The MC view is read-only: per-player `clues_opened` is broadcast in
+                // each `keyword_submit` payload, so the badge updates from that path.
+                // No local state to flip on the MC page; intentionally a no-op.
                 break;
             }
             case "clear_question":
@@ -154,6 +175,8 @@ const MGiaiMaPage = () => {
                 setClueStates(Array(CLUE_COUNT).fill("idle"));
                 setRevealedHints({});
                 setKeywordSubmittedCodes(new Set());
+                setHideQuestionContent(false);
+                setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
                 break;
             case "round_start":
@@ -162,6 +185,8 @@ const MGiaiMaPage = () => {
                 setClueStates(Array(CLUE_COUNT).fill("idle"));
                 setRevealedHints({});
                 setKeywordSubmittedCodes(new Set());
+                setHideQuestionContent(false);
+                setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
                 break;
             case "show_hint": {
@@ -172,8 +197,19 @@ const MGiaiMaPage = () => {
                 const displayText = contentIsMedia ? hintMediaSource : hintContent;
                 const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
                 setRevealedHint(displayText ?? null);
-                const idx = activeClueIdxRef.current;
+                setHideQuestionContent(true);
+                // clue_index (optional) lets admin pin the hint to a specific
+                // card (e.g. when revealing all 8 clues at once). If absent,
+                // fall back to the currently active clue.
+                const explicitIdx = Number(msg.clue_index);
+                const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
+                const idx = hasExplicitIdx ? explicitIdx : activeClueIdxRef.current;
                 if (idx !== null) {
+                    if (hasExplicitIdx) activeClueIdxRef.current = idx;
+                    setClueStates((prev) => {
+                        if (prev[idx] === "used") return prev;
+                        return prev.map((s, i) => (i === idx ? "used" : s));
+                    });
                     setRevealedHints((prev) => ({
                         ...prev,
                         [idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
@@ -183,6 +219,7 @@ const MGiaiMaPage = () => {
             }
             case "hide_hint":
                 setRevealedHint(null);
+                setHideQuestionContent(true);
                 break;
             case "send_answers_to_players":
                 applyAnswers(msg);
@@ -196,19 +233,34 @@ const MGiaiMaPage = () => {
                 applyRealTimeAnswer(msg);
                 break;
             case "reveal_keyword_answer":
-                setKeywordAnswer(msg.answer ?? null);
+                const answer = msg.answer ?? null;
+                const banner = msg.keyword_banner ?? null;
+                setKeywordAnswer(answer);
+                if (answer && banner) {
+                    setKeywordBanner(banner);
+                }
+                break;
+            case "send_keyword_info":
+                // Admin broadcast — sync keyword-length banner from admin so MC view matches
+                // even if the local /questions/ fetch returned a different/empty payload.
+                {
+                    const infoBanner = msg.banner;
+                    if (typeof infoBanner === "string" && infoBanner) {
+                        setKeywordBanner(infoBanner);
+                    }
+                }
                 break;
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyKeywordSubmit, clearAnswers, fetchAnswer, clearAnswer]);
 
     const clueGrid = (
-        <div className="flex flex-col gap-3 w-full mb-3 px-3">
-            <div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-4 py-2 text-center font-[SVN-Gratelos_Display] text-2xl lg:text-3xl font-bold text-white uppercase shadow">
+        <div className="flex flex-col gap-2 sm:gap-3 w-full mb-2 sm:mb-3 px-1 sm:px-3">
+            <div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-white uppercase shadow">
                 {_keywordAnswer ? `${_keywordAnswer}` : keywordBanner}
             </div>
-            <div className="grid grid-cols-4 gap-2 w-full">
+            <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">
                 {Array.from({ length: CLUE_COUNT }, (_, i) => (
                     <PlayerClueCard
                         key={i}
@@ -226,6 +278,12 @@ const MGiaiMaPage = () => {
         questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
     };
 
+    // When the keyword-phase QuestionBoard timer is running, swap the question text to the keyword-length banner
+    // and strip media so the banner is the only thing shown.
+    const questionToShow = isKeywordPhase
+        ? { ...questionWithAnswer, questionText: keywordBanner, questionMediaURL: undefined }
+        : questionWithAnswer;
+
     return (
         <PBasePageLayout
             players={players}
@@ -236,11 +294,13 @@ const MGiaiMaPage = () => {
 
                 <AQuestionBoard
                     title="GIẢI MÃ"
-                    question={questionWithAnswer}
+                    question={questionToShow}
                     timerDuration={timer}
-                    boardHeightClass="h-[28vh]"
+                    boardHeightClass="h-[22vh] sm:h-[25vh] lg:h-[28vh]"
                     answerBoxHeightClass="min-h-[4rem]"
                     controls={{ variant: 'numbers', count: 0 }}
+                    hideAnswerBox={true}
+                    hideContent={hideQuestionContent || isKeywordPhase}
                 />
             </>
         </PBasePageLayout>

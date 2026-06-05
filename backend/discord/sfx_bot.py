@@ -305,6 +305,19 @@ async def _handle_message(message: dict) -> None:
                 _schedule_timer_end(time_limit, sfx_file)
             )
 
+    # Keyword timer for Giải Mã — schedule timer_end SFX after 15s
+    if msg_type == "start_keyword_timer":
+        logger.info(f"Received start_keyword_timer event: {message}")
+        time_limit = int(message.get("time_limit", 15))
+        sfx_file = _find_sfx_file("timer_end")
+        if sfx_file:
+            # Cancel any previously scheduled timer_end
+            if _timer_task and not _timer_task.done():
+                _timer_task.cancel()
+            _timer_task = asyncio.create_task(
+                _schedule_timer_end(time_limit, sfx_file)
+            )
+
     # Log wrong/skip events for debugging
     if msg_type in ("wrong", "skip"):
         user_code = message.get("user_code", "unknown")
@@ -321,9 +334,9 @@ async def _handle_message(message: dict) -> None:
     
     _recent_events[msg_type] = current_time
 
-    # Convert veDich_power_activated to a phase-specific event type
+    # Convert vd_power_activated to a phase-specific event type
     effective_event = msg_type
-    if msg_type == "veDich_power_activated":
+    if msg_type == "vd_power_activated":
         power = message.get("power")
         if power == "star":
             effective_event = "power_star"

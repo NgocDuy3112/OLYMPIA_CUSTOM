@@ -5,7 +5,6 @@ import {
 	AlarmClockCheck,
 	ListRestart,
 	Power,
-	RefreshCw,
 	Play,
 	Zap,
 	Plus,
@@ -99,6 +98,8 @@ const AVeDichRiengPage = () => {
 		} catch { return {}; }
 	});
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+	// Pending question to broadcast after 5s power window closes (mirrors VDC behaviour)
+	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
 	// The 3 questions locked in for this round — set via WS from the pick page.
 	// Persisted in localStorage so navigating to this page after confirming still shows them.
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
@@ -348,7 +349,7 @@ const AVeDichRiengPage = () => {
 				points: questionPoints[idx] ?? 0,
 			};
 		});
-		void sendMessage({ type: "veDich_rieng_questions_meta", question_metadata: metadata });
+		void sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
 	// ─── Question activation ──────────────────────────────────────────────────────
@@ -392,11 +393,13 @@ const AVeDichRiengPage = () => {
 			// Toggle: clicking the active question clears it
 			if (currentQuestion.questionCode === questionCode) {
 				setSelectedPlayerCodes([]);
+				setUsedPowers({});
 				await clearQuestion();
 				return;
 			}
 
 			setSelectedPlayerCodes([]);
+			setUsedPowers({});
 			setVideoPlayState(null);
 			// Reset buzzer state when switching to a new question
 			setBuzzerWinnerCode(null);
@@ -426,9 +429,11 @@ const AVeDichRiengPage = () => {
 					content: "",
 					media_source: undefined,
 				});
+				// Open 5s power selection window for players (mirrors VDC behaviour)
+				void sendMessage({ type: "vd_power_window_open", duration: 5 });
 			}
 
-			// Fetch full details in background and re-broadcast
+			// Fetch full details in background but DON'T broadcast yet - wait for power window to close
 			try {
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode ?? "")}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -449,15 +454,9 @@ const AVeDichRiengPage = () => {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
 				setCurrentQuestion(q);
-				if (currentMatchCode) {
-					void sendMessage({
-						type: "send_question",
-						user_code: "",
-						question_code: questionCode,
-						content: q.questionText ?? "",
-						media_source: q.questionMediaURL ?? undefined,
-					});
-				}
+				// Store in ref to broadcast after power window closes (5s)
+				pendingQuestionRef.current = { questionCode, question: q };
+				logger.info(`[VDR] Question ${questionCode} fetched, waiting for power window to close`);
 			} catch (err) {
 				logger.error("handleQuestionActivate: failed to load question:", err);
 			}
@@ -555,7 +554,7 @@ const AVeDichRiengPage = () => {
 	// Broadcast power state whenever activePower changes
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		void sendMessage({ type: "veDich_power_activated", power: activePower ?? null });
+		void sendMessage({ type: "vd_power_activated", power: activePower ?? null });
 	}, [activePower, currentMatchCode, sendMessage]);
 
 	// ─── Score management ─────────────────────────────────────────────────────────
@@ -652,7 +651,7 @@ const AVeDichRiengPage = () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
-		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "vdr_question_state", question_code: answeredCode, state: "answered" });
 		void sendMessage({ type: "answer", phase: "vdr" });
 
 		try {
@@ -696,7 +695,7 @@ const AVeDichRiengPage = () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
-		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "vdr_question_state", question_code: answeredCode, state: "answered" });
 		void sendMessage({ type: "wrong", phase: "vdr" });
 
 		try {
@@ -785,7 +784,7 @@ const AVeDichRiengPage = () => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
-			case "veDich_questions_selected": {
+			case "vd_questions_selected": {
 				// Receive the 3 question codes confirmed from the pick page (CÁ NHÂN round)
 				if (Array.isArray(msg.selected_question_codes) && msg.round === "rieng") {
 					if (currentMatchCode) {
@@ -839,13 +838,13 @@ const AVeDichRiengPage = () => {
 								};
 							});
 							try {
-								await sendMessage({ type: "veDich_rieng_questions_meta", question_metadata: metadata });
+								await sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
 							} catch { /* best-effort */ }
 							// Resend answered question states
 							for (const [code, qState] of Object.entries(questionStates)) {
 								if (qState === "answered" || qState === "answered-wrong") {
 									try {
-										await sendMessage({ type: "veDich_question_state", question_code: code, state: qState });
+										await sendMessage({ type: "vdr_question_state", question_code: code, state: qState });
 									} catch { /* best-effort */ }
 								}
 							}
@@ -877,6 +876,12 @@ const AVeDichRiengPage = () => {
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort on reconnect */ }
+						// Resend used powers state
+						if (Object.keys(usedPowers).length > 0) {
+							try {
+								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
+							} catch { /* best-effort */ }
+						}
 					})();
 				}
 				break;
@@ -1013,6 +1018,33 @@ const AVeDichRiengPage = () => {
 				break;
 			}
 
+			case "vd_powers_used": {
+				if (msg.used_powers) {
+					startTransition(() => {
+						setUsedPowers(msg.used_powers);
+					});
+					try { localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(msg.used_powers)); } catch { /* ignore */ }
+				}
+				break;
+			}
+
+			case "vd_power_window_closed": {
+				// Power window closed - immediately broadcast the full question (admin manually starts timer, mirrors VDC behaviour)
+				if (pendingQuestionRef.current && currentMatchCode) {
+					const { questionCode, question } = pendingQuestionRef.current;
+					logger.info(`[VDR] Power window closed, immediately broadcasting question ${questionCode}`);
+					void sendMessage({
+						type: "send_question",
+						user_code: "",
+						question_code: questionCode,
+						content: question.questionText ?? "",
+						media_source: question.questionMediaURL ?? undefined,
+					});
+					pendingQuestionRef.current = null;
+				}
+				break;
+			}
+
 			default:
 				break;
 		}
@@ -1040,7 +1072,7 @@ const AVeDichRiengPage = () => {
 						const code = roundQuestionCodes[i];
 						if (!code) {
 							return (
-								<div key={`rq-empty-${i}`} className="w-55 shrink-0 h-20">
+								<div key={`rq-empty-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>
 							);
@@ -1075,7 +1107,7 @@ const AVeDichRiengPage = () => {
 							onClick={() => setActivePower((prev) => (prev === 'star' ? null : 'star'))}
 							disabled={!currentTurnPlayerCode || !!usedPowers[currentTurnPlayerCode!]}
 							title={usedPowers[currentTurnPlayerCode!] ? `Đã dùng: ${usedPowers[currentTurnPlayerCode!] === 'star' ? 'Ngôi sao hy vọng' : 'Bảo hộ miễn trừ'}` : 'Trả lời đúng: +150% điểm. Trả lời sai: -100% điểm'}
-							className={activePower === 'star' ? 'bg-yellow-500 ring-yellow-400 text-blue-900' : undefined}
+							className={activePower === 'star' ? 'bg-white-500 ring-white-400 text-blue-900' : undefined}
 						>
 							<Star size={18} />
 							<span className="ml-2 font-bold">NGÔI SAO HY VỌNG</span>
@@ -1134,14 +1166,6 @@ const AVeDichRiengPage = () => {
 						<Minus size={18} />
 						<span className="ml-2 font-bold">TRỪ ĐIỂM</span>
 					</AControlButton>
-					<AControlButton
-						onClick={() => { void loadPlayersState(); }}
-						disabled={!currentTurnPlayerCode}
-						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
-					>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
-					</AControlButton>
 				</>
 			}
 			bottomActionButtons={
@@ -1169,19 +1193,19 @@ const AVeDichRiengPage = () => {
 			}
 			renderPlayerList={() =>
 				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar
-							player={player}
-							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							isCurrent={player.playerCode === currentTurnPlayerCode}
-							onClick={toggleSelectedPlayer}
-							disabled={timer > 0}
-							onEditScore={handleEditScore}
-							token={token}
-							matchCode={currentMatchCode}
-							sendMessage={sendMessage}
-						/>
-					</div>
+					<APlayerBar
+						key={player.playerCode}
+						player={player}
+						isActive={selectedPlayerCodes.includes(player.playerCode)}
+						isCurrent={player.playerCode === currentTurnPlayerCode}
+						playerPower={usedPowers[player.playerCode] as "star" | "shield" | undefined}
+						onClick={toggleSelectedPlayer}
+						disabled={timer > 0}
+						onEditScore={handleEditScore}
+						token={token}
+						matchCode={currentMatchCode}
+						sendMessage={sendMessage}
+					/>
 				))
 			}
 		/>

@@ -6,9 +6,9 @@ import {
 	Play,
 	Calculator,
 	Power,
-	RefreshCw,
 	Eye,
 } from "lucide-react";
+
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -1021,12 +1021,6 @@ const AKhoiDongChungPage = () => {
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { loadPlayersState() }}
-					>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 				</>
 			}

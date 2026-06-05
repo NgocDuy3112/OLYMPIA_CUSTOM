@@ -13,7 +13,7 @@ const MAnswerDisplay: React.FC<MAnswerDisplayProps> = ({ answer, explanation }) 
                 ĐÁP ÁN: {answer}
             </div>
             {explanation && (
-                <div className="p-3 bg-yellow-800 border border-yellow-500 rounded-xl text-center text-yellow-100 text-base">
+                <div className="p-3 bg-white-800 border border-white-500 rounded-xl text-center text-white-100 text-base">
                     {explanation}
                 </div>
             )}

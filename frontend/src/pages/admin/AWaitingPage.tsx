@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
 import AControlButton from "@/components/admin/AControlButton";
-import APlayerBar from "@/components/admin/APlayerBar";
+import APlayerCard from "@/components/admin/APlayerCard";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
 import { createLogger } from "@/utils/logger";
@@ -326,12 +326,11 @@ const AWaitingPage = () => {
 
 				{/* Player list */}
 				{players.length > 0 && (
-					<div className="flex flex-col gap-3 w-full max-w-2xl">
+					<div className="flex gap-4 max-w-7xl w-full justify-center">
 						{players.map((player) => (
-							<APlayerBar
+							<APlayerCard
 								key={player.playerCode}
 								player={player}
-								isActive={false}
 								onEditScore={handleEditScore}
 								token={token}
 								matchCode={currentMatchCode}
@@ -364,7 +363,7 @@ const AWaitingPage = () => {
 
 						<AControlButton
 							onClick={handleShowScoreboard}
-							disabled={isShowingScoreboard || !currentMatchCode}
+							disabled={isShowingScoreboard || !currentMatchCode || matchFinished}
 							className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
 						>
 							<Trophy size={18} />

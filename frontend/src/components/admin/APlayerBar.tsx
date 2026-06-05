@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mic, KeyRound, Pencil } from "lucide-react";
+import { Mic, KeyRound, Pencil, Star, Shield } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
@@ -12,17 +12,24 @@ interface APlayerBarProps {
     isCurrent?: boolean;
     isKeywordMode?: boolean;
     hasKeywordSubmission?: boolean;
+    playerPower?: "star" | "shield" | null;
     onClick?: (playerCode: string) => void;
     disabled?: boolean;
+    /** Optional human-readable reason shown as a tooltip when `disabled` is true. */
+    disableReason?: string;
     onEditScore?: (playerCode: string, newScore: number) => void;
     token?: string;
     matchCode?: string;
     sendMessage?: (msg: any) => void;
+    /** Number of clue cards the player saw open at the moment they submitted their keyword. */
+    cluesOpened?: number;
+    /** When true, show the "Sau N gợi ý" badge next to the key icon. */
+    showClueCount?: boolean;
 }
 
 
 
-const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, hasKeywordSubmission, onClick, disabled, onEditScore, token, matchCode, sendMessage }) => {
+const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, hasKeywordSubmission, playerPower, onClick, disabled, disableReason, onEditScore, token, matchCode, sendMessage, cluesOpened, showClueCount }) => {
     // Use a single border instead of nested rings to avoid double-outline visual glitches
     // If this player is the current responder, show a white border per design
     const borderClass = isCurrent ? "border-white" : (player.playerHasBuzzed ? "border-blue-500" : "border-blue-600");
@@ -116,6 +123,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
     return (
         <>
             <div
+                title={disabled ? (disableReason ?? "Không khả dụng") : undefined}
                 role={disabled ? undefined : "button"}
                 tabIndex={disabled ? -1 : 0}
                 onClick={disabled ? undefined : handleClick}
@@ -135,13 +143,27 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                             {player.playerName && (
                                 <span className="font-[SVN-Gratelos_Display] uppercase text-[14px] tablet:text-[16px] xl:text-[24px] font-extrabold flex items-center gap-2">
                                     {player.playerName}
+                                    {/* Power icon: Star (NSHV) or Shield (BHMT) */}
+                                    {playerPower === 'star' && (
+                                        <Star size={16} className="text-white-400 shrink-0" />
+                                    )}
+                                    {playerPower === 'shield' && (
+                                        <Shield size={16} className="text-white-400 shrink-0" />
+                                    )}
                                     {/* Turn indicator icon (plain Mic, no red theme) */}
                                     {isCurrent && (
                                         <Mic size={16} className="text-white shrink-0" />
                                     )}
                                     {/* Keyword submitted but not yet revealed */}
                                     {hasKeywordSubmission && (
-                                        <KeyRound size={16} className="text-yellow-400 shrink-0" />
+                                        <>
+                                            <KeyRound size={16} className="text-white-400 shrink-0" />
+                                            {showClueCount && typeof cluesOpened === "number" && (
+                                                <span className="text-[11px] tablet:text-[13px] xl:text-[16px] font-normal text-white">
+                                                    Sau {cluesOpened} gợi ý
+                                                </span>
+                                            )}
+                                        </>
                                     )}
                                     {/* Buzzer icon inline next to name */}
                                     {player.playerHasBuzzed && (

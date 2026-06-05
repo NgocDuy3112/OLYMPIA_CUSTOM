@@ -1,7 +1,7 @@
 """Shared configuration for Discord bots.
 
 Reads environment variables from the shared configs/.env file
-(mounted by docker-compose.prod.yaml) so all services use one
+(mounted by docker-compose.stage.yaml) so all services use one
 source of truth.
 """
 

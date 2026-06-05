@@ -19,7 +19,7 @@ const MVeDichChungPage = () => {
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyPlayerPower, clearAnswers } = useMcPlayers();
     const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
 
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
@@ -77,15 +77,15 @@ const MVeDichChungPage = () => {
             case "answer":
                 applyRealTimeAnswer(msg);
                 break;
-            case "veDich_question_state": {
+            case "vdc_question_state": {
                 const { question_code, state: qState } = msg;
                 if (question_code && qState) {
                     setQuestionStates((prev) => ({ ...prev, [question_code]: qState as "answered" | "answered-wrong" | "available" }));
                 }
                 break;
             }
-            case "veDich_questions_selected":
-            case "veDich_questions_meta": {
+            case "vd_questions_selected":
+            case "vdc_questions_meta": {
                 const metadata: RoundQuestion[] = msg.question_metadata ?? [];
                 if (metadata.length > 0) {
                     setRoundQuestionsData(metadata);
@@ -93,10 +93,19 @@ const MVeDichChungPage = () => {
                 }
                 break;
             }
+            case "vd_player_power": {
+                const { user_code, power } = msg;
+                if (user_code && (power === "star" || power === "shield")) {
+                    // Update playerPower in players array for display
+                    applyPlayerPower(user_code, power as "star" | "shield");
+                }
+                break;
+            }
+
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer, matchCode, buzzerWinnerCode]);
+}, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer, matchCode, buzzerWinnerCode, setRoundQuestionsData, applyPlayerPower]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -110,8 +119,9 @@ const MVeDichChungPage = () => {
                 question={questionWithAnswer}
                 timerDuration={timer}
                 videoPlayState={videoPlayState}
-                boardHeightClass="h-[60vh]"
+                boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
                 answerBoxHeightClass="min-h-[4rem]"
+                hideAnswerBox={true}
             >
                 {() => (
                     <div className="flex gap-1 overflow-x-auto">
@@ -120,7 +130,7 @@ const MVeDichChungPage = () => {
                                 const qState = questionStates[q.code] ?? "available";
                                 const isActive = currentQuestion.questionCode === q.code;
                                 return (
-                                    <div key={q.code} className="w-55 shrink-0 h-20">
+                                    <div key={q.code} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
                                         <VeDichQuestionCard
                                             category={q.category}
                                             points={q.points}
@@ -132,7 +142,7 @@ const MVeDichChungPage = () => {
                                 );
                             })
                             : Array.from({ length: players.length || 4 }).map((_, i) => (
-                                <div key={`ph-${i}`} className="w-55 shrink-0 h-20">
+                                <div key={`ph-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
                                     <VeDichQuestionCard placeholder category="" disabled />
                                 </div>
                             ))}

@@ -94,7 +94,7 @@ const AVeDichPickQuestion = () => {
 		if (!currentMatchCode) return;
 		const allCodes = questions.map((q) => q.questionCode);
 		sendMessage({
-			type: "veDich_selection_update",
+			type: "vd_selection_update",
 			match_code: currentMatchCode,
 			round: isChung ? "chung" : "rieng",
 			selected_question_codes: selectedQuestionCodes,
@@ -220,7 +220,7 @@ const AVeDichPickQuestion = () => {
 		// Broadcast placeholder codes immediately so MC/Player can render grid
 		if (currentMatchCode) {
 			sendMessage({
-				type: "veDich_selection_update",
+				type: "vd_selection_update",
 				match_code: currentMatchCode,
 				round: isChung ? "chung" : "rieng",
 				selected_question_codes: [],
@@ -336,7 +336,7 @@ const AVeDichPickQuestion = () => {
 
 				// Broadcast immediately so MC/Player pages render the grid without waiting for "Bắt đầu"
 				sendMessage({
-					type: "veDich_selection_update",
+					type: "vd_selection_update",
 					match_code: currentMatchCode,
 					round: isChung ? "chung" : "rieng",
 					selected_question_codes: [],
@@ -406,7 +406,7 @@ const AVeDichPickQuestion = () => {
 			// Notify players via WebSocket
 			const allCodes = questions.map((q) => q.questionCode);
 			const payload = {
-				type: "veDich_questions_selected",
+				type: "vd_questions_selected",
 				match_code: currentMatchCode,
 				round: isChung ? "chung" : "rieng",
 				selected_question_codes: selectedQuestionCodes,
@@ -480,7 +480,7 @@ const AVeDichPickQuestion = () => {
 
 			// Inform players so their UI can refresh if needed
 			sendMessage({
-				type: "veDich_selection_update",
+					type: "vd_selection_update",
 				match_code: currentMatchCode,
 				round: isChung ? "chung" : "rieng",
 				selected_question_codes: selectedQuestionCodes,
@@ -500,20 +500,44 @@ const AVeDichPickQuestion = () => {
 				onClick={() => {
 					// Re-broadcast grid data so PVeDichPickPage has question codes when it mounts
 					// Use real questions if loaded, otherwise use placeholders
-					const allCodes = questions.length > 0 
+					const allCodes = questions.length > 0
 						? questions.map((q) => q.questionCode)
 						: placeholderQuestions.map((q) => q.questionCode);
+
+					// Fix 2: Merge used_question_codes from localStorage (cross-round persistence)
+					// so player/MC pages see the full set of used questions immediately on mount,
+					// even if our in-memory usedQuestionCodes state hasn't been populated yet.
+					let mergedUsed = [...usedQuestionCodes];
+					try {
+						const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
+						if (storedUsed) {
+							const usedCodes = JSON.parse(storedUsed) as string[];
+							mergedUsed = [...new Set([...mergedUsed, ...usedCodes])];
+							// Also sync our in-memory state for consistency
+							setUsedQuestionCodes(mergedUsed);
+						}
+					} catch { /* ignore */ }
+
 					sendMessage({
-						type: "veDich_selection_update",
+						type: "vd_selection_update",
 						match_code: currentMatchCode,
 						round: isChung ? "chung" : "rieng",
 						selected_question_codes: selectedQuestionCodes,
 						all_question_codes: allCodes,
-						used_question_codes: usedQuestionCodes,
+						used_question_codes: mergedUsed,
 					});
-					// Persist to localStorage as backup
+					// Persist to localStorage as backup so PVeDichPickPage can hydrate on mount
+					// even if it misses the WS message (Fix 1 backup path).
 					if (currentMatchCode && allCodes.length > 0) {
 						localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
+					}
+					if (currentMatchCode) {
+						try {
+							localStorage.setItem(
+								`veDich_used_codes_${currentMatchCode}`,
+								JSON.stringify(mergedUsed),
+							);
+						} catch { /* ignore */ }
 					}
 					// Navigate players to the pick page
 					const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";

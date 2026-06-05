@@ -42,6 +42,11 @@ PHASE_MUSIC_MAP: dict[str, str] = {
 _TIMER_PHASE_MAP = {
     "vdc": "vd",
     "vdr": "vd",
+    # The Giải Mã keyword timer ships as `gm_15s.ogg` (not `gm_keyword_15s.*`),
+    # so map the `phase: "gm_keyword"` flag sent by the admin to the literal
+    # `gm` prefix. The admin currently broadcasts `start_the_timer` with
+    # `phase: "gm_keyword"` instead of the legacy `start_keyword_timer` event.
+    "gm_keyword": "gm",
 }
 
 
@@ -159,6 +164,16 @@ async def _handle_message(message: dict) -> None:
                     logger.info(f"Available BGM files: {available}")
         else:
             logger.warning(f"start_the_timer: unknown phase, skipping (question_code={message.get('question_code')!r})")
+
+    elif msg_type == "start_keyword_timer":
+        # Keyword timer for Giải Mã round — always plays gm_15s.ogg
+        logger.info(f"Received start_keyword_timer event: {message}")
+        keyword_file = _find_file("gm_15s")
+        if keyword_file:
+            logger.info(f"Found keyword timer file: {keyword_file}")
+            await _play(guild, keyword_file)
+        else:
+            logger.warning("No keyword timer BGM found (looked for 'gm_15s')")
 
     elif msg_type == "play_bgm":
         phase = message.get("phase", "")

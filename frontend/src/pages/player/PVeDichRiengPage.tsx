@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Star, Shield } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
@@ -32,6 +32,19 @@ const PVeDichRiengPage = () => {
 	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
 	const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
 	const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
+	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
+		if (!matchCode) return {};
+		try {
+			const stored = localStorage.getItem(`veDich_powers_${matchCode}`);
+			return stored ? JSON.parse(stored) : {};
+		} catch { return {}; }
+	});
+
+	// ─── Power window state (mirrors VDC behaviour) ────────────────────────────
+	const [powerWindowOpen, setPowerWindowOpen] = useState(false);
+	const [powerWindowCountdown, setPowerWindowCountdown] = useState(0);
+	const [selectedPower, setSelectedPower] = useState<"star" | "shield" | null>(null);
+	const powerWindowTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	// Auto-fetch scoreboard on mount to ensure accurate initial scores
 	useEffect(() => {
@@ -140,9 +153,50 @@ const PVeDichRiengPage = () => {
 				setVideoPlayState("paused");
 				break;
 
-			case "veDich_power_activated":
+			case "vd_power_activated":
 				setActivePower((msg.power as "star" | "shield") ?? null);
 				break;
+
+			case "vd_power_window_open": {
+				// 5s window to choose a power (mirrors VDC behaviour)
+				if (usedPowers[playerCode]) break; // already used a power
+				const duration = Number(msg.duration ?? 5);
+				setPowerWindowOpen(true);
+				setPowerWindowCountdown(duration);
+				setSelectedPower(null);
+				break;
+			}
+
+			case "vd_player_power": {
+				// Player activated a power (star/shield) during the 5s window
+				const { user_code, power } = msg;
+				if (user_code && (power === "star" || power === "shield")) {
+					// Update usedPowers state
+					setUsedPowers((prev) => ({ ...prev, [user_code]: power }));
+					// Update playerPower in players array for display
+					setPlayers((prev) =>
+						prev.map((p) =>
+							p.playerCode === user_code ? { ...p, playerPower: power as "star" | "shield" } : p,
+						),
+					);
+				}
+				break;
+			}
+
+			case "vd_powers_used": {
+				if (msg.used_powers) {
+					setUsedPowers(msg.used_powers);
+					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(msg.used_powers)); } catch { /* ignore */ }
+					// Update playerPower in players array for display
+					setPlayers((prev) =>
+						prev.map((p) => {
+							const power = msg.used_powers[p.playerCode];
+							return power ? { ...p, playerPower: power as "star" | "shield" } : p;
+						}),
+					);
+				}
+				break;
+			}
 
 			case "buzz": {
 				// Don't show lightning icon yet — wait for admin's buzzer_winner broadcast
@@ -204,8 +258,8 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 
-			case "veDich_questions_selected":
-			case "veDich_rieng_questions_meta": {
+			case "vd_questions_selected":
+			case "vdr_questions_meta": {
 				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
 				if (metadata.length > 0) setRoundQuestionsData(metadata);
 				// Track whose turn it is (only for CÁ NHÂN round)
@@ -219,7 +273,7 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 
-			case "veDich_question_state": {
+			case "vdr_question_state": {
 				const { question_code, state: qState } = msg;
 				if (question_code && qState) {
 					setQuestionStates((prev) => ({ ...prev, [question_code]: qState as "answered" | "answered-wrong" | "available" }));
@@ -316,6 +370,49 @@ const PVeDichRiengPage = () => {
 		return () => window.clearInterval(intervalId);
 	}, [answeringWindowTimer]);
 
+	// Power window countdown (mirrors VDC behaviour)
+	useEffect(() => {
+		if (!powerWindowOpen || powerWindowCountdown <= 0) return;
+		powerWindowTimerRef.current = window.setInterval(() => {
+			setPowerWindowCountdown((prev) => {
+				if (prev <= 1) {
+					setPowerWindowOpen(false);
+					// Notify admin that power window has closed
+					void sendMessage({ type: "vd_power_window_closed", user_code: playerCode });
+					return 0;
+				}
+				return prev - 1;
+			});
+		}, 1000);
+		return () => {
+			if (powerWindowTimerRef.current) window.clearInterval(powerWindowTimerRef.current);
+		};
+	}, [powerWindowOpen, powerWindowCountdown, playerCode, sendMessage]);
+
+	// Auto-submit power when countdown reaches 0 or player selects
+	const handleSelectPower = useCallback(async (power: "star" | "shield") => {
+		if (!powerWindowOpen || usedPowers[playerCode]) return;
+		setSelectedPower(power);
+		setPowerWindowOpen(false);
+		// Send to admin via WS
+		try {
+			await sendMessage({
+				type: "vd_player_power",
+				user_code: playerCode,
+				power,
+			});
+		} catch (err) {
+			console.warn("Failed to send power selection:", err);
+		}
+	}, [powerWindowOpen, usedPowers, playerCode, sendMessage]);
+
+	// Cleanup power window on unmount
+	useEffect(() => {
+		return () => {
+			if (powerWindowTimerRef.current) window.clearInterval(powerWindowTimerRef.current);
+		};
+	}, []);
+
 	return (
 		<PBasePageLayout
 			players={players}
@@ -335,7 +432,7 @@ const PVeDichRiengPage = () => {
 									const qState = questionStates[q.code] ?? "available";
 									const isActive = currentQuestion.questionCode === q.code;
 									return (
-										<div key={q.code} className="w-55 shrink-0 h-20">
+										<div key={q.code} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 											<VeDichQuestionCard
 												category={q.category}
 												points={q.points}
@@ -347,20 +444,64 @@ const PVeDichRiengPage = () => {
 									);
 								})
 							: Array.from({ length: 3 }).map((_, i) => (
-									<div key={`ph-${i}`} className="w-55 shrink-0 h-20">
+									<div key={`ph-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 										<VeDichQuestionCard placeholder category="" disabled />
 									</div>
 								))}
 						</div>
 					</PQuestionBoard>
 
+				{/* Power selection window */}
+				{powerWindowOpen && !usedPowers[playerCode ?? ''] && (
+					<div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-4 flex flex-col items-center gap-3">
+						<p className="text-white font-bold text-lg">Chọn quyền năng ({powerWindowCountdown}s)</p>
+						<div className="flex gap-4">
+							<button
+								onClick={() => { void handleSelectPower('star'); }}
+								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
+									selectedPower === 'star'
+										? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
+										: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
+								}`}
+							>
+								<Star size={20} />
+								<span>Ngôi Sao Hy Vọng</span>
+							</button>
+							<button
+								onClick={() => { void handleSelectPower('shield'); }}
+								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
+									selectedPower === 'shield'
+										? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
+										: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
+								}`}
+							>
+								<Shield size={20} />
+								<span>Bảo Hộ Miễn Trừ</span>
+							</button>
+						</div>
+						<p className="text-blue-300 text-sm">Chỉ được dùng 1 lần xuyên suốt VĐC & VĐR</p>
+					</div>
+				)}
+
+				{/* Power just selected indicator */}
+				{selectedPower && !powerWindowOpen && !usedPowers[playerCode ?? ''] && (
+					<div className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-sm ${
+						selectedPower === 'star'
+							? 'bg-white-500/20 text-white-300 border border-white-500/50'
+							: 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
+						}`}>
+						{selectedPower === 'star' ? <Star size={16} /> : <Shield size={16} />}
+						<span>Đã chọn {selectedPower === 'star' ? 'Ngôi Sao Hy Vọng' : 'Bảo Hộ Miễn Trừ'}</span>
+					</div>
+				)}
+
 				{activePower && (
 					<div className="mx-3 mt-2 p-3 bg-blue-800 border-2 border-blue-400 rounded-xl flex items-center gap-3">
 						{activePower === 'star' ? (
 							<>
-								<Star size={20} className="text-yellow-400 shrink-0" />
-								<span className="font-bold text-yellow-300 uppercase tracking-wide">Ngôi sao hy vọng</span>
-								<span className="text-yellow-200 text-sm">Đúng: +150% · Sai: -100%</span>
+								<Star size={20} className="text-white-400 shrink-0" />
+								<span className="font-bold text-white-300 uppercase tracking-wide">Ngôi sao hy vọng</span>
+								<span className="text-white-200 text-sm">Đúng: +150% · Sai: -100%</span>
 							</>
 						) : (
 							<>
@@ -369,6 +510,14 @@ const PVeDichRiengPage = () => {
 								<span className="text-blue-200 text-sm">Đúng: +50% · Sai: không trừ</span>
 							</>
 						)}
+					</div>
+				)}
+
+				{/* Power already used indicator */}
+				{!activePower && usedPowers[playerCode ?? ''] && (
+					<div className={`mx-3 mt-2 p-2 rounded-xl flex items-center gap-2 font-bold text-sm bg-white-500/20 text-blue-300 border border-white-500/50`}>
+						{usedPowers[playerCode ?? ''] === 'star' ? <Star size={16} /> : <Shield size={16} />}
+						<span>Đã dùng {usedPowers[playerCode ?? ''] === 'star' ? 'Ngôi Sao Hy Vọng' : 'Bảo Hộ Miễn Trừ'}</span>
 					</div>
 				)}
 

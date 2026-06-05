@@ -31,8 +31,8 @@ interface PVeDichPickPageProps {
  *
  * WS messages consumed:
  *   - "send_players_info"       → update player scoreboard
- *   - "veDich_selection_update" → live highlight as admin toggles
- *   - "veDich_questions_selected" → admin confirmed selection
+ *   - "vd_selection_update" → live highlight as admin toggles
+ *   - "vd_questions_selected" → admin confirmed selection
  *   - "navigate"                → handled by global AutoNavigator in PlayerRoutes
  */
 const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
@@ -45,7 +45,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	const { lastMessage } = usePlayerWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	// Sorted list of all question codes — received from admin via veDich_selection_update
+	// Sorted list of all question codes — received from admin via vd_selection_update
 	// Fallback: generate placeholder codes if not received yet
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!paramMatchCode) return [];
@@ -67,8 +67,17 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	});
 	// Confirmed selection after admin clicks XÁC NHẬN
 	const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
-	// Questions from prior rounds that are grayed out and unselectable
-	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>([]);
+	// Questions from prior rounds that are grayed out and unselectable.
+	// Hydrate from localStorage so late-arriving players see the correct state
+	// even if they miss the WS message (admin broadcasts on BẮT ĐẦU click).
+	// Admin will keep the in-app state in sync via vd_selection_update.
+	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
+		if (!paramMatchCode) return [];
+		try {
+			const stored = localStorage.getItem(`veDich_used_codes_${paramMatchCode}`);
+			return stored ? (JSON.parse(stored) as string[]) : [];
+		} catch { return []; }
+	});
 
 	// WebSocket message handling
 	useEffect(() => {
@@ -76,6 +85,12 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
+			case "navigate": {
+				// Navigate handled by global AutoNavigator in PlayerRoutes
+				// Do NOT clear usedQuestionCodes here - admin will send correct used_question_codes via vd_selection_update
+				break;
+			}
+
 			case "send_players_info": {
 				const playersList = msg.players ?? [];
 				const scoreboard = msg.scoreboard ?? [];
@@ -125,7 +140,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_selection_update": {
+			case "vd_selection_update": {
 				// Live highlight as admin toggles individual questions
 				const codes = msg.selected_question_codes ?? [];
 				setLiveSelectedCodes(Array.isArray(codes) ? codes : []);
@@ -142,7 +157,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_questions_selected": {
+			case "vd_questions_selected": {
 				// Admin confirmed — lock in the final selection
 				const codes = msg.selected_question_codes ?? [];
 				const finalCodes = Array.isArray(codes) ? codes : [];
@@ -153,6 +168,15 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				if (Array.isArray(allCodes2) && allCodes2.length > 0) {
 					setAllQuestionCodes(allCodes2 as string[]);
 				}
+				// Mark selected questions as used so they appear disabled in future pick pages
+				setUsedQuestionCodes((prev) => {
+					const updated = [...new Set([...prev, ...finalCodes])];
+					// Persist to localStorage
+					try {
+						localStorage.setItem(`veDich_used_codes_${paramMatchCode}`, JSON.stringify(updated));
+					} catch { /* ignore */ }
+					return updated;
+				});
 				break;
 			}
 
@@ -172,9 +196,22 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 			<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 w-full">
 				{/* Board header */}
 				<div className="flex items-center gap-4 pb-1">
-					<p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
-						{title}
-					</p>
+{(() => {
+					const parts = title.split(" - ");
+					if (parts.length >= 2) {
+						return (
+							<div className="flex flex-col leading-tight shrink-0">
+								<span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+									{parts[0]}
+								</span>
+								<span className="text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+									{parts.slice(1).join(" - ")}
+								</span>
+							</div>
+						);
+					}
+					return <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">{title}</span>;
+				})()}
 
 					<div className="flex-1" />
 
@@ -208,10 +245,6 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 							);
 						})}
 					</div>
-
-					<p className="font-[SVN-Gratelos_Display] font-extrabold text-blue-300 shrink-0 text-2xl">
-						{displayCodes.length}/{maxQuestions}
-					</p>
 				</div>
 
 				{/* Divider */}
@@ -233,6 +266,8 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 						const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
 						const isSelected = displayCodes.includes(displayCode);
 						const isUsed = usedQuestionCodes.includes(displayCode);
+						// Only disable if explicitly in usedQuestionCodes; allow enabling when admin starts the round
+						const shouldDisable = isUsed;
 
 						return (
 							<VeDichQuestionCard
@@ -241,7 +276,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 								subcategory={catSecondary}
 								points={point}
 								isSelected={isSelected}
-								disabled={isUsed || !questionCode}
+								disabled={shouldDisable}
 							/>
 						);
 					})}

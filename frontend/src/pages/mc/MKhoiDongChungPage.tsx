@@ -77,8 +77,9 @@ const MKhoiDongChungPage = () => {
                 question={questionWithAnswer}
                 timerDuration={timer}
                 controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-                boardHeightClass="h-[60vh]"
+                boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
                 answerBoxHeightClass="min-h-[4rem]"
+                hideAnswerBox={true}
             />
         </PBasePageLayout>
     );

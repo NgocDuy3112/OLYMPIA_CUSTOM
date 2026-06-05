@@ -88,8 +88,9 @@ const MButPhaPage = () => {
                     controls={{ variant: "numbers", count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
                     videoPlayState={videoPlayState}
                     hideMediaUntilPlayed
-                    boardHeightClass="h-[45vh]"
+                    boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
                     answerBoxHeightClass="min-h-[4rem]"
+                    hideAnswerBox={true}
                 />
             </>
         </PBasePageLayout>

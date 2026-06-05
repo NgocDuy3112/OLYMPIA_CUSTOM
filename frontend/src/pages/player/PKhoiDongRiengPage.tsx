@@ -160,6 +160,21 @@ const PKhoiDongRiengPage = () => {
 				break;
 			}
 
+			case "player_wrong_attempt": {
+				const { user_code, attempt_count } = msg ?? {};
+				if (user_code && attempt_count) {
+					setPlayers((prev) =>
+						prev.map((p) =>
+							p.playerCode === user_code
+								? { ...p, playerWrongAttempts: attempt_count }
+								: p,
+						),
+					);
+					console.info("Player wrong attempt:", user_code, "count:", attempt_count);
+				}
+				break;
+			}
+
 			case "blocked_buzz": {
 				// blocked_buzz handling removed - state not used
 				break;
@@ -171,12 +186,20 @@ const PKhoiDongRiengPage = () => {
 	}, [applyWsMessage, lastMessage, startSynced]);
 
 
+	// Show "Trả lời lần 2" banner when any player has 1 wrong attempt in current question
+	const hasPlayerWithSecondAttempt = players.some((p) => p.playerWrongAttempts === 1);
+
 	return (
 		<PBasePageLayout
 			players={players}
 			currentPlayerCode={playerCode}
 		>
 			<>
+				{hasPlayerWithSecondAttempt && (
+					<div className="bg-yellow-600 text-white px-4 py-2 rounded-md text-base sm:text-lg font-bold text-center shrink-0 animate-pulse">
+						Trả lời lần 2
+					</div>
+				)}
 				<PQuestionBoard
 					title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
 					question={currentQuestion}

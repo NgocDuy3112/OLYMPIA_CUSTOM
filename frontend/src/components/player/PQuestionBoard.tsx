@@ -16,18 +16,21 @@ interface PQuestionBoardProps {
     videoPlayState?: "playing" | "paused" | null;
     /** When true, media is hidden until videoPlayState becomes non-null (e.g. until timer starts). */
     hideMediaUntilPlayed?: boolean;
+    /** When true, hides the question content area (text + media) but keeps the header. */
+    hideContent?: boolean;
 }
 
 
-const PQuestionBoard: React.FC<PQuestionBoardProps> = ({ 
-    title, 
-    question, 
-    timerDuration, 
-    controls, 
-    children, 
-    boardHeightClass = "h-[45vh]", 
-    videoPlayState, 
-    hideMediaUntilPlayed 
+const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
+    title,
+    question,
+    timerDuration,
+    controls,
+    children,
+    boardHeightClass = "h-[45vh]",
+    videoPlayState,
+    hideMediaUntilPlayed,
+    hideContent = false,
 }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
@@ -77,27 +80,45 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
         </div>
     );
 
+    const renderTitle = (t: string) => {
+        const parts = t.split(" - ");
+        if (parts.length >= 2) {
+            return (
+                <div className="flex flex-col leading-tight">
+                    <span className="text-xl sm:text-2xl lg:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase truncate">
+                        {parts[0]}
+                    </span>
+                    <span className="text-sm sm:text-base lg:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase truncate">
+                        {parts.slice(1).join(" - ")}
+                    </span>
+                </div>
+            );
+        }
+        return <span>{t}</span>;
+    };
+
     return (
-        <div className={`p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 ${boardHeightClass}`}>
-            <div className="flex justify-between items-center pb-1">
-                <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
-                    {title}
-                </p>
-                <div className="flex items-center gap-4">
+        <div className={`p-2 sm:p-3 lg:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 sm:gap-3 lg:gap-4 ${boardHeightClass}`}>
+            <div className="flex justify-between items-center pb-1 gap-2 min-w-0">
+                <div className="text-xl sm:text-2xl lg:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase truncate">
+                    {renderTitle(title)}
+                </div>
+                <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                     <div className="flex gap-2 shrink-0">
                         {children ? <>{children}</> : renderDefaultControls()}
                     </div>
-                    <div className="text-5xl font-[SVN-Gratelos_Display] font-extrabold px-3 py-1 transition-colors duration-500 text-white w-20 text-center shrink-0">
+                    <div className="text-3xl sm:text-4xl lg:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-2 sm:px-3 py-1 transition-colors duration-500 text-white w-12 sm:w-16 lg:w-20 text-center shrink-0">
                         {timerDuration.toString().padStart(2, '0')}
                     </div>
                 </div>
             </div>
 
-            <div className="flex flex-row flex-1 gap-4 min-h-0">
+            {!hideContent && (
+            <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
                         <div className="flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
-                            <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
+                            <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
@@ -106,11 +127,14 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
                         </div>
                     </>
                 ) : (
-                    <p className="w-full text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left self-start">
-                        {question.questionText}
-                    </p>
+                    <div className="w-full overflow-y-auto min-h-0">
+                        <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
+                            {question.questionText}
+                        </p>
+                    </div>
                 )}
             </div>
+            )}
         </div>
     )
 }

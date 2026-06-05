@@ -5,7 +5,6 @@ import { API_BASE_URL } from "@/configs";
 // temporary page-level logging uses console.info; createLogger import removed for brevity
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
-import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
@@ -38,7 +37,7 @@ interface PlayerClueCardProps {
 }
 
 const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintContent }) => {
-	const base = "flex-1 h-28 sm:h-36 lg:h-48 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
+	const base = "flex-1 h-16 sm:h-20 lg:h-28 xl:h-36 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
 	const styles: Record<ClueState, string> = {
 		idle:   "bg-blue-900 border-blue-600 text-white",
 		active: "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
@@ -51,11 +50,11 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
 				<div className="flex items-center justify-center w-full h-full p-2">
 					{hintContent!.mediaUrl
 						? <RenderMedia mediaUrl={hintContent!.mediaUrl} />
-						: <span className="text-xl font-bold text-center leading-snug">{hintContent!.text}</span>
+						: <span className="text-sm sm:text-base lg:text-lg xl:text-xl font-bold text-center leading-snug">{hintContent!.text}</span>
 					}
 				</div>
 			) : (
-				<span className="font-[SVN-Gratelos_Display] text-[50pt]">{index}</span>
+				<span className="font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-[40pt] xl:text-[50pt]">{index}</span>
 			)}
 		</div>
 	);
@@ -84,6 +83,14 @@ const PGiaiMaPage = () => {
 	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
 	const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
 	const activeClueIdxRef = useRef<number | null>(null);
+
+	// Hide the question-board content when admin opens/locks the hint
+	const [hideQuestionContent, setHideQuestionContent] = useState(false);
+	// True while the QuestionBoard timer is the keyword phase (vs. the regular question timer)
+	const [isKeywordPhase, setIsKeywordPhase] = useState(false);
+	// True once the admin has pressed "ĐẾM GIỜ TỪ KHOÁ" — from this point on,
+	// any keyword submission is scored as if all 8 clues were used (N = 8).
+	const [isKeywordCluesLocked, setIsKeywordCluesLocked] = useState(false);
 
 	// Auto-fetch scoreboard on mount to ensure accurate initial scores
 	useEffect(() => {
@@ -230,6 +237,8 @@ const PGiaiMaPage = () => {
 						})
 					);
 				}
+				// New clue means a fresh question text/media on the board — show it again.
+				setHideQuestionContent(false);
 				break;
 			}
 
@@ -238,6 +247,8 @@ const PGiaiMaPage = () => {
 				setTimerHasStarted(true);
 				setQuestionAnswer("");
 				setKeyword("");
+				// If the question-board timer is the keyword phase, set the flag so the input locks when it hits 0.
+				setIsKeywordPhase(msg.phase === "gm_keyword");
 				break;
 			}
 
@@ -249,6 +260,11 @@ const PGiaiMaPage = () => {
 				setShowAnswers(false);
 				setHasSubmittedKeyword(false);
 				setTimerHasStarted(false);
+				setIsKeywordLocked(false);
+				setHideQuestionContent(false);
+				setIsKeywordPhase(false);
+				setIsKeywordCluesLocked(false);
+				setPlayers((prev) => prev.map((p) => ({ ...p, playerKeywordCluesOpened: undefined })));
 				activeClueIdxRef.current = null;
 				break;
 			}
@@ -261,27 +277,56 @@ const PGiaiMaPage = () => {
 				setShowAnswers(false);
 				setHasSubmittedKeyword(false);
 				setTimerHasStarted(false);
+				setIsKeywordLocked(false);
+				setHideQuestionContent(false);
+				setIsKeywordPhase(false);
+				setIsKeywordCluesLocked(false);
+				setPlayers((prev) => prev.map((p) => ({ ...p, playerKeywordCluesOpened: undefined })));
 				activeClueIdxRef.current = null;
 				break;
 			}
 
 			case "show_hint": {
-				const idx = activeClueIdxRef.current;
-				if (idx !== null) {
-					const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players : [];
-					// Chỉ thí sinh được admin chọn mới thấy gợi ý
-					const isTargeted = targets.length > 0 && targets.includes(playerCode);
-					if (isTargeted) {
-						const hintContent = msg.hint_content ?? "";
-						const hintMediaSource = msg.hint_media_source ?? "";
-						// If hint content itself is a media filename, swap roles
-						const contentIsMedia = isMediaFilename(hintContent);
-						const displayText = contentIsMedia ? hintMediaSource : hintContent;
-						const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
-						setRevealedHints((prev) => ({
-							...prev,
-							[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
-						}));
+				const hintContent = msg.hint_content ?? "";
+				const hintMediaSource = msg.hint_media_source ?? "";
+				// If hint content itself is a media filename, swap roles
+				const contentIsMedia = isMediaFilename(hintContent);
+				const displayText = contentIsMedia ? hintMediaSource : hintContent;
+				const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
+				setHideQuestionContent(true);
+
+				// Two shapes of "show_hint" are supported:
+				//   1. clue_index provided → admin is broadcasting a hint for a
+				//      SPECIFIC card (used when admin reveals all clues at once).
+				//      Show to ALL players; ignore `target_players` filter.
+				//   2. clue_index absent → legacy per-active-clue hint, only
+				//      players in `target_players` see it.
+				const explicitIdx = Number(msg.clue_index);
+				const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
+
+				if (hasExplicitIdx) {
+					const idx = explicitIdx;
+					activeClueIdxRef.current = idx;
+					setClueStates((prev) => {
+						if (prev[idx] === "used") return prev;
+						return prev.map((s, i) => (i === idx ? "used" : s));
+					});
+					setRevealedHints((prev) => ({
+						...prev,
+						[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
+					}));
+				} else {
+					const idx = activeClueIdxRef.current;
+					if (idx !== null) {
+						const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players : [];
+						// Chỉ thí sinh được admin chọn mới thấy gợi ý
+						const isTargeted = targets.length > 0 && targets.includes(playerCode);
+						if (isTargeted) {
+							setRevealedHints((prev) => ({
+								...prev,
+								[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
+							}));
+						}
 					}
 				}
 				break;
@@ -289,6 +334,7 @@ const PGiaiMaPage = () => {
 
 			case "hide_hint": {
 				const idx = activeClueIdxRef.current;
+				setHideQuestionContent(true);
 				if (idx !== null) {
 					setRevealedHints((prev) => {
 						const next = { ...prev };
@@ -365,38 +411,85 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
+			case "keyword_clues_locked": {
+				// Admin pressed "ĐẾM GIỜ TỪ KHOÁ" — every keyword submission from
+				// this point on is treated as having used all 8 clues.
+				console.info("[KEYWORD CLUES LOCKED] All subsequent submissions will be N=8");
+				setIsKeywordCluesLocked(true);
+				break;
+			}
+
 			case "start_keyword_timer": {
-				// Admin bắt đầu timer 15s cho từ khoá
-				console.info("[KEYWORD TIMER] Starting 15s keyword timer");
+				// Deprecated — keyword timer now rides on `start_the_timer` with `phase: "gm_keyword"`.
+				// Kept as a no-op for backward compatibility with older admin clients.
+				console.info("[KEYWORD TIMER] Legacy start_keyword_timer received — ignored");
 				break;
 			}
 
 			case "reveal_keyword_answer": {
-				setKeywordAnswer(msg.answer ?? null);
+				const answer = msg.answer ?? null;
+				const banner = msg.keyword_banner ?? null;
+				console.info("[KEYWORD REVEAL] Received answer:", answer, "banner:", banner);
+				setKeywordAnswer(answer);
+				if (answer) {
+					const newBanner = banner || buildKeywordBanner(answer);
+					console.info("[KEYWORD REVEAL] Setting banner:", newBanner);
+					setKeywordBanner(newBanner);
+				}
+				break;
+			}
+
+			case "send_keyword_info": {
+				// Admin broadcast — sync keyword-length banner from admin so player view matches
+				// even if the local /questions/ fetch returned a different/empty payload.
+				const banner = msg.banner;
+				if (typeof banner === "string" && banner) {
+					console.info("[KEYWORD INFO] Received banner from admin:", banner);
+					setKeywordBanner(banner);
+				}
 				break;
 			}
 
 			case "keyword_submit": {
-				const { user_code } = msg;
+				const { user_code, clues_opened } = msg;
 				if (user_code) {
 					setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
-					// Update player list to show key icon
+					// Update player list to show key icon AND the "Sau N gợi ý" badge immediately
+					// (don't wait for admin's "HIỆN TỪ KHOÁ" — the clue count is known at submit time)
 					setPlayers((prev) =>
 						prev.map((p) =>
-							p.playerCode === user_code ? { ...p, playerHasSubmittedKeyword: true } : p,
+							p.playerCode === user_code
+								? {
+										...p,
+										playerHasSubmittedKeyword: true,
+										playerKeywordCluesOpened:
+											typeof clues_opened === "number" ? clues_opened : p.playerKeywordCluesOpened,
+									}
+								: p,
 						),
 					);
-					console.info("Player received keyword_submit from", user_code);
+					console.info("Player received keyword_submit from", user_code, "clues_opened=", clues_opened);
 				}
 				break;
 			}
 
 			case "send_keyword_answers": {
-				const answers: { user_code: string; content: string; timestamp: number }[] = msg.answers ?? [];
+				const answers: { user_code: string; content: string; timestamp?: number; clues_opened?: number }[] = msg.answers ?? [];
+				console.info("[KEYWORD ANSWERS] Received answers:", answers.length, "submissions");
 				setPlayers((prev) =>
 					prev.map((p) => {
 						const a = answers.find((x: any) => x.user_code === p.playerCode);
-						return a ? { ...p, playerLastAnswer: a.content, playerTimestamp: a.timestamp } : p;
+						if (!a) return p;
+						return {
+							...p,
+							playerLastAnswer: a.content,
+							// Admin sets timestamp: undefined for keyword answers so the
+							// player card omits the timestamp next to the keyword text.
+							// Only overwrite when the broadcast provides a numeric timestamp.
+							playerTimestamp: typeof a.timestamp === "number" ? a.timestamp : p.playerTimestamp,
+							playerKeywordCluesOpened:
+								typeof a.clues_opened === "number" ? a.clues_opened : p.playerKeywordCluesOpened,
+						};
 					}),
 				);
 				setKeywordSubmittedCodes(new Set());
@@ -518,25 +611,47 @@ const PGiaiMaPage = () => {
 		}
 
 		console.info("[KEYWORD SUBMIT] Sending WebSocket message...");
+		// Snapshot how many clue cards count toward this submission:
+		// - If the admin has already pressed "ĐẾM GIỜ TỪ KHOÁ" (`isKeywordCluesLocked`),
+		//   every submission from this point is treated as N = CLUE_COUNT.
+		// - Otherwise N = how many cards are non-idle in this player's local state.
+		const cluesOpened = isKeywordCluesLocked
+			? CLUE_COUNT
+			: clueStates.filter((s) => s !== "idle").length;
 		await sendMessage({
 			type: "keyword_submit",
 			user_code: playerCode,
 			keyword_text: trimmed,
 			timestamp: 0,
+			clues_opened: cluesOpened,
 		});
 		console.info("[KEYWORD SUBMIT] WebSocket message sent");
 
 		// Mark self as submitted and show key icon immediately
 		setHasSubmittedKeyword(true);
 		setKeywordSubmittedCodes((prev) => new Set([...prev, playerCode]));
+		// Cache own clues count so we can render "Sau N gợi ý" right after admin reveals.
+		setPlayers((prev) =>
+			prev.map((p) =>
+				p.playerCode === playerCode ? { ...p, playerKeywordCluesOpened: cluesOpened } : p,
+			),
+		);
 		console.info("[KEYWORD SUBMIT] State updated, keyword cleared");
 		setKeyword("");
-	}, [keywordToConfirm, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode]);
+	}, [keywordToConfirm, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode, clueStates, isKeywordCluesLocked]);
 
 	const isTimerExpired = timeLimit > 0 && timer === 0;
 	// Question answer box: only enabled after admin starts the clock; also disabled after expiry or keyword submitted
 	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired;
 	// Keyword box: additionally locked by isKeywordLocked (broadcast when all clues open or all players submitted)
+	// Auto-lock keyword when the keyword-phase QuestionBoard timer expires
+	const isKeywordTimerExpired = isKeywordPhase && timeLimit > 0 && timer === 0;
+	useEffect(() => {
+		if (isKeywordTimerExpired) {
+			setIsKeywordLocked(true);
+		}
+	}, [isKeywordTimerExpired]);
+
 	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || !currentQuestion.questionCode;
 
 	const displayPlayers = players.map((p) => {
@@ -551,11 +666,11 @@ const PGiaiMaPage = () => {
 	});
 
 	const clueGrid = (
-		<div className="flex flex-col gap-3 w-full mb-3 px-3">
-			<div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-4 py-2 text-center font-[SVN-Gratelos_Display] text-2xl lg:text-3xl font-bold text-white uppercase shadow">
+		<div className="flex flex-col gap-2 sm:gap-3 w-full mb-2 sm:mb-3 px-1 sm:px-3">
+			<div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-white uppercase shadow">
 				{keywordAnswer ? `${keywordAnswer}` : keywordBanner}
 			</div>
-			<div className="grid grid-cols-4 gap-2 w-full">
+			<div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">
 				{Array.from({ length: CLUE_COUNT }, (_, i) => (
 					<PlayerClueCard
 						key={i}
@@ -578,36 +693,28 @@ const PGiaiMaPage = () => {
 
 				<PQuestionBoard
 					title="GIẢI MÃ"
-					question={currentQuestion}
+					question={isKeywordPhase ? { ...currentQuestion, questionText: keywordBanner, questionMediaURL: undefined } : currentQuestion}
 					timerDuration={timer}
-					boardHeightClass="h-[20vh] lg:h-[26vh]"
+					boardHeightClass="h-[18vh] sm:h-[20vh] lg:h-[26vh]"
 					controls={{ variant: 'numbers', count: 0 }}
+					hideContent={hideQuestionContent || isKeywordPhase}
 					/>
 
-
-
-				<div className="flex flex-col gap-2 p-2 lg:p-3">
-					<PAnswerBox
-						answer={questionAnswer}
-						setAnswer={setQuestionAnswer}
-						isDisabled={isQuestionAnswerDisabled}
-						onSubmit={handleSubmitQuestionAnswer}
-						placeholderString={isQuestionAnswerDisabled ? "Bạn không thể nhập câu trả lời tại thời điểm này" : "Nhập câu trả lời và nhấn Enter"}
-					/>
-					<PAnswerBox
-						answer={keyword}
-						setAnswer={setKeyword}
-						isDisabled={isKeywordInputDisabled}
-						onSubmit={handleSubmitKeyword}
-						placeholderString={isKeywordInputDisabled ? "Bạn không thể nhập từ khoá tại thời điểm này" : "Nhập từ khoá và nhấn Enter"}
-					/>
-					<PSubmitButton
-						isEnabled={!isKeywordInputDisabled && keyword.trim().length > 0}
-						isKeywordMode={true}
-						label="NỘP TỪ KHOÁ"
-						onSubmit={handleSubmitKeyword}
-					/>
-				</div>
+				<PAnswerBox
+					answer={questionAnswer}
+					setAnswer={setQuestionAnswer}
+					isDisabled={isQuestionAnswerDisabled}
+					onSubmit={handleSubmitQuestionAnswer}
+					placeholderString={isQuestionAnswerDisabled ? "Bạn không thể nhập câu trả lời tại thời điểm này" : "Nhập câu trả lời và nhấn Enter"}
+				/>
+				<PAnswerBox
+					answer={keyword}
+					setAnswer={setKeyword}
+					isDisabled={isKeywordInputDisabled}
+					onSubmit={handleSubmitKeyword}
+					placeholderString={isKeywordInputDisabled ? "Bạn không thể nhập từ khoá tại thời điểm này" : "Nhập từ khoá và nhấn Enter"}
+					showKeyIcon={true}
+				/>
 
 				{showKeywordConfirm && (
 					<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">

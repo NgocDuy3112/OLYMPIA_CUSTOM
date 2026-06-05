@@ -15,7 +15,7 @@ const MKhoiDongRiengPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers } = useMcPlayers();
+    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, applyWrongAttempt, clearAnswers } = useMcPlayers();
     const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
     const [currentPlayerCode, setCurrentPlayerCode] = useState("");
 
@@ -75,10 +75,13 @@ const MKhoiDongRiengPage = () => {
                 setBuzzerWinnerCode(null);
                 setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
                 break;
+            case "player_wrong_attempt":
+                applyWrongAttempt(msg);
+                break;
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, setPlayers, buzzerWinnerCode]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, applyWrongAttempt, clearAnswers, fetchAnswer, clearAnswer, setPlayers, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -86,15 +89,24 @@ const MKhoiDongRiengPage = () => {
         questionExplanation: questionExplanation ?? currentQuestion.questionExplanation,
     };
 
+    // Show "Trả lời lần 2" banner when any player has 1 wrong attempt in current question
+    const hasPlayerWithSecondAttempt = players.some((p) => p.playerWrongAttempts === 1);
+
     return (
         <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
+            {hasPlayerWithSecondAttempt && (
+                <div className="bg-yellow-600 text-white px-4 py-2 rounded-md text-base sm:text-lg font-bold text-center shrink-0 animate-pulse">
+                    Trả lời lần 2
+                </div>
+            )}
             <AQuestionBoard
                 title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
                 question={questionWithAnswer}
                 timerDuration={timer}
                 controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-                boardHeightClass="h-[60vh]"
+                boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
                 answerBoxHeightClass="h-[15vh]"
+                hideAnswerBox={true}
             />
         </PBasePageLayout>
     );

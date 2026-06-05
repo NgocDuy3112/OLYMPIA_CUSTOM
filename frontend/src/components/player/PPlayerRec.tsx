@@ -1,5 +1,5 @@
 import React from "react";
-import { Zap, Mic, KeyRound } from "lucide-react";
+import { Zap, Mic, KeyRound, Star, Shield } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
 
@@ -60,11 +60,25 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
             <div className="flex justify-between items-center w-full">
                 <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%] flex items-center gap-2">
                     <span className="truncate">{player.playerName}</span>
+                    {/* Quyền năng icon: Star (NSHV) hoặc Shield (BHMT) */}
+                    {player.playerPower === 'star' && (
+                        <Star size={20} className="text-white-400 shrink-0" />
+                    )}
+                    {player.playerPower === 'shield' && (
+                        <Shield size={20} className="text-white-400 shrink-0" />
+                    )}
                     {player.playerIsTurn && (
                         <Mic size={20} className="text-white inline-block" />
                     )}
                     {player.playerHasSubmittedKeyword && (
-                        <KeyRound size={16} className="text-yellow-400 shrink-0" />
+                        <>
+                            <KeyRound size={16} className="text-white-400 shrink-0" />
+                            {typeof player.playerKeywordCluesOpened === "number" && (
+                                <span className="text-[12px] tablet:text-[14px] font-normal text-white whitespace-nowrap">
+                                    Sau {player.playerKeywordCluesOpened} gợi ý
+                                </span>
+                            )}
+                        </>
                     )}
                 </p>
                 <div className="flex items-center">

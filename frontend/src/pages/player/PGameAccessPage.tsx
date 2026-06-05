@@ -45,7 +45,7 @@ const GameAccessPage: React.FC = () => {
                         type="submit"
                         className="mt-4 btn-primary-full"
                     >
-                        VÀO PHÒNG
+                        Vào trận đấu
                     </button>
                     {token && (
                         <button

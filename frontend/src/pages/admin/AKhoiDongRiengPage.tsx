@@ -6,10 +6,10 @@ import {
 	AlarmClockCheck,
 	Plus,
 	Power,
-	RefreshCw,
 	X,
 	SkipForward,
 } from "lucide-react";
+
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -24,7 +24,7 @@ import { API_BASE_URL } from "@/configs";
 const logger = createLogger("AKhoiDongRieng");
 
 
-const TIME_LIMIT = 30;
+const TIME_LIMIT = 40;
 const QUESTION_PREFIX = "OC3_Q_KD"; // Matches the Khởi Động CÁ NHÂN question naming convention.
 
 
@@ -88,6 +88,14 @@ const AKhoiDongRiengPage = () => {
 
 	// Lock in the selected player when round starts — cannot switch to another player
 	const [isPlayerLocked, setIsPlayerLocked] = useState<boolean>(false);
+
+	// Check if any player has 1 wrong attempt (show "Trả lời lần 2" banner)
+	const hasPlayerWithSecondAttempt = Object.values(attempts).some(count => count === 1);
+
+	// Debug: Log attempts state changes
+	useEffect(() => {
+		logger.info("DEBUG: attempts=", attempts, "hasPlayerWithSecondAttempt=", hasPlayerWithSecondAttempt);
+	}, [attempts, hasPlayerWithSecondAttempt]);
 
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCode((prev) => (prev === playerCode ? null : playerCode));
@@ -617,14 +625,32 @@ const AKhoiDongRiengPage = () => {
 	}, [selectedPlayerCode, handleAddScore, currentQuestionIndex, attempts, handleNextQuestion]);
 
 	const handleMarkWrong = useCallback(async () => {
-		if (!selectedPlayerCode) return;
-		if (currentQuestionIndex <= 0) return;
+		if (!selectedPlayerCode) {
+			logger.warn("handleMarkWrong: No selected player");
+			return;
+		}
+		if (currentQuestionIndex <= 0) {
+			logger.warn("handleMarkWrong: No active question (index=", currentQuestionIndex, ")");
+			return;
+		}
 
 		const currentAttempts = attempts[selectedPlayerCode] ?? 0;
 		const nextCount = currentAttempts + 1;
 		const exhausted = nextCount >= 2;
 
-		setAttempts((prev) => ({ ...prev, [selectedPlayerCode]: nextCount }));
+		logger.info("handleMarkWrong: player=", selectedPlayerCode, "currentAttempts=", currentAttempts, "nextCount=", nextCount);
+
+		setAttempts((prev) => {
+			const updated = { ...prev, [selectedPlayerCode]: nextCount };
+			logger.info("handleMarkWrong: updated attempts=", updated);
+			return updated;
+		});
+
+		// Broadcast wrong attempt to Player/MC clients
+		if (nextCount === 1) {
+			logger.info("handleMarkWrong: sending player_wrong_attempt for", selectedPlayerCode);
+			void sendMessage({ type: "player_wrong_attempt", user_code: selectedPlayerCode, attempt_count: 1, phase: "kdr" });
+		}
 
 		void sendMessage({ type: "wrong", user_code: selectedPlayerCode, phase: "kdr" });
 
@@ -788,6 +814,7 @@ const AKhoiDongRiengPage = () => {
 							...player,
 							playerLastAnswer: undefined,
 							playerTimestamp: undefined,
+							playerWrongAttempts: undefined,
 						})),
 					);
 				});
@@ -811,6 +838,22 @@ const AKhoiDongRiengPage = () => {
 				break;
 			}
 
+			case "player_wrong_attempt": {
+				const { user_code, attempt_count } = msg;
+				if (user_code && attempt_count) {
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((player) =>
+								player.playerCode === user_code
+									? { ...player, playerWrongAttempts: attempt_count }
+									: player,
+							),
+						);
+					});
+					logger.info("Player wrong attempt:", user_code, "count:", attempt_count);
+				}
+				break;
+			}
 			case "player_answer":
 			case "answer": {
 				// Real-time answer from player via WebSocket
@@ -866,10 +909,16 @@ const AKhoiDongRiengPage = () => {
 				count: 6,
 				activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
 			}}
-			controlsChildren={() => (
-				<div className="flex gap-2">
+			controlsChildren={(api) => (
+				<div className="flex gap-2 items-center">
+					{/* "Trả lời lần 2" banner - shown when any player has 1 wrong attempt */}
+					{hasPlayerWithSecondAttempt && (
+						<div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+							Trả lời lần 2
+						</div>
+					)}
 					{Array.from({ length: 6 }).map((_, idx) => {
-						const isActive = currentQuestionIndex > 0 && currentQuestionIndex - 1 === idx;
+						const isActive = api.activeIndices.includes(idx);
 						return (
 							<button
 								key={idx}
@@ -962,12 +1011,6 @@ const AKhoiDongRiengPage = () => {
 					>
 						<SkipForward size={18} />
 						<span className="ml-2 font-bold">BỎ QUA</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { loadPlayersState() }}
-					>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 				</>
 			}

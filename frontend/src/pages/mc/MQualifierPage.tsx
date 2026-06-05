@@ -177,6 +177,7 @@ const MQualifierPage = () => {
                     controls={{ variant: "numbers", count: boardCount, activeIndices: activeQuestionIndex ? [activeQuestionIndex - 1] : [] }}
                     boardHeightClass="h-[50vh]"
                     answerBoxHeightClass="h-[13vh]"
+                    hideAnswerBox={true}
                 />
 
                 {parsedOptions.length > 0 && (

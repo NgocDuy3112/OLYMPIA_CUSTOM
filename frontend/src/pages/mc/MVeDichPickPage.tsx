@@ -29,9 +29,9 @@ interface MVeDichPickPageProps {
  *
  * WS messages consumed:
  *   - "send_players_info"       → update player scoreboard
- *   - "veDich_selection_update" → live highlight as admin toggles
- *   - "veDich_questions_selected" → admin confirmed selection
- *   - "veDich_questions_meta"   → question metadata broadcast
+ *   - "vd_selection_update" → live highlight as admin toggles
+ *   - "vd_questions_selected" → admin confirmed selection
+ *   - "vdc_questions_meta"   → question metadata broadcast
  */
 const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
@@ -40,7 +40,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const { lastMessage } = useMcWebSocket();
 	const { players, applyPlayersInfo } = useMcPlayers();
 
-	// Sorted list of all question codes — received from admin via veDich_selection_update
+	// Sorted list of all question codes — received from admin via vd_selection_update
 	// Fallback: generate placeholder codes if not received yet
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
@@ -61,8 +61,17 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	});
 	// Confirmed selection after admin clicks XÁC NHẬN
 	const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
-	// Questions from prior rounds that are grayed out and unselectable
-	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>([]);
+	// Questions from prior rounds that are grayed out and unselectable.
+	// Hydrate from localStorage so late-arriving MC sees the correct state
+	// even if they miss the WS message (admin broadcasts on BẮT ĐẦU click).
+	// Admin will keep the in-app state in sync via vd_selection_update.
+	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
+		if (!matchCode) return [];
+		try {
+			const stored = localStorage.getItem(`veDich_used_codes_${matchCode}`);
+			return stored ? (JSON.parse(stored) as string[]) : [];
+		} catch { return []; }
+	});
 
 	// WebSocket message handling
 	useEffect(() => {
@@ -75,7 +84,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_selection_update": {
+			case "vd_selection_update": {
 				const codes = msg.selected_question_codes ?? [];
 				setLiveSelectedCodes(Array.isArray(codes) ? codes : []);
 				const allCodes = msg.all_question_codes;
@@ -89,8 +98,8 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_questions_selected":
-			case "veDich_questions_meta": {
+			case "vd_questions_selected":
+			case "vdc_questions_meta": {
 				const codes = msg.selected_question_codes ?? [];
 				const finalCodes = Array.isArray(codes) ? codes : [];
 				setConfirmedCodes(finalCodes);
@@ -154,10 +163,6 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 							);
 						})}
 					</div>
-
-					<p className="font-[SVN-Gratelos_Display] font-extrabold text-blue-300 shrink-0 text-2xl">
-						{displayCodes.length}/{maxQuestions}
-					</p>
 				</div>
 
 				{/* Divider */}

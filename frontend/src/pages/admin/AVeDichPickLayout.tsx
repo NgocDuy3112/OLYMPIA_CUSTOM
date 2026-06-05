@@ -117,9 +117,22 @@ const AVeDichPickLayout = ({
 
 						{/* Board header: title + selected preview + counter — all in one row */}
 						<div className="flex items-center gap-4 pb-1">
-							<p className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
-								{title}
-							</p>
+							{(() => {
+								const parts = title.split(" - ");
+								if (parts.length >= 2) {
+									return (
+										<div className="flex flex-col leading-tight shrink-0">
+											<span className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+												{parts[0]}
+											</span>
+											<span className="text-xl xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+												{parts.slice(1).join(" - ")}
+											</span>
+										</div>
+									);
+									}
+									return <span className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">{title}</span>;
+								})()}
 
 							{/* Spacer */}
 							<div className="flex-1" />
@@ -156,10 +169,6 @@ const AVeDichPickLayout = ({
 									);
 								})}
 							</div>
-
-							<p className="font-[SVN-Gratelos_Display] font-extrabold text-blue-300 shrink-0 text-2xl">
-								{selectedQuestionCodes.length}/{maxQuestions}
-							</p>
 						</div>
 
 						{/* Divider */}

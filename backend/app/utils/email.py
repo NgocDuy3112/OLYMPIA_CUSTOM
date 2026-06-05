@@ -61,13 +61,17 @@ async def send_credentials_email(
     <body style="font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; padding: 24px;">
         <div style="max-width: 480px; margin: auto; background: #fff; border-radius: 12px;
                     box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 32px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center;">
+                <strong style="font-size: 14px;">🚀 PHIÊN BẢN BETA</strong><br/>
+                <span style="font-size: 12px; opacity: 0.9;">Cảm ơn bạn đã tham gia thử nghiệm!</span>
+            </div>
             <h2 style="color: #2563eb; margin-top: 0;">Thông tin đăng nhập</h2>
             <p>Xin chào <strong>{user_name}</strong>,</p>
             <p>Tài khoản Olympia Custom của bạn đã được tạo thành công. Dưới đây là thông tin đăng nhập:</p>
             <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
                 <tr>
                     <td style="padding: 10px 14px; background: #f1f5f9; font-weight: bold;
-                               border-radius: 6px 0 0 6px; width: 40%">Mã đăng nhập</td>
+                               border-radius: 6px 0 0 6px; width: 40%">Mã người dùng</td>
                     <td style="padding: 10px 14px; background: #e0f2fe; font-family: monospace;
                                border-radius: 0 6px 6px 0;">{user_code}</td>
                 </tr>
@@ -137,6 +141,10 @@ async def send_password_reset_email(*, to: str, user_name: str, reset_link: str)
     <body style="font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; padding: 24px;">
         <div style="max-width: 540px; margin: auto; background: #fff; border-radius: 12px;
                     box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 28px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center;">
+                <strong style="font-size: 14px;">🚀 PHIÊN BẢN BETA</strong><br/>
+                <span style="font-size: 12px; opacity: 0.9;">Cảm ơn bạn đã tham gia thử nghiệm!</span>
+            </div>
             <h2 style="color: #2563eb; margin-top: 0;">Yêu cầu đặt lại mật khẩu</h2>
             <p>Xin chào <strong>{user_name}</strong>,</p>
             <p>Bạn hoặc quản trị viên đã yêu cầu đặt lại mật khẩu cho tài khoản của bạn. Nhấn nút bên dưới để đặt mật khẩu mới. Link sẽ hết hạn sau 1 giờ.</p>
@@ -170,6 +178,10 @@ async def send_otp_email(*, to: str, user_name: str, otp: str, purpose: str) -> 
     <body style="font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; padding: 24px;">
         <div style="max-width: 480px; margin: auto; background: #fff; border-radius: 12px;
                     box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 32px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center;">
+                <strong style="font-size: 14px;">🚀 PHIÊN BẢN BETA</strong><br/>
+                <span style="font-size: 12px; opacity: 0.9;">Cảm ơn bạn đã tham gia thử nghiệm!</span>
+            </div>
             <h2 style="color: #2563eb; margin-top: 0;">Mã xác thực</h2>
             <p>Xin chào <strong>{user_name}</strong>,</p>
             <p>Mã xác thực cho thao tác <strong>{purpose}</strong> của bạn là:</p>

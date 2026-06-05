@@ -27,6 +27,8 @@ interface ABasePageLayoutProps {
 
 	/** When true, hides the answer/explanation box inside AQuestionBoard */
 	hideAnswerBox?: boolean;
+	/** When true, hides the question content area (text + media) in AQuestionBoard */
+	hideQuestionContent?: boolean;
 	videoPlayState?: "playing" | "paused" | null;
 	hideMediaUntilPlayed?: boolean;
 
@@ -89,6 +91,7 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 	boardHeightClass,
 	answerBoxHeightClass,
 	hideAnswerBox,
+	hideQuestionContent,
 	playerSectionButtons,
 	videoPlayState,
 	hideMediaUntilPlayed,
@@ -98,8 +101,8 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 			<AdminGameplayNavBar />
 			<div className="flex flex-row w-full flex-1 p-2 tablet:p-3 xl:p-6 gap-3 tablet:gap-4 xl:gap-8 overflow-hidden">
 				{/* Left section: Question board and controls */}
-				<div className="flex flex-col flex-3 gap-3 tablet:gap-4 xl:gap-6 overflow-y-auto">				{aboveQuestionBoard}
-					<AQuestionBoard title={questionTitle} titleExtra={titleExtra} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass} hideAnswerBox={hideAnswerBox} videoPlayState={videoPlayState} hideMediaUntilPlayed={hideMediaUntilPlayed}>
+				<div className="flex flex-col flex-3 gap-3 tablet:gap-4 xl:gap-6 overflow-y-auto min-w-0">					{aboveQuestionBoard}
+					<AQuestionBoard title={questionTitle} titleExtra={titleExtra} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass} hideAnswerBox={hideAnswerBox} hideContent={hideQuestionContent} videoPlayState={videoPlayState} hideMediaUntilPlayed={hideMediaUntilPlayed}>
 						{controlsChildren}
 					</AQuestionBoard>
 

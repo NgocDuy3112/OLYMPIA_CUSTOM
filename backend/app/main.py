@@ -19,6 +19,7 @@ from routes import (
 from sqlalchemy import text
 from dependencies.postgresql_db import *
 from dependencies.valkey_store import get_valkey
+from dependencies.s3_services import init_s3_client, close_s3_client
 from dependencies.ws_manager import get_ws_manager
 from dependencies.user_auth import get_ws_user
 from utils.ws_connection import ConnectionManager
@@ -34,7 +35,7 @@ async def lifespan(app: FastAPI):
     
     valkey = None
     manager = await get_ws_manager()
-    
+
     try:
         valkey = await get_valkey()
         manager.set_valkey(valkey)
@@ -47,6 +48,11 @@ async def lifespan(app: FastAPI):
             exc_info=True
         )
         # Continue startup without Valkey - REST API will still work
+
+    # S3 singleton: best-effort, same pattern as Valkey. If it fails,
+    # media routes return 503 instead of crashing the whole worker.
+    await init_s3_client()
+
     async with engine.begin() as conn:
         await conn.execute(text(
             "DO $$ BEGIN "
@@ -74,8 +80,12 @@ async def lifespan(app: FastAPI):
             global_logger.info("Valkey connection pool closed.")
         except Exception as e:
             global_logger.warning(f"Error closing Valkey connection: {e}", exc_info=True)
-    
-    if engine: 
+
+    # Tear down the S3 singleton so aiohttp's HTTPConnectionPool releases
+    # its keep-alive sockets. Safe to call even if init_s3_client failed.
+    await close_s3_client()
+
+    if engine:
         await engine.dispose()
         global_logger.info("Database engine disposed.")
 
@@ -106,12 +116,12 @@ def health_check():
     return {"status": "healthy"}
 
 
-_cors_origins = os.getenv("CORS_ORIGINS", "").strip()
-_allowed_origins = [o.strip() for o in _cors_origins.split(",") if o.strip()] if _cors_origins else ["*"]
+cors_origins = os.getenv("CORS_ORIGINS", "").strip()
+allowed_origins = [o.strip() for o in cors_origins.split(",") if o.strip()] if cors_origins else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_allowed_origins,
+    allow_origins=allowed_origins,
     allow_credentials=False,  # must be False when allow_origins=["*"]; app uses Bearer tokens, not cookies
     allow_methods=["*"],
     allow_headers=["*"],
@@ -131,7 +141,7 @@ app.include_router(media.router)
 # Message types that non-admin users are allowed to broadcast.
 # Admin can send any type. This prevents player/MC from injecting
 # privileged messages like score updates, navigation commands, etc.
-_PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
+PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "answer",
     "player_answer",
     "buzz",
@@ -140,9 +150,12 @@ _PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "mc_online",
     "request_presence",
     "keyword_submit",
+    "vd_player_power",
+    "vd_power_window_closed",
+    "vd_questions_meta_request",
 })
 
-_MC_ALLOWED_TYPES: frozenset[str] = frozenset({
+MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "answer",
     "player_answer",
     "buzz",
@@ -165,10 +178,13 @@ _MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "player_score_updated",
     "player_offline",
     "answering_window_activated",
-    "veDich_power_activated",
-    "veDich_question_state",
-    "veDich_questions_selected",
-    "veDich_rieng_questions_meta",
+    "vd_power_activated",
+    "vdc_questions_meta",
+    "vdc_question_state",
+    "vdr_questions_meta",
+    "vdr_question_state",
+    "vd_questions_selected",
+    "vd_selection_update",
     "bp_dung",
     "bp_chon_cau_hoi",
     "wrong",
@@ -184,6 +200,7 @@ _MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "keyword_locked",
     "buzzer_winner",
     "blocked_buzz",
+    "vd_power_window_open",
 })
 
 
@@ -245,13 +262,13 @@ async def websocket_endpoint(
             # Role-based message filtering: only admin and mc can send
             # privileged control messages. Players are restricted to a
             # small set of allowed types to prevent injection attacks.
-            if user_role == "player" and msg_type not in _PLAYER_ALLOWED_TYPES:
+            if user_role == "player" and msg_type not in PLAYER_ALLOWED_TYPES:
                 global_logger.warning(
                     f"[BP ANSWER SYNC] Blocked player message: type={msg_type!r} "
-                    f"user={user_info['user_code']!r} room={match_code!r} allowed={_PLAYER_ALLOWED_TYPES}"
+                    f"user={user_info['user_code']!r} room={match_code!r} allowed={PLAYER_ALLOWED_TYPES}"
                 )
                 continue
-            elif user_role == "mc" and msg_type not in _MC_ALLOWED_TYPES:
+            elif user_role == "mc" and msg_type not in MC_ALLOWED_TYPES:
                 global_logger.warning(
                     f"Blocked mc message: type={msg_type!r} "
                     f"user={user_info['user_code']!r} room={match_code!r}"

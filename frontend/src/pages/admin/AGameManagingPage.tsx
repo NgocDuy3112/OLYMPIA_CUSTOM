@@ -14,7 +14,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
     const handleClick = () => {
         const codeToUse = matchCode || (typeof window !== "undefined" ? localStorage.getItem("matchCode") || "" : "");
         if (!codeToUse) {
-            alert("Vui lòng nhập Mã trận đấu trước khi vào phòng.");
+            alert("Vui lòng nhập Mã trận đấu trước khi Vào trận đấu.");
             return;
         }
         try {
@@ -31,7 +31,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
             disabled={disabled}
             className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 disabled:opacity-50 font-medium transition-colors"
         >
-            Vào phòng
+            Vào trận đấu
         </button>
     );
 };
@@ -104,18 +104,8 @@ const AGameManagingPage = () => {
     const [questions, setQuestions] = useState<QuestionData[]>([]);
     const [questionsLoading, setQuestionsLoading] = useState(false);
     const [questionsMatchCode, setQuestionsMatchCode] = useState(localStorage.getItem("matchCode") || "");
-    const [showCreateQuestion, setShowCreateQuestion] = useState(false);
     const [showImportMenu, setShowImportMenu] = useState(false);
     const importMenuRef = useRef<HTMLDivElement>(null);
-    // Quick create-question form state (admin convenience)
-    const [newQuestionCode, setNewQuestionCode] = useState("");
-    const [newContent, setNewContent] = useState("");
-    const [newAnswer, setNewAnswer] = useState("");
-    const [newExplanation, setNewExplanation] = useState("");
-    const [newMediaUrl, setNewMediaUrl] = useState("");
-    const [newMediaFile, setNewMediaFile] = useState<File | null>(null);
-    const [creatingQuestion, setCreatingQuestion] = useState(false);
-    const newMediaInputRef = useRef<HTMLInputElement>(null);
     // ── Edit question state ──────────────────────────────────────────
     const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(null);
     const [editQContent, setEditQContent] = useState("");
@@ -173,21 +163,6 @@ const AGameManagingPage = () => {
         [token],
     );
 
-    // Auto-generate S3 key for new question media when question code or match code changes
-    useEffect(() => {
-        if (newQuestionCode && !newMediaFile) {
-            const codeToUse = questionsMatchCode || matchCode;
-            if (codeToUse && newQuestionCode) {
-                // Only auto-generate if no manual URL has been entered
-                const ext = newMediaUrl ? newMediaUrl.split('.').pop() || 'png' : 'png';
-                const suggestedKey = `${codeToUse}/${newQuestionCode}.${ext}`;
-                if (!newMediaUrl || newMediaUrl.startsWith(codeToUse)) {
-                    setNewMediaUrl(suggestedKey);
-                }
-            }
-        }
-    }, [newQuestionCode, questionsMatchCode, matchCode, newMediaFile]);
-
     // Auto-generate S3 key for edit question media when editing starts
     useEffect(() => {
         if (editingQuestion && !editQMediaFile) {
@@ -201,7 +176,7 @@ const AGameManagingPage = () => {
                 }
             }
         }
-    }, [editingQuestion, questionsMatchCode, matchCode, editQMediaFile]);
+    }, [editQMediaUrl, editingQuestion, questionsMatchCode, matchCode, editQMediaFile]);
 
     // Close import dropdown when clicking outside
     useEffect(() => {
@@ -316,10 +291,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, users]);
 
-    const lookupMatch = useCallback(async () => {
-        await lookupMatchByCode(matchCode);
-    }, [matchCode, lookupMatchByCode]);
-
     // ── Fetch all matches (GET /matches/all) ─────────────────────────
     const fetchAllMatches = useCallback(async () => {
         setAllMatchesLoading(true);
@@ -382,7 +353,8 @@ const AGameManagingPage = () => {
                 logger.info("Match saved:", matchCode);
                 setMatchExists(true);
                 localStorage.setItem("matchCode", matchCode);
-                alert(matchExists ? "Cập nhật phòng thành công" : "Tạo phòng thành công");
+                await fetchAllMatches();
+                alert(matchExists ? "Cập nhật trận đấu thành công" : "Tạo trận đấu thành công");
             } else {
                 const errMsg = json.detail ?? json.message ?? "Lỗi không xác định";
                 logger.warn("Match operation failed:", errMsg);
@@ -394,7 +366,7 @@ const AGameManagingPage = () => {
         } finally {
             setMatchLoading(false);
         }
-    }, [authHeaders, matchCode, matchName, userCodes, matchExists]);
+    }, [authHeaders, matchCode, matchName, userCodes, matchExists, fetchAllMatches]);
 
     // ── Fetch questions (GET /questions?match_code=...&question_code=)
     const fetchQuestions = useCallback(async () => {
@@ -421,82 +393,6 @@ const AGameManagingPage = () => {
             setQuestionsLoading(false);
         }
     }, [authHeaders, matchCode, questionsMatchCode]);
-
-const createQuestion = useCallback(async () => {
-        const codeToUse = questionsMatchCode || matchCode;
-        if (!codeToUse) {
-            alert("Vui lòng nhập mã trận đấu trước khi tạo câu hỏi (Questions match code)");
-            return;
-        }
-        if (!newQuestionCode || !newContent || !newAnswer) {
-            alert("Vui lòng điền question_code, content và answer");
-            return;
-        }
-        setCreatingQuestion(true);
-        try {
-            let mediaUrl = newMediaUrl || null;
-            
-            // Upload media file if provided
-            if (newMediaFile) {
-                const ext = newMediaFile.name.split('.').pop() || 'png';
-                const s3Key = `${codeToUse}/${newQuestionCode}.${ext}`;
-                
-                const formData = new FormData();
-                formData.append('file', newMediaFile);
-                
-                const uploadRes = await fetch(
-                    `${API_BASE_URL}/media/upload/?match_code=${encodeURIComponent(codeToUse)}`,
-                    {
-                        method: 'POST',
-                        headers: { Authorization: `Bearer ${token}` },
-                        body: formData,
-                    }
-                );
-                
-                if (uploadRes.ok) {
-                    const uploadJson = await uploadRes.json();
-                    mediaUrl = uploadJson.key || s3Key;
-                    logger.info(`Media uploaded successfully: ${mediaUrl}`);
-                } else {
-                    logger.warn('Media upload failed, proceeding without media');
-                }
-            }
-            
-            const res = await fetch(`${API_BASE_URL}/questions/`, {
-                method: "POST",
-                headers: authHeaders(),
-                body: JSON.stringify({
-                    match_code: codeToUse,
-                    question_code: newQuestionCode,
-                    content: newContent,
-                    answer: newAnswer,
-                    explanation: newExplanation || null,
-                    media_url: mediaUrl,
-                }),
-            });
-            const json: ApiResponse = await res.json();
-            if (json.status === "success") {
-                alert("Tạo câu hỏi thành công");
-                // reset form
-                setNewQuestionCode("");
-                setNewContent("");
-                setNewAnswer("");
-                setNewExplanation("");
-                setNewMediaUrl("");
-                setNewMediaFile(null);
-                if (newMediaInputRef.current) newMediaInputRef.current.value = "";
-                // refresh list
-                await fetchQuestions();
-            } else {
-                alert(`Tạo câu hỏi thất bại: ${json.message}`);
-            }
-        } catch (err) {
-            logger.error("Error creating question:", err);
-            alert("Lỗi khi tạo câu hỏi");
-        } finally {
-            setCreatingQuestion(false);
-        }
-    }, [authHeaders, matchCode, questionsMatchCode, newQuestionCode, newContent, newAnswer, newExplanation, newMediaUrl, newMediaFile, token, fetchQuestions]);
 
     // ── Patch question (PATCH /questions/{match_code}/{question_code}) ─
     const patchQuestion = useCallback(async () => {
@@ -775,6 +671,10 @@ const createQuestion = useCallback(async () => {
             alert("Vui lòng nhập tên người dùng");
             return;
         }
+        if (!newPlayerCode.trim()) {
+            alert("Vui lòng nhập Mã người dùng");
+            return;
+        }
         setAddingPlayer(true);
         try {
             const body: Record<string, string> = { user_name: newPlayerName.trim(), role: newUserRole };
@@ -874,7 +774,7 @@ const createQuestion = useCallback(async () => {
                                 </button>
                             </div>
                         </div>
-                        <p className="text-xs text-yellow-400">Lưu ý: mật khẩu này chỉ hiển thị một lần. Hãy sao chép lại.</p>
+                        <p className="text-xs text-white-400">Lưu ý: mật khẩu này chỉ hiển thị một lần. Hãy sao chép lại.</p>
                         <button
                             onClick={() => setRevealedPassword(null)}
                             className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-sm transition-colors self-end"
@@ -985,7 +885,7 @@ const createQuestion = useCallback(async () => {
                             <button
                                 onClick={patchQuestion}
                                 disabled={savingQuestionEdit || !editQContent.trim() || !editQAnswer.trim()}
-                                className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+                                className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm transition-colors"
                             >
                                 {savingQuestionEdit ? "Đang lưu…" : "Lưu thay đổi"}
                             </button>
@@ -1036,7 +936,7 @@ const createQuestion = useCallback(async () => {
                             <button
                                 onClick={patchUser}
                                 disabled={savingEdit || !editName.trim()}
-                                className="px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+                                className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm transition-colors"
                             >
                                 {savingEdit ? "Đang lưu…" : "Lưu thay đổi"}
                             </button>
@@ -1097,7 +997,7 @@ const createQuestion = useCallback(async () => {
                         />
                         <input
                             type="text"
-                            placeholder="Mã đăng nhập (OC_U... — tuỳ chọn)"
+                            placeholder="Mã người dùng (OC_U...) *"
                             value={newPlayerCode}
                             onChange={(e) => setNewPlayerCode(e.target.value)}
                             className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm"
@@ -1121,7 +1021,7 @@ const createQuestion = useCallback(async () => {
                         </select>
                         <button
                             onClick={createUser}
-                            disabled={addingPlayer || !newPlayerName.trim()}
+                            disabled={addingPlayer || !newPlayerName.trim() || !newPlayerCode.trim()}
                             className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 font-medium text-sm"
                         >
                             {addingPlayer ? "Đang thêm..." : "Xác nhận thêm"}
@@ -1138,7 +1038,7 @@ const createQuestion = useCallback(async () => {
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-blue-900">
                                 <tr className="text-left text-blue-300 border-b border-blue-700">
-                                    <th className="py-2 px-2">Mã đăng nhập</th>
+                                    <th className="py-2 px-2">Mã người dùng</th>
                                     <th className="py-2 px-2">Tên người dùng</th>
                                     <th className="py-2 px-2">Email</th>
                                     <th className="py-2 px-2">Vai trò</th>
@@ -1163,7 +1063,7 @@ const createQuestion = useCallback(async () => {
                                                         setEditName(u.user_name);
                                                         setEditEmail(u.email ?? "");
                                                     }}
-                                                    className="p-1.5 rounded bg-yellow-600/70 hover:bg-yellow-500 transition-colors"
+                                                    className="p-1.5 rounded bg-white-600/70 hover:bg-white-500 transition-colors"
                                                     title="Sửa thông tin"
                                                 >
                                                     <Pencil size={13} />
@@ -1172,7 +1072,7 @@ const createQuestion = useCallback(async () => {
                                                     onClick={() => sendCredentials(u.user_code)}
                                                     disabled={sendingCredentials === u.user_code}
                                                     className="text-xs px-2 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                                    title="Gửi mã đăng nhập & mật khẩu qua email"
+                                                    title="Gửi Mã người dùng & mật khẩu qua email"
                                                 >
                                                     {sendingCredentials === u.user_code ? "Đang gửi…" : "Gửi thông tin"}
                                                 </button>
@@ -1193,11 +1093,11 @@ const createQuestion = useCallback(async () => {
                 </div>
             </div>
 
-            {/* ─── Card 2 : Tạo phòng & Danh sách trận đấu ───────────────────────────────── */}
+            {/* ─── Card 2 : Tạo trận đấu & Danh sách trận đấu ───────────────────────────────── */}
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden row-span-2">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
-                        <Gamepad2 size={22} /> Tạo phòng & Quản lý trận đấu
+                        <Gamepad2 size={22} /> Tạo trận đấu & Quản lý trận đấu
                     </h2>
                     <button
                         onClick={fetchAllMatches}
@@ -1209,34 +1109,24 @@ const createQuestion = useCallback(async () => {
                     </button>
                 </div>
 
-                {/* Form tạo phòng */}
+                {/* Form Tạo trận đấu */}
                 <div className="bg-blue-800/20 border border-blue-700 rounded-lg p-4 flex flex-col gap-3">
-                    <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Tạo / Cập nhật phòng</h3>
+                    <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Tạo / Cập nhật trận đấu</h3>
 
-                {/* matchCode input + lookup */}
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        placeholder="Mã trận đấu"
-                        value={matchCode}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setMatchCode(val);
-                            setQuestionsMatchCode(val);
-                            setMatchExists(false);
-                            localStorage.setItem("matchCode", val);
-                        }}
-                        className="flex-1 px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                    />
-                    <button
-                        onClick={lookupMatch}
-                        disabled={matchLoading || !matchCode}
-                        className="px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
-                        title="Tìm"
-                    >
-                        <Search size={16} />
-                    </button>
-                </div>
+                {/* matchCode input */}
+                <input
+                    type="text"
+                    placeholder="Mã trận đấu"
+                    value={matchCode}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        setMatchCode(val);
+                        setQuestionsMatchCode(val);
+                        setMatchExists(false);
+                        localStorage.setItem("matchCode", val);
+                    }}
+                    className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
 
                 {/* matchName input */}
                 <input
@@ -1275,16 +1165,6 @@ const createQuestion = useCallback(async () => {
                     ))}
                 </div>
 
-                {/* Player count hint */}
-                {(() => {
-                    const filled = userCodes.filter((c) => c.trim() !== "").length;
-                    return (
-                        <p className={`text-xs -mt-2 ${filled >= 3 ? "text-green-400" : "text-yellow-400"}`}>
-                            {filled}/4 thí sinh — {filled < 3 ? "cần ít nhất 3" : filled === 4 ? "đủ 4 người" : "đủ 3 người"}
-                        </p>
-                    );
-                })()}
-
                 {/* Action button */}
                 <div className="flex gap-2">
                     <button
@@ -1293,7 +1173,7 @@ const createQuestion = useCallback(async () => {
                         className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
                     >
                         <Plus size={16} />
-                        {matchExists ? "Cập nhật phòng" : "Tạo phòng"}
+                        {matchExists ? "Cập nhật trận đấu" : "Tạo trận đấu"}
                     </button>
 
                     <VaoPhongButton matchCode={matchCode} disabled={!matchCode || !matchExists} />
@@ -1344,33 +1224,60 @@ const createQuestion = useCallback(async () => {
                                                 )}
                                             </td>
                                             <td className="py-2 px-2 text-right" onClick={(e) => e.stopPropagation()}>
-                                                {m.match_status !== 'finished' && (
+                                                <div className="flex gap-1 justify-end">
+                                                    {m.match_status !== 'finished' && (
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!confirm(`Xác nhận hoàn thành trận đấu "${m.match_name}" (${m.match_code})? Hành động này không thể hoàn tác.`)) return;
+                                                                try {
+                                                                    const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(m.match_code)}/finish`, {
+                                                                        method: "PATCH",
+                                                                        headers: authHeaders(),
+                                                                    });
+                                                                    const json = await res.json();
+                                                                    if (json.status === "success") {
+                                                                        alert("✅ Đã hoàn thành trận đấu!");
+                                                                        await fetchAllMatches();
+                                                                    } else {
+                                                                        alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành"}`);
+                                                                    }
+                                                                } catch (err) {
+                                                                    logger.error("Error finishing match:", err);
+                                                                    alert("Lỗi kết nối khi hoàn thành trận đấu");
+                                                                }
+                                                            }}
+                                                            className="text-xs px-3 py-1 rounded bg-green-700 hover:bg-green-500 transition-colors font-semibold"
+                                                            title="Đánh dấu trận đấu đã hoàn thành"
+                                                        >
+                                                            Hoàn thành
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={async () => {
-                                                            if (!confirm(`Xác nhận hoàn thành trận đấu "${m.match_name}" (${m.match_code})? Hành động này không thể hoàn tác.`)) return;
+                                                            if (!confirm(`Xác nhận xoá trận đấu "${m.match_name}" (${m.match_code})?\nHành động này không thể hoàn tác.`)) return;
                                                             try {
-                                                                const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(m.match_code)}/finish`, {
-                                                                    method: "PATCH",
+                                                                const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(m.match_code)}`, {
+                                                                    method: "DELETE",
                                                                     headers: authHeaders(),
                                                                 });
                                                                 const json = await res.json();
                                                                 if (json.status === "success") {
-                                                                    alert("✅ Đã hoàn thành trận đấu!");
+                                                                    alert("✅ Đã xoá trận đấu!");
                                                                     await fetchAllMatches();
                                                                 } else {
-                                                                    alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành"}`);
+                                                                    alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể xoá trận đấu"}`);
                                                                 }
                                                             } catch (err) {
-                                                                logger.error("Error finishing match:", err);
-                                                                alert("Lỗi kết nối khi hoàn thành trận đấu");
+                                                                logger.error("Error deleting match:", err);
+                                                                alert("Lỗi kết nối khi xoá trận đấu");
                                                             }
                                                         }}
-                                                        className="text-xs px-3 py-1 rounded bg-green-700 hover:bg-green-500 transition-colors font-semibold"
-                                                        title="Đánh dấu trận đấu đã hoàn thành"
+                                                        className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
+                                                        title="Xoá trận đấu"
                                                     >
-                                                        Hoàn thành
+                                                        <Trash2 size={13} />
                                                     </button>
-                                                )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -1470,93 +1377,8 @@ const createQuestion = useCallback(async () => {
                                 </div>
                             )}
                         </div>
-                        <button
-                            onClick={() => setShowCreateQuestion((v: boolean) => !v)}
-                            className={`flex items-center gap-1 px-3 py-2 rounded-lg transition-colors text-sm font-semibold ${
-                                showCreateQuestion
-                                    ? "bg-green-700 hover:bg-green-600 text-white"
-                                    : "bg-blue-700 hover:bg-blue-600 text-white"
-                            }`}
-                        >
-                            <Plus size={14} /> Tạo câu hỏi
-                        </button>
                     </div>
                 </div>
-
-                {showCreateQuestion && (
-                    <div className="bg-blue-800/20 border border-blue-700 rounded-md p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                            <input
-                                type="text"
-                                placeholder="question_code (OC3_Q_...)"
-                                value={newQuestionCode}
-                                onChange={(e) => setNewQuestionCode(e.target.value)}
-                                className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
-                            />
-                            <input
-                                type="text"
-                                placeholder="answer"
-                                value={newAnswer}
-                                onChange={(e) => setNewAnswer(e.target.value)}
-                                className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
-                            />
-                            <div className="relative">
-                                <input
-                                    ref={newMediaInputRef}
-                                    type="file"
-                                    accept="image/*,audio/*,video/*"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) {
-                                            setNewMediaFile(file);
-                                            const ext = file.name.split('.').pop() || 'png';
-                                            const codeToUse = questionsMatchCode || matchCode;
-                                            const suggestedKey = codeToUse && newQuestionCode ? `${codeToUse}/${newQuestionCode}.${ext}` : `filename.${ext}`;
-                                            setNewMediaUrl(suggestedKey);
-                                        }
-                                    }}
-                                />
-                                <button
-                                    onClick={() => newMediaInputRef.current?.click()}
-                                    className="w-full px-2 py-2 rounded bg-blue-700 hover:bg-blue-600 text-white text-sm text-left truncate"
-                                    title="Chọn file media"
-                                >
-                                    {newMediaFile ? newMediaFile.name : 'Chọn file media'}
-                                </button>
-                            </div>
-                        </div>
-                        {newMediaUrl && (
-                            <div className="text-xs text-blue-300 mt-1">
-                                S3 key: <span className="font-mono">{newMediaUrl}</span>
-                            </div>
-                        )}
-                        <textarea
-                            placeholder="Nội dung câu hỏi"
-                            value={newContent}
-                            onChange={(e) => setNewContent(e.target.value)}
-                            className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
-                            rows={3}
-                        />
-                        <textarea
-                            placeholder="Giải thích (optional)"
-                            value={newExplanation}
-                            onChange={(e) => setNewExplanation(e.target.value)}
-                            className="w-full mt-2 px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
-                            rows={2}
-                        />
-                        <div className="flex items-center gap-2 mt-3">
-                            <button
-                                onClick={createQuestion}
-                                disabled={creatingQuestion}
-                                className="px-3 py-2 rounded bg-green-600 hover:bg-green-500 disabled:opacity-50 font-medium"
-                            >
-                                {creatingQuestion ? "Đang tạo..." : "Tạo câu hỏi"}
-                            </button>
-                            <div className="text-sm text-blue-300">Match: <span className="font-mono">{questionsMatchCode || matchCode || "(chưa đặt)"}</span></div>
-                        </div>
-                    </div>
-                )}
 
                 <div className="overflow-y-auto flex-1 -mr-2 pr-2">
                     {questionsLoading ? (
@@ -1645,7 +1467,7 @@ const createQuestion = useCallback(async () => {
                 </div>
 
                 {!matchCode ? (
-                    <p className="text-gray-400 text-sm">Nhập mã trận đấu ở phần "Tạo phòng" để xem và sửa điểm.</p>
+                    <p className="text-gray-400 text-sm">Nhập mã trận đấu ở phần "Tạo trận đấu" để xem và sửa điểm.</p>
                 ) : scoreboard.length === 0 && !scoreboardLoading ? (
                     <p className="text-gray-400 text-sm">Chưa có điểm. Bấm "Tải bảng điểm" để lấy dữ liệu.</p>
                 ) : (
@@ -1669,7 +1491,7 @@ const createQuestion = useCallback(async () => {
                                         <td className="py-2 px-2 font-bold text-blue-200">#{idx + 1}</td>
                                         <td className="py-2 px-2 font-mono text-xs">{entry.user_code}</td>
                                         <td className="py-2 px-2">{entry.user_name}</td>
-                                        <td className="py-2 px-2 font-bold text-yellow-400 text-lg">
+                                        <td className="py-2 px-2 font-bold text-white-400 text-lg">
                                             {editingScoreUser === entry.user_code ? (
                                                 <input
                                                     type="number"
@@ -1680,7 +1502,7 @@ const createQuestion = useCallback(async () => {
                                                         if (e.key === "Enter") void adjustScore();
                                                         if (e.key === "Escape") { setEditingScoreUser(null); setEditScoreValue(""); }
                                                     }}
-                                                    className="w-24 px-2 py-1 rounded bg-blue-950 border border-blue-500 text-white text-center focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                                                    className="w-24 px-2 py-1 rounded bg-blue-950 border border-blue-500 text-white text-center focus:outline-none focus:ring-2 focus:ring-white-500"
                                                     autoFocus
                                                 />
                                             ) : (
@@ -1707,7 +1529,7 @@ const createQuestion = useCallback(async () => {
                                             ) : (
                                                 <button
                                                     onClick={() => { setEditingScoreUser(entry.user_code); setEditScoreValue(String(entry.cumulative_score)); }}
-                                                    className="p-1.5 rounded bg-yellow-600/70 hover:bg-yellow-500 transition-colors"
+                                                    className="p-1.5 rounded bg-white-600/70 hover:bg-white-500 transition-colors"
                                                     title="Sửa điểm"
                                                 >
                                                     <Pencil size={13} />

@@ -89,22 +89,22 @@ const VeDichQuestionCard = ({
 			disabled={disabled || placeholder}
 			aria-hidden={placeholder}
 			className={`
-					flex flex-col items-stretch justify-between px-3 py-2.5 rounded-lg
-				border-2 border-transparent
-				transition-all duration-150 font-bold w-full h-full
+				flex flex-col items-stretch justify-between px-2 sm:px-3 py-1.5 sm:py-2.5 rounded-lg
+			border-2 border-transparent
+			transition-all duration-150 font-bold w-full h-full min-h-0
 				${getStateStyles()}
 				${isSelected && state === "available" ? "!border-white !bg-blue-500 text-white outline outline-2 outline-white outline-offset-[-1px]" : ""}
 				${!disabled && state === "available" && !placeholder ? "cursor-pointer" : ""}
 			`}
 		>
 			{/* Category + subcategory */}
-			<span className="text-xs font-bold uppercase leading-tight line-clamp-2 tracking-wide drop-shadow-sm">
+			<span className="text-[10px] sm:text-xs font-bold uppercase leading-tight line-clamp-2 tracking-wide drop-shadow-sm">
 				{catPrimary || category}{(subcategory ?? catSecondary) ? ` / ${subcategory ?? catSecondary}` : ""}
 			</span>
 
 			{/* Points — large, centered */}
 			{typeof points === "number" && (
-				<span className="font-[SVN-Gratelos_Display] text-2xl font-extrabold leading-none self-center drop-shadow-md">{points}</span>
+				<span className="font-[SVN-Gratelos_Display] text-lg sm:text-2xl font-extrabold leading-none self-center drop-shadow-md">{points}</span>
 			)}
 		</button>
 	);

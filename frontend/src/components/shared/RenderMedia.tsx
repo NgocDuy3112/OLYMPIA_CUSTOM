@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { useDriveMedia } from "@/hooks/useDriveMedia";
+import { useS3Media } from "@/hooks/useS3Media";
 
 interface RenderMediaProps {
     mediaUrl: string | undefined;
@@ -74,24 +74,24 @@ export const RenderMedia: React.FC<RenderMediaProps> = ({ mediaUrl, videoPlaySta
         sessionStorage.getItem("jwtToken_mc") ??
         "";
 
-    const driveMedia = useDriveMedia(mediaUrl, token);
+    const s3Media = useS3Media(mediaUrl, token);
 
     if (!mediaUrl) return null;
 
-    if (driveMedia.loading) {
+    if (s3Media.loading) {
         return (
             <div className={CONTAINER_CLASS}>
                 <div className="text-blue-300 text-sm animate-pulse">Đang tải media…</div>
             </div>
         );
     }
-    if (driveMedia.error) {
+    if (s3Media.error) {
         return (
             <div className={CONTAINER_CLASS}>
                 <div className="text-red-400 text-sm text-center">Không tải được media</div>
             </div>
         );
     }
-    if (!driveMedia.blobUrl) return null;
-    return <>{resolveMediaElement(driveMedia.blobUrl, driveMedia.mimeType, videoPlayState)}</>;
+    if (!s3Media.src) return null;
+    return <>{resolveMediaElement(s3Media.src, s3Media.mimeType, videoPlayState)}</>;
 };

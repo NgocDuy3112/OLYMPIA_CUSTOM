@@ -19,13 +19,15 @@ interface AQuestionBoardProps {
     answerBoxHeightClass?: string;
     /** When true, hides the answer/explanation box (e.g. while timer is running) */
     hideAnswerBox?: boolean;
+    /** When true, hides the question content area (text + media) but keeps the header. */
+    hideContent?: boolean;
     videoPlayState?: "playing" | "paused" | null;
     /** When true, media is hidden until videoPlayState becomes non-null (e.g. until timer starts). */
     hideMediaUntilPlayed?: boolean;
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[55vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[55vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -96,14 +98,31 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         );
     };
 
+    const renderTitle = (t: string) => {
+        const parts = t.split(" - ");
+        if (parts.length >= 2) {
+            return (
+                <div className="flex flex-col leading-tight">
+                    <span className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                        {parts[0]}
+                    </span>
+                    <span className="text-sm tablet:text-base xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                        {parts.slice(1).join(" - ")}
+                    </span>
+                </div>
+            );
+        }
+        return <span>{t}</span>;
+    };
+
     return (
         <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${boardHeightClass}`}>
             {/* Header: title, timer and six control boxes */}
             <div className="flex justify-between items-center pb-1">
                 <div className="flex items-center gap-4">
-                    <p className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
-                        {title}
-                    </p>
+                    <div className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                        {renderTitle(title)}
+                    </div>
                     {titleExtra && <div className="ml-2">{titleExtra}</div>}
                 </div>
                 <div className="flex items-center gap-4">
@@ -127,12 +146,13 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
             </div>
 
             {/* Content area: question text and optional media - takes remaining space */}
-            <div className="flex flex-row flex-1 gap-4 min-h-0">
+            {!hideContent && (
+            <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
                         {/* Left side: question text (60% width) */}
                         <div className="flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
-                            <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
+                            <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
@@ -143,17 +163,20 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                     </>
                 ) : (
                     /* Full width: question text only */
-                    <p className="w-full text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left self-start">
-                        {question.questionText}
-                    </p>
+                    <div className="w-full overflow-y-auto min-h-0">
+                        <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
+                            {question.questionText}
+                        </p>
+                    </div>
                 )}
             </div>
+            )}
 
             {/* Answer box — hidden during timer */}
             {!hideAnswerBox && question.questionAnswer && (
-                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-3 gap-2`}>
+                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-2 tablet:p-3 gap-1 shrink-0`}>
 
-                    <div className="text-xl tablet:text-2xl text-center line-clamp-3">
+                    <div className="text-base tablet:text-xl xl:text-2xl text-center line-clamp-3">
                         {question.questionAnswer}
                     </div>
                 </div>
