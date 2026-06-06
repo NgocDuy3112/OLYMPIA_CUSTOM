@@ -5,10 +5,9 @@ import {
 	AlarmClockCheck,
 	Calculator,
 	ListRestart,
-	Power,
 	RefreshCw,
 	Eye,
-	Play,
+	Power,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -632,7 +631,7 @@ const AVeDichChungPage = () => {
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
 		// Broadcast so player chips update too
 		void sendMessage({ type: "vdc_question_state", question_code: currentQuestion.questionCode, state: "answered" });
-		void sendMessage({ type: selectedPlayerCodes.length > 0 ? "answer" : "wrong", phase: "vdc" });
+		void sendMessage({ type: selectedPlayerCodes.length > 0 ? "vd_dung" : "wrong", phase: "vdc" });
 
 		try {
 			if (selectedPlayerCodes.length === 0) {
@@ -707,28 +706,15 @@ const AVeDichChungPage = () => {
 	]);
 
 	// ─── Round control ────────────────────────────────────────────────────────────
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		setIsTimerRunning(false);
-		if (!currentMatchCode) return;
-		try {
-			await sendMessage({ type: "round_start", round: "vdc" });
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdc" });
-			await sendPlayersSnapshot();
-		} catch (err) {
-			logger.error("handleStartRound failed:", err);
-		}
-	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
-
 	const handleEndRound = useCallback(async () => {
+		// Reset local state for the next round
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
+			// SFX bot plays vd_ket_thuc.mp3 on this event (phase=vdc)
 			await sendMessage({ type: "round_end", round: "vdc" });
-			// Removed navigate to waiting page - players and MC stay on VDC page to preserve score context
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
@@ -1041,21 +1027,13 @@ const AVeDichChungPage = () => {
 			}
 			bottomActionButtons={
 				<>
-					<AControlButton						
+					<AControlButton
 						onClick={() => navigate(`/admin/vdc/pick/${currentMatchCode ?? ""}`)}
 						disabled={isTimerRunning}
 					>
 						<ListRestart size={18} />
 						<span className="ml-2 font-bold">CHỌN LẠI</span>
 					</AControlButton>
-
-					<AControlButton
-						onClick={() => { void handleStartRound(); }}
-					>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
-
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
 					>

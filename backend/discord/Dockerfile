@@ -18,4 +18,4 @@ RUN apk add --no-cache ffmpeg libsodium \
 COPY backend/discord/ .
 
 # Create audio directories for S3 sync
-RUN mkdir -p /app/audios/bgm /app/audios/sfx
+RUN mkdir -p /app/audios/bgm /app/audios/sfx /app/audios/ping

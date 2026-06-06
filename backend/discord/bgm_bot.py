@@ -77,27 +77,83 @@ def _find_phase_file(phase: str) -> str | None:
 
 # ── Playback ──────────────────────────────────────────────────────────────────
 
+async def _get_voice_client(guild: discord.Guild) -> discord.VoiceClient | None:
+    """Return a usable voice client on `guild`, connecting if needed.
+
+    Discord's gateway can hold an orphan voice session for 30-60s after
+    the bot disconnects (or after a restart). During that window
+    guild.voice_client reports None locally while Discord still rejects
+    any new connect() with "Already connected". Retry with long backoff
+    AND re-scan every guild's voice client — the session eventually
+    shows up somewhere, even if not on the guild we expected.
+    """
+    # Fast path: live client already exists on our guild.
+    vc = guild.voice_client
+    if vc is not None and vc.is_connected():
+        return vc
+
+    # Slow path: clean up any stale client on this guild, then connect.
+    stale = guild.voice_client
+    if stale is not None:
+        logger.warning(f"Voice client on '{guild.name}' is stale — cleaning up")
+        try:
+            await stale.disconnect(force=True)
+        except Exception as e:
+            logger.warning(f"Failed to disconnect stale client: {e}")
+
+    # Locate the voice channel.
+    channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
+    if channel is None:
+        try:
+            channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
+        except Exception as e:
+            logger.error(f"Cannot resolve VOICE_CHANNEL_ID: {e}")
+            return None
+    if not isinstance(channel, discord.VoiceChannel):
+        logger.warning("VOICE_CHANNEL_ID is not a voice channel")
+        return None
+
+    # Retry connect with long backoff. After each delay, scan EVERY
+    # guild's voice client — the orphan session can pop up on any guild
+    # Discord.py is tracking, not necessarily the one we asked for.
+    delays = [5.0, 10.0, 20.0, 40.0]
+    for attempt, delay in enumerate(delays, start=1):
+        # Scan all guilds first (orphan session may live elsewhere).
+        for g in bot.guilds:
+            existing = g.voice_client
+            if existing is not None and existing.is_connected():
+                logger.info(
+                    f"Found live voice client on '{g.name}' (attempt {attempt}) — reusing"
+                )
+                return existing
+
+        try:
+            return await channel.connect(self_deaf=True)
+        except discord.ClientException as e:
+            logger.warning(
+                f"connect attempt {attempt}/{len(delays)} rejected ({e}); "
+                f"re-scanning in {delay}s"
+            )
+            await asyncio.sleep(delay)
+        except Exception as e:
+            logger.error(f"connect attempt {attempt} failed: {e}")
+            await asyncio.sleep(delay)
+
+    logger.error("All connect attempts failed — aborting playback")
+    return None
+
+
 async def _play(guild: discord.Guild, file_path: str) -> None:
     logger.info(f"Attempting to play: {file_path}")
-    
+
     # Check if file exists
     if not os.path.isfile(file_path):
         logger.error(f"Audio file not found: {file_path}")
         return
-    
-    vc: discord.VoiceClient | None = guild.voice_client
-    if not vc or not vc.is_connected():
-        logger.info("Not connected to voice channel, attempting to connect...")
-        try:
-            channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
-            if not isinstance(channel, discord.VoiceChannel):
-                logger.warning("VOICE_CHANNEL_ID is not a voice channel")
-                return
-            vc = await channel.connect(self_deaf=True)
-            logger.info(f"Connected to voice channel: {channel.name}")
-        except Exception as e:
-            logger.error(f"Cannot connect to voice channel: {e}")
-            return
+
+    vc = await _get_voice_client(guild)
+    if vc is None:
+        return
 
     if vc.is_playing():
         logger.info("Stopping current playback")
@@ -108,8 +164,36 @@ async def _play(guild: discord.Guild, file_path: str) -> None:
     except Exception as e:
         logger.error(f"Failed to create audio source for '{file_path}': {e}")
         return
-    vc.play(source)
-    logger.info(f"Playing: {os.path.basename(file_path)}")
+    try:
+        vc.play(source)
+        logger.info(f"Playing: {os.path.basename(file_path)}")
+    except discord.ClientException as e:
+        logger.error(f"vc.play() failed (voice state desync?): {e} — will force-reconnect next call")
+        try:
+            await vc.disconnect(force=True)
+        except Exception:
+            pass
+
+
+# ── Background player (queue + lock) ──────────────────────────────────────────
+# All play requests go through this queue so the bot serialises voice
+# connect / cleanup / play. This matches the pattern in sfx_bot.py and
+# ping_bot.py and prevents the "Already connected" race when multiple
+# events arrive close together (e.g. back-to-back start_the_timer).
+_bgm_queue: asyncio.Queue[tuple[discord.Guild, str]] = asyncio.Queue()
+
+
+async def _bgm_player() -> None:
+    """Background task: dequeue play requests and call _play serially."""
+    logger.info("BGM background player started")
+    while True:
+        guild, file_path = await _bgm_queue.get()
+        try:
+            await _play(guild, file_path)
+        except Exception as e:
+            logger.error(f"Error in BGM background player: {e}")
+        finally:
+            _bgm_queue.task_done()
 
 
 async def _stop(guild: discord.Guild) -> None:
@@ -155,7 +239,7 @@ async def _handle_message(message: dict) -> None:
             timer_file = _find_file(f"{timer_prefix}_{time_limit}s")
             if timer_file:
                 logger.info(f"Found timer file: {timer_file}")
-                await _play(guild, timer_file)
+                await _bgm_queue.put((guild, timer_file))
             else:
                 logger.warning(f"No timer BGM for phase='{current_phase}' time={time_limit}s (looked for '{timer_prefix}_{time_limit}s')")
                 # List available files for debugging
@@ -171,7 +255,7 @@ async def _handle_message(message: dict) -> None:
         keyword_file = _find_file("gm_15s")
         if keyword_file:
             logger.info(f"Found keyword timer file: {keyword_file}")
-            await _play(guild, keyword_file)
+            await _bgm_queue.put((guild, keyword_file))
         else:
             logger.warning("No keyword timer BGM found (looked for 'gm_15s')")
 
@@ -181,16 +265,33 @@ async def _handle_message(message: dict) -> None:
             _current_track[guild.id] = phase
             music_file = _find_phase_file(phase)
             if music_file:
-                await _play(guild, music_file)
+                await _bgm_queue.put((guild, music_file))
             else:
                 logger.warning(f"play_bgm: no audio file for phase '{phase}'")
 
     elif msg_type == "answering_window_activated":
-        buzzer_file = _find_file("vd_5s")
-        if buzzer_file:
-            await _play(guild, buzzer_file)
+        # Buzzer window 5s for Về Đích Riêng — only play in VDR phase
+        current_phase = _current_track.get(guild.id, "")
+        if current_phase != "vdr":
+            logger.debug(f"answering_window_activated ignored in phase '{current_phase}' (only vdr)")
         else:
-            logger.warning("No audio file found for 'vd_5s'")
+            buzzer_file = _find_file("vd_5s")
+            if buzzer_file:
+                await _bgm_queue.put((guild, buzzer_file))
+            else:
+                logger.warning("No audio file found for 'vd_5s'")
+
+    elif msg_type == "vd_power_window_open":
+        # Power selection window 5s for Về Đích Riêng — only play in VDR phase
+        current_phase = _current_track.get(guild.id, "")
+        if current_phase != "vdr":
+            logger.debug(f"vd_power_window_open ignored in phase '{current_phase}' (only vdr)")
+        else:
+            power_file = _find_file("vd_5s")
+            if power_file:
+                await _bgm_queue.put((guild, power_file))
+            else:
+                logger.warning("No audio file found for 'vd_5s' (power window)")
 
     elif msg_type == "game_end":
         await _stop(guild)
@@ -266,6 +367,9 @@ async def on_ready():
     except Exception as e:
         logger.error(f"S3 audio sync failed: {e}")
     await _auto_join_voice()
+    # Start the serialised background player — all play() requests go
+    # through this queue so voice connect/cleanup never races.
+    asyncio.create_task(_bgm_player())
     task = asyncio.create_task(_valkey_listener())
     task.add_done_callback(
         lambda t: logger.error(f"_valkey_listener task ended: {t.exception()}")
@@ -303,7 +407,7 @@ async def cmd_play(ctx: commands.Context, phase: str):
         await ctx.send(f"No audio file found for phase '{phase}'")
         return
     if ctx.guild:
-        await _play(ctx.guild, music_file)
+        await _bgm_queue.put((ctx.guild, music_file))
         _current_track[ctx.guild.id] = phase
         await ctx.send(f"🎵 Now playing: {phase.upper()}")
 

@@ -20,6 +20,7 @@ for _env_path in ("/app/.env", os.path.join(os.path.dirname(__file__), ".env")):
 
 BGM_BOT_TOKEN = os.getenv("BGM_BOT_TOKEN", "")
 SFX_BOT_TOKEN = os.getenv("SFX_BOT_TOKEN", "")
+PING_BOT_TOKEN = os.getenv("PING_BOT_TOKEN", "")
 VOICE_CHANNEL_ID = os.getenv("VOICE_CHANNEL_ID", "")
 
 # ── Valkey / Redis ───────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Dockerfile copies repo-level audios/ into /app/audios/
 BGM_DIR = os.path.join(BASE_DIR, "audios", "bgm")
 SFX_DIR = os.path.join(BASE_DIR, "audios", "sfx")
+PING_DIR = os.path.join(BASE_DIR, "audios", "ping")
 
 # Valkey connection URL
 _auth_part = f"{VALKEY_USER or ''}:{VALKEY_PASSWORD}@" if VALKEY_PASSWORD else ""

@@ -5,7 +5,6 @@ import {
 	AlarmClockCheck,
 	ListRestart,
 	Power,
-	Play,
 	Zap,
 	Plus,
 	Minus,
@@ -652,7 +651,7 @@ const AVeDichRiengPage = () => {
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
 		void sendMessage({ type: "vdr_question_state", question_code: answeredCode, state: "answered" });
-		void sendMessage({ type: "answer", phase: "vdr" });
+		void sendMessage({ type: "vd_dung", phase: "vdr" });
 
 		try {
 			for (const playerCode of selectedPlayerCodes) {
@@ -1173,7 +1172,7 @@ const AVeDichRiengPage = () => {
 					<AControlButton
 						onClick={() => { void handleStartRound(); }}
 					>
-						<Play size={18} />
+						<Power size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton

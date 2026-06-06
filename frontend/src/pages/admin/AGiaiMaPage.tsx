@@ -356,6 +356,11 @@ const AGiaiMaPage = () => {
 					content: q.questionText,
 					media_source: q.questionMediaURL ?? undefined,
 				});
+				// SFX: play gm_chon_goi_y only when opening a new (previously idle) clue
+				const wasAlreadyOpened = clueStates[clueIndex] !== "idle";
+				if (!wasAlreadyOpened) {
+					void sendMessage({ type: "gm_chon_goi_y" });
+				}
 				if (allOpened && !keywordLockedSentRef.current) {
 					keywordLockedSentRef.current = true;
 					await sendMessage({ type: "keyword_locked" });
@@ -797,7 +802,7 @@ const AGiaiMaPage = () => {
 		}
 		try {
 			await sendMessage({
-				type: "show_hint",
+				type: "gm_dung",
 				user_code: "",
 				hint_content: hintText,
 				hint_media_source: hintMediaUrl ?? undefined,
@@ -1051,6 +1056,8 @@ const AGiaiMaPage = () => {
 	const handleAddKeywordScoreToSelected = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0) return;
 		setHasAddedKeywordScore(true);
+		// SFX: play gm_dung_tu_khoa for keyword score calculation
+		void sendMessage({ type: "gm_dung_tu_khoa" });
 		try {
 			for (const code of selectedPlayerCodes) {
 				const submission = keywordSubmissions[code];
@@ -1198,26 +1205,36 @@ const AGiaiMaPage = () => {
 					</AControlButton>
 				</>
 			}
-			renderPlayerList={() =>
-				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar
-							player={player}
-							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
-							hasKeywordSubmission={!!keywordSubmissions[player.playerCode]}
-							cluesOpened={keywordSubmissions[player.playerCode]?.cluesOpened}
-							showClueCount={keywordRevealedCodes.has(player.playerCode) || keywordAnswerRevealed}
-							onClick={toggleSelectedPlayer}
-							disabled={timer > 0}
-							onEditScore={handleEditScore}
-							token={token}
-							matchCode={currentMatchCode}
-							sendMessage={sendMessage}
-						/>
-					</div>
-				))
-			}
+			renderPlayerList={() => {
+				// After the admin presses "HIỆN TỪ KHOÁ", lock the player bar for
+				// contestants who did NOT submit a keyword. This makes it visually
+				// obvious who is eligible for "TÍNH TỪ KHOÁ" scoring.
+				const keywordPhaseRevealed = keywordRevealedCodes.size > 0;
+				return players.map((player) => {
+					const submittedKeyword = !!keywordSubmissions[player.playerCode];
+					const isDisabledByKeywordReveal =
+						keywordPhaseRevealed && !keywordRevealedCodes.has(player.playerCode);
+					return (
+						<div className="flex flex-col gap-3" key={player.playerCode}>
+							<APlayerBar
+								player={player}
+								isActive={selectedPlayerCodes.includes(player.playerCode)}
+								isCurrent={selectedPlayerCodes.includes(player.playerCode)}
+								hasKeywordSubmission={submittedKeyword}
+								cluesOpened={keywordSubmissions[player.playerCode]?.cluesOpened}
+								showClueCount={keywordRevealedCodes.has(player.playerCode) || keywordAnswerRevealed}
+								onClick={toggleSelectedPlayer}
+								disabled={timer > 0 || isDisabledByKeywordReveal}
+								disableReason={isDisabledByKeywordReveal ? "Thí sinh chưa nộp từ khoá" : undefined}
+								onEditScore={handleEditScore}
+								token={token}
+								matchCode={currentMatchCode}
+								sendMessage={sendMessage}
+							/>
+						</div>
+					);
+				});
+			}}
 		/>
 	);
 };

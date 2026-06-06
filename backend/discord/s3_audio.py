@@ -24,6 +24,7 @@ _S3_CONFIG = Config(
 _PREFIX_DIR_MAP = {
     "audios/bgm/": configs.BGM_DIR,
     "audios/sfx/": configs.SFX_DIR,
+    "audios/ping/": configs.PING_DIR,
 }
 
 
@@ -38,6 +39,7 @@ def sync_audio_from_s3() -> None:
     logger.info(f"S3_ENDPOINT_URL: {configs.S3_ENDPOINT_URL}")
     logger.info(f"BGM_DIR: {configs.BGM_DIR}")
     logger.info(f"SFX_DIR: {configs.SFX_DIR}")
+    logger.info(f"PING_DIR: {configs.PING_DIR}")
     
     if not configs.S3_BUCKET_NAME:
         logger.warning("S3_BUCKET_NAME not set — skipping S3 audio sync")

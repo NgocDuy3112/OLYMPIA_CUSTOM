@@ -542,6 +542,8 @@ const AVeDichPickQuestion = () => {
 					// Navigate players to the pick page
 					const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";
 					sendMessage({ type: "navigate", user_code: "", path: pickPath });
+					// Announce round start so SFX bot plays vd_bat_dau.ogg
+					sendMessage({ type: "round_start", round: isChung ? "vdc" : "vdr" });
 					// Re-broadcast player info so PVeDichPickPage has player data on mount
 					void loadPlayersState();
 				}}

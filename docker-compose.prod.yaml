@@ -98,6 +98,20 @@ services:
     networks:
       - olympia-network
     restart: unless-stopped
+  
+  ping-bot:
+    container_name: olympia-ping-bot
+    build:
+      context: .
+      dockerfile: backend/discord/Dockerfile
+    command: ["python", "ping_bot.py"]
+    env_file:
+      - ./configs/.env
+    depends_on:
+      - valkey
+    networks:
+      - olympia-network
+    restart: unless-stopped
 
   # ── Reverse proxy — HTTPS with Let's Encrypt ─────────────
   nginx:

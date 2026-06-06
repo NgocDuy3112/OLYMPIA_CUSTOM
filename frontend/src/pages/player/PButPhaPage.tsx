@@ -150,7 +150,6 @@ const PButPhaPage = () => {
 				setAnswer("");
 				setShowAnswers(false);
 				setVideoPlayState("playing");
-				console.info("[BP INPUT] Enabling input - timer started");
 				break;
 			}
 
@@ -236,8 +235,9 @@ const PButPhaPage = () => {
 		if (submitDisabledTemporarily) return;
 		if (!isConnected) return;
 		if (!currentQuestion.questionCode) return;
-		// Allow submission if timer hasn't started yet (pre-timer typing) OR if timer is still running
-		if (timerHasStarted && timer <= 0) return;
+		// Input is only enabled after admin starts the timer; never allow pre-timer submissions
+		if (!timerHasStarted) return;
+		if (timer <= 0) return;
 
 			const elapsed = getElapsedSeconds();
 		const ts = Math.max(0, Math.min(timeLimit, elapsed));
@@ -308,18 +308,22 @@ const PButPhaPage = () => {
 			console.warn("[BP ANSWER SYNC] Failed to POST answer:", err);
 		}
 		setAnswer("");
-	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode, submitDisabledTemporarily]);
+	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode, submitDisabledTemporarily, timerHasStarted]);
 
 	const isTimerExpired = timerHasStarted && timeLimit > 0 && timer === 0;
-	// Disable input only when:
+	// Disable input when:
 	// - Not connected
 	// - No question selected
+	// - Admin hasn't started the timer yet (locked until "ĐẾM GIỜ" is pressed)
 	// - Timer expired (timer === 0 after running)
 	// - Temporarily disabled after recent submission
-	// Allow input when timer hasn't started yet (pre-timer typing) OR when timer is running
-	const isSubmissionDisabled = !isConnected || !currentQuestion.questionCode || (timerHasStarted && isTimerExpired) || submitDisabledTemporarily;
+	const isSubmissionDisabled =
+		!isConnected ||
+		!currentQuestion.questionCode ||
+		!timerHasStarted ||
+		isTimerExpired ||
+		submitDisabledTemporarily;
 
-	// Debug logging
 	console.info(`[BP INPUT DEBUG] isConnected=${isConnected}, hasQuestion=${!!currentQuestion.questionCode}, timerHasStarted=${timerHasStarted}, timer=${timer}, isTimerExpired=${isTimerExpired}, submitDisabledTemporarily=${submitDisabledTemporarily}, FINAL_DISABLED=${isSubmissionDisabled}`);
 
 	useEffect(() => {

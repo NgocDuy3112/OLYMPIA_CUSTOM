@@ -38,8 +38,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Map of event type → SFX file basename (without extension).
 # Basenames must match filenames inside configs.SFX_DIR (case-insensitive).
 EVENT_SFX_MAP = {
-    "bp_dung":           "bp_dung",
-    "kd_cong_diem":      "kd_dung",
     "open_match":        "mo_tran_dau",
     "introduce_players": "gioi_thieu_thi_sinh",
     "show_scoreboard":   "tong_ket_diem_so",
@@ -50,43 +48,59 @@ EVENT_SFX_MAP = {
 # Takes priority over EVENT_SFX_MAP when the bot is in a matching phase.
 PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
     "kdc": {
+        "round_start":             "kd_bat_dau",
         "send_answers_to_players": "kd_hien_tra_loi",
+        "kd_cong_diem":            "kd_dung",  # Admin awards points (KĐC) → play kd_dung
         "round_end":               "kd_ket_thuc",
     },
     "kdr": {
+        "round_start":             "kd_bat_dau",
         "send_answers_to_players": "kd_hien_tra_loi",
         "wrong":                   "kd_sai",
         "skip":                    "kd_sai",
+        "player_wrong_attempt":    "kd_sai",  # attempt_count=2 (loại) uses kd_sai
+        "kd_cong_diem":            "kd_dung",  # Admin awards points (KĐR/KĐC) → play kd_dung
         "round_end":               "kd_ket_thuc",
     },
     "vdc": {
+        "round_start":             "vd_bat_dau",
+        "round_end":               "vd_ket_thuc",  # Phase end Về Đích Chung
         "wrong":                   "vd_sai",
+        "vd_dung":                 "vd_dung",
         "send_answers_to_players": "vd_hien_tra_loi",
-        # Removed "answer" SFX - no sound when player submits answer
+        "vd_selection_update":     "vd_pick",
+        "vd_questions_selected":   "vd_xac_nhan",  # Admin confirms selection from pick page
     },
     "vdr": {
+        "round_start":             "vd_bat_dau",
+        "round_end":               "vd_ket_thuc",  # Phase end Về Đích Riêng
         "wrong":                   "vd_sai",
+        "vd_dung":                 "vd_dung",
         "send_answers_to_players": "vd_hien_tra_loi",
-        # Removed "answer" SFX - no sound when player submits answer
-        "power_star":              "vd_nshv",
-        "power_shield":            "vd_bhmt",
+        "vd_selection_update":     "vd_pick",
+        "vd_questions_selected":   "vd_xac_nhan",  # Admin confirms selection from pick page
+        # Power: both star and shield use the same generic SFX
+        "power_star":              "vd_quyen_nang",
+        "power_shield":            "vd_quyen_nang",
     },
     "bp": {
+        "round_start":             "bp_bat_dau",
         "bp_chon_cau_hoi":         "bp_chon_cau_hoi",
-        # Removed "answer" SFX - no sound when player submits answer
+        "bp_dung":                 "bp_dung",
         "send_answers_to_players": "bp_hien_tra_loi",
     },
     "gm": {
-        # Removed "answer" SFX - no sound when player submits answer
+        "round_start":             "gm_bat_dau",
         "send_answers_to_players": "gm_hien_tra_loi",
-        "show_hint":               "gm_chon_goi_y",
+        "gm_chon_goi_y":           "gm_chon_goi_y",
+        "gm_dung":                 "gm_dung",
+        "gm_dung_tu_khoa":         "gm_dung_tu_khoa",
         "keyword_correct":         "gm_dung_tu_khoa",
         "round_end":               "gm_ket_thuc",
     },
 }
 
 _current_phase: str = ""
-_timer_task: asyncio.Task | None = None  # Tracks the pending timer_end sleep so we can cancel it on phase change
 
 # Queue for sequential SFX playback
 _sfx_queue: asyncio.Queue[str] = asyncio.Queue()
@@ -114,15 +128,35 @@ def _find_sfx_file(event_type: str) -> str | None:
 
 async def _get_voice_client() -> discord.VoiceClient | None:
     """Return the existing voice client, or connect if not already in channel."""
-    # Prefer already-connected voice client
-    vc: discord.VoiceClient | None = bot.guilds[0].voice_client if bot.guilds else None
-    if vc and vc.is_connected():
-        return vc
-    # Reconnect if disconnected
+    # Reuse any live voice client we hold.
+    for g in bot.guilds:
+        vc = g.voice_client
+        if vc is not None and vc.is_connected():
+            return vc
+
+    # No live client anywhere. Tear down the stale one on the target
+    # guild (if any) — never touch voice clients on OTHER guilds,
+    # doing so kicks the bot out of voice channels it should stay in.
+    target_guild = bot.guilds[0] if bot.guilds else None
+    if target_guild is not None and target_guild.voice_client is not None:
+        logger.warning(f"Voice client on '{target_guild.name}' is stale — cleaning up")
+        try:
+            await target_guild.voice_client.disconnect(force=True)
+        except Exception as e:
+            logger.warning(f"Failed to disconnect stale client: {e}")
     try:
-        channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
+        channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
+        if channel is None:
+            channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
         if isinstance(channel, discord.VoiceChannel):
             return await channel.connect(self_deaf=True)
+    except discord.ClientException as e:
+        # Race: another coroutine connected between our check and our call —
+        # fall back to whatever client Discord just created.
+        logger.warning(f"connect() raced — reusing the just-created client: {e}")
+        vc = bot.guilds[0].voice_client if bot.guilds else None
+        if vc is not None and vc.is_connected():
+            return vc
     except Exception as e:
         logger.warning(f"Cannot get voice client: {e}")
     return None
@@ -149,8 +183,17 @@ async def _play_sfx(file_path: str) -> None:
     def _after_play(err: Exception | None) -> None:
         _is_playing.clear()
 
-    vc.play(source, after=_after_play)
-    logger.info(f"Playing SFX: {os.path.basename(file_path)}")
+    try:
+        vc.play(source, after=_after_play)
+        logger.info(f"Playing SFX: {os.path.basename(file_path)}")
+    except discord.ClientException as e:
+        logger.error(f"vc.play() failed (voice state desync?): {e} — tearing down for next call")
+        try:
+            await vc.disconnect(force=True)
+        except Exception:
+            pass
+        _is_playing.clear()
+        return
 
     # Wait for playback to finish
     while vc.is_playing():
@@ -232,20 +275,6 @@ def _extract_phase(path: str) -> str | None:
     return None
 
 
-async def _schedule_timer_end(delay: int, sfx_file: str) -> None:
-    """Sleep for 'delay' seconds then queue the timer_end SFX.
-
-    Cancelled automatically when a phase change occurs (navigating away),
-    preventing timer_end from playing in the wrong phase.
-    """
-    try:
-        await asyncio.sleep(delay)
-        await _sfx_queue.put(sfx_file)
-        logger.info(f"Queued timer_end SFX after {delay}s delay")
-    except asyncio.CancelledError:
-        logger.debug("timer_end task cancelled (phase changed during timer)")
-
-
 async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
     global _current_phase
@@ -257,11 +286,6 @@ async def _handle_message(message: dict) -> None:
         phase = _extract_phase(message.get("path", ""))
         if phase and phase != _current_phase:
             _current_phase = phase
-            # Cancel any pending timer_end task since the phase changed
-            global _timer_task
-            if _timer_task and not _timer_task.done():
-                _timer_task.cancel()
-                _timer_task = None
             # Clear the queue when transitioning to a new phase to prevent audio carryover
             while not _sfx_queue.empty():
                 try:
@@ -286,37 +310,20 @@ async def _handle_message(message: dict) -> None:
         round_phase = message.get("round", "")
         if round_phase:
             _current_phase = round_phase
-        # Cancel pending timer_end since the round ended
-        if _timer_task and not _timer_task.done():
-            _timer_task.cancel()
-            _timer_task = None
 
-    # Queue timer_end SFX after the timer duration elapses
-    if msg_type == "start_the_timer":
-        if not _current_phase:
-            _current_phase = message.get("phase", "")
-        time_limit = int(message.get("time_limit", 30))
-        sfx_file = _find_sfx_file("timer_end")
-        if sfx_file:
-            # Cancel any previously scheduled timer_end
-            if _timer_task and not _timer_task.done():
-                _timer_task.cancel()
-            _timer_task = asyncio.create_task(
-                _schedule_timer_end(time_limit, sfx_file)
-            )
-
-    # Keyword timer for Giải Mã — schedule timer_end SFX after 15s
-    if msg_type == "start_keyword_timer":
-        logger.info(f"Received start_keyword_timer event: {message}")
-        time_limit = int(message.get("time_limit", 15))
-        sfx_file = _find_sfx_file("timer_end")
-        if sfx_file:
-            # Cancel any previously scheduled timer_end
-            if _timer_task and not _timer_task.done():
-                _timer_task.cancel()
-            _timer_task = asyncio.create_task(
-                _schedule_timer_end(time_limit, sfx_file)
-            )
+    # player_wrong_attempt: attempt_count=1 → kd_sai_lan_1, attempt_count=2 → kd_sai
+    if msg_type == "player_wrong_attempt":
+        attempt_count = int(message.get("attempt_count", 1))
+        if attempt_count == 1:
+            # Play kd_sai_lan_1 (first wrong attempt) instead of kd_sai
+            for ext in (".mp3", ".ogg", ".wav"):
+                path = os.path.join(configs.SFX_DIR, f"kd_sai_lan_1{ext}")
+                if os.path.isfile(path):
+                    await _sfx_queue.put(path)
+                    logger.debug(f"Queued kd_sai_lan_1 SFX for first wrong attempt")
+                    break
+            return  # Don't continue to generic SFX lookup
+        # attempt_count=2 falls through to generic kd_sai via wrong/skip handler below
 
     # Log wrong/skip events for debugging
     if msg_type in ("wrong", "skip"):

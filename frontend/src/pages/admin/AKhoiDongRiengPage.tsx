@@ -646,13 +646,18 @@ const AKhoiDongRiengPage = () => {
 			return updated;
 		});
 
-		// Broadcast wrong attempt to Player/MC clients
+		// Broadcast wrong attempt to Player/MC clients.
+		// On the FIRST wrong, send player_wrong_attempt (SFX bot plays kd_sai_lan_1).
+		// On the SECOND wrong (exhausted), send generic "wrong" (SFX bot plays kd_sai).
+		// Sending both at once queues two SFX files in a row, which sounds like a
+		// false positive on the second-attempt sfx.
 		if (nextCount === 1) {
 			logger.info("handleMarkWrong: sending player_wrong_attempt for", selectedPlayerCode);
 			void sendMessage({ type: "player_wrong_attempt", user_code: selectedPlayerCode, attempt_count: 1, phase: "kdr" });
+		} else {
+			logger.info("handleMarkWrong: sending wrong (exhausted) for", selectedPlayerCode);
+			void sendMessage({ type: "wrong", user_code: selectedPlayerCode, phase: "kdr" });
 		}
-
-		void sendMessage({ type: "wrong", user_code: selectedPlayerCode, phase: "kdr" });
 
 		if (exhausted) {
 			setIsAdvancing(true);

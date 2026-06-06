@@ -27,7 +27,7 @@ S3_CONFIG = Config(
 )
 
 
-def get_s3_settings() -> S3Settings:
+def gets3_settings() -> S3Settings:
     return s3_settings
 
 
