@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Bash(npx tsc:*)",
+      "Bash(python3:*)",
+      "Bash(grep -r \"@router\\\\|PREFIX\\\\|tags=\" /Users/ngocduy/Olympia/OLYMPIA_CUSTOM/backend/app/routes/*.py)",
+      "Bash(ls -la /Users/ngocduy/Olympia/OLYMPIA_CUSTOM/backend/app/models/*.py)",
+      "Bash(grep -l \"class.*Base\" /Users/ngocduy/Olympia/OLYMPIA_CUSTOM/backend/app/models/*.py)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(done)",
+      "Bash(ls -la /Users/ngocduy/Olympia/OLYMPIA_CUSTOM/frontend/src/pages/player/*.tsx)",
+      "Read(//Users/ngocduy/Olympia/OLYMPIA_CUSTOM/**)",
+      "Bash(xargs basename:*)",
+      "Bash(__NEW_LINE_efc40fdeef9a0b17__ done:*)",
+      "Bash(grep -h \"@router\\\\.\\\\\\(get\\\\|post\\\\|patch\\\\|delete\\\\\\)\" /Users/ngocduy/Olympia/OLYMPIA_CUSTOM/backend/app/routes/*.py -A 1)",
+      "Bash(ls /Users/ngocduy/Olympia/OLYMPIA_CUSTOM/frontend/src/pages/admin/*.tsx)",
+      "mcp__claude_ai_Mermaid_Chart__validate_and_render_mermaid_diagram",
+      "Bash(/usr/bin/python3 -c \"import sys; data=sys.stdin.read\\(\\); print\\(data[:300]\\)\")",
+      "Bash(/usr/bin/python3 -c \":*)"
+    ]
+  }
+}
