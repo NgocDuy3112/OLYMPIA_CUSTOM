@@ -20,7 +20,7 @@ async def get_user_from_request_from_db(
     - Else if user_role is provided: return all users with that role.
     - Else: return all non-deleted users.
     """
-    global_logger.info(f"Fetching users with user_code={user_code} user_role={user_role} from database.")
+    global_logger.debug(f"Fetching users with user_code={user_code} user_role={user_role} from database.")
     try:
         # Base query: only non-deleted users
         query = select(User).where(User.is_deleted == False)

@@ -51,9 +51,6 @@ const AdminGameplayNavBar: React.FC = () => {
 					<span className="text-[18px] tablet:text-[20px] xl:text-[32px] font-bold font-[SVN-Gratelos_Display]">
 						OLYMPIA CUSTOM 3
 					</span>
-					<span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg">
-						BETA
-					</span>
 				</div>
 
 				{/* Desktop Navigation only */}

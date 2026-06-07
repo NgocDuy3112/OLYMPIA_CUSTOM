@@ -5,7 +5,7 @@ import secrets
 import string
 from datetime import datetime, timedelta
 
-from logger import global_logger
+from logger import global_logger, mask_email
 from models.user import User
 from schemas.base import BaseResponse
 from schemas.user import TokenResponse

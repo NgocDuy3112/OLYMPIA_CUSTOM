@@ -15,7 +15,7 @@ from configs import AppSettings
 from utils.email import send_credentials_email_safe, send_password_reset_email_safe
 from models.password_reset_token import PasswordResetToken
 from datetime import timezone
-from logger import global_logger
+from logger import global_logger, mask_email
 
 
 settings = AppSettings()
@@ -144,7 +144,9 @@ async def send_credentials(user_code: str, session: AsyncSession) -> BaseRespons
         )
         email_note = f" và gửi email đến {user.email}"
 
-    global_logger.info(f"Credentials reset{email_note} for user_code={user_code}.")
+    # Mask email in the log line (the user-facing `message` above keeps the real address).
+    log_email_note = f" và gửi email đến {mask_email(user.email)}" if user.email else ""
+    global_logger.info(f"Credentials reset{log_email_note} for user_code={user_code}.")
     return BaseResponse(
         status="success",
         message=f"Đã đặt lại mật khẩu{email_note}.",

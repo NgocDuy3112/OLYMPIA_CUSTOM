@@ -19,11 +19,11 @@ async def post_record_to_db(
     valkey: Valkey
 ) -> BaseResponse:
     log_message = f"POST request received to create record for user_code: {request.user_code}, match_code: {request.match_code}, question_code: {request.question_code}."
-    global_logger.info(log_message)
+    global_logger.debug(log_message)
     try:
         # Save to cache for later queries
         await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: request.points}, incr=True)
-        global_logger.info(f"Cached record to the leaderboard for key=record:{request.match_code}:{request.user_code}:{request.question_code} with points={request.points}.")
+        global_logger.debug(f"Cached record to the leaderboard for key=record:{request.match_code}:{request.user_code}:{request.question_code} with points={request.points}.")
         # Find user ID
         user_id = await session.scalar(
             select(User.id).where(
@@ -89,7 +89,7 @@ async def get_records_from_db(
     session: AsyncSession
 ) -> BaseResponse:
     log_message = f"GET request received to fetch records for user_code: {user_code}, match_code: {match_code}."
-    global_logger.info(log_message)
+    global_logger.debug(log_message)
     try:
         # Build the query
         query = select(

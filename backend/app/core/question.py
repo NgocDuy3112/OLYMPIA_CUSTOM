@@ -57,7 +57,7 @@ async def post_questions_from_excel_to_db(
 
     If overwrite=True, deletes existing questions for this match before importing.
     """
-    global_logger.info(f"POST request received to inject questions from Excel with match code: {match_code}, overwrite={overwrite}.")
+    global_logger.debug(f"POST request received to inject questions from Excel with match code: {match_code}, overwrite={overwrite}.")
     try:
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code))
         if match_id is None:
@@ -155,7 +155,7 @@ async def post_question_to_db(
     request: QuestionPostRequest, 
     session: AsyncSession
 ) -> BaseResponse:
-    global_logger.info(f"POST request received to add question with code: {request.question_code}.")
+    global_logger.debug(f"POST request received to add question with code: {request.question_code}.")
     try:
         match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
         if match_id is None:
@@ -223,7 +223,7 @@ async def post_qualifier_questions_from_excel_to_db(
     """
     filename = (file.filename or "").strip()
     stem = filename.rsplit(".", 1)[0] if filename else ""
-    global_logger.info(f"POST qualifier questions from Excel: file='{filename}'")
+    global_logger.debug(f"POST qualifier questions from Excel: file='{filename}'")
 
     if not stem.startswith("OC3_VL"):
         log_message = f"Qualifier Excel file name must start with 'OC3_VL', got '{filename}'."
@@ -324,7 +324,7 @@ async def post_qualifier_question_to_db(
     - answer must be one of 'A'..'F'
     - options must be provided as a list of at least 6 strings, or as a JSON-encoded string representing such a list
     """
-    global_logger.info(f"POST qualifier question received: {request.question_code}")
+    global_logger.debug(f"POST qualifier question received: {request.question_code}")
     try:
         # validate match exists
         match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
@@ -402,7 +402,7 @@ async def get_question_from_request_from_db(
     question_code: str | None, 
     session: AsyncSession
 ) -> BaseResponse:
-    global_logger.info(f"GET request received to fetch question with code: {question_code}.")
+    global_logger.debug(f"GET request received to fetch question with code: {question_code}.")
     question_data = []
     try:
         if question_code is not None:
@@ -482,7 +482,7 @@ async def get_question_from_request_from_db(
 
 async def delete_question_from_db(match_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
     """Soft delete a question from DB by setting is_deleted=True."""
-    global_logger.info(f"Soft deleting question with question_code={question_code} in match_code={match_code} from database.")
+    global_logger.debug(f"Soft deleting question with question_code={question_code} in match_code={match_code} from database.")
     try:
         # Find match_id first to ensure question belongs to the correct match
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False))

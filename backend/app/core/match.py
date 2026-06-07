@@ -12,7 +12,7 @@ from schemas.match import *
 
 
 async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession) -> BaseResponse:
-    global_logger.info(f"POST request received to create match with code: {request.match_code}.")
+    global_logger.debug(f"POST request received to create match with code: {request.match_code}.")
     try:
         # Check if match already exists
         match_query = select(Match).where(Match.match_code == request.match_code, Match.is_deleted == False)
@@ -77,7 +77,7 @@ async def patch_match_to_db(
     request: MatchUpdateRequest,
     session: AsyncSession,
 ) -> BaseResponse:
-    global_logger.info(f"PATCH request received to update match with code: {match_code}.")
+    global_logger.debug(f"PATCH request received to update match with code: {match_code}.")
     try:
         result = await session.execute(
             select(Match).where(Match.match_code == match_code, Match.is_deleted == False)
@@ -153,7 +153,7 @@ async def patch_match_to_db(
 
 async def delete_match_from_db(match_code: str, session: AsyncSession) -> BaseResponse:
     """Soft delete a match from DB by setting is_deleted=True."""
-    global_logger.info(f"Soft deleting match with match_code={match_code} from database.")
+    global_logger.debug(f"Soft deleting match with match_code={match_code} from database.")
     try:
         query = select(Match).where(Match.match_code == match_code, Match.is_deleted == False)
         result = await session.execute(query)
@@ -183,7 +183,7 @@ async def delete_match_from_db(match_code: str, session: AsyncSession) -> BaseRe
 
 
 async def get_match_by_match_code_from_db(match_code: str | None, session: AsyncSession) -> MatchRoomResponse:
-    global_logger.info(f"GET request received to fetch match room with code: {match_code}.")
+    global_logger.debug(f"GET request received to fetch match room with code: {match_code}.")
     try:
         query = (
             select(Match)
@@ -231,7 +231,7 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
 
 async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
     """Return all non-deleted matches ordered by creation date descending."""
-    global_logger.info("GET request received to fetch all active matches.")
+    global_logger.debug("GET request received to fetch all active matches.")
     try:
         query = select(Match).where(Match.is_deleted == False).order_by(Match.created_at.desc())
         result = await session.execute(query)
@@ -255,7 +255,7 @@ async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
 
 async def finish_match_in_db(match_code: str, session: AsyncSession) -> BaseResponse:
     """Mark a match as finished. Once finished, the match becomes read-only."""
-    global_logger.info(f"PATCH request received to finish match with code: {match_code}.")
+    global_logger.debug(f"PATCH request received to finish match with code: {match_code}.")
     try:
         result = await session.execute(
             select(Match).where(Match.match_code == match_code, Match.is_deleted == False)
@@ -288,7 +288,7 @@ async def finish_match_in_db(match_code: str, session: AsyncSession) -> BaseResp
 
 # helper to just return players list
 async def get_players_by_match_from_db(match_code: str, session: AsyncSession) -> BaseResponse:
-    global_logger.info(f"GET request received to fetch players for match_code={match_code}.")
+    global_logger.debug(f"GET request received to fetch players for match_code={match_code}.")
     try:
         query = (
             select(Match)

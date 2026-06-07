@@ -113,13 +113,6 @@ const MWaitingPage: React.FC = () => {
 
     return (
         <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
-            {/* Beta Banner */}
-            <div className="w-full max-w-7xl mb-4">
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-2 px-4 rounded-lg shadow-lg">
-                    <span className="font-bold text-sm sm:text-base">🚀 OLYMPIA CUSTOM 3 - PHIÊN BẢN BETA</span>
-                    <span className="hidden sm:inline ml-2 text-xs opacity-90">| Cảm ơn bạn đã tham gia thử nghiệm!</span>
-                </div>
-            </div>
 
             {/* Match finished banner */}
             {matchFinished && (

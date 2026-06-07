@@ -38,7 +38,7 @@ async def post_answer_to_db(
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
+    global_logger.debug(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
     try:
         # Accept elapsed seconds from client (e.g., 13.456 seconds since timer start).
         # The client sends elapsed time, not Unix timestamp.
@@ -127,7 +127,7 @@ async def post_answer_to_db(
             existing_answer.answer_text = request.answer_text
             existing_answer.timestamp = effective_timestamp
             existing_answer.has_buzzed = request.has_buzzed
-            global_logger.info(f"Updating existing answer for question_code={request.question_code} from user_code={request.user_code}.")
+            global_logger.debug(f"Updating existing answer for question_code={request.question_code} from user_code={request.user_code}.")
         else:
             new_answer = Answer(
                 answer_text=request.answer_text,
@@ -169,7 +169,7 @@ async def post_answer_to_db(
                             channel=request.match_code,
                             message=json.dumps(block_payload),
                         )
-                        global_logger.info(
+                        global_logger.debug(
                             f"[BUZZ WINNER] Player {request.user_code} is the first buzzer "
                             f"for question {request.question_code} in match {request.match_code}"
                         )
@@ -190,7 +190,7 @@ async def post_answer_to_db(
         try:
             await valkey.set(cache_key, json.dumps(cache_payload))
             await valkey.publish(channel=request.match_code, message=json.dumps(cache_payload))
-            global_logger.info(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
+            global_logger.debug(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
         except Exception as e:
             # Log but do not fail the request since DB commit succeeded
             global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}", exc_info=True)
@@ -220,21 +220,21 @@ async def get_answer_from_db(
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    global_logger.info(f"[KDC ANSWER SYNC] GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
+    global_logger.debug(f"[KDC ANSWER SYNC] GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
     try:
         cache_key = f"answer:{match_code}:{user_code}:{question_code}"
         cached = await valkey.get(cache_key)
         if cached is not None:
             record_json = json.loads(cached)
-            global_logger.info(f"[KDC ANSWER SYNC] CACHE HIT for key={cache_key} answer={record_json.get('answer_text')} ts={record_json.get('timestamp')}")
+            global_logger.debug(f"[KDC ANSWER SYNC] CACHE HIT for key={cache_key} answer={record_json.get('answer_text')} ts={record_json.get('timestamp')}")
             log_message = f"Fetched an answer from cache for key={cache_key}."
-            global_logger.info(log_message)
+            global_logger.debug(log_message)
             return BaseResponse(
                 status='success',
                 message=log_message,
                 data=record_json
             )
-        global_logger.info(f"[KDC ANSWER SYNC] CACHE MISS for key={cache_key}, fetching from DB")
+        global_logger.debug(f"[KDC ANSWER SYNC] CACHE MISS for key={cache_key}, fetching from DB")
         result = await session.execute(
             select(
                 Answer
@@ -282,7 +282,7 @@ async def get_answer_from_db(
 
 async def delete_answer_from_db(match_code: str, user_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
     """Soft delete an answer from DB by setting is_deleted=True (if supported by model)."""
-    global_logger.info(f"Soft deleting answer for question {question_code} in match {match_code} from player {user_code}")
+    global_logger.debug(f"Soft deleting answer for question {question_code} in match {match_code} from player {user_code}")
     try:
         # Find the answer by joining with Match, User, and Question to match codes
         query = (

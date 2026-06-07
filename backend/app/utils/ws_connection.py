@@ -119,19 +119,19 @@ class ConnectionManager:
         for ws in dead:
             self.disconnect(ws, room_id)
 
-        global_logger.info(f"[WS] Sent to room={room_id!r} type={payload.get('type')!r} total={len(conns)} success={success_count} dead={len(dead)}")
+        global_logger.debug(f"[WS] Sent to room={room_id!r} type={payload.get('type')!r} total={len(conns)} success={success_count} dead={len(dead)}")
 
     async def broadcast_to_room(self, room_id: str, payload: dict):
-        global_logger.info(f"[WS] broadcast_to_room: room={room_id!r} type={payload.get('type')!r} user={payload.get('user_code')!r}")
-        
+        global_logger.debug(f"[WS] broadcast_to_room: room={room_id!r} type={payload.get('type')!r} user={payload.get('user_code')!r}")
+
         # Always send to local connections first (immediate delivery)
         await self.send_to_room_local(room_id, payload)
-        
+
         # Then publish to Valkey for cross-instance broadcast (if Valkey is available)
         if self.valkey:
             try:
                 await self.valkey.publish(room_id, json.dumps(payload))
-                global_logger.info(f"[WS] Published to Valkey channel {room_id!r}")
+                global_logger.debug(f"[WS] Published to Valkey channel {room_id!r}")
             except Exception as e:
                 global_logger.error(f"[WS] Failed to publish to Valkey: {e}", exc_info=True)
         else:
