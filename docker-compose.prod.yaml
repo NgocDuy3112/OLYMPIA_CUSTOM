@@ -64,6 +64,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    environment:
+    - VITE_APP_ENV=prod
     depends_on:
       - app
     networks:

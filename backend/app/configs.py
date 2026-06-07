@@ -71,3 +71,17 @@ class EmailSettings(BaseSettings):
     EMAIL_FROM_NAME: str = "Olympia Custom"
     # Frontend URL used to build password reset links emailed to users
     FRONTEND_URL: str = "http://localhost:5173"
+    # Runtime environment flag. "stage" prepends "[BETA]" to email subjects and
+    # shows the "PHIÊN BẢN BETA" banner block. "prod" omits all beta copy.
+    # Defaults to "stage" so local dev / the stage branch keeps the banner.
+    APP_ENV: str = "stage"
+
+    @computed_field
+    @property
+    def IS_BETA(self) -> bool:
+        return self.APP_ENV.lower() != "prod"
+
+    @computed_field
+    @property
+    def EMAIL_SUBJECT_PREFIX(self) -> str:
+        return "[Olympia Custom BETA] " if self.IS_BETA else "[Olympia Custom] "

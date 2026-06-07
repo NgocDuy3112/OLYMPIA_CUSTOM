@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { IS_BETA } from "@/configs";
 
 const ADMIN_TO_PLAYER_NAV: Record<string, string> = {
 	"/admin/waiting": "/player/waiting",
@@ -51,6 +52,11 @@ const AdminGameplayNavBar: React.FC = () => {
 					<span className="text-[18px] tablet:text-[20px] xl:text-[32px] font-bold font-[SVN-Gratelos_Display]">
 						OLYMPIA CUSTOM 3
 					</span>
+					{IS_BETA && (
+						<span className="px-2 py-0.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold rounded-full shadow-lg">
+							BETA
+						</span>
+					)}
 				</div>
 
 				{/* Desktop Navigation only */}
