@@ -10,11 +10,36 @@ class AppSettings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
+    # Olympia season (version) used to build the match-code prefix. Defaults to
+    # 3 so existing "OC3_M..." matches keep working. Bump SEASON to migrate to
+    # a new season (e.g. SEASON=4 → prefix "OC4_M").
+    SEASON: int = 3
 
     @computed_field
     @property
     def APP_URL(self) -> str:
         return f"http://{self.APP_HOST}:{self.APP_PORT}"
+
+    @computed_field
+    @property
+    def MATCH_PATTERN(self) -> str:
+        """Canonical match-code prefix for the current season (e.g. "OC3_M").
+
+        Used by Pydantic validators, SQLAlchemy CheckConstraints, and core/*
+        helpers to validate and normalise match_code values without hardcoding
+        the version number. Change SEASON in .env to retarget all of them.
+        """
+        return f"OC{self.SEASON}_M"
+
+    @computed_field
+    @property
+    def QUESTION_PATTERN(self) -> str:
+        """Canonical question-code prefix for the current season (e.g. "OC3_Q").
+
+        Mirrors MATCH_PATTERN — same SEASON drives both. Validates question_code
+        inputs and S3 key prefixes in media URLs.
+        """
+        return f"OC{self.SEASON}_Q"
 
 
 
@@ -74,7 +99,7 @@ class EmailSettings(BaseSettings):
     # Runtime environment flag. "stage" prepends "[BETA]" to email subjects and
     # shows the "PHIÊN BẢN BETA" banner block. "prod" omits all beta copy.
     # Defaults to "stage" so local dev / the stage branch keeps the banner.
-    APP_ENV: str = "stage"
+    APP_ENV: str = "prod"
 
     @computed_field
     @property

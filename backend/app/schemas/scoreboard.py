@@ -1,4 +1,8 @@
 from schemas.base import *
+from configs import AppSettings
+
+_settings = AppSettings()
+_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
 
 
 class ScoreAdjustRequest(BaseRequest):
@@ -11,8 +15,8 @@ class ScoreAdjustRequest(BaseRequest):
     @field_validator('match_code', mode='after')
     @classmethod
     def ensure_match_code_format(cls, value: str) -> str:
-        if not value.startswith("OC3_M"):
-            raise ValueError("match_code must start with 'OC3_M'")
+        if not value.startswith(_MATCH_PATTERN):
+            raise ValueError(f"match_code must start with '{_MATCH_PATTERN}'")
         return value
 
     @field_validator('user_code', mode='after')

@@ -97,6 +97,40 @@ const AVeDichChungPage = () => {
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 	// Store pending question data to broadcast after power window closes
 	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
+	// Safety timer ID. We arm a 5.5s fallback in handleQuestionActivate so the question
+	// + play_video broadcast still happens even if no player ever reports
+	// `vd_power_window_closed` (e.g. the player has already used a power and skips the
+	// 5s selection window, or a player is offline). Whichever trigger fires first wins;
+	// the other is a no-op because pendingQuestionRef.current is cleared.
+	const pendingBroadcastTimerRef = useRef<number | null>(null);
+	const clearPendingBroadcastTimer = useCallback(() => {
+		if (pendingBroadcastTimerRef.current != null) {
+			window.clearTimeout(pendingBroadcastTimerRef.current);
+			pendingBroadcastTimerRef.current = null;
+		}
+	}, []);
+	// Single source of truth for revealing the full question and starting the video in
+	// Về Đích. Safe to call from multiple triggers — it self-guards on
+	// `pendingQuestionRef.current` so only the first caller does any work.
+	const broadcastPendingVeDichQuestion = useCallback(() => {
+		const pending = pendingQuestionRef.current;
+		if (!pending || !currentMatchCode) return;
+		const { questionCode, question } = pending;
+		logger.info(`[VDC] Broadcasting full question + play_video for ${questionCode}`);
+		void sendMessage({
+			type: "send_question",
+			user_code: "",
+			question_code: questionCode,
+			content: question.questionText ?? "",
+			media_source: question.questionMediaURL ?? undefined,
+		});
+		if (question.questionMediaURL) {
+			void sendMessage({ type: "play_video" });
+			setVideoPlayState("playing");
+		}
+		pendingQuestionRef.current = null;
+		clearPendingBroadcastTimer();
+	}, [currentMatchCode, sendMessage, clearPendingBroadcastTimer]);
 	// The 4 questions locked in for this round — set via WS from the pick page.
 	// Persisted in localStorage so navigating to this page after confirming still shows them.
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
@@ -154,20 +188,9 @@ const AVeDichChungPage = () => {
 		const msg = lastMessage as Record<string, any> | null;
 		if (msg?.type === "vd_power_window_closed") {
 			// Power window closed - immediately broadcast the full question (admin manually starts timer)
-			if (pendingQuestionRef.current && currentMatchCode) {
-				const { questionCode, question } = pendingQuestionRef.current;
-				logger.info(`[VDC] Power window closed, immediately broadcasting question ${questionCode}`);
-				void sendMessage({
-					type: "send_question",
-					user_code: "",
-					question_code: questionCode,
-					content: question.questionText ?? "",
-					media_source: question.questionMediaURL ?? undefined,
-				});
-				pendingQuestionRef.current = null;
-			}
+			broadcastPendingVeDichQuestion();
 		}
-	}, [lastMessage, currentMatchCode, sendMessage, questions, questionPoints]);
+	}, [lastMessage, broadcastPendingVeDichQuestion]);
 
 	// ─── Score state ──────────────────────────────────────────────────────────────
 
@@ -372,12 +395,16 @@ const AVeDichChungPage = () => {
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setVideoPlayState(null);
+		// Cancel any pending reveal so a stale 5.5s safety timer cannot fire and resurrect
+		// the question we just cleared (e.g. admin toggled a question off mid-window).
+		pendingQuestionRef.current = null;
+		clearPendingBroadcastTimer();
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (err) {
 			logger.error("Failed to clear question:", err);
 		}
-	}, [sendMessage]);
+	}, [sendMessage, clearPendingBroadcastTimer]);
 
 	const handleQuestionActivate = useCallback(
 		async (questionCode: string) => {
@@ -446,11 +473,18 @@ const AVeDichChungPage = () => {
 				// Store in ref to broadcast after power window closes (5s)
 				pendingQuestionRef.current = { questionCode, question: q };
 				logger.info(`[VDC] Question ${questionCode} fetched, waiting for power window to close`);
-			} catch (err) {
-				logger.error("handleQuestionActivate: failed to load question:", err);
-			}
-		},
-		[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload],
+			// Arm a safety timer (5.5s = 5s window + 0.5s buffer) so the reveal still happens
+			// even when no player reports `vd_power_window_closed` (already-used-power case).
+			clearPendingBroadcastTimer();
+			pendingBroadcastTimerRef.current = window.setTimeout(() => {
+				pendingBroadcastTimerRef.current = null;
+				broadcastPendingVeDichQuestion();
+			}, 5500);
+		} catch (err) {
+			logger.error("handleQuestionActivate: failed to load question:", err);
+		}
+	},
+	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
 	);
 
 	// ─── Timer ───────────────────────────────────────────────────────────────────
@@ -468,12 +502,11 @@ const AVeDichChungPage = () => {
 				question_code: currentQuestion.questionCode,
 				started_at: Date.now(),
 			});
-			if (currentQuestion.questionMediaURL) {
-				void sendMessage({ type: "play_video" });
-				setVideoPlayState("playing");
-			}
+			// NOTE: play_video is intentionally NOT sent here. In Về Đích rounds the video
+			// autoplays the moment the power window closes (vd_power_window_closed), so the
+			// media is already running by the time admin clicks "Bắt đầu tính giờ".
 		}
-	}, [currentQuestion.questionCode, currentQuestion.questionMediaURL, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
+	}, [currentQuestion.questionCode, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
 
 	useEffect(() => {
 		timerRef.current = timer;
@@ -795,6 +828,13 @@ const AVeDichChungPage = () => {
 									started_at: Date.now(),
 								});
 							} catch { /* best-effort on reconnect */ }
+							// Replay the video for the late joiner so MC / player see the
+							// media from where the room is now (matches AButPhaPage flow).
+							if (currentQuestion.questionMediaURL) {
+								try {
+									await sendMessage({ type: "play_video" });
+								} catch { /* best-effort on reconnect */ }
+							}
 						}
 						// Send players/scores last (requires API call) so game state appears first
 						try {

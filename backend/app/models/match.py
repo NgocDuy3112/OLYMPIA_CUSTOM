@@ -7,6 +7,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from dependencies.postgresql_db import Base
 from models import *
+from configs import AppSettings
+
+_settings = AppSettings()
+_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M" — drives the match_code prefix constraint
 
 
 def utcnow():
@@ -23,7 +27,10 @@ class Match(Base):
     __tablename__ = "matches"
     # Constraints
     __table_args__ = (
-        CheckConstraint("match_code LIKE 'OC3_M%'", name='check_match_code_starts_with_OC3_M'),
+        CheckConstraint(
+            f"match_code LIKE '{_MATCH_PATTERN}%'",
+            name='check_match_code_starts_with_season_prefix',
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)

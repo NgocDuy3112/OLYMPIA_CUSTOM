@@ -31,8 +31,12 @@ VALKEY_USER = os.getenv("VALKEY_USER", "") or None
 VALKEY_PASSWORD = os.getenv("VALKEY_PASSWORD", "") or None
 VALKEY_DB = int(os.getenv("VALKEY_DB", "0"))
 
-# Default match code for bots to subscribe to (can be overridden per-deployment)
-MATCH_CODE = os.getenv("MATCH_CODE", "OC3_M_VL")
+# Default match code for bots to subscribe to. Built from SEASON so all services
+# (FastAPI backend, BGM/SFX/ping bots) target the same season's match channels.
+# The trailing "*" makes this a Valkey pattern (psubscribe) so a single bot
+# instance receives events from every match of the current season.
+SEASON = os.getenv("SEASON", "3")
+MATCH_CODE = os.getenv("MATCH_CODE", f"OC{SEASON}_M*")
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 

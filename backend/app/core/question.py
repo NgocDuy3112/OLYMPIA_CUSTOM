@@ -25,6 +25,7 @@ from openpyxl import load_workbook
 from io import BytesIO
 
 QUESTION_SHEET_NAMES = ['KHOI_DONG', 'GIAI_MA', 'BUT_PHA', 'VE_DICH']
+_MATCH_PATTERN = AppSettings().MATCH_PATTERN  # e.g. "OC3_M"
 
 
 def _normalize_media_url(raw, match_code: str) -> str | None:
@@ -38,7 +39,7 @@ def _normalize_media_url(raw, match_code: str) -> str | None:
     v = str(raw).strip()
     if not v or v == "None":
         return None
-    if v.startswith("http://") or v.startswith("https://") or v.startswith("OC3_M"):
+    if v.startswith("http://") or v.startswith("https://") or v.startswith(_MATCH_PATTERN):
         return v
     return f"{match_code}/{v}"
 
@@ -615,10 +616,10 @@ async def post_questions_from_zip_to_db(
 
     global_logger.info(f"ZIP import started: file='{filename}', match_code='{match_code}'")
 
-    if not match_code.startswith("OC3_M"):
+    if not match_code.startswith(_MATCH_PATTERN):
         raise HTTPException(
             status_code=400,
-            detail=f"Tên file ZIP phải bắt đầu bằng 'OC3_M', nhận được: '{filename}'.",
+            detail=f"Tên file ZIP phải bắt đầu bằng '{_MATCH_PATTERN}', nhận được: '{filename}'.",
         )
 
     raw = await file.read()

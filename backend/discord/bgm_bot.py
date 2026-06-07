@@ -282,10 +282,10 @@ async def _handle_message(message: dict) -> None:
                 logger.warning("No audio file found for 'vd_5s'")
 
     elif msg_type == "vd_power_window_open":
-        # Power selection window 5s for Về Đích Riêng — only play in VDR phase
+        # Power selection window 5s for Về Đích (Chung + Riêng) — play in either phase
         current_phase = _current_track.get(guild.id, "")
-        if current_phase != "vdr":
-            logger.debug(f"vd_power_window_open ignored in phase '{current_phase}' (only vdr)")
+        if current_phase not in ("vdc", "vdr"):
+            logger.debug(f"vd_power_window_open ignored in phase '{current_phase}' (only vdc/vdr)")
         else:
             power_file = _find_file("vd_5s")
             if power_file:
