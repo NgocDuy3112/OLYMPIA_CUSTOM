@@ -60,15 +60,17 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
             <div className="flex justify-between items-center w-full">
                 <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%] flex items-center gap-2">
                     <span className="truncate">{player.playerName}</span>
-                    {/* Quyền năng icon: Star (NSHV) hoặc Shield (BHMT) */}
+                    {/* Current-turn indicator first so it sits just after the name. */}
+                    {isCurrent && (
+                        <Mic size={20} className="text-white inline-block" />
+                    )}
+                    {/* Quyền năng icon: Star (NSHV) hoặc Shield (BHMT) — rendered to the
+                        right of the Mic icon in Về Đích rounds. */}
                     {player.playerPower === 'star' && (
                         <Star size={20} className="text-white-400 shrink-0" />
                     )}
                     {player.playerPower === 'shield' && (
                         <Shield size={20} className="text-white-400 shrink-0" />
-                    )}
-                    {player.playerIsTurn && (
-                        <Mic size={20} className="text-white inline-block" />
                     )}
                     {player.playerHasSubmittedKeyword && (
                         <>

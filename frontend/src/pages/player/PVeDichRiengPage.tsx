@@ -423,6 +423,7 @@ const PVeDichRiengPage = () => {
 		<PBasePageLayout
 			players={players}
 			currentPlayerCode={playerCode}
+			currentTurnPlayerCode={currentTurnPlayerCode}
 			buzzerWinnerCode={buzzerWinnerCode}
 		>
 			<>

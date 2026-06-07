@@ -8,6 +8,10 @@ import { IS_BETA } from "@/configs";
 interface PBasePageLayoutProps {
     players: PlayerStatus[];
     currentPlayerCode: string;
+    /** Optional override for who is currently in the lead (e.g. admin-selected turn in
+     *  Về Đích Riêng). When set, the player whose `playerCode` matches this value
+     *  shows the Mic icon. Falls back to `currentPlayerCode` otherwise. */
+    currentTurnPlayerCode?: string | null;
     buzzerWinnerCode?: string | null;  // Show lightning icon for buzzer winner
     /** page should render its own board as children (first child) */
     children?: React.ReactNode;
@@ -18,10 +22,15 @@ interface PBasePageLayoutProps {
 export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
     players,
     currentPlayerCode,
+    currentTurnPlayerCode,
     buzzerWinnerCode,
     children,
 }) => {
     usePlayerProtection(true);
+
+    // Prefer the explicit "current turn" hint when provided (VDR admin-selected player).
+    // Otherwise fall back to per-player `playerIsTurn`, then to the viewer's own code.
+    const effectiveCurrentCode = currentTurnPlayerCode ?? currentPlayerCode;
 
     return (
         <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-1 sm:p-2 lg:p-4">
@@ -36,7 +45,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
 
             <div className="flex gap-1 sm:gap-2 lg:gap-4 max-w-7xl w-full justify-center mt-1 sm:mt-2 lg:mt-4 shrink-0">
                 {players.map(p => (
-                    <PPlayerRec key={p.playerCode} player={p} isCurrent={p.playerIsTurn ?? (p.playerCode === currentPlayerCode)} isBuzzerWinner={p.playerCode === buzzerWinnerCode} />
+                    <PPlayerRec key={p.playerCode} player={p} isCurrent={p.playerIsTurn ?? (p.playerCode === effectiveCurrentCode)} isBuzzerWinner={p.playerCode === buzzerWinnerCode} />
                 ))}
             </div>
 

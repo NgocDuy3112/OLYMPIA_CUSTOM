@@ -8,8 +8,6 @@ import {
 	Zap,
 	Plus,
 	Minus,
-	Star,
-	Shield,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -1068,12 +1066,63 @@ const AVeDichRiengPage = () => {
 				break;
 			}
 
+			case "vd_player_power": {
+				// Player activated a power (star/shield) during the 5s window
+				const { user_code, power } = msg;
+				if (user_code && (power === "star" || power === "shield") && !usedPowers[user_code]) {
+					logger.info(`[VDR POWER] Player ${user_code} activated ${power}`);
+					// Persist into lifetime usedPowers so the icon sticks for the rest of the
+					// round (and across VDC ↔ VDR navigation).
+					const nextUsedPowers: Record<string, string | null> = {
+						...usedPowers,
+						[user_code]: power,
+					};
+					startTransition(() => {
+						setUsedPowers(nextUsedPowers);
+					});
+					try {
+						localStorage.setItem(
+							`veDich_powers_${currentMatchCode}`,
+							JSON.stringify(nextUsedPowers),
+						);
+					} catch { /* ignore */ }
+					// Update the players array so APlayerBar renders the Star/Shield icon
+					// next to the player's name right away.
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((p) =>
+								p.playerCode === user_code
+									? { ...p, playerPower: power as "star" | "shield" }
+									: p,
+							),
+						);
+					});
+					// Broadcast the authoritative list so MC and other players also pick
+					// up the icon (the WS server echoes `vd_player_power` back to the room,
+					// but only admin is the source of truth for the merged `usedPowers`).
+					void sendMessage({
+						type: "vd_powers_used",
+						used_powers: nextUsedPowers,
+					});
+				}
+				break;
+			}
+
 			case "vd_powers_used": {
 				if (msg.used_powers) {
 					startTransition(() => {
 						setUsedPowers(msg.used_powers);
 					});
 					try { localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(msg.used_powers)); } catch { /* ignore */ }
+					// Mirror the power onto each player so APlayerBar shows the icon.
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((p) => {
+								const power = msg.used_powers[p.playerCode];
+								return power ? { ...p, playerPower: power as "star" | "shield" } : p;
+							}),
+						);
+					});
 				}
 				break;
 			}
@@ -1140,28 +1189,9 @@ const AVeDichRiengPage = () => {
 				</div>
 			)}
 			topControlButtons={
-				<>
-					<div className="flex items-center justify-center gap-3 flex-wrap w-full">
-						<AControlButton
-							onClick={() => setActivePower((prev) => (prev === 'star' ? null : 'star'))}
-							disabled={!currentTurnPlayerCode || !!usedPowers[currentTurnPlayerCode!]}
-							title={usedPowers[currentTurnPlayerCode!] ? `Đã dùng: ${usedPowers[currentTurnPlayerCode!] === 'star' ? 'Ngôi sao hy vọng' : 'Bảo hộ miễn trừ'}` : 'Trả lời đúng: +150% điểm. Trả lời sai: -100% điểm'}
-							className={activePower === 'star' ? 'bg-white-500 ring-white-400 text-blue-900' : undefined}
-						>
-							<Star size={18} />
-							<span className="ml-2 font-bold">NGÔI SAO HY VỌNG</span>
-						</AControlButton>
-						<AControlButton
-							onClick={() => setActivePower((prev) => (prev === 'shield' ? null : 'shield'))}
-							disabled={!currentTurnPlayerCode || !!usedPowers[currentTurnPlayerCode!]}
-							title={usedPowers[currentTurnPlayerCode!] ? `Đã dùng: ${usedPowers[currentTurnPlayerCode!] === 'star' ? 'Ngôi sao hy vọng' : 'Bảo hộ miễn trừ'}` : 'Trả lời đúng: +50% điểm. Trả lời sai: không trừ điểm'}
-							className={activePower === 'shield' ? 'bg-blue-500 ring-blue-400 text-blue-900' : undefined}
-						>
-							<Shield size={18} />
-							<span className="ml-2 font-bold">BẢO HỘ MIỄN TRỪ</span>
-						</AControlButton>
-					</div>
-				</>
+				// Quyền năng giờ do thí sinh tự chọn trên thiết bị của họ — admin không
+				// còn toggle Ngôi sao / Bảo hộ nữa. Để trống topControlButtons.
+				null
 			}
 			playerSectionButtons={
 				<>

@@ -17,7 +17,7 @@ const MVeDichRiengPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, clearAnswers } = useMcPlayers();
+    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyPlayerPower, clearAnswers } = useMcPlayers();
     const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
 
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
@@ -79,6 +79,16 @@ const MVeDichRiengPage = () => {
                 setAnsweringWindowTimer(msg.countdown ?? 5);
                 break;
             case "vd_questions_selected":
+            case "vd_player_power": {
+                // Player activated a power (star/shield) during the 5s window.
+                // MC mirrors this onto the players array so the Star/Shield icon
+                // shows up next to the player's name immediately.
+                const { user_code, power } = msg;
+                if (user_code && (power === "star" || power === "shield")) {
+                    applyPlayerPower(user_code, power as "star" | "shield");
+                }
+                break;
+            }
             case "vdr_questions_meta": {
                 const metadata: RoundQuestion[] = msg.question_metadata ?? [];
                 if (metadata.length > 0) setRoundQuestionsData(metadata);
@@ -94,7 +104,7 @@ const MVeDichRiengPage = () => {
             default:
                 break;
         }
-}, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, setPlayers, clearAnswers, fetchAnswer, clearAnswer, setCurrentPlayerCode, setAnsweringWindowTimer, setRoundQuestionsData, setQuestionStates]);
+}, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyPlayerPower, setPlayers, clearAnswers, fetchAnswer, clearAnswer, setCurrentPlayerCode, setAnsweringWindowTimer, setRoundQuestionsData, setQuestionStates]);
 
     // Countdown answering window timer
     useEffect(() => {
@@ -111,7 +121,7 @@ const MVeDichRiengPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
+        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} currentTurnPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
             <>
                 <AQuestionBoard
                     title="VỀ ĐÍCH - LƯỢT CÁ NHÂN"

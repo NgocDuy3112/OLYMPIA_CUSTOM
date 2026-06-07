@@ -70,6 +70,10 @@ PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
         "send_answers_to_players": "vd_hien_tra_loi",
         "vd_selection_update":     "vd_pick",
         "vd_questions_selected":   "vd_xac_nhan",  # Admin confirms selection from pick page
+        # VĐC plays vd_quyen_nang at most once per question — admin gates the broadcast
+        # (see AVeDichChungPage vd_player_power handler).
+        "power_star":              "vd_quyen_nang",
+        "power_shield":            "vd_quyen_nang",
     },
     "vdr": {
         "round_start":             "vd_bat_dau",

@@ -961,6 +961,14 @@ const AVeDichChungPage = () => {
 					startTransition(() => {
 						setPlayerPowers((prev) => ({ ...prev, [user_code]: power }));
 					});
+					// In Về Đích Chung, play the SFX (vd_quyen_nang) at most once per
+					// question — subsequent picks in the same window are silent because
+					// the SFX bot already heard the first one. `playerPowers` is reset
+					// when `currentQuestion.questionCode` changes (see effect above), so
+					// this guard self-resets between questions.
+					if (Object.keys(playerPowers).length === 0) {
+						void sendMessage({ type: "vd_power_activated", power });
+					}
 				}
 				break;
 			}
