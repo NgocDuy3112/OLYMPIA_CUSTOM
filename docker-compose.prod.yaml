@@ -37,6 +37,7 @@ services:
     build:
       context: ./backend/app
       dockerfile: Dockerfile
+    command: ["sh", "-c", "fastapi run main.py --host 0.0.0.0 --port 8000 > /var/log/olympia/app.log 2>&1"]
     env_file:
       - ./configs/.env
     environment:
@@ -49,6 +50,7 @@ services:
       VALKEY_PORT: 6379
     volumes:
       - ./configs:/app/configs:ro
+      - ./logs:/var/log/olympia
     depends_on:
       postgresql:
         condition: service_healthy
@@ -78,9 +80,11 @@ services:
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
-    command: ["python", "bgm_bot.py"]
+    command: ["sh", "-c", "python bgm_bot.py > /var/log/olympia/bgm.log 2>&1"]
     env_file:
       - ./configs/.env
+    volumes:
+      - ./logs:/var/log/olympia
     depends_on:
       - valkey
     networks:
@@ -92,9 +96,11 @@ services:
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
-    command: ["python", "sfx_bot.py"]
+    command: ["sh", "-c", "python sfx_bot.py > /var/log/olympia/sfx.log 2>&1"]
     env_file:
       - ./configs/.env
+    volumes:
+      - ./logs:/var/log/olympia
     depends_on:
       - valkey
     networks:
@@ -106,9 +112,11 @@ services:
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
-    command: ["python", "ping_bot.py"]
+    command: ["sh", "-c", "python ping_bot.py > /var/log/olympia/ping.log 2>&1"]
     env_file:
       - ./configs/.env
+    volumes:
+      - ./logs:/var/log/olympia
     depends_on:
       - valkey
     networks:
