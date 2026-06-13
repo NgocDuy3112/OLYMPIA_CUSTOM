@@ -8,7 +8,7 @@ import { useMcSession } from "@/hooks/useMcSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
@@ -18,7 +18,7 @@ const MVeDichRiengPage = () => {
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyPlayerPower, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
 
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
@@ -129,8 +129,6 @@ const MVeDichRiengPage = () => {
                     timerDuration={answeringWindowTimer > 0 ? answeringWindowTimer : timer}
                     videoPlayState={videoPlayState}
                     boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[55vh]"
-                    answerBoxHeightClass="min-h-[4rem]"
-                    hideAnswerBox={true}
                 >
                     {() => (
                         <div className="flex gap-1 overflow-x-auto">

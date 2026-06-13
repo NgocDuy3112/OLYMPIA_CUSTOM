@@ -153,11 +153,11 @@ PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "vd_player_power",
     "vd_power_window_closed",
     "vd_questions_meta_request",
+    "pong_latency",
 })
 
 MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "answer",
-    "player_answer",
     "buzz",
     "mc_online",
     "player_heartbeat",
@@ -166,7 +166,6 @@ MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "send_question",
     "clear_question",
     "start_the_timer",
-    "start_keyword_timer",
     "send_answers_to_players",
     "clear_answers",
     "round_start",

@@ -6,7 +6,7 @@ import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const MKhoiDongRiengPage = () => {
@@ -15,8 +15,8 @@ const MKhoiDongRiengPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, applyWrongAttempt, clearAnswers } = useMcPlayers();
-    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, applyWrongAttempt, clearAnswers } = useMcPlayers();
+    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
     const [currentPlayerCode, setCurrentPlayerCode] = useState("");
 
     useEffect(() => {
@@ -53,10 +53,6 @@ const MKhoiDongRiengPage = () => {
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
-            case "player_answer":
-            case "answer":
-                applyRealTimeAnswer(msg);
-                break;
             case "buzz":
                 applyBuzz(msg);
                 if (msg.user_code && !buzzerWinnerCode) {
@@ -71,17 +67,13 @@ const MKhoiDongRiengPage = () => {
                 );
                 break;
             }
-            case "clear_buzz":
-                setBuzzerWinnerCode(null);
-                setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
-                break;
             case "player_wrong_attempt":
                 applyWrongAttempt(msg);
                 break;
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, applyWrongAttempt, clearAnswers, fetchAnswer, clearAnswer, setPlayers, buzzerWinnerCode]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, applyWrongAttempt, clearAnswers, fetchAnswer, clearAnswer, setPlayers, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -105,8 +97,6 @@ const MKhoiDongRiengPage = () => {
                 timerDuration={timer}
                 controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
                 boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
-                answerBoxHeightClass="h-[15vh]"
-                hideAnswerBox={true}
             />
         </PBasePageLayout>
     );

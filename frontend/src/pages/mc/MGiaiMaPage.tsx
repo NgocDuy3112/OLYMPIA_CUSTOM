@@ -7,7 +7,7 @@ import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { API_BASE_URL } from "@/configs";
 
@@ -63,8 +63,8 @@ const MGiaiMaPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyKeywordSubmit, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyKeywordSubmit, clearAnswers } = useMcPlayers();
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
     const [_keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
     const [_revealedHint, setRevealedHint] = useState<string | null>(null);
     const [_keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
@@ -120,11 +120,6 @@ const MGiaiMaPage = () => {
                 setRevealedHint(null);
                 setIsKeywordPhase(msg.phase === "gm_keyword");
                 break;
-            case "start_keyword_timer":
-                // Deprecated — keyword timer now rides on `start_the_timer` with `phase: "gm_keyword"`.
-                startSynced(Number(msg.time_limit ?? 15), msg.started_at);
-                setIsKeywordPhase(true);
-                break;
             case "player_score_updated":
                 applyScoreUpdate(msg);
                 break;
@@ -178,6 +173,9 @@ const MGiaiMaPage = () => {
                 setHideQuestionContent(false);
                 setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
+                // Also clear per-player answer state so the MC player list doesn't
+                // keep stale answers / buzz flags from the previous question.
+                clearAnswers();
                 break;
             case "round_start":
                 setRevealedHint(null);
@@ -188,6 +186,9 @@ const MGiaiMaPage = () => {
                 setHideQuestionContent(false);
                 setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
+                // Match the player page: clear per-player answer state on round start
+                // so the MC player list resets alongside the clue grid.
+                clearAnswers();
                 break;
             case "show_hint": {
                 const hintContent = msg.hint_content ?? "";
@@ -217,10 +218,24 @@ const MGiaiMaPage = () => {
                 }
                 break;
             }
-            case "hide_hint":
+            case "hide_hint": {
+                // Mirror the player's behavior: clear the per-clue card text
+                // AND the top-bar revealedHint text. Without clearing
+                // `revealedHints[idx]` the card keeps showing the answer
+                // content after admin presses "KHOÁ GỢI Ý", even though
+                // the question-board hint is hidden.
                 setRevealedHint(null);
                 setHideQuestionContent(true);
+                const idx = activeClueIdxRef.current;
+                if (idx !== null) {
+                    setRevealedHints((prev) => {
+                        const next = { ...prev };
+                        delete next[idx];
+                        return next;
+                    });
+                }
                 break;
+            }
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
@@ -228,18 +243,19 @@ const MGiaiMaPage = () => {
                 applyAnswers(msg);
                 setKeywordSubmittedCodes(new Set());
                 break;
-            case "player_answer":
-            case "answer":
-                applyRealTimeAnswer(msg);
-                break;
-            case "reveal_keyword_answer":
+            case "reveal_keyword_answer": {
+                // Mirror the player page: always update the answer text, and use
+                // the broadcast banner if present, otherwise rebuild it from the
+                // answer (so an older admin client without `keyword_banner` still
+                // produces the right MC display).
                 const answer = msg.answer ?? null;
                 const banner = msg.keyword_banner ?? null;
                 setKeywordAnswer(answer);
-                if (answer && banner) {
-                    setKeywordBanner(banner);
+                if (answer) {
+                    setKeywordBanner(banner || buildKeywordBanner(answer));
                 }
                 break;
+            }
             case "send_keyword_info":
                 // Admin broadcast — sync keyword-length banner from admin so MC view matches
                 // even if the local /questions/ fetch returned a different/empty payload.
@@ -253,7 +269,7 @@ const MGiaiMaPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyKeywordSubmit, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyKeywordSubmit, clearAnswers, fetchAnswer, clearAnswer]);
 
     const clueGrid = (
         <div className="flex flex-col gap-2 sm:gap-3 w-full mb-2 sm:mb-3 px-1 sm:px-3">
@@ -297,9 +313,7 @@ const MGiaiMaPage = () => {
                     question={questionToShow}
                     timerDuration={timer}
                     boardHeightClass="h-[22vh] sm:h-[25vh] lg:h-[28vh]"
-                    answerBoxHeightClass="min-h-[4rem]"
                     controls={{ variant: 'numbers', count: 0 }}
-                    hideAnswerBox={true}
                     hideContent={hideQuestionContent || isKeywordPhase}
                 />
             </>

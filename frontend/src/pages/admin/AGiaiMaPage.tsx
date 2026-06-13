@@ -19,6 +19,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -129,6 +130,7 @@ const AGiaiMaPage = () => {
 	// ─── Player state ─────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -779,14 +781,16 @@ const AGiaiMaPage = () => {
 	}, [canShowAnswers, keywordRevealedCodes, keywordSubmissions, players, sendMessage]);
 
 	const handleShowHint = useCallback(async () => {
-		const answer = currentQuestion.questionAnswer ?? "";
+		// Hint content comes ONLY from `explanation`. The `explanation` field is
+		// authoritative: it can be plain text OR a media filename/URL.
+		// We never read from `answer` or `media_url`, and never fall back to
+		// other fields. Clients (MC + Player) detect media via
+		// `isMediaFilename(hintContent)` and swap with `hint_media_source`
+		// themselves, so we forward `explanation` verbatim and leave the media
+		// slot empty here.
 		const explanation = currentQuestion.questionExplanation ?? "";
-		const mediaUrl = currentQuestion.questionMediaURL;
-
-		// Determine hint content: if answer looks like a media filename, treat it as media
-		const answerIsMedia = isMediaFilename(answer);
-		const hintText = answerIsMedia ? explanation : (explanation || answer);
-		const hintMediaUrl = answerIsMedia ? answer : (mediaUrl || undefined);
+		const hintText = explanation;
+		const hintMediaUrl: string | undefined = undefined;
 
 		if (!hintText && !hintMediaUrl) return;
 		setPendingClueAction(false);
@@ -801,13 +805,22 @@ const AGiaiMaPage = () => {
 			});
 		}
 		try {
+			// Reveal the per-clue hint to the selected players. Use the standard
+			// `show_hint` event so PGiaiMaPage / MGiaiMaPage handlers pick it up.
+			// (Previously this sent `gm_dung`, which the SFX bot consumes for the
+			// "correct" cue, but neither the player nor the MC page ever rendered
+			// the hint payload from that event — so the answerer never saw the hint.)
+			// `clue_index` is omitted here so the receiving client uses the
+			// currently active clue, and `target_players` filters who sees it.
 			await sendMessage({
-				type: "gm_dung",
+				type: "show_hint",
 				user_code: "",
 				hint_content: hintText,
 				hint_media_source: hintMediaUrl ?? undefined,
 				target_players: selectedPlayerCodes,
 			});
+			// Separate SFX-only event for the bot (don't conflate SFX with content).
+			sendMessage({ type: "gm_dung" });
 			
 			// Auto-add score to selected players
 			if (selectedPlayerCodes.length > 0 && currentQuestion.questionCode) {
@@ -851,15 +864,13 @@ const AGiaiMaPage = () => {
 		if (!answer) return;
 		setKeywordAnswerRevealed(true);
 
-		// Helper: compute hint payload for a given clue question (mirrors handleShowHint logic).
+		// Helper: compute hint payload for a given clue question. Hint content
+		// comes ONLY from `explanation` — `answer` and `media_url` are never
+		// used as a hint. `explanation` may be plain text OR a media filename;
+		// the receiver decides which is which via `isMediaFilename`.
 		const buildHintFor = (q: Question) => {
-			const answer = q.questionAnswer ?? "";
-			const eexplaination = q.questionExplanation ?? "";
-			const mediaurl = q.questionMediaURL;
-			const answerIsMedia = isMediaFilename(answer);
-			const text = answerIsMedia ? eexplaination : (eexplaination || answer);
-			const mediaUrl = answerIsMedia ? answer : (mediaurl || undefined);
-			return { text, mediaUrl };
+			const explanation = q.questionExplanation ?? "";
+			return { text: explanation, mediaUrl: undefined as string | undefined };
 		};
 
 		// Build the full set of revealed hints locally so the admin's own board
@@ -1121,7 +1132,6 @@ const AGiaiMaPage = () => {
 			timerDuration={timer}
 			aboveQuestionBoard={clueGrid}
 			boardHeightClass="h-[35vh]"
-			answerBoxHeightClass="min-h-[4rem]"
 			hideQuestionContent={hideQuestionContent || isKeywordTimerRunning}
 			controlsChildren={() => null}
 			topControlButtons={null}

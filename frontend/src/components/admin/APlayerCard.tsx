@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Mic, KeyRound, Pencil } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
+import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
 
@@ -118,11 +119,12 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                         : "ring-2 ring-blue-600 bg-blue-900 text-blue-300"
                     } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
             >
-                {/* Top row: name + connection + icons */}
+                {/* Top row: name + wifi signal + icons */}
                 <div className="flex items-center gap-2 w-full justify-center">
-                    <span
-                        title={player.playerConnected ? "Connected" : "Disconnected"}
-                        className={`w-3 h-3 rounded-full shrink-0 ${player.playerConnected ? "bg-blue-400" : "bg-gray-600"}`}
+                    <WifiSignal
+                        latencyMs={player.playerLatencyMs}
+                        connected={!!player.playerConnected}
+                        size={14}
                     />
                     <p className="font-[SVN-Gratelos_Display] text-[22px] xl:text-[26px] font-bold uppercase truncate text-center flex items-center gap-1">
                         {player.playerName}

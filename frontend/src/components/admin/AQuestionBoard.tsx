@@ -15,10 +15,6 @@ interface AQuestionBoardProps {
     children?: (api: ControlsRenderApi) => React.ReactNode;
     /** Tailwind height class applied to the board container. Defaults to h-[50vh]. */
     boardHeightClass?: string;
-    /** Tailwind height class applied to the answer/explanation box. Defaults to h-24. */
-    answerBoxHeightClass?: string;
-    /** When true, hides the answer/explanation box (e.g. while timer is running) */
-    hideAnswerBox?: boolean;
     /** When true, hides the question content area (text + media) but keeps the header. */
     hideContent?: boolean;
     videoPlayState?: "playing" | "paused" | null;
@@ -27,7 +23,7 @@ interface AQuestionBoardProps {
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[55vh]", answerBoxHeightClass = "min-h-[4rem]", hideAnswerBox = false, hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[55vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -181,15 +177,6 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
             </div>
             )}
 
-            {/* Answer box — hidden during timer */}
-            {!hideAnswerBox && question.questionAnswer && (
-                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-2 tablet:p-3 gap-1 shrink-0`}>
-
-                    <div className="text-base tablet:text-xl xl:text-2xl text-center line-clamp-3">
-                        {question.questionAnswer}
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

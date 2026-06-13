@@ -9,7 +9,7 @@ export const WS_BASE_URL =
  type AppEnv = "stage" | "prod";
 
 export const APP_ENV: AppEnv =
-    (import.meta.env.VITE_APP_ENV as AppEnv | undefined) ?? "prod";
+    (import.meta.env.VITE_APP_ENV as AppEnv | undefined) ?? "stage";
 
 /** True when running on stage/local — beta banners should be shown. */
 export const IS_BETA: boolean = APP_ENV !== "prod";

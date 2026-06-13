@@ -8,7 +8,7 @@ import { useMcSession } from "@/hooks/useMcSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
@@ -19,8 +19,8 @@ const MVeDichChungPage = () => {
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyPlayerPower, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyPlayerPower, clearAnswers } = useMcPlayers();
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
 
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
         if (!matchCode) return [];
@@ -73,10 +73,6 @@ const MVeDichChungPage = () => {
                     setBuzzerWinnerCode(msg.user_code);
                 }
                 break;
-            case "player_answer":
-            case "answer":
-                applyRealTimeAnswer(msg);
-                break;
             case "vdc_question_state": {
                 const { question_code, state: qState } = msg;
                 if (question_code && qState) {
@@ -105,7 +101,7 @@ const MVeDichChungPage = () => {
             default:
                 break;
         }
-}, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer, matchCode, buzzerWinnerCode, setRoundQuestionsData, applyPlayerPower]);
+}, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, clearAnswers, fetchAnswer, clearAnswer, matchCode, buzzerWinnerCode, setRoundQuestionsData, applyPlayerPower]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -120,8 +116,6 @@ const MVeDichChungPage = () => {
                 timerDuration={timer}
                 videoPlayState={videoPlayState}
                 boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
-                answerBoxHeightClass="min-h-[4rem]"
-                hideAnswerBox={true}
             >
                 {() => (
                     <div className="flex gap-1 overflow-x-auto">

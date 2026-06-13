@@ -356,6 +356,15 @@ async def _handle_message(message: dict) -> None:
         else:
             return  # power is null (deactivated) — no SFX
 
+    # Silent mode: client asked us to forward the payload to other clients
+    # but NOT play any SFX. Used when the admin re-broadcasts data-only
+    # messages (e.g. vd_selection_update on the BẮT ĐẦU button to fix a
+    # race condition for late-joining players) so we don't double up audio
+    # with the round_start that follows immediately.
+    if message.get("silent") is True:
+        logger.debug(f"Skipping SFX for silent event '{effective_event}'")
+        return
+
     # Resolve SFX: phase-specific override takes priority over generic map
     phase_override = PHASE_EVENT_SFX_MAP.get(_current_phase, {}).get(effective_event)
     if phase_override:

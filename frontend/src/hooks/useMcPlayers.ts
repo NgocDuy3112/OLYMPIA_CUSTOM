@@ -77,19 +77,6 @@ export function useMcPlayers() {
         );
     }, []);
 
-    const applyRealTimeAnswer = useCallback((msg: any) => {
-        const { user_code, answer_text, timestamp } = msg ?? {};
-        if (user_code && answer_text) {
-            setPlayers((prev) =>
-                prev.map((p) =>
-                    p.playerCode === user_code
-                        ? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp || p.playerTimestamp }
-                        : p,
-                ),
-            );
-        }
-    }, []);
-
     const applyBuzz = useCallback((msg: any) => {
         const { user_code } = msg ?? {};
         if (user_code) {
@@ -130,5 +117,5 @@ export function useMcPlayers() {
         }
     }, []);
 
-    return { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, applyPlayerPower, applyWrongAttempt, applyKeywordSubmit, clearAnswers };
+    return { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, applyPlayerPower, applyWrongAttempt, applyKeywordSubmit, clearAnswers };
 }

@@ -6,6 +6,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerCard from "@/components/admin/APlayerCard";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import AdminGameplayNavBar from "@/navigation/ANavBar";
@@ -49,6 +50,7 @@ const AWaitingPage = () => {
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
 	const [isIntroducingPlayers, setIsIntroducingPlayers] = useState(false);

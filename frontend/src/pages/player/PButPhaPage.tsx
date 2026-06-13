@@ -196,24 +196,6 @@ const PButPhaPage = () => {
 				break;
 			}
 
-			case "answer": {
-				// Real-time answer from another player via WebSocket
-				const { user_code, answer_text, timestamp } = msg;
-				if (user_code && user_code !== playerCode && answer_text) {
-					console.info(`[BP ANSWER SYNC] Player received answer from user=${user_code} answer=${answer_text} ts=${timestamp}`);
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === user_code
-								? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp || p.playerTimestamp }
-								: p,
-						),
-					);
-				} else {
-					console.warn(`[BP ANSWER SYNC] Player received empty answer: user_code=${user_code} answer_text=${answer_text}`);
-				}
-				break;
-			}
-
 			case "buzz": {
 				// Buzz notification from another player
 				const { user_code } = msg;

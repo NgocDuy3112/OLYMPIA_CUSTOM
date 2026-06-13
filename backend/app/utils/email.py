@@ -169,38 +169,3 @@ async def send_password_reset_email_safe(*, to: str, user_name: str, reset_link:
         await send_password_reset_email(to=to, user_name=user_name, reset_link=reset_link)
     except Exception:
         global_logger.exception(f"send_password_reset_email_safe: failed to send to {mask_email(to)}")
-
-
-async def send_otp_email(*, to: str, user_name: str, otp: str, purpose: str) -> None:
-    subject = f"{cfg.EMAIL_SUBJECT_PREFIX}Mã xác thực ({purpose})"
-    html_body = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; padding: 24px;">
-        <div style="max-width: 480px; margin: auto; background: #fff; border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 32px;">
-            {f'''<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center;">
-                <strong style="font-size: 14px;">🚀 PHIÊN BẢN BETA</strong><br/>
-                <span style="font-size: 12px; opacity: 0.9;">Cảm ơn bạn đã tham gia thử nghiệm!</span>
-            </div>''' if cfg.IS_BETA else ''}
-            <h2 style="color: #2563eb; margin-top: 0;">Mã xác thực</h2>
-            <p>Xin chào <strong>{user_name}</strong>,</p>
-            <p>Mã xác thực cho thao tác <strong>{purpose}</strong> của bạn là:</p>
-            <div style="font-family: monospace; font-size: 22px; color: #111827; background:#eef2ff; padding:12px 16px; border-radius:8px; text-align:center;">{otp}</div>
-            <p style="color: #64748b; font-size: 13px;">Mã này có hiệu lực trong vài phút. Nếu bạn không yêu cầu mã, hãy bỏ qua email này.</p>
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">Trân trọng,<br/>Ban tổ chức Olympia Custom</p>
-        </div>
-    </body>
-    </html>
-    """
-    try:
-        await _send(subject, html_body, to)
-        global_logger.info(f"OTP email sent to {mask_email(to)}")
-    except Exception:
-        global_logger.exception(f"Failed to send OTP email to {mask_email(to)}")
-
-
-async def send_otp_email_safe(*, to: str, user_name: str, otp: str, purpose: str) -> None:
-    try:
-        await send_otp_email(to=to, user_name=user_name, otp=otp, purpose=purpose)
-    except Exception:
-        global_logger.exception(f"send_otp_email_safe: failed to send to {mask_email(to)}")

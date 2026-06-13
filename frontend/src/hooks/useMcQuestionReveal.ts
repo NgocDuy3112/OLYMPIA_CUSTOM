@@ -2,7 +2,16 @@
 import { useCallback, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 
-export function useMcAnswer(matchCode: string, token: string) {
+/**
+ * Hook for the MC view's "question reveal" state — i.e. the correct answer +
+ * explanation that the MC shows AFTER the admin reveals it.
+ *
+ * Distinct from `useMcPlayers`, which manages the list of players and their
+ * per-player `playerLastAnswer` fields.
+ *
+ * Renamed from `useMcAnswer` (alias kept for backwards compatibility).
+ */
+export function useMcQuestionReveal(matchCode: string, token: string) {
     const [questionAnswer, setQuestionAnswer] = useState("");
     const [questionExplanation, setQuestionExplanation] = useState("");
 

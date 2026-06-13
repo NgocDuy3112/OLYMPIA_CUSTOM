@@ -6,7 +6,7 @@ import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const MKhoiDongChungPage = () => {
@@ -15,8 +15,8 @@ const MKhoiDongChungPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers } = useMcPlayers();
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -50,10 +50,6 @@ const MKhoiDongChungPage = () => {
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
-            case "player_answer":
-            case "answer":
-                applyRealTimeAnswer(msg);
-                break;
             case "buzz":
                 applyBuzz(msg);
                 if (msg.user_code && !buzzerWinnerCode) {
@@ -63,7 +59,7 @@ const MKhoiDongChungPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, buzzerWinnerCode]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -78,8 +74,6 @@ const MKhoiDongChungPage = () => {
                 timerDuration={timer}
                 controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
                 boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
-                answerBoxHeightClass="min-h-[4rem]"
-                hideAnswerBox={true}
             />
         </PBasePageLayout>
     );

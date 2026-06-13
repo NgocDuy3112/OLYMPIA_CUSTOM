@@ -20,5 +20,7 @@ export interface PlayerStatus {
     playerCorrectScore?: number;
     playerAvgResponseTime?: number;
     // Number of wrong attempts in current question (used in Khoi Dong Rieng)
-    playerWrongAttempts?: number;
-}
+    playerWrongAttempts?: number;  // Latest measured RTT (ms) to this player via the WebSocket latency ping.
+  // `null` means we have a sample pending or the player never responded; `undefined`
+  // means we have never tried (e.g. round just started). Used by the admin Wifi icon.
+  playerLatencyMs?: number | null;}

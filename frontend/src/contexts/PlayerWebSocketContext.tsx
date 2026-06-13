@@ -39,12 +39,49 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
   }, [ws.lastMessage, ws.isConnected, playerCode, ws.sendMessage]);
 
+  // Respond to admin's `ping_latency` with a `pong_latency` so admin can
+  // measure this player's RTT for the wifi signal indicator. We also handle
+  // the broadcast flavour where admin sends a `targets` array; only this
+  // player's own pong is sent back to keep traffic low.
+  useEffect(() => {
+    const raw = ws.lastMessage as {
+      type?: string;
+      user_code?: string | number;
+      targets?: Array<string | number>;
+      client_ts?: number;
+      message?: {
+        type?: string;
+        user_code?: string | number;
+        targets?: Array<string | number>;
+        client_ts?: number;
+      };
+    } | null;
+    const last = raw?.message ?? raw;
+    if (!last) return;
+    if (last.type !== "ping_latency") return;
+    if (!ws.isConnected) return;
+    if (!playerCode) return;
+    // If `targets` is provided, only respond when this player is listed.
+    const targets = last.targets;
+    if (Array.isArray(targets) && targets.length > 0) {
+      const matches = targets.some((t) => String(t) === String(playerCode));
+      if (!matches) return;
+    }
+    void ws.sendMessage({
+      type: "pong_latency",
+      user_code: playerCode,
+      client_ts: typeof last.client_ts === "number" ? last.client_ts : Date.now(),
+    });
+  }, [ws.lastMessage, ws.isConnected, playerCode, ws.sendMessage]);
+
   // Periodic heartbeat so admin can detect disconnects within ~25 s.
+  // Lowered to 10 s to match the latency-ping cadence and tighten the
+  // disconnect detection window for the wifi indicator.
   useEffect(() => {
     if (!ws.isConnected || !playerCode) return;
     const intervalId = window.setInterval(() => {
       void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
-    }, 15_000);
+    }, 10_000);
     return () => window.clearInterval(intervalId);
   }, [ws.isConnected, playerCode, ws.sendMessage]);
 

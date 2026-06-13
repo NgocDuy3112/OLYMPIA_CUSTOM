@@ -228,7 +228,7 @@ async def change_password(user_code: str, old_password: str, new_password: str, 
     return BaseResponse(status="success", message="Đổi mật khẩu thành công.")
 
 
-# magic-login removed: we only support reset-password (user sets password) and OTP flows
+# magic-login removed: we only support password login and reset-password (user sets new password)
 
 
 async def login(form_data: OAuth2PasswordRequestForm, session: AsyncSession) -> TokenResponse:

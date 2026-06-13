@@ -15,6 +15,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -67,6 +68,7 @@ const AKhoiDongRiengPage = () => {
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 	const [playerPositions, setPlayerPositions] = useState<Record<string, number>>({});
 	// Solo round: allow only ONE player to be selected at a time
 	const [selectedPlayerCode, setSelectedPlayerCode] = useState<string | null>(null);
@@ -617,7 +619,7 @@ const AKhoiDongRiengPage = () => {
 			}
 			// Tự chuyển câu sau 1s
 			await new Promise(resolve => setTimeout(resolve, 1000));
-			void handleNextQuestion(currentQuestionIndex);
+			handleNextQuestion(currentQuestionIndex);
 		} catch (err) {
 			logger.error("Failed adding score to selected player:", err);
 			setHasAddedScore(false);
@@ -708,10 +710,13 @@ const AKhoiDongRiengPage = () => {
 				autoAdvanceRef.current = null;
 			}
 
-			// clear highlighted question and stop running state
+			// clear highlighted question and stop running state.
+			// Also reset currentQuestion to DEFAULT so the admin's question board
+			// no longer displays the question text/media once time runs out.
 			startTransition(() => {
 				setIsTimerRunning(false);
 				setCurrentQuestionIndex(0);
+				setCurrentQuestion({ ...DEFAULT_QUESTION });
 			});
 
 			// clear question on players (schedule async to avoid sync setState inside effect)

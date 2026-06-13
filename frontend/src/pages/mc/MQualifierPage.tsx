@@ -7,7 +7,7 @@ import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
 const MQualifierPage = () => {
@@ -15,8 +15,8 @@ const MQualifierPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useMcPlayers();
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
 
     const [boardCount, setBoardCount] = useState<number>(6);
     const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
@@ -95,9 +95,8 @@ const MQualifierPage = () => {
                 clearAnswers();
                 setShowAnswers(false);
                 break;
-            case "player_answer":
             case "answer": {
-                applyRealTimeAnswer(msg);
+                applyAnswers(msg);
                 const code = String(msg.user_code ?? "");
                 if (code && !answeredCodesRef.current.has(code)) {
                     answeredCodesRef.current.add(code);
@@ -108,7 +107,7 @@ const MQualifierPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, setPlayers, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, setPlayers, applyAnswers, clearAnswers, fetchAnswer, clearAnswer]);
 
     const correctAnswer = (questionAnswer || currentQuestion.questionAnswer)?.toUpperCase() ?? "";
 
@@ -176,8 +175,6 @@ const MQualifierPage = () => {
                     timerDuration={timer}
                     controls={{ variant: "numbers", count: boardCount, activeIndices: activeQuestionIndex ? [activeQuestionIndex - 1] : [] }}
                     boardHeightClass="h-[50vh]"
-                    answerBoxHeightClass="h-[13vh]"
-                    hideAnswerBox={true}
                 />
 
                 {parsedOptions.length > 0 && (

@@ -206,26 +206,6 @@ const PVeDichChungPage = () => {
 				break;
 			}
 
-			case "answer": {
-				// Real-time answer from another player via WebSocket
-				const { user_code, answer_text, timestamp } = msg;
-				if (user_code && user_code !== playerCode && answer_text) {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === user_code
-								? {
-										...p,
-										playerLastAnswer: answer_text,
-										playerTimestamp: timestamp || p.playerTimestamp,
-									}
-								: p,
-						),
-					);
-					console.info("Player received answer from", user_code, ":", answer_text);
-				}
-				break;
-			}
-
 			case "buzz": {
 				// Buzz notification from another player
 				const { user_code } = msg;

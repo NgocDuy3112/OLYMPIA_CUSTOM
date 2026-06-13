@@ -6,7 +6,7 @@ import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const MButPhaPage = () => {
@@ -16,8 +16,8 @@ const MButPhaPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers } = useMcPlayers();
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -57,10 +57,6 @@ const MButPhaPage = () => {
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
-            case "player_answer":
-            case "answer":
-                applyRealTimeAnswer(msg);
-                break;
             case "buzz":
                 applyBuzz(msg);
                 // Only first buzzer gets the lightning icon
@@ -71,7 +67,7 @@ const MButPhaPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, buzzerWinnerCode]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -89,8 +85,6 @@ const MButPhaPage = () => {
                     videoPlayState={videoPlayState}
                     hideMediaUntilPlayed
                     boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
-                    answerBoxHeightClass="min-h-[4rem]"
-                    hideAnswerBox={true}
                 />
             </>
         </PBasePageLayout>

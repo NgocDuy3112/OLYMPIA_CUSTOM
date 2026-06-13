@@ -16,6 +16,7 @@ import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
@@ -74,6 +75,7 @@ const AVeDichRiengPage = () => {
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -1010,41 +1012,14 @@ const AVeDichRiengPage = () => {
 				}
 				break;
 			}
-			case "buzz": {
-				const { user_code } = msg;
-				// Only accept buzz from actual players (not admin)
-				// Admin user_code typically starts with "ADMIN" or doesn't match player pattern
-				const isAdminBuzz = !user_code || user_code.startsWith("ADMIN");
-				logger.info(`[VDR ADMIN] Received buzz: user_code=${user_code}, isAdminBuzz=${isAdminBuzz}, buzzerWinnerCode=${buzzerWinnerCode}`);
-				if (user_code && !isAdminBuzz) {
-					// Verify this user is actually in the players list
-					const isPlayer = players.some((p) => p.playerCode === user_code);
-					if (!isPlayer) {
-						logger.warn(`[VDR ADMIN] Ignoring buzz from unknown user: ${user_code}`);
-						break;
-					}
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((p) =>
-								p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p,
-							),
-						);
-					});
-					// Broadcast to all players so their screens show the buzzer icon for the first person
-					// Only send buzzer_winner for the first buzz
-					if (!buzzerWinnerCode) {
-						logger.info(`[VDR ADMIN] Broadcasting buzzer_winner: user_code=${user_code}`);
-						// Set immediately to prevent race condition with multiple buzzes
-						setBuzzerWinnerCode(user_code);
-						void sendMessage({ type: "buzzer_winner", user_code, match_code: currentMatchCode });
-					} else {
-						logger.info(`[VDR ADMIN] Ignoring buzz from ${user_code} - winner already set: ${buzzerWinnerCode}`);
-					}
-				} else {
-					logger.warn(`[VDR ADMIN] Ignoring invalid buzz: user_code=${user_code}, isAdmin=${isAdminBuzz}`);
-				}
-				break;
-			}
+			// NOTE: `buzz` events are intentionally NOT handled here.
+			// The backend (`backend/app/core/answer.py`) is the authoritative source for
+			// the buzzer winner — it picks the first buzzer by `created_at` and publishes
+			// `buzzer_winner` (and `blocked_buzz`) on the Valkey match channel. The case
+			// below handles that authoritative broadcast.
+			// Handling `buzz` in the admin previously caused every late buzzer to get
+			// `playerHasBuzzed = true`, which made the Zap icon show up next to all 4
+			// players in the admin / MC / player bar instead of only the buzzer_winner.
 
 			case "buzzer_winner": {
 				const { user_code } = msg;
@@ -1128,7 +1103,6 @@ const AVeDichRiengPage = () => {
 			}
 
 			case "vd_power_window_closed": {
-				// Power window closed - immediately broadcast the full question (admin manually starts timer, mirrors VDC behaviour)
 				broadcastPendingVeDichQuestion();
 				break;
 			}
@@ -1179,7 +1153,7 @@ const AVeDichRiengPage = () => {
 									disabled={state !== "available"}
 									onClick={() => {
 										if (state === "available" && !isTimerRunning) {
-											void handleQuestionActivate(code);
+											handleQuestionActivate(code);
 										}
 									}}
 								/>
@@ -1188,11 +1162,7 @@ const AVeDichRiengPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={
-				// Quyền năng giờ do thí sinh tự chọn trên thiết bị của họ — admin không
-				// còn toggle Ngôi sao / Bảo hộ nữa. Để trống topControlButtons.
-				null
-			}
+			topControlButtons={null}
 			playerSectionButtons={
 				<>
 					<AControlButton

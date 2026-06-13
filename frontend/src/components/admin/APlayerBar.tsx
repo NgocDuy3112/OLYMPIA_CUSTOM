@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Mic, KeyRound, Pencil, Star, Shield } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
+import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
 
@@ -134,10 +135,11 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                 <div className="flex flex-col flex-1">
                     <p className="font-extrabold uppercase leading-tight">
                         <span className="flex items-center gap-4">
-                            {/* connection indicator */}
-                            <span
-                                title={player.playerConnected ? "Connected" : "Disconnected"}
-                                className={`w-3 h-3 rounded-full shrink-0 ${player.playerConnected ? 'bg-blue-400' : 'bg-gray-600'}`}
+                            {/* Wifi signal indicator (replaces the previous connection dot). */}
+                            <WifiSignal
+                                latencyMs={player.playerLatencyMs}
+                                connected={!!player.playerConnected}
+                                size={16}
                             />
 
                             {player.playerName && (

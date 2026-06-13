@@ -372,26 +372,6 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
-			case "answer": {
-				// Real-time answer from another player via WebSocket
-				const { user_code, answer_text, timestamp } = msg;
-				if (user_code && user_code !== playerCode && answer_text) {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === user_code
-								? {
-										...p,
-										playerLastAnswer: answer_text,
-										playerTimestamp: timestamp || p.playerTimestamp,
-									}
-								: p,
-						),
-					);
-					console.info("Player received answer from", user_code, ":", answer_text);
-				}
-				break;
-			}
-
 			case "buzz": {
 				// Buzz notification from another player
 				const { user_code } = msg;
@@ -416,13 +396,6 @@ const PGiaiMaPage = () => {
 				// this point on is treated as having used all 8 clues.
 				console.info("[KEYWORD CLUES LOCKED] All subsequent submissions will be N=8");
 				setIsKeywordCluesLocked(true);
-				break;
-			}
-
-			case "start_keyword_timer": {
-				// Deprecated — keyword timer now rides on `start_the_timer` with `phase: "gm_keyword"`.
-				// Kept as a no-op for backward compatibility with older admin clients.
-				console.info("[KEYWORD TIMER] Legacy start_keyword_timer received — ignored");
 				break;
 			}
 

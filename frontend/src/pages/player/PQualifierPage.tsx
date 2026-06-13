@@ -227,16 +227,6 @@ const PQualifierPage = () => {
                 break;
             }
 
-            case "answer": {
-                // Track how many players have answered (without revealing content)
-                const code = String(msg.user_code ?? "");
-                if (code && !answeredCodesRef.current.has(code)) {
-                    answeredCodesRef.current.add(code);
-                    setAnsweredCount(answeredCodesRef.current.size);
-                }
-                break;
-            }
-
             default:
                 break;
         }

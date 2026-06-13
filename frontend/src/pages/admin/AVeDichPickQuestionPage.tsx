@@ -478,13 +478,15 @@ const AVeDichPickQuestion = () => {
 				localStorage.removeItem(`veDich_rieng_codes_${currentMatchCode}`);
 			} catch {}
 
-			// Inform players so their UI can refresh if needed
+			// Inform players so their UI can refresh if needed.
+			// silent: true — this is a data-only refresh, no SFX should play.
 			sendMessage({
-					type: "vd_selection_update",
+				type: "vd_selection_update",
 				match_code: currentMatchCode,
 				round: isChung ? "chung" : "rieng",
 				selected_question_codes: selectedQuestionCodes,
 				all_question_codes: questions.map((q) => q.questionCode),
+				silent: true,
 			});
 
 			setSuccessMessage("Đã reset trạng thái câu hỏi — tất cả câu có thể chọn lại");
@@ -494,59 +496,66 @@ const AVeDichPickQuestion = () => {
 		}
 	}, [currentMatchCode, questions, selectedQuestionCodes, isChung, sendMessage]);
 
+	// Start Về Đích round: re-broadcast grid data for late-joining players,
+	// then navigate them to the pick page and announce round_start so the
+	// SFX bot plays vd_bat_dau.ogg. The vd_selection_update broadcast is
+	// data-only (silent: true) so we don't double up audio with round_start.
+	const handleStartRound = useCallback(() => {
+		// Use real questions if loaded, otherwise fall back to placeholders
+		const allCodes = questions.length > 0
+			? questions.map((q) => q.questionCode)
+			: placeholderQuestions.map((q) => q.questionCode);
+
+		// Fix 2: Merge used_question_codes from localStorage (cross-round persistence)
+		// so player/MC pages see the full set of used questions immediately on mount,
+		// even if our in-memory usedQuestionCodes state hasn't been populated yet.
+		let mergedUsed = [...usedQuestionCodes];
+		try {
+			const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
+			if (storedUsed) {
+				const usedCodes = JSON.parse(storedUsed) as string[];
+				mergedUsed = [...new Set([...mergedUsed, ...usedCodes])];
+				// Also sync our in-memory state for consistency
+				setUsedQuestionCodes(mergedUsed);
+			}
+		} catch { /* ignore */ }
+
+		// Re-broadcast grid data so PVeDichPickPage has question codes when it mounts
+		sendMessage({
+			type: "vd_selection_update",
+			match_code: currentMatchCode,
+			round: isChung ? "chung" : "rieng",
+			selected_question_codes: selectedQuestionCodes,
+			all_question_codes: allCodes,
+			used_question_codes: mergedUsed,
+			silent: true,
+		});
+		// Persist to localStorage as backup so PVeDichPickPage can hydrate on mount
+		// even if it misses the WS message (Fix 1 backup path).
+		if (currentMatchCode && allCodes.length > 0) {
+			localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
+		}
+		if (currentMatchCode) {
+			try {
+				localStorage.setItem(
+					`veDich_used_codes_${currentMatchCode}`,
+					JSON.stringify(mergedUsed),
+				);
+			} catch { /* ignore */ }
+		}
+		// Navigate players to the pick page
+		const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";
+		sendMessage({ type: "navigate", user_code: "", path: pickPath });
+		// Announce round start so SFX bot plays vd_bat_dau.ogg
+		sendMessage({ type: "round_start", round: isChung ? "vdc" : "vdr" });
+		// Re-broadcast player info so PVeDichPickPage has player data on mount
+		void loadPlayersState();
+	}, [currentMatchCode, questions, placeholderQuestions, usedQuestionCodes, selectedQuestionCodes, isChung, sendMessage, loadPlayersState]);
+
 	const topControlButtons = (
 		<>
 			<AControlButton
-				onClick={() => {
-					// Re-broadcast grid data so PVeDichPickPage has question codes when it mounts
-					// Use real questions if loaded, otherwise use placeholders
-					const allCodes = questions.length > 0
-						? questions.map((q) => q.questionCode)
-						: placeholderQuestions.map((q) => q.questionCode);
-
-					// Fix 2: Merge used_question_codes from localStorage (cross-round persistence)
-					// so player/MC pages see the full set of used questions immediately on mount,
-					// even if our in-memory usedQuestionCodes state hasn't been populated yet.
-					let mergedUsed = [...usedQuestionCodes];
-					try {
-						const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
-						if (storedUsed) {
-							const usedCodes = JSON.parse(storedUsed) as string[];
-							mergedUsed = [...new Set([...mergedUsed, ...usedCodes])];
-							// Also sync our in-memory state for consistency
-							setUsedQuestionCodes(mergedUsed);
-						}
-					} catch { /* ignore */ }
-
-					sendMessage({
-						type: "vd_selection_update",
-						match_code: currentMatchCode,
-						round: isChung ? "chung" : "rieng",
-						selected_question_codes: selectedQuestionCodes,
-						all_question_codes: allCodes,
-						used_question_codes: mergedUsed,
-					});
-					// Persist to localStorage as backup so PVeDichPickPage can hydrate on mount
-					// even if it misses the WS message (Fix 1 backup path).
-					if (currentMatchCode && allCodes.length > 0) {
-						localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
-					}
-					if (currentMatchCode) {
-						try {
-							localStorage.setItem(
-								`veDich_used_codes_${currentMatchCode}`,
-								JSON.stringify(mergedUsed),
-							);
-						} catch { /* ignore */ }
-					}
-					// Navigate players to the pick page
-					const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";
-					sendMessage({ type: "navigate", user_code: "", path: pickPath });
-					// Announce round start so SFX bot plays vd_bat_dau.ogg
-					sendMessage({ type: "round_start", round: isChung ? "vdc" : "vdr" });
-					// Re-broadcast player info so PVeDichPickPage has player data on mount
-					void loadPlayersState();
-				}}
+				onClick={handleStartRound}
 				disabled={isLoading && questions.length === 0}
 			>
 				<Play size={18} />
