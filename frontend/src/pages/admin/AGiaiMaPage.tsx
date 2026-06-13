@@ -44,10 +44,6 @@ const DEFAULT_QUESTION: Question = {
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
-function isMediaFilename(value: string): boolean {
-	return /\.(mp3|ogg|wav|aac|m4a|mp4|webm|mov|jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value.trim());
-}
-
 function buildKeywordBanner(answer: string): string {
 	const trimmedLen = answer.replace(/\s/g, '').length;
 	const noSpaceAnswer = answer.replace(/\s/g, '');
