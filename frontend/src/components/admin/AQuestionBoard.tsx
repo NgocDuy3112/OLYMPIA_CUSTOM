@@ -23,7 +23,7 @@ interface AQuestionBoardProps {
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[55vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[40vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -155,14 +155,14 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
             <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
-                        {/* Left side: question text (60% width) */}
-                        <div className="flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
+                        {/* Left side: question text (compact) */}
+                        <div className="flex-[2] flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
-                        {/* Right side: media (40% width) */}
-                        <div className="flex-[2] h-full min-h-0 overflow-hidden">
+                        {/* Right side: media — dominant width so the image is clearly visible */}
+                        <div className="flex-[5] h-full min-h-0 overflow-hidden">
                             <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>

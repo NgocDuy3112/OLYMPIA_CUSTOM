@@ -60,12 +60,9 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
             <div className="flex justify-between items-center w-full">
                 <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%] flex items-center gap-2">
                     <span className="truncate">{player.playerName}</span>
-                    {/* Current-turn indicator first so it sits just after the name. */}
                     {isCurrent && (
                         <Mic size={20} className="text-white inline-block" />
                     )}
-                    {/* Quyền năng icon: Star (NSHV) hoặc Shield (BHMT) — rendered to the
-                        right of the Mic icon in Về Đích rounds. */}
                     {player.playerPower === 'star' && (
                         <Star size={20} className="text-white-400 shrink-0" />
                     )}
@@ -77,7 +74,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
                             <KeyRound size={16} className="text-white-400 shrink-0" />
                             {typeof player.playerKeywordCluesOpened === "number" && (
                                 <span className="text-[12px] tablet:text-[14px] font-normal text-white whitespace-nowrap">
-                                    Sau {player.playerKeywordCluesOpened} gợi ý
+                                    {player.playerKeywordCluesOpened}
                                 </span>
                             )}
                         </>
@@ -89,7 +86,6 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
                     </p>
                 </div>
             </div>
-
             <div className="mt-2 text-center min-h-10 flex flex-col items-center justify-center w-full mx-auto">
                 {content}
             </div>

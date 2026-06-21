@@ -226,11 +226,26 @@ const MGiaiMaPage = () => {
                 // the question-board hint is hidden.
                 setRevealedHint(null);
                 setHideQuestionContent(true);
-                const idx = activeClueIdxRef.current;
+                // Prefer the explicit ``clue_index`` from the event when
+                // present — that is the authoritative target the admin
+                // chose to hide. Fall back to ``activeClueIdxRef`` for
+                // the legacy shape (no ``clue_index``). If neither is
+                // available (e.g. a refreshed MC tab receives a hide
+                // hint before any show_hint replay has rebuilt the
+                // ref), fall through with no-op rather than throwing.
+                let idx: number | null = null;
+                const explicitIdx = Number(msg.clue_index);
+                if (Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT) {
+                    idx = explicitIdx;
+                    activeClueIdxRef.current = explicitIdx;
+                } else if (activeClueIdxRef.current !== null) {
+                    idx = activeClueIdxRef.current;
+                }
                 if (idx !== null) {
                     setRevealedHints((prev) => {
+                        if (!(idx! in prev)) return prev;
                         const next = { ...prev };
-                        delete next[idx];
+                        delete next[idx!];
                         return next;
                     });
                 }

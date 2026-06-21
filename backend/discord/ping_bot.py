@@ -13,7 +13,6 @@ import logging
 import os
 import sys
 import time
-import threading
 
 import discord
 from discord.ext import commands
@@ -53,9 +52,10 @@ EVENT_PHASE_RULES: dict[str, set[str]] = {
 
 _current_phase: str = ""
 
-# Queue for sequential playback (so multiple pings don't overlap)
+# Queue serialises voice connect/cleanup/play so back-to-back events
+# never race on the Discord voice client. Each item stops the current
+# playback and plays immediately (fire-and-forget) — newest audio wins.
 _ping_queue: asyncio.Queue[str] = asyncio.Queue()
-_is_playing = threading.Event()
 
 # Debounce: skip duplicate identical events within _DEBOUNCE_MS
 _recent_events: dict[str, float] = {}
@@ -110,28 +110,29 @@ async def _get_voice_client() -> discord.VoiceClient | None:
 
 
 async def _play_ping(file_path: str) -> None:
-    """Play a single ping file in the configured voice channel."""
+    """Play a single ping file in the configured voice channel.
+
+    Fire-and-forget: stops any current playback and starts the new ping
+    immediately. Does NOT wait for playback to finish — the next queue
+    item will stop this one if it arrives sooner.
+    """
     vc = await _get_voice_client()
     if not vc:
         return
 
-    # Wait if something is already playing
-    while _is_playing.is_set():
-        await asyncio.sleep(0.1)
+    # Stop any current playback so the new ping starts immediately.
+    if vc.is_playing():
+        logger.info("Stopping current ping playback to play new audio")
+        vc.stop()
 
-    _is_playing.set()
     try:
         source = discord.FFmpegOpusAudio(file_path)
     except Exception as e:
         logger.error(f"Failed to create audio source for '{file_path}': {e}")
-        _is_playing.clear()
         return
 
-    def _after_play(err: Exception | None) -> None:
-        _is_playing.clear()
-
     try:
-        vc.play(source, after=_after_play)
+        vc.play(source)
         logger.info(f"Playing ping: {os.path.basename(file_path)}")
     except discord.ClientException as e:
         logger.error(f"vc.play() failed (voice state desync?): {e} — tearing down for next call")
@@ -139,14 +140,6 @@ async def _play_ping(file_path: str) -> None:
             await vc.disconnect(force=True)
         except Exception:
             pass
-        _is_playing.clear()
-        return
-
-    # Wait for playback to finish
-    while vc.is_playing():
-        await asyncio.sleep(0.1)
-
-    _is_playing.clear()
 
 
 async def _ping_player():

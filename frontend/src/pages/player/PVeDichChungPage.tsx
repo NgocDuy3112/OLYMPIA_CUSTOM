@@ -206,20 +206,6 @@ const PVeDichChungPage = () => {
 				break;
 			}
 
-			case "buzz": {
-				// Buzz notification from another player
-				const { user_code } = msg;
-				if (user_code && user_code !== playerCode) {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p,
-						),
-					);
-					console.info("Player received buzz from", user_code);
-				}
-				break;
-			}
-
 			case "vdc_question_state": {
 				const { question_code, state: qState } = msg;
 				if (question_code && qState) {
@@ -239,8 +225,11 @@ const PVeDichChungPage = () => {
 			}
 
 			case "vd_power_window_open": {
-				// 5s window to choose a power
-				if (usedPowers[playerCode]) break; // already used a power
+				const eligible = msg.eligible_user_codes;
+				if (Array.isArray(eligible) && eligible.length > 0 && !eligible.includes(playerCode ?? "")) {
+					console.info("[VDC] Ignoring vd_power_window_open: not in eligible_user_codes", { eligible, me: playerCode });
+					break;
+				}
 				const duration = Number(msg.duration ?? 5);
 				setPowerWindowOpen(true);
 				setPowerWindowCountdown(duration);
@@ -249,7 +238,6 @@ const PVeDichChungPage = () => {
 			}
 
 			case "vd_player_power": {
-				// Player activated a power (star/shield) during the 5s window
 				const { user_code, power } = msg;
 				if (user_code && (power === "star" || power === "shield")) {
 					// Update usedPowers state
@@ -315,7 +303,6 @@ const PVeDichChungPage = () => {
 		if (!powerWindowOpen || usedPowers[playerCode]) return;
 		setSelectedPower(power);
 		setPowerWindowOpen(false);
-		// Send to admin via WS
 		try {
 			await sendMessage({
 				type: "vd_player_power",
@@ -432,6 +419,14 @@ const PVeDichChungPage = () => {
 					</div>
 				</PQuestionBoard>
 
+				<PAnswerBox
+					answer={answer}
+					setAnswer={setAnswer}
+					isDisabled={isSubmissionDisabled}
+					onSubmit={handleSubmitAnswer}
+					placeholderString={timer <= 0 ? "Bạn không thể nhập đáp án tại thời điểm này" : "Nhập đáp án và nhấn Enter"}
+				/>
+
 				{/* Power selection window */}
 				{powerWindowOpen && !usedPowers[playerCode] && (
 					<div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-4 flex flex-col items-center gap-3">
@@ -464,13 +459,7 @@ const PVeDichChungPage = () => {
 					</div>
 				)}
 
-				<PAnswerBox
-					answer={answer}
-					setAnswer={setAnswer}
-					isDisabled={isSubmissionDisabled}
-					onSubmit={handleSubmitAnswer}
-					placeholderString={timer <= 0 ? "Bạn không thể nhập đáp án tại thời điểm này" : "Nhập đáp án và nhấn Enter"}
-				/>
+				
 
 				{/* Power already used indicator */}
 				{!powerWindowOpen && usedPowers[playerCode] && (

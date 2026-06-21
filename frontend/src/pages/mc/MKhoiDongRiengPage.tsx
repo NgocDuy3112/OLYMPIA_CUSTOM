@@ -19,6 +19,16 @@ const MKhoiDongRiengPage = () => {
     const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
     const [currentPlayerCode, setCurrentPlayerCode] = useState("");
 
+    // Reset per-player wrong attempts whenever the question changes so the
+    // "Trả lời lần 2" banner clears when advancing to a new question.
+    // Admin's `handleNextQuestion` only re-broadcasts `send_question` and does
+    // NOT resend `start_the_timer`, so we cannot rely on `clearAnswers` here.
+    useEffect(() => {
+        setPlayers((prev) =>
+            prev.map((p) => ({ ...p, playerWrongAttempts: undefined })),
+        );
+    }, [currentQuestionIndex]);
+
     useEffect(() => {
         if (!lastMessage) return;
         const msg: any = lastMessage;
@@ -86,18 +96,24 @@ const MKhoiDongRiengPage = () => {
 
     return (
         <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
-            {hasPlayerWithSecondAttempt && (
-                <div className="bg-yellow-600 text-white px-4 py-2 rounded-md text-base sm:text-lg font-bold text-center shrink-0 animate-pulse">
-                    Trả lời lần 2
-                </div>
-            )}
             <AQuestionBoard
                 title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
                 question={questionWithAnswer}
                 timerDuration={timer}
                 controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
                 boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
-            />
+            >
+                {() => (
+                    <div className="flex gap-2 items-center">
+                        {/* "Trả lời lần 2" badge - mirrors admin: shown next to the question-number controls */}
+                        {hasPlayerWithSecondAttempt && (
+                            <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+                                Trả lời lần 2
+                            </div>
+                        )}
+                    </div>
+                )}
+            </AQuestionBoard>
         </PBasePageLayout>
     );
 };

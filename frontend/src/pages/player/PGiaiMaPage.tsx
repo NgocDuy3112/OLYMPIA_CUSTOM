@@ -333,12 +333,27 @@ const PGiaiMaPage = () => {
 			}
 
 			case "hide_hint": {
-				const idx = activeClueIdxRef.current;
 				setHideQuestionContent(true);
+				// Prefer the explicit ``clue_index`` from the event when
+				// present — that is the authoritative target the admin
+				// chose to hide. Fall back to ``activeClueIdxRef`` for
+				// the legacy shape (no ``clue_index``). If neither is
+				// available (e.g. a refreshed player receives a hide
+				// hint before any show_hint replay has rebuilt the
+				// ref), fall through with no-op rather than throwing.
+				let idx: number | null = null;
+				const explicitIdx = Number(msg.clue_index);
+				if (Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT) {
+					idx = explicitIdx;
+					activeClueIdxRef.current = explicitIdx;
+				} else if (activeClueIdxRef.current !== null) {
+					idx = activeClueIdxRef.current;
+				}
 				if (idx !== null) {
 					setRevealedHints((prev) => {
+						if (!(idx! in prev)) return prev;
 						const next = { ...prev };
-						delete next[idx];
+						delete next[idx!];
 						return next;
 					});
 				}
@@ -424,7 +439,7 @@ const PGiaiMaPage = () => {
 			}
 
 			case "keyword_submit": {
-				const { user_code, clues_opened } = msg;
+				const { user_code, keyword_text, clues_opened } = msg;
 				if (user_code) {
 					setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
 					// Update player list to show key icon AND the "Sau N gợi ý" badge immediately
@@ -441,6 +456,21 @@ const PGiaiMaPage = () => {
 								: p,
 						),
 					);
+					// Self-submit: lock the textbox. This is the case the
+					// refresh-replay path relies on — when the backend
+					// re-broadcasts the player's own ``keyword_submit``
+					// on reconnect (see
+					// ``handle_player_reconnect`` in
+					// ``ws_message_processor.py``), the ``user_code``
+					// matches our own ``playerCode`` and the textbox
+					// stays disabled after a refresh. We also restore the
+					// submitted text so the player sees what they typed.
+					if (user_code === playerCode) {
+						setHasSubmittedKeyword(true);
+						if (typeof keyword_text === "string" && keyword_text) {
+							setKeyword(keyword_text);
+						}
+					}
 					console.info("Player received keyword_submit from", user_code, "clues_opened=", clues_opened);
 				}
 				break;

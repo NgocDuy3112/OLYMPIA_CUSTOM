@@ -11,6 +11,7 @@ from models.question import Question
 from models.match import Match
 from models.user import User
 from schemas.answer import *
+from utils.buzzer_winners import set_buzzer_winner
 
 
 async def get_first_buzzer(
@@ -172,6 +173,19 @@ async def post_answer_to_db(
                         global_logger.debug(
                             f"[BUZZ WINNER] Player {request.user_code} is the first buzzer "
                             f"for question {request.question_code} in match {request.match_code}"
+                        )
+                        # Persist the winner so a reconnecting player can
+                        # re-render the Zap icon (PPlayerRec.tsx) without
+                        # waiting for admin to re-send the event. Mirrors
+                        # the `vd_powers_used` snapshot pattern — see
+                        # utils/ve_dich_powers.py and
+                        # handle_player_reconnect in
+                        # utils/ws_message_processor.py.
+                        await set_buzzer_winner(
+                            valkey,
+                            request.match_code,
+                            request.question_code,
+                            request.user_code,
                         )
                     except Exception as e:
                         global_logger.error(f"Failed to publish buzz winner: {e}", exc_info=True)

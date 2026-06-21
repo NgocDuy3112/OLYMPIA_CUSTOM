@@ -79,7 +79,6 @@ const PKhoiDongRiengPage = () => {
 				console.warn("Failed to refresh scoreboard after reconnect:", err);
 			}
 		};
-		// Delay slightly to let admin send players snapshot first
 		const timer = setTimeout(refreshScores, 500);
 		return () => clearTimeout(timer);
 	}, [isConnected, matchCode, token]);
@@ -114,7 +113,6 @@ const PKhoiDongRiengPage = () => {
 					return {
 						playerCode: code,
 						playerName: p?.user_name ?? profile?.user_name ?? "",
-						// Priority: cumulative_score from mergedPlayers > scoreboard > default 0
 						playerScore: p?.cumulative_score ?? score?.cumulative_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
@@ -131,16 +129,8 @@ const PKhoiDongRiengPage = () => {
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				audioRef.current?.pause();
-				audioRef.current = new Audio('/audios/bgm/KD_30s.MP3');
+				audioRef.current = new Audio('/audios/bgm/kd_60s.mp3');
 				audioRef.current.play().catch(() => {});
-				break;
-			}
-
-			case "buzzer_winner": {
-				const winner = msg.user_code;
-				setPlayers((prev) =>
-					prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
-				);
 				break;
 			}
 
@@ -175,16 +165,16 @@ const PKhoiDongRiengPage = () => {
 				break;
 			}
 
-			case "blocked_buzz": {
-				// blocked_buzz handling removed - state not used
-				break;
-			}
-
 			default:
 				break;
 		}
 	}, [applyWsMessage, lastMessage, startSynced]);
 
+	useEffect(() => {
+		setPlayers((prev) =>
+			prev.map((p) => ({ ...p, playerWrongAttempts: undefined })),
+		);
+	}, [currentQuestionIndex]);
 
 	// Show "Trả lời lần 2" banner when any player has 1 wrong attempt in current question
 	const hasPlayerWithSecondAttempt = players.some((p) => p.playerWrongAttempts === 1);
@@ -194,20 +184,19 @@ const PKhoiDongRiengPage = () => {
 			players={players}
 			currentPlayerCode={playerCode}
 		>
-			<>
+			<PQuestionBoard
+				title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
+				question={currentQuestion}
+				timerDuration={timer}
+				controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+			>
+				{/* "Trả lời lần 2" badge - mirrors admin: shown next to the question-number controls */}
 				{hasPlayerWithSecondAttempt && (
-					<div className="bg-yellow-600 text-white px-4 py-2 rounded-md text-base sm:text-lg font-bold text-center shrink-0 animate-pulse">
+					<div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
 						Trả lời lần 2
 					</div>
 				)}
-				<PQuestionBoard
-					title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
-					question={currentQuestion}
-					timerDuration={timer}
-					controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-				/>
-
-			</>
+			</PQuestionBoard>
 		</PBasePageLayout>
 	);
 };

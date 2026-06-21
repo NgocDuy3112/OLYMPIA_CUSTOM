@@ -27,7 +27,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
     timerDuration,
     controls,
     children,
-    boardHeightClass = "h-[45vh]",
+    boardHeightClass = "h-[40vh]",
     videoPlayState,
     hideMediaUntilPlayed,
     hideContent = false,
@@ -117,12 +117,14 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
             <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
                     <>
-                        <div className="flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
+                        {/* Left side: question text (compact) */}
+                        <div className="flex-[2] flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
-                        <div className="flex-[2] h-full min-h-0 overflow-hidden">
+                        {/* Right side: media — dominant width so the image is clearly visible */}
+                        <div className="flex-[5] h-full min-h-0 overflow-hidden">
                             <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                         </div>
                     </>

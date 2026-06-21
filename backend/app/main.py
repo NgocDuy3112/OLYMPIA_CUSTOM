@@ -15,6 +15,7 @@ from routes import (
     scoreboard,
     qualifier,
     media,
+    gm,
 )
 from sqlalchemy import text
 from dependencies.postgresql_db import *
@@ -23,6 +24,16 @@ from dependencies.s3_services import init_s3_client, close_s3_client
 from dependencies.ws_manager import get_ws_manager
 from dependencies.user_auth import get_ws_user
 from utils.ws_connection import ConnectionManager
+from utils.ws_message_processor import (
+    apply_buzzer_clear,
+    apply_gm_admin_state,
+    apply_gm_hint_store,
+    apply_gm_player_state,
+    apply_vedich_power_gating,
+    handle_mc_reconnect,
+    handle_player_reconnect,
+    is_allowed_by_role,
+)
 from logger import global_logger
 import asyncio
 from jwt import PyJWTError
@@ -135,72 +146,8 @@ app.include_router(record.router)
 app.include_router(scoreboard.router)
 app.include_router(qualifier.router)
 app.include_router(media.router)
+app.include_router(gm.router)
 
-
-
-# Message types that non-admin users are allowed to broadcast.
-# Admin can send any type. This prevents player/MC from injecting
-# privileged messages like score updates, navigation commands, etc.
-PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
-    "answer",
-    "player_answer",
-    "buzz",
-    "player_heartbeat",
-    "player_online",
-    "mc_online",
-    "request_presence",
-    "keyword_submit",
-    "vd_player_power",
-    "vd_power_window_closed",
-    "vd_questions_meta_request",
-    "pong_latency",
-})
-
-MC_ALLOWED_TYPES: frozenset[str] = frozenset({
-    "answer",
-    "buzz",
-    "mc_online",
-    "player_heartbeat",
-    "player_online",
-    "request_presence",
-    "send_question",
-    "clear_question",
-    "start_the_timer",
-    "send_answers_to_players",
-    "clear_answers",
-    "round_start",
-    "round_end",
-    "navigate",
-    "play_video",
-    "pause_video",
-    "send_players_info",
-    "player_score_updated",
-    "player_offline",
-    "answering_window_activated",
-    "vd_power_activated",
-    "vdc_questions_meta",
-    "vdc_question_state",
-    "vdr_questions_meta",
-    "vdr_question_state",
-    "vd_questions_selected",
-    "vd_selection_update",
-    "bp_dung",
-    "bp_chon_cau_hoi",
-    "wrong",
-    "skip",
-    "game_end",
-    "open_match",
-    "end_match",
-    "finish_match",
-    "show_hint",
-    "introduce_players",
-    "show_scoreboard",
-    "keyword_submit",
-    "keyword_locked",
-    "buzzer_winner",
-    "blocked_buzz",
-    "vd_power_window_open",
-})
 
 
 @app.websocket("/ws/{match_code}")
@@ -230,46 +177,31 @@ async def websocket_endpoint(
     )
 
     ws_manager: ConnectionManager = await get_ws_manager()
-    await ws_manager.connect(websocket, match_code)
+    await ws_manager.connect(websocket, match_code, user_code=user_info["user_code"])
 
-    # ── Reconnect: Resend current game state to player ─────────────────────
-    # When a player reconnects, they need to receive the current game state
-    # to avoid missing timer/question events
     if user_role == "player":
-        try:
-            # Request current state from admin (admin should be listening for this)
-            await ws_manager.broadcast_to_room(match_code, {
-                "type": "player_reconnected",
-                "user_code": user_info["user_code"],
-            })
-            global_logger.info(f"[WS] Player reconnected, requesting state: {user_info['user_code']!r}")
-        except Exception as e:
-            global_logger.warning(f"[WS] Failed to request state for reconnected player: {e}")
+        await handle_player_reconnect(ws_manager, match_code, user_info["user_code"])
+    elif user_role == "mc":
+        # MC reconnects get the same snapshot-replay treatment as
+        # players — buzer_winner + gm hints, plus an ``mc_reconnected``
+        # hint to the admin so it can re-push the per-round WS state
+        # (question / timer / board metadata) to the MC tab. Admin pages
+        # group ``mc_online`` + ``mc_reconnected`` so the existing
+        # late-join re-broadcast path covers both events.
+        await handle_mc_reconnect(ws_manager, match_code, user_info["user_code"])
 
     try:
         while True:
             data = await websocket.receive_json()
-            # Inject authenticated user info into inbound messages
-            # Only inject user_code if not already present so admin can proxy
-            # player-specific messages (e.g. buzzer_winner) without overwriting.
             if "user_code" not in data:
                 data["user_code"] = user_info["user_code"]
             data["role"] = user_role
 
             msg_type = data.get("type", "")
 
-            # Role-based message filtering: only admin and mc can send
-            # privileged control messages. Players are restricted to a
-            # small set of allowed types to prevent injection attacks.
-            if user_role == "player" and msg_type not in PLAYER_ALLOWED_TYPES:
+            if not is_allowed_by_role(user_role, msg_type):
                 global_logger.warning(
-                    f"[BP ANSWER SYNC] Blocked player message: type={msg_type!r} "
-                    f"user={user_info['user_code']!r} room={match_code!r} allowed={PLAYER_ALLOWED_TYPES}"
-                )
-                continue
-            elif user_role == "mc" and msg_type not in MC_ALLOWED_TYPES:
-                global_logger.warning(
-                    f"Blocked mc message: type={msg_type!r} "
+                    f"[BP ANSWER SYNC] Blocked {user_role} message: type={msg_type!r} "
                     f"user={user_info['user_code']!r} room={match_code!r}"
                 )
                 continue
@@ -278,7 +210,60 @@ async def websocket_endpoint(
                 f"[BP ANSWER SYNC] Received message from {user_info['user_code']!r} "
                 f"role={user_role!r} in room {match_code!r}: {data}"
             )
-            await ws_manager.broadcast_to_room(match_code, data)
+
+            # ── Về Đích power gating (server-authoritative) ────────────────
+            # Players may use Quyền năng (star / shield) at most once across
+            # both Về Đích Chung and Về Đích Riêng. The server rewrites the
+            # payload to enforce this — see utils/ws_message_processor.py.
+            broadcast_data = await apply_vedich_power_gating(
+                ws_manager, match_code, user_info["user_code"], data,
+            )
+
+            # ── Buzzer winner server-side state ────────────────────────────────
+            # Mirror the VĐ power-gating pattern: a server-side companion
+            # function that mutates the authoritative Valkey state for the
+            # `clear_buzz` event so a reconnecting player doesn't see a
+            # stale winner from the previous question. The payload itself
+            # is returned unchanged so it still gets broadcast to clients.
+            broadcast_data = await apply_buzzer_clear(
+                ws_manager, match_code, broadcast_data,
+            )
+
+            # ── Giải Mã per-clue hint store ─────────────────────────────────
+            # Server-authoritative snapshot of every hint the admin has
+            # revealed / hidden in the current GM round. Player reconnects
+            # replay this HASH so a refreshed player does not lose the
+            # current hint grid. Like the VĐ / buzzer-writer companions
+            # above, the payload is returned unchanged so it still
+            # broadcasts to all connected clients normally.
+            broadcast_data = await apply_gm_hint_store(
+                ws_manager, match_code, broadcast_data,
+            )
+
+            # ── Giải Mã admin-tab state snapshot ───────────────────────────
+            # Server-authoritative snapshot of the admin's local React
+            # state for the GM round. Lets a refreshed admin tab
+            # re-hydrate via ``GET /gm/admin-state`` on mount. Admin-only
+            # events are gated upstream by ``MC_ALLOWED_TYPES`` so a
+            # player/MC accidentally sending them is a no-op for us.
+            broadcast_data = await apply_gm_admin_state(
+                ws_manager, match_code, broadcast_data,
+            )
+
+            # ── Giải Mã per-player state snapshot ─────────────────────────
+            # Server-authoritative snapshot of per-player GM state
+            # (today: keyword submission). Lets a refreshed player tab
+            # re-hydrate ``hasSubmittedKeyword`` via the
+            # ``handle_player_reconnect`` replay path so the keyword
+            # textbox stays locked. Idempotent with the other GM
+            # companions (``apply_gm_hint_store``,
+            # ``apply_gm_admin_state``) which DEL their respective
+            # keys on ``round_start`` / ``clear_question``.
+            broadcast_data = await apply_gm_player_state(
+                ws_manager, match_code, broadcast_data,
+            )
+
+            await ws_manager.broadcast_to_room(match_code, broadcast_data)
             global_logger.info(
                 f"[BP ANSWER SYNC] Broadcasted message to room {match_code!r}: type={msg_type!r}"
             )

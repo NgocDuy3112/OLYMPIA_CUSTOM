@@ -196,22 +196,22 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 			<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 w-full">
 				{/* Board header */}
 				<div className="flex items-center gap-4 pb-1">
-{(() => {
-					const parts = title.split(" - ");
-					if (parts.length >= 2) {
-						return (
-							<div className="flex flex-col leading-tight shrink-0">
-								<span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
-									{parts[0]}
-								</span>
-								<span className="text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
-									{parts.slice(1).join(" - ")}
-								</span>
-							</div>
-						);
-					}
-					return <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">{title}</span>;
-				})()}
+					{(() => {
+						const parts = title.split(" - ");
+						if (parts.length >= 2) {
+							return (
+								<div className="flex flex-col leading-tight shrink-0">
+									<span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+										{parts[0]}
+									</span>
+									<span className="text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+										{parts.slice(1).join(" - ")}
+									</span>
+								</div>
+							);
+						}
+						return <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">{title}</span>;
+					})()}
 
 					<div className="flex-1" />
 

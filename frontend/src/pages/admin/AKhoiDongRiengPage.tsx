@@ -595,8 +595,6 @@ const AKhoiDongRiengPage = () => {
 		}
 
 		setHasAddedScore(true);
-
-		// Determine points based on attempt count: 0 -> first try (+10), 1 -> second try (+5), >=2 -> no points
 		const attemptCount = attempts[selectedPlayerCode] ?? 0;
 		let score = 0;
 		if (attemptCount === 0) score = 10;
@@ -617,14 +615,20 @@ const AKhoiDongRiengPage = () => {
 			} else {
 				logger.info("handleAddScoreToSelected: no points to award for", selectedPlayerCode);
 			}
-			// Tự chuyển câu sau 1s
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			handleNextQuestion(currentQuestionIndex);
+			// Khi timer đã hết (timer <= 0): clear câu hỏi trên UI player/MC ngay lập tức,
+			// không tự chuyển câu (vì round đã kết thúc).
+			// Khi timer > 0: giữ hành vi cũ — chuyển câu sau 1s.
+			if (timer <= 0) {
+				await clearQuestion();
+			} else if (currentQuestionIndex > 0) {
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				handleNextQuestion(currentQuestionIndex);
+			}
 		} catch (err) {
 			logger.error("Failed adding score to selected player:", err);
 			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCode, handleAddScore, currentQuestionIndex, attempts, handleNextQuestion]);
+	}, [selectedPlayerCode, handleAddScore, currentQuestionIndex, attempts, handleNextQuestion, clearQuestion, timer]);
 
 	const handleMarkWrong = useCallback(async () => {
 		if (!selectedPlayerCode) {
@@ -663,22 +667,33 @@ const AKhoiDongRiengPage = () => {
 
 		if (exhausted) {
 			setIsAdvancing(true);
-			// Sai lần 2: chuyển câu sau 1s
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			void handleNextQuestion(currentQuestionIndex);
+			// Sai lần 2: khi timer đã hết, clear câu hỏi trên UI player/MC ngay lập tức
+			// thay vì chuyển câu (round kết thúc).
+			if (timer <= 0) {
+				await clearQuestion();
+			} else if (currentQuestionIndex > 0) {
+				await new Promise(resolve => setTimeout(resolve, 1000));
+				handleNextQuestion(currentQuestionIndex);
+			}
 		}
-	}, [selectedPlayerCode, currentQuestionIndex, attempts, handleNextQuestion, sendMessage]);
+	}, [selectedPlayerCode, currentQuestionIndex, attempts, handleNextQuestion, sendMessage, clearQuestion, timer]);
 
 	const handleSkip = useCallback(async () => {
 		if (!selectedPlayerCode) return;
 		if (currentQuestionIndex <= 0) return;
 		setIsSkipping(true);
-		// Bỏ qua: chuyển câu sau 1s
+		// Bỏ qua: set attempts = 2 để chặn SAI LẦN 1/2
 		setAttempts((prev) => ({ ...prev, [selectedPlayerCode]: 2 }));
 		void sendMessage({ type: "skip", user_code: selectedPlayerCode, phase: "kdr" });
-		await new Promise(resolve => setTimeout(resolve, 1000));
-		void handleNextQuestion(currentQuestionIndex);
-	}, [selectedPlayerCode, currentQuestionIndex, handleNextQuestion, sendMessage]);
+		// Khi timer đã hết: clear câu hỏi trên UI player/MC ngay lập tức.
+		// Khi timer > 0: giữ hành vi cũ — chuyển câu sau 1s.
+		if (timer <= 0) {
+			await clearQuestion();
+		} else if (currentQuestionIndex > 0) {
+			await new Promise(resolve => setTimeout(resolve, 1000));
+			handleNextQuestion(currentQuestionIndex);
+		}
+	}, [selectedPlayerCode, currentQuestionIndex, handleNextQuestion, sendMessage, clearQuestion, timer]);
 
 	// Global error hooks to capture unexpected runtime errors for diagnostics
 	useEffect(() => {
@@ -743,6 +758,8 @@ const AKhoiDongRiengPage = () => {
 		const msg: any = lastMessage;
 		switch (msg?.type) {
 			case "mc_online":
+			case "mc_reconnected":
+			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -974,12 +991,14 @@ const AKhoiDongRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { handleStartRound() }}
+						disabled={isTimerRunning}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { handleEndRound() }}
+						disabled={isTimerRunning}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
@@ -1001,14 +1020,14 @@ const AKhoiDongRiengPage = () => {
 						onClick={() => {
 							void handleAddScoreToSelected();
 						}}
-						disabled={!selectedPlayerCode || isSkipping || isAdvancing}
+						disabled={!selectedPlayerCode || isSkipping || isAdvancing || isTimerRunning}
 					>
 						<Plus size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleMarkWrong(); }}
-						disabled={!selectedPlayerCode || isAdvancing || (selectedPlayerCode ? (attempts[selectedPlayerCode] ?? 0) >= 2 : false)}
+						disabled={!selectedPlayerCode || isAdvancing || (selectedPlayerCode ? (attempts[selectedPlayerCode] ?? 0) >= 2 : false) || isTimerRunning}
 					>
 						<X size={18} />
 						<span className="ml-2 font-bold">
@@ -1017,7 +1036,7 @@ const AKhoiDongRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleSkip(); }}
-						disabled={!selectedPlayerCode || hasAddedScore || isAdvancing}
+						disabled={!selectedPlayerCode || hasAddedScore || isAdvancing || isTimerRunning}
 					>
 						<SkipForward size={18} />
 						<span className="ml-2 font-bold">BỎ QUA</span>

@@ -60,7 +60,7 @@ const AButPhaPage = () => {
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
-      usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((code: string) => {
 		setSelectedPlayerCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
@@ -352,7 +352,6 @@ const AButPhaPage = () => {
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
 			if (!currentMatchCode || !token) return;
-			// prevent restarting while already counting down
 			if (timer > 0) {
 				logger.warn("startTheClock: timer already running, ignoring start request");
 				return;
@@ -360,14 +359,19 @@ const AButPhaPage = () => {
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
-			// Capture started_at BEFORE sending to ensure consistent timing
 			const startedAt = Date.now();
 			timerStartedAtRef.current = startedAt;
 			setTimer(TIME_LIMIT);
 
-			logger.info(`startTheClock: Sending start_the_timer with started_at=${startedAt}`);
 			try {
-				await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: TIME_LIMIT, question_code: questionCode, started_at: startedAt });
+				await sendMessage({
+					type: "start_the_timer",
+					user_code: "",
+					phase: "bp",
+					time_limit: TIME_LIMIT,
+					question_code: questionCode,
+					started_at: startedAt
+				});
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}
@@ -380,8 +384,6 @@ const AButPhaPage = () => {
 		},
 		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer],
 	);
-
-
 
 	const showAnswers = useCallback(async () => {
 		if (!canShowAnswers) return;
@@ -477,7 +479,7 @@ const AButPhaPage = () => {
 			const startedAt = timerStartedAtRef.current;
 			const hasValidStartTime = startedAt > 0;
 			logger.info(`handleCalculateScore: startedAt=${startedAt}, hasValidStartTime=${hasValidStartTime}, current time=${Date.now()}`);
-			
+
 			for (const code of selectedPlayerCodes) {
 				try {
 					const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(code)}&question_code=${encodeURIComponent(currentQuestion.questionCode)}`;
@@ -527,13 +529,13 @@ const AButPhaPage = () => {
 
 			for (let i = 0; i < playerAnswers.length; i++) {
 				const { playerCode, elapsedSeconds } = playerAnswers[i];
-				
+
 				// Base points determined by THIS player's elapsed time
 				let basePoints: number;
 				if (elapsedSeconds < 10) basePoints = 30;
 				else if (elapsedSeconds < 20) basePoints = 20;
 				else basePoints = 10;
-				
+
 				// Apply multiplier based on answer order
 				const multiplier = ORDER_MULTIPLIERS[Math.min(i, ORDER_MULTIPLIERS.length - 1)];
 				const score = Math.round(basePoints * multiplier);
@@ -581,7 +583,7 @@ const AButPhaPage = () => {
 				// Player has reconnected - resend current game state
 				const user_code = msg.user_code;
 				logger.info(`[BP RECONNECT] Player ${user_code} reconnected, resending state...`);
-				
+
 				// Resend question if active
 				if (currentQuestion.questionCode) {
 					void sendMessage({
@@ -593,7 +595,7 @@ const AButPhaPage = () => {
 					});
 					logger.info(`[BP RECONNECT] Resent question to ${user_code}`);
 				}
-				
+
 				// Resend timer state if running
 				if (timer > 0 && timerStartedAtRef.current) {
 					void sendMessage({
@@ -606,7 +608,7 @@ const AButPhaPage = () => {
 					});
 					logger.info(`[BP RECONNECT] Resent timer to ${user_code} (started_at=${timerStartedAtRef.current})`);
 				}
-				
+
 				// Resend players snapshot
 				void sendPlayersSnapshot();
 				logger.info(`[BP RECONNECT] Resent players snapshot to ${user_code}`);
@@ -614,6 +616,7 @@ const AButPhaPage = () => {
 			}
 
 			case "mc_online":
+			case "mc_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -745,7 +748,7 @@ const AButPhaPage = () => {
 							prev.map((player) =>
 								player.playerCode === user_code
 									? { ...player, playerHasBuzzed: true }
-								: player,
+									: player,
 							),
 						);
 					});
@@ -786,23 +789,23 @@ const AButPhaPage = () => {
 								onClick={async () => {
 									const qIndex = idx + 1;
 									if (!isActive) {
-											setCurrentQuestionIndex(qIndex);
-											setVideoPlayState(null);
-											try {
-												await sendMessage({ type: "bp_chon_cau_hoi" });
-												const q = await loadQuestion(qIndex);
-												await sendQuestionToplayers(qIndex, q);
-											} catch (err) {
-												logger.error('Failed to load/send question:', err);
-											}
-										} else {
-											setCurrentQuestionIndex(0);
-											try {
-												await clearQuestion();
-											} catch (err) {
-												logger.error('Failed to clear question:', err);
-											}
+										setCurrentQuestionIndex(qIndex);
+										setVideoPlayState(null);
+										try {
+											await sendMessage({ type: "bp_chon_cau_hoi" });
+											const q = await loadQuestion(qIndex);
+											await sendQuestionToplayers(qIndex, q);
+										} catch (err) {
+											logger.error('Failed to load/send question:', err);
 										}
+									} else {
+										setCurrentQuestionIndex(0);
+										try {
+											await clearQuestion();
+										} catch (err) {
+											logger.error('Failed to clear question:', err);
+										}
+									}
 								}}
 								className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${isActive ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}>
 								{idx + 1}
@@ -819,6 +822,7 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleStartRound();
 						}}
+						disabled={timer > 0}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -827,12 +831,13 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleEndRound();
 						}}
+						disabled={timer > 0}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</AControlButton>
 				</>
-			}			playerSectionButtons={
+			} playerSectionButtons={
 				<>
 					<AControlButton
 						onClick={() => {
@@ -846,7 +851,7 @@ const AButPhaPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleCalculateScore(); }}
-						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
+						disabled={selectedPlayerCodes.length === 0 || hasAddedScore || timer > 0}
 						title={selectedPlayerCodes.length === 0 ? "Chọn ít nhất 1 player có timestamp hợp lệ" : undefined}
 					>
 						<Calculator size={18} />
@@ -854,13 +859,13 @@ const AButPhaPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
+						disabled={!canShowAnswers || timer > 0}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
 					</AControlButton>
 				</>
-			}			renderPlayerList={() =>
+			} renderPlayerList={() =>
 				players.map((player) => {
 					const validTs = isValidBpTimestamp(player);
 					const disableReason = hasQuestionSelected && !validTs

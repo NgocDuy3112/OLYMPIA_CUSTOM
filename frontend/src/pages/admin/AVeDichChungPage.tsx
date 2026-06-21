@@ -33,7 +33,7 @@ const getTimeLimitForPoints = (points: number): number => {
 		case 30: return 20;
 		case 40: return 30;
 		case 50: return 45;
-		default: return 30;
+		default: return 0;
 	}
 };
 
@@ -99,11 +99,7 @@ const AVeDichChungPage = () => {
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 	// Store pending question data to broadcast after power window closes
 	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
-	// Safety timer ID. We arm a 5.5s fallback in handleQuestionActivate so the question
-	// + play_video broadcast still happens even if no player ever reports
-	// `vd_power_window_closed` (e.g. the player has already used a power and skips the
-	// 5s selection window, or a player is offline). Whichever trigger fires first wins;
-	// the other is a no-op because pendingQuestionRef.current is cleared.
+
 	const pendingBroadcastTimerRef = useRef<number | null>(null);
 	const clearPendingBroadcastTimer = useCallback(() => {
 		if (pendingBroadcastTimerRef.current != null) {
@@ -111,9 +107,7 @@ const AVeDichChungPage = () => {
 			pendingBroadcastTimerRef.current = null;
 		}
 	}, []);
-	// Single source of truth for revealing the full question and starting the video in
-	// Về Đích. Safe to call from multiple triggers — it self-guards on
-	// `pendingQuestionRef.current` so only the first caller does any work.
+
 	const broadcastPendingVeDichQuestion = useCallback(() => {
 		const pending = pendingQuestionRef.current;
 		if (!pending || !currentMatchCode) return;
@@ -133,8 +127,7 @@ const AVeDichChungPage = () => {
 		pendingQuestionRef.current = null;
 		clearPendingBroadcastTimer();
 	}, [currentMatchCode, sendMessage, clearPendingBroadcastTimer]);
-	// The 4 questions locked in for this round — set via WS from the pick page.
-	// Persisted in localStorage so navigating to this page after confirming still shows them.
+
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
 		if (!currentMatchCode) return [];
 		try {
@@ -143,14 +136,12 @@ const AVeDichChungPage = () => {
 		} catch { return []; }
 	});
 
-	// ─── Timer state ──────────────────────────────────────────────────────────────
+
 	const [timer, setTimer] = useState<number>(0);
-	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
+	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 
-	// ─── Power state ─────────────────────────────────────────────────────────────
-	// Track which power each player has used (one per player: star OR shield). Shared across VDC + VDR.
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!currentMatchCode) return {};
 		try {
@@ -329,8 +320,7 @@ const AVeDichChungPage = () => {
 					: [result.data].filter(Boolean);
 
 				const veDichRaw = rawQuestions.filter(
-					(q: any) =>
-						q.question_code?.includes("_VD_") || q.question_code?.startsWith("OC3_Q_VD"),
+					(q: any) => q.question_code?.startsWith("OC3_Q_VD"),
 				);
 
 				const mapped: Question[] = veDichRaw.map((q: any) => ({
@@ -412,7 +402,6 @@ const AVeDichChungPage = () => {
 		async (questionCode: string) => {
 			if (isTimerRunning) return;
 
-			// Toggle: clicking the active question clears it
 			if (currentQuestion.questionCode === questionCode) {
 				setSelectedPlayerCodes([]);
 				setPlayerPowers({});
@@ -434,7 +423,6 @@ const AVeDichChungPage = () => {
 				})),
 			);
 
-			// Set fallback immediately for responsive UI
 			const fallback: Question = { ...DEFAULT_QUESTION, questionCode };
 			setCurrentQuestion(fallback);
 
@@ -451,7 +439,6 @@ const AVeDichChungPage = () => {
 				void sendMessage({ type: "vd_power_window_open", duration: 5 });
 			}
 
-			// Fetch full details in background but DON'T broadcast yet - wait for power window to close
 			try {
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode ?? "")}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -475,8 +462,7 @@ const AVeDichChungPage = () => {
 				// Store in ref to broadcast after power window closes (5s)
 				pendingQuestionRef.current = { questionCode, question: q };
 				logger.info(`[VDC] Question ${questionCode} fetched, waiting for power window to close`);
-			// Arm a safety timer (5.5s = 5s window + 0.5s buffer) so the reveal still happens
-			// even when no player reports `vd_power_window_closed` (already-used-power case).
+
 			clearPendingBroadcastTimer();
 			pendingBroadcastTimerRef.current = window.setTimeout(() => {
 				pendingBroadcastTimerRef.current = null;
@@ -762,7 +748,6 @@ const AVeDichChungPage = () => {
 
 		switch (msg?.type) {
 			case "vd_questions_selected": {
-				// Receive the 4 question codes confirmed from the pick page
 				if (Array.isArray(msg.selected_question_codes)) {
 					if (currentMatchCode) {
 						localStorage.setItem(`veDich_chung_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
@@ -774,6 +759,8 @@ const AVeDichChungPage = () => {
 				break;
 			}
 			case "mc_online":
+			case "mc_reconnected":
+			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -830,19 +817,17 @@ const AVeDichChungPage = () => {
 									started_at: Date.now(),
 								});
 							} catch { /* best-effort on reconnect */ }
-							// Replay the video for the late joiner so MC / player see the
-							// media from where the room is now (matches AButPhaPage flow).
 							if (currentQuestion.questionMediaURL) {
 								try {
 									await sendMessage({ type: "play_video" });
 								} catch { /* best-effort on reconnect */ }
 							}
 						}
-						// Send players/scores last (requires API call) so game state appears first
+
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort on reconnect */ }
-						// Resend used powers so the reconnecting player knows their power status
+
 						if (Object.keys(usedPowers).length > 0) {
 							try {
 								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
@@ -942,19 +927,7 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
-			case "buzz": {
-				const { user_code } = msg;
-				if (user_code) {
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((p) =>
-								p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p,
-							),
-						);
-					});
-				}
-				break;
-			}
+
 			case "vd_player_power": {
 				// Player activated a power (star/shield) during the 5s window
 				const { user_code, power } = msg;
@@ -963,11 +936,6 @@ const AVeDichChungPage = () => {
 					startTransition(() => {
 						setPlayerPowers((prev) => ({ ...prev, [user_code]: power }));
 					});
-					// In Về Đích Chung, play the SFX (vd_quyen_nang) at most once per
-					// question — subsequent picks in the same window are silent because
-					// the SFX bot already heard the first one. `playerPowers` is reset
-					// when `currentQuestion.questionCode` changes (see effect above), so
-					// this guard self-resets between questions.
 					if (Object.keys(playerPowers).length === 0) {
 						void sendMessage({ type: "vd_power_activated", power });
 					}
@@ -1062,13 +1030,14 @@ const AVeDichChungPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
+						disabled={!canShowAnswers || isTimerRunning}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void loadPlayersState(); }}
+						disabled={isTimerRunning}
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT</span>
@@ -1086,6 +1055,7 @@ const AVeDichChungPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
+						disabled={isTimerRunning}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>

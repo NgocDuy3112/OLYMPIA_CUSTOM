@@ -34,7 +34,7 @@ const getTimeLimitForPoints = (points: number): number => {
 		case 30: return 20;
 		case 40: return 30;
 		case 50: return 45;
-		default: return 30;
+		default: return 0;
 	}
 };
 
@@ -97,13 +97,9 @@ const AVeDichRiengPage = () => {
 		} catch { return {}; }
 	});
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
-	// Pending question to broadcast after 5s power window closes (mirrors VDC behaviour)
+
 	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
-	// Safety timer ID. We arm a 5.5s fallback in handleQuestionActivate so the question
-	// + play_video broadcast still happens even if no player ever reports
-	// `vd_power_window_closed` (e.g. the player has already used a power and skips the
-	// 5s selection window, or a player is offline). Whichever trigger fires first wins;
-	// the other is a no-op because pendingQuestionRef.current is cleared.
+
 	const pendingBroadcastTimerRef = useRef<number | null>(null);
 	const clearPendingBroadcastTimer = useCallback(() => {
 		if (pendingBroadcastTimerRef.current != null) {
@@ -111,9 +107,7 @@ const AVeDichRiengPage = () => {
 			pendingBroadcastTimerRef.current = null;
 		}
 	}, []);
-	// Single source of truth for revealing the full question and starting the video in
-	// Về Đích. Safe to call from multiple triggers — it self-guards on
-	// `pendingQuestionRef.current` so only the first caller does any work.
+
 	const broadcastPendingVeDichQuestion = useCallback(() => {
 		const pending = pendingQuestionRef.current;
 		if (!pending || !currentMatchCode) return;
@@ -778,18 +772,16 @@ const AVeDichRiengPage = () => {
 
 	// Manually open buzzer window (skip 5s wait)
 	const handleOpenBuzzer = useCallback(async () => {
-		if (timer !== 0) return; // Only allow when main timer is finished
+		if (timer !== 0) return;
 		setAnsweringWindowTimer(5);
-		// Reset buzzer winner when opening new buzzer window
 		setBuzzerWinnerCode(null);
 		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (currentMatchCode) {
+			void sendMessage({ type: "clear_buzz" });
 			void sendMessage({
 				type: "answering_window_activated",
 				countdown: 5,
 			});
-			// Also send clear_buzz to reset player buzzer state
-			void sendMessage({ type: "clear_buzz" });
 		}
 	}, [timer, currentMatchCode, sendMessage]);
 
@@ -815,7 +807,6 @@ const AVeDichRiengPage = () => {
 		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_end", round: "vdr" });
-			// Removed navigate to waiting page - players and MC stay on VDR page to preserve score context
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
@@ -856,6 +847,8 @@ const AVeDichRiengPage = () => {
 				break;
 			}
 			case "mc_online":
+			case "mc_reconnected":
+			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -1013,10 +1006,7 @@ const AVeDichRiengPage = () => {
 				break;
 			}
 			// NOTE: `buzz` events are intentionally NOT handled here.
-			// The backend (`backend/app/core/answer.py`) is the authoritative source for
-			// the buzzer winner — it picks the first buzzer by `created_at` and publishes
-			// `buzzer_winner` (and `blocked_buzz`) on the Valkey match channel. The case
-			// below handles that authoritative broadcast.
+			// The backend (`backend/app/core/answer.py`) is the authoritative source for the buzzer winner — it picks the first buzzer by `created_at` and publishes`buzzer_winner` (and `blocked_buzz`) on the Valkey match channel. The case below handles that authoritative broadcast.
 			// Handling `buzz` in the admin previously caused every late buzzer to get
 			// `playerHasBuzzed = true`, which made the Zap icon show up next to all 4
 			// players in the admin / MC / player bar instead of only the buzzer_winner.
@@ -1187,7 +1177,7 @@ const AVeDichRiengPage = () => {
 								logger.error("Cộng điểm handler failed:", err);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode}
+						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode || isTimerRunning}
 						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Plus size={18} />
@@ -1199,7 +1189,7 @@ const AVeDichRiengPage = () => {
 								logger.error("Trừ điểm handler failed:", err);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode}
+						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode || isTimerRunning}
 						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Minus size={18} />
@@ -1211,6 +1201,7 @@ const AVeDichRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { void handleStartRound(); }}
+						disabled={isTimerRunning}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -1224,6 +1215,7 @@ const AVeDichRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
+						disabled={isTimerRunning}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>

@@ -861,7 +861,7 @@ const AQualifierPage = () => {
             )}
             topControlButtons={
                 <>
-                    <AControlButton onClick={handleStartRound}>
+                    <AControlButton onClick={handleStartRound} disabled={timer > 0}>
                         <Power size={18} className="mr-2" /> BẮT ĐẦU VÒNG
                     </AControlButton>
                     <AControlButton
@@ -876,16 +876,16 @@ const AQualifierPage = () => {
                 <>
                     <AControlButton
                         onClick={handleCalculateScores}
-                        disabled={!currentQuestion.questionCode || !currentQuestion.questionAnswer || hasCalculatedScore}
+                        disabled={!currentQuestion.questionCode || !currentQuestion.questionAnswer || hasCalculatedScore || timer > 0}
                         className={hasCalculatedScore ? "opacity-60" : ""}
                     >
                         <Calculator size={18} className="mr-2" /> TÍNH ĐIỂM
                     </AControlButton>
                     {/* XÓA ĐÁP ÁN button removed per request */}
-                    <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }}>
+                    <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }} disabled={timer > 0}>
                         <Trophy size={18} className="mr-2" /> TẢI BXH
                     </AControlButton>
-                    <AControlButton onClick={handleEndRound}>
+                    <AControlButton onClick={handleEndRound} disabled={timer > 0}>
                         <Play size={18} className="mr-2" /> KẾT THÚC VÒNG
                     </AControlButton>
                 </>

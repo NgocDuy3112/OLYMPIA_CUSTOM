@@ -27,6 +27,7 @@ const PVeDichRiengPage = () => {
 	const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
 	const [hasPinged, setHasPinged] = useState(false);
 	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
+	const lastBuzzerQuestionRef = useRef<string | null>(null);
 	const [blockedPlayerCode, setBlockedPlayerCode] = useState<string | null>(null);
 	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(null);
 	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
@@ -158,8 +159,19 @@ const PVeDichRiengPage = () => {
 				break;
 
 			case "vd_power_window_open": {
-				// 5s window to choose a power (mirrors VDC behaviour)
-				if (usedPowers[playerCode]) break; // already used a power
+				// Server is the source of truth: if it attached an explicit
+				// eligible list, drop the message when we're not on it. This
+				// also implicitly handles "already used a power" because the
+				// server's `compute_eligible_user_codes` filters out players
+				// in the used-powers HASH. We deliberately do NOT consult the
+				// local `usedPowers` cache here — a stale localStorage entry
+				// (e.g. from a previous match that reused the same matchCode)
+				// would otherwise block the panel forever.
+				const eligible = msg.eligible_user_codes;
+				if (Array.isArray(eligible) && eligible.length > 0 && !eligible.includes(playerCode ?? "")) {
+					console.info("[VDR] Ignoring vd_power_window_open: not in eligible_user_codes", { eligible, me: playerCode });
+					break;
+				}
 				const duration = Number(msg.duration ?? 5);
 				setPowerWindowOpen(true);
 				setPowerWindowCountdown(duration);
@@ -204,24 +216,15 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 
-			case "buzz": {
-				// Don't show lightning icon yet — wait for admin's buzzer_winner broadcast
-				// so only the fastest buzzer gets the icon
-				console.info(`[VDR PLAYER] Received buzz: user_code=${msg.user_code}`);
-				break;
-			}
-
 			case "buzzer_winner": {
 				// Admin broadcasted the winner - show lightning icon for them
 				const winner = msg.user_code;
-				console.info(`[VDR PLAYER] Received buzzer_winner: winner=${winner}, myCode=${playerCode}, current=${buzzerWinnerCode}`);
-				// Only accept the first buzzer_winner to avoid overriding
-				if (winner && !buzzerWinnerCode) {
-					console.info(`[VDR PLAYER] Setting buzzer winner: ${winner}`);
+				const winnerQuestion = msg.question_code;
+				if (winner && (winnerQuestion !== lastBuzzerQuestionRef.current)) {
 					setBuzzerWinnerCode(winner);
+					lastBuzzerQuestionRef.current = winnerQuestion;
 					setPlayers((prev) => {
 						const updated = prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner }));
-						console.info(`[VDR PLAYER] Updated players:`, updated);
 						return updated;
 					});
 				} else {
@@ -244,10 +247,10 @@ const PVeDichRiengPage = () => {
 			case "clear_buzz": {
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
+				lastBuzzerQuestionRef.current = null;
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
-
 			case "blocked_buzz": {
 				// msg.user_code may be null/empty to block all players or clear the blocked player
 				if (msg.user_code === null || msg.user_code === undefined) {
@@ -268,17 +271,16 @@ const PVeDichRiengPage = () => {
 			case "vdr_questions_meta": {
 				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
 				if (metadata.length > 0) setRoundQuestionsData(metadata);
-				// Track whose turn it is (only for CÁ NHÂN round)
 				if (msg.round === "rieng" && msg.selected_player_code) {
 					setCurrentTurnPlayerCode(msg.selected_player_code);
 				}
 				// Reset buzz state when new question is selected so players can buzz again
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
+				lastBuzzerQuestionRef.current = null;
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
-
 			case "vdr_question_state": {
 				const { question_code, state: qState } = msg;
 				if (question_code && qState) {
@@ -287,8 +289,7 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 			case "answering_window_activated": {
-				// Start the answering window countdown for other players
-				const countdown = msg.countdown ?? 5;
+				const countdown = 5;
 				setAnsweringWindowTimer(countdown);
 				break;
 			}
@@ -349,10 +350,12 @@ const PVeDichRiengPage = () => {
 		} catch (err) {
 			console.warn("Failed to POST buzz:", err);
 		}
-
-		// Only broadcast buzz if persisted (or if offline, still broadcast for real-time)
-		const success = await sendMessage({ type: "buzz", user_code: playerCode, question_code: currentQuestion.questionCode, has_buzzed: true });
-		console.info(`[VDR BUZZ] Buzz sent: success=${success}`);
+		const success = await sendMessage({
+			type: "buzz",
+			user_code: playerCode,
+			question_code: currentQuestion.questionCode,
+			has_buzzed: true
+		});
 		if (success) setHasPinged(true);
 	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, token, matchCode, blockedPlayerCode, currentTurnPlayerCode, answeringWindowTimer]);
 
@@ -361,11 +364,8 @@ const PVeDichRiengPage = () => {
 		!isConnected ||
 		!!buzzerWinnerCode ||
 		blockedPlayerCode === playerCode ||
-		currentTurnPlayerCode === playerCode || // Current turn player cannot buzz (already has the floor)
-		answeringWindowTimer <= 0; // Can only buzz when answering window is active (admin clicked "Mở chuông")
-
-	// Debug logging
-	console.info(`[VDR BUZZ DEBUG] isPingDisabled=${isPingDisabled}, hasPinged=${hasPinged}, connected=${isConnected}, buzzerWinner=${buzzerWinnerCode}, blocked=${blockedPlayerCode}, currentTurn=${currentTurnPlayerCode}, timer=${timer}, answeringWindow=${answeringWindowTimer}`);
+		currentTurnPlayerCode === playerCode ||
+		answeringWindowTimer <= 0;
 
 	// Countdown answering window timer
 	useEffect(() => {
@@ -384,7 +384,11 @@ const PVeDichRiengPage = () => {
 				if (prev <= 1) {
 					setPowerWindowOpen(false);
 					// Notify admin that power window has closed
-					void sendMessage({ type: "vd_power_window_closed", user_code: playerCode });
+					void sendMessage({
+						type: "vd_power_window_closed",
+						user_code: playerCode
+					}
+					);
 					return 0;
 				}
 				return prev - 1;
@@ -395,7 +399,7 @@ const PVeDichRiengPage = () => {
 		};
 	}, [powerWindowOpen, powerWindowCountdown, playerCode, sendMessage]);
 
-	// Auto-submit power when countdown reaches 0 or player selects
+
 	const handleSelectPower = useCallback(async (power: "star" | "shield") => {
 		if (!powerWindowOpen || usedPowers[playerCode]) return;
 		setSelectedPower(power);
@@ -436,27 +440,27 @@ const PVeDichRiengPage = () => {
 					<div className="flex gap-1 overflow-x-auto">
 						{roundQuestionsData.length > 0
 							? roundQuestionsData.map((q) => {
-									const qState = questionStates[q.code] ?? "available";
-									const isActive = currentQuestion.questionCode === q.code;
-									return (
-										<div key={q.code} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
-											<VeDichQuestionCard
-												category={q.category}
-												points={q.points}
-												state={qState}
-												isSelected={isActive}
-												disabled={qState !== "available"}
-											/>
-										</div>
-									);
-								})
-							: Array.from({ length: 3 }).map((_, i) => (
-									<div key={`ph-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
-										<VeDichQuestionCard placeholder category="" disabled />
+								const qState = questionStates[q.code] ?? "available";
+								const isActive = currentQuestion.questionCode === q.code;
+								return (
+									<div key={q.code} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
+										<VeDichQuestionCard
+											category={q.category}
+											points={q.points}
+											state={qState}
+											isSelected={isActive}
+											disabled={qState !== "available"}
+										/>
 									</div>
-								))}
-						</div>
-					</PQuestionBoard>
+								);
+							})
+							: Array.from({ length: 3 }).map((_, i) => (
+								<div key={`ph-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
+									<VeDichQuestionCard placeholder category="" disabled />
+								</div>
+							))}
+					</div>
+				</PQuestionBoard>
 
 				{/* Power selection window */}
 				{powerWindowOpen && !usedPowers[playerCode ?? ''] && (
@@ -465,22 +469,20 @@ const PVeDichRiengPage = () => {
 						<div className="flex gap-4">
 							<button
 								onClick={() => { void handleSelectPower('star'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
-									selectedPower === 'star'
+								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'star'
 										? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
 										: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
-								}`}
+									}`}
 							>
 								<Star size={20} />
 								<span>Ngôi Sao Hy Vọng</span>
 							</button>
 							<button
 								onClick={() => { void handleSelectPower('shield'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
-									selectedPower === 'shield'
+								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'shield'
 										? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
 										: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
-								}`}
+									}`}
 							>
 								<Shield size={20} />
 								<span>Bảo Hộ Miễn Trừ</span>
@@ -492,8 +494,7 @@ const PVeDichRiengPage = () => {
 
 				{/* Power just selected indicator */}
 				{selectedPower && !powerWindowOpen && !usedPowers[playerCode ?? ''] && (
-					<div className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-sm ${
-						selectedPower === 'star'
+					<div className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-sm ${selectedPower === 'star'
 							? 'bg-white-500/20 text-white-300 border border-white-500/50'
 							: 'bg-blue-500/20 text-blue-300 border border-blue-500/50'
 						}`}>
@@ -501,6 +502,10 @@ const PVeDichRiengPage = () => {
 						<span>Đã chọn {selectedPower === 'star' ? 'Ngôi Sao Hy Vọng' : 'Bảo Hộ Miễn Trừ'}</span>
 					</div>
 				)}
+
+				<div className="p-3">
+					<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />
+				</div>
 
 				{activePower && (
 					<div className="mx-3 mt-2 p-3 bg-blue-800 border-2 border-blue-400 rounded-xl flex items-center gap-3">
@@ -520,9 +525,6 @@ const PVeDichRiengPage = () => {
 					</div>
 				)}
 
-				<div className="p-3">
-					<PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />
-				</div>
 
 				{/* Power already used indicator (used in VDC or earlier in VDR) */}
 				{!activePower && usedPowers[playerCode ?? ''] && (
@@ -535,7 +537,7 @@ const PVeDichRiengPage = () => {
 					</div>
 				)}
 
-				
+
 			</>
 		</PBasePageLayout>
 	);

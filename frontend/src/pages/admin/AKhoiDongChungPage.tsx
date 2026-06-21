@@ -708,6 +708,8 @@ const AKhoiDongChungPage = () => {
 		const msg: any = lastMessage;
 		switch (msg?.type) {
 			case "mc_online":
+			case "mc_reconnected":
+			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					const onlineCode = String(msg.user_code);
@@ -980,12 +982,14 @@ const AKhoiDongChungPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { handleStartRound() }}
+						disabled={isTimerRunning}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { handleEndRound() }}
+						disabled={isTimerRunning}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
@@ -1012,14 +1016,14 @@ const AKhoiDongChungPage = () => {
 								setHasAddedScore(false);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
+						disabled={selectedPlayerCodes.length === 0 || hasAddedScore || isTimerRunning}
 					>
 						<Calculator size={18} />
 						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
+						disabled={!canShowAnswers || isTimerRunning}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
