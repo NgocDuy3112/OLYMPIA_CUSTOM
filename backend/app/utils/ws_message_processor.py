@@ -28,6 +28,11 @@ from utils.ve_dich_powers import (
     get_used_powers,
     set_used_power,
 )
+from utils.ve_dich_turn import (
+    clear_turn_player as clear_ve_dich_turn_player,
+    get_turn_player,
+    set_turn_player,
+)
 from utils.ws_connection import ConnectionManager
 
 
@@ -169,7 +174,9 @@ async def handle_player_reconnect(
                     "timestamp": submission.get("timestamp", 0),
                     "clues_opened": submission.get("clues_opened"),
                 })
-                global_logger.info(
+                # Demoted to DEBUG — same reasoning as other reconnect
+                # replay logs (fires on every player refresh).
+                global_logger.debug(
                     f"[WS] Replayed keyword_submit for {user_code!r}"
                 )
         except Exception as e:
@@ -245,7 +252,10 @@ async def _replay_role_state(
             "type": event_name,
             "user_code": user_code,
         })
-        global_logger.info(
+        # Demoted to DEBUG — reconnect happens on every page refresh for
+        # every player, so this line fired dozens of times per minute on
+        # a busy match. Keep INFO for actual error/warning.
+        global_logger.debug(
             f"[WS] {log_prefix!r} reconnected, requesting state: {user_code!r}"
         )
     except Exception as e:
@@ -265,7 +275,9 @@ async def _replay_role_state(
                     "type": "vd_powers_used",
                     "used_powers": used_powers,
                 })
-                global_logger.info(
+                # Demoted to DEBUG for the same reason as the reconnect
+                # announcement — fires on every player refresh.
+                global_logger.debug(
                     f"[WS] Sent vd_powers_used snapshot to {user_code!r}: "
                     f"{list(used_powers.keys())}"
                 )
@@ -289,7 +301,8 @@ async def _replay_role_state(
                     "match_code": match_code,
                     "question_code": question_code,
                 })
-            global_logger.info(
+            # Demoted to DEBUG — same reasoning as reconnect snapshot.
+            global_logger.debug(
                 f"[WS] Sent buzzer_winner snapshot to {user_code!r}: "
                 f"{list(buzzer_winners.keys())}"
             )
@@ -330,7 +343,8 @@ async def _replay_role_state(
                     "hint_media_source": hint_payload.get("media_url", ""),
                     "target_players": hint_payload.get("target_players", []),
                 })
-            global_logger.info(
+            # Demoted to DEBUG — same reasoning as reconnect snapshot.
+            global_logger.debug(
                 f"[WS] Sent GM hint snapshot to {user_code!r}: "
                 f"{sorted(gm_hints.keys())}"
             )
@@ -339,6 +353,67 @@ async def _replay_role_state(
             f"[WS] Failed to send GM hint snapshot on reconnect: {e}",
             exc_info=True,
         )
+
+
+async def apply_vedich_turn_player(
+    ws_manager: ConnectionManager,
+    match_code: str,
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    """Server-side companion for the VDR turn-player pick.
+
+    When admin clicks a contestant on ``AVeDichPickQuestionPage`` (Riêng
+    round), the WS receive loop receives a ``vd_questions_selected``
+    carrying ``selected_player_code``. We persist that value in Valkey
+    under ``vedich:turn:{match_code}`` so the subsequent
+    ``vd_power_window_open`` rewrite can filter ``eligible_user_codes``
+    to just that one player — instead of the previous behaviour where
+    every connected player who hadn't used a power was eligible.
+
+    For VDC (``msg.round == "chung"``), there is no turn player, so we
+    DEL the key. For any other event type we leave the key alone.
+
+    Returns the payload unchanged so the WS receive loop still
+    broadcasts it as a normal event.
+    """
+    msg_type = data.get("type", "")
+
+    # Round lifecycle events clear the VDR turn slot so a stale value
+    # from a previous round can't leak forward into the next round's
+    # power-window filter.
+    if msg_type in ("round_start", "round_end", "clear_question"):
+        await clear_ve_dich_turn_player(ws_manager.valkey, match_code)
+        global_logger.debug(
+            f"[VD TURN] VDR turn player cleared on {msg_type!r} "
+            f"for match={match_code!r}"
+        )
+        return data
+
+    if msg_type != "vd_questions_selected":
+        return data
+
+    round_kind = data.get("round")
+    picked = data.get("selected_player_code")
+
+    # VDR (riêng): store the turn player; None / admin codes are rejected
+    # by the admin tab before broadcast (defence-in-depth — we re-check
+    # here so a future bug in the admin UI can't bypass the filter).
+    if round_kind == "rieng" and picked and not str(picked).startswith("ADMIN"):
+        await set_turn_player(ws_manager.valkey, match_code, picked)
+        global_logger.info(
+            f"[VD TURN] VDR turn player set to {picked!r} for match={match_code!r}"
+        )
+    else:
+        # VDC or VDR with no pick — clear so a stale value from a
+        # previous VDR round doesn't leak forward.
+        await clear_ve_dich_turn_player(ws_manager.valkey, match_code)
+        if round_kind == "rieng":
+            global_logger.debug(
+                f"[VD TURN] VDR turn player cleared for match={match_code!r} "
+                f"(picked={picked!r})"
+            )
+
+    return data
 
 
 async def apply_vedich_power_gating(
@@ -366,36 +441,66 @@ async def apply_vedich_power_gating(
     if msg_type == "vd_player_power":
         chosen_power = data.get("power")
         if chosen_power in ("star", "shield"):
+            # Power-pick is a contestant action — loud INFO so ops can
+            # replay match timeline from logs alone (per the "log only
+            # answer/ping" rule).
+            global_logger.info(
+                f"[VD POWER] Player {user_code!r} picked {chosen_power!r} "
+                f"in match={match_code!r}"
+            )
             try:
-                used_powers = await set_used_power(
+                used_powers, changed = await set_used_power(
                     ws_manager.valkey, match_code, user_code, chosen_power,
                 )
             except Exception as exc:
                 global_logger.warning(
                     f"[WS] set_used_power failed: {exc}", exc_info=True,
                 )
-                used_powers = {}
+                used_powers, changed = {}, False
 
             # Broadcast the updated snapshot to everyone so admin and
             # MC UI badges stay in sync without admin having to send
-            # a follow-up `vd_powers_used` themselves.
-            try:
-                await ws_manager.broadcast_to_room(match_code, {
-                    "type": "vd_powers_used",
-                    "used_powers": used_powers,
-                })
-            except Exception as exc:
-                global_logger.warning(
-                    f"[WS] Failed to broadcast vd_powers_used after pick: {exc}",
-                    exc_info=True,
+            # a follow-up `vd_powers_used` themselves. Skip the broadcast
+            # when ``changed`` is False — a duplicate pick from the same
+            # player (network burst, double-tap) didn't actually update
+            # the HASH, so re-broadcasting would just spam every client
+            # with a no-op render.
+            if changed:
+                try:
+                    await ws_manager.broadcast_to_room(match_code, {
+                        "type": "vd_powers_used",
+                        "used_powers": used_powers,
+                    })
+                except Exception as exc:
+                    global_logger.warning(
+                        f"[WS] Failed to broadcast vd_powers_used after pick: {exc}",
+                        exc_info=True,
+                    )
+            else:
+                global_logger.debug(
+                    f"[VD POWER] Skipping vd_powers_used broadcast — "
+                    f"player {user_code!r} already had a power for "
+                    f"match={match_code!r}"
                 )
         return data
 
     if msg_type == "vd_power_window_open":
         # Build the eligible-players list from the authoritative
-        # Valkey HASH, intersected with the currently-connected players
+        # Valkey state, intersected with the currently-connected players
         # in the room. Anyone not on the list will not see the pick UI
         # appear, even if their local cache was wiped.
+        #
+        # Eligibility = (turn player ∩ connected ∩ not-used-power).
+        #   * turn player = the contestant admin picked on
+        #     ``AVeDichPickQuestionPage`` (VDR only); VDC has no turn
+        #     player so every connected player is candidate.
+        #   * connected = currently in this match room
+        #     (``manager.user_codes_in_room``)
+        #   * not-used-power = not yet in the per-match powers HASH
+        #
+        # The previous behaviour filtered on connected ∩ not-used, which
+        # opened the VDR power window to every player who hadn't used
+        # their power. The turn-player filter below fixes that.
         try:
             used_powers = await get_used_powers(ws_manager.valkey, match_code)
         except Exception as exc:
@@ -404,21 +509,35 @@ async def apply_vedich_power_gating(
             )
             used_powers = {}
 
+        turn_player = await get_turn_player(ws_manager.valkey, match_code)
         connected_codes = ws_manager.user_codes_in_room(match_code)
-        eligible = compute_eligible_user_codes(connected_codes, used_powers)
-        # Always include the full list for admin/MC so they can show
-        # who was skipped (useful for the "đã dùng" badge on player
-        # cards). Player clients only react when their own code is
-        # in `eligible_user_codes`.
+        # Restrict the candidate pool to the VDR turn player when one is
+        # recorded. ``None`` means "no turn player" — fall back to the
+        # full connected set so VDC (which doesn't set a turn player)
+        # still works.
+        if turn_player is not None:
+            candidate_codes = [turn_player]
+        else:
+            candidate_codes = connected_codes
+        eligible = compute_eligible_user_codes(candidate_codes, used_powers)
+        # Always include the full connected list for admin/MC so they
+        # can show who was skipped (useful for the "đã dùng" badge on
+        # player cards). Player clients only react when their own code
+        # is in `eligible_user_codes`.
         rewritten = {
             **data,
             "eligible_user_codes": eligible,
             "all_user_codes": connected_codes,
+            "turn_player_code": turn_player,
             "used_powers": used_powers,
         }
-        global_logger.info(
+        # Demoted to DEBUG — vd_power_window_open fires once per question
+        # activation (admin-driven), so the volume is low, but it's an
+        # admin action, not a contestant action. Keep INFO for the
+        # downstream contestant response (vd_player_power).
+        global_logger.debug(
             f"[WS] vd_power_window_open in match={match_code!r}: "
-            f"eligible={eligible} used={list(used_powers.keys())}"
+            f"turn={turn_player!r} eligible={eligible} used={list(used_powers.keys())}"
         )
         return rewritten
 

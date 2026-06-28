@@ -87,7 +87,10 @@ class ConnectionManager:
             # hands us the same instance for the lifetime of the connection,
             # so identity-keying on the object is safe here.
             self._socket_user[websocket] = user_code
-        global_logger.info(f"WS connected to room {room_id}: {websocket.client} (count={len(self.rooms[room_id])})")
+        # Demoted to DEBUG — WS connect/disconnect happens on every page refresh
+        # and every reconnect (handled by useWebSocket in the frontend), so
+        # INFO-level floods the log with one line per page load.
+        global_logger.debug(f"WS connected to room {room_id}: {websocket.client} (count={len(self.rooms[room_id])})")
 
     def disconnect(self, websocket: WebSocket, room_id: str):
         conns = self.rooms.get(room_id)
@@ -110,7 +113,7 @@ class ConnectionManager:
             if task:
                 task.cancel()
 
-        global_logger.info(f"WS disconnected from room {room_id}: {websocket.client}")
+        global_logger.debug(f"WS disconnected from room {room_id}: {websocket.client}")
 
     def user_codes_in_room(self, room_id: str) -> list[str]:
         """Return the unique authenticated user_codes connected to `room_id`.

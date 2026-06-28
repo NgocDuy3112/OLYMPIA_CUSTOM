@@ -903,24 +903,6 @@ const AKhoiDongRiengPage = () => {
 				}
 				break;
 			}
-
-			case "buzz": {
-				// Buzz notification from player
-				const { user_code } = msg;
-				if (user_code) {
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((player) =>
-								player.playerCode === user_code
-									? { ...player, playerHasBuzzed: true }
-									: player,
-							),
-						);
-					});
-					logger.info("Player buzzed:", user_code);
-				}
-				break;
-			}
 			default:
 				break;
 		}
@@ -1020,14 +1002,14 @@ const AKhoiDongRiengPage = () => {
 						onClick={() => {
 							void handleAddScoreToSelected();
 						}}
-						disabled={!selectedPlayerCode || isSkipping || isAdvancing || isTimerRunning}
+						disabled={!selectedPlayerCode || isSkipping || isAdvancing}
 					>
 						<Plus size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleMarkWrong(); }}
-						disabled={!selectedPlayerCode || isAdvancing || (selectedPlayerCode ? (attempts[selectedPlayerCode] ?? 0) >= 2 : false) || isTimerRunning}
+						disabled={!selectedPlayerCode || isAdvancing || (selectedPlayerCode ? (attempts[selectedPlayerCode] ?? 0) >= 2 : false)}
 					>
 						<X size={18} />
 						<span className="ml-2 font-bold">
@@ -1036,7 +1018,7 @@ const AKhoiDongRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleSkip(); }}
-						disabled={!selectedPlayerCode || hasAddedScore || isAdvancing || isTimerRunning}
+						disabled={!selectedPlayerCode || hasAddedScore || isAdvancing}
 					>
 						<SkipForward size={18} />
 						<span className="ml-2 font-bold">BỎ QUA</span>

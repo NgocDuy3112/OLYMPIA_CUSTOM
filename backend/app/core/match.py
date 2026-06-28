@@ -215,11 +215,14 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
         }
         
         log_message = f"Fetched match room successfully: match_code={match_code}."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /matches/{code} polls every few seconds
+        # while the match is live. INFO here was one line per poll, drowning
+        # out buzz / scoring events.
+        global_logger.debug(log_message)
         return MatchRoomResponse(
             status='success',
             message=log_message,
-            data=matches_data 
+            data=matches_data
         )
     except HTTPException:
         raise
@@ -245,7 +248,8 @@ async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
             for m in matches
         ]
         log_message = f"Fetched {len(matches)} active matches."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin dashboard polls this list every few seconds.
+        global_logger.debug(log_message)
         return BaseResponse(status="success", message=log_message, data=data)
     except Exception:
         log_message = "An unexpected error occurred while fetching all matches."
@@ -311,7 +315,9 @@ async def get_players_by_match_from_db(match_code: str, session: AsyncSession) -
         players_data.sort(key=lambda x: x.position)
 
         log_message = f"Fetched {len(players_data)} players for match_code={match_code}."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /matches/{code}/players polls every
+        # few seconds while the match is live.
+        global_logger.debug(log_message)
         return BaseResponse(
             status="success",
             message=log_message,

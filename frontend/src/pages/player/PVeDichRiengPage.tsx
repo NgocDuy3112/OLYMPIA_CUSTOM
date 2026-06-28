@@ -140,6 +140,12 @@ const PVeDichRiengPage = () => {
 			case "start_the_timer": {
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
+				// Also reset the buzzer-question ref so the next `buzzer_winner`
+				// for a fresh timer is accepted even if the previous buzz was
+				// for the same `question_code`. Without this, an admin who
+				// re-uses the previous question (no fresh `clear_buzz` between
+				// rounds) would have the new winner dropped by the guard.
+				lastBuzzerQuestionRef.current = null;
 				setAnsweringWindowTimer(0); // Reset answering window when new timer starts
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
@@ -330,6 +336,11 @@ const PVeDichRiengPage = () => {
 			return;
 		}
 
+		// Track whether we WON the buzzer race server-side. Only set hasPinged
+		// if we won, otherwise the player will be wrongly marked as already-
+		// buzzed on the client and unable to retry after admin reopens the
+		// answering window (e.g. buzzed-wrong → clear_buzz → Mở Chuông again).
+		let wonBuzzer = false;
 		try {
 			const res = await fetch(`${API_BASE_URL}/answers/`, {
 				method: "POST",
@@ -344,19 +355,35 @@ const PVeDichRiengPage = () => {
 					has_buzzed: true,
 				}),
 			});
-			if (!res.ok) {
-				console.warn("Failed to POST buzz:", res.status);
+			if (res.status === 201 || res.status === 200) {
+				wonBuzzer = true;
+			} else if (res.status === 409) {
+				// 409 Conflict = another player won the buzzer race server-side.
+				// The winner's ``blocked_buzz { user_code: null }`` and
+				// ``buzzer_winner`` broadcasts will flip our local state via
+				// the WS message handler — no need to set anything here.
+				console.info("[VDR BUZZ] Lost buzzer race (409); another player won. Waiting for blocked_buzz event to disable button.");
+			} else {
+				console.warn("[VDR BUZZ] Failed to POST buzz:", res.status);
 			}
 		} catch (err) {
-			console.warn("Failed to POST buzz:", err);
+			console.warn("[VDR BUZZ] Failed to POST buzz:", err);
 		}
-		const success = await sendMessage({
+		// Fire the WS ``buzz`` echo regardless — backend forwards it for any
+		// consumer that still wants to see the raw event. Don't gate state
+		// on its success: backend doesn't use WS ``buzz`` to decide winner.
+		const wsEchoOk = await sendMessage({
 			type: "buzz",
 			user_code: playerCode,
 			question_code: currentQuestion.questionCode,
 			has_buzzed: true
 		});
-		if (success) setHasPinged(true);
+		// Only mark hasPinged when the server told us we won. WS echo
+		// success alone is not authoritative — it just means the frame
+		// reached our local WS endpoint.
+		if (wonBuzzer && wsEchoOk) {
+			setHasPinged(true);
+		}
 	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, token, matchCode, blockedPlayerCode, currentTurnPlayerCode, answeringWindowTimer]);
 
 	const isPingDisabled =

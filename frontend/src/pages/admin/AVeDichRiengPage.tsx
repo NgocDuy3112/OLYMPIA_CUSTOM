@@ -170,8 +170,14 @@ const AVeDichRiengPage = () => {
 	const [activePower, setActivePower] = useState<'star' | 'shield' | null>(null);
 
 	// ─── Buzzer winner state ─────────────────────────────────────────────────────
-	// Track who buzzed first - only the first buzz gets the lightning icon
-	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
+	// The buzzer winner's identity is reflected via ``players[*].playerHasBuzzed``
+	// (set in the ``case "buzzer_winner"`` handler below) — APlayerBar renders
+	// the Zap icon based on that boolean. We don't keep a separate
+	// ``buzzerWinnerCode`` string because the dedupe role it used to play is
+	// now handled by ``lastBuzzerQuestionRef`` (scoped to ``question_code`` so
+	// a stale value from a previous round/question can't silently drop the
+	// next round's winner event). Mirrors PVeDichRiengPage.lastBuzzerQuestionRef.
+	const lastBuzzerQuestionRef = useRef<string | null>(null);
 
 	// ─── Timer state ──────────────────────────────────────────────────────────────
 	const [timer, setTimer] = useState<number>(0);
@@ -221,10 +227,17 @@ const AVeDichRiengPage = () => {
 		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
 	}, [usedPowers, currentMatchCode]);
 
-	// Reset activePower whenever the active question changes
+	// Reset activePower whenever the active question changes. Broadcast
+	// ``vd_power_activated { power: null }`` so the player page and any
+	// other observers flip their UI back to the "no power" state. The
+	// SFX bot no-ops on null (see ``sfx_bot.py`` vd_power_activated
+	// branch) so this is purely a UI sync, not a sound cue.
 	useEffect(() => {
 		setActivePower(null);
-	}, [currentQuestion.questionCode]);
+		if (currentMatchCode) {
+			void sendMessage({ type: "vd_power_activated", power: null });
+		}
+	}, [currentQuestion.questionCode, currentMatchCode, sendMessage]);
 
 	// ─── Players helpers ──────────────────────────────────────────────────────────
 	const applyPlayersSnapshot = useCallback(
@@ -433,7 +446,7 @@ const AVeDichRiengPage = () => {
 			setUsedPowers({});
 			setVideoPlayState(null);
 			// Reset buzzer state when switching to a new question
-			setBuzzerWinnerCode(null);
+			lastBuzzerQuestionRef.current = null;
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -508,8 +521,9 @@ const AVeDichRiengPage = () => {
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
 		setAnsweringWindowTimer(0); // Reset answering window when starting new question
-		// Reset buzzer winner when starting new question
-		setBuzzerWinnerCode(null);
+		// Reset buzzer ref so the next ``buzzer_winner`` for this question is
+		// accepted by the dedupe guard.
+		lastBuzzerQuestionRef.current = null;
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
 			// NOTE: play_video is intentionally NOT sent here. In Về Đích rounds the video
@@ -587,12 +601,20 @@ const AVeDichRiengPage = () => {
 		});
 	}, [answeringWindowTimer, currentMatchCode, sendMessage]);
 
-	
-	// Broadcast power state whenever activePower changes
-	useEffect(() => {
-		if (!currentMatchCode) return;
-		void sendMessage({ type: "vd_power_activated", power: activePower ?? null });
-	}, [activePower, currentMatchCode, sendMessage]);
+
+	// NOTE: ``vd_power_activated`` broadcast is intentionally NOT
+	// driven by a ``useEffect`` on ``activePower``. Previously this
+	// effect tried to mirror activePower to SFX bot, but it never
+	// actually fired because nothing in this page ever set
+	// ``activePower`` to a non-null value from the WS handler
+	// (the handler updated ``usedPowers`` and ``players[i].playerPower``
+	// but not the local ``activePower`` state). The handler now
+	// broadcasts ``vd_power_activated`` directly when the turn player
+	// picks a power — see the ``case "vd_player_power"`` block below.
+	// Admin-initiated resets (e.g. clearing the active power when the
+	// round ends) intentionally fire ``vd_power_activated { power: null }``
+	// only from the handler that owns the state change, not from a
+	// blanket effect, to keep the broadcast surface explicit.
 
 	// ─── Score management ─────────────────────────────────────────────────────────
 	const handleAddScore = useCallback(
@@ -711,6 +733,9 @@ const AVeDichRiengPage = () => {
 				}));
 			}
 			setActivePower(null);
+			// Broadcast deactivation so the player page flips its UI back
+			// to the "no active power" state. SFX bot no-ops on null.
+			void sendMessage({ type: "vd_power_activated", power: null });
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
 			logger.error("handleAddPoints failed:", err);
@@ -754,6 +779,9 @@ const AVeDichRiengPage = () => {
 				}));
 			}
 			setActivePower(null);
+			// Broadcast deactivation so the player page flips its UI back
+			// to the "no active power" state. SFX bot no-ops on null.
+			void sendMessage({ type: "vd_power_activated", power: null });
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
 			logger.error("handleSubtractPoints failed:", err);
@@ -774,7 +802,7 @@ const AVeDichRiengPage = () => {
 	const handleOpenBuzzer = useCallback(async () => {
 		if (timer !== 0) return;
 		setAnsweringWindowTimer(5);
-		setBuzzerWinnerCode(null);
+		lastBuzzerQuestionRef.current = null;
 		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (currentMatchCode) {
 			void sendMessage({ type: "clear_buzz" });
@@ -790,6 +818,13 @@ const AVeDichRiengPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
+		// Defensive reset: if admin starts a new VDR round while a previous
+		// round's buzzer state is still in memory (e.g. previous round was
+		// abandoned without `clear_buzz` or `vd_questions_selected`), clear
+		// the ref now so the new round's `buzzer_winner` event isn't dropped
+		// by the `lastBuzzerQuestionRef` guard.
+		lastBuzzerQuestionRef.current = null;
+		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_start", round: "vdr" });
@@ -826,8 +861,10 @@ const AVeDichRiengPage = () => {
 					}
 					startTransition(() => {
 						setRoundQuestionCodes(msg.selected_question_codes);
-						// Reset buzzer winner when new questions are selected
-						setBuzzerWinnerCode(null);
+						// Reset buzzer ref when new questions are selected so the
+						// next ``buzzer_winner`` for one of these questions is
+						// accepted by the dedupe guard.
+						lastBuzzerQuestionRef.current = null;
 					});
 				}
 				// Track which player's turn it is
@@ -1012,11 +1049,20 @@ const AVeDichRiengPage = () => {
 			// players in the admin / MC / player bar instead of only the buzzer_winner.
 
 			case "buzzer_winner": {
-				const { user_code } = msg;
-				if (user_code && user_code !== buzzerWinnerCode) {
-					console.info(`[VDR ADMIN] Received buzzer_winner: user_code=${user_code}`);
-					setBuzzerWinnerCode(user_code);
-					// Update playerHasBuzzed for the winner
+				const { user_code, question_code } = msg;
+				// Accept the event when it belongs to a NEW question (i.e. a
+				// different question_code than the one we already rendered).
+				// lastBuzzerQuestionRef tracks the question_code of the
+				// winner we last rendered so a stale event for the same
+				// question is dropped (idempotent reconnect snapshot replay)
+				// but a new question's winner is always accepted. Mirrors
+				// PVeDichRiengPage.lastBuzzerQuestionRef.
+				if (user_code && question_code !== lastBuzzerQuestionRef.current) {
+					console.info(`[VDR ADMIN] Received buzzer_winner: user_code=${user_code}, question=${question_code}`);
+					lastBuzzerQuestionRef.current = question_code;
+					// Update playerHasBuzzed for the winner — APlayerBar reads
+					// this boolean to render the Zap icon next to the right
+					// player name (and the border accent class).
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((p) =>
@@ -1028,6 +1074,16 @@ const AVeDichRiengPage = () => {
 					console.info(`[VDR ADMIN] Locking all buzzers after winner: ${user_code}`);
 					void sendMessage({ type: "blocked_buzz", user_code: null });
 				}
+				break;
+			}
+
+			case "clear_buzz": {
+				// Server echoes admin's own clear_buzz (and the room's other
+				// tabs may also have sent one) — drop any stale buzzer state
+				// so the next `buzzer_winner` for a new question is accepted
+				// by the handler above. Mirrors PVeDichRiengPage + MVeDichRiengPage.
+				lastBuzzerQuestionRef.current = null;
+				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
 
@@ -1069,6 +1125,26 @@ const AVeDichRiengPage = () => {
 						type: "vd_powers_used",
 						used_powers: nextUsedPowers,
 					});
+					// Activate the picked power for the turn player so:
+					//   1. ``handleAddPoints`` / ``handleSubtractPoints`` apply the
+					//      right multiplier (star +150% / shield +50% etc.) instead
+					//      of the default +100% / -50%.
+					//   2. The SFX bot plays ``vd_quyen_nang`` — it listens for
+					//      ``vd_power_activated`` (mapped to ``power_star`` /
+					//      ``power_shield`` in ``sfx_bot.py``) and only the turn
+					//      player's pick triggers the broadcast, so non-turn
+					//      players (defensive check) don't fire the SFX.
+					// Mirrors the VDC pattern at
+					// ``AVeDichChungPage.tsx:case "vd_player_power"``.
+					if (user_code === currentTurnPlayerCode) {
+						startTransition(() => {
+							setActivePower(power as "star" | "shield");
+						});
+						void sendMessage({
+							type: "vd_power_activated",
+							power,
+						});
+					}
 				}
 				break;
 			}

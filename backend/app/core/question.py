@@ -467,11 +467,14 @@ async def get_question_from_request_from_db(
                     'options': parsed_options,
                 })
         log_message = f"Fetched {len(question_data)} questions from the database with question_code={question_code}."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /questions/ polls every few seconds
+        # while a round is live. At INFO this was one line per poll, drowning
+        # out buzz / scoring events.
+        global_logger.debug(log_message)
         return BaseResponse(
             status='success',
             message=log_message,
-            data=question_data 
+            data=question_data
         )
     except HTTPException:
         raise

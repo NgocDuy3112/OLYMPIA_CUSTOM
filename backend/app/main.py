@@ -30,6 +30,7 @@ from utils.ws_message_processor import (
     apply_gm_hint_store,
     apply_gm_player_state,
     apply_vedich_power_gating,
+    apply_vedich_turn_player,
     handle_mc_reconnect,
     handle_player_reconnect,
     is_allowed_by_role,
@@ -171,10 +172,18 @@ async def websocket_endpoint(
         return
 
     user_role = user_info.get("role", "")
-    global_logger.info(
-        f"WebSocket authenticated: user={user_info['user_code']!r} "
-        f"role={user_role!r} room={match_code!r}"
-    )
+    # Admin/MC connections are infrequent (per session) and useful for audit;
+    # player connections fire on every page refresh, so demote those to DEBUG.
+    if user_role in ("admin", "mc"):
+        global_logger.info(
+            f"WebSocket authenticated: user={user_info['user_code']!r} "
+            f"role={user_role!r} room={match_code!r}"
+        )
+    else:
+        global_logger.debug(
+            f"WebSocket authenticated: user={user_info['user_code']!r} "
+            f"role={user_role!r} room={match_code!r}"
+        )
 
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code, user_code=user_info["user_code"])
@@ -206,9 +215,31 @@ async def websocket_endpoint(
                 )
                 continue
 
-            global_logger.info(
-                f"[BP ANSWER SYNC] Received message from {user_info['user_code']!r} "
-                f"role={user_role!r} in room {match_code!r}: {data}"
+            # Log only contestant action events (buzz + vd_player_power + answer text).
+            # Everything else (heartbeats, presence, navigation, room-control events
+            # sent by admin/MC) is dropped to DEBUG — these spam the log on every
+            # tick of a normal match and drown out the events we actually care
+            # about for incident review. Set LOG_LEVEL=DEBUG to see the full trace.
+            if msg_type in {"buzz", "vd_player_power", "answer", "player_answer"}:
+                global_logger.info(
+                    f"[BP ANSWER SYNC] Received message from {user_info['user_code']!r} "
+                    f"role={user_role!r} in room {match_code!r}: {data}"
+                )
+            else:
+                global_logger.debug(
+                    f"[BP ANSWER SYNC] Received message from {user_info['user_code']!r} "
+                    f"role={user_role!r} in room {match_code!r}: type={msg_type!r}"
+                )
+
+            # ── VDR turn player (server-authoritative) ──────────────────────
+            # Persist ``selected_player_code`` from ``vd_questions_selected``
+            # so the subsequent ``vd_power_window_open`` rewrite can filter
+            # eligible players to the chosen contestant only. Run BEFORE
+            # ``apply_vedich_power_gating`` so a back-to-back
+            # vd_questions_selected + vd_power_window_open from a stale
+            # admin tab sees the freshly written turn key.
+            broadcast_data = await apply_vedich_turn_player(
+                ws_manager, match_code, data,
             )
 
             # ── Về Đích power gating (server-authoritative) ────────────────
@@ -216,7 +247,7 @@ async def websocket_endpoint(
             # both Về Đích Chung and Về Đích Riêng. The server rewrites the
             # payload to enforce this — see utils/ws_message_processor.py.
             broadcast_data = await apply_vedich_power_gating(
-                ws_manager, match_code, user_info["user_code"], data,
+                ws_manager, match_code, user_info["user_code"], broadcast_data,
             )
 
             # ── Buzzer winner server-side state ────────────────────────────────
@@ -264,12 +295,23 @@ async def websocket_endpoint(
             )
 
             await ws_manager.broadcast_to_room(match_code, broadcast_data)
-            global_logger.info(
-                f"[BP ANSWER SYNC] Broadcasted message to room {match_code!r}: type={msg_type!r}"
-            )
+            # Mirror the receive-log filter — only keep contestant events at INFO.
+            # Without this, every ws broadcast (heartbeats, presence, navigation,
+            # admin state pushes) fills the log with one line per message.
+            if msg_type in {"buzz", "vd_player_power", "answer", "player_answer", "buzzer_winner", "blocked_buzz"}:
+                global_logger.info(
+                    f"[BP ANSWER SYNC] Broadcasted message to room {match_code!r}: type={msg_type!r}"
+                )
+            else:
+                global_logger.debug(
+                    f"[BP ANSWER SYNC] Broadcasted message to room {match_code!r}: type={msg_type!r}"
+                )
 
     except WebSocketDisconnect:
-        global_logger.info(
+        # Demoted to DEBUG — every page refresh triggers a disconnect,
+        # so this fired constantly on a busy match. The matching
+        # connection line at the top is also DEBUG for the same reason.
+        global_logger.debug(
             f"WebSocket disconnected: {user_info['user_code']!r} room={match_code!r}"
         )
 

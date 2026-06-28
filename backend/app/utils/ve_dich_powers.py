@@ -29,8 +29,20 @@ if TYPE_CHECKING:
     # import in tests and any future non-Valkey path.
     from valkey.asyncio import Valkey
 
+from utils.power_lock import (
+    POWER_LOCK_TTL_SECONDS,
+    release_power_lock,
+    try_acquire_power_lock,
+)
+
 
 POWER_KEY_PREFIX = "vedich:powers:"
+
+# 24 hours — generous enough to cover a full match day, short enough
+# that a Valkey flush / container restart mid-tournament doesn't leave
+# stale power picks behind. We refresh this TTL on every HSETNX so an
+# actively-running match never has its power HASH expire mid-round.
+POWER_HASH_TTL_SECONDS = 24 * 60 * 60
 
 VALID_POWERS = ("star", "shield")
 
@@ -70,36 +82,91 @@ async def set_used_power(
     match_code: str,
     user_code: str,
     power: str,
-) -> dict[str, str]:
-    """Record a player's power pick and return the updated full map.
+) -> tuple[dict[str, str], bool]:
+    """Record a player's power pick and return the updated full map + changed flag.
 
-    The map is returned so the caller can broadcast ``vd_powers_used``
-    without an extra round-trip. Idempotent: re-using the same power is
-    a no-op; switching powers after the fact is rejected (we keep the
-    first pick to preserve audit history).
+    Two layers of protection:
+
+      1. **Per-user-per-match Valkey lock** (``vd:power_lock:{match}:{user}``,
+         ``SET NX EX`` with ``POWER_LOCK_TTL_SECONDS``) — short-circuits
+         duplicate POSTs from a single player (network burst, double-tap,
+         page-refresh race). Released in the ``finally`` block on every
+         exit path. ``HSETNX`` below is the *correctness* guarantee; this
+         lock is just a fast-path that avoids a useless HGETALL → HSETNX
+         → HGETALL → publish round-trip on duplicates.
+
+      2. **HSETNX on the powers HASH** — the actual "one power per
+         player per match" guarantee. First POST writes, every
+         subsequent POST is a no-op, so the field is locked in forever
+         (until admin explicitly clears it).
+
+    The HASH TTL is refreshed on every successful write so an actively
+    running match can't have its powers forgotten mid-round.
+
+    Returns ``(used_powers_map, changed)`` where ``changed`` is True
+    iff this call actually wrote a new entry (i.e. the player had no
+    power before). Callers can use ``changed`` to decide whether to
+    broadcast ``vd_powers_used`` — for duplicates it's wasted bandwidth.
     """
     if not valkey or not match_code or not user_code:
-        return await get_used_powers(valkey, match_code)
+        return await get_used_powers(valkey, match_code), False
     if power not in VALID_POWERS:
         global_logger.warning(
             f"[ve_dich_powers] Ignoring set_used_power with invalid power={power!r} "
             f"match={match_code!r} user={user_code!r}",
         )
-        return await get_used_powers(valkey, match_code)
+        return await get_used_powers(valkey, match_code), False
 
-    key = powers_key(match_code)
-    try:
-        # HSETNX-style guard: only set if the field is missing. If the
-        # player already has a power, we keep the first choice.
-        await valkey.hsetnx(key, user_code, power)
-    except Exception as exc:  # noqa: BLE001
-        global_logger.warning(
-            f"[ve_dich_powers] HSET failed for match={match_code!r} "
-            f"user={user_code!r}: {exc}",
-            exc_info=True,
+    # Layer 1: per-user lock. Fast-path early-return on duplicates.
+    lock_token = await try_acquire_power_lock(valkey, match_code, user_code)
+    if lock_token is None:
+        # Another pick from the same user is already in flight (network
+        # burst, double-tap, etc.). Return current map with changed=False
+        # so the caller skips the ``vd_powers_used`` broadcast — the
+        # in-flight call will publish the authoritative state when it
+        # finishes. HSETNX below would have done the right thing anyway,
+        # but skipping the publish saves a round-trip to every client.
+        global_logger.debug(
+            f"[ve_dich_powers] Skipping concurrent vd_player_power for "
+            f"match={match_code!r} user={user_code!r} (lock held)"
         )
+        return await get_used_powers(valkey, match_code), False
 
-    return await get_used_powers(valkey, match_code)
+    changed = False
+    try:
+        key = powers_key(match_code)
+        try:
+            # Layer 2: HSETNX is the correctness guarantee. Even if the
+            # lock above somehow let two writers through (e.g. lock
+            # TTL expired mid-call), only the first HSETNX wins.
+            changed = await valkey.hsetnx(key, user_code, power)
+            if changed:
+                # Refresh TTL on the HASH so an actively running match
+                # can't have its powers forgotten mid-round. Only set
+                # the TTL when we actually wrote — a no-op HSETNX means
+                # the HASH already existed with a fresh TTL from a
+                # previous write, no need to refresh.
+                try:
+                    await valkey.expire(key, POWER_HASH_TTL_SECONDS)
+                except Exception as exc:  # noqa: BLE001
+                    global_logger.warning(
+                        f"[ve_dich_powers] EXPIRE failed for match={match_code!r}: {exc}",
+                        exc_info=True,
+                    )
+        except Exception as exc:  # noqa: BLE001
+            global_logger.warning(
+                f"[ve_dich_powers] HSET failed for match={match_code!r} "
+                f"user={user_code!r}: {exc}",
+                exc_info=True,
+            )
+
+        return await get_used_powers(valkey, match_code), changed
+    finally:
+        # Always release the lock — even on Valkey error — so a crashed
+        # path doesn't lock the player out for the full TTL. The Lua
+        # release script is a no-op if the TTL already expired or the
+        # lock was stolen, so this is safe to call unconditionally.
+        await release_power_lock(valkey, match_code, user_code, lock_token)
 
 
 def compute_eligible_user_codes(

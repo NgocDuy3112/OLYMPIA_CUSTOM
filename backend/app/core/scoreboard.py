@@ -83,7 +83,10 @@ async def get_scoreboard_for_a_match_from_db(
                         "cumulative_score": _safe_convert_score(score),
                     }
                 )
-            global_logger.info(f"Fetched scoreboard from cache for match_code={match_code}.")
+            # Demoted to DEBUG — admin GET /scoreboard/ is called every few
+            # seconds while the round is live. INFO here was one line per
+            # poll, drowning out buzz / scoring events.
+            global_logger.debug(f"Fetched scoreboard from cache for match_code={match_code}.")
         else:
             # No leaderboard in cache -> return zeros for all players
             scoreboard_list = [
@@ -94,6 +97,8 @@ async def get_scoreboard_for_a_match_from_db(
                 }
                 for p in players_data
             ]
+            # Keep at INFO — first hit on a brand-new match is genuinely useful
+            # to confirm the cold-start path works.
             global_logger.info(f"No leaderboard cache found; returning zeroed scoreboard for match_code={match_code}.")
 
         return BaseResponse(
@@ -210,8 +215,11 @@ async def adjust_player_score(
         else:
             await session.commit()
 
-        # ── 6. Return updated scoreboard ─────────────────────────────
-        return await get_scoreboard_for_a_match_from_db(match_code, valkey, session)
+        updated_scoreboard = await get_scoreboard_for_a_match_from_db(
+            match_code, valkey, session
+        )
+        global_logger.info(f"Scoreboard: {updated_scoreboard}")
+        return updated_scoreboard
 
     except HTTPException:
         raise

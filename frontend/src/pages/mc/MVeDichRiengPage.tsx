@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
@@ -22,6 +22,12 @@ const MVeDichRiengPage = () => {
 
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
+    // Tracks which question_code the current buzzerWinnerCode belongs to. Used by
+    // the buzzer_winner handler to dedupe across reconnects / multiple buzzes for
+    // the SAME question (mirrors PVeDichRiengPage.lastBuzzerQuestionRef) so that
+    // a stale `buzzerWinnerCode` from a previous question can't silently swallow
+    // a new buzz for the next question.
+    const lastBuzzerQuestionRef = useRef<string | null>(null);
     const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
     const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
@@ -41,6 +47,7 @@ const MVeDichRiengPage = () => {
                 break;
             case "start_the_timer":
                 setBuzzerWinnerCode(null);
+                lastBuzzerQuestionRef.current = null;
                 setAnsweringWindowTimer(0);
                 startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
@@ -51,14 +58,32 @@ const MVeDichRiengPage = () => {
                 break;
             case "buzzer_winner": {
                 const winner = msg.user_code;
-                console.info(`[VDR MC] Received buzzer_winner: winner=${winner}, current=${buzzerWinnerCode}`);
-                // Only accept the first buzzer_winner to avoid overriding
-                if (winner && !buzzerWinnerCode) {
+                const winnerQuestion = msg.question_code;
+                // Accept the event when it belongs to a NEW question (i.e. a
+                // different question_code than the one we already rendered).
+                // Using a ref instead of `!buzzerWinnerCode` guards against a
+                // stale value from the previous round silently swallowing the
+                // current round's winner — see PR notes for the matching
+                // PVeDichRiengPage.lastBuzzerQuestionRef pattern.
+                if (winner && winnerQuestion !== lastBuzzerQuestionRef.current) {
+                    console.info(`[VDR MC] Received buzzer_winner: winner=${winner}, question=${winnerQuestion}`);
                     setBuzzerWinnerCode(winner);
+                    lastBuzzerQuestionRef.current = winnerQuestion;
                     setPlayers((prev) =>
                         prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })),
                     );
+                } else {
+                    console.warn(`[VDR MC] Ignoring buzzer_winner: winner=${winner}, question=${winnerQuestion}, current=${buzzerWinnerCode}`);
                 }
+                break;
+            }
+            case "clear_buzz": {
+                // Server echoes admin's clear_buzz back to the room — drop any
+                // stale buzzer state so the next buzz for a new question is
+                // accepted by the `buzzer_winner` handler above.
+                setBuzzerWinnerCode(null);
+                lastBuzzerQuestionRef.current = null;
+                setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
                 break;
             }
             case "send_question":
@@ -89,7 +114,17 @@ const MVeDichRiengPage = () => {
                 }
                 break;
             }
-            case "vdr_questions_meta": {
+            case "vdr_questions_meta":
+            case "vd_questions_selected": {
+                // Reset buzzer state on round-question refresh so a stale
+                // buzzerWinnerCode from the previous question (or round) cannot
+                // make the `buzzer_winner` handler drop the next winner.
+                // PVeDichRiengPage does the same dance in its matching handler.
+                if (msg.round !== "chung") {
+                    setBuzzerWinnerCode(null);
+                    lastBuzzerQuestionRef.current = null;
+                    setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+                }
                 const metadata: RoundQuestion[] = msg.question_metadata ?? [];
                 if (metadata.length > 0) setRoundQuestionsData(metadata);
                 break;

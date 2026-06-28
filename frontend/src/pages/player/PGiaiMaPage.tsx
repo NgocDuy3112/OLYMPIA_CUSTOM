@@ -243,12 +243,23 @@ const PGiaiMaPage = () => {
 			}
 
 			case "start_the_timer": {
+				const isKeywordTimer = msg.phase === "gm_keyword";
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setTimerHasStarted(true);
-				setQuestionAnswer("");
-				setKeyword("");
+				// Only wipe the question-answer + keyword textboxes when the
+				// admin is starting the *regular* (clue-phase) timer. The
+				// keyword phase is a continuation of the same question — the
+				// player may have already typed (or is mid-typing) their
+				// keyword, and blowing it away here forces them to retype
+				// right as the 15s clock starts ticking. Clearing in this
+				// path was the cause of the "input bị disabled khi admin
+				// bấm Đếm giờ từ khoá" bug.
+				if (!isKeywordTimer) {
+					setQuestionAnswer("");
+					setKeyword("");
+				}
 				// If the question-board timer is the keyword phase, set the flag so the input locks when it hits 0.
-				setIsKeywordPhase(msg.phase === "gm_keyword");
+				setIsKeywordPhase(isKeywordTimer);
 				break;
 			}
 

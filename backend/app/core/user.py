@@ -74,7 +74,9 @@ async def get_user_from_request_from_db(
             for user in users
         ]
         log_message = f"Fetched {len(users)} users from database."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /users/ polls every few seconds while
+        # the admin panel is open. INFO here was one line per poll.
+        global_logger.debug(log_message)
         return BaseResponse(
             status='success',
             message=log_message,

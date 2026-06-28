@@ -9,8 +9,9 @@ RUN apk add --no-cache libc6-compat
 
 # Copy package files and install dependencies
 # The build context for this Dockerfile is the `frontend/` directory, so copy package.json from the context root
-COPY package.json ./
-RUN npm install --no-audit --no-fund --silent
+COPY package.json package-lock.json ./
+
+RUN npm ci --no-audit --no-fund --silent
 
 # Copy source and build
 COPY . ./
