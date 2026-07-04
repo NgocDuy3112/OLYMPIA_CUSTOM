@@ -215,6 +215,7 @@ async def adjust_player_score(
         else:
             await session.commit()
 
+        # ── 6. Return updated scoreboard ─────────────────────────────
         updated_scoreboard = await get_scoreboard_for_a_match_from_db(
             match_code, valkey, session
         )

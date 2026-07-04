@@ -233,15 +233,24 @@ async def post_answer_to_db(
             except Exception as e:
                 global_logger.error(f"Failed to publish buzz winner: {e}", exc_info=True)
 
-            # Release the buzzer lock IMMEDIATELY after publishing so the
-            # answering window can be reopened by ``clear_buzz`` without
-            # waiting for TTL. Without this, a second player attempting the
-            # same question would block until the 10 s TTL expires.
-            # (Reuse the finally block below for the release path.)
-            await release_buzzer_lock(
-                valkey, request.match_code, request.question_code, buzzer_lock_token,
-            )
-            buzzer_lock_token = None
+            # IMPORTANT: do NOT release the lock here. The lock must remain
+            # held for the full TTL (10 s) so that any follow-up buzz from
+            # another player — whose WS state hasn't yet caught up to the
+            # winner's ``blocked_buzz`` broadcast — gets a 409 instead of
+            # silently overwriting the winner.
+            #
+            # Prod incident (2026-06-28): OC_U_3004 buzzed first and won.
+            # OC_U_3005's UI hadn't yet received the ``blocked_buzz`` event
+            # 157 ms later, so the button was still enabled and OC_U_3005
+            # buzzed again. With the early release the lock was already
+            # gone, so backend granted OC_U_3005 a new ``buzzer_winner``
+            # and the room saw two winners for the same question_code.
+            # The lock will be released by the finally block below after
+            # the handler exits, OR when the 10 s TTL expires naturally.
+            # We do NOT pass it to the finally block — early release was
+            # the bug. The finally block has its own lock-token handoff
+            # via ``buzzer_lock_token_for_finally`` so any crash path
+            # also releases the lock.
 
         # Cache the answer for fast reads and publish to match channel.
         # Skipped for the buzzer flow because the winner already gets a
@@ -272,6 +281,13 @@ async def post_answer_to_db(
         global_logger.debug(
             f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
         )
+        # Success-path sentinel: clear the lock token so the finally
+        # block below does NOT release the buzzer lock. We want the
+        # lock to stay held for the full 10 s TTL so follow-up buzzes
+        # from players whose UI hasn't caught up to the winner's
+        # ``blocked_buzz`` still get 409. See the prod incident note
+        # near the ``finally:`` block for the full timeline.
+        buzzer_lock_token = None
         return BaseResponse(status="success", message=f"Answer recorded for question_code={request.question_code}")
     except IntegrityError:
         await session.rollback()
@@ -286,10 +302,27 @@ async def post_answer_to_db(
         global_logger.error(log_message, exc_info=True)
         raise HTTPException(status_code=500, detail=f"{log_message} Reason: {e}")
     finally:
-        # Release the buzzer lock on EVERY exit path (success, conflict,
-        # exception) so a crashed/mid-handler worker doesn't leave the lock
-        # held. The release script is a no-op if the TTL already expired or
-        # the lock was stolen — safe to call unconditionally.
+        # Release the buzzer lock ONLY on the exception / conflict paths.
+        # On the success path the lock is intentionally kept held so that
+        # subsequent buzzes from players whose UI hasn't caught up to
+        # the winner's ``blocked_buzz`` broadcast still get a 409 instead
+        # of silently overwriting the winner. The 10 s TTL self-heals
+        # the lock for the next question; admin can also clear it
+        # immediately by sending ``clear_buzz`` (handled by
+        # ``ws_message_processor.apply_buzzer_clear``).
+        #
+        # Why release on exception? If the handler crashed mid-flight we
+        # don't want a stuck lock to last the full 10 s — releasing on
+        # the exception path lets the next ``clear_buzz`` (or
+        # ``round_start``) reopen the question promptly. The Lua-script
+        # release is a no-op if the lock was already stolen / TTL-expired.
+        #
+        # ``buzzer_lock_token`` is set on both paths. To distinguish
+        # success from failure, we set ``buzzer_lock_token = None``
+        # immediately BEFORE the success ``return`` (see the marker
+        # comment below) — on exception paths control never reaches
+        # there, so the token stays valid and the finally block can
+        # release it.
         if buzzer_lock_token is not None and valkey:
             try:
                 await release_buzzer_lock(

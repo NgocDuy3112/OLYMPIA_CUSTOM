@@ -611,22 +611,9 @@ const AGiaiMaPage = () => {
 
 		switch (msg?.type) {
 			case "player_reconnected": {
-				// The backend sends this when a player's WebSocket
-				// (re)connects. We mirror the Bứt Phá pattern
-				// (``AButPhaPage.tsx``) and resend the current GM
-				// state so the reconnecting player does not lose
-				// the question, the timer, the keyword banner, or
-				// the per-clue hint grid. Per-clue ``show_hint``
-				// replay is handled server-side from the
-				// ``gm:hints:{match_code}`` Valkey HASH, so we do
-				// not need to iterate hints here — the backend
-				// already does it inside ``handle_player_reconnect``.
 				const user_code = msg.user_code;
 				logger.info(`[GM RECONNECT] Player ${user_code} reconnected, resending state...`);
 
-				// 1) Current question (if any) — covers the "Player
-				// doesn't receive the question" case for the active
-				// clue card.
 				if (currentQuestion.questionCode) {
 					try {
 						void sendMessage({
@@ -642,9 +629,6 @@ const AGiaiMaPage = () => {
 					}
 				}
 
-				// 2) Active timer — pick the right phase so the player
-				// page locks its keyword input when the keyword timer
-				// expires.
 				if (isTimerRunning && timerRef.current > 0) {
 					try {
 						const phase = isKeywordTimerRunning ? "gm_keyword" : "gm";
@@ -662,22 +646,14 @@ const AGiaiMaPage = () => {
 					}
 				}
 
-				// 3) Keyword banner so the player sees "TỪ KHOÁ GỒM
-				// CÓ N CHỮ CÁI" even if they joined after the
-				// admin's first broadcast.
+
 				try {
 					await broadcastKeywordInfo();
 				} catch (err) {
 					logger.error("[GM RECONNECT] broadcastKeywordInfo failed:", err);
 				}
 
-				// 4) Clue grid state — for every clue that is not
-				// ``idle``, resend ``send_question`` keyed by the
-				// clue index so the player's ``clueStates`` array
-				// re-derives the correct active / used entries. The
-				// clue question text/media is the same as what the
-				// player will see via ``send_question``, so we use
-				// the cached ``clueQuestions`` array.
+
 				for (let idx = 0; idx < CLUE_COUNT; idx++) {
 					const s = clueStates[idx];
 					if (s === "idle") continue;
@@ -696,10 +672,7 @@ const AGiaiMaPage = () => {
 					}
 				}
 
-				// 5) Keyword clues locked state — if the admin has
-				// already pressed "ĐẾM GIỜ TỪ KHOÁ" then every
-				// subsequent keyword submission must be scored with
-				// N = 8. Resend so the player locks in immediately.
+
 				if (keywordCluesLocked) {
 					try {
 						void sendMessage({
@@ -712,9 +685,6 @@ const AGiaiMaPage = () => {
 					}
 				}
 
-				// 6) Players snapshot — covers scores and connected
-				// state. Done last (requires an API call) so the
-				// above game state has a chance to render first.
 				try {
 					await sendPlayersSnapshot();
 				} catch (err) {
@@ -730,7 +700,6 @@ const AGiaiMaPage = () => {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
-					// Route the late-joining player directly to the current round
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
 					} catch (err) {
@@ -753,14 +722,10 @@ const AGiaiMaPage = () => {
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "gm", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch { /* best-effort */ }
 						}
-						// Re-broadcast the keyword banner so the late-joining client
-						// (player or MC) sees the keyword-length info even if it missed
-						// the original admin-mount broadcast. Sent before the players
-						// snapshot so the banner is part of the initial game state.
 						try {
 							await broadcastKeywordInfo();
 						} catch { /* best-effort */ }
-						// Send players/scores last (requires API call) so game state appears first
+
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort */ }

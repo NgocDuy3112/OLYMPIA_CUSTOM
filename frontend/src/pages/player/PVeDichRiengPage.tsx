@@ -100,8 +100,6 @@ const PVeDichRiengPage = () => {
 
 				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
 					const code = String(p?.user_code ?? "");
-
-					// resolve name: prefer player object, then profiles, then scoreboard entry
 					let name = "";
 					if (p?.user_name) name = p.user_name;
 					else {
@@ -358,10 +356,6 @@ const PVeDichRiengPage = () => {
 			if (res.status === 201 || res.status === 200) {
 				wonBuzzer = true;
 			} else if (res.status === 409) {
-				// 409 Conflict = another player won the buzzer race server-side.
-				// The winner's ``blocked_buzz { user_code: null }`` and
-				// ``buzzer_winner`` broadcasts will flip our local state via
-				// the WS message handler — no need to set anything here.
 				console.info("[VDR BUZZ] Lost buzzer race (409); another player won. Waiting for blocked_buzz event to disable button.");
 			} else {
 				console.warn("[VDR BUZZ] Failed to POST buzz:", res.status);
@@ -369,18 +363,14 @@ const PVeDichRiengPage = () => {
 		} catch (err) {
 			console.warn("[VDR BUZZ] Failed to POST buzz:", err);
 		}
-		// Fire the WS ``buzz`` echo regardless — backend forwards it for any
-		// consumer that still wants to see the raw event. Don't gate state
-		// on its success: backend doesn't use WS ``buzz`` to decide winner.
+
 		const wsEchoOk = await sendMessage({
 			type: "buzz",
 			user_code: playerCode,
 			question_code: currentQuestion.questionCode,
 			has_buzzed: true
 		});
-		// Only mark hasPinged when the server told us we won. WS echo
-		// success alone is not authoritative — it just means the frame
-		// reached our local WS endpoint.
+
 		if (wonBuzzer && wsEchoOk) {
 			setHasPinged(true);
 		}
@@ -552,8 +542,6 @@ const PVeDichRiengPage = () => {
 					</div>
 				)}
 
-
-				{/* Power already used indicator (used in VDC or earlier in VDR) */}
 				{!activePower && usedPowers[playerCode ?? ''] && (
 					<div className="mx-3 mt-2 p-3 bg-blue-900/60 border-2 border-blue-400 rounded-xl flex items-center gap-2 font-bold text-sm text-blue-100">
 						{usedPowers[playerCode ?? ''] === 'star' ? <Star size={18} className="shrink-0" /> : <Shield size={18} className="shrink-0" />}

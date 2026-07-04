@@ -244,21 +244,15 @@ const PGiaiMaPage = () => {
 
 			case "start_the_timer": {
 				const isKeywordTimer = msg.phase === "gm_keyword";
+				if (isKeywordTimer) {
+					setIsKeywordLocked(false);
+				}
 				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
 				setTimerHasStarted(true);
-				// Only wipe the question-answer + keyword textboxes when the
-				// admin is starting the *regular* (clue-phase) timer. The
-				// keyword phase is a continuation of the same question — the
-				// player may have already typed (or is mid-typing) their
-				// keyword, and blowing it away here forces them to retype
-				// right as the 15s clock starts ticking. Clearing in this
-				// path was the cause of the "input bị disabled khi admin
-				// bấm Đếm giờ từ khoá" bug.
 				if (!isKeywordTimer) {
 					setQuestionAnswer("");
 					setKeyword("");
 				}
-				// If the question-board timer is the keyword phase, set the flag so the input locks when it hits 0.
 				setIsKeywordPhase(isKeywordTimer);
 				break;
 			}
@@ -305,13 +299,6 @@ const PGiaiMaPage = () => {
 				const displayText = contentIsMedia ? hintMediaSource : hintContent;
 				const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
 				setHideQuestionContent(true);
-
-				// Two shapes of "show_hint" are supported:
-				//   1. clue_index provided → admin is broadcasting a hint for a
-				//      SPECIFIC card (used when admin reveals all clues at once).
-				//      Show to ALL players; ignore `target_players` filter.
-				//   2. clue_index absent → legacy per-active-clue hint, only
-				//      players in `target_players` see it.
 				const explicitIdx = Number(msg.clue_index);
 				const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
 
@@ -655,8 +642,7 @@ const PGiaiMaPage = () => {
 	}, [keywordToConfirm, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode, clueStates, isKeywordCluesLocked]);
 
 	const isTimerExpired = timeLimit > 0 && timer === 0;
-	// Question answer box: only enabled after admin starts the clock; also disabled after expiry or keyword submitted
-	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired;
+	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired || isKeywordPhase;
 	// Keyword box: additionally locked by isKeywordLocked (broadcast when all clues open or all players submitted)
 	// Auto-lock keyword when the keyword-phase QuestionBoard timer expires
 	const isKeywordTimerExpired = isKeywordPhase && timeLimit > 0 && timer === 0;
