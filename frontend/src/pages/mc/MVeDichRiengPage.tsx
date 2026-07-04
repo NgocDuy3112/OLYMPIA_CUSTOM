@@ -103,7 +103,6 @@ const MVeDichRiengPage = () => {
             case "answering_window_activated":
                 setAnsweringWindowTimer(msg.countdown ?? 5);
                 break;
-            case "vd_questions_selected":
             case "vd_player_power": {
                 // Player activated a power (star/shield) during the 5s window.
                 // MC mirrors this onto the players array so the Star/Shield icon
