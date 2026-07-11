@@ -2,7 +2,6 @@ import React from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
 import { usePlayerProtection } from "@/hooks/usePlayerProtection";
-import { IS_BETA } from "@/configs";
 
 
 interface PBasePageLayoutProps {
@@ -32,14 +31,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
 
     return (
         <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-1 sm:p-2 lg:p-4">
-            {IS_BETA && (
-                <div className="w-full max-w-7xl mb-2 shrink-0">
-                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-2 px-4 rounded-lg shadow-lg">
-                        <span className="font-bold text-sm sm:text-base">🚀 OLYMPIA CUSTOM 3 - PHIÊN BẢN BETA</span>
-                        <span className="hidden sm:inline ml-2 text-xs opacity-90">| Cảm ơn bạn đã tham gia thử nghiệm!</span>
-                    </div>
-                </div>
-            )}
+           
 
             <div className="flex gap-1 sm:gap-2 lg:gap-4 max-w-7xl w-full justify-center mt-1 sm:mt-2 lg:mt-4 shrink-0">
                 {players.map(p => (

@@ -83,13 +83,7 @@ class ConnectionManager:
 
         self.rooms[room_id].append(websocket)
         if user_code:
-            # `WebSocket` is not hashable across all transports, but FastAPI
-            # hands us the same instance for the lifetime of the connection,
-            # so identity-keying on the object is safe here.
             self._socket_user[websocket] = user_code
-        # Demoted to DEBUG — WS connect/disconnect happens on every page refresh
-        # and every reconnect (handled by useWebSocket in the frontend), so
-        # INFO-level floods the log with one line per page load.
         global_logger.debug(f"WS connected to room {room_id}: {websocket.client} (count={len(self.rooms[room_id])})")
 
     def disconnect(self, websocket: WebSocket, room_id: str):
@@ -102,9 +96,6 @@ class ConnectionManager:
         except ValueError:
             pass
 
-        # Always drop the user→socket mapping, even if the room was already
-        # emptied by a previous call. This guarantees no stale entries survive
-        # a reconnect.
         self._socket_user.pop(websocket, None)
 
         if not conns:
@@ -150,9 +141,15 @@ class ConnectionManager:
                 global_logger.error(f"[WS] Failed to send to connection {ws.client}: {e}")
                 dead.append(ws)
 
-        # Cleanup dead connections
-        for ws in dead:
-            self.disconnect(ws, room_id)
+        if dead:
+            room_conns = self.rooms.get(room_id)
+            if room_conns is not None:
+                for ws in dead:
+                    try:
+                        room_conns.remove(ws)
+                    except ValueError:
+                        pass
+                    self._socket_user.pop(ws, None)
 
         global_logger.debug(f"[WS] Sent to room={room_id!r} type={payload.get('type')!r} total={len(conns)} success={success_count} dead={len(dead)}")
 

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IS_BETA } from "@/configs";
 
 const MGameAccessPage: React.FC = () => {
     const [matchCode, setMatchCode] = useState("");
@@ -20,14 +19,7 @@ const MGameAccessPage: React.FC = () => {
 
     return (
         <div className="flex flex-col justify-center items-center h-screen overflow-hidden bg-cover bg-center p-4">
-            {IS_BETA && (
-                <div className="w-full max-w-md mb-4">
-                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-2 px-4 rounded-lg shadow-lg">
-                        <span className="font-bold text-sm">🚀 OLYMPIA CUSTOM 3 - PHIÊN BẢN BETA</span>
-                    </div>
-                </div>
-            )}
-
+            
             <div className="card">
                 <div className="gap-2 text-center">
                     <h1 className="text-4xl font-[SVN-Gratelos_Display] font-bold mb-2">OLYMPIA CUSTOM 3</h1>

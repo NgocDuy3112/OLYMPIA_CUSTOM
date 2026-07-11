@@ -143,7 +143,7 @@ const PButPhaPage = () => {
 			case "start_the_timer": {
 				const timeLimitNum = Number(msg.time_limit ?? 0);
 				const startedAtNum = typeof msg.started_at === 'string' ? parseInt(msg.started_at, 10) : Number(msg.started_at ?? Date.now());
-				console.info("[BP TIMER] start_the_timer received:", { time_limit: timeLimitNum, started_at: startedAtNum, started_at_raw: msg.started_at, now: Date.now() });
+				console.info("[TIMER] start_the_timer received:", { time_limit: timeLimitNum, started_at: startedAtNum, started_at_raw: msg.started_at, now: Date.now() });
 				startSynced(timeLimitNum, startedAtNum);
 				console.info("[BP TIMER] startSynced called, timer state:", { timeLimit: timeLimitNum, started_at: startedAtNum });
 				setTimerHasStarted(true);

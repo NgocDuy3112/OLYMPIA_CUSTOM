@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
-import { API_BASE_URL, IS_BETA } from "@/configs";
+import { API_BASE_URL } from "@/configs";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcSession } from "@/hooks/useMcSession";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
@@ -113,15 +113,7 @@ const MWaitingPage: React.FC = () => {
 
     return (
         <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
-            {IS_BETA && (
-                <div className="w-full max-w-7xl mb-4">
-                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-center py-2 px-4 rounded-lg shadow-lg">
-                        <span className="font-bold text-sm sm:text-base">🚀 OLYMPIA CUSTOM 3 - PHIÊN BẢN BETA</span>
-                        <span className="hidden sm:inline ml-2 text-xs opacity-90">| Cảm ơn bạn đã tham gia thử nghiệm!</span>
-                    </div>
-                </div>
-            )}
-
+            
             {/* Match finished banner */}
             {matchFinished && (
                 <div className="w-full max-w-3xl mb-4 bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center">
