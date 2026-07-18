@@ -100,6 +100,10 @@ const VideoElement: React.FC<{ src: string; className: string; playState?: "play
                 // refactors can't accidentally mute the question clip).
                 muted={false}
                 playsInline
+                // Ask the browser to buffer the clip eagerly so that when the
+                // "play_video" signal arrives (e.g. when admin starts the Bứt Phá
+                // timer) playback starts instantly instead of after a fetch.
+                preload="auto"
                 // Start the clip at the beginning every time a new src loads.
                 onLoadedMetadata={(e) => { e.currentTarget.currentTime = 0; }}
             >

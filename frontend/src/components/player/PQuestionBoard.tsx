@@ -115,7 +115,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
 
             {!hideContent && (
             <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
-                {question.questionMediaURL && !(hideMediaUntilPlayed && videoPlayState == null) ? (
+                {question.questionMediaURL ? (
                     <>
                         {/* Left side: question text (compact) */}
                         <div className="flex-[2] flex flex-col justify-start min-h-0 overflow-y-auto">
@@ -125,7 +125,18 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
                         </div>
                         {/* Right side: media — dominant width so the image is clearly visible */}
                         <div className="flex-[5] h-full min-h-0 overflow-hidden">
-                            <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
+                            {/*
+                                When hideMediaUntilPlayed is set and the clip has not
+                                been triggered yet (videoPlayState == null), keep the
+                                media visually hidden but STILL mounted so that S3
+                                presign + video buffering happen in the background.
+                                This removes the startup latency that used to occur
+                                the moment the timer started — the video is already
+                                loaded and ready to autoplay instantly.
+                            */}
+                            <div className={hideMediaUntilPlayed && videoPlayState == null ? "h-full w-full overflow-hidden opacity-0 pointer-events-none absolute -z-10" : "h-full w-full overflow-hidden"}>
+                                <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
+                            </div>
                         </div>
                     </>
                 ) : (
