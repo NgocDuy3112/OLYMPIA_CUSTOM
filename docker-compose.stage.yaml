@@ -1,7 +1,7 @@
 services:
   # ── Database ──────────────────────────────────────────────
   postgresql:
-    container_name: olympia-postgresql
+    container_name: beta-olympia-postgresql
     image: docker.io/library/postgres:17.5-bullseye
     environment:
       POSTGRES_USER: ${POSTGRES_DB_USER}
@@ -10,7 +10,7 @@ services:
     volumes:
       - ./data/postgresql:/var/lib/postgresql/data
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}"]
@@ -21,19 +21,19 @@ services:
 
   # ── Cache + WebSocket pub/sub ─────────────────────────────
   valkey:
-    container_name: olympia-valkey
+    container_name: beta-olympia-valkey
     image: docker.io/valkey/valkey:9-alpine
     command: valkey-server /etc/valkey/valkey.conf
     volumes:
       - ./configs/valkey.conf:/etc/valkey/valkey.conf:ro
       - ./data/valkey:/data
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
 
   # ── FastAPI backend ───────────────────────────────────────
   app:
-    container_name: olympia-app
+    container_name: beta-olympia-app
     build:
       context: ./backend/app
       dockerfile: Dockerfile
@@ -42,11 +42,11 @@ services:
       - ./configs/.env
     environment:
       APP_HOST: 0.0.0.0
-      FRONTEND_URL: https://olympia-custom.io.vn
+      FRONTEND_URL: https://beta-olympia-custom.io.vn
       DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
-      POSTGRES_DB_HOST: postgresql
+      POSTGRES_DB_HOST: beta-olympia-postgresql
       POSTGRES_DB_PORT: 5432
-      VALKEY_HOST: valkey
+      VALKEY_HOST: beta-olympia-valkey
       VALKEY_PORT: 6379
     volumes:
       - ./configs:/app/configs:ro
@@ -57,12 +57,12 @@ services:
       valkey:
         condition: service_started
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
 
   # ── Frontend (Vite build baked in; nginx serves SPA + proxies /api and /ws) ──
   frontend:
-    container_name: olympia-frontend
+    container_name: beta-olympia-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -71,12 +71,12 @@ services:
     depends_on:
       - app
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
 
   # ── Discord / BGM bot ─────────────────────────────────────
   bgm-bot:
-    container_name: olympia-bgm-bot
+    container_name: beta-olympia-bgm-bot
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
@@ -88,11 +88,11 @@ services:
     depends_on:
       - valkey
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
 
   sfx-bot:
-    container_name: olympia-sfx-bot
+    container_name: beta-olympia-sfx-bot
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
@@ -104,11 +104,11 @@ services:
     depends_on:
       - valkey
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
-  
+
   ping-bot:
-    container_name: olympia-ping-bot
+    container_name: beta-olympia-ping-bot
     build:
       context: .
       dockerfile: backend/discord/Dockerfile
@@ -120,12 +120,12 @@ services:
     depends_on:
       - valkey
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
 
   # ── Reverse proxy — HTTPS with Let's Encrypt ─────────────
   nginx:
-    container_name: olympia-nginx
+    container_name: beta-olympia-nginx
     image: docker.io/library/nginx:1.27-alpine
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     env_file:
@@ -133,8 +133,8 @@ services:
     depends_on:
       - frontend
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+      - "8443:443"
     volumes:
       - ./deploy/nginx-entrypoint.sh:/entrypoint.sh:ro
       - ./deploy/nginx-init.conf:/etc/nginx/init.conf:ro
@@ -142,12 +142,12 @@ services:
       - ./data/certbot/webroot:/var/www/certbot:ro
       - ./data/certbot/certs:/etc/letsencrypt:ro
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
 
   # ── TLS certificate management ────────────────────────────
   certbot:
-    container_name: olympia-certbot
+    container_name: beta-olympia-certbot
     image: docker.io/certbot/certbot:latest
     env_file:
       - ./configs/.env
@@ -170,9 +170,9 @@ services:
           fi
           while :; do certbot renew --quiet; sleep 12h & wait $${!}; done
     networks:
-      - olympia-network
+      - beta-olympia-network
     restart: unless-stopped
 
 networks:
-  olympia-network:
+  beta-olympia-network:
     driver: bridge
