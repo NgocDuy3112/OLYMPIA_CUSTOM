@@ -3,7 +3,7 @@ from typing import Annotated
 
 from dependencies.postgresql_db import get_db
 from dependencies.user_auth import require_roles
-from dependencies.s3_services import get_s3_client, _s3_settings
+from dependencies.s3_services import get_s3_client, s3_settings
 from schemas.question import *
 from models.question import *
 from core.question import *
@@ -44,7 +44,7 @@ async def post_questions_from_excel(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -68,7 +68,7 @@ async def post_qualifier_questions_from_excel(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -97,13 +97,14 @@ async def post_questions_from_zip(
         return await post_questions_from_zip_to_db(
             file=file,
             s3_client=s3_client,
-            bucket=_s3_settings.S3_BUCKET_NAME,
+            bucket=s3_settings.S3_BUCKET_NAME,
             session=session,
+            overwrite=True,
         )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
@@ -127,7 +128,7 @@ async def delete_question(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -145,12 +146,12 @@ async def post_question(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(
     "/",
-    dependencies=[Depends(require_roles(['admin']))],
+    dependencies=[Depends(require_roles(['admin', 'mc']))],
     response_model=BaseResponse,
     status_code=200
 )
@@ -170,7 +171,7 @@ async def get_question_from_request(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.patch(
@@ -193,4 +194,4 @@ async def patch_question(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

@@ -12,7 +12,7 @@ from schemas.match import *
 
 
 async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession) -> BaseResponse:
-    global_logger.info(f"POST request received to create match with code: {request.match_code}.")
+    global_logger.debug(f"POST request received to create match with code: {request.match_code}.")
     try:
         # Check if match already exists
         match_query = select(Match).where(Match.match_code == request.match_code, Match.is_deleted == False)
@@ -77,7 +77,7 @@ async def patch_match_to_db(
     request: MatchUpdateRequest,
     session: AsyncSession,
 ) -> BaseResponse:
-    global_logger.info(f"PATCH request received to update match with code: {match_code}.")
+    global_logger.debug(f"PATCH request received to update match with code: {match_code}.")
     try:
         result = await session.execute(
             select(Match).where(Match.match_code == match_code, Match.is_deleted == False)
@@ -91,6 +91,9 @@ async def patch_match_to_db(
         if request.match_name is not None:
             match.match_name = request.match_name
 
+        if request.match_status is not None:
+            match.match_status = request.match_status
+
         if request.players is not None:
             # Clear old room config
             old_positions_result = await session.execute(
@@ -99,6 +102,7 @@ async def patch_match_to_db(
             old_positions = old_positions_result.scalars().all()
             for old_position in old_positions:
                 await session.delete(old_position)
+            await session.flush()
 
             # Validate request players payload before insert
             seen_positions: set[int] = set()
@@ -149,7 +153,7 @@ async def patch_match_to_db(
 
 async def delete_match_from_db(match_code: str, session: AsyncSession) -> BaseResponse:
     """Soft delete a match from DB by setting is_deleted=True."""
-    global_logger.info(f"Soft deleting match with match_code={match_code} from database.")
+    global_logger.debug(f"Soft deleting match with match_code={match_code} from database.")
     try:
         query = select(Match).where(Match.match_code == match_code, Match.is_deleted == False)
         result = await session.execute(query)
@@ -179,7 +183,7 @@ async def delete_match_from_db(match_code: str, session: AsyncSession) -> BaseRe
 
 
 async def get_match_by_match_code_from_db(match_code: str | None, session: AsyncSession) -> MatchRoomResponse:
-    global_logger.info(f"GET request received to fetch match room with code: {match_code}.")
+    global_logger.debug(f"GET request received to fetch match room with code: {match_code}.")
     try:
         query = (
             select(Match)
@@ -206,15 +210,19 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
         matches_data = {
             'match_code': match.match_code,
             'match_name': match.match_name,
+            'match_status': match.match_status,
             'players': [p.model_dump() for p in players_data]
         }
         
         log_message = f"Fetched match room successfully: match_code={match_code}."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /matches/{code} polls every few seconds
+        # while the match is live. INFO here was one line per poll, drowning
+        # out buzz / scoring events.
+        global_logger.debug(log_message)
         return MatchRoomResponse(
             status='success',
             message=log_message,
-            data=matches_data 
+            data=matches_data
         )
     except HTTPException:
         raise
@@ -224,9 +232,67 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
         raise HTTPException(status_code=500, detail=log_message)
 
 
+async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
+    """Return all non-deleted matches ordered by creation date descending."""
+    global_logger.debug("GET request received to fetch all active matches.")
+    try:
+        query = select(Match).where(Match.is_deleted == False).order_by(Match.created_at.desc())
+        result = await session.execute(query)
+        matches = result.scalars().all()
+        data = [
+            {
+                "match_code": m.match_code,
+                "match_name": m.match_name,
+                "match_status": m.match_status,
+            }
+            for m in matches
+        ]
+        log_message = f"Fetched {len(matches)} active matches."
+        # Demoted to DEBUG — admin dashboard polls this list every few seconds.
+        global_logger.debug(log_message)
+        return BaseResponse(status="success", message=log_message, data=data)
+    except Exception:
+        log_message = "An unexpected error occurred while fetching all matches."
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)
+
+
+async def finish_match_in_db(match_code: str, session: AsyncSession) -> BaseResponse:
+    """Mark a match as finished. Once finished, the match becomes read-only."""
+    global_logger.debug(f"PATCH request received to finish match with code: {match_code}.")
+    try:
+        result = await session.execute(
+            select(Match).where(Match.match_code == match_code, Match.is_deleted == False)
+        )
+        match = result.scalar_one_or_none()
+        if not match:
+            log_message = f"No active match found with match_code={match_code}."
+            global_logger.warning(log_message)
+            raise HTTPException(status_code=404, detail=log_message)
+
+        if match.match_status == 'finished':
+            log_message = f"Match {match_code} is already finished."
+            global_logger.info(log_message)
+            return BaseResponse(status="success", message=log_message)
+
+        match.match_status = 'finished'
+        await session.commit()
+
+        log_message = f"Match {match_code} has been marked as finished."
+        global_logger.info(log_message)
+        return BaseResponse(status="success", message=log_message)
+    except HTTPException:
+        raise
+    except Exception:
+        await session.rollback()
+        log_message = f"An unexpected error occurred while finishing match {match_code}."
+        global_logger.exception(log_message)
+        raise HTTPException(status_code=500, detail=log_message)
+
+
 # helper to just return players list
 async def get_players_by_match_from_db(match_code: str, session: AsyncSession) -> BaseResponse:
-    global_logger.info(f"GET request received to fetch players for match_code={match_code}.")
+    global_logger.debug(f"GET request received to fetch players for match_code={match_code}.")
     try:
         query = (
             select(Match)
@@ -249,7 +315,9 @@ async def get_players_by_match_from_db(match_code: str, session: AsyncSession) -
         players_data.sort(key=lambda x: x.position)
 
         log_message = f"Fetched {len(players_data)} players for match_code={match_code}."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /matches/{code}/players polls every
+        # few seconds while the match is live.
+        global_logger.debug(log_message)
         return BaseResponse(
             status="success",
             message=log_message,

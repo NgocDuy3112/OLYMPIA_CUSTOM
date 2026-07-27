@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
 const MQualifierPage = () => {
@@ -16,8 +15,8 @@ const MQualifierPage = () => {
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useMcPlayers();
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
 
     const [boardCount, setBoardCount] = useState<number>(6);
     const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
@@ -97,7 +96,7 @@ const MQualifierPage = () => {
                 setShowAnswers(false);
                 break;
             case "answer": {
-                applyRealTimeAnswer(msg);
+                applyAnswers(msg);
                 const code = String(msg.user_code ?? "");
                 if (code && !answeredCodesRef.current.has(code)) {
                     answeredCodesRef.current.add(code);
@@ -108,7 +107,7 @@ const MQualifierPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, setPlayers, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, setPlayers, applyAnswers, clearAnswers, fetchAnswer, clearAnswer]);
 
     const correctAnswer = (questionAnswer || currentQuestion.questionAnswer)?.toUpperCase() ?? "";
 
@@ -121,15 +120,21 @@ const MQualifierPage = () => {
     const statsWrong = showAnswers ? statsAnswered - statsCorrect : 0;
     const statsNoAnswer = players.length - statsAnswered;
 
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+        questionExplanation: currentQuestion.questionExplanation,
+    };
+
     return (
         <PBasePageLayout players={players} currentPlayerCode="">
             <>
                 {players.length > 0 && (
-                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm">
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm mb-2">
                         {showAnswers ? (
                             <>
                                 <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
-                                <span className="flex items-center gap-1 bg-green-700 text-white font-bold px-3 py-1 rounded-lg">
+                                <span className="flex items-center gap-1 bg-blue-700 text-white font-bold px-3 py-1 rounded-lg">
                                     ✓&nbsp;<span className="text-base">{statsCorrect}</span>
                                     <span className="font-normal text-xs ml-0.5">đúng</span>
                                 </span>
@@ -148,7 +153,7 @@ const MQualifierPage = () => {
                         ) : (
                             <>
                                 <span className="text-blue-300 font-semibold mr-1 shrink-0">Đã trả lời:</span>
-                                <span className="flex items-center gap-1 bg-green-800 text-white font-bold px-3 py-1 rounded-lg">
+                                <span className="flex items-center gap-1 bg-blue-800 text-white font-bold px-3 py-1 rounded-lg">
                                     <span className="text-base">{statsAnswered}</span>
                                     <span className="font-normal text-xs ml-0.5">người</span>
                                 </span>
@@ -164,15 +169,16 @@ const MQualifierPage = () => {
                     </div>
                 )}
 
-                <PQuestionBoard
+                <AQuestionBoard
                     title="VÒNG LOẠI"
-                    question={currentQuestion}
+                    question={questionWithAnswer}
                     timerDuration={timer}
                     controls={{ variant: "numbers", count: boardCount, activeIndices: activeQuestionIndex ? [activeQuestionIndex - 1] : [] }}
+                    boardHeightClass="h-[50vh]"
                 />
 
                 {parsedOptions.length > 0 && (
-                    <div className="grid grid-cols-2 gap-3 mt-5 w-full">
+                    <div className="grid grid-cols-2 gap-3 mt-3 w-full">
                         {QUALIFIER_OPTIONS.map((opt, idx) => {
                             const text = parsedOptions[idx] ?? "";
                             const isCorrect = showAnswers && correctAnswer === opt;
@@ -197,8 +203,6 @@ const MQualifierPage = () => {
                         })}
                     </div>
                 )}
-
-                <MAnswerDisplay answer={questionAnswer} />
             </>
         </PBasePageLayout>
     );

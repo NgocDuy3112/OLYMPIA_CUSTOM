@@ -1,18 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from logger import global_logger
 from core.auth import *
 from schemas.user import *
 from models.user import *
 from dependencies.postgresql_db import get_db
 from dependencies.user_auth import require_roles, get_current_user
-from dependencies.valkey_store import get_valkey
-from valkey.asyncio import Valkey
-from schemas.otp import OTPRequest, OTPVerifyRequest
-from core.otp import request_otp, verify_otp
-from fastapi import Depends
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 router = APIRouter(prefix="/auth", tags=["Uỷ Quyền"])
@@ -30,7 +25,8 @@ async def signup_api(user_data: UserCreate, background_tasks: BackgroundTasks, s
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        global_logger.exception("signup_api failed")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
@@ -50,7 +46,8 @@ async def send_credentials_api(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        global_logger.exception("send_credentials_api failed")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -69,7 +66,7 @@ async def send_reset_api(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -86,45 +83,8 @@ async def reset_password_api(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-
-
-
-@router.post(
-    "/request-otp",
-    response_model=BaseResponse,
-    status_code=200,
-)
-async def request_otp_api(
-    payload: OTPRequest,
-    session: AsyncSession = Depends(get_db),
-    valkey: Valkey = Depends(get_valkey),
-) -> BaseResponse:
-    try:
-        return await request_otp(payload.user_code, payload.email, payload.purpose, session, valkey)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-
-
-@router.post(
-    "/verify-otp",
-    response_model=TokenResponse,
-    status_code=200,
-)
-async def verify_otp_api(
-    payload: OTPVerifyRequest,
-    session: AsyncSession = Depends(get_db),
-    valkey: Valkey = Depends(get_valkey),
-) -> TokenResponse:
-    try:
-        return await verify_otp(payload.user_code, payload.email, payload.purpose, payload.otp, session, valkey)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
 
@@ -175,7 +135,7 @@ async def change_password_api(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.post(
@@ -193,4 +153,4 @@ async def login_api(form_data: OAuth2PasswordRequestForm = Depends(), session: A
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

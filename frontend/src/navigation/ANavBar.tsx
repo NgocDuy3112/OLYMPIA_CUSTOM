@@ -1,177 +1,87 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { LogOut, ChevronDown, ChevronRight, UserRound } from "lucide-react";
-
+import { useNavigate, useLocation } from "react-router-dom";
+import { LogOut } from "lucide-react";
+import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+const ADMIN_TO_PLAYER_NAV: Record<string, string> = {
+	"/admin/waiting": "/player/waiting",
+	"/admin/kdr": "/player/kdr",
+	"/admin/kdc": "/player/kdc",
+	"/admin/gm": "/player/gm",
+	"/admin/bp": "/player/bp",
+	"/admin/vdc/pick": "/player/vdc/pick",
+	"/admin/vdc": "/player/vdc",
+	"/admin/vdr/pick": "/player/vdr/pick",
+	"/admin/vdr": "/player/vdr",
+};
 
 const AdminGameplayNavBar: React.FC = () => {
-    const {matchCode} = useParams<{matchCode: string}>();
-    const [isVongThiOpen, setIsVongThiOpen] = useState(false);
-    const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-    const navigate = useNavigate();
-    const location = useLocation();
+	const navigate = useNavigate();
+	const location = useLocation();
+	const { sendMessage } = useAdminWebSocket();
 
-    const handleLogout = () => {
-        localStorage.removeItem("jwtToken_admin");
-        localStorage.removeItem("matchCode");
-        navigate("/login");
-    };
+	const handleLogout = () => {
+		localStorage.removeItem("jwtToken_admin");
+		localStorage.removeItem("matchCode");
+		navigate("/login");
+	};
 
-    const handleJoinAsPlayer = () => {
-        const adminToken = localStorage.getItem("jwtToken_admin");
-        if (!adminToken) return;
-        try {
-            const payload = JSON.parse(atob(adminToken.split(".")[1]));
-            const userCode: string = payload.user_code ?? "";
-            if (!userCode) return;
-            sessionStorage.setItem("jwtToken_player", adminToken);
-            sessionStorage.setItem("playerCode", userCode);
-            sessionStorage.setItem("role", "admin");
-            navigate("/player/access");
-        } catch {
-            // ignore JWT decode errors
-        }
-    };
+	const isActive = (path: string) => {
+		return location.pathname === path || location.pathname.startsWith(path + "/");
+	};
 
-    const isActive = (path: string) => {
-        return location.pathname === path || location.pathname.startsWith(path + "/");
-    };
+	const navigateAndBroadcast = (adminPath: string) => {
+		navigate(adminPath);
+		const normalized = adminPath.endsWith("/") ? adminPath.slice(0, -1) : adminPath;
+		const matchedPrefix = Object.keys(ADMIN_TO_PLAYER_NAV)
+			.sort((a, b) => b.length - a.length)
+			.find((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
+		if (matchedPrefix) {
+			void sendMessage({ type: "navigate", user_code: "", path: ADMIN_TO_PLAYER_NAV[matchedPrefix] });
+		}
+	};
 
-    const navLinks = [
-        { label: "Tạo Trận", path: "/admin/setup" },
-        { label: "Vào Phòng", path: "/admin/game-managing" },
-    ];
+	return (
+		<nav className="bg-blue-900 bg-opacity-90 text-white shadow-lg sticky top-0 z-50">
+			<div className="px-4 py-3 flex justify-between items-center">
+				{/* Logo */}
+				<div
+					className="flex items-center gap-2 cursor-pointer"
+					onClick={() => navigate("/admin/game-managing")}
+				>
+					<span className="text-[18px] tablet:text-[20px] xl:text-[32px] font-bold font-[SVN-Gratelos_Display]">
+						OLYMPIA CUSTOM 3
+					</span>
+					
+				</div>
 
-    const vongThiItems = [
-        {
-            label: "KHỞI ĐỘNG",
-            value: "khoiDong",
-            subItems: [
-                { label: "Chung", path: `/admin/kdc/${matchCode}` },
-                    { label: "Cá nhân", path: `/admin/kdr/${matchCode}` },
-            ],
-        },
-        { label: "GIẢI MÃ", path: `/admin/gm/${matchCode}` },
-        { label: "BỨT PHÁ", path: `/admin/bp/${matchCode}` },
-        {
-            label: "VỀ ĐÍCH",
-            value: "veDich",
-            subItems: [
-                { label: "Chung", path: `/admin/vdc/pick/${matchCode}` },
-                { label: "Cá nhân", path: `/admin/vdr/pick/${matchCode}` },
-            ],
-        },
-    ];
+				{/* Desktop Navigation only */}
+				<div className="hidden md:flex items-center gap-6">
+					{/* Sảnh chờ */}
+					<button
+						onClick={() => navigateAndBroadcast("/admin/waiting")}
+						className={`px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base ${isActive("/admin/waiting") ? "bg-blue-700 text-white" : "text-blue-100 hover:bg-blue-800 hover:text-white"}`}
+					>
+						Sảnh Chờ
+					</button>
 
-    return (
-        <nav className="bg-blue-900 bg-opacity-90 text-white shadow-lg sticky top-0 z-50">
-            <div className="px-4 py-3 flex justify-between items-center">
-                {/* Logo */}
-                <div
-                    className="flex items-center gap-2 cursor-pointer"
-                    onClick={() => navigate("/admin/game-managing")}
-                >
-                    <span className="text-[32px] font-bold font-[SVN-Gratelos_Display]">
-                        OLYMPIA CUSTOM 3
-                    </span>
-                </div>
+					{/* Quản lý — no broadcast, admin-only page */}
+					<button
+						onClick={() => navigate("/admin/game-managing")}
+						className={`px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base ${isActive("/admin/game-managing") || isActive("/admin/setup") ? "bg-blue-700 text-white" : "text-blue-100 hover:bg-blue-800 hover:text-white"}`}
+					>
+						Quản lý
+					</button>
 
-                {/* Desktop Navigation only */}
-                <div className="hidden md:flex items-center gap-6">
-                    <div
-                        className="relative"
-                        onMouseEnter={() => setIsVongThiOpen(true)}
-                        onMouseLeave={() => {
-                            setIsVongThiOpen(false);
-                            setHoveredItem(null);
-                        }}
-                    >
-                        <button className="px-3 py-2 rounded transition-all duration-200 font-medium text-blue-100 hover:bg-blue-800 hover:text-white flex items-center gap-1">
-                            Vòng thi
-                            <ChevronDown size={18} className={`transition-transform duration-200 ${isVongThiOpen ? "rotate-180" : ""}`} />
-                        </button>
-
-                        {isVongThiOpen && (
-                            <div className="absolute left-0 mt-0 bg-blue-800 rounded shadow-lg border border-blue-700">
-                                {vongThiItems.map((item, index) => (
-                                    <div
-                                        key={item.label}
-                                        className="relative"
-                                        onMouseEnter={() => setHoveredItem((item as any).value ?? item.label)}
-                                        onMouseLeave={() => setHoveredItem(null)}
-                                    >
-                                        <div className={`w-full text-left px-4 py-2 hover:bg-blue-700 transition-all duration-200 text-blue-100 hover:text-white font-medium flex items-center justify-between min-w-50 ${index === 0 ? "rounded-t" : ""} ${index === vongThiItems.length - 1 ? "rounded-b" : ""}`}>
-                                            <button
-                                                onClick={() => {
-                                                    if ((item as any).path) {
-                                                        navigate((item as any).path);
-                                                        setIsVongThiOpen(false);
-                                                    }
-                                                }}
-                                                className="text-left w-full"
-                                            >
-                                                {item.label}
-                                            </button>
-
-                                            {item.subItems && <ChevronRight size={16} />}
-
-                                        </div>
-
-                                        {/* Show sub-menu only when this item is hovered */}
-                                        {item.subItems && hoveredItem === (item as any).value && (
-                                            <div className="absolute left-full top-0 ml-0 flex flex-col bg-blue-800 rounded shadow-lg border border-blue-700 min-w-37.5">
-                                                {item.subItems.map((subItem: any, subIndex: number) => (
-                                                    <button
-                                                        key={subItem.path}
-                                                        onClick={() => {
-                                                            navigate(subItem.path);
-                                                            setIsVongThiOpen(false);
-                                                            setHoveredItem(null);
-                                                        }}
-                                                        className={`text-left px-4 py-2 hover:bg-blue-700 transition-all duration-200 text-blue-100 hover:text-white font-medium w-full ${subIndex === 0 ? "rounded-t" : ""} ${subIndex === item.subItems!.length - 1 ? "rounded-b" : ""}`}
-                                                    >
-                                                        {subItem.label}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    {navLinks.map((link) => (
-                        <button
-                            key={link.path}
-                            onClick={() => navigate(link.path)}
-                            className={`px-3 py-2 rounded transition-all duration-200 font-medium ${
-                                isActive(link.path)
-                                    ? "bg-blue-700 text-white"
-                                    : "text-blue-100 hover:bg-blue-800 hover:text-white"
-                            }`}
-                        >
-                            {link.label}
-                        </button>
-                    ))}
-                    <button
-                        onClick={handleJoinAsPlayer}
-                        className="px-3 py-2 rounded transition-all duration-200 font-medium text-blue-100 hover:bg-blue-800 hover:text-white flex items-center gap-1"
-                        title="Tham gia trận đấu với tư cách thí sinh"
-                    >
-                        <UserRound size={18} />
-                        Tham gia
-                    </button>
-                    <button
-                        onClick={handleLogout}
-                        className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded transition-all duration-200 flex items-center gap-2 font-medium"
-                    >
-                        <LogOut size={18} />
-                        Đăng Xuất
-                    </button>
-                </div>
-            </div>
-        </nav>
-    );
+					<button
+						onClick={handleLogout}
+						className="ml-2 tablet:ml-4 px-3 py-1.5 tablet:px-4 tablet:py-2 bg-blue-600 hover:bg-blue-500 rounded transition-all duration-200 flex items-center gap-2 font-medium text-sm tablet:text-base"
+					>
+						<LogOut size={18} />
+						Đăng Xuất
+					</button>
+				</div>
+			</div>
+		</nav>
+	);
 };
 
 export default AdminGameplayNavBar;

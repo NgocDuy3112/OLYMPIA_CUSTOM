@@ -212,7 +212,7 @@ const PQualifierPage = () => {
                 setPlayers((prev) =>
                     prev.map((p) => {
                         const ans = answers.find((a: any) => a.user_code === p.playerCode);
-                        return ans ? { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp } : p;
+                        return ans ? { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp || p.playerTimestamp } : p;
                     }),
                 );
                 setShowAnswers(true);
@@ -224,16 +224,6 @@ const PQualifierPage = () => {
                     prev.map((p) => ({ ...p, playerLastAnswer: undefined, playerTimestamp: undefined })),
                 );
                 setShowAnswers(false);
-                break;
-            }
-
-            case "answer": {
-                // Track how many players have answered (without revealing content)
-                const code = String(msg.user_code ?? "");
-                if (code && !answeredCodesRef.current.has(code)) {
-                    answeredCodesRef.current.add(code);
-                    setAnsweredCount(answeredCodesRef.current.size);
-                }
                 break;
             }
 
@@ -349,7 +339,7 @@ const PQualifierPage = () => {
                         {showAnswers ? (
                             <>
                                 <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
-                                <span className="flex items-center gap-1 bg-green-700 text-white font-bold px-3 py-1 rounded-lg">
+                                <span className="flex items-center gap-1 bg-blue-700 text-white font-bold px-3 py-1 rounded-lg">
                                     ✓&nbsp;<span className="text-base">{statsCorrect}</span>
                                     <span className="font-normal text-xs ml-0.5">đúng</span>
                                 </span>
@@ -368,7 +358,7 @@ const PQualifierPage = () => {
                         ) : (
                             <>
                                 <span className="text-blue-300 font-semibold mr-1 shrink-0">Đã trả lời:</span>
-                                <span className="flex items-center gap-1 bg-green-800 text-white font-bold px-3 py-1 rounded-lg">
+                                <span className="flex items-center gap-1 bg-blue-800 text-white font-bold px-3 py-1 rounded-lg">
                                     <span className="text-base">{statsAnswered}</span>
                                     <span className="font-normal text-xs ml-0.5">người</span>
                                 </span>

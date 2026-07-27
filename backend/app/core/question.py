@@ -24,8 +24,8 @@ from fastapi import HTTPException, UploadFile
 from openpyxl import load_workbook
 from io import BytesIO
 
-
 QUESTION_SHEET_NAMES = ['KHOI_DONG', 'GIAI_MA', 'BUT_PHA', 'VE_DICH']
+_MATCH_PATTERN = AppSettings().MATCH_PATTERN  # e.g. "OC3_M"
 
 
 def _normalize_media_url(raw, match_code: str) -> str | None:
@@ -39,7 +39,7 @@ def _normalize_media_url(raw, match_code: str) -> str | None:
     v = str(raw).strip()
     if not v or v == "None":
         return None
-    if v.startswith("http://") or v.startswith("https://") or v.startswith("OC3_M"):
+    if v.startswith("http://") or v.startswith("https://") or v.startswith(_MATCH_PATTERN):
         return v
     return f"{match_code}/{v}"
 
@@ -58,7 +58,7 @@ async def post_questions_from_excel_to_db(
 
     If overwrite=True, deletes existing questions for this match before importing.
     """
-    global_logger.info(f"POST request received to inject questions from Excel with match code: {match_code}, overwrite={overwrite}.")
+    global_logger.debug(f"POST request received to inject questions from Excel with match code: {match_code}, overwrite={overwrite}.")
     try:
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code))
         if match_id is None:
@@ -156,7 +156,7 @@ async def post_question_to_db(
     request: QuestionPostRequest, 
     session: AsyncSession
 ) -> BaseResponse:
-    global_logger.info(f"POST request received to add question with code: {request.question_code}.")
+    global_logger.debug(f"POST request received to add question with code: {request.question_code}.")
     try:
         match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
         if match_id is None:
@@ -224,7 +224,7 @@ async def post_qualifier_questions_from_excel_to_db(
     """
     filename = (file.filename or "").strip()
     stem = filename.rsplit(".", 1)[0] if filename else ""
-    global_logger.info(f"POST qualifier questions from Excel: file='{filename}'")
+    global_logger.debug(f"POST qualifier questions from Excel: file='{filename}'")
 
     if not stem.startswith("OC3_VL"):
         log_message = f"Qualifier Excel file name must start with 'OC3_VL', got '{filename}'."
@@ -325,7 +325,7 @@ async def post_qualifier_question_to_db(
     - answer must be one of 'A'..'F'
     - options must be provided as a list of at least 6 strings, or as a JSON-encoded string representing such a list
     """
-    global_logger.info(f"POST qualifier question received: {request.question_code}")
+    global_logger.debug(f"POST qualifier question received: {request.question_code}")
     try:
         # validate match exists
         match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
@@ -403,7 +403,7 @@ async def get_question_from_request_from_db(
     question_code: str | None, 
     session: AsyncSession
 ) -> BaseResponse:
-    global_logger.info(f"GET request received to fetch question with code: {question_code}.")
+    global_logger.debug(f"GET request received to fetch question with code: {question_code}.")
     question_data = []
     try:
         if question_code is not None:
@@ -467,11 +467,14 @@ async def get_question_from_request_from_db(
                     'options': parsed_options,
                 })
         log_message = f"Fetched {len(question_data)} questions from the database with question_code={question_code}."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /questions/ polls every few seconds
+        # while a round is live. At INFO this was one line per poll, drowning
+        # out buzz / scoring events.
+        global_logger.debug(log_message)
         return BaseResponse(
             status='success',
             message=log_message,
-            data=question_data 
+            data=question_data
         )
     except HTTPException:
         raise
@@ -483,7 +486,7 @@ async def get_question_from_request_from_db(
 
 async def delete_question_from_db(match_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
     """Soft delete a question from DB by setting is_deleted=True."""
-    global_logger.info(f"Soft deleting question with question_code={question_code} in match_code={match_code} from database.")
+    global_logger.debug(f"Soft deleting question with question_code={question_code} in match_code={match_code} from database.")
     try:
         # Find match_id first to ensure question belongs to the correct match
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False))
@@ -616,10 +619,10 @@ async def post_questions_from_zip_to_db(
 
     global_logger.info(f"ZIP import started: file='{filename}', match_code='{match_code}'")
 
-    if not match_code.startswith("OC3_M"):
+    if not match_code.startswith(_MATCH_PATTERN):
         raise HTTPException(
             status_code=400,
-            detail=f"Tên file ZIP phải bắt đầu bằng 'OC3_M', nhận được: '{filename}'.",
+            detail=f"Tên file ZIP phải bắt đầu bằng '{_MATCH_PATTERN}', nhận được: '{filename}'.",
         )
 
     raw = await file.read()
@@ -660,15 +663,18 @@ async def post_questions_from_zip_to_db(
         key = f"{match_code}/{basename}"
         try:
             data = zf.read(entry)
-            print(f"    [ZIP] Đã đọc xong {basename}, dung lượng: {len(data)} bytes")
-            await s3_client.put_object(Bucket=bucket, Key=key, Body=data, ContentType=mime)
+            await s3_client.put_object(
+                Bucket=bucket, Key=key, Body=data,
+                ContentType=mime, ContentLength=len(data),
+            )
             media_ok.append(basename)
-            print(f"    [ZIP] Đã upload thành công")
-            global_logger.debug(f"ZIP: uploaded S3 key='{key}'")
+            global_logger.info(f"ZIP: S3 upload ok key='{key}' ({len(data)} bytes)")
         except Exception as exc:
             media_fail.append(basename)
-            print(f"    [ERROR] File {basename} lỗi: {str(exc)}")
-            global_logger.debug(f"ZIP: upload S3 thất bại cho '{key}': {exc}", exc_info=True)
+            global_logger.warning(
+                f"ZIP: S3 upload failed for key='{key}' ({len(data)} bytes): {exc}",
+                exc_info=True,
+            )
 
     # Import câu hỏi từ Excel (dùng lại hàm hiện có)
     excel_bytes = zf.read(excel_entry)

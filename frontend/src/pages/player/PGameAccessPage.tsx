@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
+import { usePlayerProtection } from "@/hooks/usePlayerProtection";
 
 
 const GameAccessPage: React.FC = () => {
+    usePlayerProtection(true);
     const [matchCode, setMatchCode] = useState("");
     const [showChangePassword, setShowChangePassword] = useState(false);
     const token = sessionStorage.getItem("jwtToken_player") ?? "";
@@ -19,7 +21,7 @@ const GameAccessPage: React.FC = () => {
         } catch {
             // ignore if dispatch fails for any reason
         }
-        navigate(`/player/waiting`);
+        navigate(`/player/waiting/${matchCode}`);
     };
 
     return (
@@ -43,7 +45,7 @@ const GameAccessPage: React.FC = () => {
                         type="submit"
                         className="mt-4 btn-primary-full"
                     >
-                        VÀO PHÒNG
+                        Vào trận đấu
                     </button>
                     {token && (
                         <button

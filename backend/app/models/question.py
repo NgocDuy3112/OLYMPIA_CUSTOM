@@ -4,7 +4,11 @@ from sqlalchemy import CheckConstraint, String, DateTime, ForeignKey, Boolean, U
 from sqlalchemy.orm import Mapped, mapped_column
 
 from dependencies.postgresql_db import Base
+from configs import AppSettings
 import json
+
+_settings = AppSettings()
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
 
 
 def utcnow():
@@ -14,7 +18,10 @@ def utcnow():
 class Question(Base):
     __tablename__ = "questions"
     __table_args__ = (
-        CheckConstraint("question_code LIKE 'OC3_Q%'", name='check_question_code_starts_with_OC3_Q'),
+        CheckConstraint(
+            f"question_code LIKE '{_QUESTION_PATTERN}%'",
+            name='check_question_code_starts_with_season_prefix',
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)

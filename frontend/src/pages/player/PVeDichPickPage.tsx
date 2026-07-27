@@ -31,8 +31,8 @@ interface PVeDichPickPageProps {
  *
  * WS messages consumed:
  *   - "send_players_info"       → update player scoreboard
- *   - "veDich_selection_update" → live highlight as admin toggles
- *   - "veDich_questions_selected" → admin confirmed selection
+ *   - "vd_selection_update" → live highlight as admin toggles
+ *   - "vd_questions_selected" → admin confirmed selection
  *   - "navigate"                → handled by global AutoNavigator in PlayerRoutes
  */
 const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
@@ -45,13 +45,15 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	const { lastMessage } = usePlayerWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	// Sorted list of all question codes — received from admin via veDich_selection_update
-	// Initialized from localStorage to handle the race where admin sends before player mounts
+	// Sorted list of all question codes — received from admin via vd_selection_update
+	// Fallback: generate placeholder codes if not received yet
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!paramMatchCode) return [];
 		try {
 			const stored = localStorage.getItem(`veDich_pick_all_codes_${paramMatchCode}`);
-			return stored ? (JSON.parse(stored) as string[]) : [];
+			const codes = stored ? (JSON.parse(stored) as string[]) : [];
+			// If we have codes, use them; otherwise return empty array (will use fallback in render)
+			return codes.length > 0 ? codes : [];
 		} catch { return []; }
 	});
 	// Live selection as admin toggles (before confirm)
@@ -65,8 +67,17 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	});
 	// Confirmed selection after admin clicks XÁC NHẬN
 	const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
-	// Questions from prior rounds that are grayed out and unselectable
-	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>([]);
+	// Questions from prior rounds that are grayed out and unselectable.
+	// Hydrate from localStorage so late-arriving players see the correct state
+	// even if they miss the WS message (admin broadcasts on BẮT ĐẦU click).
+	// Admin will keep the in-app state in sync via vd_selection_update.
+	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
+		if (!paramMatchCode) return [];
+		try {
+			const stored = localStorage.getItem(`veDich_used_codes_${paramMatchCode}`);
+			return stored ? (JSON.parse(stored) as string[]) : [];
+		} catch { return []; }
+	});
 
 	// WebSocket message handling
 	useEffect(() => {
@@ -74,6 +85,12 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
+			case "navigate": {
+				// Navigate handled by global AutoNavigator in PlayerRoutes
+				// Do NOT clear usedQuestionCodes here - admin will send correct used_question_codes via vd_selection_update
+				break;
+			}
+
 			case "send_players_info": {
 				const playersList = msg.players ?? [];
 				const scoreboard = msg.scoreboard ?? [];
@@ -97,13 +114,13 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else {
 						const scoreEntry = scoreboard.find((s: any) => String(s?.user_code) === code);
 						if (scoreEntry)
 							scoreVal =
 								scoreEntry?.cumulative_score ??
-								scoreEntry?.cummulative_score ??
+								scoreEntry?.cumulative_score ??
 								scoreEntry?.total_score ??
 								scoreEntry?.score ??
 								0;
@@ -123,7 +140,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_selection_update": {
+			case "vd_selection_update": {
 				// Live highlight as admin toggles individual questions
 				const codes = msg.selected_question_codes ?? [];
 				setLiveSelectedCodes(Array.isArray(codes) ? codes : []);
@@ -140,7 +157,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_questions_selected": {
+			case "vd_questions_selected": {
 				// Admin confirmed — lock in the final selection
 				const codes = msg.selected_question_codes ?? [];
 				const finalCodes = Array.isArray(codes) ? codes : [];
@@ -151,6 +168,15 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				if (Array.isArray(allCodes2) && allCodes2.length > 0) {
 					setAllQuestionCodes(allCodes2 as string[]);
 				}
+				// Mark selected questions as used so they appear disabled in future pick pages
+				setUsedQuestionCodes((prev) => {
+					const updated = [...new Set([...prev, ...finalCodes])];
+					// Persist to localStorage
+					try {
+						localStorage.setItem(`veDich_used_codes_${paramMatchCode}`, JSON.stringify(updated));
+					} catch { /* ignore */ }
+					return updated;
+				});
 				break;
 			}
 
@@ -170,19 +196,32 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 			<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 w-full">
 				{/* Board header */}
 				<div className="flex items-center gap-4 pb-1">
-					<p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
-						{title}
-					</p>
+					{(() => {
+						const parts = title.split(" - ");
+						if (parts.length >= 2) {
+							return (
+								<div className="flex flex-col leading-tight shrink-0">
+									<span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+										{parts[0]}
+									</span>
+									<span className="text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+										{parts.slice(1).join(" - ")}
+									</span>
+								</div>
+							);
+						}
+						return <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">{title}</span>;
+					})()}
 
 					<div className="flex-1" />
 
 					{/* Selected questions preview */}
-					<div className="flex gap-3">
+					<div className="flex gap-1">
 						{Array.from({ length: maxQuestions }).map((_, i) => {
 							const code = displayCodes[i];
 							if (!code) {
 								return (
-									<div key={`slot-empty-${i}`} className="w-48 shrink-0 h-9">
+									<div key={`slot-empty-${i}`} className="w-55 shrink-0 h-20">
 										<VeDichQuestionCard placeholder category="" points={undefined} disabled />
 									</div>
 								);
@@ -194,7 +233,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 							const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
 
 							return (
-								<div key={`slot-${code}`} className="w-48 shrink-0 h-9">
+								<div key={`slot-${code}`} className="w-55 shrink-0 h-20">
 									<VeDichQuestionCard
 										category={catPrimary || rawCategory}
 										subcategory={catSecondary}
@@ -206,10 +245,6 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 							);
 						})}
 					</div>
-
-					<p className="font-[SVN-Gratelos_Display] font-extrabold text-blue-300 shrink-0 text-2xl">
-						{displayCodes.length}/{maxQuestions}
-					</p>
 				</div>
 
 				{/* Divider */}
@@ -217,37 +252,31 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 				{/* Read-only question grid — 6 categories × 4 point values */}
 				<div
-					className="grid gap-3"
-					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(58px, 58px)" }}
+					className="grid gap-4"
+					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(76px, 76px)" }}
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];
-						if (!questionCode) {
-							return (
-								<VeDichQuestionCard
-									key={`slot-${idx}`}
-									placeholder
-									category=""
-									points={undefined}
-									disabled
-								/>
-							);
-						}
+						// Fallback: use placeholder code if allQuestionCodes is empty
+						const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
+						const displayCode = questionCode || fallbackCode;
 
 						const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";
 						const point = ([20, 30, 40, 50])[idx % 4] || 0;
 						const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
-						const isSelected = displayCodes.includes(questionCode);
-					const isUsed = usedQuestionCodes.includes(questionCode);
+						const isSelected = displayCodes.includes(displayCode);
+						const isUsed = usedQuestionCodes.includes(displayCode);
+						// Only disable if explicitly in usedQuestionCodes; allow enabling when admin starts the round
+						const shouldDisable = isUsed;
 
-					return (
-						<VeDichQuestionCard
-							key={questionCode}
-							category={catPrimary || rawCategory}
-							subcategory={catSecondary}
-							points={point}
-							isSelected={isSelected}
-							disabled={isUsed}
+						return (
+							<VeDichQuestionCard
+								key={displayCode}
+								category={catPrimary || rawCategory}
+								subcategory={catSecondary}
+								points={point}
+								isSelected={isSelected}
+								disabled={shouldDisable}
 							/>
 						);
 					})}

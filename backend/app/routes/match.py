@@ -33,7 +33,7 @@ async def post_match(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.patch(
@@ -72,13 +72,13 @@ async def delete_match(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
 @router.get(
     "/",
-    dependencies=[Depends(require_roles(['admin']))],
+    dependencies=[Depends(require_roles(['admin', 'mc']))],
     response_model=MatchRoomResponse,
     status_code=200
 )
@@ -97,13 +97,52 @@ async def get_match_by_match_code(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
 @router.get(
-    "/{match_code}/players",
+    "/all",
     dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def get_all_matches(
+    session: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    """Endpoint to fetch all non-deleted matches. Accessible only by admin."""
+    try:
+        return await get_all_matches_from_db(session)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get(
+    "/{match_code}/room",
+    dependencies=[Depends(require_roles(['admin', 'player', 'mc']))],
+    response_model=MatchRoomResponse,
+    status_code=200
+)
+async def get_match_room_for_players(
+    match_code: str,
+    session: AsyncSession = Depends(get_db)
+) -> MatchRoomResponse:
+    """Room info (match_name + players) accessible by player/mc/admin."""
+    try:
+        return await get_match_by_match_code_from_db(match_code, session)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get(
+    "/{match_code}/players",
+    dependencies=[Depends(require_roles(['admin', 'mc']))],
     response_model=BaseResponse,
     status_code=200
 )
@@ -119,4 +158,23 @@ async def get_players_for_match(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.patch(
+    "/{match_code}/finish",
+    dependencies=[Depends(require_roles(['admin']))],
+    response_model=BaseResponse,
+    status_code=200
+)
+async def finish_match(
+    match_code: str,
+    session: AsyncSession = Depends(get_db)
+) -> BaseResponse:
+    """Mark a match as finished. Only admin can do this."""
+    try:
+        return await finish_match_in_db(match_code, session)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")

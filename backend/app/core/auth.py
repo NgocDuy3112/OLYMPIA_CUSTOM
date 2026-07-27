@@ -1,5 +1,5 @@
 from jose import jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from datetime import datetime, timedelta
 import uuid
 
@@ -15,19 +15,18 @@ from configs import AppSettings
 from utils.email import send_credentials_email_safe, send_password_reset_email_safe
 from models.password_reset_token import PasswordResetToken
 from datetime import timezone
-from logger import global_logger
+from logger import global_logger, mask_email
 
 
 settings = AppSettings()
-pwd_context = CryptContext(schemes=["bcrypt"])
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return _bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -112,11 +111,12 @@ async def signup(user_data: UserCreate, session: AsyncSession, background_tasks:
 
 
 async def send_credentials(user_code: str, session: AsyncSession) -> BaseResponse:
-    """Reset a user's password to a new random one and email their credentials.
+    """Reset a user's password to a new random one.
 
-    Generates an 8-character alphanumeric password, hashes it, persists it,
-    then fires an email to the user's registered email address.
-    Raises HTTP 404 if user not found, 400 if user has no email on file.
+    Generates an 8-character alphanumeric password, hashes and persists it,
+    returns the plain password in the response data.
+    If the user has an email, also sends credentials via email.
+    Raises HTTP 404 if user not found.
     """
     import secrets
     import string
@@ -127,30 +127,30 @@ async def send_credentials(user_code: str, session: AsyncSession) -> BaseRespons
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy người dùng với mã {user_code}.")
-    if not user.email:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Người dùng {user_code} chưa có địa chỉ email. Vui lòng cập nhật email trước."
-        )
 
-    # Generate a new random password: 8 chars, letters + digits
     alphabet = string.ascii_letters + string.digits
     new_password = "".join(secrets.choice(alphabet) for _ in range(8))
 
     user.hashed_password = hash_password(new_password)
     await session.commit()
 
-    await send_credentials_email_safe(
-        to=user.email,
-        user_name=user.user_name,
-        user_code=user.user_code,
-        password=new_password,
-    )
+    email_note = ""
+    if user.email:
+        await send_credentials_email_safe(
+            to=user.email,
+            user_name=user.user_name,
+            user_code=user.user_code,
+            password=new_password,
+        )
+        email_note = f" và gửi email đến {user.email}"
 
-    global_logger.info(f"Credentials reset and email queued for user_code={user_code}.")
+    # Mask email in the log line (the user-facing `message` above keeps the real address).
+    log_email_note = f" và gửi email đến {mask_email(user.email)}" if user.email else ""
+    global_logger.info(f"Credentials reset{log_email_note} for user_code={user_code}.")
     return BaseResponse(
         status="success",
-        message=f"Đã đặt lại mật khẩu và gửi thông tin đăng nhập đến {user.email}.",
+        message=f"Đã đặt lại mật khẩu{email_note}.",
+        data={"plain_password": new_password, "user_code": user.user_code},
     )
 
 
@@ -228,7 +228,7 @@ async def change_password(user_code: str, old_password: str, new_password: str, 
     return BaseResponse(status="success", message="Đổi mật khẩu thành công.")
 
 
-# magic-login removed: we only support reset-password (user sets password) and OTP flows
+# magic-login removed: we only support password login and reset-password (user sets new password)
 
 
 async def login(form_data: OAuth2PasswordRequestForm, session: AsyncSession) -> TokenResponse:

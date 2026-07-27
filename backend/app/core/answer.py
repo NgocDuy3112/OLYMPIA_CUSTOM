@@ -11,16 +11,66 @@ from models.question import Question
 from models.match import Match
 from models.user import User
 from schemas.answer import *
+from utils.buzzer_lock import (
+    try_acquire_buzzer_lock,
+    release_buzzer_lock,
+)
+from utils.buzzer_winners import set_buzzer_winner
 
+
+async def get_first_buzzer(
+    match_id,
+    question_id,
+    session: AsyncSession,
+) -> Answer | None:
+    """Return the first buzz (has_buzzed=True) for a given match+question, ordered by created_at."""
+    result = await session.execute(
+        select(Answer)
+        .where(
+            Answer.match_id == match_id,
+            Answer.question_id == question_id,
+            Answer.has_buzzed == True,
+            Answer.is_deleted == False,
+        )
+        .order_by(Answer.created_at.asc())
+        .limit(1)
+    )
+    return result.scalars().first()
 
 
 async def post_answer_to_db(
-    request: AnswerPostRequest, 
+    request: AnswerPostRequest,
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    global_logger.info(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
+    # Buzz attempts are loud (INFO) because they directly drive game flow —
+    # every buzzer winner is an INFO line so ops can replay match timeline
+    # from logs alone. Plain answer-text POSTs stay DEBUG.
+    if request.has_buzzed:
+        global_logger.info(
+            f"[BUZZ] POST /answers/ from {request.user_code!r} for question={request.question_code!r} "
+            f"match={request.match_code!r}"
+        )
+    else:
+        global_logger.debug(f"POST request to add answer for question {request.question_code} in match {request.match_code} from player {request.user_code}")
+    # Track the buzzer lock so we can release it on every exit path (success,
+    # conflict, or exception). For non-buzz POSTs this stays None.
+    buzzer_lock_token: str | None = None
     try:
+        # Accept elapsed seconds from client (e.g., 13.456 seconds since timer start).
+        # The client sends elapsed time, not Unix timestamp.
+        # Clamp to reasonable range: 0 to 3600 seconds (1 hour max)
+        client_ts = request.timestamp if request.timestamp is not None else None
+        if client_ts is not None:
+            try:
+                client_ts = float(client_ts)
+                # Clamp elapsed seconds to [0, 3600]
+                effective_timestamp = max(0.0, min(3600.0, client_ts))
+            except (ValueError, TypeError):
+                effective_timestamp = 0.0
+        else:
+            effective_timestamp = 0.0
+
         # Validate existence of match, player and question first
         match_id = await session.scalar(
             select(Match.id).where(
@@ -56,53 +106,189 @@ async def post_answer_to_db(
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
 
-        # Enforce single-answer-per-player for qualifier questions (and generally avoid duplicates)
-        cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
-        cached = await valkey.get(cache_key)
-        if cached is not None:
-            log_message = f"Player {request.user_code} already submitted answer for question {request.question_code}; rejecting duplicate."
-            global_logger.warning(log_message)
-            raise HTTPException(status_code=400, detail=log_message)
+        # ── Server-side buzz winner logic ─────────────────────────────────────
+        # Two layers of protection, applied in order:
+        #  1. Valkey distributed lock (buzzer_lock:{match}:{question}) — atomic
+        #     SET NX EX. The first POST that claims the lock is the authoritative
+        #     buzzer; concurrent POSTs from other players get 409 immediately
+        #     without touching the DB.
+        #  2. Per-player ``existing_buzz`` check — if the SAME player double-taps
+        #     the buzz button, the lock would already be theirs so the NX check
+        #     would pass again. The existing-buzz check rejects the second POST
+        #     with 200 + "already buzzed" message (frontend has already disabled
+        #     the button after the first attempt, but this is defence-in-depth).
+        is_buzz = request.has_buzzed is True
+        if is_buzz:
+            # Layer 1: Valkey lock
+            buzzer_lock_token = await try_acquire_buzzer_lock(
+                valkey, request.match_code, request.question_code,
+            )
+            if buzzer_lock_token is None:
+                # Another player already holds the buzzer for this question.
+                # Return 409 Conflict — the frontend should treat this as a
+                # rejected buzz (no Zap icon, button stays disabled by the
+                # ``blocked_buzz`` event the winner publishes).
+                global_logger.info(
+                    f"[BUZZ] Player {request.user_code!r} lost the race for "
+                    f"question={request.question_code!r} match={request.match_code!r}"
+                )
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Buzzer already claimed for question {request.question_code}",
+                )
 
-        # Fallback DB check in case cache missed
+            # Layer 2: per-player duplicate buzz check (defence-in-depth)
+            existing_buzz = await session.scalar(
+                select(Answer.id).where(
+                    Answer.player_id == player_id,
+                    Answer.match_id == match_id,
+                    Answer.question_id == question_id,
+                    Answer.has_buzzed == True,
+                    Answer.is_deleted == False,
+                )
+            )
+            if existing_buzz is not None:
+                # This same player already buzzed (e.g. button double-tap
+                # before the WS ``buzz`` echo flips ``hasPinged``). Return
+                # 200 with a clear message instead of double-inserting.
+                log_message = f"Player {request.user_code} already buzzed for question {request.question_code}."
+                global_logger.info(log_message)
+                return BaseResponse(status="success", message=log_message)
+
+        # UPSERT: update existing answer if one exists, otherwise insert a new one.
+        # Players can revise their answer multiple times; only the last submission is kept.
+        # For buzz attempts the first POST wins — concurrent POSTs were already
+        # rejected by the Valkey lock above, so this branch is uncontested.
+        cache_key = f"answer:{request.match_code}:{request.user_code}:{request.question_code}"
+
         db_res = await session.execute(
-            select(Answer.id).where(
+            select(Answer).where(
                 Answer.player_id == player_id,
                 Answer.match_id == match_id,
                 Answer.question_id == question_id,
                 Answer.is_deleted == False,
             )
         )
-        if db_res.first() is not None:
-            log_message = f"Player {request.user_code} already has a stored answer for question {request.question_code}; rejecting duplicate."
-            global_logger.warning(log_message)
-            raise HTTPException(status_code=400, detail=log_message)
-        # Now create the answer and then cache + broadcast
-        new_answer = Answer(
-            answer_text = request.answer_text,
-            has_buzzed = request.has_buzzed,
-            timestamp = request.timestamp,
-            player_id = player_id,
-            match_id = match_id,
-            question_id = question_id,
-        )
-        session.add(new_answer)
+        existing_answer = db_res.scalars().first()
+
+        if existing_answer is not None:
+            existing_answer.answer_text = request.answer_text
+            existing_answer.timestamp = effective_timestamp
+            existing_answer.has_buzzed = request.has_buzzed
+            global_logger.debug(f"Updating existing answer for question_code={request.question_code} from user_code={request.user_code}.")
+        else:
+            new_answer = Answer(
+                answer_text=request.answer_text,
+                has_buzzed=request.has_buzzed,
+                timestamp=effective_timestamp,
+                player_id=player_id,
+                match_id=match_id,
+                question_id=question_id,
+            )
+            session.add(new_answer)
         await session.commit()
 
-        # Cache the answer for fast reads and publish to match channel
-        request_json = request.model_dump()
-        try:
-            await valkey.set(cache_key, json.dumps(request_json))
-            broadcast_payload = {**request_json, "type": "answer"}
-            await valkey.publish(channel=request.match_code, message=json.dumps(broadcast_payload))
-            global_logger.info(f"Cached and published answer for key={cache_key}.")
-        except Exception as e:
-            # Log but do not fail the request since DB commit succeeded
-            global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}", exc_info=True)
+        # ── Publish buzzer winner (winner-only, lock-protected) ───────────────
+        # Because the Valkey lock guarantees only the first buzzer reaches this
+        # point, we no longer need ``get_first_buzzer`` + ``winner_user ==
+        # request.user_code`` check — the player holding the lock IS the
+        # winner. This eliminates the TOCTOU window that allowed two
+        # concurrent POSTs to both believe they were first.
+        if is_buzz:
+            winner_payload = {
+                "type": "buzzer_winner",
+                "user_code": request.user_code,
+                "match_code": request.match_code,
+                "question_code": request.question_code,
+            }
+            block_payload = {
+                "type": "blocked_buzz",
+                "user_code": None,
+                "match_code": request.match_code,
+            }
+            try:
+                await valkey.publish(
+                    channel=request.match_code,
+                    message=json.dumps(winner_payload),
+                )
+                await valkey.publish(
+                    channel=request.match_code,
+                    message=json.dumps(block_payload),
+                )
+                global_logger.info(
+                    f"[BUZZ WINNER] Player {request.user_code!r} won the buzzer "
+                    f"for question {request.question_code!r} in match {request.match_code!r}"
+                )
+                # Persist the winner so a reconnecting player can re-render
+                # the Zap icon (PPlayerRec.tsx) without waiting for admin to
+                # re-send the event. Mirrors the ``vd_powers_used`` snapshot
+                # pattern — see utils/ve_dich_powers.py and
+                # handle_player_reconnect in utils/ws_message_processor.py.
+                await set_buzzer_winner(
+                    valkey,
+                    request.match_code,
+                    request.question_code,
+                    request.user_code,
+                )
+            except Exception as e:
+                global_logger.error(f"Failed to publish buzz winner: {e}", exc_info=True)
 
-        log_message = f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
-        global_logger.info(log_message)
-        return BaseResponse(status="success", message=log_message)
+            # IMPORTANT: do NOT release the lock here. The lock must remain
+            # held for the full TTL (10 s) so that any follow-up buzz from
+            # another player — whose WS state hasn't yet caught up to the
+            # winner's ``blocked_buzz`` broadcast — gets a 409 instead of
+            # silently overwriting the winner.
+            #
+            # Prod incident (2026-06-28): OC_U_3004 buzzed first and won.
+            # OC_U_3005's UI hadn't yet received the ``blocked_buzz`` event
+            # 157 ms later, so the button was still enabled and OC_U_3005
+            # buzzed again. With the early release the lock was already
+            # gone, so backend granted OC_U_3005 a new ``buzzer_winner``
+            # and the room saw two winners for the same question_code.
+            # The lock will be released by the finally block below after
+            # the handler exits, OR when the 10 s TTL expires naturally.
+            # We do NOT pass it to the finally block — early release was
+            # the bug. The finally block has its own lock-token handoff
+            # via ``buzzer_lock_token_for_finally`` so any crash path
+            # also releases the lock.
+
+        # Cache the answer for fast reads and publish to match channel.
+        # Skipped for the buzzer flow because the winner already gets a
+        # dedicated ``buzzer_winner`` event, and non-winners get blocked
+        # by 409 before reaching here — so there's no downstream consumer
+        # of a generic ``answer`` event with ``has_buzzed=True``.
+        if not is_buzz:
+            cache_payload = {
+                "match_code": request.match_code,
+                "user_code": request.user_code,
+                "question_code": request.question_code,
+                "answer_text": request.answer_text,
+                "has_buzzed": request.has_buzzed,
+                "timestamp": effective_timestamp,
+                "type": "answer",
+            }
+            try:
+                await valkey.set(cache_key, json.dumps(cache_payload))
+                await valkey.publish(channel=request.match_code, message=json.dumps(cache_payload))
+                global_logger.debug(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
+            except Exception as e:
+                # Log but do not fail the request since DB commit succeeded
+                global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}", exc_info=True)
+
+        # Demoted to DEBUG — the [BUZZ] line at the top already records buzz
+        # attempts, and the per-answer "Successfully created" line was a 1-for-1
+        # copy that doubled the log volume on every answer POST.
+        global_logger.debug(
+            f"Successfully created answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
+        )
+        # Success-path sentinel: clear the lock token so the finally
+        # block below does NOT release the buzzer lock. We want the
+        # lock to stay held for the full 10 s TTL so follow-up buzzes
+        # from players whose UI hasn't caught up to the winner's
+        # ``blocked_buzz`` still get 409. See the prod incident note
+        # near the ``finally:`` block for the full timeline.
+        buzzer_lock_token = None
+        return BaseResponse(status="success", message=f"Answer recorded for question_code={request.question_code}")
     except IntegrityError:
         await session.rollback()
         log_message = f"Integrity error when creating answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
@@ -115,6 +301,42 @@ async def post_answer_to_db(
         log_message = f"Failed to create answer for question_code={request.question_code} in match_code={request.match_code} from user_code={request.user_code}."
         global_logger.error(log_message, exc_info=True)
         raise HTTPException(status_code=500, detail=f"{log_message} Reason: {e}")
+    finally:
+        # Release the buzzer lock ONLY on the exception / conflict paths.
+        # On the success path the lock is intentionally kept held so that
+        # subsequent buzzes from players whose UI hasn't caught up to
+        # the winner's ``blocked_buzz`` broadcast still get a 409 instead
+        # of silently overwriting the winner. The 10 s TTL self-heals
+        # the lock for the next question; admin can also clear it
+        # immediately by sending ``clear_buzz`` (handled by
+        # ``ws_message_processor.apply_buzzer_clear``).
+        #
+        # Why release on exception? If the handler crashed mid-flight we
+        # don't want a stuck lock to last the full 10 s — releasing on
+        # the exception path lets the next ``clear_buzz`` (or
+        # ``round_start``) reopen the question promptly. The Lua-script
+        # release is a no-op if the lock was already stolen / TTL-expired.
+        #
+        # ``buzzer_lock_token`` is set on both paths. To distinguish
+        # success from failure, we set ``buzzer_lock_token = None``
+        # immediately BEFORE the success ``return`` (see the marker
+        # comment below) — on exception paths control never reaches
+        # there, so the token stays valid and the finally block can
+        # release it.
+        if buzzer_lock_token is not None and valkey:
+            try:
+                await release_buzzer_lock(
+                    valkey,
+                    request.match_code,
+                    request.question_code,
+                    buzzer_lock_token,
+                )
+            except Exception as exc:  # noqa: BLE001
+                global_logger.warning(
+                    f"[buzzer_lock] finally-release failed for "
+                    f"match={request.match_code!r} question={request.question_code!r}: {exc}",
+                    exc_info=True,
+                )
 
 
 
@@ -125,19 +347,21 @@ async def get_answer_from_db(
     session: AsyncSession,
     valkey: Valkey
 ) -> BaseResponse:
-    global_logger.info(f"GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
+    global_logger.debug(f"[KDC ANSWER SYNC] GET request to fetch answer for question {question_code} in match {match_code} from player {user_code}")
     try:
         cache_key = f"answer:{match_code}:{user_code}:{question_code}"
         cached = await valkey.get(cache_key)
         if cached is not None:
             record_json = json.loads(cached)
+            global_logger.debug(f"[KDC ANSWER SYNC] CACHE HIT for key={cache_key} answer={record_json.get('answer_text')} ts={record_json.get('timestamp')}")
             log_message = f"Fetched an answer from cache for key={cache_key}."
-            global_logger.info(log_message)
+            global_logger.debug(log_message)
             return BaseResponse(
                 status='success',
                 message=log_message,
                 data=record_json
             )
+        global_logger.debug(f"[KDC ANSWER SYNC] CACHE MISS for key={cache_key}, fetching from DB")
         result = await session.execute(
             select(
                 Answer
@@ -168,12 +392,16 @@ async def get_answer_from_db(
             'has_buzzed': answer.has_buzzed,
             'timestamp': float(answer.timestamp) if answer.timestamp is not None else None
         }
-        log_message = f"Fetched answer for question_code={question_code} in match_code={match_code} from user_code={user_code}."
-        global_logger.info(log_message)
+        # Demoted to DEBUG — admin GET /answers/ polls every few seconds while
+        # the question board is open. At INFO the log filled with one line per
+        # poll, drowning out buzz / scoring events.
+        global_logger.debug(
+            f"Fetched answer for question_code={question_code} in match_code={match_code} from user_code={user_code}."
+        )
         return BaseResponse(
             status='success',
-            message=log_message,
-            data=answers_data 
+            message=f"Answer for question_code={question_code}",
+            data=answers_data
         )
     except HTTPException:
         raise
@@ -185,7 +413,7 @@ async def get_answer_from_db(
 
 async def delete_answer_from_db(match_code: str, user_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
     """Soft delete an answer from DB by setting is_deleted=True (if supported by model)."""
-    global_logger.info(f"Soft deleting answer for question {question_code} in match {match_code} from player {user_code}")
+    global_logger.debug(f"Soft deleting answer for question {question_code} in match {match_code} from player {user_code}")
     try:
         # Find the answer by joining with Match, User, and Question to match codes
         query = (

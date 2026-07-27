@@ -9,6 +9,7 @@ import AVeDichRiengPage from "@/pages/admin/AVeDichRiengPage";
 import AGiaiMaPage from "@/pages/admin/AGiaiMaPage";
 import AQualifierPage from "@/pages/admin/AQualifierPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
+import AWaitingPage from "@/pages/admin/AWaitingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 
 
@@ -54,10 +55,20 @@ const AdminRoutes = () => {
     return (
         <AdminWebSocketProvider matchCode={matchCode}>
             <Routes>
-            <Route path="/" element={<Navigate to="/admin/waiting" replace />} />
+            <Route path="/" element={
+                <Navigate to={stored ? "/admin/waiting" : "/admin/manage"} replace />
+            } />
+            <Route
+                path="/waiting/:matchCode?"
+                element={
+                    <ProtectedAdminRoute>
+                        <AWaitingPage />
+                    </ProtectedAdminRoute>
+                }
+            />
             {/* <Route path="/dashboard" element={} /> */}
             <Route
-                path="/kdc/:matchCode"
+                path="/kdc/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AKhoiDongChungPage />
@@ -65,7 +76,7 @@ const AdminRoutes = () => {
                 }
             />
             <Route
-                path="/kdr/:matchCode"
+                path="/kdr/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AKhoiDongRiengPage />
@@ -74,7 +85,7 @@ const AdminRoutes = () => {
             />
             {/* legacy alias `/kdcn` removed — use `/kdr/:matchCode` */}
             <Route
-                path="/bp/:matchCode"
+                path="/bp/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AButPhaPage />
@@ -83,7 +94,7 @@ const AdminRoutes = () => {
             />
             {/* VỀ ĐÍCH - Question picker pages */}
             <Route
-                path="/vdc/pick/:matchCode"
+                path="/vdc/pick/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichPickQuestion />
@@ -91,7 +102,7 @@ const AdminRoutes = () => {
                 }
             />
             <Route
-                path="/vdr/pick/:matchCode"
+                path="/vdr/pick/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichPickQuestion />
@@ -100,7 +111,7 @@ const AdminRoutes = () => {
             />
             {/* VỀ ĐÍCH - Gameplay pages */}
             <Route
-                path="/vdc/:matchCode"
+                path="/vdc/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichChungPage />
@@ -108,7 +119,7 @@ const AdminRoutes = () => {
                 }
             />
             <Route
-                path="/vdr/:matchCode"
+                path="/vdr/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichRiengPage />
@@ -124,7 +135,7 @@ const AdminRoutes = () => {
                 }
             />
             <Route
-                path="/gm/:matchCode"
+                path="/gm/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AGiaiMaPage />

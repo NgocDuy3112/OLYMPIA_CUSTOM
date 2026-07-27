@@ -26,6 +26,38 @@ const PKhoiDongChungPage = () => {
 	const [showAnswers, setShowAnswers] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 
+	// Auto-fetch scoreboard on mount to ensure accurate initial scores
+	useEffect(() => {
+		if (!matchCode || !token) return;
+		let mounted = true;
+		const fetchScores = async () => {
+			try {
+				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (!res.ok) return;
+				const json = await res.json();
+				const scoreboardList: any[] = json.data?.scoreboard ?? [];
+				if (mounted && scoreboardList.length > 0) {
+					setPlayers((prev) =>
+						prev.map((p) => {
+							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
+							if (scoreEntry) {
+								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
+								return { ...p, playerScore: newScore };
+							}
+							return p;
+						}),
+					);
+				}
+			} catch (err) {
+				console.warn("Failed to fetch scoreboard on mount:", err);
+			}
+		};
+		void fetchScores();
+		return () => { mounted = false; };
+	}, [matchCode, token]);
+
 	useEffect(() => {
 		return () => { audioRef.current?.pause(); };
 	}, []);
@@ -67,10 +99,10 @@ const PKhoiDongChungPage = () => {
 					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else {
 						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 					}
 
 					return {
@@ -131,31 +163,11 @@ const PKhoiDongChungPage = () => {
 						return {
 							...p,
 							playerLastAnswer: ans.content,
-							playerTimestamp: ans.timestamp,
+							playerTimestamp: ans.timestamp || p.playerTimestamp,
 						};
 					}),
 				);
 				setShowAnswers(true);
-				break;
-			}
-
-			case "answer": {
-				// Real-time answer from another player via WebSocket
-				const { user_code, answer_text, timestamp } = msg;
-				if (user_code && user_code !== playerCode && answer_text) {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === user_code
-								? {
-										...p,
-										playerLastAnswer: answer_text,
-										playerTimestamp: timestamp ?? p.playerTimestamp,
-									}
-								: p,
-						),
-					);
-					console.info("Player received answer from", user_code, ":", answer_text);
-				}
 				break;
 			}
 
@@ -213,22 +225,23 @@ const PKhoiDongChungPage = () => {
 						timestamp: ts,
 					}),
 			});
-			if (!res.ok) {
+			if (res.ok) {
+				console.info(`[KDC ANSWER SYNC] Player POST answer success: user=${playerCode} question=${currentQuestion.questionCode} answer=${trimmed} ts=${ts}`);
+				// Only broadcast via WS after successful HTTP persist
+				await sendMessage({
+					type: "player_answer",
+					user_code: playerCode,
+					question_code: currentQuestion.questionCode,
+					answer_text: trimmed,
+					timestamp: ts,
+				});
+			} else {
 				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST answer:", res.status, body);
+				console.warn(`[KDC ANSWER SYNC] Player POST answer failed: status=${res.status} body=${body}`);
 			}
 		} catch (err) {
 			console.warn("Failed to POST answer:", err);
 		}
-
-		// Send real-time frame
-		await sendMessage({
-			type: "answer",
-			user_code: playerCode,
-			question_code: currentQuestion.questionCode,
-			answer_text: trimmed,
-			timestamp: ts,
-		});
 		setAnswer("");
 	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
 

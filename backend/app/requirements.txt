@@ -4,7 +4,6 @@ uvicorn[standard]
 valkey
 asyncpg
 sqlalchemy
-alembic
 
 aiosmtplib
 openpyxl
@@ -13,7 +12,6 @@ pydantic_settings
 
 pyjwt
 bcrypt==4.3.0
-passlib==1.7.0
 python-jose
 
 aioboto3

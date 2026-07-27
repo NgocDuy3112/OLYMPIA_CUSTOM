@@ -1,25 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
 const MVeDichChungPage = () => {
     const { matchCode, token } = useMcSession();
+    const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers } = useMcPlayers();
-    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyPlayerPower, clearAnswers } = useMcPlayers();
+    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
 
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
         if (!matchCode) return [];
@@ -42,6 +43,7 @@ const MVeDichChungPage = () => {
             case "start_the_timer":
                 startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
+                setBuzzerWinnerCode(null);
                 break;
             case "player_score_updated":
                 applyScoreUpdate(msg);
@@ -51,25 +53,35 @@ const MVeDichChungPage = () => {
                 break;
             case "send_question":
                 void fetchAnswer(msg.question_code ?? "");
+                setVideoPlayState(null);
                 break;
             case "clear_question":
                 clearAnswer();
+                setVideoPlayState(null);
+                break;
+            case "play_video":
+                setVideoPlayState("playing");
+                break;
+            case "pause_video":
+                setVideoPlayState("paused");
                 break;
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
-            case "answer":
-                applyRealTimeAnswer(msg);
+            case "buzz":
+                if (msg.user_code && !buzzerWinnerCode) {
+                    setBuzzerWinnerCode(msg.user_code);
+                }
                 break;
-            case "veDich_question_state": {
+            case "vdc_question_state": {
                 const { question_code, state: qState } = msg;
                 if (question_code && qState) {
                     setQuestionStates((prev) => ({ ...prev, [question_code]: qState as "answered" | "answered-wrong" | "available" }));
                 }
                 break;
             }
-            case "veDich_questions_selected":
-            case "veDich_questions_meta": {
+            case "vd_questions_selected":
+            case "vdc_questions_meta": {
                 const metadata: RoundQuestion[] = msg.question_metadata ?? [];
                 if (metadata.length > 0) {
                     setRoundQuestionsData(metadata);
@@ -77,26 +89,42 @@ const MVeDichChungPage = () => {
                 }
                 break;
             }
+            case "vd_player_power": {
+                const { user_code, power } = msg;
+                if (user_code && (power === "star" || power === "shield")) {
+                    // Update playerPower in players array for display
+                    applyPlayerPower(user_code, power as "star" | "shield");
+                }
+                break;
+            }
+
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, clearAnswers, fetchAnswer, clearAnswer, matchCode]);
+}, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, clearAnswers, fetchAnswer, clearAnswer, matchCode, buzzerWinnerCode, setRoundQuestionsData, applyPlayerPower]);
+
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+    };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
-            <>
-                <PQuestionBoard
-                    title="VỀ ĐÍCH - LƯỢT CHUNG"
-                    question={currentQuestion}
-                    timerDuration={timer}
-                >
-                    <div className="flex gap-2">
+        <PBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
+            <AQuestionBoard
+                title="VỀ ĐÍCH - LƯỢT CHUNG"
+                question={questionWithAnswer}
+                timerDuration={timer}
+                videoPlayState={videoPlayState}
+                boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
+            >
+                {() => (
+                    <div className="flex gap-1 overflow-x-auto">
                         {roundQuestionsData.length > 0
                             ? roundQuestionsData.map((q) => {
                                 const qState = questionStates[q.code] ?? "available";
                                 const isActive = currentQuestion.questionCode === q.code;
                                 return (
-                                    <div key={q.code} className="w-60 shrink-0 h-9">
+                                    <div key={q.code} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
                                         <VeDichQuestionCard
                                             category={q.category}
                                             points={q.points}
@@ -108,15 +136,13 @@ const MVeDichChungPage = () => {
                                 );
                             })
                             : Array.from({ length: players.length || 4 }).map((_, i) => (
-                                <div key={`ph-${i}`} className="w-60 shrink-0 h-9">
+                                <div key={`ph-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
                                     <VeDichQuestionCard placeholder category="" disabled />
                                 </div>
                             ))}
                     </div>
-                </PQuestionBoard>
-
-                <MAnswerDisplay answer={questionAnswer} explanation={questionExplanation} />
-            </>
+                )}
+            </AQuestionBoard>
         </PBasePageLayout>
     );
 };

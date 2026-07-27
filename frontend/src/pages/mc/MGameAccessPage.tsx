@@ -14,11 +14,12 @@ const MGameAccessPage: React.FC = () => {
         } catch {
             // ignore
         }
-        navigate("/mc/waiting");
+        navigate(`/mc/waiting/${matchCode}`);
     };
 
     return (
-        <div className="flex flex-col justify-center items-center h-screen overflow-hidden bg-cover bg-center">
+        <div className="flex flex-col justify-center items-center h-screen overflow-hidden bg-cover bg-center p-4">
+            
             <div className="card">
                 <div className="gap-2 text-center">
                     <h1 className="text-4xl font-[SVN-Gratelos_Display] font-bold mb-2">OLYMPIA CUSTOM 3</h1>
@@ -36,7 +37,7 @@ const MGameAccessPage: React.FC = () => {
                         />
                     </div>
                     <button type="submit" className="mt-4 btn-primary-full">
-                        VÀO PHÒNG
+                        Vào trận đấu
                     </button>
                 </form>
             </div>

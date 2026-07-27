@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
 import { MCWebSocketProvider } from "@/contexts/MCWebSocketContext";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 
@@ -24,7 +24,6 @@ const ProtectedMcRoute: React.FC<{ children: React.ReactNode }> = ({ children })
     return <>{children}</>;
 };
 
-// Auto-navigator: listens for admin navigate messages and redirects MC to corresponding page
 const MCAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -36,22 +35,40 @@ const MCAutoNavigator: React.FC = () => {
         const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
         const msg = (raw as any)?.message ?? raw;
 
-        if (msg?.type !== "navigate") return;
+        const msgType = msg?.type ?? "";
+
+        if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
+            const target = "/mc/waiting";
+            if (location.pathname !== target) {
+                navigate(target, { replace: true });
+            }
+            return;
+        }
+
+        if (msgType !== "navigate") return;
         const basePath: unknown = msg?.path;
         if (typeof basePath !== "string") return;
 
         const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 
-        // Map /player/X → /mc/X
-        const mcPath = normalized.startsWith("/player/")
-            ? normalized.replace("/player/", "/mc/")
-            : null;
+        // Convert /player/* to /mc/* (MC routes are mounted under /mc/ in App.tsx)
+        // Also handle /mc/* paths directly (e.g. admin sends /mc/waiting for MC online)
+        let mcPath: string | null = null;
+        if (normalized.startsWith("/player/")) {
+            mcPath = normalized.replace("/player/", "/mc/");
+        } else if (normalized.startsWith("/mc/")) {
+            mcPath = normalized;
+        }
         if (!mcPath) return;
 
+        // Qualifier (Vòng Loại) always uses OC3_M_VL as matchCode
+        const isQualifier = mcPath === "/mc/vl";
         const noParamsPaths = ["/mc/waiting"];
         const target = noParamsPaths.includes(mcPath)
             ? mcPath
-            : `${mcPath}/${matchCode}`;
+            : isQualifier
+                ? `${mcPath}/OC3_M_VL`
+                : `${mcPath}/${matchCode}`;
 
         const currentPath = location.pathname.endsWith("/")
             ? location.pathname.slice(0, -1)
@@ -66,11 +83,20 @@ const MCAutoNavigator: React.FC = () => {
 };
 
 const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+    const location = useLocation();
     const [matchCode, setMatchCode] = useState<string>(() => {
         const s = sessionStorage.getItem("matchCode");
         return s && s.trim() !== "" ? s : "";
     });
-    const location = useLocation();
+
+    // Sync matchCode from URL to sessionStorage
+    useEffect(() => {
+        if (urlMatchCode && urlMatchCode !== matchCode) {
+            sessionStorage.setItem("matchCode", urlMatchCode);
+            setMatchCode(urlMatchCode);
+        }
+    }, [urlMatchCode, matchCode]);
 
     useEffect(() => {
         if (matchCode) return;
@@ -108,6 +134,7 @@ const MCRoutes = () => {
                 <Route path="/" element={<Navigate to="/mc/access" replace />} />
                 <Route path="/access" element={<MGameAccessPage />} />
                 <Route path="/waiting" element={<MWaitingPage />} />
+                <Route path="/waiting/:matchCode" element={<MWaitingPage />} />
                 <Route
                     path="/kdc/:matchCode"
                     element={<ProtectedMcRoute><MKhoiDongChungPage /></ProtectedMcRoute>}

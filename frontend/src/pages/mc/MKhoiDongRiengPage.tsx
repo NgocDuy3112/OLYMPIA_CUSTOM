@@ -1,22 +1,33 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useEffect } from "react";
-import PQuestionBoard from "@/components/player/PQuestionBoard";
+import { useEffect, useState } from "react";
+import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import MAnswerDisplay from "@/components/mc/MAnswerDisplay";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcAnswer } from "@/hooks/useMcAnswer";
+import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const MKhoiDongRiengPage = () => {
     const { matchCode, token } = useMcSession();
+    const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useMcWebSocket();
-    const { timer, start } = useCountdownTimer();
+    const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers } = useMcPlayers();
-    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcAnswer(matchCode, token);
+    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, applyWrongAttempt, clearAnswers } = useMcPlayers();
+    const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
+    const [currentPlayerCode, setCurrentPlayerCode] = useState("");
+
+    // Reset per-player wrong attempts whenever the question changes so the
+    // "Trả lời lần 2" banner clears when advancing to a new question.
+    // Admin's `handleNextQuestion` only re-broadcasts `send_question` and does
+    // NOT resend `start_the_timer`, so we cannot rely on `clearAnswers` here.
+    useEffect(() => {
+        setPlayers((prev) =>
+            prev.map((p) => ({ ...p, playerWrongAttempts: undefined })),
+        );
+    }, [currentQuestionIndex]);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -26,10 +37,16 @@ const MKhoiDongRiengPage = () => {
         switch (msg?.type) {
             case "send_players_info":
                 applyPlayersInfo(msg);
+                // derive whose turn it is from is_current flag
+                {
+                    const current = (msg?.players ?? []).find((p: any) => p?.is_current);
+                    setCurrentPlayerCode(current ? String(current.user_code ?? "") : "");
+                }
                 break;
             case "start_the_timer":
-                start(Number(msg.time_limit ?? 0));
+                startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
+                setBuzzerWinnerCode(null);
                 break;
             case "player_score_updated":
                 applyScoreUpdate(msg);
@@ -46,28 +63,57 @@ const MKhoiDongRiengPage = () => {
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
-            case "answer":
-                applyRealTimeAnswer(msg);
-                break;
             case "buzz":
                 applyBuzz(msg);
+                if (msg.user_code && !buzzerWinnerCode) {
+                    setBuzzerWinnerCode(msg.user_code);
+                }
+                break;
+            case "buzzer_winner": {
+                const winner: string = msg.user_code ?? "";
+                setBuzzerWinnerCode(winner || null);
+                setPlayers((prev) =>
+                    prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
+                );
+                break;
+            }
+            case "player_wrong_attempt":
+                applyWrongAttempt(msg);
                 break;
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, start, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyRealTimeAnswer, applyBuzz, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, applyWrongAttempt, clearAnswers, fetchAnswer, clearAnswer, setPlayers, buzzerWinnerCode]);
+
+    const questionWithAnswer = {
+        ...currentQuestion,
+        questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
+        questionExplanation: questionExplanation ?? currentQuestion.questionExplanation,
+    };
+
+    // Show "Trả lời lần 2" banner when any player has 1 wrong attempt in current question
+    const hasPlayerWithSecondAttempt = players.some((p) => p.playerWrongAttempts === 1);
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
-            <>
-                <PQuestionBoard
-                    title="KHỞI ĐỘNG - LƯỢT RIÊNG"
-                    question={currentQuestion}
-                    timerDuration={timer}
-                    controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-                />
-                <MAnswerDisplay answer={questionAnswer} explanation={questionExplanation} />
-            </>
+        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
+            <AQuestionBoard
+                title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
+                question={questionWithAnswer}
+                timerDuration={timer}
+                controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+                boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
+            >
+                {() => (
+                    <div className="flex gap-2 items-center">
+                        {/* "Trả lời lần 2" badge - mirrors admin: shown next to the question-number controls */}
+                        {hasPlayerWithSecondAttempt && (
+                            <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+                                Trả lời lần 2
+                            </div>
+                        )}
+                    </div>
+                )}
+            </AQuestionBoard>
         </PBasePageLayout>
     );
 };

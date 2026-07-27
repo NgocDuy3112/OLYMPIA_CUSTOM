@@ -27,7 +27,7 @@ const AdminSignupPage: React.FC = () => {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.detail || "Đăng ký thất bại");
+                throw new Error(errorData.message || "Đăng ký thất bại");
             }
 
             alert("Admin account created successfully");

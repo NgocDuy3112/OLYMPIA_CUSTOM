@@ -31,7 +31,7 @@ async def post_answer(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.delete(
@@ -57,13 +57,13 @@ async def delete_answer(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 
 @router.get(
     "/",
-    dependencies=[Depends(require_roles(['admin']))],
+    dependencies=[Depends(require_roles(['admin', 'mc']))],
     response_model=BaseResponse,
     status_code=200
 )
@@ -81,4 +81,4 @@ async def get_answer(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

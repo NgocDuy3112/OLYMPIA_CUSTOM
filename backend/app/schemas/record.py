@@ -1,4 +1,9 @@
 from schemas.base import *
+from configs import AppSettings
+
+_settings = AppSettings()
+_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
 
 
 class RecordPostRequest(BaseRequest):
@@ -11,15 +16,15 @@ class RecordPostRequest(BaseRequest):
     @field_validator('match_code', mode='after')
     @classmethod
     def ensure_match_code_format(cls, value: str) -> str:
-        if not value.startswith("OC3_M"):
-            raise ValueError("match_code must start with 'OC3_M'")
+        if not value.startswith(_MATCH_PATTERN):
+            raise ValueError(f"match_code must start with '{_MATCH_PATTERN}'")
         return value
 
     @field_validator('question_code', mode='after')
     @classmethod
     def ensure_question_code_format(cls, value: str) -> str:
-        if not value.startswith("OC3_Q"):
-            raise ValueError("question_code must start with 'OC3_Q'")
+        if not value.startswith(_QUESTION_PATTERN):
+            raise ValueError(f"question_code must start with '{_QUESTION_PATTERN}'")
         return value
 
     @field_validator('user_code', mode='after')

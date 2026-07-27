@@ -3,6 +3,7 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import type { Question } from "@/types/question";
 import type { AdminQuestionBoardControls, ControlsRenderApi } from "@/types/questionBoardTypes";
 
+
 interface AQuestionBoardProps {
     title: string;
     question: Question;
@@ -14,14 +15,15 @@ interface AQuestionBoardProps {
     children?: (api: ControlsRenderApi) => React.ReactNode;
     /** Tailwind height class applied to the board container. Defaults to h-[50vh]. */
     boardHeightClass?: string;
-    /** Tailwind height class applied to the answer/explanation box. Defaults to h-28. */
-    answerBoxHeightClass?: string;
-    /** When true, hides the answer/explanation box (e.g. while timer is running) */
-    hideAnswerBox?: boolean;
+    /** When true, hides the question content area (text + media) but keeps the header. */
+    hideContent?: boolean;
+    videoPlayState?: "playing" | "paused" | null;
+    /** When true, media is hidden until videoPlayState becomes non-null (e.g. until timer starts). */
+    hideMediaUntilPlayed?: boolean;
 }
 
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children, boardHeightClass = "h-[50vh]", answerBoxHeightClass = "h-[15vh]", hideAnswerBox = false, titleExtra }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[40vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -40,63 +42,92 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         });
     };
 
-    const renderDefaultControls = () => (
-        <div className="flex gap-2">
-            {variant === "numbers" ? (
-                boxStates.map((on, idx) => {
-                    const active = controls?.activeIndices?.includes(idx) ?? on;
-                    return (
-                        <button
-                            key={idx}
-                            type="button"
-                            aria-pressed={active}
-                            aria-label={`control-${idx + 1}`}
-                            onClick={() => toggleBox(idx)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}
-                        >
-                            {idx + 1}
-                        </button>
-                    );
-                })
-            ) : (
-                // subjects variant: render larger rectangles with score and two-line subject name
-                Array.from({ length: count }).map((_, idx) => {
-                    const active = controls?.activeIndices?.includes(idx) ?? boxStates[idx];
-                    const subject = controls?.subjects?.[idx] ?? "";
-                    const words = subject.split(/\s+/).filter(Boolean).slice(0, 4);
-                    const line1 = (words[0] ?? "") + (words[1] ? ` ${words[1]}` : "");
-                    const line2 = (words[2] ?? "") + (words[3] ? ` ${words[3]}` : "");
-                    const score = controls?.scores?.[idx] ?? 0;
-                    return (
-                        <button
-                            key={idx}
-                            type="button"
-                            aria-pressed={active}
-                            onClick={() => toggleBox(idx)}
-                            className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-blue-800 text-white border border-blue-600 hover:bg-blue-700'}`}
-                        >
-                            <div className="text-3xl font-extrabold w-16 text-left">
-                                {score}
-                            </div>
-                            <div className="text-right text-sm leading-tight">
-                                <div>{line1}</div>
-                                <div>{line2}</div>
-                            </div>
-                        </button>
-                    );
-                })
-            )}
-        </div>
-    );
+    const renderDefaultControls = () => {
+        if (count === 0) return null;
+        return (
+            <div className="flex gap-2">
+                {variant === "numbers" ? (
+                    boxStates.map((on, idx) => {
+                        const active = controls?.activeIndices?.includes(idx) ?? on;
+                        return (
+                            <button
+                                key={idx}
+                                type="button"
+                                aria-pressed={active}
+                                aria-label={`control-${idx + 1}`}
+                                onClick={() => toggleBox(idx)}
+                                className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}
+                            >
+                                {idx + 1}
+                            </button>
+                        );
+                    })
+                ) : (
+                    // subjects variant: render larger rectangles with score and two-line subject name
+                    Array.from({ length: count }).map((_, idx) => {
+                        const active = controls?.activeIndices?.includes(idx) ?? boxStates[idx];
+                        const subject = controls?.subjects?.[idx] ?? "";
+                        const words = subject.split(/\s+/).filter(Boolean).slice(0, 4);
+                        const line1 = (words[0] ?? "") + (words[1] ? ` ${words[1]}` : "");
+                        const line2 = (words[2] ?? "") + (words[3] ? ` ${words[3]}` : "");
+                        const score = controls?.scores?.[idx] ?? 0;
+                        return (
+                            <button
+                                key={idx}
+                                type="button"
+                                aria-pressed={active}
+                                onClick={() => toggleBox(idx)}
+                                className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-blue-800 text-white border border-blue-600 hover:bg-blue-700'}`}
+                            >
+                                <div className="text-2xl tablet:text-3xl font-extrabold w-12 tablet:w-16 text-left">
+                                    {score}
+                                </div>
+                                <div className="text-right text-sm leading-tight">
+                                    <div>{line1}</div>
+                                    <div>{line2}</div>
+                                </div>
+                            </button>
+                        );
+                    })
+                )}
+            </div>
+        );
+    };
+
+    const renderTitle = (t: string) => {
+        const parts = t.split(" - ");
+        if (parts.length >= 2) {
+            return (
+                <div className="flex flex-col leading-tight">
+                    <span className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                        {parts[0]}
+                    </span>
+                    <span className="text-sm tablet:text-base xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                        {parts.slice(1).join(" - ")}
+                    </span>
+                </div>
+            );
+        }
+        return <span>{t}</span>;
+    };
+
+    // When the content area is hidden (e.g. Mở/Khoá gợi ý in Giải Mã round),
+    // the question text + media are removed from the DOM. Keeping a fixed
+    // `boardHeightClass` (e.g. h-[35vh]) would force the answer box — which is
+    // `shrink-0` — to dock at the top of the container and leave an empty
+    // gutter below. Drop the fixed height in that case so the container
+    // collapses to fit the remaining children (header + answer box) and the
+    // answer stays anchored at the bottom of the page.
+    const containerHeightClass = hideContent ? "" : boardHeightClass;
 
     return (
-        <div className={`p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 ${boardHeightClass}`}>
+        <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${containerHeightClass}`}>
             {/* Header: title, timer and six control boxes */}
             <div className="flex justify-between items-center pb-1">
                 <div className="flex items-center gap-4">
-                    <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
-                        {title}
-                    </p>
+                    <div className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                        {renderTitle(title)}
+                    </div>
                     {titleExtra && <div className="ml-2">{titleExtra}</div>}
                 </div>
                 <div className="flex items-center gap-4">
@@ -113,46 +144,50 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                             : renderDefaultControls()}
                     </div>
                     {/* give timer a fixed width so its digit changes won't shift surrounding layout */}
-                    <div className="text-5xl font-[SVN-Gratelos_Display] font-extrabold px-3 py-1 transition-colors duration-500 text-white w-20 text-center shrink-0">
+                    <div className="text-3xl tablet:text-3xl xl:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-1 tablet:px-2 xl:px-3 py-1 transition-colors duration-500 text-white w-12 tablet:w-14 xl:w-20 text-center shrink-0">
                         {timerDuration.toString().padStart(2, '0')}
                     </div>
                 </div>
             </div>
 
             {/* Content area: question text and optional media - takes remaining space */}
-            <div className="flex flex-row flex-1 gap-4">
+            {!hideContent && (
+            <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL ? (
                     <>
-                        {/* Left side: question text (50% width) */}
-                        <div className="flex-1 flex flex-col justify-start">
-                            <p className="text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left">
+                        {/* Left side: question text (compact) */}
+                        <div className="flex-[2] flex flex-col justify-start min-h-0 overflow-y-auto">
+                            <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
-                        {/* Right side: media (50% width) */}
-                        <div className="flex-1 flex items-center justify-center">
-                            <RenderMedia mediaUrl={question.questionMediaURL} />
+                        {/* Right side: media — dominant width so the image is clearly visible */}
+                        <div className="flex-[5] h-full min-h-0 overflow-hidden">
+                            {/*
+                                When hideMediaUntilPlayed is set and the clip has not
+                                been triggered yet (videoPlayState == null), keep the
+                                media visually hidden but STILL mounted so that S3
+                                presign + video buffering happen in the background.
+                                This removes the startup latency that used to occur
+                                the moment admin pressed "ĐẾM GIỜ" — the video is
+                                already loaded and ready to autoplay instantly.
+                            */}
+                            <div className={hideMediaUntilPlayed && videoPlayState == null ? "h-full w-full overflow-hidden opacity-0 pointer-events-none absolute -z-10" : "h-full w-full overflow-hidden"}>
+                                <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
+                            </div>
                         </div>
                     </>
                 ) : (
                     /* Full width: question text only */
-                    <p className="w-full text-lg sm:text-[20px] font-bold text-white leading-relaxed text-left self-start">
-                        {question.questionText}
-                    </p>
+                    <div className="w-full overflow-y-auto min-h-0">
+                        <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
+                            {question.questionText}
+                        </p>
+                    </div>
                 )}
             </div>
-
-            {/* Fixed-height answer and explanation box — hidden during timer */}
-            {!hideAnswerBox && (
-                <div className={`flex flex-col bg-blue-800 border border-blue-600 ${answerBoxHeightClass} rounded-xl text-white font-extrabold items-center justify-center p-4 gap-2`}>
-                    <div className="text-2xl text-center line-clamp-2">
-                        {question.questionAnswer}
-                    </div>
-                    <div className="text-sm text-center line-clamp-2 overflow-y-auto">
-                        {question.questionExplanation}
-                    </div>
-                </div>
             )}
+
         </div>
     )
 }

@@ -91,9 +91,9 @@ audios/
 │   ├── kdc.mp3               # Khởi Động Chung – phase BGM
 │   ├── kdc_30s.mp3           # Khởi Động Chung – timer 30s
 │   ├── kdc_60s.mp3           # Khởi Động Chung – timer 60s
-│   ├── kdr.mp3               # Khởi Động Riêng – phase BGM
-│   ├── kdr_30s.mp3           # Khởi Động Riêng – timer 30s
-│   ├── kdr_60s.mp3           # Khởi Động Riêng – timer 60s
+│   ├── kdr.mp3               # Khởi Động CÁ NHÂN – phase BGM
+│   ├── kdr_40s.mp3           # Khởi Động CÁ NHÂN – timer 40s
+│   ├── kdr_60s.mp3           # Khởi Động CÁ NHÂN – timer 60s
 │   ├── bp.mp3                # Bứt Phá – phase BGM
 │   ├── bp_30s.mp3            # Bứt Phá – timer 30s
 │   ├── vdc.mp3               # Về Đích Chung – phase BGM
@@ -101,7 +101,7 @@ audios/
 │   ├── vdc_20s.mp3           # ...
 │   ├── vdc_30s.mp3
 │   ├── vdc_45s.mp3
-│   ├── vdr.mp3               # Về Đích Riêng – phase BGM
+│   ├── vdr.mp3               # Về Đích CÁ NHÂN – phase BGM
 │   ├── vdr_15s.mp3 ...       # (tương tự vdc)
 │   ├── gm.mp3                # Giải Mã – phase BGM
 │   ├── gm_15s.mp3            # Giải Mã – timer 15s
@@ -127,7 +127,7 @@ Timer BGM được tìm tự động theo pattern **`{phase}_{duration}s`**. Ví
 
 Không cần hardcode mapping trong code. Chỉ cần đặt file đúng tên là bot tự nhận.
 
-> **Lưu ý**: Nếu hai phase dùng chung file timer (ví dụ kdc và kdr cùng dùng nhạc 30s giống nhau), cần đặt hai bản copy riêng: `kdc_30s.mp3` và `kdr_30s.mp3`.
+> **Lưu ý**: Nếu hai phase dùng chung file timer (ví dụ kdc và kdr cùng dùng nhạc giống nhau), cần đặt hai bản copy CÁ NHÂN: `kdc_60s.mp3` và `kdr_40s.mp3`.
 
 **SFX Bot – event SFX** (`PHASE_EVENT_SFX_MAP`):
 

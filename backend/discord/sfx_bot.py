@@ -9,11 +9,13 @@ import asyncio
 import logging
 import os
 import sys
+import time
 
 import discord
 from discord.ext import commands
 
 import configs
+import s3_audio
 from valkey_listener import get_valkey_client, subscribe_to_match_channels
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -32,47 +34,85 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Map of event type → SFX file (without extension)
+# Map of event type → SFX file basename (without extension).
+# Basenames must match filenames inside configs.SFX_DIR (case-insensitive).
 EVENT_SFX_MAP = {
-    "answer": "correct",          # Default answer sound
-    "buzz": "buzzer",             # Buzzer press
-    "start_the_timer": "timer_start",
-    "timer_end": "timer_end",     # Timer expired
-    "buzzer_winner": "winner",    # Winner celebration
-    "navigate": "navigate",       # Page navigation
-    "player_online": "join",      # Player joined
-    "clear_answers": "clear",     # Answers cleared
-    "qualifier_scores_updated": "vl_cong_diem",
-    "VL_10s": "VL_10s",
-    "VL_cong_diem": "vl_cong_diem",
-    "big_correct": "big_correct",
-    "big_wrong": "big_wrong",
-    "wrong": "wrong",
-    "kd_cong_diem": "kd_cong_diem",
-    "bp_dung": "bp_dung",
+    "open_match":        "mo_tran_dau",
+    "introduce_players": "gioi_thieu_thi_sinh",
+    "show_scoreboard":   "tong_ket_diem_so",
+    "end_match":         "ket_thuc_tran_dau",
 }
 
 # Phase-specific overrides: { phase: { event_type: sfx_basename } }
+# Takes priority over EVENT_SFX_MAP when the bot is in a matching phase.
 PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
-    "gm": {
-        "send_answers_to_players": "gm_mo_dap_an",
-    },
-    "bp": {
-        "send_answers_to_players": "bp_mo_dap_an",
-    },
     "kdc": {
-        "send_answers_to_players": "kd_mo_dap_an",
+        "round_start":             "kd_bat_dau",
+        "send_answers_to_players": "kd_hien_tra_loi",
+        "kd_cong_diem":            "kd_dung",  # Admin awards points (KĐC) → play kd_dung
+        "round_end":               "kd_ket_thuc",
+    },
+    "kdr": {
+        "round_start":             "kd_bat_dau",
+        "send_answers_to_players": "kd_hien_tra_loi",
+        "wrong":                   "kd_sai",
+        "skip":                    "kd_sai",
+        "player_wrong_attempt":    "kd_sai",  # attempt_count=2 (loại) uses kd_sai
+        "kd_cong_diem":            "kd_dung",  # Admin awards points (KĐR/KĐC) → play kd_dung
+        "round_end":               "kd_ket_thuc",
+    },
+    "vdc": {
+        "round_start":             "vd_bat_dau",
+        "round_end":               "vd_ket_thuc",  # Phase end Về Đích Chung
+        "wrong":                   "vd_sai",
+        "vd_dung":                 "vd_dung",
+        "send_answers_to_players": "vd_hien_tra_loi",
+        "vd_selection_update":     "vd_pick",
+        "vd_questions_selected":   "vd_xac_nhan",  # Admin confirms selection from pick page
+        # VĐC plays vd_quyen_nang at most once per question — admin gates the broadcast
+        # (see AVeDichChungPage vd_player_power handler).
+        "power_star":              "vd_quyen_nang",
+        "power_shield":            "vd_quyen_nang",
     },
     "vdr": {
-        "answering_window_activated": "vd_5s",
+        "round_start":             "vd_bat_dau",
+        "round_end":               "vd_ket_thuc",  # Phase end Về Đích Riêng
+        "wrong":                   "vd_sai",
+        "vd_dung":                 "vd_dung",
+        "send_answers_to_players": "vd_hien_tra_loi",
+        "vd_selection_update":     "vd_pick",
+        "vd_questions_selected":   "vd_xac_nhan",  # Admin confirms selection from pick page
+        # Power: both star and shield use the same generic SFX
+        "power_star":              "vd_quyen_nang",
+        "power_shield":            "vd_quyen_nang",
+    },
+    "bp": {
+        "round_start":             "bp_bat_dau",
+        "bp_chon_cau_hoi":         "bp_chon_cau_hoi",
+        "bp_dung":                 "bp_dung",
+        "send_answers_to_players": "bp_hien_tra_loi",
+    },
+    "gm": {
+        "round_start":             "gm_bat_dau",
+        "send_answers_to_players": "gm_hien_tra_loi",
+        "gm_chon_goi_y":           "gm_chon_goi_y",
+        "gm_dung":                 "gm_dung",
+        "gm_dung_tu_khoa":         "gm_dung_tu_khoa",
+        "keyword_correct":         "gm_dung_tu_khoa",
+        "round_end":               "gm_ket_thuc",
     },
 }
 
 _current_phase: str = ""
 
-# Queue for sequential SFX playback
+# Queue serialises voice connect/cleanup/play so back-to-back events
+# never race on the Discord voice client. Each item stops the current
+# playback and plays immediately (fire-and-forget) — newest audio wins.
 _sfx_queue: asyncio.Queue[str] = asyncio.Queue()
-_is_playing = False
+
+# Debounce: track recent event types to prevent duplicate queuing
+_recent_events: dict[str, float] = {}  # event_type -> last_time
+_DEBOUNCE_MS = 200  # 200ms minimum between identical events
 
 
 def _find_sfx_file(event_type: str) -> str | None:
@@ -92,47 +132,71 @@ def _find_sfx_file(event_type: str) -> str | None:
 
 async def _get_voice_client() -> discord.VoiceClient | None:
     """Return the existing voice client, or connect if not already in channel."""
-    # Prefer already-connected voice client
-    vc: discord.VoiceClient | None = bot.guilds[0].voice_client if bot.guilds else None
-    if vc and vc.is_connected():
-        return vc
-    # Reconnect if disconnected
+    # Reuse any live voice client we hold.
+    for g in bot.guilds:
+        vc = g.voice_client
+        if vc is not None and vc.is_connected():
+            return vc
+
+    # No live client anywhere. Tear down the stale one on the target
+    # guild (if any) — never touch voice clients on OTHER guilds,
+    # doing so kicks the bot out of voice channels it should stay in.
+    target_guild = bot.guilds[0] if bot.guilds else None
+    if target_guild is not None and target_guild.voice_client is not None:
+        logger.warning(f"Voice client on '{target_guild.name}' is stale — cleaning up")
+        try:
+            await target_guild.voice_client.disconnect(force=True)
+        except Exception as e:
+            logger.warning(f"Failed to disconnect stale client: {e}")
     try:
-        channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
+        channel = bot.get_channel(int(configs.VOICE_CHANNEL_ID))
+        if channel is None:
+            channel = await bot.fetch_channel(int(configs.VOICE_CHANNEL_ID))
         if isinstance(channel, discord.VoiceChannel):
-            return await channel.connect()
+            return await channel.connect(self_deaf=True)
+    except discord.ClientException as e:
+        # Race: another coroutine connected between our check and our call —
+        # fall back to whatever client Discord just created.
+        logger.warning(f"connect() raced — reusing the just-created client: {e}")
+        vc = bot.guilds[0].voice_client if bot.guilds else None
+        if vc is not None and vc.is_connected():
+            return vc
     except Exception as e:
         logger.warning(f"Cannot get voice client: {e}")
     return None
 
 
 async def _play_sfx(file_path: str) -> None:
-    """Play a sound effect in the configured voice channel."""
-    global _is_playing
+    """Play a sound effect in the configured voice channel.
 
+    Fire-and-forget: stops any current playback and starts the new SFX
+    immediately. Does NOT wait for playback to finish — the next queue
+    item will stop this one if it arrives sooner.
+    """
     vc = await _get_voice_client()
     if not vc:
         return
 
-    # Wait if something is already playing
-    while _is_playing:
-        await asyncio.sleep(0.1)
+    # Stop any current playback so the new SFX starts immediately.
+    if vc.is_playing():
+        logger.info("Stopping current SFX playback to play new audio")
+        vc.stop()
 
-    _is_playing = True
     try:
         source = discord.FFmpegOpusAudio(file_path)
     except Exception as e:
         logger.error(f"Failed to create audio source for '{file_path}': {e}")
-        _is_playing = False
         return
-    vc.play(source, after=lambda e: setattr(sys.modules[__name__], "_is_playing", False))
-    logger.info(f"Playing SFX: {os.path.basename(file_path)}")
 
-    # Wait for playback to finish
-    while vc.is_playing():
-        await asyncio.sleep(0.1)
-
-    _is_playing = False
+    try:
+        vc.play(source)
+        logger.info(f"Playing SFX: {os.path.basename(file_path)}")
+    except discord.ClientException as e:
+        logger.error(f"vc.play() failed (voice state desync?): {e} — tearing down for next call")
+        try:
+            await vc.disconnect(force=True)
+        except Exception:
+            pass
 
 
 async def _sfx_player():
@@ -163,7 +227,7 @@ async def _auto_join_voice() -> None:
         if guild.voice_client:
             logger.info("Already in a voice channel")
             return
-        await channel.connect()
+        await channel.connect(self_deaf=True)
         logger.info(f"Auto-joined voice channel: {channel.name} ({guild.name})")
     except Exception as e:
         logger.warning(f"Auto-join failed: {e}")
@@ -172,9 +236,33 @@ async def _auto_join_voice() -> None:
 @bot.event
 async def on_ready():
     logger.info(f"SFX Bot logged in as {bot.user}")
+    try:
+        await asyncio.to_thread(s3_audio.sync_audio_from_s3)
+    except Exception as e:
+        logger.error(f"S3 audio sync failed: {e}")
     await _auto_join_voice()
     asyncio.create_task(_sfx_player())
     asyncio.create_task(_valkey_listener())
+
+
+@bot.event
+async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    if member != bot.user:
+        return
+    # Bot was disconnected
+    if before.channel and not after.channel:
+        logger.warning("SFX Bot was disconnected from voice — rejoining with backoff...")
+        for attempt in range(1, 6):
+            try:
+                await asyncio.sleep(2 * attempt)
+                await _auto_join_voice()
+                vc = bot.guilds[0].voice_client if bot.guilds else None
+                if vc and vc.is_connected():
+                    logger.info(f"Successfully rejoined voice (attempt {attempt})")
+                    return
+            except Exception as e:
+                logger.warning(f"Reconnect attempt {attempt} failed: {e}")
+        logger.error("Failed to reconnect after 5 attempts")
 
 
 def _extract_phase(path: str) -> str | None:
@@ -190,34 +278,100 @@ async def _handle_message(message: dict) -> None:
     msg_type = message.get("type", "")
     logger.debug(f"Received event: type={msg_type!r} keys={list(message.keys())}")
 
-    # Track current game phase from navigate events
+    # Track current game phase from navigate events and clear queue on phase change
     if msg_type == "navigate":
         phase = _extract_phase(message.get("path", ""))
-        if phase:
+        if phase and phase != _current_phase:
             _current_phase = phase
+            # Clear the queue when transitioning to a new phase to prevent audio carryover
+            while not _sfx_queue.empty():
+                try:
+                    _sfx_queue.get_nowait()
+                    _sfx_queue.task_done()
+                except asyncio.QueueEmpty:
+                    break
+            _recent_events.clear()  # Clear debounce tracking on phase change
+            logger.info(f"Navigated to phase '{phase}' — queue cleared and debounce reset")
 
-    # Queue timer_end SFX after the timer duration elapses
-    if msg_type == "start_the_timer":
-        if not _current_phase:
-            _current_phase = message.get("phase", "")
-        time_limit = int(message.get("time_limit", 30))
-        sfx_file = _find_sfx_file("timer_end")
-        if sfx_file:
-            await asyncio.sleep(time_limit)
-            await _sfx_queue.put(sfx_file)
+    # Track phase from round_start events (set phase before navigate completes)
+    if msg_type == "round_start":
+        round_phase = message.get("round", "")
+        if round_phase and round_phase != _current_phase:
+            logger.info(f"Round started: '{round_phase}' — updating phase from '{_current_phase}'")
+            _current_phase = round_phase
+            # Clear debounce tracking when round starts
+            _recent_events.clear()
+
+    # Track phase from round_end events
+    if msg_type == "round_end":
+        round_phase = message.get("round", "")
+        if round_phase:
+            _current_phase = round_phase
+
+    # player_wrong_attempt: attempt_count=1 → kd_sai_lan_1, attempt_count=2 → kd_sai
+    if msg_type == "player_wrong_attempt":
+        attempt_count = int(message.get("attempt_count", 1))
+        if attempt_count == 1:
+            # Play kd_sai_lan_1 (first wrong attempt) instead of kd_sai
+            for ext in (".mp3", ".ogg", ".wav"):
+                path = os.path.join(configs.SFX_DIR, f"kd_sai_lan_1{ext}")
+                if os.path.isfile(path):
+                    await _sfx_queue.put(path)
+                    logger.debug(f"Queued kd_sai_lan_1 SFX for first wrong attempt")
+                    break
+            return  # Don't continue to generic SFX lookup
+        # attempt_count=2 falls through to generic kd_sai via wrong/skip handler below
+
+    # Log wrong/skip events for debugging
+    if msg_type in ("wrong", "skip"):
+        user_code = message.get("user_code", "unknown")
+        phase = message.get("phase", _current_phase)
+        logger.info(f"Received '{msg_type}' event for user={user_code!r} in phase={phase!r}")
+
+    # Debounce: skip if the same event was queued recently
+    current_time = time.time() * 1000  # milliseconds
+    if msg_type in _recent_events:
+        time_since_last = current_time - _recent_events[msg_type]
+        if time_since_last < _DEBOUNCE_MS:
+            logger.debug(f"Debounced event '{msg_type}' (repeated {time_since_last:.0f}ms apart)")
+            return
+    
+    _recent_events[msg_type] = current_time
+
+    # Convert vd_power_activated to a phase-specific event type
+    effective_event = msg_type
+    if msg_type == "vd_power_activated":
+        power = message.get("power")
+        if power == "star":
+            effective_event = "power_star"
+        elif power == "shield":
+            effective_event = "power_shield"
+        else:
+            return  # power is null (deactivated) — no SFX
+
+    # Silent mode: client asked us to forward the payload to other clients
+    # but NOT play any SFX. Used when the admin re-broadcasts data-only
+    # messages (e.g. vd_selection_update on the BẮT ĐẦU button to fix a
+    # race condition for late-joining players) so we don't double up audio
+    # with the round_start that follows immediately.
+    if message.get("silent") is True:
+        logger.debug(f"Skipping SFX for silent event '{effective_event}'")
+        return
 
     # Resolve SFX: phase-specific override takes priority over generic map
-    phase_override = PHASE_EVENT_SFX_MAP.get(_current_phase, {}).get(msg_type)
+    phase_override = PHASE_EVENT_SFX_MAP.get(_current_phase, {}).get(effective_event)
     if phase_override:
         for ext in (".mp3", ".ogg", ".wav"):
             path = os.path.join(configs.SFX_DIR, f"{phase_override}{ext}")
             if os.path.isfile(path):
                 await _sfx_queue.put(path)
+                logger.debug(f"Queued phase-specific SFX for '{effective_event}': {os.path.basename(path)}")
                 break
     else:
         sfx_file = _find_sfx_file(msg_type)
         if sfx_file:
             await _sfx_queue.put(sfx_file)
+            logger.debug(f"Queued generic SFX for '{msg_type}': {os.path.basename(sfx_file)}")
 
 
 async def _valkey_listener():
@@ -225,23 +379,31 @@ async def _valkey_listener():
 
     Runs the blocking subscriber in a thread so it never stalls the Discord
     heartbeat loop. Each message is dispatched back to the event loop via
-    run_coroutine_threadsafe.
+    run_coroutine_threadsafe. Automatically reconnects with exponential backoff.
     """
-    valkey_client = get_valkey_client()
     match_code = configs.MATCH_CODE
     loop = asyncio.get_running_loop()
     logger.info(f"SFX Bot listening to channel '{match_code}'")
+    retry_delay = 2
 
     def _on_done(fut: asyncio.Future) -> None:
         if not fut.cancelled() and fut.exception():
             logger.error(f"Message handler error: {fut.exception()}")
 
     def _sync_subscribe():
+        valkey_client = get_valkey_client()
         for message in subscribe_to_match_channels(valkey_client, match_code):
             fut = asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
             fut.add_done_callback(_on_done)
 
-    await asyncio.to_thread(_sync_subscribe)
+    while True:
+        try:
+            await asyncio.to_thread(_sync_subscribe)
+            logger.warning("Valkey listener exited — reconnecting...")
+        except Exception as e:
+            logger.error(f"Valkey listener error: {e} — retrying in {retry_delay}s")
+        await asyncio.sleep(retry_delay)
+        retry_delay = min(retry_delay * 2, 60)
 
 
 # ── Commands ─────────────────────────────────────────────────────────────────
@@ -286,9 +448,5 @@ if __name__ == "__main__":
     if not configs.SFX_BOT_TOKEN:
         logger.error("SFX_BOT_TOKEN not set in .env")
         sys.exit(1)
-
-    if not os.path.isdir(configs.SFX_DIR):
-        os.makedirs(configs.SFX_DIR, exist_ok=True)
-        logger.info(f"Created SFX directory: {configs.SFX_DIR}")
 
     bot.run(configs.SFX_BOT_TOKEN)

@@ -1,17 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
 	ListRestart,
 	Power,
-	RefreshCw,
-	Play,
 	Zap,
 	Plus,
 	Minus,
-	Star,
-	Shield,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -20,15 +16,17 @@ import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
 const logger = createLogger("AVeDichRieng");
 
-const ROUND_QUESTION_COUNT = 3; // Lượt Riêng: 3 questions
+const ROUND_QUESTION_COUNT = 3; // Lượt CÁ NHÂN: 3 questions
 
 const getTimeLimitForPoints = (points: number): number => {
 	switch (points) {
@@ -36,18 +34,9 @@ const getTimeLimitForPoints = (points: number): number => {
 		case 30: return 20;
 		case 40: return 30;
 		case 50: return 45;
-		default: return 30;
+		default: return 0;
 	}
 };
-
-const CATEGORIES = [
-	"TOÁN - TIN - THỐNG KÊ",
-	"TỰ NHIÊN - SỰ SỐNG",
-	"KINH TẾ - XÃ HỘI",
-	"VĂN HỌC - NGHỆ THUẬT",
-	"VĂN HÓA - THỂ THAO",
-	"KIẾN THỨC TỔNG HỢP",
-];
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -58,14 +47,35 @@ const DEFAULT_QUESTION: Question = {
 };
 
 const AVeDichRiengPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode");
-	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
 	const navigate = useNavigate();
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const storedMatchCode = localStorage.getItem("matchCode");
+	const currentMatchCode = urlMatchCode || storedMatchCode || "";
+	const token = localStorage.getItem("jwtToken_admin") ?? "";
+
+	// Sync matchCode from URL to localStorage
+	useEffect(() => {
+		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
+			try {
+				localStorage.setItem("matchCode", urlMatchCode);
+			} catch {
+				// ignore
+			}
+		}
+	}, [urlMatchCode, storedMatchCode]);
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
+	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -87,6 +97,36 @@ const AVeDichRiengPage = () => {
 		} catch { return {}; }
 	});
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+
+	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
+
+	const pendingBroadcastTimerRef = useRef<number | null>(null);
+	const clearPendingBroadcastTimer = useCallback(() => {
+		if (pendingBroadcastTimerRef.current != null) {
+			window.clearTimeout(pendingBroadcastTimerRef.current);
+			pendingBroadcastTimerRef.current = null;
+		}
+	}, []);
+
+	const broadcastPendingVeDichQuestion = useCallback(() => {
+		const pending = pendingQuestionRef.current;
+		if (!pending || !currentMatchCode) return;
+		const { questionCode, question } = pending;
+		logger.info(`[VDR] Broadcasting full question + play_video for ${questionCode}`);
+		void sendMessage({
+			type: "send_question",
+			user_code: "",
+			question_code: questionCode,
+			content: question.questionText ?? "",
+			media_source: question.questionMediaURL ?? undefined,
+		});
+		if (question.questionMediaURL) {
+			void sendMessage({ type: "play_video" });
+			setVideoPlayState("playing");
+		}
+		pendingQuestionRef.current = null;
+		clearPendingBroadcastTimer();
+	}, [currentMatchCode, sendMessage, clearPendingBroadcastTimer]);
 	// The 3 questions locked in for this round — set via WS from the pick page.
 	// Persisted in localStorage so navigating to this page after confirming still shows them.
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
@@ -96,7 +136,7 @@ const AVeDichRiengPage = () => {
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
-	// The player whose Lượt Riêng it is — persisted from the pick page.
+	// The player whose Lượt CÁ NHÂN it is — persisted from the pick page.
 	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(() => {
 		if (!currentMatchCode) return null;
 		try {
@@ -105,27 +145,51 @@ const AVeDichRiengPage = () => {
 	});
 
 	// ─── Power state ─────────────────────────────────────────────────────────────
-	// Track which powers each player has used. Persisted across navigation.
-	const [usedPowers, setUsedPowers] = useState<Record<string, { star: boolean; shield: boolean }>>(() => {
+	// Track which power each player has used (one per player: star OR shield). Persisted across navigation.
+	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!currentMatchCode) return {};
 		try {
 			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
-			return stored ? (JSON.parse(stored) as Record<string, { star: boolean; shield: boolean }>) : {};
+			if (!stored) return {};
+			const parsed = JSON.parse(stored);
+			// Migrate from old format { star: boolean, shield: boolean } → string | null
+			const migrated: Record<string, string | null> = {};
+			for (const [code, val] of Object.entries(parsed)) {
+				if (typeof val === "string" || val === null) {
+					migrated[code] = val;
+				} else if (typeof val === "object" && val !== null) {
+					migrated[code] = (val as any).star ? "star" : (val as any).shield ? "shield" : null;
+				} else {
+					migrated[code] = null;
+				}
+			}
+			return migrated;
 		} catch { return {}; }
 	});
 	// Active power for the current question (cleared after scoring or question change)
 	const [activePower, setActivePower] = useState<'star' | 'shield' | null>(null);
+
+	// ─── Buzzer winner state ─────────────────────────────────────────────────────
+	// The buzzer winner's identity is reflected via ``players[*].playerHasBuzzed``
+	// (set in the ``case "buzzer_winner"`` handler below) — APlayerBar renders
+	// the Zap icon based on that boolean. We don't keep a separate
+	// ``buzzerWinnerCode`` string because the dedupe role it used to play is
+	// now handled by ``lastBuzzerQuestionRef`` (scoped to ``question_code`` so
+	// a stale value from a previous round/question can't silently drop the
+	// next round's winner event). Mirrors PVeDichRiengPage.lastBuzzerQuestionRef.
+	const lastBuzzerQuestionRef = useRef<string | null>(null);
 
 	// ─── Timer state ──────────────────────────────────────────────────────────────
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const wasTimerRunningRef = useRef<boolean>(false); // Track state transitions to prevent premature window activation
 
 	// ─── Score state ──────────────────────────────────────────────────────────────
 
-	const questionTitle = "VỀ ĐÍCH - LƯỢT RIÊNG";
+	const questionTitle = "VỀ ĐÍCH - LƯỢT CÁ NHÂN";
 
 	// Point value of the currently active question
 	const currentPoints = (() => {
@@ -163,10 +227,17 @@ const AVeDichRiengPage = () => {
 		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
 	}, [usedPowers, currentMatchCode]);
 
-	// Reset activePower whenever the active question changes
+	// Reset activePower whenever the active question changes. Broadcast
+	// ``vd_power_activated { power: null }`` so the player page and any
+	// other observers flip their UI back to the "no power" state. The
+	// SFX bot no-ops on null (see ``sfx_bot.py`` vd_power_activated
+	// branch) so this is purely a UI sync, not a sound cue.
 	useEffect(() => {
 		setActivePower(null);
-	}, [currentQuestion.questionCode]);
+		if (currentMatchCode) {
+			void sendMessage({ type: "vd_power_activated", power: null });
+		}
+	}, [currentQuestion.questionCode, currentMatchCode, sendMessage]);
 
 	// ─── Players helpers ──────────────────────────────────────────────────────────
 	const applyPlayersSnapshot = useCallback(
@@ -199,18 +270,11 @@ const AVeDichRiengPage = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-			const profiles = playersList.map((entry: any, index: number) => ({
+			// user_name is already included in the /matches/{code}/players response,
+			// so we no longer need N separate /users/?user_code= requests.
+			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
-				user_name: profileResponses[index]?.data?.user_name ?? "",
+				user_name: entry.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -235,24 +299,28 @@ const AVeDichRiengPage = () => {
 					(scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 				const cumulativeScore =
 					scoreEntry?.cumulative_score ??
-					scoreEntry?.cummulative_score ??
+					scoreEntry?.cumulative_score ??
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
+				// Only mark as current if currentTurnPlayerCode matches and is not an admin code
+				const isAdminCode = currentTurnPlayerCode?.startsWith("ADMIN") ?? false;
+				const isCurrent = !isAdminCode && currentTurnPlayerCode === userCode;
 				return {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
 					cumulative_score: cumulativeScore,
-					is_current: Array.isArray(selectedPlayerCodes) ? selectedPlayerCodes.includes(String(userCode)) : false,
+					is_current: isCurrent,
 				};
 			});
 
+			logger.info(`Sending players snapshot: currentTurnPlayerCode=${currentTurnPlayerCode}, isAdmin=${currentTurnPlayerCode?.startsWith("ADMIN")}`);
 			await sendMessage({ type: "send_players_info", players: mergedPlayers });
 		} catch (err) {
 			logger.error("Failed to send players snapshot:", err);
 		}
-	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCodes]);
+	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCodes, currentTurnPlayerCode]);
 
 	// ─── Question fetch ───────────────────────────────────────────────────────────
 	useEffect(() => {
@@ -280,16 +348,10 @@ const AVeDichRiengPage = () => {
 					questionExplanation: q.explanation ?? "",
 					questionMediaURL: q.media_url ?? undefined,
 				}));
-				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
+				mapped.sort((a, b) => compareVeDichCodes(a.questionCode, b.questionCode));
 
-				const cats = mapped.map((_, idx) => {
-					const catIdx = Math.floor(idx / 4);
-					return CATEGORIES[catIdx] || `Category ${catIdx + 1}`;
-				});
-				const pts = mapped.map((_, idx) => {
-					const ptIdx = idx % 4;
-					return [20, 30, 40, 50][ptIdx] || 0;
-				});
+				const cats = mapped.map((q, idx) => getVeDichMeta(q.questionCode, idx).category);
+				const pts  = mapped.map((q, idx) => getVeDichMeta(q.questionCode, idx).points);
 
 				setQuestions(mapped);
 				setQuestionCategories(cats);
@@ -320,7 +382,7 @@ const AVeDichRiengPage = () => {
 				points: questionPoints[idx] ?? 0,
 			};
 		});
-		void sendMessage({ type: "veDich_rieng_questions_meta", question_metadata: metadata });
+		void sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
 	// ─── Question activation ──────────────────────────────────────────────────────
@@ -348,13 +410,18 @@ const AVeDichRiengPage = () => {
 		setTimer(0);
 		setAnsweringWindowTimer(0); // Reset answering window
 		setIsTimerRunning(false);
+		setVideoPlayState(null);
 		wasTimerRunningRef.current = false; // Reset state transition tracker
+		// Cancel any pending reveal so a stale 5.5s safety timer cannot fire and resurrect
+		// the question we just cleared (e.g. admin toggled a question off mid-window).
+		pendingQuestionRef.current = null;
+		clearPendingBroadcastTimer();
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (err) {
 			logger.error("Failed to clear question:", err);
 		}
-	}, [sendMessage]);
+	}, [sendMessage, clearPendingBroadcastTimer]);
 
 	const handleQuestionActivate = useCallback(
 		async (questionCode: string) => {
@@ -363,11 +430,16 @@ const AVeDichRiengPage = () => {
 			// Toggle: clicking the active question clears it
 			if (currentQuestion.questionCode === questionCode) {
 				setSelectedPlayerCodes([]);
+				setUsedPowers({});
 				await clearQuestion();
 				return;
 			}
 
 			setSelectedPlayerCodes([]);
+			setUsedPowers({});
+			setVideoPlayState(null);
+			// Reset buzzer state when switching to a new question
+			lastBuzzerQuestionRef.current = null;
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -376,6 +448,10 @@ const AVeDichRiengPage = () => {
 					playerHasBuzzed: undefined,
 				})),
 			);
+			// Send clear_buzz to reset player buzzer state
+			if (currentMatchCode) {
+				void sendMessage({ type: "clear_buzz" });
+			}
 
 			// Set fallback immediately for responsive UI
 			const fallback: Question = { ...DEFAULT_QUESTION, questionCode };
@@ -390,9 +466,11 @@ const AVeDichRiengPage = () => {
 					content: "",
 					media_source: undefined,
 				});
+				// Open 5s power selection window for players (mirrors VDC behaviour)
+				void sendMessage({ type: "vd_power_window_open", duration: 5 });
 			}
 
-			// Fetch full details in background and re-broadcast
+			// Fetch full details in background but DON'T broadcast yet - wait for power window to close
 			try {
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode ?? "")}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -413,20 +491,21 @@ const AVeDichRiengPage = () => {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
 				setCurrentQuestion(q);
-				if (currentMatchCode) {
-					void sendMessage({
-						type: "send_question",
-						user_code: "",
-						question_code: questionCode,
-						content: q.questionText ?? "",
-						media_source: q.questionMediaURL ?? undefined,
-					});
-				}
-			} catch (err) {
-				logger.error("handleQuestionActivate: failed to load question:", err);
-			}
-		},
-		[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload],
+				// Store in ref to broadcast after power window closes (5s)
+				pendingQuestionRef.current = { questionCode, question: q };
+				logger.info(`[VDR] Question ${questionCode} fetched, waiting for power window to close`);
+			// Arm a safety timer (5.5s = 5s window + 0.5s buffer) so the reveal still happens
+			// even when no player reports `vd_power_window_closed` (already-used-power case).
+			clearPendingBroadcastTimer();
+			pendingBroadcastTimerRef.current = window.setTimeout(() => {
+				pendingBroadcastTimerRef.current = null;
+				broadcastPendingVeDichQuestion();
+			}, 5500);
+		} catch (err) {
+			logger.error("handleQuestionActivate: failed to load question:", err);
+		}
+	},
+	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
 	);
 
 	// ─── Timer ───────────────────────────────────────────────────────────────────
@@ -435,8 +514,14 @@ const AVeDichRiengPage = () => {
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
 		setAnsweringWindowTimer(0); // Reset answering window when starting new question
+		// Reset buzzer ref so the next ``buzzer_winner`` for this question is
+		// accepted by the dedupe guard.
+		lastBuzzerQuestionRef.current = null;
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
+			// NOTE: play_video is intentionally NOT sent here. In Về Đích rounds the video
+			// autoplays the moment the power window closes (vd_power_window_closed), so the
+			// media is already running by the time admin clicks "Bắt đầu tính giờ".
 			void sendMessage({
 				type: "start_the_timer",
 				user_code: "",
@@ -509,7 +594,21 @@ const AVeDichRiengPage = () => {
 		});
 	}, [answeringWindowTimer, currentMatchCode, sendMessage]);
 
-	
+
+	// NOTE: ``vd_power_activated`` broadcast is intentionally NOT
+	// driven by a ``useEffect`` on ``activePower``. Previously this
+	// effect tried to mirror activePower to SFX bot, but it never
+	// actually fired because nothing in this page ever set
+	// ``activePower`` to a non-null value from the WS handler
+	// (the handler updated ``usedPowers`` and ``players[i].playerPower``
+	// but not the local ``activePower`` state). The handler now
+	// broadcasts ``vd_power_activated`` directly when the turn player
+	// picks a power — see the ``case "vd_player_power"`` block below.
+	// Admin-initiated resets (e.g. clearing the active power when the
+	// round ends) intentionally fire ``vd_power_activated { power: null }``
+	// only from the handler that owns the state change, not from a
+	// blanket effect, to keep the broadcast surface explicit.
+
 	// ─── Score management ─────────────────────────────────────────────────────────
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -558,7 +657,7 @@ const AVeDichRiengPage = () => {
 								);
 								const updatedScore =
 									entry?.cumulative_score ??
-									entry?.cummulative_score ??
+									entry?.cumulative_score ??
 									entry?.total_score ??
 									entry?.score;
 								return typeof updatedScore === "number"
@@ -581,33 +680,55 @@ const AVeDichRiengPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
-	// Lượt Riêng: individual round — only the selected player(s) get +points.
-	// Calculate score: add to selected players only (Lượt Riêng logic)
+	// Handle manual score editing from APlayerBar
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
+		// Update local state immediately
+		setPlayers((prev) =>
+			prev.map((player) =>
+				player.playerCode === playerCode
+					? { ...player, playerScore: newScore }
+					: player,
+			),
+		);
+		// Refresh scoreboard from server to ensure consistency
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot]);
 
-	// Add points: +100% default, +150% with star, +50% with shield
+	// Lượt CÁ NHÂN: individual round — only the selected player(s) get +points.
+	// Calculate score: add to selected players only (Lượt CÁ NHÂN logic)
+
+	// Add points: +100% default, +150% with star (turn player only), +50% with shield (turn player only)
 	const handleAddPoints = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
-		let points: number;
-		if (activePower === 'star') points = Math.round(currentPoints * 1.5);
-		else if (activePower === 'shield') points = Math.round(currentPoints * 0.5);
-		else points = currentPoints;
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
-		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "vdr_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "vd_dung", phase: "vdr" });
 
 		try {
 			for (const playerCode of selectedPlayerCodes) {
+				let points: number;
+				if (playerCode === currentTurnPlayerCode && activePower === 'star')
+					points = Math.round(currentPoints * 1.5);
+				else if (playerCode === currentTurnPlayerCode && activePower === 'shield')
+					points = Math.round(currentPoints * 0.5);
+				else
+					points = currentPoints;
 				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
-			// Mark power as consumed for the turn player
+			// Mark power as consumed for the turn player (one power per player)
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
 					...prev,
-					[currentTurnPlayerCode]: { ...(prev[currentTurnPlayerCode] ?? { star: false, shield: false }), [activePower]: true },
+					[currentTurnPlayerCode]: activePower,
 				}));
 			}
 			setActivePower(null);
+			// Broadcast deactivation so the player page flips its UI back
+			// to the "no active power" state. SFX bot no-ops on null.
+			void sendMessage({ type: "vd_power_activated", power: null });
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
 			logger.error("handleAddPoints failed:", err);
@@ -629,25 +750,31 @@ const AVeDichRiengPage = () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		const answeredCode = currentQuestion.questionCode;
 		setQuestionStates((prev) => ({ ...prev, [answeredCode]: "answered" }));
-		void sendMessage({ type: "veDich_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "vdr_question_state", question_code: answeredCode, state: "answered" });
+		void sendMessage({ type: "wrong", phase: "vdr" });
 
 		try {
-			// Shield: no deduction — skip score call
-			if (activePower !== 'shield') {
-				const points = activePower === 'star' ? -currentPoints : Math.floor(currentPoints * -0.5);
-				for (const playerCode of selectedPlayerCodes) {
-					await handleAddScore(playerCode, points, false);
-				}
+			for (const playerCode of selectedPlayerCodes) {
+				const isCurrentTurnPlayer = playerCode === currentTurnPlayerCode;
+				// Shield (turn player only): no deduction
+				if (isCurrentTurnPlayer && activePower === 'shield') continue;
+				const points = (isCurrentTurnPlayer && activePower === 'star')
+					? -currentPoints
+					: Math.floor(currentPoints * -0.5);
+				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
-			// Mark power as consumed for the turn player
+			// Mark power as consumed for the turn player (one power per player)
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
 					...prev,
-					[currentTurnPlayerCode]: { ...(prev[currentTurnPlayerCode] ?? { star: false, shield: false }), [activePower]: true },
+					[currentTurnPlayerCode]: activePower,
 				}));
 			}
 			setActivePower(null);
+			// Broadcast deactivation so the player page flips its UI back
+			// to the "no active power" state. SFX bot no-ops on null.
+			void sendMessage({ type: "vd_power_activated", power: null });
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
 			logger.error("handleSubtractPoints failed:", err);
@@ -657,7 +784,7 @@ const AVeDichRiengPage = () => {
 		currentQuestion.questionCode,
 		currentPoints,
 		activePower,
-		currentTurnPlayerCode,
+	[currentTurnPlayerCode],
 		handleAddScore,
 		sendPlayersSnapshot,
 		sendMessage,
@@ -666,9 +793,12 @@ const AVeDichRiengPage = () => {
 
 	// Manually open buzzer window (skip 5s wait)
 	const handleOpenBuzzer = useCallback(async () => {
-		if (timer !== 0) return; // Only allow when main timer is finished
+		if (timer !== 0) return;
 		setAnsweringWindowTimer(5);
+		lastBuzzerQuestionRef.current = null;
+		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (currentMatchCode) {
+			void sendMessage({ type: "clear_buzz" });
 			void sendMessage({
 				type: "answering_window_activated",
 				countdown: 5,
@@ -681,10 +811,17 @@ const AVeDichRiengPage = () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
+		// Defensive reset: if admin starts a new VDR round while a previous
+		// round's buzzer state is still in memory (e.g. previous round was
+		// abandoned without `clear_buzz` or `vd_questions_selected`), clear
+		// the ref now so the new round's `buzzer_winner` event isn't dropped
+		// by the `lastBuzzerQuestionRef` guard.
+		lastBuzzerQuestionRef.current = null;
+		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_start", round: "vdr" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
+			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
 			await sendPlayersSnapshot();
 		} catch (err) {
 			logger.error("handleStartRound failed:", err);
@@ -698,7 +835,6 @@ const AVeDichRiengPage = () => {
 		if (!currentMatchCode) return;
 		try {
 			await sendMessage({ type: "round_end", round: "vdr" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
@@ -710,25 +846,39 @@ const AVeDichRiengPage = () => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
-			case "veDich_questions_selected": {
-				// Receive the 3 question codes confirmed from the pick page (riêng round)
+			case "vd_questions_selected": {
+				// Receive the 3 question codes confirmed from the pick page (CÁ NHÂN round)
 				if (Array.isArray(msg.selected_question_codes) && msg.round === "rieng") {
 					if (currentMatchCode) {
 						localStorage.setItem(`veDich_rieng_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
 					}
 					startTransition(() => {
 						setRoundQuestionCodes(msg.selected_question_codes);
+						// Reset buzzer ref when new questions are selected so the
+						// next ``buzzer_winner`` for one of these questions is
+						// accepted by the dedupe guard.
+						lastBuzzerQuestionRef.current = null;
 					});
 				}
 				// Track which player's turn it is
 				if (msg.selected_player_code) {
-					startTransition(() => setCurrentTurnPlayerCode(msg.selected_player_code));
-					if (currentMatchCode) {
-						localStorage.setItem(`veDich_rieng_selected_player_${currentMatchCode}`, msg.selected_player_code);
+					// Validate: reject admin codes
+					const isAdminCode = String(msg.selected_player_code).startsWith("ADMIN");
+					if (isAdminCode) {
+						logger.warn(`[VDR ADMIN] Rejecting selected_player_code because it's an admin code: ${msg.selected_player_code}`);
+					} else {
+						logger.info(`[VDR ADMIN] Setting current turn player: ${msg.selected_player_code}`);
+						startTransition(() => setCurrentTurnPlayerCode(msg.selected_player_code));
+						if (currentMatchCode) {
+							localStorage.setItem(`veDich_rieng_selected_player_${currentMatchCode}`, msg.selected_player_code);
+						}
 					}
 				}
 				break;
 			}
+			case "mc_online":
+			case "mc_reconnected":
+			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -754,13 +904,13 @@ const AVeDichRiengPage = () => {
 								};
 							});
 							try {
-								await sendMessage({ type: "veDich_rieng_questions_meta", question_metadata: metadata });
+								await sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
 							} catch { /* best-effort */ }
 							// Resend answered question states
 							for (const [code, qState] of Object.entries(questionStates)) {
 								if (qState === "answered" || qState === "answered-wrong") {
 									try {
-										await sendMessage({ type: "veDich_question_state", question_code: code, state: qState });
+										await sendMessage({ type: "vdr_question_state", question_code: code, state: qState });
 									} catch { /* best-effort */ }
 								}
 							}
@@ -787,11 +937,24 @@ const AVeDichRiengPage = () => {
 									started_at: Date.now(),
 								});
 							} catch { /* best-effort on reconnect */ }
+							// Replay the video for the late joiner so MC / player see the
+							// media from where the room is now (matches AButPhaPage flow).
+							if (currentQuestion.questionMediaURL) {
+								try {
+									await sendMessage({ type: "play_video" });
+								} catch { /* best-effort on reconnect */ }
+							}
 						}
 						// Send players/scores last (requires API call) so game state appears first
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort on reconnect */ }
+						// Resend used powers state
+						if (Object.keys(usedPowers).length > 0) {
+							try {
+								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
+							} catch { /* best-effort */ }
+						}
 					})();
 				}
 				break;
@@ -856,6 +1019,7 @@ const AVeDichRiengPage = () => {
 				});
 				break;
 			}
+			case "player_answer":
 			case "answer": {
 				const { user_code, answer_text, timestamp } = msg;
 				if (user_code && answer_text) {
@@ -871,9 +1035,27 @@ const AVeDichRiengPage = () => {
 				}
 				break;
 			}
-			case "buzz": {
-				const { user_code } = msg;
-				if (user_code) {
+			// NOTE: `buzz` events are intentionally NOT handled here.
+			// The backend (`backend/app/core/answer.py`) is the authoritative source for the buzzer winner — it picks the first buzzer by `created_at` and publishes`buzzer_winner` (and `blocked_buzz`) on the Valkey match channel. The case below handles that authoritative broadcast.
+			// Handling `buzz` in the admin previously caused every late buzzer to get
+			// `playerHasBuzzed = true`, which made the Zap icon show up next to all 4
+			// players in the admin / MC / player bar instead of only the buzzer_winner.
+
+			case "buzzer_winner": {
+				const { user_code, question_code } = msg;
+				// Accept the event when it belongs to a NEW question (i.e. a
+				// different question_code than the one we already rendered).
+				// lastBuzzerQuestionRef tracks the question_code of the
+				// winner we last rendered so a stale event for the same
+				// question is dropped (idempotent reconnect snapshot replay)
+				// but a new question's winner is always accepted. Mirrors
+				// PVeDichRiengPage.lastBuzzerQuestionRef.
+				if (user_code && question_code !== lastBuzzerQuestionRef.current) {
+					console.info(`[VDR ADMIN] Received buzzer_winner: user_code=${user_code}, question=${question_code}`);
+					lastBuzzerQuestionRef.current = question_code;
+					// Update playerHasBuzzed for the winner — APlayerBar reads
+					// this boolean to render the Zap icon next to the right
+					// player name (and the border accent class).
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((p) =>
@@ -881,22 +1063,113 @@ const AVeDichRiengPage = () => {
 							),
 						);
 					});
-					// Broadcast to all players so their screens show the buzzer icon
-					void sendMessage({ type: "buzzer_winner", user_code, match_code: currentMatchCode });
+					// Lock all players' buzzers immediately
+					console.info(`[VDR ADMIN] Locking all buzzers after winner: ${user_code}`);
+					void sendMessage({ type: "blocked_buzz", user_code: null });
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : 30);
-				});
+
+			case "clear_buzz": {
+				// Server echoes admin's own clear_buzz (and the room's other
+				// tabs may also have sent one) — drop any stale buzzer state
+				// so the next `buzzer_winner` for a new question is accepted
+				// by the handler above. Mirrors PVeDichRiengPage + MVeDichRiengPage.
+				lastBuzzerQuestionRef.current = null;
+				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
+
+			case "vd_player_power": {
+				// Player activated a power (star/shield) during the 5s window
+				const { user_code, power } = msg;
+				if (user_code && (power === "star" || power === "shield") && !usedPowers[user_code]) {
+					logger.info(`[VDR POWER] Player ${user_code} activated ${power}`);
+					// Persist into lifetime usedPowers so the icon sticks for the rest of the
+					// round (and across VDC ↔ VDR navigation).
+					const nextUsedPowers: Record<string, string | null> = {
+						...usedPowers,
+						[user_code]: power,
+					};
+					startTransition(() => {
+						setUsedPowers(nextUsedPowers);
+					});
+					try {
+						localStorage.setItem(
+							`veDich_powers_${currentMatchCode}`,
+							JSON.stringify(nextUsedPowers),
+						);
+					} catch { /* ignore */ }
+					// Update the players array so APlayerBar renders the Star/Shield icon
+					// next to the player's name right away.
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((p) =>
+								p.playerCode === user_code
+									? { ...p, playerPower: power as "star" | "shield" }
+									: p,
+							),
+						);
+					});
+					// Broadcast the authoritative list so MC and other players also pick
+					// up the icon (the WS server echoes `vd_player_power` back to the room,
+					// but only admin is the source of truth for the merged `usedPowers`).
+					void sendMessage({
+						type: "vd_powers_used",
+						used_powers: nextUsedPowers,
+					});
+					// Activate the picked power for the turn player so:
+					//   1. ``handleAddPoints`` / ``handleSubtractPoints`` apply the
+					//      right multiplier (star +150% / shield +50% etc.) instead
+					//      of the default +100% / -50%.
+					//   2. The SFX bot plays ``vd_quyen_nang`` — it listens for
+					//      ``vd_power_activated`` (mapped to ``power_star`` /
+					//      ``power_shield`` in ``sfx_bot.py``) and only the turn
+					//      player's pick triggers the broadcast, so non-turn
+					//      players (defensive check) don't fire the SFX.
+					// Mirrors the VDC pattern at
+					// ``AVeDichChungPage.tsx:case "vd_player_power"``.
+					if (user_code === currentTurnPlayerCode) {
+						startTransition(() => {
+							setActivePower(power as "star" | "shield");
+						});
+						void sendMessage({
+							type: "vd_power_activated",
+							power,
+						});
+					}
+				}
+				break;
+			}
+
+			case "vd_powers_used": {
+				if (msg.used_powers) {
+					startTransition(() => {
+						setUsedPowers(msg.used_powers);
+					});
+					try { localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(msg.used_powers)); } catch { /* ignore */ }
+					// Mirror the power onto each player so APlayerBar shows the icon.
+					startTransition(() => {
+						setPlayers((prev) =>
+							prev.map((p) => {
+								const power = msg.used_powers[p.playerCode];
+								return power ? { ...p, playerPower: power as "star" | "shield" } : p;
+							}),
+						);
+					});
+				}
+				break;
+			}
+
+			case "vd_power_window_closed": {
+				broadcastPendingVeDichQuestion();
+				break;
+			}
+
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, roundQuestionCodes, questions, questionCategories, questionPoints, questionStates]);
+	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, roundQuestionCodes, questions, questionCategories, questionPoints, questionStates, broadcastPendingVeDichQuestion]);
 
 	// ─── Board rendering helpers ──────────────────────────────────────────────────
 	const getQuestionMeta = (questionCode: string) => {
@@ -912,14 +1185,15 @@ const AVeDichRiengPage = () => {
 		<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
+			videoPlayState={videoPlayState}
 			timerDuration={timer}
 			controlsChildren={() => (
-				<div className="flex gap-3">
+				<div className="flex gap-3 overflow-x-auto">
 					{Array.from({ length: ROUND_QUESTION_COUNT }).map((_, i) => {
 						const code = roundQuestionCodes[i];
 						if (!code) {
 							return (
-								<div key={`rq-empty-${i}`} className="w-60 shrink-0 h-9">
+								<div key={`rq-empty-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>
 							);
@@ -928,7 +1202,7 @@ const AVeDichRiengPage = () => {
 						const state = questionStates[code] || "available";
 						const isActive = currentQuestion.questionCode === code;
 						return (
-							<div key={`rq-${code}`} className="w-60 shrink-0 h-9">
+							<div key={`rq-${code}`} className="w-55 shrink-0 h-20">
 								<VeDichQuestionCard
 									category={catPrimary}
 									subcategory={catSecondary}
@@ -938,7 +1212,7 @@ const AVeDichRiengPage = () => {
 									disabled={state !== "available"}
 									onClick={() => {
 										if (state === "available" && !isTimerRunning) {
-											void handleQuestionActivate(code);
+											handleQuestionActivate(code);
 										}
 									}}
 								/>
@@ -947,43 +1221,21 @@ const AVeDichRiengPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={
-				<div className="flex items-center gap-3 flex-wrap">
-					<span className="text-blue-300 font-bold text-sm uppercase tracking-wide shrink-0">Trợ giúp:</span>
-					<AControlButton
-						onClick={() => setActivePower((prev) => (prev === 'star' ? null : 'star'))}
-						disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star)}
-						className={activePower === 'star' ? 'bg-yellow-500 ring-yellow-400 text-blue-900' : undefined}
-					>
-						<Star size={18} />
-						<span className="ml-2 font-bold">
-							{currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.star ? 'NGÔI SAO (đã dùng)' : 'NGÔI SAO HY VỌNG'}
-						</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => setActivePower((prev) => (prev === 'shield' ? null : 'shield'))}
-						disabled={!currentTurnPlayerCode || !!(currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield)}
-						className={activePower === 'shield' ? 'bg-green-500 ring-green-400 text-blue-900' : undefined}
-					>
-						<Shield size={18} />
-						<span className="ml-2 font-bold">
-							{currentTurnPlayerCode && usedPowers[currentTurnPlayerCode]?.shield ? 'BẢO HỘ (đã dùng)' : 'BẢO HỘ MIỄN TRỪ'}
-						</span>
-					</AControlButton>
-				</div>
-			}
+			topControlButtons={null}
 			playerSectionButtons={
 				<>
 					<AControlButton
 						onClick={startTheClock}
-						disabled={!currentQuestion.questionCode || isTimerRunning}
+						disabled={!currentQuestion.questionCode || isTimerRunning || !currentTurnPlayerCode}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
 					<AControlButton
 						onClick={handleOpenBuzzer}
-						disabled={timer > 0 || answeringWindowTimer > 0}
+						disabled={timer > 0 || answeringWindowTimer > 0 || !currentTurnPlayerCode}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Zap size={18} />
 						<span className="ml-2 font-bold">MỞ CHUÔNG</span>
@@ -994,7 +1246,8 @@ const AVeDichRiengPage = () => {
 								logger.error("Cộng điểm handler failed:", err);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
+						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode || isTimerRunning}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Plus size={18} />
 						<span className="ml-2 font-bold">CỘNG ĐIỂM</span>
@@ -1005,16 +1258,11 @@ const AVeDichRiengPage = () => {
 								logger.error("Trừ điểm handler failed:", err);
 							});
 						}}
-						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode}
+						disabled={selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !currentTurnPlayerCode || isTimerRunning}
+						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<Minus size={18} />
 						<span className="ml-2 font-bold">TRỪ ĐIỂM</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { void loadPlayersState(); }}
-					>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
 					</AControlButton>
 				</>
 			}
@@ -1022,8 +1270,9 @@ const AVeDichRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={() => { void handleStartRound(); }}
+						disabled={isTimerRunning}
 					>
-						<Play size={18} />
+						<Power size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
 					</AControlButton>
 					<AControlButton
@@ -1035,6 +1284,7 @@ const AVeDichRiengPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
+						disabled={isTimerRunning}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
@@ -1043,15 +1293,19 @@ const AVeDichRiengPage = () => {
 			}
 			renderPlayerList={() =>
 				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar
-							player={player}
-							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							isCurrent={player.playerCode === currentTurnPlayerCode}
-							onClick={toggleSelectedPlayer}
-							disabled={timer > 0}
-						/>
-					</div>
+					<APlayerBar
+						key={player.playerCode}
+						player={player}
+						isActive={selectedPlayerCodes.includes(player.playerCode)}
+						isCurrent={player.playerCode === currentTurnPlayerCode}
+						playerPower={usedPowers[player.playerCode] as "star" | "shield" | undefined}
+						onClick={toggleSelectedPlayer}
+						disabled={timer > 0}
+						onEditScore={handleEditScore}
+						token={token}
+						matchCode={currentMatchCode}
+						sendMessage={sendMessage}
+					/>
 				))
 			}
 		/>

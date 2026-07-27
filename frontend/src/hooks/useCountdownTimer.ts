@@ -20,6 +20,10 @@ export function useCountdownTimer(): CountdownTimerState {
 
     const startTimeMsRef = useRef<number | null>(null);
     const runningRef = useRef(false);
+    // Incremented on each start/startSynced so the interval effect re-runs only
+    // when a new countdown session begins, not on every tick.
+    const [sessionId, setSessionId] = useState(0);
+    const intervalRef = useRef<number | null>(null);
 
     const start = useCallback((timeLimitSeconds: number) => {
         const normalized = Math.max(0, Math.round(timeLimitSeconds));
@@ -27,26 +31,61 @@ export function useCountdownTimer(): CountdownTimerState {
         setTimer(normalized);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
+        setSessionId((s) => s + 1);
     }, []);
 
     const startSynced = useCallback((timeLimitSeconds: number, startedAt?: number) => {
-        const ref = typeof startedAt === 'number' ? startedAt : Date.now();
-        const elapsedSec = (Date.now() - ref) / 1000;
+        const now = Date.now();
+        // Guard against clock skew: if the sender's `startedAt` is in the future
+        // (e.g. admin browser clock is ahead of MC browser), treating it as
+        // "now" prevents the timer from displaying a value larger than the
+        // actual time limit. A negative elapsed window would otherwise make
+        // `remaining = timeLimit - (negative)` larger than the intended limit.
+        let ref = typeof startedAt === 'number' ? startedAt : now;
+        let clampedFromFuture = false;
+        if (ref > now) {
+            ref = now;
+            clampedFromFuture = true;
+        }
+
+        const elapsedSec = (now - ref) / 1000;
         const remaining = Math.max(0, timeLimitSeconds - elapsedSec);
         const normalized = Math.max(0, Math.round(remaining));
-        setTimeLimit(normalized);
-        setTimer(normalized);
+        // If sync math collapses to 0 but the time limit is positive, start from the full limit
+        // to guard against clock skew between admin and player browsers.
+        const safeTimer = normalized > 0 ? normalized : Math.max(0, Math.round(timeLimitSeconds));
+        const finalTimer = safeTimer > 0 ? safeTimer : timeLimitSeconds;
+
+        if (clampedFromFuture) {
+            // Only log when the guard actually fires — keeps production output clean
+            // while making clock-skew issues easy to diagnose.
+            console.warn(
+                `[useCountdownTimer] startSynced: startedAt was ${typeof startedAt === 'number' ? startedAt : 'n/a'} (in the future), clamped to Date.now(). timeLimit=${timeLimitSeconds}s`,
+            );
+        }
+
+        setTimeLimit(finalTimer);
+        setTimer(finalTimer);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
+        setSessionId((s) => s + 1);
     }, []);
 
     const stop = useCallback(() => {
         runningRef.current = false;
+        if (intervalRef.current !== null) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
     }, []);
 
     const reset = useCallback(() => {
         runningRef.current = false;
         startTimeMsRef.current = null;
+        if (intervalRef.current !== null) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
         setTimeLimit(0);
         setTimer(0);
     }, []);
@@ -56,25 +95,44 @@ export function useCountdownTimer(): CountdownTimerState {
         return (Date.now() - startTimeMsRef.current) / 1000;
     }, []);
 
+    // One stable interval per countdown session — does not restart every tick.
     useEffect(() => {
         if (!runningRef.current) return;
-        if (timer <= 0) return;
 
-        const id = window.setInterval(() => {
+        if (intervalRef.current !== null) {
+            window.clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+
+        intervalRef.current = window.setInterval(() => {
+            if (!runningRef.current) {
+                if (intervalRef.current !== null) {
+                    window.clearInterval(intervalRef.current);
+                    intervalRef.current = null;
+                }
+                return;
+            }
             setTimer((prev) => {
-                if (!runningRef.current) return prev;
-                return Math.max(0, prev - 1);
+                const next = Math.max(0, prev - 1);
+                if (next === 0) {
+                    runningRef.current = false;
+                    if (intervalRef.current !== null) {
+                        window.clearInterval(intervalRef.current);
+                        intervalRef.current = null;
+                    }
+                }
+                return next;
             });
         }, 1000);
 
-        return () => window.clearInterval(id);
-    }, [timer]);
-
-    useEffect(() => {
-        if (timer === 0) {
-            runningRef.current = false;
-        }
-    }, [timer]);
+        return () => {
+            if (intervalRef.current !== null) {
+                window.clearInterval(intervalRef.current);
+                intervalRef.current = null;
+            }
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sessionId]);
 
     const timerDisplay = useMemo(() => timer.toString().padStart(2, "0"), [timer]);
 

@@ -9,6 +9,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { compareVeDichCodes, generateVeDichPlaceholderCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import { VeDichRound, getVeDichRoundLabel } from "@/types/veDich";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
@@ -21,24 +22,22 @@ const logger = createLogger("AVeDichPick");
  *
  * Handles both:
  * - /admin/vdc/pick/:matchCode → Lượt Chung (4 questions)
- * - /admin/vdr/pick/:matchCode → Lượt Riêng (3 questions)
+ * - /admin/vdr/pick/:matchCode → Lượt CÁ NHÂN (3 questions)
  */
 
-// Question metadata (category labels). Format: "PRIMARY|SECONDARY" when a subcategory exists
-const CATEGORIES = [
-	"TOÁN - TIN - THỐNG KÊ",
-	"TỰ NHIÊN - SỰ SỐNG",
-	"KINH TẾ - XÃ HỘI",
-	"VĂN HỌC - NGHỆ THUẬT",
-	"VĂN HÓA - THỂ THAO",
-	"KIẾN THỨC TỔNG HỢP",
-];
 const AVeDichPickQuestion = () => {
 	const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
 	const currentMatchCode = localStorage.getItem("matchCode") || paramMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 	const navigate = useNavigate();
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
 
 	// Determine round type from current path
 	const currentPath = window.location.pathname;
@@ -48,7 +47,7 @@ const AVeDichPickQuestion = () => {
 
 	// State
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	// Selected player for Riêng round (admin click)
+	// Selected player for CÁ NHÂN round (admin click)
 	const [selectedPlayerCode, setSelectedPlayerCode] = useState<string | null>(null);
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>([]);
@@ -57,23 +56,23 @@ const AVeDichPickQuestion = () => {
 	const [errorMessage, setErrorMessage] = useState<string>("");
 	const [successMessage, setSuccessMessage] = useState<string>("");
 
-	// Chung: questions = player count; Riêng: fixed 3 questions
+	// Placeholder questions for instant grid rendering (before API fetch completes)
+	const [placeholderQuestions, setPlaceholderQuestions] = useState<Question[]>([]);
+
+	// Chung: questions = player count; CÁ NHÂN: fixed 3 questions
 	const requiredCount = isChung ? players.length : round;
 
-	// Build question categories and points for display
-	// Assuming questions are ordered: 6 categories × 4 points each (24 total)
-	const questionCategories = questions.map((_, idx) => {
-		const categoryIdx = Math.floor(idx / 4);
-		return CATEGORIES[categoryIdx] || `Category ${categoryIdx + 1}`;
-	});
-
-	const questionPoints = questions.map((_, idx) => {
-		const pointIdx = idx % 4;
-		return [20, 30, 40, 50][pointIdx] || 0;
-	});
+	const questionCategories = questions.map((q, idx) => getVeDichMeta(q.questionCode, idx).category);
+	const questionPoints     = questions.map((q, idx) => getVeDichMeta(q.questionCode, idx).points);
 
 	// Track selected question codes
 	const toggleQuestionSelection = useCallback((questionCode: string) => {
+		// For CÁ NHÂN round: must select a player first before selecting questions
+		if (!isChung && !selectedPlayerCode) {
+			setErrorMessage("Vui lòng chọn thí sinh tham gia lượt thi trước");
+			return;
+		}
+
 		setSelectedQuestionCodes((prev) => {
 			const isSelected = prev.includes(questionCode);
 			if (isSelected) {
@@ -86,7 +85,7 @@ const AVeDichPickQuestion = () => {
 				return prev;
 			}
 		});
-	}, [requiredCount]);
+	}, [requiredCount, isChung, selectedPlayerCode]);
 
 	// Broadcast live selection updates so players can see highlighted questions in real-time
 	// Also sends all_question_codes so the player pick page can build the grid without API access
@@ -95,7 +94,7 @@ const AVeDichPickQuestion = () => {
 		if (!currentMatchCode) return;
 		const allCodes = questions.map((q) => q.questionCode);
 		sendMessage({
-			type: "veDich_selection_update",
+			type: "vd_selection_update",
 			match_code: currentMatchCode,
 			round: isChung ? "chung" : "rieng",
 			selected_question_codes: selectedQuestionCodes,
@@ -113,10 +112,10 @@ const AVeDichPickQuestion = () => {
 		}
 	}, [selectedQuestionCodes, questions, currentMatchCode, isChung, sendMessage]);
 
-	// Broadcast selected player (blocked buzzer) for Riêng
+	// Broadcast selected player (blocked buzzer) for CÁ NHÂN
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		if (isChung) return; // only for Riêng
+		if (isChung) return; // only for CÁ NHÂN
 		// send blocked_buzz message (user_code null clears)
 		sendMessage({ type: "blocked_buzz", user_code: selectedPlayerCode ?? null, match_code: currentMatchCode });
 		// persist selection
@@ -151,18 +150,11 @@ const AVeDichPickQuestion = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-			const profiles = playersList.map((entry: any, index: number) => ({
+			// user_name is already included in the /matches/{code}/players response,
+			// so we no longer need N separate /users/?user_code= requests.
+			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
-				user_name: profileResponses[index]?.data?.user_name ?? "",
+				user_name: entry.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -175,7 +167,7 @@ const AVeDichPickQuestion = () => {
 				return {
 					user_code: userCode,
 					user_name: (profile as any)?.user_name ?? p?.user_name ?? (scoreEntry as any)?.user_name ?? "",
-					cumulative_score: (scoreEntry as any)?.cumulative_score ?? (scoreEntry as any)?.cummulative_score ?? (scoreEntry as any)?.total_score ?? 0,
+					cumulative_score: (scoreEntry as any)?.cumulative_score ?? (scoreEntry as any)?.cumulative_score ?? (scoreEntry as any)?.total_score ?? 0,
 				};
 			});
 			sendMessage({ type: "send_players_info", players: mergedPlayers });
@@ -183,6 +175,15 @@ const AVeDichPickQuestion = () => {
 			logger.error("Failed to load players:", err);
 		}
 	}, [currentMatchCode, token, sendMessage]);
+
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		setPlayers((prev) =>
+			prev.map((p) =>
+				p.playerCode === playerCode ? { ...p, playerScore: newScore } : p
+			)
+		);
+		void loadPlayersState();
+	}, [loadPlayersState]);
 
 	useEffect(() => {
 		loadPlayersState();
@@ -196,6 +197,35 @@ const AVeDichPickQuestion = () => {
 			if (stored) setSelectedPlayerCode(stored || null);
 		} catch { /* ignore */ }
 	}, [currentMatchCode]);
+
+	// Generate placeholder questions immediately for instant grid rendering
+	useEffect(() => {
+		const allPlaceholderCodes = generateVeDichPlaceholderCodes();
+		const placeholders: Question[] = allPlaceholderCodes.map((code) => ({
+			questionCode: code,
+			questionText: "",
+			questionAnswer: "",
+			questionExplanation: "",
+			questionMediaURL: undefined,
+		}));
+		setPlaceholderQuestions(placeholders);
+
+		// Broadcast placeholder codes immediately so MC/Player can render grid
+		if (currentMatchCode) {
+			sendMessage({
+				type: "vd_selection_update",
+				match_code: currentMatchCode,
+				round: isChung ? "chung" : "rieng",
+				selected_question_codes: [],
+				all_question_codes: allPlaceholderCodes,
+				used_question_codes: [],
+			});
+			// Persist to localStorage
+			try {
+				localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allPlaceholderCodes));
+			} catch { /* ignore */ }
+		}
+	}, [currentMatchCode, isChung, sendMessage]);
 
 	// Fetch questions from backend
 	useEffect(() => {
@@ -249,7 +279,7 @@ const AVeDichPickQuestion = () => {
 					.map((q: { question_code: string }) => q.question_code);
 
 				// Also treat questions already answered in ANY VỀ ĐÍCH round as used.
-				// Unified key written by both AVeDichChungPage and future Riêng page.
+				// Unified key written by both AVeDichChungPage and future CÁ NHÂN page.
 				try {
 					const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
 					if (storedUsed) {
@@ -273,7 +303,7 @@ const AVeDichPickQuestion = () => {
 				}
 
 				// Sort by question_code for consistent ordering
-				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
+				mapped.sort((a, b) => compareVeDichCodes(a.questionCode, b.questionCode));
 
 				// Guard against duplicate question_codes (e.g. double import)
 				const deduped = mapped.filter((q, i, arr) =>
@@ -285,6 +315,27 @@ const AVeDichPickQuestion = () => {
 				}
 
 				setQuestions(deduped);
+
+				// Persist all question codes to localStorage immediately so MC/Player can restore on mount
+				// This fixes the race condition where admin clicks "Bắt đầu" before questions are loaded
+				const allCodes = deduped.map((q) => q.questionCode);
+				if (currentMatchCode && allCodes.length > 0) {
+					try {
+						localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
+					} catch (err) {
+						logger.error("Failed to persist question codes to localStorage:", err);
+					}
+				}
+
+				// Broadcast immediately so MC/Player pages render the grid without waiting for "Bắt đầu"
+				sendMessage({
+					type: "vd_selection_update",
+					match_code: currentMatchCode,
+					round: isChung ? "chung" : "rieng",
+					selected_question_codes: [],
+					all_question_codes: allCodes,
+					used_question_codes: usedQuestionCodes,
+				});
 			} catch (err) {
 				logger.error("Failed to fetch questions:", err);
 				setErrorMessage("Lỗi khi tải câu hỏi");
@@ -316,6 +367,11 @@ const AVeDichPickQuestion = () => {
 			setErrorMessage("Chưa tải được danh sách thí sinh");
 			return;
 		}
+		// For CÁ NHÂN: must have a player selected
+		if (!isChung && !selectedPlayerCode) {
+			setErrorMessage("Vui lòng chọn thí sinh tham gia lượt thi trước");
+			return;
+		}
 		if (selectedQuestionCodes.length !== requiredCount) {
 			setErrorMessage(`Vui lòng chọn đủ ${requiredCount} câu hỏi`);
 			return;
@@ -343,7 +399,7 @@ const AVeDichPickQuestion = () => {
 			// Notify players via WebSocket
 			const allCodes = questions.map((q) => q.questionCode);
 			const payload = {
-				type: "veDich_questions_selected",
+				type: "vd_questions_selected",
 				match_code: currentMatchCode,
 				round: isChung ? "chung" : "rieng",
 				selected_question_codes: selectedQuestionCodes,
@@ -362,6 +418,9 @@ const AVeDichPickQuestion = () => {
 				(payload as any).selected_player_code = selectedPlayerCode ?? null;
 			}
 			sendMessage(payload);
+			// Navigate players to the gameplay page
+			const playerPath = isChung ? "/player/vdc" : "/player/vdr";
+			sendMessage({ type: "navigate", user_code: "", path: playerPath });
 			// Persist selected codes so the gameplay page can restore them
 			if (currentMatchCode) {
 				const codesKey = isChung
@@ -374,10 +433,6 @@ const AVeDichPickQuestion = () => {
 				}
 			}
 			setSuccessMessage(`Đã chọn ${requiredCount} câu hỏi. Chuyển đến vòng thi...`);
-
-			// Navigate players to the appropriate game page
-			const playerPath = isChung ? "/player/vdc" : "/player/vdr";
-			sendMessage({ type: "navigate", user_code: "", path: playerPath });
 
 			// Navigate to the gameplay page after brief feedback
 			setTimeout(() => {
@@ -416,13 +471,15 @@ const AVeDichPickQuestion = () => {
 				localStorage.removeItem(`veDich_rieng_codes_${currentMatchCode}`);
 			} catch {}
 
-			// Inform players so their UI can refresh if needed
+			// Inform players so their UI can refresh if needed.
+			// silent: true — this is a data-only refresh, no SFX should play.
 			sendMessage({
-				type: "veDich_selection_update",
+				type: "vd_selection_update",
 				match_code: currentMatchCode,
 				round: isChung ? "chung" : "rieng",
 				selected_question_codes: selectedQuestionCodes,
 				all_question_codes: questions.map((q) => q.questionCode),
+				silent: true,
 			});
 
 			setSuccessMessage("Đã reset trạng thái câu hỏi — tất cả câu có thể chọn lại");
@@ -432,25 +489,67 @@ const AVeDichPickQuestion = () => {
 		}
 	}, [currentMatchCode, questions, selectedQuestionCodes, isChung, sendMessage]);
 
+	// Start Về Đích round: re-broadcast grid data for late-joining players,
+	// then navigate them to the pick page and announce round_start so the
+	// SFX bot plays vd_bat_dau.ogg. The vd_selection_update broadcast is
+	// data-only (silent: true) so we don't double up audio with round_start.
+	const handleStartRound = useCallback(() => {
+		// Use real questions if loaded, otherwise fall back to placeholders
+		const allCodes = questions.length > 0
+			? questions.map((q) => q.questionCode)
+			: placeholderQuestions.map((q) => q.questionCode);
+
+		// Fix 2: Merge used_question_codes from localStorage (cross-round persistence)
+		// so player/MC pages see the full set of used questions immediately on mount,
+		// even if our in-memory usedQuestionCodes state hasn't been populated yet.
+		let mergedUsed = [...usedQuestionCodes];
+		try {
+			const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
+			if (storedUsed) {
+				const usedCodes = JSON.parse(storedUsed) as string[];
+				mergedUsed = [...new Set([...mergedUsed, ...usedCodes])];
+				// Also sync our in-memory state for consistency
+				setUsedQuestionCodes(mergedUsed);
+			}
+		} catch { /* ignore */ }
+
+		// Re-broadcast grid data so PVeDichPickPage has question codes when it mounts
+		sendMessage({
+			type: "vd_selection_update",
+			match_code: currentMatchCode,
+			round: isChung ? "chung" : "rieng",
+			selected_question_codes: selectedQuestionCodes,
+			all_question_codes: allCodes,
+			used_question_codes: mergedUsed,
+			silent: true,
+		});
+		// Persist to localStorage as backup so PVeDichPickPage can hydrate on mount
+		// even if it misses the WS message (Fix 1 backup path).
+		if (currentMatchCode && allCodes.length > 0) {
+			localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
+		}
+		if (currentMatchCode) {
+			try {
+				localStorage.setItem(
+					`veDich_used_codes_${currentMatchCode}`,
+					JSON.stringify(mergedUsed),
+				);
+			} catch { /* ignore */ }
+		}
+		// Navigate players to the pick page
+		const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";
+		sendMessage({ type: "navigate", user_code: "", path: pickPath });
+		// Announce round start so SFX bot plays vd_bat_dau.ogg
+		sendMessage({ type: "round_start", round: isChung ? "vdc" : "vdr" });
+		// Re-broadcast player info so PVeDichPickPage has player data on mount
+		void loadPlayersState();
+	}, [currentMatchCode, questions, placeholderQuestions, usedQuestionCodes, selectedQuestionCodes, isChung, sendMessage, loadPlayersState]);
+
 	const topControlButtons = (
 		<>
 			<AControlButton
-				onClick={() => {
-					const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";
-					sendMessage({ type: "navigate", user_code: "", path: pickPath });
-					// Re-broadcast grid data so PVeDichPickPage has question codes when it mounts
-					sendMessage({
-						type: "veDich_selection_update",
-						match_code: currentMatchCode,
-						round: isChung ? "chung" : "rieng",
-						selected_question_codes: selectedQuestionCodes,
-						all_question_codes: questions.map((q) => q.questionCode),
-						used_question_codes: usedQuestionCodes,
-					});
-					// Re-broadcast player info so PVeDichPickPage has player data on mount
-					void loadPlayersState();
-				}}
-				disabled={isLoading}
+				onClick={handleStartRound}
+				disabled={isLoading && questions.length === 0}
 			>
 				<Play size={18} />
 				<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -482,7 +581,8 @@ const AVeDichPickQuestion = () => {
 
 	const bottomActionButtons = (
 		<>
-			{isLoading && <p className="text-blue-600 font-semibold">Đang tải câu hỏi...</p>}
+			{isLoading && questions.length === 0 && <p className="text-blue-600 font-semibold">Đang tải câu hỏi...</p>}
+			{questions.length > 0 && <p className="text-green-600 font-semibold">✓ Đã tải {questions.length} câu hỏi</p>}
 		</>
 	);
 
@@ -497,12 +597,13 @@ const AVeDichPickQuestion = () => {
 		<AVeDichPickLayout
 			title={roundTitle}
 			maxQuestions={requiredCount}
-			questions={questions}
-			categories={questionCategories}
-			points={questionPoints}
+			questions={questions.length > 0 ? questions : placeholderQuestions}
+			categories={questionCategories.length > 0 ? questionCategories : placeholderQuestions.map((q, idx) => getVeDichMeta(q.questionCode, idx).category)}
+			points={questionPoints.length > 0 ? questionPoints : placeholderQuestions.map((q, idx) => getVeDichMeta(q.questionCode, idx).points)}
 			selectedQuestionCodes={selectedQuestionCodes}
 			onQuestionSelect={toggleQuestionSelection}
 			disabledQuestionCodes={usedQuestionCodes}
+			canSelectQuestions={!isChung ? !!selectedPlayerCode : true}
 			topControlButtons={topControlButtons}
 			bottomActionButtons={bottomActionButtons}
 			statusMessages={statusMessages}
@@ -515,6 +616,10 @@ const AVeDichPickQuestion = () => {
 						isCurrent={!isChung && selectedPlayerCode === player.playerCode}
 						onClick={isChung ? undefined : () => toggleSelectedPlayer(player.playerCode)}
 						disabled={false}
+						onEditScore={handleEditScore}
+						token={token}
+						matchCode={currentMatchCode}
+						sendMessage={sendMessage}
 					/>
 				))
 			}

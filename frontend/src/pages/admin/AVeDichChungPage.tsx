@@ -1,14 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
 	Calculator,
 	ListRestart,
-	Power,
 	RefreshCw,
 	Eye,
-	Play,
+	Power,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -17,8 +16,10 @@ import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
@@ -32,18 +33,9 @@ const getTimeLimitForPoints = (points: number): number => {
 		case 30: return 20;
 		case 40: return 30;
 		case 50: return 45;
-		default: return 30;
+		default: return 0;
 	}
 };
-
-const CATEGORIES = [
-	"TOÁN - TIN - THỐNG KÊ",
-	"TỰ NHIÊN - SỰ SỐNG",
-	"KINH TẾ - XÃ HỘI",
-	"VĂN HỌC - NGHỆ THUẬT",
-	"VĂN HÓA - THỂ THAO",
-	"KIẾN THỨC TỔNG HỢP",
-];
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -54,14 +46,36 @@ const DEFAULT_QUESTION: Question = {
 };
 
 const AVeDichChungPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode");
-	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
 	const navigate = useNavigate();
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const storedMatchCode = localStorage.getItem("matchCode");
+	const currentMatchCode = urlMatchCode || storedMatchCode || "";
+	const token = localStorage.getItem("jwtToken_admin") ?? "";
+
+	// Sync matchCode from URL to localStorage
+	useEffect(() => {
+		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
+			try {
+				localStorage.setItem("matchCode", urlMatchCode);
+			} catch {
+				// ignore
+			}
+		}
+	}, [urlMatchCode, storedMatchCode]);
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
+	const { lastMessage, sendMessage } = useAdminWebSocket();
 
 	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -83,8 +97,37 @@ const AVeDichChungPage = () => {
 		} catch { return {}; }
 	});
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
-	// The 4 questions locked in for this round — set via WS from the pick page.
-	// Persisted in localStorage so navigating to this page after confirming still shows them.
+	// Store pending question data to broadcast after power window closes
+	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
+
+	const pendingBroadcastTimerRef = useRef<number | null>(null);
+	const clearPendingBroadcastTimer = useCallback(() => {
+		if (pendingBroadcastTimerRef.current != null) {
+			window.clearTimeout(pendingBroadcastTimerRef.current);
+			pendingBroadcastTimerRef.current = null;
+		}
+	}, []);
+
+	const broadcastPendingVeDichQuestion = useCallback(() => {
+		const pending = pendingQuestionRef.current;
+		if (!pending || !currentMatchCode) return;
+		const { questionCode, question } = pending;
+		logger.info(`[VDC] Broadcasting full question + play_video for ${questionCode}`);
+		void sendMessage({
+			type: "send_question",
+			user_code: "",
+			question_code: questionCode,
+			content: question.questionText ?? "",
+			media_source: question.questionMediaURL ?? undefined,
+		});
+		if (question.questionMediaURL) {
+			void sendMessage({ type: "play_video" });
+			setVideoPlayState("playing");
+		}
+		pendingQuestionRef.current = null;
+		clearPendingBroadcastTimer();
+	}, [currentMatchCode, sendMessage, clearPendingBroadcastTimer]);
+
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
 		if (!currentMatchCode) return [];
 		try {
@@ -93,10 +136,54 @@ const AVeDichChungPage = () => {
 		} catch { return []; }
 	});
 
-	// ─── Timer state ──────────────────────────────────────────────────────────────
+
 	const [timer, setTimer] = useState<number>(0);
-	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
+	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+
+	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
+		if (!currentMatchCode) return {};
+		try {
+			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
+			if (!stored) return {};
+			const parsed = JSON.parse(stored);
+			const migrated: Record<string, string | null> = {};
+			for (const [code, val] of Object.entries(parsed)) {
+				if (typeof val === "string" || val === null) {
+					migrated[code] = val;
+			} else if (typeof val === "object" && val !== null) {
+					migrated[code] = (val as any).star ? "star" : (val as any).shield ? "shield" : null;
+				} else {
+					migrated[code] = null;
+				}
+			}
+			return migrated;
+		} catch { return {}; }
+	});
+	// Per-player power selection for the current question (cleared after scoring)
+	const [playerPowers, setPlayerPowers] = useState<Record<string, "star" | "shield" | null>>({});
+
+	// Persist usedPowers to localStorage whenever it changes (shared with VDR)
+	useEffect(() => {
+		if (!currentMatchCode) return;
+		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
+	}, [usedPowers, currentMatchCode]);
+
+	// Reset playerPowers whenever the active question changes
+	useEffect(() => {
+		setPlayerPowers({});
+	}, [currentQuestion.questionCode]);
+
+	// Listen for power window close event and broadcast pending question immediately
+	useEffect(() => {
+		if (!lastMessage) return;
+		const msg = lastMessage as Record<string, any> | null;
+		if (msg?.type === "vd_power_window_closed") {
+			// Power window closed - immediately broadcast the full question (admin manually starts timer)
+			broadcastPendingVeDichQuestion();
+		}
+	}, [lastMessage, broadcastPendingVeDichQuestion]);
 
 	// ─── Score state ──────────────────────────────────────────────────────────────
 
@@ -111,7 +198,7 @@ const AVeDichChungPage = () => {
 	})();
 
 	// Persist questionStates for CHỌN LẠI within this round, and accumulate answered codes
-	// into a unified cross-round key so the Lượt Riêng pick page can also see them as used.
+	// into a unified cross-round key so the Lượt CÁ NHÂN pick page can also see them as used.
 	useEffect(() => {
 		if (!currentMatchCode) return;
 		// Per-round state (used by CHỌN LẠI to restore board)
@@ -164,18 +251,11 @@ const AVeDichChungPage = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-			const profiles = playersList.map((entry: any, index: number) => ({
+			// user_name is already included in the /matches/{code}/players response,
+			// so we no longer need N separate /users/?user_code= requests.
+			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
-				user_name: profileResponses[index]?.data?.user_name ?? "",
+				user_name: entry.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -200,7 +280,7 @@ const AVeDichChungPage = () => {
 					(scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 				const cumulativeScore =
 					scoreEntry?.cumulative_score ??
-					scoreEntry?.cummulative_score ??
+					scoreEntry?.cumulative_score ??
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
@@ -233,8 +313,7 @@ const AVeDichChungPage = () => {
 					: [result.data].filter(Boolean);
 
 				const veDichRaw = rawQuestions.filter(
-					(q: any) =>
-						q.question_code?.includes("_VD_") || q.question_code?.startsWith("OC3_Q_VD"),
+					(q: any) => q.question_code?.startsWith("OC3_Q_VD"),
 				);
 
 				const mapped: Question[] = veDichRaw.map((q: any) => ({
@@ -244,16 +323,10 @@ const AVeDichChungPage = () => {
 					questionExplanation: q.explanation ?? "",
 					questionMediaURL: q.media_url ?? undefined,
 				}));
-				mapped.sort((a, b) => a.questionCode.localeCompare(b.questionCode));
+				mapped.sort((a, b) => compareVeDichCodes(a.questionCode, b.questionCode));
 
-				const cats = mapped.map((_, idx) => {
-					const catIdx = Math.floor(idx / 4);
-					return CATEGORIES[catIdx] || `Category ${catIdx + 1}`;
-				});
-				const pts = mapped.map((_, idx) => {
-					const ptIdx = idx % 4;
-					return [20, 30, 40, 50][ptIdx] || 0;
-				});
+				const cats = mapped.map((q, idx) => getVeDichMeta(q.questionCode, idx).category);
+				const pts  = mapped.map((q, idx) => getVeDichMeta(q.questionCode, idx).points);
 
 				setQuestions(mapped);
 				setQuestionCategories(cats);
@@ -281,7 +354,7 @@ const AVeDichChungPage = () => {
 			const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
 			return { code, category: catPrimary || rawCategory, points: pts };
 		});
-		void sendMessage({ type: "veDich_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+		void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
 
@@ -306,25 +379,34 @@ const AVeDichChungPage = () => {
 
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setVideoPlayState(null);
+		// Cancel any pending reveal so a stale 5.5s safety timer cannot fire and resurrect
+		// the question we just cleared (e.g. admin toggled a question off mid-window).
+		pendingQuestionRef.current = null;
+		clearPendingBroadcastTimer();
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (err) {
 			logger.error("Failed to clear question:", err);
 		}
-	}, [sendMessage]);
+	}, [sendMessage, clearPendingBroadcastTimer]);
 
 	const handleQuestionActivate = useCallback(
 		async (questionCode: string) => {
 			if (isTimerRunning) return;
 
-			// Toggle: clicking the active question clears it
 			if (currentQuestion.questionCode === questionCode) {
 				setSelectedPlayerCodes([]);
+				setPlayerPowers({});
+				setUsedPowers({});
 				await clearQuestion();
 				return;
 			}
 
 			setSelectedPlayerCodes([]);
+			setPlayerPowers({});
+			setUsedPowers({});
+			setVideoPlayState(null);
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -334,7 +416,6 @@ const AVeDichChungPage = () => {
 				})),
 			);
 
-			// Set fallback immediately for responsive UI
 			const fallback: Question = { ...DEFAULT_QUESTION, questionCode };
 			setCurrentQuestion(fallback);
 
@@ -347,9 +428,10 @@ const AVeDichChungPage = () => {
 					content: "",
 					media_source: undefined,
 				});
+				// Open 5s power selection window for players
+				void sendMessage({ type: "vd_power_window_open", duration: 5 });
 			}
 
-			// Fetch full details in background and re-broadcast
 			try {
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode ?? "")}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -370,20 +452,20 @@ const AVeDichChungPage = () => {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
 				setCurrentQuestion(q);
-				if (currentMatchCode) {
-					void sendMessage({
-						type: "send_question",
-						user_code: "",
-						question_code: questionCode,
-						content: q.questionText ?? "",
-						media_source: q.questionMediaURL ?? undefined,
-					});
-				}
-			} catch (err) {
-				logger.error("handleQuestionActivate: failed to load question:", err);
-			}
-		},
-		[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload],
+				// Store in ref to broadcast after power window closes (5s)
+				pendingQuestionRef.current = { questionCode, question: q };
+				logger.info(`[VDC] Question ${questionCode} fetched, waiting for power window to close`);
+
+			clearPendingBroadcastTimer();
+			pendingBroadcastTimerRef.current = window.setTimeout(() => {
+				pendingBroadcastTimerRef.current = null;
+				broadcastPendingVeDichQuestion();
+			}, 5500);
+		} catch (err) {
+			logger.error("handleQuestionActivate: failed to load question:", err);
+		}
+	},
+	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
 	);
 
 	// ─── Timer ───────────────────────────────────────────────────────────────────
@@ -401,6 +483,9 @@ const AVeDichChungPage = () => {
 				question_code: currentQuestion.questionCode,
 				started_at: Date.now(),
 			});
+			// NOTE: play_video is intentionally NOT sent here. In Về Đích rounds the video
+			// autoplays the moment the power window closes (vd_power_window_closed), so the
+			// media is already running by the time admin clicks "Bắt đầu tính giờ".
 		}
 	}, [currentQuestion.questionCode, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
 
@@ -444,12 +529,12 @@ const AVeDichChungPage = () => {
 				const json = await res.json();
 				const data = json.data;
 				if (!data) continue;
-				const answerObj = Array.isArray(data) ? data[0] : data;
+				const answerObj = Array.isArray(data) ? data.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), data[0]) : data;
 				if (answerObj?.answer_text) {
 					answersPayload.push({
 						user_code: player.playerCode,
 						content: answerObj.answer_text,
-						timestamp: answerObj.timestamp ?? 0,
+						timestamp: answerObj.timestamp || 0,
 					});
 				}
 			} catch (err) {
@@ -512,7 +597,7 @@ const AVeDichChungPage = () => {
 								);
 								const updatedScore =
 									entry?.cumulative_score ??
-									entry?.cummulative_score ??
+									entry?.cumulative_score ??
 									entry?.total_score ??
 									entry?.score;
 								return typeof updatedScore === "number"
@@ -535,41 +620,89 @@ const AVeDichChungPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
+	// Handle manual score editing from APlayerBar
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
+		// Update local state immediately
+		setPlayers((prev) =>
+			prev.map((player) =>
+				player.playerCode === playerCode
+					? { ...player, playerScore: newScore }
+					: player,
+			),
+		);
+		// Refresh scoreboard from server to ensure consistency
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot]);
+
 	// Calculate score: if there are selected players, award them and deduct 50% from everyone;
 	// if no one is selected, deduct 50% from all players (Lượt Chung special rule).
+	// Power modifiers: NSHV (star) → correct +150%, wrong -100%; BHMT (shield) → correct +50%, wrong 0.
 	const handleCalculateScore = useCallback(async () => {
 		if (!currentQuestion.questionCode) return;
 		const points = currentPoints;
-		const deduction = -Math.floor(points * 0.5);
 		// Mark question as answered on the board
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
 		// Broadcast so player chips update too
-		void sendMessage({ type: "veDich_question_state", question_code: currentQuestion.questionCode, state: "answered" });
+		void sendMessage({ type: "vdc_question_state", question_code: currentQuestion.questionCode, state: "answered" });
+		void sendMessage({ type: selectedPlayerCodes.length > 0 ? "vd_dung" : "wrong", phase: "vdc" });
 
 		try {
 			if (selectedPlayerCodes.length === 0) {
-				// No correct answers: apply deduction to all players
+				// No correct answers: apply deduction to all players (respecting shields)
 				for (const player of players) {
+					const power = playerPowers[player.playerCode];
+					if (power === 'shield') {
+						// BHMT: no deduction
+						continue;
+					}
+					const deduction = power === 'star'
+						? -points // NSHV: -100%
+						: -Math.floor(points * 0.5); // Default: -50%
 					await handleAddScore(player.playerCode, deduction, false);
 				}
 			} else {
-				// Add points to selected players
+				// Add points to selected players (respecting powers)
 				for (const playerCode of selectedPlayerCodes) {
-					await handleAddScore(playerCode, points, false);
+					const power = playerPowers[playerCode];
+					let awarded: number;
+					if (power === 'star') awarded = Math.round(points * 1.5); // NSHV: +150%
+					else if (power === 'shield') awarded = Math.round(points * 0.5); // BHMT: +50%
+					else awarded = points; // Default: +100%
+					await handleAddScore(playerCode, awarded, false);
 				}
 
-				// Deduct 50% from non-selected players only
+				// Deduct 50% from non-selected players only (respecting shields)
 				for (const player of players) {
 					if (!selectedPlayerCodes.includes(player.playerCode)) {
+						const power = playerPowers[player.playerCode];
+						if (power === 'shield') {
+							// BHMT: no deduction
+							continue;
+						}
+						const deduction = power === 'star'
+							? -points // NSHV: -100%
+							: -Math.floor(points * 0.5); // Default: -50%
 						await handleAddScore(player.playerCode, deduction, false);
 					}
 				}
 			}
 
+			// Mark powers as consumed for players who used them
+			const newUsedPowers = { ...usedPowers };
+			for (const [code, power] of Object.entries(playerPowers)) {
+				if (power) newUsedPowers[code] = power;
+			}
+			setUsedPowers(newUsedPowers);
+
+			// Broadcast all player powers so MC/player views update
+			void sendMessage({ type: "vd_powers_used", used_powers: newUsedPowers });
+
 			if (currentMatchCode) {
 				await sendPlayersSnapshot();
 			}
 			setSelectedPlayerCodes([]);
+			setPlayerPowers({});
 		} catch (err: any) {
 			logger.error("handleCalculateScore failed:", err);
 		}
@@ -578,6 +711,8 @@ const AVeDichChungPage = () => {
 		currentQuestion.questionCode,
 		currentPoints,
 		players,
+		playerPowers,
+		usedPowers,
 		handleAddScore,
 		sendPlayersSnapshot,
 		currentMatchCode,
@@ -585,28 +720,15 @@ const AVeDichChungPage = () => {
 	]);
 
 	// ─── Round control ────────────────────────────────────────────────────────────
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		setIsTimerRunning(false);
-		if (!currentMatchCode) return;
-		try {
-			await sendMessage({ type: "round_start", round: "vdc" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/vdc" });
-			await sendPlayersSnapshot();
-		} catch (err) {
-			logger.error("handleStartRound failed:", err);
-		}
-	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
-
 	const handleEndRound = useCallback(async () => {
+		// Reset local state for the next round
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
+			// SFX bot plays vd_ket_thuc.mp3 on this event (phase=vdc)
 			await sendMessage({ type: "round_end", round: "vdc" });
-		await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
@@ -618,8 +740,7 @@ const AVeDichChungPage = () => {
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
-			case "veDich_questions_selected": {
-				// Receive the 4 question codes confirmed from the pick page
+			case "vd_questions_selected": {
 				if (Array.isArray(msg.selected_question_codes)) {
 					if (currentMatchCode) {
 						localStorage.setItem(`veDich_chung_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
@@ -630,6 +751,9 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
+			case "mc_online":
+			case "mc_reconnected":
+			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -639,11 +763,10 @@ const AVeDichChungPage = () => {
 							),
 						);
 					});
+					try {
+						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdc" });
+					} catch { /* best-effort */ }
 					(async () => {
-						// Route the late-joining player directly to the current round
-						try {
-							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdc" });
-						} catch { /* best-effort */ }
 						// Resend board metadata so the player can see the 4 question cards
 						if (roundQuestionCodes.length > 0 && questions.length > 0 && currentMatchCode) {
 							try {
@@ -654,14 +777,14 @@ const AVeDichChungPage = () => {
 									const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
 									return { code, category: catPrimary || rawCategory, points: pts };
 								});
-								await sendMessage({ type: "veDich_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+								await sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 							} catch { /* best-effort */ }
 						}
 						// Resend answered question states so the board chips reflect reality
 						for (const [code, state] of Object.entries(questionStates)) {
 							if (state === "answered" || state === "answered-wrong") {
 								try {
-									await sendMessage({ type: "veDich_question_state", question_code: code, state });
+									await sendMessage({ type: "vdc_question_state", question_code: code, state });
 								} catch { /* best-effort */ }
 							}
 						}
@@ -687,11 +810,22 @@ const AVeDichChungPage = () => {
 									started_at: Date.now(),
 								});
 							} catch { /* best-effort on reconnect */ }
+							if (currentQuestion.questionMediaURL) {
+								try {
+									await sendMessage({ type: "play_video" });
+								} catch { /* best-effort on reconnect */ }
+							}
 						}
-						// Send players/scores last (requires API call) so game state appears first
+
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort on reconnect */ }
+
+						if (Object.keys(usedPowers).length > 0) {
+							try {
+								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
+							} catch { /* best-effort */ }
+						}
 					})();
 				}
 				break;
@@ -712,6 +846,20 @@ const AVeDichChungPage = () => {
 				startTransition(() => {
 					applyPlayersSnapshot(msg);
 				});
+				break;
+			}
+			case "vd_questions_meta_request": {
+				// Player is requesting question metadata (e.g., joined late)
+				if (msg.match_code === currentMatchCode && roundQuestionCodes.length > 0 && questions.length > 0) {
+					const metadata = roundQuestionCodes.map((code) => {
+						const idx = questions.findIndex((q) => q.questionCode === code);
+						const rawCategory = questionCategories[idx] || "Unknown";
+						const pts = questionPoints[idx] || 0;
+						const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
+						return { code, category: catPrimary || rawCategory, points: pts };
+					});
+					void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+				}
 				break;
 			}
 			case "player_score_updated": {
@@ -756,6 +904,7 @@ const AVeDichChungPage = () => {
 				});
 				break;
 			}
+			case "player_answer":
 			case "answer": {
 				const { user_code, answer_text, timestamp } = msg;
 				if (user_code && answer_text) {
@@ -771,26 +920,31 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
-			case "buzz": {
-				const { user_code } = msg;
-				if (user_code) {
+
+			case "vd_player_power": {
+				// Player activated a power (star/shield) during the 5s window
+				const { user_code, power } = msg;
+				if (user_code && (power === "star" || power === "shield") && !usedPowers[user_code]) {
+					logger.info(`[VDC POWER] Player ${user_code} activated ${power}`);
 					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((p) =>
-								p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p,
-							),
-						);
+						setPlayerPowers((prev) => ({ ...prev, [user_code]: power }));
+					});
+					if (Object.keys(playerPowers).length === 0) {
+						void sendMessage({ type: "vd_power_activated", power });
+					}
+				}
+				break;
+			}
+			case "vd_powers_used": {
+				// Sync used powers from another source (e.g. VDR page)
+				if (msg.used_powers) {
+					startTransition(() => {
+						setUsedPowers(msg.used_powers);
 					});
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : 30);
-				});
-				break;
-			}
+
 			default:
 				break;
 		}
@@ -810,14 +964,15 @@ const AVeDichChungPage = () => {
 		<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
+			videoPlayState={videoPlayState}
 			timerDuration={timer}
 			controlsChildren={() => (
-				<div className="flex gap-3">
+				<div className="flex gap-3 overflow-x-auto">
 					{Array.from({ length: Math.max(roundQuestionCodes.length, players.length) }).map((_, i) => {
 						const code = roundQuestionCodes[i];
 						if (!code) {
 							return (
-								<div key={`rq-empty-${i}`} className="w-60 shrink-0 h-9">
+								<div key={`rq-empty-${i}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 									<VeDichQuestionCard placeholder category="" disabled />
 								</div>
 							);
@@ -826,7 +981,7 @@ const AVeDichChungPage = () => {
 						const state = questionStates[code] || "available";
 						const isActive = currentQuestion.questionCode === code;
 						return (
-							<div key={`rq-${code}`} className="w-60 shrink-0 h-9">
+								<div key={`rq-${code}`} className="w-32 sm:w-40 lg:w-55 shrink-0 h-16 sm:h-18 lg:h-20">
 								<VeDichQuestionCard
 									category={catPrimary}
 									subcategory={catSecondary}
@@ -845,7 +1000,7 @@ const AVeDichChungPage = () => {
 					})}
 				</div>
 			)}
-			topControlButtons={null}
+			
 			playerSectionButtons={
 				<>
 					<AControlButton
@@ -868,13 +1023,14 @@ const AVeDichChungPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
+						disabled={!canShowAnswers || isTimerRunning}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void loadPlayersState(); }}
+						disabled={isTimerRunning}
 					>
 						<RefreshCw size={18} />
 						<span className="ml-2 font-bold">CẬP NHẬT</span>
@@ -883,40 +1039,38 @@ const AVeDichChungPage = () => {
 			}
 			bottomActionButtons={
 				<>
-					<AControlButton						
+					<AControlButton
 						onClick={() => navigate(`/admin/vdc/pick/${currentMatchCode ?? ""}`)}
 						disabled={isTimerRunning}
 					>
 						<ListRestart size={18} />
 						<span className="ml-2 font-bold">CHỌN LẠI</span>
 					</AControlButton>
-
-					<AControlButton						
-						onClick={() => { void handleStartRound(); }}
-					>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
-
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}
+						disabled={isTimerRunning}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</AControlButton>
 				</>
 			}
+			topControlButtons={null}
 			renderPlayerList={() =>
 				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar
-							player={player}
-							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							isCurrent={selectedPlayerCodes.includes(player.playerCode)}
-							onClick={toggleSelectedPlayer}
-							disabled={timer > 0}
-						/>
-					</div>
+					<APlayerBar
+						key={player.playerCode}
+						player={player}
+						isActive={selectedPlayerCodes.includes(player.playerCode)}
+						isCurrent={selectedPlayerCodes.includes(player.playerCode)}
+						playerPower={(playerPowers[player.playerCode] || usedPowers[player.playerCode]) as "star" | "shield" | undefined}
+						onClick={toggleSelectedPlayer}
+						disabled={timer > 0}
+						onEditScore={handleEditScore}
+						token={token}
+						matchCode={currentMatchCode}
+						sendMessage={sendMessage}
+					/>
 				))
 			}
 		/>

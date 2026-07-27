@@ -22,11 +22,10 @@ interface ABasePageLayoutProps {
 	/** Tailwind height class forwarded to AQuestionBoard. Defaults to h-[50vh]. */
 	boardHeightClass?: string;
 
-	/** Tailwind height class forwarded to AQuestionBoard's answer/explanation box. Defaults to h-28. */
-	answerBoxHeightClass?: string;
-
-	/** When true, hides the answer/explanation box inside AQuestionBoard */
-	hideAnswerBox?: boolean;
+	/** When true, hides the question content area (text + media) in AQuestionBoard */
+	hideQuestionContent?: boolean;
+	videoPlayState?: "playing" | "paused" | null;
+	hideMediaUntilPlayed?: boolean;
 
 	// Optional controls configuration for the question board (numbers / subjects)
 	controls?: AdminQuestionBoardControls;
@@ -85,24 +84,25 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 	aboveQuestionBoard,
 	titleExtra,
 	boardHeightClass,
-	answerBoxHeightClass,
-	hideAnswerBox,
+	hideQuestionContent,
 	playerSectionButtons,
+	videoPlayState,
+	hideMediaUntilPlayed,
 }: ABasePageLayoutProps) => {
 	return (
 		<div className="flex flex-col h-screen overflow-hidden">
 			<AdminGameplayNavBar />
-			<div className="flex flex-row w-full flex-1 p-6 gap-8 overflow-hidden">
+			<div className="flex flex-row w-full flex-1 p-2 tablet:p-3 xl:p-6 gap-3 tablet:gap-4 xl:gap-8 overflow-hidden">
 				{/* Left section: Question board and controls */}
-				<div className="flex flex-col flex-3 gap-6 overflow-hidden">				{aboveQuestionBoard}
-					<AQuestionBoard title={questionTitle} titleExtra={titleExtra} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} answerBoxHeightClass={answerBoxHeightClass} hideAnswerBox={hideAnswerBox}>
+				<div className="flex flex-col flex-3 gap-3 tablet:gap-4 xl:gap-6 overflow-y-auto min-w-0">					{aboveQuestionBoard}
+					<AQuestionBoard title={questionTitle} titleExtra={titleExtra} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} hideContent={hideQuestionContent} videoPlayState={videoPlayState} hideMediaUntilPlayed={hideMediaUntilPlayed}>
 						{controlsChildren}
 					</AQuestionBoard>
 
 					{/* Optional content rendered directly under the question board (e.g. MC options) */}
 					{underQuestionBoard}
 
-					<div className="flex flex-wrap items-center justify-center gap-4 max-w-220 mx-auto">
+					<div className="flex flex-wrap items-center justify-center gap-2 tablet:gap-3 xl:gap-4 max-w-220 mx-auto">
 						{topControlButtons}
 						{bottomActionButtons}
 					</div>
@@ -112,8 +112,8 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 				</div>
 
 				{/* Right section: Player list + optional action buttons */}
-				<div className="flex flex-col flex-1 gap-5 overflow-hidden">
-					<div className="flex flex-col gap-5 overflow-y-auto pr-2">{renderPlayerList()}</div>
+				<div className="flex flex-col flex-1 gap-2 tablet:gap-3 xl:gap-5 overflow-hidden">
+					<div className="flex flex-col gap-2 tablet:gap-3 xl:gap-5 overflow-y-auto pr-2">{renderPlayerList()}</div>
 					{playerSectionButtons && (
 						<div className="flex flex-wrap items-center justify-center gap-4">
 							{playerSectionButtons}

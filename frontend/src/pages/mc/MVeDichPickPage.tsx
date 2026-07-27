@@ -29,9 +29,9 @@ interface MVeDichPickPageProps {
  *
  * WS messages consumed:
  *   - "send_players_info"       → update player scoreboard
- *   - "veDich_selection_update" → live highlight as admin toggles
- *   - "veDich_questions_selected" → admin confirmed selection
- *   - "veDich_questions_meta"   → question metadata broadcast
+ *   - "vd_selection_update" → live highlight as admin toggles
+ *   - "vd_questions_selected" → admin confirmed selection
+ *   - "vdc_questions_meta"   → question metadata broadcast
  */
 const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
@@ -40,12 +40,15 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const { lastMessage } = useMcWebSocket();
 	const { players, applyPlayersInfo } = useMcPlayers();
 
-	// Sorted list of all question codes — received from admin via veDich_selection_update
+	// Sorted list of all question codes — received from admin via vd_selection_update
+	// Fallback: generate placeholder codes if not received yet
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
 			const stored = localStorage.getItem(`veDich_pick_all_codes_${matchCode}`);
-			return stored ? (JSON.parse(stored) as string[]) : [];
+			const codes = stored ? (JSON.parse(stored) as string[]) : [];
+			// If we have codes, use them; otherwise return empty array (will use fallback in render)
+			return codes.length > 0 ? codes : [];
 		} catch { return []; }
 	});
 	// Live selection as admin toggles (before confirm)
@@ -58,8 +61,17 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	});
 	// Confirmed selection after admin clicks XÁC NHẬN
 	const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
-	// Questions from prior rounds that are grayed out and unselectable
-	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>([]);
+	// Questions from prior rounds that are grayed out and unselectable.
+	// Hydrate from localStorage so late-arriving MC sees the correct state
+	// even if they miss the WS message (admin broadcasts on BẮT ĐẦU click).
+	// Admin will keep the in-app state in sync via vd_selection_update.
+	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
+		if (!matchCode) return [];
+		try {
+			const stored = localStorage.getItem(`veDich_used_codes_${matchCode}`);
+			return stored ? (JSON.parse(stored) as string[]) : [];
+		} catch { return []; }
+	});
 
 	// WebSocket message handling
 	useEffect(() => {
@@ -72,7 +84,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_selection_update": {
+			case "vd_selection_update": {
 				const codes = msg.selected_question_codes ?? [];
 				setLiveSelectedCodes(Array.isArray(codes) ? codes : []);
 				const allCodes = msg.all_question_codes;
@@ -86,8 +98,8 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 				break;
 			}
 
-			case "veDich_questions_selected":
-			case "veDich_questions_meta": {
+			case "vd_questions_selected":
+			case "vdc_questions_meta": {
 				const codes = msg.selected_question_codes ?? [];
 				const finalCodes = Array.isArray(codes) ? codes : [];
 				setConfirmedCodes(finalCodes);
@@ -122,12 +134,12 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 					<div className="flex-1" />
 
 					{/* Selected questions preview */}
-					<div className="flex gap-3">
+					<div className="flex gap-1">
 						{Array.from({ length: maxQuestions }).map((_, i) => {
 							const code = displayCodes[i];
 							if (!code) {
 								return (
-									<div key={`slot-empty-${i}`} className="w-48 shrink-0 h-9">
+									<div key={`slot-empty-${i}`} className="w-55 shrink-0 h-24">
 										<VeDichQuestionCard placeholder category="" points={undefined} disabled />
 									</div>
 								);
@@ -139,7 +151,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 							const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
 
 							return (
-								<div key={`slot-${code}`} className="w-48 shrink-0 h-9">
+								<div key={`slot-${code}`} className="w-55 shrink-0 h-20">
 									<VeDichQuestionCard
 										category={catPrimary || rawCategory}
 										subcategory={catSecondary}
@@ -151,10 +163,6 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 							);
 						})}
 					</div>
-
-					<p className="font-[SVN-Gratelos_Display] font-extrabold text-blue-300 shrink-0 text-2xl">
-						{displayCodes.length}/{maxQuestions}
-					</p>
 				</div>
 
 				{/* Divider */}
@@ -163,36 +171,28 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 				{/* Read-only question grid — 6 categories × 4 point values */}
 				<div
 					className="grid gap-3"
-					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(58px, 58px)" }}
+					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(76px, 76px)" }}
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];
-						if (!questionCode) {
-							return (
-								<VeDichQuestionCard
-									key={`slot-${idx}`}
-									placeholder
-									category=""
-									points={undefined}
-									disabled
-								/>
-							);
-						}
+						// Fallback: use placeholder code if allQuestionCodes is empty
+						const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
+						const displayCode = questionCode || fallbackCode;
 
 						const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";
 						const point = ([20, 30, 40, 50])[idx % 4] || 0;
 						const [catPrimary, catSecondary] = rawCategory.split("|").map((s: string) => s?.trim());
-						const isSelected = displayCodes.includes(questionCode);
-						const isUsed = usedQuestionCodes.includes(questionCode);
+						const isSelected = displayCodes.includes(displayCode);
+						const isUsed = usedQuestionCodes.includes(displayCode);
 
 						return (
 							<VeDichQuestionCard
-								key={questionCode}
+								key={displayCode}
 								category={catPrimary || rawCategory}
 								subcategory={catSecondary}
 								points={point}
 								isSelected={isSelected}
-								disabled={isUsed}
+								disabled={isUsed || !questionCode}
 							/>
 						);
 					})}

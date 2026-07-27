@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
-import { AlarmClockCheck, Calculator, Eye, Power, RefreshCw, Play } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AlarmClockCheck, Calculator, Eye, Play, Power } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 const logger = createLogger("AButPha");
@@ -16,6 +18,7 @@ import { API_BASE_URL } from "@/configs";
 const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 5;
 const QUESTION_PREFIX = "OC3_Q_BP"; // Bứt Phá question naming convention.
+
 
 
 const DEFAULT_QUESTION: Question = {
@@ -30,23 +33,80 @@ const DEFAULT_QUESTION: Question = {
 
 
 const AButPhaPage = () => {
-	const currentMatchCode = localStorage.getItem("matchCode") ?? "";
+	const navigate = useNavigate();
+	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
+	const storedMatchCode = localStorage.getItem("matchCode");
+	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
+	// Sync matchCode from URL to localStorage
+	useEffect(() => {
+		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
+			try {
+				localStorage.setItem("matchCode", urlMatchCode);
+			} catch {
+				// ignore
+			}
+		}
+	}, [urlMatchCode, storedMatchCode]);
+
+	// Redirect to game managing page if no match code is available
+	useEffect(() => {
+		if (!currentMatchCode) {
+			navigate("/admin/manage");
+		}
+	}, [currentMatchCode, navigate]);
+
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
-	// Allow multi-selection in this page
+	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((code: string) => {
 		setSelectedPlayerCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
 	}, []);
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
+	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
 	const timerStartedAtRef = useRef<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+	const hasQuestionSelected = currentQuestionIndex > 0;
+
+	// ─── Timestamp validity (Bứt Phá) ────────────────────────────────────────────
+	// After admin clicks "HIỆN TRẢ LỜI", each player has a `playerTimestamp` set
+	// via the `send_answers_to_players` WS event. A player is considered to have a
+	// valid timestamp for scoring when:
+	//   1. The BP round is active (timer > 0 OR a question is selected), AND
+	//   2. The player has actually submitted an answer (playerLastAnswer present), AND
+	//   3. The recorded timestamp is a server-side elapsed-seconds value (0-3600).
+	// Otherwise the player cannot be selected for "TÍNH ĐIỂM" and a tooltip explains why.
+	const isValidBpTimestamp = useCallback((p: PlayerStatus): boolean => {
+		if (!hasQuestionSelected) return false; // no question → nothing to score yet
+		if (timer > 0) {
+			// Round running: only players who already pressed an answer are valid
+			if (!p.playerLastAnswer) return false;
+			const ts = p.playerTimestamp;
+			return typeof ts === "number" && ts >= 0 && ts <= 3600;
+		}
+		// Timer not running: still allow selection so admin can preview,
+		// but require a real timestamp that was fetched via "HIỆN TRẢ LỜI".
+		const ts = p.playerTimestamp;
+		return typeof ts === "number" && ts > 0 && ts <= 3600;
+	}, [hasQuestionSelected, timer]);
+
+	// Auto-deselect players that lost their valid timestamp (e.g. after clear_answers)
+	useEffect(() => {
+		setSelectedPlayerCodes((prev) => {
+			if (prev.length === 0) return prev;
+			const stillValid = prev.filter((code) => {
+				const p = players.find((pl) => pl.playerCode === code);
+				return p ? isValidBpTimestamp(p) : false;
+			});
+			return stillValid.length === prev.length ? prev : stillValid;
+		});
+	}, [players, isValidBpTimestamp]);
 
 	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
 	const computePlayersSnapshot = useCallback(
@@ -89,19 +149,11 @@ const AButPhaPage = () => {
 				logger.error("Failed to load scoreboard:", error);
 			}
 
-			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-
-			const profiles = playersList.map((entry: any, index: number) => ({
+			// user_name is already included in the /matches/{code}/players response,
+			// so we no longer need N separate /users/?user_code= requests.
+			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
-				user_name: profileResponses[index]?.data?.user_name ?? "",
+				user_name: entry.user_name ?? "",
 			}));
 
 			setPlayers((prev) => computePlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -132,7 +184,7 @@ const AButPhaPage = () => {
 				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 
 				const cumulativeScore =
-					scoreEntry?.cumulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+					scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 
 				return {
 					user_code: userCode,
@@ -163,7 +215,7 @@ const AButPhaPage = () => {
 			questionText: payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
 			questionAnswer: payload?.question?.correct_answers ?? payload?.correct_answer ?? payload?.answer ?? "",
 			questionExplanation: payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? payload?.media_url ?? undefined,
+			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.media_url ?? undefined,
 		};
 	}, []);
 
@@ -181,8 +233,20 @@ const AButPhaPage = () => {
 				const res = await fetch(`${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(questionCode)}`, {
 					headers: { Authorization: `Bearer ${token}` },
 				});
+				if (!res.ok) {
+					logger.warn(`loadQuestion: server returned ${res.status} for ${questionCode}`);
+					const mapped = mapQuestionPayload(null, questionCode);
+					setCurrentQuestion(mapped);
+					return mapped;
+				}
 				const data = await res.json();
-				const mapped = mapQuestionPayload(data.data, questionCode);
+				let payload: any = null;
+				if (Array.isArray(data.data)) {
+					payload = data.data.find((q: any) => String(q?.question_code) === questionCode) ?? data.data[0] ?? null;
+				} else {
+					payload = data.data ?? null;
+				}
+				const mapped = mapQuestionPayload(payload, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			} catch (error) {
@@ -221,6 +285,7 @@ const AButPhaPage = () => {
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setVideoPlayState(null);
 		try {
 			await sendMessage({ type: "clear_question", user_code: "" });
 		} catch (error) {
@@ -237,17 +302,20 @@ const AButPhaPage = () => {
 		setTimer(0);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { return; }
 		try {
-			// Navigate players to the player view first so that the subsequent snapshot is the most-recent message
 			try {
 				await sendMessage({ type: "round_start", round: "bp" });
-				await sendMessage({ type: "navigate", user_code: "", path: `/player/bp` });
 			} catch (err) {
-				logger.error("Failed to navigate players to player view:", err);
+				logger.error("Failed to start round via WS:", err);
 			}
 
-			// send current players snapshot to players when starting the round
+			try {
+				await sendMessage({ type: "navigate", user_code: "", path: "/player/bp" });
+			} catch (err) {
+				logger.error("Failed to send navigate on start:", err);
+			}
+
 			try {
 				await sendPlayersSnapshot();
 			} catch (err) {
@@ -264,19 +332,18 @@ const AButPhaPage = () => {
 		setTimer(0);
 		await clearQuestion();
 
-		if (!currentMatchCode) return;
+		if (!currentMatchCode) { return; }
 		try {
 			await sendMessage({ type: "round_end", round: "bp" });
-			await sendMessage({ type: "navigate", user_code: "", path: `/player/waiting` });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
+		// Removed navigate to waiting page - players and MC stay on BP page to preserve score context
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
 			if (!currentMatchCode || !token) return;
-			// prevent restarting while already counting down
 			if (timer > 0) {
 				logger.warn("startTheClock: timer already running, ignoring start request");
 				return;
@@ -284,19 +351,31 @@ const AButPhaPage = () => {
 			if (questionIndex <= 0) return;
 
 			const questionCode = resolveQuestionCode(questionIndex);
-			timerStartedAtRef.current = Date.now();
+			const startedAt = Date.now();
+			timerStartedAtRef.current = startedAt;
 			setTimer(TIME_LIMIT);
 
 			try {
-				await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: TIME_LIMIT, question_code: questionCode, started_at: Date.now() });
+				await sendMessage({
+					type: "start_the_timer",
+					user_code: "",
+					phase: "bp",
+					time_limit: TIME_LIMIT,
+					question_code: questionCode,
+					started_at: startedAt
+				});
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
+			}
+			try {
+				await sendMessage({ type: "play_video" });
+				setVideoPlayState("playing");
+			} catch (error) {
+				logger.error("Failed to send play_video via WS:", error);
 			}
 		},
 		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer],
 	);
-
-
 
 	const showAnswers = useCallback(async () => {
 		if (!canShowAnswers) return;
@@ -310,9 +389,10 @@ const AButPhaPage = () => {
 				const json = await res.json();
 				const data = json.data;
 				if (!data) continue;
-				const answerObj = Array.isArray(data) ? data[0] : data;
+				const answerObj = Array.isArray(data) ? data.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), data[0]) : data;
 				if (answerObj?.answer_text) {
-					answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: answerObj.timestamp ?? 0 });
+					const ts = answerObj.timestamp || 0;
+					answersPayload.push({ user_code: player.playerCode, content: answerObj.answer_text, timestamp: ts });
 				}
 			} catch (err) {
 				logger.warn("showAnswers: failed for", player.playerCode, err);
@@ -328,7 +408,6 @@ const AButPhaPage = () => {
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
 			if (!playerCode) return;
-			setPlayers((prev) => prev.map((p) => p.playerCode === playerCode ? { ...p, playerScore: (p.playerScore ?? 0) + delta } : p));
 			if (!currentMatchCode || !token) return;
 			const questionCode = currentQuestion.questionCode;
 			try {
@@ -343,6 +422,8 @@ const AButPhaPage = () => {
 			} catch (err) {
 				logger.error("handleAddScore: record POST error:", err);
 			}
+			// Wait a bit for Valkey to update, then fetch fresh scoreboard
+			await new Promise(resolve => setTimeout(resolve, 100));
 			try {
 				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, { headers: { Authorization: `Bearer ${token}` } });
 				const scoreJson: any = await scoreRes.json().catch(() => ({}));
@@ -352,7 +433,7 @@ const AButPhaPage = () => {
 				else if (Array.isArray(scoreJson.scoreboard)) scoreboardArr = scoreJson.scoreboard;
 				setPlayers((prev) => prev.map((p) => {
 					const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
-					const updated = entry?.cumulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
+					const updated = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
 					return typeof updated === "number" ? { ...p, playerScore: updated } : p;
 				}));
 			} catch (err) {
@@ -365,13 +446,32 @@ const AButPhaPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
+	// Handle manual score editing from APlayerBar
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
+		// Update local state immediately
+		setPlayers((prev) =>
+			prev.map((player) =>
+				player.playerCode === playerCode
+					? { ...player, playerScore: newScore }
+					: player,
+			),
+		);
+		// Refresh scoreboard from server to ensure consistency
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot]);
+
 	const handleCalculateScore = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		setHasAddedScore(true);
 		void sendMessage({ type: "bp_dung" });
 		try {
 			// Fetch the LAST answer timestamp for each selected player
-			const playerAnswers: Array<{ playerCode: string; timestamp: number }> = [];
+			const playerAnswers: Array<{ playerCode: string; timestamp: number; elapsedSeconds: number }> = [];
+			const startedAt = timerStartedAtRef.current;
+			const hasValidStartTime = startedAt > 0;
+			logger.info(`handleCalculateScore: startedAt=${startedAt}, hasValidStartTime=${hasValidStartTime}, current time=${Date.now()}`);
+
 			for (const code of selectedPlayerCodes) {
 				try {
 					const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(code)}&question_code=${encodeURIComponent(currentQuestion.questionCode)}`;
@@ -383,37 +483,55 @@ const AButPhaPage = () => {
 							// Take the LAST answer submitted (highest timestamp)
 							const answers = Array.isArray(data) ? data : [data];
 							const last = answers.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), answers[0]);
-							playerAnswers.push({ playerCode: code, timestamp: last?.timestamp ?? Date.now() });
+							const answerTimestamp = last?.timestamp ?? 0;
+							// Server stores elapsed seconds (0-3600), NOT epoch ms.
+							// Use elapsed seconds directly if valid, otherwise fallback to TIME_LIMIT.
+							let elapsedSeconds: number;
+							if (typeof answerTimestamp === 'number' && answerTimestamp >= 0 && answerTimestamp <= 3600) {
+								// Valid elapsed seconds from server
+								elapsedSeconds = answerTimestamp;
+								logger.info(`handleCalculateScore: ${code} using server elapsed=${elapsedSeconds.toFixed(1)}s`);
+							} else if (hasValidStartTime && answerTimestamp >= startedAt) {
+								// Legacy: answerTimestamp is epoch ms (should not happen with current server)
+								elapsedSeconds = (answerTimestamp - startedAt) / 1000;
+								elapsedSeconds = Math.min(elapsedSeconds, TIME_LIMIT);
+								logger.info(`handleCalculateScore: ${code} epoch ms mode, elapsed=${elapsedSeconds.toFixed(1)}s`);
+							} else {
+								// Fallback: use full time limit
+								elapsedSeconds = TIME_LIMIT;
+								logger.warn(`handleCalculateScore: ${code} using fallback elapsedSeconds=${TIME_LIMIT} (answerTimestamp=${answerTimestamp})`);
+							}
+							logger.info(`handleCalculateScore: ${code} answerTimestamp=${answerTimestamp} elapsed=${elapsedSeconds.toFixed(1)}s`);
+							playerAnswers.push({ playerCode: code, timestamp: answerTimestamp, elapsedSeconds });
 							continue;
 						}
 					}
 				} catch (err) {
 					logger.warn("handleCalculateScore: failed to fetch answer for", code, err);
 				}
-				// Fallback: use current time if fetch fails
-				playerAnswers.push({ playerCode: code, timestamp: Date.now() });
+				// Fallback: use full time limit if fetch fails
+				playerAnswers.push({ playerCode: code, timestamp: 0, elapsedSeconds: TIME_LIMIT });
 			}
 
 			// Sort ascending by timestamp to determine answer order
 			playerAnswers.sort((a, b) => a.timestamp - b.timestamp);
 
-			// Base points determined by the LAST correct answer's elapsed time
-			const lastTimestamp = Math.max(...playerAnswers.map((p) => p.timestamp));
-			const startedAt = timerStartedAtRef.current || (lastTimestamp - TIME_LIMIT * 1000);
-			const elapsedSeconds = Math.max(0, (lastTimestamp - startedAt) / 1000);
-			let basePoints: number;
-			if (elapsedSeconds < 10) basePoints = 30;
-			else if (elapsedSeconds < 20) basePoints = 20;
-			else basePoints = 10;
-
 			// Multipliers by answer order: 1st x2, 2nd x1.5, 3rd x1, 4th+ x0.5
 			const ORDER_MULTIPLIERS = [2, 1.5, 1, 0.5];
 
 			for (let i = 0; i < playerAnswers.length; i++) {
-				const { playerCode } = playerAnswers[i];
+				const { playerCode, elapsedSeconds } = playerAnswers[i];
+
+				// Base points determined by THIS player's elapsed time
+				let basePoints: number;
+				if (elapsedSeconds < 10) basePoints = 30;
+				else if (elapsedSeconds < 20) basePoints = 20;
+				else basePoints = 10;
+
+				// Apply multiplier based on answer order
 				const multiplier = ORDER_MULTIPLIERS[Math.min(i, ORDER_MULTIPLIERS.length - 1)];
 				const score = Math.round(basePoints * multiplier);
-				logger.info(`handleCalculateScore: ${playerCode} rank=${i + 1} base=${basePoints} x${multiplier} = ${score}`);
+				logger.info(`handleCalculateScore: ${playerCode} rank=${i + 1} elapsed=${elapsedSeconds.toFixed(1)}s base=${basePoints} x${multiplier} = ${score}`);
 				await handleAddScore(playerCode, score, false).catch((err) =>
 					logger.error("Score failed for", playerCode, err),
 				);
@@ -453,16 +571,56 @@ const AButPhaPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
+			case "player_reconnected": {
+				// Player has reconnected - resend current game state
+				const user_code = msg.user_code;
+				logger.info(`[BP RECONNECT] Player ${user_code} reconnected, resending state...`);
+
+				// Resend question if active
+				if (currentQuestion.questionCode) {
+					void sendMessage({
+						type: "send_question",
+						user_code: "",
+						question_code: currentQuestion.questionCode,
+						content: currentQuestion.questionText ?? "",
+						media_source: currentQuestion.questionMediaURL ?? undefined,
+					});
+					logger.info(`[BP RECONNECT] Resent question to ${user_code}`);
+				}
+
+				// Resend timer state if running
+				if (timer > 0 && timerStartedAtRef.current) {
+					void sendMessage({
+						type: "start_the_timer",
+						user_code: "",
+						phase: "bp",
+						time_limit: TIME_LIMIT,
+						question_code: currentQuestion.questionCode,
+						started_at: timerStartedAtRef.current,
+					});
+					logger.info(`[BP RECONNECT] Resent timer to ${user_code} (started_at=${timerStartedAtRef.current})`);
+				}
+
+				// Resend players snapshot
+				void sendPlayersSnapshot();
+				logger.info(`[BP RECONNECT] Resent players snapshot to ${user_code}`);
+				break;
+			}
+
+			case "mc_online":
+			case "mc_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
 					// Route the late-joining player directly to the current round
+					try {
+						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/bp" });
+					} catch (err) {
+						logger.error("Failed to navigate player on reconnect:", err);
+					}
 					(async () => {
-						try {
-							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/bp" });
-						} catch { /* best-effort */ }
 						if (currentQuestion.questionCode) {
 							try {
 								await sendMessage({
@@ -478,8 +636,10 @@ const AButPhaPage = () => {
 							try {
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch { /* best-effort */ }
+							try {
+								await sendMessage({ type: "play_video" });
+							} catch { /* best-effort */ }
 						}
-						// Send players/scores last (requires API call) so game state appears first
 						try {
 							await sendPlayersSnapshot();
 						} catch { /* best-effort */ }
@@ -537,7 +697,7 @@ const AButPhaPage = () => {
 							return {
 								...player,
 								playerLastAnswer: answer.content ?? answer.answer_text ?? player.playerLastAnswer,
-								playerTimestamp: answer.timestamp ?? player.playerTimestamp,
+								playerTimestamp: answer.timestamp || player.playerTimestamp,
 							};
 						}),
 					);
@@ -545,10 +705,12 @@ const AButPhaPage = () => {
 				break;
 			}
 
+			case "player_answer":
 			case "answer": {
 				// Real-time answer from player via WebSocket
-				const { user_code, answer_text, timestamp } = msg;
+				const { user_code, answer_text, timestamp, question_code } = msg;
 				if (user_code && answer_text) {
+					logger.info(`[BP ANSWER SYNC] Admin received WebSocket answer: user=${user_code} answer=${answer_text} ts=${timestamp} question=${question_code}`);
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((player) =>
@@ -556,13 +718,15 @@ const AButPhaPage = () => {
 									? {
 										...player,
 										playerLastAnswer: answer_text,
-										playerTimestamp: timestamp ?? player.playerTimestamp,
+										playerTimestamp: timestamp || player.playerTimestamp,
 									}
-								: player,
+									: player,
 							),
 						);
 					});
 					logger.info("Received answer from", user_code, ":", answer_text);
+				} else {
+					logger.warn(`[BP ANSWER SYNC] Admin received empty answer: user_code=${user_code} answer_text=${answer_text} msg=${JSON.stringify(msg)}`);
 				}
 				break;
 			}
@@ -576,7 +740,7 @@ const AButPhaPage = () => {
 							prev.map((player) =>
 								player.playerCode === user_code
 									? { ...player, playerHasBuzzed: true }
-								: player,
+									: player,
 							),
 						);
 					});
@@ -584,26 +748,21 @@ const AButPhaPage = () => {
 				}
 				break;
 			}
-			case "start_the_timer": {
-				const timeLimit = Number(msg.time_limit);
-				startTransition(() => {
-					setTimer(Number.isFinite(timeLimit) && timeLimit > 0 ? timeLimit : TIME_LIMIT);
-				});
-				break;
-			}
+
 			default:
 				break;
 		}
 	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot]);
 
-	const hasQuestionSelected = currentQuestionIndex > 0;
-	const questionTitle = `BỨT PHÁ${hasQuestionSelected ? ` - CÂU HỎI SỐ ${currentQuestionIndex}` : ""}`;
+	const questionTitle = `BỨT PHÁ`;
 
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}
 			question={currentQuestion}
 			timerDuration={timer}
+			videoPlayState={videoPlayState}
+			hideMediaUntilPlayed
 			controls={{
 				variant: 'numbers',
 				count: MAX_QUESTION_INDEX,
@@ -622,21 +781,23 @@ const AButPhaPage = () => {
 								onClick={async () => {
 									const qIndex = idx + 1;
 									if (!isActive) {
-											setCurrentQuestionIndex(qIndex);
-											try {
-												const q = await loadQuestion(qIndex);
-												await sendQuestionToplayers(qIndex, q);
-											} catch (err) {
-												logger.error('Failed to load/send question:', err);
-											}
-										} else {
-											setCurrentQuestionIndex(0);
-											try {
-												await clearQuestion();
-											} catch (err) {
-												logger.error('Failed to clear question:', err);
-											}
+										setCurrentQuestionIndex(qIndex);
+										setVideoPlayState(null);
+										try {
+											await sendMessage({ type: "bp_chon_cau_hoi" });
+											const q = await loadQuestion(qIndex);
+											await sendQuestionToplayers(qIndex, q);
+										} catch (err) {
+											logger.error('Failed to load/send question:', err);
 										}
+									} else {
+										setCurrentQuestionIndex(0);
+										try {
+											await clearQuestion();
+										} catch (err) {
+											logger.error('Failed to clear question:', err);
+										}
+									}
 								}}
 								className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${isActive ? 'bg-blue-300 text-blue-900 border border-blue-200' : 'bg-transparent border border-blue-600 text-white hover:bg-blue-700'}`}>
 								{idx + 1}
@@ -653,6 +814,7 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleStartRound();
 						}}
+						disabled={timer > 0}
 					>
 						<Play size={18} />
 						<span className="ml-2 font-bold">BẮT ĐẦU</span>
@@ -661,12 +823,13 @@ const AButPhaPage = () => {
 						onClick={() => {
 							void handleEndRound();
 						}}
+						disabled={timer > 0}
 					>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>
 					</AControlButton>
 				</>
-			}			playerSectionButtons={
+			} playerSectionButtons={
 				<>
 					<AControlButton
 						onClick={() => {
@@ -680,34 +843,44 @@ const AButPhaPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleCalculateScore(); }}
-						disabled={selectedPlayerCodes.length === 0 || hasAddedScore}
+						disabled={selectedPlayerCodes.length === 0 || hasAddedScore || timer > 0}
+						title={selectedPlayerCodes.length === 0 ? "Chọn ít nhất 1 player có timestamp hợp lệ" : undefined}
 					>
 						<Calculator size={18} />
 						<span className="ml-2 font-bold">TÍNH ĐIỂM</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers}
+						disabled={!canShowAnswers || timer > 0}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
 					</AControlButton>
-					<AControlButton onClick={() => { void loadPlayersState(); }}>
-						<RefreshCw size={18} />
-						<span className="ml-2 font-bold">CẬP NHẬT</span>
-					</AControlButton>
 				</>
-			}			renderPlayerList={() =>
-				players.map((player) => (
-					<div className="flex flex-col gap-3" key={player.playerCode}>
-						<APlayerBar
-							player={player}
-							isActive={selectedPlayerCodes.includes(player.playerCode)}
-							onClick={toggleSelectedPlayer}
-							disabled={timer > 0}
-						/>
-					</div>
-				))
+			} renderPlayerList={() =>
+				players.map((player) => {
+					const validTs = isValidBpTimestamp(player);
+					const disableReason = hasQuestionSelected && !validTs
+						? (!player.playerLastAnswer
+							? "Chưa có câu trả lời từ player"
+							: "Chưa bấm HIỆN TRẢ LỜI hoặc timestamp không hợp lệ")
+						: undefined;
+					return (
+						<div className="flex flex-col gap-3" key={player.playerCode}>
+							<APlayerBar
+								player={player}
+								isActive={selectedPlayerCodes.includes(player.playerCode)}
+								onClick={toggleSelectedPlayer}
+								disabled={timer > 0 || !validTs}
+								disableReason={disableReason}
+								onEditScore={handleEditScore}
+								token={token}
+								matchCode={currentMatchCode}
+								sendMessage={sendMessage}
+							/>
+						</div>
+					);
+				})
 			}
 		/>
 	);

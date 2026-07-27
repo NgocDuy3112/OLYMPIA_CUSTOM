@@ -10,7 +10,7 @@ from email.mime.text import MIMEText
 import aiosmtplib
 
 from configs import EmailSettings
-from logger import global_logger
+from logger import global_logger, mask_email
 
 _email_settings: EmailSettings | None = None
 
@@ -55,7 +55,7 @@ async def send_credentials_email(
     available. Non-blocking: failures are logged and swallowed so they never
     break the signup response.
     """
-    subject = "[Olympia Custom] Thông tin đăng nhập của bạn"
+    subject = f"{cfg.EMAIL_SUBJECT_PREFIX}Thông tin đăng nhập của bạn"
     html_body = f"""
     <html>
     <body style="font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; padding: 24px;">
@@ -67,7 +67,7 @@ async def send_credentials_email(
             <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
                 <tr>
                     <td style="padding: 10px 14px; background: #f1f5f9; font-weight: bold;
-                               border-radius: 6px 0 0 6px; width: 40%">Mã đăng nhập</td>
+                               border-radius: 6px 0 0 6px; width: 40%">Mã người dùng</td>
                     <td style="padding: 10px 14px; background: #e0f2fe; font-family: monospace;
                                border-radius: 0 6px 6px 0;">{user_code}</td>
                 </tr>
@@ -90,10 +90,10 @@ async def send_credentials_email(
     """
     try:
         await _send(subject, html_body, to)
-        global_logger.info(f"Credentials email sent to {to} for user_code={user_code}")
+        global_logger.info(f"Credentials email sent to {mask_email(to)} for user_code={user_code}")
     except Exception:
         global_logger.exception(
-            f"Failed to send credentials email to {to} for user_code={user_code}"
+            f"Failed to send credentials email to {mask_email(to)} for user_code={user_code}"
         )
 
 
@@ -110,7 +110,7 @@ async def send_credentials_email_safe(
         cfg = _get_settings()
         global_logger.info(
             f"Attempting to send credentials email via {cfg.SMTP_HOST}:{cfg.SMTP_PORT} "
-            f"as {cfg.SMTP_USER} to {to}"
+            f"as {cfg.SMTP_USER} to {mask_email(to)}"
         )
     except Exception as cfg_err:
         global_logger.error(
@@ -127,11 +127,11 @@ async def send_credentials_email_safe(
             password=password,
         )
     except Exception:
-        global_logger.exception(f"send_credentials_email_safe: failed to send to {to}")
+        global_logger.exception(f"send_credentials_email_safe: failed to send to {mask_email(to)}")
 
 
 async def send_password_reset_email(*, to: str, user_name: str, reset_link: str) -> None:
-    subject = "[Olympia Custom] Đặt lại mật khẩu"
+    subject = f"{cfg.EMAIL_SUBJECT_PREFIX}Đặt lại mật khẩu"
     html_body = f"""
     <html>
     <body style="font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; padding: 24px;">
@@ -151,44 +151,13 @@ async def send_password_reset_email(*, to: str, user_name: str, reset_link: str)
     """
     try:
         await _send(subject, html_body, to)
-        global_logger.info(f"Password reset email sent to {to}")
+        global_logger.info(f"Password reset email sent to {mask_email(to)}")
     except Exception:
-        global_logger.exception(f"Failed to send password reset email to {to}")
+        global_logger.exception(f"Failed to send password reset email to {mask_email(to)}")
 
 
 async def send_password_reset_email_safe(*, to: str, user_name: str, reset_link: str) -> None:
     try:
         await send_password_reset_email(to=to, user_name=user_name, reset_link=reset_link)
     except Exception:
-        global_logger.exception(f"send_password_reset_email_safe: failed to send to {to}")
-
-
-async def send_otp_email(*, to: str, user_name: str, otp: str, purpose: str) -> None:
-    subject = f"[Olympia Custom] Mã xác thực ({purpose})"
-    html_body = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; color: #1e293b; background: #f8fafc; padding: 24px;">
-        <div style="max-width: 480px; margin: auto; background: #fff; border-radius: 12px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 32px;">
-            <h2 style="color: #2563eb; margin-top: 0;">Mã xác thực</h2>
-            <p>Xin chào <strong>{user_name}</strong>,</p>
-            <p>Mã xác thực cho thao tác <strong>{purpose}</strong> của bạn là:</p>
-            <div style="font-family: monospace; font-size: 22px; color: #111827; background:#eef2ff; padding:12px 16px; border-radius:8px; text-align:center;">{otp}</div>
-            <p style="color: #64748b; font-size: 13px;">Mã này có hiệu lực trong vài phút. Nếu bạn không yêu cầu mã, hãy bỏ qua email này.</p>
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 0;">Trân trọng,<br/>Ban tổ chức Olympia Custom</p>
-        </div>
-    </body>
-    </html>
-    """
-    try:
-        await _send(subject, html_body, to)
-        global_logger.info(f"OTP email sent to {to}")
-    except Exception:
-        global_logger.exception(f"Failed to send OTP email to {to}")
-
-
-async def send_otp_email_safe(*, to: str, user_name: str, otp: str, purpose: str) -> None:
-    try:
-        await send_otp_email(to=to, user_name=user_name, otp=otp, purpose=purpose)
-    except Exception:
-        global_logger.exception(f"send_otp_email_safe: failed to send to {to}")
+        global_logger.exception(f"send_password_reset_email_safe: failed to send to {mask_email(to)}")

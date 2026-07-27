@@ -1,25 +1,25 @@
 import React from "react";
-import { Zap, Mic } from "lucide-react";
+import { Zap, Mic, KeyRound, Star, Shield } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
 
 interface PPlayerRecProps {
     player: PlayerStatus;
     isCurrent: boolean;
+    isBuzzerWinner?: boolean;  // Show lightning icon in content area
 }
 
 
 
-const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
+const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinner }) => {
     const answerContent = player.playerLastAnswer?.trim() ?? '';
     const isAnswered = answerContent !== '---' && answerContent !== '';
     let displayAnswer: string | null = null;
     let displayTime: string | null = null;
 
     let answerClasses = 'text-white/60';
-    const showPingBell = (player.playerHasBuzzed === true);
     let content: React.ReactNode;
-    if (showPingBell) {
+    if (isBuzzerWinner) {
         content = (
             <>
                 <p className={`px-2 rounded-md font-bold text-wrap ${isAnswered ? answerClasses : 'text-white'}`}>
@@ -29,7 +29,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
         );
     } else if (isAnswered) {
         displayAnswer = answerContent.toUpperCase();
-        if (typeof player.playerTimestamp === 'number') {
+        if (typeof player.playerTimestamp === 'number' && player.playerTimestamp !== 0) {
             displayTime = player.playerTimestamp.toFixed(3);
         }
         answerClasses = 'text-white';
@@ -60,8 +60,24 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
             <div className="flex justify-between items-center w-full">
                 <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%] flex items-center gap-2">
                     <span className="truncate">{player.playerName}</span>
-                    {player.playerIsTurn && (
+                    {isCurrent && (
                         <Mic size={20} className="text-white inline-block" />
+                    )}
+                    {player.playerPower === 'star' && (
+                        <Star size={20} className="text-white-400 shrink-0" />
+                    )}
+                    {player.playerPower === 'shield' && (
+                        <Shield size={20} className="text-white-400 shrink-0" />
+                    )}
+                    {player.playerHasSubmittedKeyword && (
+                        <>
+                            <KeyRound size={16} className="text-white-400 shrink-0" />
+                            {typeof player.playerKeywordCluesOpened === "number" && (
+                                <span className="text-[12px] tablet:text-[14px] font-normal text-white whitespace-nowrap">
+                                    {player.playerKeywordCluesOpened}
+                                </span>
+                            )}
+                        </>
                     )}
                 </p>
                 <div className="flex items-center">
@@ -70,7 +86,6 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent }) => {
                     </p>
                 </div>
             </div>
-
             <div className="mt-2 text-center min-h-10 flex flex-col items-center justify-center w-full mx-auto">
                 {content}
             </div>

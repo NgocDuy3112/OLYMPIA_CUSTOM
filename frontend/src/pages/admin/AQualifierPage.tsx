@@ -12,6 +12,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
 import { usePlayerPresence } from "@/hooks/usePlayerPresence";
+import { usePlayerLatency } from "@/hooks/usePlayerLatency";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -59,6 +60,7 @@ const AQualifierPage = () => {
 
     const [players, setPlayers] = useState<PlayerStatus[]>([]);
     usePlayerPresence({ lastMessage, setPlayers });
+    usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
 
     const [timer, setTimer] = useState<number>(0);
     const timerRef = useRef<number>(0);
@@ -138,18 +140,11 @@ const AQualifierPage = () => {
             }).then((r) => r.json());
             const playersList: any[] = playersJson.data?.players ?? [];
 
-            const profileResponses = await Promise.all(
-                playersList.map((entry: any) =>
-                    fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    })
-                        .then((r) => r.json())
-                        .catch(() => null),
-                ),
-            );
-            const profiles = playersList.map((entry: any, i: number) => ({
+            // user_name is already included in the /matches/{code}/players response,
+            // so we no longer need N separate /users/?user_code= requests.
+            const profiles = playersList.map((entry: any) => ({
                 user_code: entry.user_code,
-                user_name: profileResponses[i]?.data?.user_name ?? "",
+                user_name: entry.user_name ?? "",
             }));
 
             setPlayers((prev) => {
@@ -538,7 +533,7 @@ const AQualifierPage = () => {
         if (!currentMatchCode) return;
         try {
             await sendMessage({ type: "round_end", round: "vl" });
-            await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+            // Removed navigate to waiting page - players and MC stay on VL page to preserve score context
         } catch (err) {
             logger.error("Failed to end qualifier round:", err);
         }
@@ -779,7 +774,6 @@ const AQualifierPage = () => {
             questionTitle={questionTitle}
             question={currentQuestion}
             timerDuration={timer}
-            hideAnswerBox={true}
             controls={{
                 variant: "numbers",
                 count: maxQuestionsForRound,
@@ -815,7 +809,7 @@ const AQualifierPage = () => {
                     {/* Real-time answer stats bar */}
                     <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm">
                         <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
-                        <span className="flex items-center gap-1 bg-green-700 text-white font-bold px-3 py-1 rounded-lg">
+                        <span className="flex items-center gap-1 bg-blue-700 text-white font-bold px-3 py-1 rounded-lg">
                             ✓&nbsp;<span className="text-base">{statsCorrectCount}</span>
                             <span className="font-normal text-xs ml-0.5">đúng</span>
                         </span>
@@ -843,7 +837,7 @@ const AQualifierPage = () => {
                             return (
                                 <div
                                     key={opt}
-                                    className={`relative flex items-start gap-3 p-4 rounded-xl border-2 text-white font-bold text-sm ${OPTION_BG[opt]} ${isCorrect ? "ring-2 ring-white" : ""} h-28 shadow-md`}
+                                    className={`relative flex items-start gap-3 p-4 rounded-xl border-2 text-white font-bold text-sm ${OPTION_BG[opt]} ${isCorrect ? "ring-2 ring-white" : ""} h-24 shadow-md`}
                                 >
                                     <div className="text-3xl font-extrabold w-8 text-center">{opt}</div>
                                     <div className="leading-tight text-left">{text}</div>
@@ -860,7 +854,7 @@ const AQualifierPage = () => {
             )}
             topControlButtons={
                 <>
-                    <AControlButton onClick={handleStartRound}>
+                    <AControlButton onClick={handleStartRound} disabled={timer > 0}>
                         <Power size={18} className="mr-2" /> BẮT ĐẦU VÒNG
                     </AControlButton>
                     <AControlButton
@@ -875,16 +869,16 @@ const AQualifierPage = () => {
                 <>
                     <AControlButton
                         onClick={handleCalculateScores}
-                        disabled={!currentQuestion.questionCode || !currentQuestion.questionAnswer || hasCalculatedScore}
+                        disabled={!currentQuestion.questionCode || !currentQuestion.questionAnswer || hasCalculatedScore || timer > 0}
                         className={hasCalculatedScore ? "opacity-60" : ""}
                     >
                         <Calculator size={18} className="mr-2" /> TÍNH ĐIỂM
                     </AControlButton>
                     {/* XÓA ĐÁP ÁN button removed per request */}
-                    <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }}>
+                    <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }} disabled={timer > 0}>
                         <Trophy size={18} className="mr-2" /> TẢI BXH
                     </AControlButton>
-                    <AControlButton onClick={handleEndRound}>
+                    <AControlButton onClick={handleEndRound} disabled={timer > 0}>
                         <Play size={18} className="mr-2" /> KẾT THÚC VÒNG
                     </AControlButton>
                 </>

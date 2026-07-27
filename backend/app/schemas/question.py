@@ -1,4 +1,9 @@
 from schemas.base import *
+from configs import AppSettings
+
+_settings = AppSettings()
+_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
 
 
 class QuestionPostRequest(BaseRequest):
@@ -15,15 +20,15 @@ class QuestionPostRequest(BaseRequest):
     @field_validator('match_code', mode='after')
     @classmethod
     def ensure_match_code_format(cls, value: str) -> str:
-        if not value.startswith("OC3_M"):
-            raise ValueError("match_code must start with 'OC3_M'")
+        if not value.startswith(_MATCH_PATTERN):
+            raise ValueError(f"match_code must start with '{_MATCH_PATTERN}'")
         return value
 
     @field_validator('question_code', mode='after')
     @classmethod
     def ensure_question_code_format(cls, value: str) -> str:
-        if not value.startswith("OC3_Q"):
-            raise ValueError("question_code must start with 'OC3_Q'")
+        if not value.startswith(_QUESTION_PATTERN):
+            raise ValueError(f"question_code must start with '{_QUESTION_PATTERN}'")
         return value
 
     @field_validator('media_url', mode='after')
@@ -32,11 +37,11 @@ class QuestionPostRequest(BaseRequest):
         if value is not None and value != "":
             first = str(value).split(',')[0].strip()
             is_http = first.startswith("http://") or first.startswith("https://")
-            is_s3_key = first.startswith("OC3_M") and "/" in first
+            is_s3_key = first.startswith(_MATCH_PATTERN) and "/" in first
             if not is_http and not is_s3_key:
                 raise ValueError(
                     f"Invalid media_url: {first!r}. "
-                    "Must be an http(s):// URL or an S3 key in format 'OC3_Mxxx/filename'."
+                    f"Must be an http(s):// URL or an S3 key in format '{_MATCH_PATTERN}xxx/filename'."
                 )
         return value
 
