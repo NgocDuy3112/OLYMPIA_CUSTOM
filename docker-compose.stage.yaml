@@ -1,5 +1,4 @@
 services:
-  # ── Database ──────────────────────────────────────────────
   postgresql:
     container_name: beta-olympia-postgresql
     image: docker.io/library/postgres:17.5-bullseye
@@ -19,7 +18,6 @@ services:
       retries: 10
       start_period: 10s
 
-  # ── Cache + WebSocket pub/sub ─────────────────────────────
   valkey:
     container_name: beta-olympia-valkey
     image: docker.io/valkey/valkey:9-alpine
@@ -31,7 +29,6 @@ services:
       - beta-olympia-network
     restart: unless-stopped
 
-  # ── FastAPI backend ───────────────────────────────────────
   app:
     container_name: beta-olympia-app
     build:
@@ -42,7 +39,7 @@ services:
       - ./configs/.env
     environment:
       APP_HOST: 0.0.0.0
-      FRONTEND_URL: https://beta-olympia-custom.io.vn
+      FRONTEND_URL: https://olympia-custom.io.vn:8443
       DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
       POSTGRES_DB_HOST: beta-olympia-postgresql
       POSTGRES_DB_PORT: 5432
@@ -60,21 +57,19 @@ services:
       - beta-olympia-network
     restart: unless-stopped
 
-  # ── Frontend (Vite build baked in; nginx serves SPA + proxies /api and /ws) ──
   frontend:
     container_name: beta-olympia-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
-    - VITE_APP_ENV=prod
+    - VITE_APP_ENV=stage
     depends_on:
       - app
     networks:
       - beta-olympia-network
     restart: unless-stopped
 
-  # ── Discord / BGM bot ─────────────────────────────────────
   bgm-bot:
     container_name: beta-olympia-bgm-bot
     build:
@@ -123,7 +118,6 @@ services:
       - beta-olympia-network
     restart: unless-stopped
 
-  # ── Reverse proxy — HTTPS with Let's Encrypt ─────────────
   nginx:
     container_name: beta-olympia-nginx
     image: docker.io/library/nginx:1.27-alpine
@@ -140,12 +134,14 @@ services:
       - ./deploy/nginx-init.conf:/etc/nginx/init.conf:ro
       - ./deploy/nginx-prod.conf.template:/etc/nginx/https.conf.template:ro
       - ./data/certbot/webroot:/var/www/certbot:ro
-      - ./data/certbot/certs:/etc/letsencrypt:ro
+      # Reuse prod's Let's Encrypt cert (read-only). Cert is valid for any port,
+      # so https://olympia-custom.io.vn:8443 works without issuing a new cert.
+      # Prod certbot (in /root/OLYMPIA_CUSTOM) handles renewal; stage only reads.
+      - /root/OLYMPIA_CUSTOM/data/certbot/certs:/etc/letsencrypt:ro
     networks:
       - beta-olympia-network
     restart: unless-stopped
 
-  # ── TLS certificate management ────────────────────────────
   certbot:
     container_name: beta-olympia-certbot
     image: docker.io/certbot/certbot:latest
@@ -156,7 +152,6 @@ services:
     volumes:
       - ./data/certbot/webroot:/var/www/certbot
       - ./data/certbot/certs:/etc/letsencrypt
-    # Issues cert on first run (retries every 30s if nginx not ready), then renews every 12h.
     entrypoint:
       - /bin/sh
       - -c
@@ -171,7 +166,8 @@ services:
           while :; do certbot renew --quiet; sleep 12h & wait $${!}; done
     networks:
       - beta-olympia-network
-    restart: unless-stopped
+    profiles: ["never"]
+    restart: "no"
 
 networks:
   beta-olympia-network:
