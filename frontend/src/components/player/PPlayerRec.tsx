@@ -2,14 +2,11 @@ import React from "react";
 import { Zap, Mic, KeyRound, Star, Shield } from "lucide-react";
 import type { PlayerStatus } from "@/types/player";
 
-
 interface PPlayerRecProps {
     player: PlayerStatus;
     isCurrent: boolean;
-    isBuzzerWinner?: boolean;  // Show lightning icon in content area
+    isBuzzerWinner?: boolean;
 }
-
-
 
 const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinner }) => {
     const answerContent = player.playerLastAnswer?.trim() ?? '';
@@ -92,6 +89,5 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
         </div>
     )
 }
-
 
 export default PPlayerRec;

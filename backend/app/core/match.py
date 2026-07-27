@@ -14,7 +14,6 @@ from schemas.match import *
 async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession) -> BaseResponse:
     global_logger.debug(f"POST request received to create match with code: {request.match_code}.")
     try:
-        # Check if match already exists
         match_query = select(Match).where(Match.match_code == request.match_code, Match.is_deleted == False)
         result = await session.execute(match_query)
         existing_match = result.scalar_one_or_none()
@@ -23,23 +22,23 @@ async def post_match_to_db(request: MatchInfoPostRequest, session: AsyncSession)
             global_logger.warning(log_message)
             raise HTTPException(status_code=400, detail=log_message)
 
-        # Create new match
         new_match = Match(
             match_code = request.match_code,
             match_name = request.match_name,
             match_status = request.match_status if getattr(request, 'match_status', None) is not None else 'setup'
         )
         session.add(new_match)
-        await session.flush() # Get match id
+        await session.flush()
 
-        # Add players if provided
         if request.players:
-            for p_assignment in request.players:
-                # Find player by user_code
-                user_query = select(User).where(User.user_code == p_assignment.user_code, User.is_deleted == False)
-                user_res = await session.execute(user_query)
-                user = user_res.scalar_one_or_none()
+            user_codes = [p.user_code for p in request.players]
+            users_res = await session.execute(
+                select(User).where(User.user_code.in_(user_codes), User.is_deleted == False)
+            )
+            users_by_code = {u.user_code: u for u in users_res.scalars().all()}
 
+            for p_assignment in request.players:
+                user = users_by_code.get(p_assignment.user_code)
                 if not user:
                     raise HTTPException(status_code=404, detail=f"Player with code {p_assignment.user_code} not found")
 
@@ -95,7 +94,6 @@ async def patch_match_to_db(
             match.match_status = request.match_status
 
         if request.players is not None:
-            # Clear old room config
             old_positions_result = await session.execute(
                 select(MatchPlayerPosition).where(MatchPlayerPosition.match_id == match.id)
             )
@@ -104,7 +102,6 @@ async def patch_match_to_db(
                 await session.delete(old_position)
             await session.flush()
 
-            # Validate request players payload before insert
             seen_positions: set[int] = set()
             seen_players: set[str] = set()
             for assignment in request.players:
@@ -115,12 +112,14 @@ async def patch_match_to_db(
                 seen_positions.add(assignment.position)
                 seen_players.add(assignment.user_code)
 
-            # Insert new room config
+            user_codes = [a.user_code for a in request.players]
+            users_res = await session.execute(
+                select(User).where(User.user_code.in_(user_codes), User.is_deleted == False)
+            )
+            users_by_code = {u.user_code: u for u in users_res.scalars().all()}
+
             for assignment in request.players:
-                user_result = await session.execute(
-                    select(User).where(User.user_code == assignment.user_code, User.is_deleted == False)
-                )
-                user = user_result.scalar_one_or_none()
+                user = users_by_code.get(assignment.user_code)
                 if not user:
                     raise HTTPException(status_code=404, detail=f"Player with code {assignment.user_code} not found")
 
@@ -152,7 +151,6 @@ async def patch_match_to_db(
 
 
 async def delete_match_from_db(match_code: str, session: AsyncSession) -> BaseResponse:
-    """Soft delete a match from DB by setting is_deleted=True."""
     global_logger.debug(f"Soft deleting match with match_code={match_code} from database.")
     try:
         query = select(Match).where(Match.match_code == match_code, Match.is_deleted == False)
@@ -204,7 +202,6 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
             )
             for pp in match.players_position
         ]
-        # Sort by position
         players_data.sort(key=lambda x: x.position)
 
         matches_data = {
@@ -215,9 +212,6 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
         }
         
         log_message = f"Fetched match room successfully: match_code={match_code}."
-        # Demoted to DEBUG — admin GET /matches/{code} polls every few seconds
-        # while the match is live. INFO here was one line per poll, drowning
-        # out buzz / scoring events.
         global_logger.debug(log_message)
         return MatchRoomResponse(
             status='success',
@@ -233,7 +227,6 @@ async def get_match_by_match_code_from_db(match_code: str | None, session: Async
 
 
 async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
-    """Return all non-deleted matches ordered by creation date descending."""
     global_logger.debug("GET request received to fetch all active matches.")
     try:
         query = select(Match).where(Match.is_deleted == False).order_by(Match.created_at.desc())
@@ -248,7 +241,6 @@ async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
             for m in matches
         ]
         log_message = f"Fetched {len(matches)} active matches."
-        # Demoted to DEBUG — admin dashboard polls this list every few seconds.
         global_logger.debug(log_message)
         return BaseResponse(status="success", message=log_message, data=data)
     except Exception:
@@ -258,7 +250,6 @@ async def get_all_matches_from_db(session: AsyncSession) -> BaseResponse:
 
 
 async def finish_match_in_db(match_code: str, session: AsyncSession) -> BaseResponse:
-    """Mark a match as finished. Once finished, the match becomes read-only."""
     global_logger.debug(f"PATCH request received to finish match with code: {match_code}.")
     try:
         result = await session.execute(
@@ -290,7 +281,6 @@ async def finish_match_in_db(match_code: str, session: AsyncSession) -> BaseResp
         raise HTTPException(status_code=500, detail=log_message)
 
 
-# helper to just return players list
 async def get_players_by_match_from_db(match_code: str, session: AsyncSession) -> BaseResponse:
     global_logger.debug(f"GET request received to fetch players for match_code={match_code}.")
     try:
@@ -315,8 +305,6 @@ async def get_players_by_match_from_db(match_code: str, session: AsyncSession) -
         players_data.sort(key=lambda x: x.position)
 
         log_message = f"Fetched {len(players_data)} players for match_code={match_code}."
-        # Demoted to DEBUG — admin GET /matches/{code}/players polls every
-        # few seconds while the match is live.
         global_logger.debug(log_message)
         return BaseResponse(
             status="success",

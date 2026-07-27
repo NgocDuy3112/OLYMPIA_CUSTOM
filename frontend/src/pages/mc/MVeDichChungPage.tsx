@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -85,14 +85,14 @@ const MVeDichChungPage = () => {
                 const metadata: RoundQuestion[] = msg.question_metadata ?? [];
                 if (metadata.length > 0) {
                     setRoundQuestionsData(metadata);
-                    try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch { /* ignore */ }
+                    try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch {  }
                 }
                 break;
             }
             case "vd_player_power": {
                 const { user_code, power } = msg;
                 if (user_code && (power === "star" || power === "shield")) {
-                    // Update playerPower in players array for display
+
                     applyPlayerPower(user_code, power as "star" | "shield");
                 }
                 break;

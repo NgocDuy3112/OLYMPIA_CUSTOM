@@ -14,7 +14,6 @@ from models.user import User, RoleEnum
 
 
 def _safe_convert_score(value) -> int:
-    """Helper function to safely convert score from Valkey to int."""
     if value is None:
         return 0
     try:
@@ -31,14 +30,12 @@ async def get_scoreboard_for_a_match_from_db(
     valkey: Valkey,
     session: AsyncSession,
 ) -> BaseResponse:
-    """Return full scoreboard for a match. Prioritizes Valkey cache."""
     log_message = f"GET request received to fetch scoreboard for match_code: {match_code}."
     global_logger.info(log_message)
     
     try:
         leaderboard_key = f"leaderboard:{match_code}"
-        
-        # Step 1: Query DB to get player info
+
         query = (
             select(Match)
             .options(selectinload(Match.players_position).joinedload(MatchPlayerPosition.user))
@@ -51,7 +48,6 @@ async def get_scoreboard_for_a_match_from_db(
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
 
-        # Step 2: Build players data and sort by position
         players_data = [
             {
                 "user_code": pp.user.user_code,
@@ -62,33 +58,24 @@ async def get_scoreboard_for_a_match_from_db(
         ]
         players_data.sort(key=lambda x: x["position"])
         
-        # Step 3: Fetch all scores from Valkey in one operation
         player_codes = [p["user_code"] for p in players_data]
-        
+
         if await valkey.exists(leaderboard_key):
-            # The leaderboard is stored as a sorted set (zset) under the leaderboard_key.
-            # Use ZSCORE per player to retrieve their cumulative score. We intentionally
-            # avoid mget here because scores are stored as zset member scores, not as
-            # separate string keys.
-            scoreboard_list = []
-            for p in players_data:
-                try:
-                    score = await valkey.zscore(leaderboard_key, p["user_code"])  # may return None
-                except Exception:
-                    score = None
-                scoreboard_list.append(
-                    {
-                        "user_code": p["user_code"],
-                        "user_name": p["user_name"],
-                        "cumulative_score": _safe_convert_score(score),
-                    }
-                )
-            # Demoted to DEBUG — admin GET /scoreboard/ is called every few
-            # seconds while the round is live. INFO here was one line per
-            # poll, drowning out buzz / scoring events.
+            try:
+                scores = await valkey.zmscore(leaderboard_key, player_codes) or []
+            except Exception:
+                scores = []
+            scores = list(scores) + [None] * (len(player_codes) - len(scores))
+            scoreboard_list = [
+                {
+                    "user_code": p["user_code"],
+                    "user_name": p["user_name"],
+                    "cumulative_score": _safe_convert_score(score),
+                }
+                for p, score in zip(players_data, scores)
+            ]
             global_logger.debug(f"Fetched scoreboard from cache for match_code={match_code}.")
         else:
-            # No leaderboard in cache -> return zeros for all players
             scoreboard_list = [
                 {
                     "user_code": p["user_code"],
@@ -97,8 +84,6 @@ async def get_scoreboard_for_a_match_from_db(
                 }
                 for p in players_data
             ]
-            # Keep at INFO — first hit on a brand-new match is genuinely useful
-            # to confirm the cold-start path works.
             global_logger.info(f"No leaderboard cache found; returning zeroed scoreboard for match_code={match_code}.")
 
         return BaseResponse(
@@ -120,14 +105,6 @@ async def adjust_player_score(
     valkey: Valkey,
     session: AsyncSession,
 ) -> BaseResponse:
-    """Set a player's cumulative score to a specific value.
-
-    This works by:
-    1. Reading the current score from Valkey (ZSCORE).
-    2. Computing the delta needed to reach the target.
-    3. Applying the delta via ZADD INCR so the leaderboard stays consistent.
-    4. Creating a Record row in PostgreSQL for audit purposes.
-    """
     match_code = request.match_code
     user_code = request.user_code
     new_score = request.new_score
@@ -137,7 +114,6 @@ async def adjust_player_score(
     global_logger.info(log_message)
 
     try:
-        # ── 1. Validate match exists ──────────────────────────────────
         match = await session.scalar(
             select(Match.id).where(
                 Match.match_code == match_code,
@@ -147,7 +123,6 @@ async def adjust_player_score(
         if match is None:
             raise HTTPException(status_code=404, detail=f"Match {match_code} not found")
 
-        # ── 2. Validate player exists ────────────────────────────────
         user = await session.scalar(
             select(User.id).where(
                 User.user_code == user_code,
@@ -158,12 +133,10 @@ async def adjust_player_score(
         if user is None:
             raise HTTPException(status_code=404, detail=f"Player {user_code} not found")
 
-        # ── 3. Read current score from Valkey ────────────────────────
         leaderboard_key = f"leaderboard:{match_code}"
         current_score = await valkey.zscore(leaderboard_key, user_code)
         current_score = _safe_convert_score(current_score)
 
-        # ── 4. Compute delta and apply ───────────────────────────────
         delta = new_score - current_score
         if delta != 0:
             await valkey.zadd(leaderboard_key, {user_code: delta}, incr=True)
@@ -176,8 +149,6 @@ async def adjust_player_score(
                 f"Score unchanged: {user_code} in {match_code} already at {new_score}"
             )
 
-        # ── 5. Create audit Record in PostgreSQL ─────────────────────
-        # Find or create a special "admin_adjust" question for this match
         from models.question import Question as QuestionModel
         from models.record import Record as RecordModel
 
@@ -189,7 +160,6 @@ async def adjust_player_score(
             )
         )
         if adjust_question is None:
-            # Auto-create the placeholder question if it doesn't exist
             new_q = QuestionModel(
                 question_code="OC3_Q_ADMIN_ADJUST",
                 content="(Admin score adjustment)",
@@ -200,7 +170,6 @@ async def adjust_player_score(
             await session.flush()
             adjust_question = new_q.id
 
-        # Record the delta (round to nearest 5 to satisfy CHECK constraint)
         rounded_delta = round(delta / 5) * 5
         if rounded_delta != 0:
             record = RecordModel(
@@ -215,7 +184,6 @@ async def adjust_player_score(
         else:
             await session.commit()
 
-        # ── 6. Return updated scoreboard ─────────────────────────────
         updated_scoreboard = await get_scoreboard_for_a_match_from_db(
             match_code, valkey, session
         )

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useCallback, useEffect, useState, useContext } from "react";
 import { useParams } from "react-router-dom";
 import PPlayerRec from "@/components/player/PPlayerRec";
@@ -41,7 +41,6 @@ const PWaitingPage: React.FC = () => {
 			const roomData = roomRes?.data ?? {};
 			setMatchName(roomData.match_name ?? "");
 
-			// Check if match is finished
 			if (roomData.match_status === "finished") {
 				setMatchFinished(true);
 			}
@@ -71,7 +70,7 @@ const PWaitingPage: React.FC = () => {
 					playerName: p.user_name,
 					playerScore: 0,
 				})));
-			} catch { /* ignore */ }
+			} catch {  }
 		} finally {
 			setLoaded(true);
 		}
@@ -120,7 +119,7 @@ const PWaitingPage: React.FC = () => {
 
 	return (
 		<div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
-			{/* Match finished banner */}
+			{}
 			{matchFinished && (
 				<div className="w-full max-w-3xl mb-4 bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center">
 					<p className="text-green-300 font-semibold text-lg">✅ Trận đấu đã hoàn thành</p>
@@ -128,7 +127,7 @@ const PWaitingPage: React.FC = () => {
 				</div>
 			)}
 
-			{/* Match name banner */}
+			{}
 			<div className="mt-8 text-center">
 				<h1 className="font-[SVN-Gratelos_Display] text-5xl font-bold text-white uppercase tracking-wide">
 					OLYMPIA CUSTOM 3
@@ -141,7 +140,7 @@ const PWaitingPage: React.FC = () => {
 				)}
 			</div>
 
-			{/* Player cards */}
+			{}
 			{loaded && players.length > 0 && (
 				<div className="flex gap-4 max-w-7xl w-full justify-center mt-8">
 					{players.map((p) => (

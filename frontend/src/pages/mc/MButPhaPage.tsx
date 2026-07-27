@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -46,7 +46,7 @@ const MButPhaPage = () => {
                 break;
             case "clear_question":
                 clearAnswer();
-                // Keep videoPlayState unchanged - do not reset when admin switches questions
+
                 break;
             case "play_video":
                 setVideoPlayState("playing");
@@ -59,7 +59,7 @@ const MButPhaPage = () => {
                 break;
             case "buzz":
                 applyBuzz(msg);
-                // Only first buzzer gets the lightning icon
+
                 if (msg.user_code && !buzzerWinnerCode) {
                     setBuzzerWinnerCode(msg.user_code);
                 }

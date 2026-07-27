@@ -13,10 +13,6 @@ def utcnow():
 
 
 class RefreshToken(Base):
-    """
-    SQLAlchemy model for storing refresh tokens.
-    Tokens are single-use and rotated on each refresh.
-    """
     __tablename__ = "refresh_tokens"
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -39,5 +35,4 @@ class RefreshToken(Base):
 
     @staticmethod
     def generate_token() -> str:
-        """Generate a cryptographically secure random token."""
         return secrets.token_urlsafe(64)

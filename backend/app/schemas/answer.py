@@ -2,17 +2,17 @@ from schemas.base import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
-_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
+_MATCH_PATTERN = _settings.MATCH_PATTERN
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN
 
 
 class AnswerPostRequest(BaseRequest):
     match_code: str
     user_code: str
     question_code: str
-    answer_text: str | None = None  # Optional for buzz-only submissions
+    answer_text: str | None = None
     has_buzzed: bool = False
-    timestamp: float | None = None  # Optional, server will set if not provided
+    timestamp: float | None = None
 
     @field_validator('match_code', mode='after')
     @classmethod
@@ -37,7 +37,7 @@ class AnswerPostRequest(BaseRequest):
 
     @model_validator(mode='after')
     def validate_answer_or_buzz(self) -> 'AnswerPostRequest':
-        # Must provide either answer_text OR has_buzzed=True
+
         if not self.answer_text and not self.has_buzzed:
             raise ValueError("Must provide either answer_text or has_buzzed=True")
         return self

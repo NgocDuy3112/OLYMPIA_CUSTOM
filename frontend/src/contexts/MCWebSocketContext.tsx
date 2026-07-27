@@ -19,7 +19,6 @@ export const MCWebSocketProvider: React.FC<{ matchCode: string; children: ReactN
     sendMessage: ws.sendMessage,
   };
 
-  // Announce presence when MC websocket connects so admin can resync timer/question state.
   useEffect(() => {
     if (!ws.isConnected) return;
     if (!mcCode) return;

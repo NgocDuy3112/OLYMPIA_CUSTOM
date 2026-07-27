@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState } from "react";
 import { InputField } from "@/components/shared/InputField";
 import { BaseAuthLayout }from "@/pages/auth/BaseAuthLayout";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { API_BASE_URL } from "@/configs";
-
 
 const LoginPage: React.FC = () => {
     const [credentials, setCredentials] = useState({ username: "", password: "" });
@@ -56,6 +55,5 @@ const LoginPage: React.FC = () => {
         </BaseAuthLayout>
     );
 };
-
 
 export default LoginPage;

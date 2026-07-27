@@ -3,7 +3,6 @@ import zipfile
 import mimetypes
 from sqlalchemy import select, text
 
-# Alpine Linux lacks /etc/mime.types — register common media types explicitly.
 for _ext, _mime in [
     (".jpg", "image/jpeg"), (".jpeg", "image/jpeg"), (".png", "image/png"),
     (".gif", "image/gif"), (".webp", "image/webp"), (".svg", "image/svg+xml"),
@@ -25,15 +24,10 @@ from openpyxl import load_workbook
 from io import BytesIO
 
 QUESTION_SHEET_NAMES = ['KHOI_DONG', 'GIAI_MA', 'BUT_PHA', 'VE_DICH']
-_MATCH_PATTERN = AppSettings().MATCH_PATTERN  # e.g. "OC3_M"
+_MATCH_PATTERN = AppSettings().MATCH_PATTERN
 
 
 def _normalize_media_url(raw, match_code: str) -> str | None:
-    """Normalize media_url from Excel:
-    - Empty/None → None
-    - Just a filename (e.g. OC3_Q_KD_1_1.png) → prepend match_code
-    - Already a full S3 key or http URL → keep as-is
-    """
     if raw is None:
         return None
     v = str(raw).strip()
@@ -50,14 +44,6 @@ async def post_questions_from_excel_to_db(
     session: AsyncSession,
     overwrite: bool = False
 ) -> BaseResponse:
-    """Load questions from an uploaded Excel file.
-
-    The uploaded Excel file is expected to contain sheets named in QUESTION_SHEET_NAMES.
-    Each sheet should have columns A-E corresponding to: question_code, content, answer, explanation, media_url.
-    The first row is treated as header and skipped.
-
-    If overwrite=True, deletes existing questions for this match before importing.
-    """
     global_logger.debug(f"POST request received to inject questions from Excel with match code: {match_code}, overwrite={overwrite}.")
     try:
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code))
@@ -66,12 +52,10 @@ async def post_questions_from_excel_to_db(
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
 
-        # If overwrite mode, remove all dependents then questions for this match.
-        # Done explicitly in order because the FK constraints may not have CASCADE.
         if overwrite:
             for dep in ("answers", "records", "qualifier_records"):
                 await session.execute(
-                    text(f"DELETE FROM {dep} WHERE match_id = :match_id"),  # noqa: S608
+                    text(f"DELETE FROM {dep} WHERE match_id = :match_id"),
                     {"match_id": match_id},
                 )
             await session.execute(
@@ -81,7 +65,6 @@ async def post_questions_from_excel_to_db(
             await session.commit()
             global_logger.info(f"Deleted existing questions for match_code={match_code} in overwrite mode.")
 
-        # read uploaded file bytes and load workbook
         content = await file.read()
         wb = load_workbook(BytesIO(content), data_only=True)
 
@@ -92,11 +75,9 @@ async def post_questions_from_excel_to_db(
             ws = wb[sheet_name]
 
             rows = []
-            # iterate rows starting from second row (assume header in first row)
             for row in ws.iter_rows(min_row=2, max_col=5, values_only=True):
                 if not row:
                     continue
-                # require at least one non-empty cell after the first column to consider row valid
                 if len(row) <= 1 or not any((cell is not None and str(cell).strip()) for cell in row[1:]):
                     continue
                 qcode = row[0]
@@ -105,7 +86,6 @@ async def post_questions_from_excel_to_db(
                 explanation_cell = row[3] if len(row) > 3 else None
                 media_cell = row[4] if len(row) > 4 else None
 
-                # skip rows missing required fields
                 if not qcode or not content_cell or not answer_cell:
                     global_logger.warning(f"Skipping invalid row in sheet '{sheet_name}': {row}")
                     continue
@@ -163,7 +143,6 @@ async def post_question_to_db(
             log_message = f"No match found with match_code={request.match_code}."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
-        # Normalize options: store as JSON-encoded string in DB for consistency
         opts_value = None
         if request.options is not None:
             if isinstance(request.options, list):
@@ -209,19 +188,6 @@ async def post_qualifier_questions_from_excel_to_db(
     file: UploadFile,
     session: AsyncSession,
 ) -> BaseResponse:
-    """Load Vòng Loại questions from an uploaded Excel file.
-
-    Constraints:
-    - File name must start with 'OC3_VL' (the match_code is derived from the file name).
-    - File must contain exactly one sheet; the first sheet is used.
-    - Columns (A-K, header row skipped):
-        A: question_code (must start with 'OC3_Q_VL')
-        B: content
-        C: answer (must be A-F)
-        D: explanation (optional)
-        E: media_url (optional)
-        F-K: option texts for choices A-F (all 6 required)
-    """
     filename = (file.filename or "").strip()
     stem = filename.rsplit(".", 1)[0] if filename else ""
     global_logger.debug(f"POST qualifier questions from Excel: file='{filename}'")
@@ -241,7 +207,7 @@ async def post_qualifier_questions_from_excel_to_db(
 
         content = await file.read()
         wb = load_workbook(BytesIO(content), data_only=True)
-        ws = wb.worksheets[0]  # single sheet only
+        ws = wb.worksheets[0]
 
         skipped = 0
         question_objects: list[Question] = []
@@ -257,7 +223,6 @@ async def post_qualifier_questions_from_excel_to_db(
             media_cell = _normalize_media_url(row[4], match_code)
             opts = [str(row[i]).strip() if row[i] is not None else "" for i in range(5, 11)]
 
-            # strict validation
             if not qcode.startswith("OC3_Q_VL"):
                 global_logger.warning(f"Skipping row: question_code '{qcode}' must start with 'OC3_Q_VL'.")
                 skipped += 1
@@ -318,16 +283,8 @@ async def post_qualifier_question_to_db(
     request: QuestionPostRequest,
     session: AsyncSession,
 ) -> BaseResponse:
-    """Create a qualifier (Vòng Loại) question with stricter validation.
-
-    Requirements:
-    - question_code must start with 'OC3_Q_VL'
-    - answer must be one of 'A'..'F'
-    - options must be provided as a list of at least 6 strings, or as a JSON-encoded string representing such a list
-    """
     global_logger.debug(f"POST qualifier question received: {request.question_code}")
     try:
-        # validate match exists
         match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
         if match_id is None:
             log_message = f"No match found with match_code={request.match_code}."
@@ -339,10 +296,9 @@ async def post_qualifier_question_to_db(
             raise HTTPException(status_code=400, detail="Qualifier question_code must start with 'OC3_Q_VL'")
 
         ans = (request.answer or "").upper()
-        if ans not in ("A", "B", "C", "D", "E", "F"):  # strict answer validation
+        if ans not in ("A", "B", "C", "D", "E", "F"):
             raise HTTPException(status_code=400, detail="Qualifier answer must be one of 'A','B','C','D','E','F'")
 
-        # Normalize and validate options
         opts_value = None
         opts_list: list[str] | None = None
         if request.options is None:
@@ -363,7 +319,6 @@ async def post_qualifier_question_to_db(
         if not opts_list or len(opts_list) < 6:
             raise HTTPException(status_code=400, detail="Qualifier questions require exactly 6 options")
 
-        # take first six
         opts_list = [str(x) for x in opts_list[:6]]
         try:
             opts_value = json.dumps(opts_list, ensure_ascii=False)
@@ -420,7 +375,6 @@ async def get_question_from_request_from_db(
                 log_message = f"No question found with question_code={question_code}."
                 global_logger.warning(log_message)
                 raise HTTPException(status_code=400, detail=log_message)
-            # Try to return options as parsed list when possible for convenience
             parsed_options = None
             if question.options is not None:
                 try:
@@ -467,9 +421,6 @@ async def get_question_from_request_from_db(
                     'options': parsed_options,
                 })
         log_message = f"Fetched {len(question_data)} questions from the database with question_code={question_code}."
-        # Demoted to DEBUG — admin GET /questions/ polls every few seconds
-        # while a round is live. At INFO this was one line per poll, drowning
-        # out buzz / scoring events.
         global_logger.debug(log_message)
         return BaseResponse(
             status='success',
@@ -485,10 +436,8 @@ async def get_question_from_request_from_db(
 
 
 async def delete_question_from_db(match_code: str, question_code: str, session: AsyncSession) -> BaseResponse:
-    """Soft delete a question from DB by setting is_deleted=True."""
     global_logger.debug(f"Soft deleting question with question_code={question_code} in match_code={match_code} from database.")
     try:
-        # Find match_id first to ensure question belongs to the correct match
         match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False))
         if match_id is None:
             log_message = f"No active match found with match_code={match_code}."
@@ -599,20 +548,6 @@ async def post_questions_from_zip_to_db(
     session: AsyncSession,
     overwrite: bool = False,
 ) -> BaseResponse:
-    """Import questions + media từ một file ZIP.
-
-    Cấu trúc ZIP:
-      {match_code}.zip
-        {match_code}.xlsx          ← bắt buộc
-        OC3_Q_KD_1_1.jpg           ← tuỳ chọn, nhiều file media
-        OC3_Q_GM_2_1.mp3
-        ...
-
-    Thứ tự xử lý: upload S3 trước → import DB sau.
-    Nếu một file media upload lỗi, log warning và bỏ qua (không dừng toàn bộ).
-
-    If overwrite=True, deletes existing questions before importing.
-    """
     filename = (file.filename or "").strip()
     stem = filename.rsplit(".", 1)[0] if "." in filename else filename
     match_code = stem
@@ -633,7 +568,6 @@ async def post_questions_from_zip_to_db(
 
     names = zf.namelist()
 
-    # Tìm file Excel (bỏ qua path prefix nếu có, vd: __MACOSX/...)
     excel_name = f"{match_code}.xlsx"
     excel_entry = next(
         (n for n in names if n.split("/")[-1] == excel_name and not n.startswith("__")),
@@ -645,7 +579,6 @@ async def post_questions_from_zip_to_db(
             detail=f"Không tìm thấy '{excel_name}' trong ZIP.",
         )
 
-    # Upload tất cả file media lên S3 (bỏ qua lỗi đơn lẻ)
     media_ok: list[str] = []
     media_fail: list[str] = []
 
@@ -656,7 +589,6 @@ async def post_questions_from_zip_to_db(
 
         mime, _ = mimetypes.guess_type(basename)
         if not mime or mime not in _MEDIA_MIME_TYPES:
-            
             global_logger.warning(f"ZIP: bỏ qua '{entry}' (MIME không hợp lệ: {mime!r})")
             continue
 
@@ -676,7 +608,6 @@ async def post_questions_from_zip_to_db(
                 exc_info=True,
             )
 
-    # Import câu hỏi từ Excel (dùng lại hàm hiện có)
     excel_bytes = zf.read(excel_entry)
     excel_file = UploadFile(filename=excel_name, file=BytesIO(excel_bytes))
 

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -28,10 +28,10 @@ import { API_BASE_URL } from "@/configs";
 
 const logger = createLogger("AGiaiMa");
 
-const TIME_LIMIT = 15; // 15s per clue question per rules
-const CLUE_COUNT = 8; // 2 hàng × 4 cột
+const TIME_LIMIT = 15;
+const CLUE_COUNT = 8;
 const CLUE_QUESTION_PREFIX = "OC3_Q_GM_";
-const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY"; // holds the keyword answer
+const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -52,10 +52,8 @@ function buildKeywordBanner(answer: string): string {
 	return `TỪ KHOÁ GỒM CÓ ${trimmedLen} KÝ TỰ`;
 }
 
-// ─── Clue Card component ──────────────────────────────────────────────────────
-
 interface ClueCardProps {
-	index: number; // 1-based
+	index: number;
 	state: ClueState;
 	onClick: () => void;
 	disabled?: boolean;
@@ -95,8 +93,6 @@ const ClueCard: React.FC<ClueCardProps> = ({ index, state, onClick, disabled, hi
 	);
 };
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-
 const AGiaiMaPage = () => {
 	const navigate = useNavigate();
 	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -104,18 +100,16 @@ const AGiaiMaPage = () => {
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 
-	// Sync matchCode from URL to localStorage
 	useEffect(() => {
 		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
 			try {
 				localStorage.setItem("matchCode", urlMatchCode);
 			} catch {
-				// ignore
+
 			}
 		}
 	}, [urlMatchCode, storedMatchCode]);
 
-	// Redirect to game managing page if no match code is available
 	useEffect(() => {
 		if (!currentMatchCode) {
 			navigate("/admin/manage");
@@ -123,7 +117,6 @@ const AGiaiMaPage = () => {
 	}, [currentMatchCode, navigate]);
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
-	// ─── Player state ─────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
 	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
@@ -134,38 +127,32 @@ const AGiaiMaPage = () => {
 		);
 	}, []);
 
-	// ─── Question / clue state ────────────────────────────────────────────────
 	const [clueQuestions, setClueQuestions] = useState<(Question | null)[]>(
 		() => Array(CLUE_COUNT).fill(null),
 	);
 	const [clueStates, setClueStates] = useState<ClueState[]>(
 		() => Array(CLUE_COUNT).fill("idle"),
 	);
-	const [activeClueIndex, setActiveClueIndex] = useState<number | null>(null); // 0-based
+	const [activeClueIndex, setActiveClueIndex] = useState<number | null>(null);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
-	// ─── Timer state ──────────────────────────────────────────────────────────
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-	// ─── Score state ──────────────────────────────────────────────────────────
 	const [hasAddedKeywordScore, setHasAddedKeywordScore] = useState(false);
 
-	// ─── Hint reveal state ────────────────────────────────────────────────────
 	const [shownHintContent, setShownHintContent] = useState<string | null>(null);
 	const [hintHidden, setHintHidden] = useState(false);
 	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
 	const [, setCorrectClues] = useState<Set<number>>(new Set());
 	const [pendingClueAction, setPendingClueAction] = useState(false);
-	const [totalOpenedCluesCount, setTotalOpenedCluesCount] = useState(0); // Track total clues opened in entire round (never resets between questions)
+	const [totalOpenedCluesCount, setTotalOpenedCluesCount] = useState(0);
 
-	// ─── QuestionBoard content visibility (hidden when admin toggles show/hide hint) ──
 	const [hideQuestionContent, setHideQuestionContent] = useState(false);
-	// Tracks whether the current QuestionBoard timer is the keyword phase (vs. the regular question timer)
+
 	const [isKeywordTimerRunning, setIsKeywordTimerRunning] = useState(false);
-	
-	// ─── Keyword tracking state ───────────────────────────────────────────────
+
 	const [keywordSubmissions, setKeywordSubmissions] = useState<
 		Record<string, { text: string; timestamp: number; cluesOpened?: number }>
 	>({});
@@ -174,20 +161,15 @@ const AGiaiMaPage = () => {
 	const [keywordRevealedCodes, setKeywordRevealedCodes] = useState<Set<string>>(new Set());
 	const keywordLockedSentRef = useRef(false);
 
-	// ─── Keyword phase activation ─────────────────────────────────────────────
 	const [keywordPhaseActive, setKeywordPhaseActive] = useState(false);
-	// Once the admin presses "ĐẾM GIỜ TỪ KHOÁ" we lock the clue count for scoring
-	// purposes (N = total clues = 8). Persisted locally so the admin's own APlayerBar
-	// can derive the per-submission score even after the WS message is sent.
+
 	const [keywordCluesLocked, setKeywordCluesLocked] = useState(false);
 
-	// ─── Keyword info banner ──────────────────────────────────────────────────
 	const [keyInfo, setKeyInfo] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
 
 	const questionTitle = "GIẢI MÃ";
 	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
 
-	// Reset per-clue state when active clue changes
 	useEffect(() => {
 		Promise.resolve().then(() => {
 			setShownHintContent(null);
@@ -195,7 +177,6 @@ const AGiaiMaPage = () => {
 		});
 	}, [activeClueIndex]);
 
-	// ─── Map API payload → Question shape ─────────────────────────────────────
 	const mapQuestionPayload = useCallback(
 		(payload: any, fallbackCode?: string): Question => ({
 			questionCode:
@@ -219,10 +200,9 @@ const AGiaiMaPage = () => {
 		[],
 	);
 
-	// ─── Load a single clue question from the API ──────────────────────────────
 	const loadClueQuestion = useCallback(
 		async (clueIndex: number): Promise<Question | undefined> => {
-			// clueIndex is 0-based; question codes are 1-based
+
 			if (!currentMatchCode || !token) return undefined;
 			const questionCode = `${CLUE_QUESTION_PREFIX}${clueIndex + 1}`;
 			try {
@@ -251,16 +231,6 @@ const AGiaiMaPage = () => {
 		[currentMatchCode, mapQuestionPayload, token],
 	);
 
-	// Re-hydrate admin state from server snapshot on mount. Without this,
-	// a refreshed admin tab would reset every ``useState`` to its default
-	// and the operator would see a blank round even though the server
-	// already has every event the admin had broadcast. Backend stores
-	// the snapshot in Valkey HASH ``gm:admin_state:{match_code}`` via
-	// ``apply_gm_admin_state``; we just ``HGETALL`` it here and
-	// ``setState`` for every field. ``startTransition`` keeps React from
-	// blocking the page on the network round-trip — the snapshot is
-	// best-effort, and the live WS broadcast that follows will keep the
-	// state in sync if anything is missing.
 	useEffect(() => {
 		if (!currentMatchCode || !token) return;
 		let mounted = true;
@@ -279,11 +249,11 @@ const AGiaiMaPage = () => {
 				if (!mounted || !snap || typeof snap !== "object") return;
 				logger.info("[GM REHYDRATE] Applying snapshot", Object.keys(snap));
 				startTransition(() => {
-					// Clue grid: idle/active/used per slot
+
 					if (Array.isArray(snap.clue_states) && snap.clue_states.length === CLUE_COUNT) {
 						setClueStates(snap.clue_states as ClueState[]);
 					}
-					// Per-clue hint text/media
+
 					if (snap.revealed_hints && typeof snap.revealed_hints === "object") {
 						const normalised: Record<number, RevealedHint> = {};
 						for (const [k, v] of Object.entries(snap.revealed_hints as Record<string, any>)) {
@@ -297,14 +267,14 @@ const AGiaiMaPage = () => {
 						}
 						setRevealedHints(normalised);
 					}
-					// Active clue (which card is highlighted)
+
 					if (snap.active_clue_index !== undefined && snap.active_clue_index !== null) {
 						const idx = Number(snap.active_clue_index);
 						if (Number.isInteger(idx) && idx >= 0 && idx < CLUE_COUNT) {
 							setActiveClueIndex(idx);
 						}
 					}
-					// Current question (drives the QuestionBoard content)
+
 					if (snap.current_question && typeof snap.current_question === "object") {
 						const q = snap.current_question;
 						if (q.question_code) {
@@ -317,7 +287,7 @@ const AGiaiMaPage = () => {
 							});
 						}
 					}
-					// Timer + which timer phase
+
 					if (typeof snap.timer === "number") {
 						setTimer(snap.timer);
 						timerRef.current = snap.timer;
@@ -325,11 +295,11 @@ const AGiaiMaPage = () => {
 					if (typeof snap.is_keyword_timer_running === "boolean") {
 						setIsKeywordTimerRunning(snap.is_keyword_timer_running);
 					}
-					// Counter for keyword scoring
+
 					if (typeof snap.total_opened_clues_count === "number") {
 						setTotalOpenedCluesCount(snap.total_opened_clues_count);
 					}
-					// Keyword phase flags
+
 					if (typeof snap.keyword_phase_active === "boolean") {
 						setKeywordPhaseActive(snap.keyword_phase_active);
 					}
@@ -339,13 +309,7 @@ const AGiaiMaPage = () => {
 					if (typeof snap.keyword_answer_revealed === "boolean") {
 						setKeywordAnswerRevealed(snap.keyword_answer_revealed);
 					}
-					// Note: the actual keyword text is NOT a ``useState``
-					// value on the admin tab — it lives in
-					// ``keywordQuestion`` (already fetched on mount via
-					// GET /questions/?question_code=OC3_Q_GM_KEY). We
-					// therefore don't try to ``setKeywordAnswer`` from
-					// the snapshot — the API fetch is the source of
-					// truth for the answer text.
+
 					if (typeof snap.keyword_banner === "string" && snap.keyword_banner) {
 						setKeyInfo(snap.keyword_banner);
 					}
@@ -366,18 +330,18 @@ const AGiaiMaPage = () => {
 							snap.shown_hint_content === null ? null : String(snap.shown_hint_content),
 						);
 					}
-					// Per-player keyword submissions
+
 					if (snap.keyword_submissions && typeof snap.keyword_submissions === "object") {
 						setKeywordSubmissions(snap.keyword_submissions as Record<
 							string,
 							{ text: string; timestamp: number; cluesOpened?: number }
 						>);
 					}
-					// Per-player "revealed" flag set
+
 					if (Array.isArray(snap.keyword_revealed_codes)) {
 						setKeywordRevealedCodes(new Set(snap.keyword_revealed_codes as string[]));
 					}
-					// Re-hydrate correct-clues badge set
+
 					if (Array.isArray(snap.correct_clues)) {
 						setCorrectClues(new Set(snap.correct_clues as number[]));
 					}
@@ -392,7 +356,6 @@ const AGiaiMaPage = () => {
 		};
 	}, [currentMatchCode, token]);
 
-	// Pre-load all clue questions on mount
 	useEffect(() => {
 		const fetchAll = async () => {
 			const results = await Promise.all(
@@ -402,7 +365,6 @@ const AGiaiMaPage = () => {
 		};
 		void fetchAll();
 	}, [loadClueQuestion]);
-
 
 	const broadcastKeywordInfo = useCallback(async () => {
 		if (!currentMatchCode) return;
@@ -417,7 +379,6 @@ const AGiaiMaPage = () => {
 		}
 	}, [currentMatchCode, sendMessage, keyInfo]);
 
-	// Load keyword question (OC3_Q_GM_KEY) which holds the correct keyword answer
 	useEffect(() => {
 		const fetchKeywordQ = async () => {
 			if (!currentMatchCode || !token) return;
@@ -439,8 +400,7 @@ const AGiaiMaPage = () => {
 					if (answer) {
 						const banner = buildKeywordBanner(answer);
 						setKeyInfo(banner);
-						// Broadcast to players/MC so their keyword banner stays in sync with admin,
-						// independent of whether their own /questions/ fetch returned a usable payload.
+
 						void sendMessage({
 							type: "send_keyword_info",
 							user_code: "",
@@ -455,13 +415,11 @@ const AGiaiMaPage = () => {
 		void fetchKeywordQ();
 	}, [currentMatchCode, token, mapQuestionPayload, sendMessage]);
 
-	// ─── Reveal a clue: send to players, update local state ───────────────────
 	const handleRevealClue = useCallback(
 		async (clueIndex: number) => {
 			const q = clueQuestions[clueIndex];
 			if (!q) return;
 
-			// Compute next states explicitly to detect all-clues-opened in the same tick
 			const nextStates = clueStates.map((s, i) => {
 				if (i === activeClueIndex && activeClueIndex !== clueIndex) return "used" as ClueState;
 				if (i === clueIndex) return "active" as ClueState;
@@ -473,7 +431,7 @@ const AGiaiMaPage = () => {
 			setSelectedPlayerCodes([]);
 			setPendingClueAction(true);
 			setHideQuestionContent(false);
-			// Increment total opened clues count (only if this clue wasn't already opened)
+
 			setTotalOpenedCluesCount((prev) => {
 				const wasAlreadyOpened = clueStates[clueIndex] !== "idle";
 				return wasAlreadyOpened ? prev : prev + 1;
@@ -489,7 +447,7 @@ const AGiaiMaPage = () => {
 					content: q.questionText,
 					media_source: q.questionMediaURL ?? undefined,
 				});
-				// SFX: play gm_chon_goi_y only when opening a new (previously idle) clue
+
 				const wasAlreadyOpened = clueStates[clueIndex] !== "idle";
 				if (!wasAlreadyOpened) {
 					void sendMessage({ type: "gm_chon_goi_y" });
@@ -505,7 +463,6 @@ const AGiaiMaPage = () => {
 		[activeClueIndex, clueQuestions, clueStates, sendMessage],
 	);
 
-	// ─── Players helpers ──────────────────────────────────────────────────────
 	const applyPlayersSnapshot = useCallback(
 		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
 			const playersList = Array.isArray(payload?.players) ? payload.players : [];
@@ -536,8 +493,6 @@ const AGiaiMaPage = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			// user_name is already included in the /matches/{code}/players response,
-			// so we no longer need N separate /users/?user_code= requests.
 			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
 				user_name: entry.user_name ?? "",
@@ -590,7 +545,6 @@ const AGiaiMaPage = () => {
 		}
 	}, [currentMatchCode, loadPlayersState, sendMessage]);
 
-	// ─── WS message handler ───────────────────────────────────────────────────
 	useEffect(() => {
 		(async () => {
 		if (!lastMessage) return;
@@ -633,13 +587,11 @@ const AGiaiMaPage = () => {
 					}
 				}
 
-
 				try {
 					await broadcastKeywordInfo();
 				} catch (err) {
 					logger.error("[GM RECONNECT] broadcastKeywordInfo failed:", err);
 				}
-
 
 				for (let idx = 0; idx < CLUE_COUNT; idx++) {
 					const s = clueStates[idx];
@@ -658,7 +610,6 @@ const AGiaiMaPage = () => {
 						logger.error(`[GM RECONNECT] Resend clue ${idx + 1} failed:`, err);
 					}
 				}
-
 
 				if (keywordCluesLocked) {
 					try {
@@ -702,20 +653,20 @@ const AGiaiMaPage = () => {
 									content: currentQuestion.questionText ?? "",
 									media_source: currentQuestion.questionMediaURL ?? undefined,
 								});
-							} catch { /* best-effort */ }
+							} catch {  }
 						}
 						if (isTimerRunning && timerRef.current > 0) {
 							try {
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "gm", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
-							} catch { /* best-effort */ }
+							} catch {  }
 						}
 						try {
 							await broadcastKeywordInfo();
-						} catch { /* best-effort */ }
+						} catch {  }
 
 						try {
 							await sendPlayersSnapshot();
-						} catch { /* best-effort */ }
+						} catch {  }
 					})();
 				}
 				break;
@@ -776,8 +727,7 @@ const AGiaiMaPage = () => {
 							),
 						);
 					});
-					// NOTE: Backend already broadcasts to all players via Valkey pub/sub
-					// No need to forward manually - players receive directly from backend
+
 				} else {
 					logger.warn("ADMIN received invalid keyword_submit:", { user_code, keyword_text, timestamp });
 				}
@@ -795,7 +745,6 @@ const AGiaiMaPage = () => {
 		})();
 	}, [applyPlayersSnapshot, broadcastKeywordInfo, clueQuestions, clueStates, currentQuestion, isKeywordTimerRunning, isTimerRunning, keywordCluesLocked, lastMessage, sendMessage, sendPlayersSnapshot]);
 
-	// ─── Timer countdown ──────────────────────────────────────────────────────
 	useEffect(() => {
 		if (!isTimerRunning) return;
 		const id = window.setInterval(() => {
@@ -812,7 +761,6 @@ const AGiaiMaPage = () => {
 		return () => window.clearInterval(id);
 	}, [isTimerRunning]);
 
-
 	useEffect(() => {
 		if (isTimerRunning) return;
 		if (!isKeywordTimerRunning) return;
@@ -820,7 +768,6 @@ const AGiaiMaPage = () => {
 		void sendMessage({ type: "keyword_locked" });
 	}, [isTimerRunning, isKeywordTimerRunning, sendMessage]);
 
-	// Auto-lock keyword when all players have submitted their keyword
 	useEffect(() => {
 		if (players.length === 0 || keywordLockedSentRef.current) return;
 		const allSubmitted = players.every((p) => !!keywordSubmissions[p.playerCode]);
@@ -830,12 +777,10 @@ const AGiaiMaPage = () => {
 		}
 	}, [keywordSubmissions, players, sendMessage]);
 
-	// Load players on mount
 	useEffect(() => {
 		startTransition(() => { void loadPlayersState(); });
 	}, [loadPlayersState]);
 
-	// ─── Control handlers ─────────────────────────────────────────────────────
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -862,7 +807,7 @@ const AGiaiMaPage = () => {
 		setHasAddedKeywordScore(false);
 		setKeywordPhaseActive(false);
 		setKeywordCluesLocked(false);
-		setTotalOpenedCluesCount(0); // Reset total opened clues counter on round start
+		setTotalOpenedCluesCount(0);
 		setHideQuestionContent(false);
 		setIsKeywordTimerRunning(false);
 		keywordLockedSentRef.current = false;
@@ -871,8 +816,7 @@ const AGiaiMaPage = () => {
 		try {
 			await sendMessage({ type: "round_start", round: "gm" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/gm" });
-			// Re-broadcast the keyword banner so every connected client (player + MC)
-			// is in sync at round start, even if they missed the initial admin mount broadcast.
+
 			await broadcastKeywordInfo();
 			await sendPlayersSnapshot();
 		} catch (err) {
@@ -892,7 +836,7 @@ const AGiaiMaPage = () => {
 		if (!currentMatchCode) { return; }
 		try {
 			await sendMessage({ type: "round_end", round: "gm" });
-			// Removed navigate to waiting page - players and MC stay on GM page to preserve score context
+
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
@@ -992,18 +936,12 @@ const AGiaiMaPage = () => {
 				hint_content: hintText,
 				hint_media_source: hintMediaUrl ?? undefined,
 				target_players: selectedPlayerCodes,
-				// ``clue_index`` lets the backend snapshot this hint by
-				// clue so a refreshed player can re-hydrate the same
-				// card on reconnect (see ``handle_player_reconnect``).
-				// 0-based to match the existing bulk-reveal path in
-				// ``handleRevealKeywordAnswer`` and the player/MC
-				// ``show_hint`` handlers (which key by array index).
+
 				...(activeClueIndex !== null ? { clue_index: activeClueIndex } : {}),
 			});
-			// Separate SFX-only event for the bot (don't conflate SFX with content).
+
 			sendMessage({ type: "gm_dung" });
-			
-			// Auto-add score to selected players
+
 			if (selectedPlayerCodes.length > 0 && currentQuestion.questionCode) {
 				const score = 10;
 				if (activeClueIndex !== null) {
@@ -1063,15 +1001,15 @@ const AGiaiMaPage = () => {
 			}
 		}
 		setRevealedHints(newHints);
-		// Mark every clue as "used" (already opened) on the admin board.
+
 		setClueStates(Array(CLUE_COUNT).fill("used"));
 		setActiveClueIndex(null);
-		// All 8 clues are now visible — update the total opened count for keyword scoring.
+
 		setTotalOpenedCluesCount(CLUE_COUNT);
 		setPendingClueAction(false);
 
 		try {
-			// 1) Reveal the keyword answer.
+
 			await sendMessage({
 				type: "reveal_keyword_answer",
 				answer,
@@ -1104,7 +1042,7 @@ const AGiaiMaPage = () => {
 	const handleShowKeywordAnswers = useCallback(async () => {
 		const answer = keywordQuestion?.questionAnswer;
 		if (!answer) return;
-		// Reveal keyword answer if not already done
+
 		if (!keywordAnswerRevealed) {
 			setKeywordAnswerRevealed(true);
 			try {
@@ -1117,7 +1055,7 @@ const AGiaiMaPage = () => {
 				logger.error("handleShowKeywordAnswers: reveal failed:", err);
 			}
 		}
-		// Update admin's local player bars with submitted keyword text
+
 		setKeywordRevealedCodes(new Set(Object.keys(keywordSubmissions)));
 		setPlayers((prev) =>
 			prev.map((p) => ({
@@ -1125,9 +1063,7 @@ const AGiaiMaPage = () => {
 				playerLastAnswer: keywordSubmissions[p.playerCode]?.text ?? p.playerLastAnswer,
 			})),
 		);
-		// Per Giải Mã rules, "HIỆN TỪ KHOÁ" reveals the keyword text + 🔑N but
-		// deliberately omits the submission timestamp from the broadcast so the
-		// player/MC player cards don't render a timestamp next to the keyword.
+
 		const answers = Object.entries(keywordSubmissions).map(([user_code, { text, cluesOpened }]) => ({
 			user_code,
 			content: text,
@@ -1205,7 +1141,7 @@ const AGiaiMaPage = () => {
 
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
-		// Update local state immediately
+
 		setPlayers((prev) =>
 			prev.map((p) =>
 				p.playerCode === playerCode
@@ -1213,10 +1149,9 @@ const AGiaiMaPage = () => {
 					: p,
 			),
 		);
-		// Refresh scoreboard from server to ensure consistency
+
 		void sendPlayersSnapshot();
 	}, [sendPlayersSnapshot]);
-
 
 	const handleAddKeywordScoreToSelected = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0) return;
@@ -1245,10 +1180,9 @@ const AGiaiMaPage = () => {
 		}
 	}, [selectedPlayerCodes, keywordSubmissions, totalOpenedCluesCount, keywordCluesLocked, handleAddScore, sendPlayersSnapshot, currentMatchCode]);
 
-	// ─── Clue grid (2 rows × 4 columns) ──────────────────────────────────────
 	const clueGrid = (
 		<div className="flex flex-col gap-2 sm:gap-3 w-full">
-			{/* Keyword info banner — click to activate keyword phase */}
+			{}
 			<button
 				type="button"
 				onClick={() => setKeywordPhaseActive((prev) => !prev)}
@@ -1256,7 +1190,7 @@ const AGiaiMaPage = () => {
 			>
 				{keywordAnswerRevealed && keywordQuestion?.questionAnswer ? `${keywordQuestion.questionAnswer}` : keyInfo}
 			</button>
-			{/* Grid */}
+			{}
 			<div className="grid grid-cols-4 gap-2 sm:gap-3 w-full">
 				{Array.from({ length: CLUE_COUNT }, (_, i) => (
 					<ClueCard
@@ -1272,13 +1206,10 @@ const AGiaiMaPage = () => {
 		</div>
 	);
 
-	// When the QuestionBoard timer is the keyword phase, swap the question content to the keyword-length banner
-	// and force-hide any media so only the banner text is shown.
 	const questionToShow = isKeywordTimerRunning
 		? { ...currentQuestion, questionText: keyInfo, questionMediaURL: undefined }
 		: currentQuestion;
 
-	// ─── Render ───────────────────────────────────────────────────────────────
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}
@@ -1370,9 +1301,7 @@ const AGiaiMaPage = () => {
 				</>
 			}
 			renderPlayerList={() => {
-				// After the admin presses "HIỆN TỪ KHOÁ", lock the player bar for
-				// contestants who did NOT submit a keyword. This makes it visually
-				// obvious who is eligible for "TÍNH TỪ KHOÁ" scoring.
+
 				const keywordPhaseRevealed = keywordRevealedCodes.size > 0;
 				return players.map((player) => {
 					const submittedKeyword = !!keywordSubmissions[player.playerCode];

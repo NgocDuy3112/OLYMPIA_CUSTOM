@@ -15,17 +15,10 @@ async def get_user_from_request_from_db(
     user_role: str | None,
     session: AsyncSession
 ) -> BaseResponse:
-    """Fetch users from DB. Behavior:
-    - If user_code is provided: return the single matching user (404 if not found).
-    - Else if user_role is provided: return all users with that role.
-    - Else: return all non-deleted users.
-    """
     global_logger.debug(f"Fetching users with user_code={user_code} user_role={user_role} from database.")
     try:
-        # Base query: only non-deleted users
         query = select(User).where(User.is_deleted == False)
 
-        # If user_code is provided, return a single user
         if user_code:
             query = query.where(User.user_code == user_code)
             result = await session.execute(query)
@@ -48,7 +41,6 @@ async def get_user_from_request_from_db(
                 data=user_data
             )
 
-        # If user_role is provided, validate and filter
         if user_role:
             try:
                 role_enum = RoleEnum(user_role)
@@ -59,7 +51,6 @@ async def get_user_from_request_from_db(
                 raise HTTPException(status_code=400, detail=log_message)
             query = query.where(User.role == role_enum)
 
-        # Execute query for multiple users
         result = await session.execute(query)
         users = result.scalars().all()
         users_data = [
@@ -74,8 +65,6 @@ async def get_user_from_request_from_db(
             for user in users
         ]
         log_message = f"Fetched {len(users)} users from database."
-        # Demoted to DEBUG — admin GET /users/ polls every few seconds while
-        # the admin panel is open. INFO here was one line per poll.
         global_logger.debug(log_message)
         return BaseResponse(
             status='success',
@@ -93,7 +82,6 @@ async def get_user_from_request_from_db(
 
 
 async def delete_user_from_db(user_code: str, session: AsyncSession) -> BaseResponse:
-    """Soft delete a user from DB by setting is_deleted=True."""
     global_logger.info(f"Soft deleting user with user_code={user_code} from database.")
     try:
         query = select(User).where(User.user_code == user_code, User.is_deleted == False)

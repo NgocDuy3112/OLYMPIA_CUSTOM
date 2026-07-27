@@ -39,11 +39,10 @@ const PlayerAutoNavigator: React.FC = () => {
 
     useEffect(() => {
         if (!lastMessage) return;
-        
-        // Backend sends raw payload objects (not wrapped in { message: payload })
+
         const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
         const msgType = msg?.type ?? "";
-        
+
         console.info("[PlayerAutoNavigator] Received message:", msgType, msg);
 
         if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
@@ -79,14 +78,11 @@ const PlayerAutoNavigator: React.FC = () => {
 
         const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 
-        // Only handle /player/* paths — ignore /mc/* or /admin/* paths
-        // which are intended for other roles
         if (!normalized.startsWith("/player/")) {
             console.warn("[PlayerAutoNavigator] Ignoring non-player path:", normalized);
             return;
         }
 
-        // Qualifier (Vòng Loại) always uses OC3_M_VL as matchCode
         const isQualifier = normalized === "/player/vl";
         const target = isQualifier
             ? `${normalized}/OC3_M_VL`
@@ -98,7 +94,7 @@ const PlayerAutoNavigator: React.FC = () => {
         if (currentPath !== target) {
             navigate(target, { replace: true });
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [lastMessage, matchCode, playerCode, navigate, location.pathname]);
 
     return null;
@@ -112,7 +108,6 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         return s && s.trim() !== "" ? s : "";
     });
 
-    // Sync matchCode from URL to sessionStorage
     useEffect(() => {
         if (urlMatchCode && urlMatchCode !== matchCode) {
             sessionStorage.setItem("matchCode", urlMatchCode);
@@ -141,7 +136,7 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
                 setMatchCode(defaultCode);
             }
         } catch (e) {
-            // ignore
+
         }
     }, [location.pathname, matchCode]);
 
@@ -154,7 +149,6 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         </PlayerWebSocketProvider>
     );
 };
-
 
 const PlayerRoutes = () => {
     return (
@@ -243,39 +237,19 @@ const PlayerRoutes = () => {
                         </ProtectedPlayerRoute>
                     }
                 />
-                {/* <Route
-                    path="/vd/:matchCode/:playerCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <VuotDeoPage />
-                        </ProtectedPlayerRoute>
-                    }
-                /> */}
-                {/* <Route
-                    path="/nrc/:matchCode/:playerCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <NuocRutChungPage />
-                        </ProtectedPlayerRoute>
-                    }
-                /> */}
-                {/* <Route
-                    path="/nrcn/:matchCode/:playerCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <NuocRutCaNhanPage />
-                        </ProtectedPlayerRoute>
-                    }
-                /> */}
-                {/* <Route
-                    path="/nrpick/:matchCode/:playerCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <NuocRutChonCauHoiPage />
-                        </ProtectedPlayerRoute>
-                    }
-                /> */}
-                {/* fallback */}
+                {
+
+}
+                {
+
+}
+                {
+
+}
+                {
+
+}
+                {}
                 <Route path="*" element={<Navigate to="/player/access" replace />} />
             </Routes>
         </PlayerWebSocketWrapper>

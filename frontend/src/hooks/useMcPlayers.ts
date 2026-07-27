@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useCallback, useState } from "react";
 import type { PlayerStatus } from "@/types/player";
 
@@ -50,9 +50,7 @@ export function useMcPlayers() {
                 return {
                     ...p,
                     playerLastAnswer: ans.content ?? ans.answer_text,
-                    // Per Giải Mã rules, `send_keyword_answers` broadcasts keyword text with
-                    // `timestamp: undefined` so the player card omits the timestamp. Only
-                    // overwrite when the broadcast provides a numeric timestamp.
+
                     playerTimestamp: typeof ans.timestamp === "number" ? ans.timestamp : p.playerTimestamp,
                     playerKeywordCluesOpened: typeof ans.clues_opened === "number" ? ans.clues_opened : p.playerKeywordCluesOpened,
                 };

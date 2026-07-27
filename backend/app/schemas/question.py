@@ -2,8 +2,8 @@ from schemas.base import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
-_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
+_MATCH_PATTERN = _settings.MATCH_PATTERN
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN
 
 
 class QuestionPostRequest(BaseRequest):
@@ -12,9 +12,9 @@ class QuestionPostRequest(BaseRequest):
     content: str
     answer: str
     explanation: str | None = None
-    # store a single media URL (or comma-separated URLs) as a string
+
     media_url: str | None = None
-    # Accept either a JSON string (stored legacy) or a list of option strings
+
     options: list[str] | str | None = None
 
     @field_validator('match_code', mode='after')
@@ -51,11 +51,10 @@ class QuestionUpdateRequest(BaseModel):
     answer: str | None = None
     explanation: str | None = None
     media_url: str | None = None
-    # Accept either a JSON string or a list of strings for convenience
+
     options: list[str] | str | None = None
 
 
-# Backwards-compatible request shape expected by older tests
 class QuestionCreateRequest(BaseModel):
     question_code: str
     content: str
@@ -65,14 +64,14 @@ class QuestionCreateRequest(BaseModel):
     answer_d: str | None = None
     answer_e: str | None = None
     answer_f: str | None = None
-    correct_answer: str | None = None  # e.g., 'A'
+    correct_answer: str | None = None
     explanation: str | None = None
     media_url: str | None = None
     match_code: str
 
     @property
     def answer(self) -> str | None:
-        # Return the correct answer indicator (letter) expected by core functions
+
         return self.correct_answer
 
     @property

@@ -9,7 +9,6 @@ from models.record import *
 from core.record import *
 
 
-
 router = APIRouter(prefix='/records', tags=['Bản ghi'])
 
 
@@ -24,17 +23,12 @@ async def post_record(
     session: AsyncSession = Depends(get_db),
     valkey: Valkey = Depends(get_valkey)
 ) -> BaseResponse:
-    """
-    Endpoint to create a new record in the system.
-    Accessible only by users with 'admin' role.
-    """
     try:
         return await post_record_to_db(request, session, valkey)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
-
 
 
 @router.get(
@@ -45,7 +39,7 @@ async def post_record(
 )
 async def get_records(
     match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OC3_M'")],
-    user_code: Annotated[str, Query(..., description="Mã người chơi, phải bắt đầu với 'OC_U'")],
+    user_code: Annotated[str | None, Query(description="Mã người chơi. Nếu bỏ qua, trả về tất cả records trong match.")] = None,
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     try:

@@ -1,16 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useCallback, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 
-/**
- * Hook for the MC view's "question reveal" state — i.e. the correct answer +
- * explanation that the MC shows AFTER the admin reveals it.
- *
- * Distinct from `useMcPlayers`, which manages the list of players and their
- * per-player `playerLastAnswer` fields.
- *
- * Renamed from `useMcAnswer` (alias kept for backwards compatibility).
- */
 export function useMcQuestionReveal(matchCode: string, token: string) {
     const [questionAnswer, setQuestionAnswer] = useState("");
     const [questionExplanation, setQuestionExplanation] = useState("");
@@ -42,7 +33,7 @@ export function useMcQuestionReveal(matchCode: string, token: string) {
             setQuestionAnswer(String(answer));
             setQuestionExplanation(String(explanation));
         } catch {
-            // silently ignore
+
         }
     }, [matchCode, token]);
 

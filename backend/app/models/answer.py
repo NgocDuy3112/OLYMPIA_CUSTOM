@@ -12,10 +12,9 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
-
 class Answer(Base):
     __tablename__ = "answers"
-    # Columns
+
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -23,7 +22,7 @@ class Answer(Base):
     has_buzzed: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
     timestamp: Mapped[float] = mapped_column(Numeric(16, 3), nullable=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Foreign Keys
+
     player_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     match_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("matches.id"), nullable=False, index=True)
     question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id"), nullable=False, index=True)

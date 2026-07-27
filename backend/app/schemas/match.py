@@ -2,7 +2,7 @@ from schemas.base import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
+_MATCH_PATTERN = _settings.MATCH_PATTERN
 
 
 class MatchPlayerAssignment(BaseModel):
@@ -40,6 +40,5 @@ class MatchUpdateRequest(BaseModel):
     players: list[MatchPlayerAssignment] | None = None
 
 
-# Backwards-compatible alias used by older tests/code
 class MatchCreateRequest(MatchInfoPostRequest):
     pass

@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
 import { InputField } from "@/components/shared/InputField";
 import { API_BASE_URL } from "@/configs";
-
-
 
 const SignupPage: React.FC = () => {
     const [form, setForm] = useState({ email: "", userName: "", password: "" });
@@ -40,21 +38,21 @@ const SignupPage: React.FC = () => {
     return (
         <BaseAuthLayout title="OLYMPIA CUSTOM 3" subtitle="Tạo tài khoản thí sinh">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <InputField 
-                    label="Email" 
+                <InputField
+                    label="Email"
                     type="email"
-                    value={form.email} 
-                    onChange={(e: { target: { value: any; }; }) => setForm({ ...form, email: e.target.value })} 
+                    value={form.email}
+                    onChange={(e: { target: { value: any; }; }) => setForm({ ...form, email: e.target.value })}
                 />
-                <InputField 
-                    label="Tên thí sinh" 
-                    value={form.userName} 
-                    onChange={(e: { target: { value: any; }; }) => setForm({ ...form, userName: e.target.value })} 
+                <InputField
+                    label="Tên thí sinh"
+                    value={form.userName}
+                    onChange={(e: { target: { value: any; }; }) => setForm({ ...form, userName: e.target.value })}
                 />
-                <InputField 
-                    label="Mật khẩu" 
-                    type="password" 
-                    value={form.password} onChange={(e: { target: { value: any; }; }) => setForm({ ...form, password: e.target.value })} 
+                <InputField
+                    label="Mật khẩu"
+                    type="password"
+                    value={form.password} onChange={(e: { target: { value: any; }; }) => setForm({ ...form, password: e.target.value })}
                 />
                 <button type="submit" className="mt-4 btn-primary-full">
                     TẠO TÀI KHOẢN
@@ -64,6 +62,5 @@ const SignupPage: React.FC = () => {
         </BaseAuthLayout>
     );
 };
-
 
 export default SignupPage;

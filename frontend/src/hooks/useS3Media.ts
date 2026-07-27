@@ -14,37 +14,65 @@ function mimeFromPath(path: string): string | null {
     return EXT_TO_MIME[ext] ?? null;
 }
 
-/**
- * Returns true when the value looks like an S3 object key stored in the DB,
- * e.g. "OC3_M01T/clip.mp4" or "OC3_M_BP/image.jpg".
- */
 export function isS3Key(url: string): boolean {
     return url.startsWith("OC3_M") && url.includes("/");
 }
 
+const presignCache = new Map<string, string>();
+const pendingKeys = new Set<string>();
+let batchTimer: ReturnType<typeof setTimeout> | null = null;
+const BATCH_DELAY_MS = 50;
+const BATCH_MAX_KEYS = 50;
+
+async function flushBatch(token: string): Promise<void> {
+    if (pendingKeys.size === 0) return;
+    const keys = Array.from(pendingKeys).slice(0, BATCH_MAX_KEYS);
+    keys.forEach((k) => pendingKeys.delete(k));
+    try {
+        const res = await fetch(`${API_BASE_URL}/media/presign-batch/`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ keys }),
+        });
+        if (!res.ok) throw new Error(`presign-batch HTTP ${res.status}`);
+        const { urls } = (await res.json()) as { urls: Record<string, string> };
+        for (const [k, u] of Object.entries(urls)) {
+            presignCache.set(k, u);
+        }
+    } catch (err) {
+        console.error("[useS3Media] presign-batch failed:", err);
+        keys.forEach((k) => pendingKeys.add(k));
+    }
+}
+
+export async function prefetchS3Media(
+    keys: string[],
+    token: string,
+): Promise<void> {
+    const s3Keys = keys.filter((k) => isS3Key(k) && !presignCache.has(k));
+    s3Keys.forEach((k) => pendingKeys.add(k));
+    if (batchTimer) clearTimeout(batchTimer);
+
+    if (pendingKeys.size >= BATCH_MAX_KEYS) {
+        await flushBatch(token);
+    } else {
+        batchTimer = setTimeout(() => {
+            void flushBatch(token);
+        }, BATCH_DELAY_MS);
+    }
+}
+
 export interface S3MediaState {
-    /**
-     * A usable src string for `<img>` / `<audio>` / `<video>`.
-     *
-     *  - For S3 keys: the presigned S3 URL.
-     *  - For plain http(s) URLs: the URL unchanged.
-     *  - `null` while we are waiting for the first presign round-trip or when
-     *    `mediaUrl` is undefined.
-     */
+
     src: string | null;
     mimeType: string | null;
     loading: boolean;
     error: string | null;
 }
 
-/**
- * Resolves a media URL to a usable src string.
- *
- * Supported `mediaUrl` formats:
- *  - **S3 key** (e.g. `OC3_M01T/clip.mp4`) — fetches a presigned URL from
- *    `GET /media/presign/` and returns it directly as src for native streaming.
- *  - **Plain HTTP(S) URL** — returned as-is without any fetching.
- */
 export function useS3Media(
     mediaUrl: string | undefined,
     token: string,
@@ -62,14 +90,17 @@ export function useS3Media(
             return;
         }
 
-        // Plain HTTP(S) URL: nothing to fetch, return synchronously.
         if (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://")) {
             setState({ src: mediaUrl, mimeType: null, loading: false, error: null });
             return;
         }
 
-        // S3 key path (anything else is treated as an S3 key, matching the
-        // previous behaviour of the hook for non-URL inputs).
+        const cached = presignCache.get(mediaUrl);
+        if (cached) {
+            setState({ src: cached, mimeType: mimeFromPath(mediaUrl), loading: false, error: null });
+            return;
+        }
+
         let cancelled = false;
         setState((prev) => ({ ...prev, loading: true, error: null }));
 
@@ -82,6 +113,7 @@ export function useS3Media(
                 if (!res.ok) throw new Error(`Presign failed: HTTP ${res.status}`);
                 const { url } = await res.json() as { url: string };
                 if (cancelled) return;
+                presignCache.set(mediaUrl, url);
                 setState({ src: url, mimeType: mimeFromPath(mediaUrl), loading: false, error: null });
             } catch (err) {
                 if (cancelled) return;

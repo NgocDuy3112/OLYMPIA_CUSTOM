@@ -5,7 +5,6 @@ import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
 
-
 interface APlayerCardProps {
     player: PlayerStatus;
     isActive?: boolean;
@@ -19,7 +18,6 @@ interface APlayerCardProps {
     matchCode?: string;
     sendMessage?: (msg: any) => void;
 }
-
 
 const APlayerCard: React.FC<APlayerCardProps> = ({
     player,
@@ -39,7 +37,6 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
         onClick?.(player.playerCode);
     };
 
-    // Edit score modal state
     const [showEditModal, setShowEditModal] = useState(false);
     const [editScoreValue, setEditScoreValue] = useState(player.playerScore.toString());
     const [isUpdating, setIsUpdating] = useState(false);
@@ -119,7 +116,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                         : "ring-2 ring-blue-600 bg-blue-900 text-blue-300"
                     } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
             >
-                {/* Top row: name + wifi signal + icons */}
+                {}
                 <div className="flex items-center gap-2 w-full justify-center">
                     <WifiSignal
                         latencyMs={player.playerLatencyMs}
@@ -134,7 +131,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                     </p>
                 </div>
 
-                {/* Score row */}
+                {}
                 <div className="flex items-center gap-2 mt-2">
                     <p className="font-[SVN-Gratelos_Display] text-[36px] xl:text-[44px] font-extrabold leading-none">
                         {player.playerScore}
@@ -151,7 +148,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                     )}
                 </div>
 
-                {/* Answer / timestamp */}
+                {}
                 <div className="mt-1 text-center min-h-[24px] flex flex-col items-center justify-center w-full">
                     {player.playerLastAnswer && player.playerLastAnswer !== "---" && (
                         <p className="text-[14px] font-bold text-white uppercase">
@@ -166,7 +163,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                 </div>
             </div>
 
-            {/* Edit Score Modal */}
+            {}
             {showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div

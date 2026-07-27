@@ -51,8 +51,6 @@ const MCAutoNavigator: React.FC = () => {
 
         const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 
-        // Convert /player/* to /mc/* (MC routes are mounted under /mc/ in App.tsx)
-        // Also handle /mc/* paths directly (e.g. admin sends /mc/waiting for MC online)
         let mcPath: string | null = null;
         if (normalized.startsWith("/player/")) {
             mcPath = normalized.replace("/player/", "/mc/");
@@ -61,7 +59,6 @@ const MCAutoNavigator: React.FC = () => {
         }
         if (!mcPath) return;
 
-        // Qualifier (Vòng Loại) always uses OC3_M_VL as matchCode
         const isQualifier = mcPath === "/mc/vl";
         const noParamsPaths = ["/mc/waiting"];
         const target = noParamsPaths.includes(mcPath)
@@ -90,7 +87,6 @@ const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
         return s && s.trim() !== "" ? s : "";
     });
 
-    // Sync matchCode from URL to sessionStorage
     useEffect(() => {
         if (urlMatchCode && urlMatchCode !== matchCode) {
             sessionStorage.setItem("matchCode", urlMatchCode);

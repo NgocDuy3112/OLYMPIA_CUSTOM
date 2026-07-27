@@ -1,7 +1,6 @@
 import React from "react";
 import { KeyRound } from "lucide-react";
 
-
 interface PAnswerBoxProps {
     answer: string;
     setAnswer: (answer: string) => void;
@@ -11,12 +10,10 @@ interface PAnswerBoxProps {
     showKeyIcon?: boolean;
 }
 
-
-
-const PAnswerBox: React.FC<PAnswerBoxProps> = ({ 
-    answer, 
-    setAnswer, 
-    isDisabled, 
+const PAnswerBox: React.FC<PAnswerBoxProps> = ({
+    answer,
+    setAnswer,
+    isDisabled,
     onSubmit,
     placeholderString,
     showKeyIcon = false

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -21,18 +21,6 @@ interface MVeDichPickPageProps {
 	round: VeDichRound;
 }
 
-/**
- * MVeDichPickPage — Read-only MC view of the admin's question-picking screen.
- *
- * MC sees the full Jeopardy-style question grid and selected preview.
- * Updates in real-time via WebSocket as admin toggles selections.
- *
- * WS messages consumed:
- *   - "send_players_info"       → update player scoreboard
- *   - "vd_selection_update" → live highlight as admin toggles
- *   - "vd_questions_selected" → admin confirmed selection
- *   - "vdc_questions_meta"   → question metadata broadcast
- */
 const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
 	const { matchCode: sessionMatchCode } = useMcSession();
@@ -40,18 +28,16 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const { lastMessage } = useMcWebSocket();
 	const { players, applyPlayersInfo } = useMcPlayers();
 
-	// Sorted list of all question codes — received from admin via vd_selection_update
-	// Fallback: generate placeholder codes if not received yet
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
 			const stored = localStorage.getItem(`veDich_pick_all_codes_${matchCode}`);
 			const codes = stored ? (JSON.parse(stored) as string[]) : [];
-			// If we have codes, use them; otherwise return empty array (will use fallback in render)
+
 			return codes.length > 0 ? codes : [];
 		} catch { return []; }
 	});
-	// Live selection as admin toggles (before confirm)
+
 	const [liveSelectedCodes, setLiveSelectedCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
@@ -59,12 +45,9 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
-	// Confirmed selection after admin clicks XÁC NHẬN
+
 	const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
-	// Questions from prior rounds that are grayed out and unselectable.
-	// Hydrate from localStorage so late-arriving MC sees the correct state
-	// even if they miss the WS message (admin broadcasts on BẮT ĐẦU click).
-	// Admin will keep the in-app state in sync via vd_selection_update.
+
 	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
@@ -73,7 +56,6 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 		} catch { return []; }
 	});
 
-	// WebSocket message handling
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
@@ -119,13 +101,12 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 	const maxQuestions = round === VeDichRound.CHUNG ? Math.max(players.length, 1) : round;
 	const title = getVeDichRoundLabel(round);
 
-	// Prefer confirmed codes; fall back to live selection
 	const displayCodes = confirmedCodes.length > 0 ? confirmedCodes : liveSelectedCodes;
 
 	return (
 		<PBasePageLayout players={players} currentPlayerCode="">
 			<div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 w-full">
-				{/* Board header */}
+				{}
 				<div className="flex items-center gap-4 pb-1">
 					<p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
 						{title}
@@ -133,7 +114,7 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 
 					<div className="flex-1" />
 
-					{/* Selected questions preview */}
+					{}
 					<div className="flex gap-1">
 						{Array.from({ length: maxQuestions }).map((_, i) => {
 							const code = displayCodes[i];
@@ -165,17 +146,17 @@ const MVeDichPickPage = ({ round }: MVeDichPickPageProps) => {
 					</div>
 				</div>
 
-				{/* Divider */}
+				{}
 				<div className="border-t border-blue-700" />
 
-				{/* Read-only question grid — 6 categories × 4 point values */}
+				{}
 				<div
 					className="grid gap-3"
 					style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(76px, 76px)" }}
 				>
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];
-						// Fallback: use placeholder code if allQuestionCodes is empty
+
 						const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
 						const displayCode = questionCode || fallbackCode;
 
