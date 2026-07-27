@@ -140,18 +140,11 @@ const AQualifierPage = () => {
             }).then((r) => r.json());
             const playersList: any[] = playersJson.data?.players ?? [];
 
-            const profileResponses = await Promise.all(
-                playersList.map((entry: any) =>
-                    fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    })
-                        .then((r) => r.json())
-                        .catch(() => null),
-                ),
-            );
-            const profiles = playersList.map((entry: any, i: number) => ({
+            // user_name is already included in the /matches/{code}/players response,
+            // so we no longer need N separate /users/?user_code= requests.
+            const profiles = playersList.map((entry: any) => ({
                 user_code: entry.user_code,
-                user_name: profileResponses[i]?.data?.user_name ?? "",
+                user_name: entry.user_name ?? "",
             }));
 
             setPlayers((prev) => {

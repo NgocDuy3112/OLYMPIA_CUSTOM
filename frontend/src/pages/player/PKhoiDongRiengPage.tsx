@@ -15,7 +15,7 @@ import type { PlayerStatus } from "@/types/player";
 
 const PKhoiDongRiengPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
-	const { lastMessage, isConnected } = usePlayerWebSocket();
+	const { lastMessage } = usePlayerWebSocket();
 	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
@@ -39,7 +39,7 @@ const PKhoiDongRiengPage = () => {
 						prev.map((p) => {
 							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
 							if (scoreEntry) {
-								const newScore = scoreEntry.cumulative_score ?? 0;
+								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
 								return { ...p, playerScore: newScore };
 							}
 							return p;
@@ -53,35 +53,6 @@ const PKhoiDongRiengPage = () => {
 		void fetchScores();
 		return () => { mounted = false; };
 	}, [matchCode, token]);
-
-	// Re-fetch scoreboard when WebSocket reconnects (e.g., after round restart)
-	useEffect(() => {
-		if (!isConnected || !matchCode || !token) return;
-		const refreshScores = async () => {
-			try {
-				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				if (!res.ok) return;
-				const json = await res.json();
-				const scoreboardList: any[] = json.data?.scoreboard ?? [];
-				setPlayers((prev) =>
-					prev.map((p) => {
-						const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
-						if (scoreEntry) {
-							return { ...p, playerScore: scoreEntry.cumulative_score ?? 0 };
-						}
-						return p;
-					}),
-				);
-				console.info("Refreshed scoreboard after WebSocket reconnect");
-			} catch (err) {
-				console.warn("Failed to refresh scoreboard after reconnect:", err);
-			}
-		};
-		const timer = setTimeout(refreshScores, 500);
-		return () => clearTimeout(timer);
-	}, [isConnected, matchCode, token]);
 
 	useEffect(() => {
 		return () => { audioRef.current?.pause(); };
@@ -113,7 +84,7 @@ const PKhoiDongRiengPage = () => {
 					return {
 						playerCode: code,
 						playerName: p?.user_name ?? profile?.user_name ?? "",
-						playerScore: p?.cumulative_score ?? score?.cumulative_score ?? 0,
+						playerScore: p?.cumulative_score ?? p?.cumulative_score ?? score?.cumulative_score ?? score?.cumulative_score ?? 0,
 						playerLastAnswer: undefined,
 						playerTimestamp: undefined,
 						playerHasBuzzed: false,

@@ -59,10 +59,7 @@ async def lifespan(app: FastAPI):
             f"Please verify VALKEY_HOST, VALKEY_PORT and VALKEY_PASSWORD environment variables.",
             exc_info=True
         )
-        # Continue startup without Valkey - REST API will still work
 
-    # S3 singleton: best-effort, same pattern as Valkey. If it fails,
-    # media routes return 503 instead of crashing the whole worker.
     await init_s3_client()
 
     async with engine.begin() as conn:
@@ -77,7 +74,7 @@ async def lifespan(app: FastAPI):
     
     yield
     
-    # Cleanup code
+
     global_logger.info("Application Shutdown: Disposing of database engine.")
     
     # Gracefully shut down WebSocket ConnectionManager (cancel Valkey listeners)
@@ -191,12 +188,6 @@ async def websocket_endpoint(
     if user_role == "player":
         await handle_player_reconnect(ws_manager, match_code, user_info["user_code"])
     elif user_role == "mc":
-        # MC reconnects get the same snapshot-replay treatment as
-        # players — buzer_winner + gm hints, plus an ``mc_reconnected``
-        # hint to the admin so it can re-push the per-round WS state
-        # (question / timer / board metadata) to the MC tab. Admin pages
-        # group ``mc_online`` + ``mc_reconnected`` so the existing
-        # late-join re-broadcast path covers both events.
         await handle_mc_reconnect(ws_manager, match_code, user_info["user_code"])
 
     try:
@@ -215,11 +206,6 @@ async def websocket_endpoint(
                 )
                 continue
 
-            # Log only contestant action events (buzz + vd_player_power + answer text).
-            # Everything else (heartbeats, presence, navigation, room-control events
-            # sent by admin/MC) is dropped to DEBUG — these spam the log on every
-            # tick of a normal match and drown out the events we actually care
-            # about for incident review. Set LOG_LEVEL=DEBUG to see the full trace.
             if msg_type in {"buzz", "vd_player_power", "answer", "player_answer"}:
                 global_logger.info(
                     f"[BP ANSWER SYNC] Received message from {user_info['user_code']!r} "
@@ -231,73 +217,28 @@ async def websocket_endpoint(
                     f"role={user_role!r} in room {match_code!r}: type={msg_type!r}"
                 )
 
-            # ── VDR turn player (server-authoritative) ──────────────────────
-            # Persist ``selected_player_code`` from ``vd_questions_selected``
-            # so the subsequent ``vd_power_window_open`` rewrite can filter
-            # eligible players to the chosen contestant only. Run BEFORE
-            # ``apply_vedich_power_gating`` so a back-to-back
-            # vd_questions_selected + vd_power_window_open from a stale
-            # admin tab sees the freshly written turn key.
             broadcast_data = await apply_vedich_turn_player(
                 ws_manager, match_code, data,
             )
 
-            # ── Về Đích power gating (server-authoritative) ────────────────
-            # Players may use Quyền năng (star / shield) at most once across
-            # both Về Đích Chung and Về Đích Riêng. The server rewrites the
-            # payload to enforce this — see utils/ws_message_processor.py.
             broadcast_data = await apply_vedich_power_gating(
                 ws_manager, match_code, user_info["user_code"], broadcast_data,
             )
-
-            # ── Buzzer winner server-side state ────────────────────────────────
-            # Mirror the VĐ power-gating pattern: a server-side companion
-            # function that mutates the authoritative Valkey state for the
-            # `clear_buzz` event so a reconnecting player doesn't see a
-            # stale winner from the previous question. The payload itself
-            # is returned unchanged so it still gets broadcast to clients.
             broadcast_data = await apply_buzzer_clear(
                 ws_manager, match_code, broadcast_data,
             )
-
-            # ── Giải Mã per-clue hint store ─────────────────────────────────
-            # Server-authoritative snapshot of every hint the admin has
-            # revealed / hidden in the current GM round. Player reconnects
-            # replay this HASH so a refreshed player does not lose the
-            # current hint grid. Like the VĐ / buzzer-writer companions
-            # above, the payload is returned unchanged so it still
-            # broadcasts to all connected clients normally.
             broadcast_data = await apply_gm_hint_store(
                 ws_manager, match_code, broadcast_data,
             )
-
-            # ── Giải Mã admin-tab state snapshot ───────────────────────────
-            # Server-authoritative snapshot of the admin's local React
-            # state for the GM round. Lets a refreshed admin tab
-            # re-hydrate via ``GET /gm/admin-state`` on mount. Admin-only
-            # events are gated upstream by ``MC_ALLOWED_TYPES`` so a
-            # player/MC accidentally sending them is a no-op for us.
             broadcast_data = await apply_gm_admin_state(
                 ws_manager, match_code, broadcast_data,
             )
-
-            # ── Giải Mã per-player state snapshot ─────────────────────────
-            # Server-authoritative snapshot of per-player GM state
-            # (today: keyword submission). Lets a refreshed player tab
-            # re-hydrate ``hasSubmittedKeyword`` via the
-            # ``handle_player_reconnect`` replay path so the keyword
-            # textbox stays locked. Idempotent with the other GM
-            # companions (``apply_gm_hint_store``,
-            # ``apply_gm_admin_state``) which DEL their respective
-            # keys on ``round_start`` / ``clear_question``.
             broadcast_data = await apply_gm_player_state(
                 ws_manager, match_code, broadcast_data,
             )
 
             await ws_manager.broadcast_to_room(match_code, broadcast_data)
-            # Mirror the receive-log filter — only keep contestant events at INFO.
-            # Without this, every ws broadcast (heartbeats, presence, navigation,
-            # admin state pushes) fills the log with one line per message.
+
             if msg_type in {"buzz", "vd_player_power", "answer", "player_answer", "buzzer_winner", "blocked_buzz"}:
                 global_logger.info(
                     f"[BP ANSWER SYNC] Broadcasted message to room {match_code!r}: type={msg_type!r}"
@@ -308,9 +249,6 @@ async def websocket_endpoint(
                 )
 
     except WebSocketDisconnect:
-        # Demoted to DEBUG — every page refresh triggers a disconnect,
-        # so this fired constantly on a busy match. The matching
-        # connection line at the top is also DEBUG for the same reason.
         global_logger.debug(
             f"WebSocket disconnected: {user_info['user_code']!r} room={match_code!r}"
         )
