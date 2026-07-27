@@ -1,8 +1,3 @@
-"""Async email utilities for Olympia Custom.
-
-Sends transactional emails (e.g. login credentials) via SMTP using aiosmtplib.
-All public functions are fire-and-forget safe — they log errors instead of raising.
-"""
 import asyncio
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -23,7 +18,6 @@ def _get_settings() -> EmailSettings:
 
 
 async def _send(subject: str, html_body: str, to: str) -> None:
-    """Internal: build and send one email."""
     cfg = _get_settings()
 
     msg = MIMEMultipart("alternative")
@@ -49,12 +43,6 @@ async def send_credentials_email(
     user_code: str,
     password: str,
 ) -> None:
-    """Send login credentials to a newly created user.
-
-    Called right after account creation so the plaintext password is still
-    available. Non-blocking: failures are logged and swallowed so they never
-    break the signup response.
-    """
     subject = f"{cfg.EMAIL_SUBJECT_PREFIX}Thông tin đăng nhập của bạn"
     html_body = f"""
     <html>
@@ -104,8 +92,6 @@ async def send_credentials_email_safe(
     user_code: str,
     password: str,
 ) -> None:
-    """Await directly so errors surface in logs immediately.
-    Failures are caught and logged but never raise to the caller."""
     try:
         cfg = _get_settings()
         global_logger.info(

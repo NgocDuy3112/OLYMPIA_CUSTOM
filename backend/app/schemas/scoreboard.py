@@ -2,15 +2,14 @@ from schemas.base import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
+_MATCH_PATTERN = _settings.MATCH_PATTERN
 
 
 class ScoreAdjustRequest(BaseRequest):
-    """Request body for adjusting a player's score directly."""
     match_code: str
     user_code: str
     new_score: int
-    reason: str | None = None  # optional audit reason
+    reason: str | None = None
 
     @field_validator('match_code', mode='after')
     @classmethod

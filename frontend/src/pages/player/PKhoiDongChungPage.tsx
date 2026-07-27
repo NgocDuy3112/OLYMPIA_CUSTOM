@@ -1,9 +1,8 @@
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "@/configs";
-// temporary page-level logging uses console.info; createLogger import removed for brevity
+
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -12,8 +11,6 @@ import { usePlayerSession } from "@/hooks/usePlayerSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
-
-
 
 const PKhoiDongChungPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
@@ -26,7 +23,6 @@ const PKhoiDongChungPage = () => {
 	const [showAnswers, setShowAnswers] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 
-	// Auto-fetch scoreboard on mount to ensure accurate initial scores
 	useEffect(() => {
 		if (!matchCode || !token) return;
 		let mounted = true;
@@ -66,17 +62,14 @@ const PKhoiDongChungPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 
-		// Debug logs to help verify payloads
 		console.info("PLAYER lastMessage:", lastMessage);
 		console.info("PLAYER msg:", msg);
 
-		// Let the question hook handle send_question/clear_question
 		applyWsMessage(msg);
 
 		switch (msg?.type) {
 			case "send_players_info": {
-				// Receive player information through WebSocket; support both old (players+scoreboard+profiles)
-				// and new (players[] where each player already contains cumulative_score/user_name) shapes.
+
 				const playersList = msg.players ?? [];
 				const scoreboard = msg.scoreboard ?? [];
 				const profiles = msg.profiles ?? [];
@@ -84,7 +77,6 @@ const PKhoiDongChungPage = () => {
 				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
 					const code = String(p?.user_code ?? "");
 
-					// resolve name: prefer player object, then profiles, then scoreboard entry
 					let name = "";
 					if (p?.user_name) name = p.user_name;
 					else {
@@ -96,7 +88,6 @@ const PKhoiDongChungPage = () => {
 						}
 					}
 
-					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
@@ -172,7 +163,7 @@ const PKhoiDongChungPage = () => {
 			}
 
 			case "buzz": {
-				// Buzz notification from another player
+
 				const { user_code } = msg;
 				if (user_code && user_code !== playerCode) {
 					setPlayers((prev) =>
@@ -209,7 +200,7 @@ const PKhoiDongChungPage = () => {
 		);
 
 		try {
-			// Persist answer via REST
+
 			const res = await fetch(`${API_BASE_URL}/answers/`, {
 				method: "POST",
 				headers: {
@@ -227,7 +218,7 @@ const PKhoiDongChungPage = () => {
 			});
 			if (res.ok) {
 				console.info(`[KDC ANSWER SYNC] Player POST answer success: user=${playerCode} question=${currentQuestion.questionCode} answer=${trimmed} ts=${ts}`);
-				// Only broadcast via WS after successful HTTP persist
+
 				await sendMessage({
 					type: "player_answer",
 					user_code: playerCode,
@@ -247,7 +238,6 @@ const PKhoiDongChungPage = () => {
 
 	const isSubmissionDisabled = !isConnected || timer <= 0;
 
-	// Always show the current player's own answer; hide others until admin reveals
 	const displayPlayers = players.map((p) =>
 		showAnswers || p.playerCode === playerCode ? p : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
 	);

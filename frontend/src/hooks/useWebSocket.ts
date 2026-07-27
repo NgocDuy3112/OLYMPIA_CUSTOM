@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
@@ -16,16 +16,13 @@ export const useWebSocket = (matchCode: string, token?: string) => {
   const pendingMessagesRef = useRef<any[]>([]);
   const isDrainingMessagesRef = useRef(false);
 
-  // Exponential backoff: 1s → 2s → 4s → 8s → 15s (cap)
   const RECONNECT_BASE_MS = 1_000;
   const RECONNECT_MAX_MS = 16_000;
   const getReconnectDelay = () =>
     Math.min(RECONNECT_BASE_MS * 2 ** reconnectAttemptsRef.current, RECONNECT_MAX_MS);
 
-  // Debounce: track last send time for events that trigger audio/navigation
-  // Prevents duplicate events when user clicks buttons rapidly
   const lastEventTimeRef = useRef<Record<string, number>>({});
-  const DEBOUNCE_MS = 500; // Minimum time between identical events
+  const DEBOUNCE_MS = 500;
 
   const [rawIsConnected, setRawIsConnected] = useState(false);
   const [rawLastMessage, setRawLastMessage] = useState<any>(null);
@@ -34,12 +31,12 @@ export const useWebSocket = (matchCode: string, token?: string) => {
   const lastMessage = matchCode ? rawLastMessage : null;
 
   useEffect(() => {
-    // clear reconnect timer mỗi lần matchCode đổi
+
     if (reconnectTimerRef.current) {
       window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
-    reconnectAttemptsRef.current = 0; // reset backoff on matchCode change
+    reconnectAttemptsRef.current = 0;
 
     if (messageDrainTimerRef.current) {
       window.clearTimeout(messageDrainTimerRef.current);
@@ -48,7 +45,6 @@ export const useWebSocket = (matchCode: string, token?: string) => {
     pendingMessagesRef.current = [];
     isDrainingMessagesRef.current = false;
 
-    // Nếu matchCode rỗng: đóng socket và thoát (không setState sync)
     if (!matchCode) {
       logger.info("No matchCode provided, skipping WebSocket connection");
       if (wsRef.current) {
@@ -102,7 +98,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
       socket.onopen = () => {
         if (closedByCleanup) return;
         logger.info(`Connected to match: ${matchCode}`);
-        reconnectAttemptsRef.current = 0; // reset backoff on successful connect
+        reconnectAttemptsRef.current = 0;
         setRawIsConnected(true);
       };
 
@@ -140,7 +136,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
         reconnectTimerRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current += 1;
           logger.info("Reconnecting...");
-          connect(); // ✅ reconnect đúng cách (gắn handler lại)
+          connect();
         }, delay);
       };
     };
@@ -154,7 +150,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
         window.clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
-      reconnectAttemptsRef.current = 0; // reset backoff on cleanup
+      reconnectAttemptsRef.current = 0;
 
       if (messageDrainTimerRef.current) {
         window.clearTimeout(messageDrainTimerRef.current);
@@ -173,7 +169,6 @@ export const useWebSocket = (matchCode: string, token?: string) => {
       }
       wsRef.current = null;
 
-      // optional: reset raw state async (không bắt buộc vì đã “gated”)
       Promise.resolve().then(() => {
         setRawIsConnected(false);
         setRawLastMessage(null);
@@ -183,23 +178,22 @@ export const useWebSocket = (matchCode: string, token?: string) => {
 
   const sendMessage = useCallback(async (payload: Record<string, unknown>): Promise<boolean> => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      // Debounce logic for audio/navigation events
+
       const eventType = payload.type as string;
       const eventsToDebounce = ['navigate', 'start_the_timer', 'play_bgm', 'round_start'];
-      
+
       if (eventsToDebounce.includes(eventType)) {
         const now = Date.now();
         const lastTime = lastEventTimeRef.current[eventType] || 0;
-        
-        // Skip if this event was sent too recently
+
         if (now - lastTime < DEBOUNCE_MS) {
           logger.debug(`Debounced ${eventType} event (${now - lastTime}ms < ${DEBOUNCE_MS}ms)`);
-          return true; // Return true to avoid error handling in UI
+          return true;
         }
-        
+
         lastEventTimeRef.current[eventType] = now;
       }
-      
+
       wsRef.current.send(JSON.stringify(payload));
       logger.debug("Sent payload:", payload);
       return true;

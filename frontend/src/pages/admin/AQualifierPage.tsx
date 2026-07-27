@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import {
     AlarmClockCheck,
@@ -41,7 +41,7 @@ const DEFAULT_QUESTION: Question = {
 };
 
 const OPTION_BG: Record<string, string> = {
-    // Use the same blue tone as AQuestionBoard for all option boxes
+
     A: "bg-blue-900 border-blue-600",
     B: "bg-blue-900 border-blue-600",
     C: "bg-blue-900 border-blue-600",
@@ -50,10 +50,8 @@ const OPTION_BG: Record<string, string> = {
     F: "bg-blue-900 border-blue-600",
 };
 
-
 const AQualifierPage = () => {
-    // Use stored matchCode when available; fallback to the qualifier default so
-    // the /admin/vl page works even when localStorage wasn't pre-seeded.
+
     const currentMatchCode = localStorage.getItem("matchCode") ?? "OC3_M_VL";
     const token = localStorage.getItem("jwtToken_admin") ?? "";
     const { lastMessage, sendMessage } = useAdminWebSocket();
@@ -79,9 +77,6 @@ const AQualifierPage = () => {
     const [advancements, setAdvancements] = useState<Array<{ round_number: number; status: string; user_code: string; user_name: string }>>([]);
 
     const maxQuestionsForRound = QUALIFIER_QUESTIONS_PER_ROUND[currentRound] ?? 0;
-
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
 
     const resolveQuestionCode = useCallback(
         (round: number, idx: number) => `${QUESTION_PREFIX}_${round}_${String(idx).padStart(2, "0")}`,
@@ -130,8 +125,6 @@ const AQualifierPage = () => {
         [computePlayersSnapshot],
     );
 
-    // ── Data Loading ──────────────────────────────────────────────────────────
-
     const loadPlayersState = useCallback(async () => {
         if (!currentMatchCode || !token) return undefined;
         try {
@@ -140,8 +133,6 @@ const AQualifierPage = () => {
             }).then((r) => r.json());
             const playersList: any[] = playersJson.data?.players ?? [];
 
-            // user_name is already included in the /matches/{code}/players response,
-            // so we no longer need N separate /users/?user_code= requests.
             const profiles = playersList.map((entry: any) => ({
                 user_code: entry.user_code,
                 user_name: entry.user_name ?? "",
@@ -208,18 +199,17 @@ const AQualifierPage = () => {
             }
 
             const candidates = [
-                // Preferred format used by UI
+
                 resolveQuestionCode(round, questionIndex),
-                // Some DBs may not zero-pad the index
+
                 `${QUESTION_PREFIX}_${round}_${questionIndex}`,
-                // Some imports may use prefix + round + index without extra separator
+
                 `${QUESTION_PREFIX}_${round}${String(questionIndex).padStart(2, "0")}`,
-                // Fallbacks without round
+
                 `${QUESTION_PREFIX}_${String(questionIndex).padStart(2, "0")}`,
                 `${QUESTION_PREFIX}_${questionIndex}`,
             ];
 
-            // Helper to try fetching a single candidate code
             const tryFetch = async (qCode: string) => {
                 try {
                     const res = await fetch(
@@ -227,20 +217,19 @@ const AQualifierPage = () => {
                         { headers: { Authorization: `Bearer ${token}` } },
                     );
                     const data = await res.json();
-                    // API may return single object in data or array; map accordingly
+
                     if (!data) return undefined;
-                    // If API returned an array, pick first
+
                     const payload = Array.isArray(data.data) ? data.data[0] : data.data;
                     if (!payload) return undefined;
                     return mapQuestionPayload(payload, qCode);
                 } catch (e) {
-                    // ignore and try next (log for debugging)
+
                     logger.warn("tryFetch candidate failed:", e);
                     return undefined;
                 }
             };
 
-            // Try candidates in order
             for (const c of candidates) {
                 const mapped = await tryFetch(c);
                 if (mapped && mapped.questionCode) {
@@ -250,7 +239,6 @@ const AQualifierPage = () => {
                 }
             }
 
-            // As a last resort, fetch all questions for the match and try to find a best match
             try {
                 const allRes = await fetch(
                     `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}`,
@@ -259,7 +247,6 @@ const AQualifierPage = () => {
                 const allJson = await allRes.json();
                 const list = Array.isArray(allJson.data) ? allJson.data : allJson.data ? [allJson.data] : [];
 
-                // Try to find by pattern: contains _VL_ and round and index
                 const roundIdxRegex = new RegExp(`${QUESTION_PREFIX}[_-]?${round}[_-]?(\\d{1,3})`, "i");
                 for (const item of list) {
                     const code = String(item?.question_code ?? "");
@@ -275,7 +262,6 @@ const AQualifierPage = () => {
                     }
                 }
 
-                // If still not found, try to pick the question by ordinal position within the match
                 if (list.length >= questionIndex) {
                     const item = list[questionIndex - 1];
                     const mapped = mapQuestionPayload(item, String(item?.question_code ?? ""));
@@ -287,7 +273,6 @@ const AQualifierPage = () => {
                 logger.warn("Fallback fetch all questions failed:", err);
             }
 
-            // Nothing found — return empty fallback with constructed code
             const fallbackCode = resolveQuestionCode(round, questionIndex);
             const fallback = mapQuestionPayload(null, fallbackCode);
             setCurrentQuestion(fallback);
@@ -296,8 +281,6 @@ const AQualifierPage = () => {
         },
         [currentMatchCode, mapQuestionPayload, parseOptions, resolveQuestionCode, token],
     );
-
-    // ── WebSocket message handler ─────────────────────────────────────────────
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -331,7 +314,7 @@ const AQualifierPage = () => {
                         return [...updated].sort((a, b) => b.playerScore - a.playerScore);
                     });
                 });
-                // Refresh standings from server so the right-panel advancement scores update immediately
+
                 void loadQualifierStandings();
                 break;
             case "send_answers_to_players": {
@@ -356,13 +339,13 @@ const AQualifierPage = () => {
                 });
                 break;
             case "qualifier_round_result":
-                // refresh server-side persisted advancements so the right column displays accurate lists
+
                 void loadAdvancements();
                 break;
             case "player_online": {
                 const code = String(msg.user_code ?? "");
                 if (!code) break;
-                // Mark connected if already in list; otherwise add with placeholder name
+
                 startTransition(() => {
                     setPlayers((prev) => {
                         if (prev.some((p) => p.playerCode === code)) {
@@ -373,7 +356,7 @@ const AQualifierPage = () => {
                         return [...prev, { playerCode: code, playerName: "", playerScore: 0, playerConnected: true }];
                     });
                 });
-                // Fetch user profile to fill in the name asynchronously
+
                 if (token) {
                     void fetch(`${API_BASE_URL}/users/?user_code=${encodeURIComponent(code)}`, {
                         headers: { Authorization: `Bearer ${token}` },
@@ -400,7 +383,7 @@ const AQualifierPage = () => {
             case "player_heartbeat": {
                 const code = String(msg.user_code ?? "");
                 if (!code) break;
-                // Mark connected; also add to list if missing (e.g. late join)
+
                 startTransition(() => {
                     setPlayers((prev) => {
                         if (prev.some((p) => p.playerCode === code)) {
@@ -408,7 +391,7 @@ const AQualifierPage = () => {
                                 p.playerCode === code ? { ...p, playerConnected: true } : p,
                             );
                         }
-                        // Unknown player — add placeholder and let player_online/API fill in name
+
                         return [...prev, { playerCode: code, playerName: "", playerScore: 0, playerConnected: true }];
                     });
                 });
@@ -436,9 +419,9 @@ const AQualifierPage = () => {
                 break;
             }
             case "request_qualifier_state": {
-                // A player just mounted PQualifierPage — re-send current state so they sync immediately
+
                 void sendPlayersSnapshot();
-                // Always sync the current round's question count so player board matches admin
+
                 void sendMessage({ type: "sync_qualifier_round", count: maxQuestionsForRound });
                 if (currentQuestionIndex > 0 && currentQuestion.questionCode) {
                     void sendMessage({
@@ -447,12 +430,12 @@ const AQualifierPage = () => {
                         question_code: currentQuestion.questionCode,
                         content: currentQuestion.questionText ?? "",
                         options: parseOptions(currentQuestion.questionOptions),
-                        // include count and index so players can render correct board
+
                         count: maxQuestionsForRound,
                         question_index: currentQuestionIndex,
                         media_source: currentQuestion.questionMediaURL ?? undefined,
                     });
-                    // Re-broadcast timer if still running so the player syncs the countdown
+
                     if (isTimerRunningRef.current && timerRef.current > 0 && timerStartedAtRef.current !== null) {
                         void sendMessage({
                             type: "start_the_timer",
@@ -470,8 +453,6 @@ const AQualifierPage = () => {
                 break;
         }
     }, [lastMessage, applyPlayersSnapshot, loadAdvancements, loadQualifierStandings, currentQuestion, currentQuestionIndex, maxQuestionsForRound, sendPlayersSnapshot, sendMessage, parseOptions, token]);
-
-    // ── Timer ─────────────────────────────────────────────────────────────────
 
     useEffect(() => { timerRef.current = timer; }, [timer]);
     useEffect(() => { isTimerRunningRef.current = isTimerRunning; }, [isTimerRunning]);
@@ -491,7 +472,6 @@ const AQualifierPage = () => {
         setHasCalculatedScore(false);
     }, [currentQuestionIndex, currentRound]);
 
-    // Broadcast the new question count whenever admin switches rounds so players sync immediately
     useEffect(() => {
         const count = QUALIFIER_QUESTIONS_PER_ROUND[currentRound] ?? 0;
         if (!count) return;
@@ -502,10 +482,8 @@ const AQualifierPage = () => {
         void loadPlayersState();
         void loadQualifierStandings();
         void loadAdvancements();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
-    // ── Action handlers ───────────────────────────────────────────────────────
+    }, []);
 
     const handleStartRound = useCallback(async () => {
         setCurrentQuestionIndex(0);
@@ -533,12 +511,12 @@ const AQualifierPage = () => {
         if (!currentMatchCode) return;
         try {
             await sendMessage({ type: "round_end", round: "vl" });
-            // Removed navigate to waiting page - players and MC stay on VL page to preserve score context
+
         } catch (err) {
             logger.error("Failed to end qualifier round:", err);
         }
         try {
-            // call backend to finalize round (will persist passed/reserve and broadcast)
+
             const res = await fetch(`${API_BASE_URL}/qualifier/end-round`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -546,7 +524,7 @@ const AQualifierPage = () => {
             });
             const json = await res.json();
             if (json.status === "success") {
-                // refresh standings and advancements
+
                 await loadQualifierStandings();
                 await loadAdvancements();
             } else {
@@ -619,7 +597,6 @@ const AQualifierPage = () => {
         }
     }, [currentMatchCode, currentQuestion, currentRound, hasCalculatedScore, loadQualifierStandings, token]);
 
-    // Select a question by index (1-based). Loads question and broadcasts it to players.
     const handleSelectQuestion = useCallback(
         async (questionIndex: number) => {
             if (questionIndex <= 0) return;
@@ -633,7 +610,7 @@ const AQualifierPage = () => {
                     question_code: q.questionCode,
                     content: q.questionText ?? "",
                     options: parseOptions(q.questionOptions),
-                    // include count and index so players can render the correct board
+
                     count: maxQuestionsForRound,
                     question_index: questionIndex,
                     media_source: q.questionMediaURL ?? undefined,
@@ -645,12 +622,10 @@ const AQualifierPage = () => {
         [currentRound, maxQuestionsForRound, loadQuestion, sendMessage, parseOptions],
     );
 
-    // ── Render helpers ────────────────────────────────────────────────────────
-
     const questionTitle = `VÒNG LOẠI`;
 
     const renderPlayerList = useCallback(() => {
-        // group advancements by round
+
         const grouped: Record<number, Array<{ round_number: number; status: string; user_code: string; user_name: string }>> = {};
         for (const a of advancements) {
             const r = Number(a.round_number) || 0;
@@ -659,7 +634,6 @@ const AQualifierPage = () => {
         }
         const roundKeys = Object.keys(grouped).map((k) => Number(k)).sort((a, b) => a - b);
 
-        // Build a PlayerStatus for an advancement entry, merging standings + live presence
         const toPlayerStatus = (entry: { user_code: string; user_name: string }): PlayerStatus => {
             const standing = standings.find((s) => s.user_code === entry.user_code);
             const live = players.find((p) => p.playerCode === entry.user_code);
@@ -671,7 +645,7 @@ const AQualifierPage = () => {
                 playerLastAnswer: live?.playerLastAnswer,
                 playerHasBuzzed: live?.playerHasBuzzed ?? false,
                 playerTimestamp: live?.playerTimestamp,
-                // Qualifier tie-breaker fields
+
                 playerCorrectScore: standing?.correct_score,
                 playerAvgResponseTime: standing?.avg_response_time,
             };
@@ -725,7 +699,6 @@ const AQualifierPage = () => {
             );
         }
 
-        // Fallback: no advancements yet — show live connected players, sorted by score
         const sortedPlayers = [...players].sort((a, b) => {
             const scoreA = (standings.find((s) => s.user_code === a.playerCode)?.total_score ?? a.playerScore);
             const scoreB = (standings.find((s) => s.user_code === b.playerCode)?.total_score ?? b.playerScore);
@@ -754,7 +727,6 @@ const AQualifierPage = () => {
         );
     }, [advancements, players, standings]);
 
-    // ── Answer stats for stats bar ────────────────────────────────────────────
     const statsTotalPlayers = players.length;
     const statsAnsweredCount = players.filter((p) => p.playerLastAnswer).length;
     const statsNoAnswerCount = statsTotalPlayers - statsAnsweredCount;
@@ -764,7 +736,6 @@ const AQualifierPage = () => {
         : 0;
     const statsWrongCount = statsAnsweredCount - statsCorrectCount;
 
-    // Per-option answer count: how many players chose each option in realtime
     const optionAnswerCounts: Record<string, number> = Object.fromEntries(
         QUALIFIER_OPTIONS.map((opt) => [opt, players.filter((p) => p.playerLastAnswer?.toUpperCase() === opt).length]),
     );
@@ -779,7 +750,7 @@ const AQualifierPage = () => {
                 count: maxQuestionsForRound,
                 activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
                 onToggle: (idx: number, state: boolean) => {
-                    // when an index is toggled on, select the question
+
                     if (state) void handleSelectQuestion(idx + 1);
                 },
             }}
@@ -806,7 +777,7 @@ const AQualifierPage = () => {
             )}
             aboveQuestionBoard={(
                 <>
-                    {/* Real-time answer stats bar */}
+                    {}
                     <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm">
                         <span className="text-blue-300 font-semibold mr-1 shrink-0">Kết quả:</span>
                         <span className="flex items-center gap-1 bg-blue-700 text-white font-bold px-3 py-1 rounded-lg">
@@ -874,7 +845,7 @@ const AQualifierPage = () => {
                     >
                         <Calculator size={18} className="mr-2" /> TÍNH ĐIỂM
                     </AControlButton>
-                    {/* XÓA ĐÁP ÁN button removed per request */}
+                    {}
                     <AControlButton onClick={() => { void loadQualifierStandings(); void loadAdvancements(); }} disabled={timer > 0}>
                         <Trophy size={18} className="mr-2" /> TẢI BXH
                     </AControlButton>

@@ -24,7 +24,6 @@ async def get_scoreboard_for_match(
     valkey: Valkey = Depends(get_valkey),
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    """Return full scoreboard for a match. Implementation delegated to core.scoreboard.get_scoreboard_for_a_match_from_db."""
     try:
         return await get_scoreboard_for_a_match_from_db(match_code, valkey, session)
     except HTTPException:
@@ -44,13 +43,6 @@ async def adjust_score(
     valkey: Valkey = Depends(get_valkey),
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    """Set a player's cumulative score to a specific value (admin only).
-    
-    This endpoint allows an admin to directly modify a player's total score.
-    It computes the delta between the current and target score, applies it
-    to the Valkey leaderboard, and creates an audit Record in PostgreSQL.
-    Returns the updated full scoreboard for the match.
-    """
     try:
         return await adjust_player_score(request, valkey, session)
     except HTTPException:

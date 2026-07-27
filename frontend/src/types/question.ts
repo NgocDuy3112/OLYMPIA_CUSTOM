@@ -4,6 +4,6 @@ export interface Question {
     questionAnswer: string;
     questionExplanation?: string;
     questionMediaURL?: string;
-    /** JSON-encoded list of 6 option strings for Qualifier questions. */
+
     questionOptions?: string;
 }

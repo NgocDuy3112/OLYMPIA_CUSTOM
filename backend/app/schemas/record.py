@@ -2,8 +2,8 @@ from schemas.base import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
-_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
+_MATCH_PATTERN = _settings.MATCH_PATTERN
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN
 
 
 class RecordPostRequest(BaseRequest):

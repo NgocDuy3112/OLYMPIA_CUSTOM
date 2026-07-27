@@ -1,10 +1,10 @@
 export const VEDICH_CATEGORIES = [
-	"TOÁN - TIN - THỐNG KÊ",    // 0 ← TTTK
-	"TỰ NHIÊN - SỰ SỐNG",        // 1 ← TNSS
-	"KINH TẾ - XÃ HỘI",         // 2 ← XHPL
-	"VĂN HỌC - NGHỆ THUẬT",     // 3 ← NTNV
-	"VĂN HÓA - THỂ THAO",       // 4 ← VHTT
-	"KIẾN THỨC TỔNG HỢP",       // 5 ← KTTH
+	"TOÁN - TIN - THỐNG KÊ",
+	"TỰ NHIÊN - SỰ SỐNG",
+	"KINH TẾ - XÃ HỘI",
+	"VĂN HỌC - NGHỆ THUẬT",
+	"VĂN HÓA - THỂ THAO",
+	"KIẾN THỨC TỔNG HỢP",
 ];
 
 export const VEDICH_POINTS = [20, 30, 40, 50];
@@ -25,7 +25,6 @@ export interface VeDichCodeInfo {
 	points: number;
 }
 
-/** Parse OC3_Q_VD[C|R]?_{ABBREV}_{POINTS} → {catIdx, tierIdx} */
 export function parseVeDichCode(code: string): VeDichCodeInfo | null {
 	const m = code.match(/OC3_Q_VD[A-Z]*_([A-Z]+)_(\d+)$/i);
 	if (!m) return null;
@@ -37,7 +36,6 @@ export function parseVeDichCode(code: string): VeDichCodeInfo | null {
 	return { catIdx, tierIdx, abbrev, points };
 }
 
-/** Sort by (catIdx, tierIdx); fallback to numeric localeCompare */
 export function compareVeDichCodes(a: string, b: string): number {
 	const pa = parseVeDichCode(a);
 	const pb = parseVeDichCode(b);
@@ -48,7 +46,6 @@ export function compareVeDichCodes(a: string, b: string): number {
 	return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
-/** Lấy category label và điểm từ questionCode; fallback positional khi không parse được */
 export function getVeDichMeta(
 	code: string,
 	fallbackIdx: number,
@@ -66,7 +63,6 @@ export function getVeDichMeta(
 	};
 }
 
-/** Generate 24 placeholder question codes for Về Đích grid (6 categories × 4 point values) */
 export function generateVeDichPlaceholderCodes(): string[] {
 	const codes: string[] = [];
 	for (let catIdx = 0; catIdx < 6; catIdx++) {

@@ -13,9 +13,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 router = APIRouter(prefix="/auth", tags=["Uỷ Quyền"])
 
 
-
 @router.post(
-    "/signup", 
+    "/signup",
     response_model=TokenResponse,
     status_code=201
 )
@@ -29,7 +28,6 @@ async def signup_api(user_data: UserCreate, background_tasks: BackgroundTasks, s
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-
 @router.post(
     "/send-credentials/{user_code}",
     dependencies=[Depends(require_roles(["admin"]))],
@@ -40,7 +38,6 @@ async def send_credentials_api(
     user_code: str,
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    """Reset user password and email login credentials. Admin only."""
     try:
         return await send_credentials(user_code, session)
     except HTTPException:
@@ -60,7 +57,6 @@ async def send_reset_api(
     user_code: str,
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    """Send password-reset link to a user's email (admin only)."""
     try:
         return await send_reset_link(user_code, session)
     except HTTPException:
@@ -86,8 +82,6 @@ async def reset_password_api(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-
-
 @router.post(
     "/test-email",
     response_model=BaseResponse,
@@ -98,7 +92,6 @@ async def test_email_api(
     to: str,
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    """Admin-only: send a test credentials email to verify SMTP config."""
     from utils.email import send_credentials_email_safe, _get_settings
     try:
         cfg = _get_settings()
@@ -129,7 +122,6 @@ async def change_password_api(
     current_user: dict = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    """Change the caller's own password. Requires a valid JWT (any role)."""
     try:
         return await change_password(current_user["user_code"], payload.old_password, payload.new_password, session)
     except HTTPException:
@@ -144,10 +136,6 @@ async def change_password_api(
     status_code=200,
 )
 async def login_api(form_data: OAuth2PasswordRequestForm = Depends(), session: AsyncSession = Depends(get_db)) -> TokenResponse:
-    """Login endpoint accepting form-encoded credentials (username + password).
-
-    Accepts either `user_name` or `user_code` as the username field.
-    """
     try:
         return await login(form_data, session)
     except HTTPException:

@@ -42,7 +42,7 @@ const AdminGameplayNavBar: React.FC = () => {
 	return (
 		<nav className="bg-blue-900 bg-opacity-90 text-white shadow-lg sticky top-0 z-50">
 			<div className="px-4 py-3 flex justify-between items-center">
-				{/* Logo */}
+				{}
 				<div
 					className="flex items-center gap-2 cursor-pointer"
 					onClick={() => navigate("/admin/game-managing")}
@@ -50,12 +50,12 @@ const AdminGameplayNavBar: React.FC = () => {
 					<span className="text-[18px] tablet:text-[20px] xl:text-[32px] font-bold font-[SVN-Gratelos_Display]">
 						OLYMPIA CUSTOM 3
 					</span>
-					
+
 				</div>
 
-				{/* Desktop Navigation only */}
+				{}
 				<div className="hidden md:flex items-center gap-6">
-					{/* Sảnh chờ */}
+					{}
 					<button
 						onClick={() => navigateAndBroadcast("/admin/waiting")}
 						className={`px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base ${isActive("/admin/waiting") ? "bg-blue-700 text-white" : "text-blue-100 hover:bg-blue-800 hover:text-white"}`}
@@ -63,7 +63,7 @@ const AdminGameplayNavBar: React.FC = () => {
 						Sảnh Chờ
 					</button>
 
-					{/* Quản lý — no broadcast, admin-only page */}
+					{}
 					<button
 						onClick={() => navigate("/admin/game-managing")}
 						className={`px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base ${isActive("/admin/game-managing") || isActive("/admin/setup") ? "bg-blue-700 text-white" : "text-blue-100 hover:bg-blue-800 hover:text-white"}`}

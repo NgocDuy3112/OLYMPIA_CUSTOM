@@ -16,17 +16,17 @@ function App() {
       >
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
-          {/* Auth Routes */}
+          {}
               <Route path="/signup" element={<PlayerSignupPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
               <Route path="/player/signup" element={<PlayerSignupPage />} />
               <Route path="/admin/signup" element={<AdminSignupPage />} />
-          {/* Player Routes */}
+          {}
           <Route path="/player/*" element={<PlayerRoutes />}/>
-          {/* Admin Routes */}
+          {}
           <Route path="/admin/*" element={<AdminRoutes />} />
-          {/* MC Routes */}
+          {}
           <Route path="/mc/*" element={<MCRoutes />} />
         </Routes>
       </div>

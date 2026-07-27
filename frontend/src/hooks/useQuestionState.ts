@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useCallback, useState } from "react";
 import type { Question } from "@/types/question";
 
@@ -32,13 +32,12 @@ export function useQuestionState(): QuestionStateWithIndex {
     const applyWsMessage = useCallback((raw: unknown) => {
         if (!raw || typeof raw !== "object") return;
 
-        // Some servers wrap as { message: {...} }
         const msg: any = "message" in (raw as any) ? (raw as any).message : raw;
 
         switch (msg?.type) {
             case "send_question": {
                 const code = msg.question_code ?? "";
-                // try to extract trailing number as index (e.g., 'BP_01' => 1)
+
                 const m = String(code).match(/(\d+)\s*$/);
                 const idx = m ? Number(m[1]) : 0;
                 setCurrentQuestion({

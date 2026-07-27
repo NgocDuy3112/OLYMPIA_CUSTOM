@@ -2,22 +2,16 @@ import React from "react";
 import { latencyToBars, latencyToColorClass } from "./wifiSignalHelpers";
 
 interface WifiSignalProps {
-    /** RTT in ms, or null while a sample is in-flight / no data yet. */
+
     latencyMs: number | null | undefined;
-    /** Whether the player is currently connected. When false the icon greys out. */
+
     connected?: boolean;
-    /** Pixel size for both width and height. Defaults to 16. */
+
     size?: number;
-    /** Optional additional classes. */
+
     className?: string;
 }
 
-/**
- * 4-bar wifi icon whose fill and color reflect the player's RTT to the admin.
- *
- * Each bar is a vertical rounded-rect with progressive height, masked to the
- * pixel grid. Lit bars use the latency color; unlit bars are dim gray.
- */
 const WifiSignal: React.FC<WifiSignalProps> = ({
     latencyMs,
     connected = true,
@@ -26,7 +20,7 @@ const WifiSignal: React.FC<WifiSignalProps> = ({
 }) => {
     const litBars = connected ? latencyToBars(latencyMs) : 0;
     const colorClass = connected ? latencyToColorClass(latencyMs) : "text-gray-600";
-    // Bar widths/heights (in svg user units) — left bar is tallest so it reads as a wifi icon.
+
     const bars = [
         { x: 1, h: 4, y: 11 },
         { x: 4, h: 7, y: 8 },

@@ -12,11 +12,9 @@ import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 import AWaitingPage from "@/pages/admin/AWaitingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 
-
 interface AProtectedRouteProps {
     children: React.ReactNode;
 }
-
 
 export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }) => {
     const token = localStorage.getItem("jwtToken_admin");
@@ -29,14 +27,10 @@ export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }
     return <>{children}</>;
 }
 
-
-
 const QUALIFIER_MATCH_CODE = "OC3_M_VL";
 
 const AdminRoutes = () => {
-    // Prefer stored matchCode but fall back to extracting it from the URL path.
-    // Exception: when on the qualifier (/vl) route, always use OC3_M_VL so
-    // admin and players share the same WebSocket channel.
+
     const location = useLocation();
 
     const isQualifierRoute = location.pathname === "/admin/vl";
@@ -66,7 +60,7 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-            {/* <Route path="/dashboard" element={} /> */}
+            {}
             <Route
                 path="/kdc/:matchCode?"
                 element={
@@ -83,7 +77,7 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-            {/* legacy alias `/kdcn` removed — use `/kdr/:matchCode` */}
+            {}
             <Route
                 path="/bp/:matchCode?"
                 element={
@@ -92,7 +86,7 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-            {/* VỀ ĐÍCH - Question picker pages */}
+            {}
             <Route
                 path="/vdc/pick/:matchCode?"
                 element={
@@ -109,7 +103,7 @@ const AdminRoutes = () => {
                     </ProtectedAdminRoute>
                 }
             />
-            {/* VỀ ĐÍCH - Gameplay pages */}
+            {}
             <Route
                 path="/vdc/:matchCode?"
                 element={
@@ -154,6 +148,5 @@ const AdminRoutes = () => {
         </AdminWebSocketProvider>
     );
 }
-
 
 export default AdminRoutes;

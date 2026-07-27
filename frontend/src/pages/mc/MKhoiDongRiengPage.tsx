@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -19,10 +19,6 @@ const MKhoiDongRiengPage = () => {
     const { questionAnswer, questionExplanation, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
     const [currentPlayerCode, setCurrentPlayerCode] = useState("");
 
-    // Reset per-player wrong attempts whenever the question changes so the
-    // "Trả lời lần 2" banner clears when advancing to a new question.
-    // Admin's `handleNextQuestion` only re-broadcasts `send_question` and does
-    // NOT resend `start_the_timer`, so we cannot rely on `clearAnswers` here.
     useEffect(() => {
         setPlayers((prev) =>
             prev.map((p) => ({ ...p, playerWrongAttempts: undefined })),
@@ -37,7 +33,7 @@ const MKhoiDongRiengPage = () => {
         switch (msg?.type) {
             case "send_players_info":
                 applyPlayersInfo(msg);
-                // derive whose turn it is from is_current flag
+
                 {
                     const current = (msg?.players ?? []).find((p: any) => p?.is_current);
                     setCurrentPlayerCode(current ? String(current.user_code ?? "") : "");
@@ -91,7 +87,6 @@ const MKhoiDongRiengPage = () => {
         questionExplanation: questionExplanation ?? currentQuestion.questionExplanation,
     };
 
-    // Show "Trả lời lần 2" banner when any player has 1 wrong attempt in current question
     const hasPlayerWithSecondAttempt = players.some((p) => p.playerWrongAttempts === 1);
 
     return (
@@ -105,7 +100,7 @@ const MKhoiDongRiengPage = () => {
             >
                 {() => (
                     <div className="flex gap-2 items-center">
-                        {/* "Trả lời lần 2" badge - mirrors admin: shown next to the question-number controls */}
+                        {}
                         {hasPlayerWithSecondAttempt && (
                             <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
                                 Trả lời lần 2

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -26,7 +26,7 @@ import { API_BASE_URL } from "@/configs";
 
 const logger = createLogger("AVeDichRieng");
 
-const ROUND_QUESTION_COUNT = 3; // Lượt CÁ NHÂN: 3 questions
+const ROUND_QUESTION_COUNT = 3;
 
 const getTimeLimitForPoints = (points: number): number => {
 	switch (points) {
@@ -53,18 +53,16 @@ const AVeDichRiengPage = () => {
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 
-	// Sync matchCode from URL to localStorage
 	useEffect(() => {
 		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
 			try {
 				localStorage.setItem("matchCode", urlMatchCode);
 			} catch {
-				// ignore
+
 			}
 		}
 	}, [urlMatchCode, storedMatchCode]);
 
-	// Redirect to game managing page if no match code is available
 	useEffect(() => {
 		if (!currentMatchCode) {
 			navigate("/admin/manage");
@@ -72,7 +70,6 @@ const AVeDichRiengPage = () => {
 	}, [currentMatchCode, navigate]);
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
-	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
 	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
@@ -83,7 +80,6 @@ const AVeDichRiengPage = () => {
 		);
 	}, []);
 
-	// ─── Question state ───────────────────────────────────────────────────────────
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [questionCategories, setQuestionCategories] = useState<string[]>([]);
 	const [questionPoints, setQuestionPoints] = useState<number[]>([]);
@@ -127,8 +123,7 @@ const AVeDichRiengPage = () => {
 		pendingQuestionRef.current = null;
 		clearPendingBroadcastTimer();
 	}, [currentMatchCode, sendMessage, clearPendingBroadcastTimer]);
-	// The 3 questions locked in for this round — set via WS from the pick page.
-	// Persisted in localStorage so navigating to this page after confirming still shows them.
+
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
 		if (!currentMatchCode) return [];
 		try {
@@ -136,7 +131,7 @@ const AVeDichRiengPage = () => {
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
-	// The player whose Lượt CÁ NHÂN it is — persisted from the pick page.
+
 	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(() => {
 		if (!currentMatchCode) return null;
 		try {
@@ -144,15 +139,13 @@ const AVeDichRiengPage = () => {
 		} catch { return null; }
 	});
 
-	// ─── Power state ─────────────────────────────────────────────────────────────
-	// Track which power each player has used (one per player: star OR shield). Persisted across navigation.
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!currentMatchCode) return {};
 		try {
 			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
 			if (!stored) return {};
 			const parsed = JSON.parse(stored);
-			// Migrate from old format { star: boolean, shield: boolean } → string | null
+
 			const migrated: Record<string, string | null> = {};
 			for (const [code, val] of Object.entries(parsed)) {
 				if (typeof val === "string" || val === null) {
@@ -166,45 +159,31 @@ const AVeDichRiengPage = () => {
 			return migrated;
 		} catch { return {}; }
 	});
-	// Active power for the current question (cleared after scoring or question change)
+
 	const [activePower, setActivePower] = useState<'star' | 'shield' | null>(null);
 
-	// ─── Buzzer winner state ─────────────────────────────────────────────────────
-	// The buzzer winner's identity is reflected via ``players[*].playerHasBuzzed``
-	// (set in the ``case "buzzer_winner"`` handler below) — APlayerBar renders
-	// the Zap icon based on that boolean. We don't keep a separate
-	// ``buzzerWinnerCode`` string because the dedupe role it used to play is
-	// now handled by ``lastBuzzerQuestionRef`` (scoped to ``question_code`` so
-	// a stale value from a previous round/question can't silently drop the
-	// next round's winner event). Mirrors PVeDichRiengPage.lastBuzzerQuestionRef.
 	const lastBuzzerQuestionRef = useRef<string | null>(null);
 
-	// ─── Timer state ──────────────────────────────────────────────────────────────
 	const [timer, setTimer] = useState<number>(0);
-	const timerRef = useRef<number>(0); // mirrors timer for use in effects without adding timer to deps
+	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
 	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
-	const wasTimerRunningRef = useRef<boolean>(false); // Track state transitions to prevent premature window activation
-
-	// ─── Score state ──────────────────────────────────────────────────────────────
+	const wasTimerRunningRef = useRef<boolean>(false);
 
 	const questionTitle = "VỀ ĐÍCH - LƯỢT CÁ NHÂN";
 
-	// Point value of the currently active question
 	const currentPoints = (() => {
 		if (!currentQuestion.questionCode) return 0;
 		const idx = questions.findIndex((q) => q.questionCode === currentQuestion.questionCode);
 		return questionPoints[idx] || 0;
 	})();
 
-	// Persist questionStates for CHỌN LẠI within this round, and accumulate answered codes
-	// into the unified cross-round key so future rounds cannot re-select these questions.
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		// Per-round state (used by CHỌN LẠI to restore board)
+
 		localStorage.setItem(`veDich_rieng_states_${currentMatchCode}`, JSON.stringify(questionStates));
-		// Cross-round: accumulate all answered codes into unified list
+
 		const answeredCodes = Object.entries(questionStates)
 			.filter(([, v]) => v === "answered")
 			.map(([k]) => k);
@@ -217,21 +196,15 @@ const AVeDichRiengPage = () => {
 					`veDich_used_codes_${currentMatchCode}`,
 					JSON.stringify([...new Set([...existing, ...answeredCodes])]),
 				);
-			} catch { /* ignore */ }
+			} catch {  }
 		}
 	}, [questionStates, currentMatchCode]);
 
-	// Persist usedPowers to localStorage whenever it changes
 	useEffect(() => {
 		if (!currentMatchCode) return;
 		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
 	}, [usedPowers, currentMatchCode]);
 
-	// Reset activePower whenever the active question changes. Broadcast
-	// ``vd_power_activated { power: null }`` so the player page and any
-	// other observers flip their UI back to the "no power" state. The
-	// SFX bot no-ops on null (see ``sfx_bot.py`` vd_power_activated
-	// branch) so this is purely a UI sync, not a sound cue.
 	useEffect(() => {
 		setActivePower(null);
 		if (currentMatchCode) {
@@ -239,7 +212,6 @@ const AVeDichRiengPage = () => {
 		}
 	}, [currentQuestion.questionCode, currentMatchCode, sendMessage]);
 
-	// ─── Players helpers ──────────────────────────────────────────────────────────
 	const applyPlayersSnapshot = useCallback(
 		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
 			const playersList = Array.isArray(payload?.players) ? payload.players : [];
@@ -270,8 +242,6 @@ const AVeDichRiengPage = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			// user_name is already included in the /matches/{code}/players response,
-			// so we no longer need N separate /users/?user_code= requests.
 			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
 				user_name: entry.user_name ?? "",
@@ -303,7 +273,7 @@ const AVeDichRiengPage = () => {
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
-				// Only mark as current if currentTurnPlayerCode matches and is not an admin code
+
 				const isAdminCode = currentTurnPlayerCode?.startsWith("ADMIN") ?? false;
 				const isCurrent = !isAdminCode && currentTurnPlayerCode === userCode;
 				return {
@@ -322,7 +292,6 @@ const AVeDichRiengPage = () => {
 		}
 	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCodes, currentTurnPlayerCode]);
 
-	// ─── Question fetch ───────────────────────────────────────────────────────────
 	useEffect(() => {
 		const fetchQuestions = async () => {
 			if (!currentMatchCode || !token) return;
@@ -369,9 +338,6 @@ const AVeDichRiengPage = () => {
 		});
 	}, [sendPlayersSnapshot]);
 
-	// Broadcast round question metadata whenever questions + roundQuestionCodes are both ready.
-	// This fires after the async question fetch completes, ensuring players who arrived before
-	// the fetch finished will receive the 3 question cards as soon as data is available.
 	useEffect(() => {
 		if (!currentMatchCode || questions.length === 0 || roundQuestionCodes.length === 0) return;
 		const metadata = roundQuestionCodes.map((code) => {
@@ -385,7 +351,6 @@ const AVeDichRiengPage = () => {
 		void sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
-	// ─── Question activation ──────────────────────────────────────────────────────
 	const mapQuestionPayload = useCallback(
 		(payload: any, fallbackCode?: string): Question => ({
 			questionCode:
@@ -408,12 +373,11 @@ const AVeDichRiengPage = () => {
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
-		setAnsweringWindowTimer(0); // Reset answering window
+		setAnsweringWindowTimer(0);
 		setIsTimerRunning(false);
 		setVideoPlayState(null);
-		wasTimerRunningRef.current = false; // Reset state transition tracker
-		// Cancel any pending reveal so a stale 5.5s safety timer cannot fire and resurrect
-		// the question we just cleared (e.g. admin toggled a question off mid-window).
+		wasTimerRunningRef.current = false;
+
 		pendingQuestionRef.current = null;
 		clearPendingBroadcastTimer();
 		try {
@@ -427,7 +391,6 @@ const AVeDichRiengPage = () => {
 		async (questionCode: string) => {
 			if (isTimerRunning) return;
 
-			// Toggle: clicking the active question clears it
 			if (currentQuestion.questionCode === questionCode) {
 				setSelectedPlayerCodes([]);
 				setUsedPowers({});
@@ -438,7 +401,7 @@ const AVeDichRiengPage = () => {
 			setSelectedPlayerCodes([]);
 			setUsedPowers({});
 			setVideoPlayState(null);
-			// Reset buzzer state when switching to a new question
+
 			lastBuzzerQuestionRef.current = null;
 			setPlayers((prev) =>
 				prev.map((p) => ({
@@ -448,12 +411,11 @@ const AVeDichRiengPage = () => {
 					playerHasBuzzed: undefined,
 				})),
 			);
-			// Send clear_buzz to reset player buzzer state
+
 			if (currentMatchCode) {
 				void sendMessage({ type: "clear_buzz" });
 			}
 
-			// Set fallback immediately for responsive UI
 			const fallback: Question = { ...DEFAULT_QUESTION, questionCode };
 			setCurrentQuestion(fallback);
 
@@ -466,11 +428,10 @@ const AVeDichRiengPage = () => {
 					content: "",
 					media_source: undefined,
 				});
-				// Open 5s power selection window for players (mirrors VDC behaviour)
+
 				void sendMessage({ type: "vd_power_window_open", duration: 5 });
 			}
 
-			// Fetch full details in background but DON'T broadcast yet - wait for power window to close
 			try {
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode ?? "")}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
@@ -491,11 +452,10 @@ const AVeDichRiengPage = () => {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
 				setCurrentQuestion(q);
-				// Store in ref to broadcast after power window closes (5s)
+
 				pendingQuestionRef.current = { questionCode, question: q };
 				logger.info(`[VDR] Question ${questionCode} fetched, waiting for power window to close`);
-			// Arm a safety timer (5.5s = 5s window + 0.5s buffer) so the reveal still happens
-			// even when no player reports `vd_power_window_closed` (already-used-power case).
+
 			clearPendingBroadcastTimer();
 			pendingBroadcastTimerRef.current = window.setTimeout(() => {
 				pendingBroadcastTimerRef.current = null;
@@ -508,20 +468,16 @@ const AVeDichRiengPage = () => {
 	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
 	);
 
-	// ─── Timer ───────────────────────────────────────────────────────────────────
 	const startTheClock = useCallback(() => {
 		if (!currentQuestion.questionCode || isTimerRunning) return;
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
-		setAnsweringWindowTimer(0); // Reset answering window when starting new question
-		// Reset buzzer ref so the next ``buzzer_winner`` for this question is
-		// accepted by the dedupe guard.
+		setAnsweringWindowTimer(0);
+
 		lastBuzzerQuestionRef.current = null;
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
-			// NOTE: play_video is intentionally NOT sent here. In Về Đích rounds the video
-			// autoplays the moment the power window closes (vd_power_window_closed), so the
-			// media is already running by the time admin clicks "Bắt đầu tính giờ".
+
 			void sendMessage({
 				type: "start_the_timer",
 				user_code: "",
@@ -550,30 +506,25 @@ const AVeDichRiengPage = () => {
 		return () => window.clearInterval(intervalId);
 	}, [timer]);
 
-	// Stop running state when timer expires
 	useEffect(() => {
 		if (timer !== 0 || !isTimerRunning) return;
 		startTransition(() => setIsTimerRunning(false));
 	}, [timer, isTimerRunning]);
 
-	// Track isTimerRunning state transitions
 	useEffect(() => {
 		wasTimerRunningRef.current = isTimerRunning;
 	}, [isTimerRunning]);
 
-	// Wait 5 seconds after timer expires, then start answering window countdown
-	// Only trigger when isTimerRunning transitions from true → false (timer actually finished running)
 	useEffect(() => {
-		if (isTimerRunning || answeringWindowTimer !== 0) return; // Skip if timer still running or window already started
-		if (!wasTimerRunningRef.current) return; // Skip if timer was never running (initial state)
-		
+		if (isTimerRunning || answeringWindowTimer !== 0) return;
+		if (!wasTimerRunningRef.current) return;
+
 		const waitTimeoutId = setTimeout(() => {
 			setAnsweringWindowTimer(5);
 		}, 5000);
 		return () => clearTimeout(waitTimeoutId);
 	}, [isTimerRunning, answeringWindowTimer]);
 
-	// Countdown answering window timer (5 → 0)
 	useEffect(() => {
 		if (answeringWindowTimer <= 0) return;
 		const intervalId = window.setInterval(() => {
@@ -585,7 +536,6 @@ const AVeDichRiengPage = () => {
 		return () => window.clearInterval(intervalId);
 	}, [answeringWindowTimer]);
 
-	// Broadcast answering window activation when countdown starts (transition to 5)
 	useEffect(() => {
 		if (answeringWindowTimer !== 5 || !currentMatchCode) return;
 		void sendMessage({
@@ -594,22 +544,6 @@ const AVeDichRiengPage = () => {
 		});
 	}, [answeringWindowTimer, currentMatchCode, sendMessage]);
 
-
-	// NOTE: ``vd_power_activated`` broadcast is intentionally NOT
-	// driven by a ``useEffect`` on ``activePower``. Previously this
-	// effect tried to mirror activePower to SFX bot, but it never
-	// actually fired because nothing in this page ever set
-	// ``activePower`` to a non-null value from the WS handler
-	// (the handler updated ``usedPowers`` and ``players[i].playerPower``
-	// but not the local ``activePower`` state). The handler now
-	// broadcasts ``vd_power_activated`` directly when the turn player
-	// picks a power — see the ``case "vd_player_power"`` block below.
-	// Admin-initiated resets (e.g. clearing the active power when the
-	// round ends) intentionally fire ``vd_power_activated { power: null }``
-	// only from the handler that owns the state change, not from a
-	// blanket effect, to keep the broadcast surface explicit.
-
-	// ─── Score management ─────────────────────────────────────────────────────────
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
 			if (!playerCode) return;
@@ -680,10 +614,9 @@ const AVeDichRiengPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
-	// Handle manual score editing from APlayerBar
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
-		// Update local state immediately
+
 		setPlayers((prev) =>
 			prev.map((player) =>
 				player.playerCode === playerCode
@@ -691,14 +624,10 @@ const AVeDichRiengPage = () => {
 					: player,
 			),
 		);
-		// Refresh scoreboard from server to ensure consistency
+
 		void sendPlayersSnapshot();
 	}, [sendPlayersSnapshot]);
 
-	// Lượt CÁ NHÂN: individual round — only the selected player(s) get +points.
-	// Calculate score: add to selected players only (Lượt CÁ NHÂN logic)
-
-	// Add points: +100% default, +150% with star (turn player only), +50% with shield (turn player only)
 	const handleAddPoints = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		const answeredCode = currentQuestion.questionCode;
@@ -718,7 +647,7 @@ const AVeDichRiengPage = () => {
 				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
-			// Mark power as consumed for the turn player (one power per player)
+
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
 					...prev,
@@ -726,8 +655,7 @@ const AVeDichRiengPage = () => {
 				}));
 			}
 			setActivePower(null);
-			// Broadcast deactivation so the player page flips its UI back
-			// to the "no active power" state. SFX bot no-ops on null.
+
 			void sendMessage({ type: "vd_power_activated", power: null });
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
@@ -745,7 +673,6 @@ const AVeDichRiengPage = () => {
 		currentMatchCode,
 	]);
 
-	// Subtract points: -50% default, -100% with star, 0 with shield
 	const handleSubtractPoints = useCallback(async () => {
 		if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode) return;
 		const answeredCode = currentQuestion.questionCode;
@@ -756,7 +683,7 @@ const AVeDichRiengPage = () => {
 		try {
 			for (const playerCode of selectedPlayerCodes) {
 				const isCurrentTurnPlayer = playerCode === currentTurnPlayerCode;
-				// Shield (turn player only): no deduction
+
 				if (isCurrentTurnPlayer && activePower === 'shield') continue;
 				const points = (isCurrentTurnPlayer && activePower === 'star')
 					? -currentPoints
@@ -764,7 +691,7 @@ const AVeDichRiengPage = () => {
 				await handleAddScore(playerCode, points, false);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
-			// Mark power as consumed for the turn player (one power per player)
+
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
 					...prev,
@@ -772,8 +699,7 @@ const AVeDichRiengPage = () => {
 				}));
 			}
 			setActivePower(null);
-			// Broadcast deactivation so the player page flips its UI back
-			// to the "no active power" state. SFX bot no-ops on null.
+
 			void sendMessage({ type: "vd_power_activated", power: null });
 			setSelectedPlayerCodes([]);
 		} catch (err: any) {
@@ -791,7 +717,6 @@ const AVeDichRiengPage = () => {
 		currentMatchCode,
 	]);
 
-	// Manually open buzzer window (skip 5s wait)
 	const handleOpenBuzzer = useCallback(async () => {
 		if (timer !== 0) return;
 		setAnsweringWindowTimer(5);
@@ -806,16 +731,11 @@ const AVeDichRiengPage = () => {
 		}
 	}, [timer, currentMatchCode, sendMessage]);
 
-	// ─── Round control ────────────────────────────────────────────────────────────
 	const handleStartRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		// Defensive reset: if admin starts a new VDR round while a previous
-		// round's buzzer state is still in memory (e.g. previous round was
-		// abandoned without `clear_buzz` or `vd_questions_selected`), clear
-		// the ref now so the new round's `buzzer_winner` event isn't dropped
-		// by the `lastBuzzerQuestionRef` guard.
+
 		lastBuzzerQuestionRef.current = null;
 		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (!currentMatchCode) return;
@@ -840,29 +760,26 @@ const AVeDichRiengPage = () => {
 		}
 	}, [currentMatchCode, sendMessage]);
 
-	// ─── WebSocket message handling ───────────────────────────────────────────────
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 
 		switch (msg?.type) {
 			case "vd_questions_selected": {
-				// Receive the 3 question codes confirmed from the pick page (CÁ NHÂN round)
+
 				if (Array.isArray(msg.selected_question_codes) && msg.round === "rieng") {
 					if (currentMatchCode) {
 						localStorage.setItem(`veDich_rieng_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
 					}
 					startTransition(() => {
 						setRoundQuestionCodes(msg.selected_question_codes);
-						// Reset buzzer ref when new questions are selected so the
-						// next ``buzzer_winner`` for one of these questions is
-						// accepted by the dedupe guard.
+
 						lastBuzzerQuestionRef.current = null;
 					});
 				}
-				// Track which player's turn it is
+
 				if (msg.selected_player_code) {
-					// Validate: reject admin codes
+
 					const isAdminCode = String(msg.selected_player_code).startsWith("ADMIN");
 					if (isAdminCode) {
 						logger.warn(`[VDR ADMIN] Rejecting selected_player_code because it's an admin code: ${msg.selected_player_code}`);
@@ -889,11 +806,11 @@ const AVeDichRiengPage = () => {
 						);
 					});
 					(async () => {
-						// Route the late-joining player directly to the current round
+
 						try {
 							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdr" });
-						} catch { /* best-effort */ }
-						// Resend board metadata (3 question cards)
+						} catch {  }
+
 						if (roundQuestionCodes.length > 0 && questions.length > 0) {
 							const metadata = roundQuestionCodes.map((code) => {
 								const idx = questions.findIndex((q) => q.questionCode === code);
@@ -905,13 +822,13 @@ const AVeDichRiengPage = () => {
 							});
 							try {
 								await sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
-							} catch { /* best-effort */ }
-							// Resend answered question states
+							} catch {  }
+
 							for (const [code, qState] of Object.entries(questionStates)) {
 								if (qState === "answered" || qState === "answered-wrong") {
 									try {
 										await sendMessage({ type: "vdr_question_state", question_code: code, state: qState });
-									} catch { /* best-effort */ }
+									} catch {  }
 								}
 							}
 						}
@@ -924,7 +841,7 @@ const AVeDichRiengPage = () => {
 									content: currentQuestion.questionText ?? "",
 									media_source: currentQuestion.questionMediaURL ?? undefined,
 								});
-							} catch { /* best-effort on reconnect */ }
+							} catch {  }
 						}
 						if (timerRef.current > 0 && currentQuestion.questionCode) {
 							try {
@@ -936,24 +853,23 @@ const AVeDichRiengPage = () => {
 									question_code: currentQuestion.questionCode,
 									started_at: Date.now(),
 								});
-							} catch { /* best-effort on reconnect */ }
-							// Replay the video for the late joiner so MC / player see the
-							// media from where the room is now (matches AButPhaPage flow).
+							} catch {  }
+
 							if (currentQuestion.questionMediaURL) {
 								try {
 									await sendMessage({ type: "play_video" });
-								} catch { /* best-effort on reconnect */ }
+								} catch {  }
 							}
 						}
-						// Send players/scores last (requires API call) so game state appears first
+
 						try {
 							await sendPlayersSnapshot();
-						} catch { /* best-effort on reconnect */ }
-						// Resend used powers state
+						} catch {  }
+
 						if (Object.keys(usedPowers).length > 0) {
 							try {
 								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
-							} catch { /* best-effort */ }
+							} catch {  }
 						}
 					})();
 				}
@@ -1035,27 +951,14 @@ const AVeDichRiengPage = () => {
 				}
 				break;
 			}
-			// NOTE: `buzz` events are intentionally NOT handled here.
-			// The backend (`backend/app/core/answer.py`) is the authoritative source for the buzzer winner — it picks the first buzzer by `created_at` and publishes`buzzer_winner` (and `blocked_buzz`) on the Valkey match channel. The case below handles that authoritative broadcast.
-			// Handling `buzz` in the admin previously caused every late buzzer to get
-			// `playerHasBuzzed = true`, which made the Zap icon show up next to all 4
-			// players in the admin / MC / player bar instead of only the buzzer_winner.
 
 			case "buzzer_winner": {
 				const { user_code, question_code } = msg;
-				// Accept the event when it belongs to a NEW question (i.e. a
-				// different question_code than the one we already rendered).
-				// lastBuzzerQuestionRef tracks the question_code of the
-				// winner we last rendered so a stale event for the same
-				// question is dropped (idempotent reconnect snapshot replay)
-				// but a new question's winner is always accepted. Mirrors
-				// PVeDichRiengPage.lastBuzzerQuestionRef.
+
 				if (user_code && question_code !== lastBuzzerQuestionRef.current) {
 					console.info(`[VDR ADMIN] Received buzzer_winner: user_code=${user_code}, question=${question_code}`);
 					lastBuzzerQuestionRef.current = question_code;
-					// Update playerHasBuzzed for the winner — APlayerBar reads
-					// this boolean to render the Zap icon next to the right
-					// player name (and the border accent class).
+
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((p) =>
@@ -1063,7 +966,7 @@ const AVeDichRiengPage = () => {
 							),
 						);
 					});
-					// Lock all players' buzzers immediately
+
 					console.info(`[VDR ADMIN] Locking all buzzers after winner: ${user_code}`);
 					void sendMessage({ type: "blocked_buzz", user_code: null });
 				}
@@ -1071,22 +974,18 @@ const AVeDichRiengPage = () => {
 			}
 
 			case "clear_buzz": {
-				// Server echoes admin's own clear_buzz (and the room's other
-				// tabs may also have sent one) — drop any stale buzzer state
-				// so the next `buzzer_winner` for a new question is accepted
-				// by the handler above. Mirrors PVeDichRiengPage + MVeDichRiengPage.
+
 				lastBuzzerQuestionRef.current = null;
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
 
 			case "vd_player_power": {
-				// Player activated a power (star/shield) during the 5s window
+
 				const { user_code, power } = msg;
 				if (user_code && (power === "star" || power === "shield") && !usedPowers[user_code]) {
 					logger.info(`[VDR POWER] Player ${user_code} activated ${power}`);
-					// Persist into lifetime usedPowers so the icon sticks for the rest of the
-					// round (and across VDC ↔ VDR navigation).
+
 					const nextUsedPowers: Record<string, string | null> = {
 						...usedPowers,
 						[user_code]: power,
@@ -1099,9 +998,8 @@ const AVeDichRiengPage = () => {
 							`veDich_powers_${currentMatchCode}`,
 							JSON.stringify(nextUsedPowers),
 						);
-					} catch { /* ignore */ }
-					// Update the players array so APlayerBar renders the Star/Shield icon
-					// next to the player's name right away.
+					} catch {  }
+
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((p) =>
@@ -1111,24 +1009,12 @@ const AVeDichRiengPage = () => {
 							),
 						);
 					});
-					// Broadcast the authoritative list so MC and other players also pick
-					// up the icon (the WS server echoes `vd_player_power` back to the room,
-					// but only admin is the source of truth for the merged `usedPowers`).
+
 					void sendMessage({
 						type: "vd_powers_used",
 						used_powers: nextUsedPowers,
 					});
-					// Activate the picked power for the turn player so:
-					//   1. ``handleAddPoints`` / ``handleSubtractPoints`` apply the
-					//      right multiplier (star +150% / shield +50% etc.) instead
-					//      of the default +100% / -50%.
-					//   2. The SFX bot plays ``vd_quyen_nang`` — it listens for
-					//      ``vd_power_activated`` (mapped to ``power_star`` /
-					//      ``power_shield`` in ``sfx_bot.py``) and only the turn
-					//      player's pick triggers the broadcast, so non-turn
-					//      players (defensive check) don't fire the SFX.
-					// Mirrors the VDC pattern at
-					// ``AVeDichChungPage.tsx:case "vd_player_power"``.
+
 					if (user_code === currentTurnPlayerCode) {
 						startTransition(() => {
 							setActivePower(power as "star" | "shield");
@@ -1147,8 +1033,8 @@ const AVeDichRiengPage = () => {
 					startTransition(() => {
 						setUsedPowers(msg.used_powers);
 					});
-					try { localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(msg.used_powers)); } catch { /* ignore */ }
-					// Mirror the power onto each player so APlayerBar shows the icon.
+					try { localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(msg.used_powers)); } catch {  }
+
 					startTransition(() => {
 						setPlayers((prev) =>
 							prev.map((p) => {
@@ -1171,7 +1057,6 @@ const AVeDichRiengPage = () => {
 		}
 	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, roundQuestionCodes, questions, questionCategories, questionPoints, questionStates, broadcastPendingVeDichQuestion]);
 
-	// ─── Board rendering helpers ──────────────────────────────────────────────────
 	const getQuestionMeta = (questionCode: string) => {
 		const idx = questions.findIndex((q) => q.questionCode === questionCode);
 		const rawCategory = questionCategories[idx] || "Unknown";
@@ -1180,7 +1065,6 @@ const AVeDichRiengPage = () => {
 		return { catPrimary: catPrimary || rawCategory, catSecondary, pts };
 	};
 
-	// ─── Render ───────────────────────────────────────────────────────────────────
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}

@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
+
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 import { Star, Shield } from "lucide-react";
-// temporary page-level logging uses console.info; createLogger import removed for brevity
+
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -13,8 +13,6 @@ import { usePlayerSession } from "@/hooks/usePlayerSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
-
-
 
 const PVeDichChungPage = () => {
 	const { matchCode, playerCode, token } = usePlayerSession();
@@ -37,7 +35,6 @@ const PVeDichChungPage = () => {
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
 
-	// ─── Power state ─────────────────────────────────────────────────────────────
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!matchCode) return {};
 		try {
@@ -50,7 +47,6 @@ const PVeDichChungPage = () => {
 	const [selectedPower, setSelectedPower] = useState<"star" | "shield" | null>(null);
 	const powerWindowTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-	// Auto-fetch scoreboard on mount to ensure accurate initial scores
 	useEffect(() => {
 		if (!matchCode || !token) return;
 		let mounted = true;
@@ -82,11 +78,10 @@ const PVeDichChungPage = () => {
 		return () => { mounted = false; };
 	}, [matchCode, token]);
 
-	// Request question metadata from admin if not available in localStorage
 	useEffect(() => {
 		if (!matchCode || !isConnected) return;
 		if (roundQuestionsData.length === 0) {
-			// Request metadata from admin
+
 			sendMessage({ type: "vd_questions_meta_request", match_code: matchCode });
 		}
 	}, [matchCode, isConnected, roundQuestionsData.length, sendMessage]);
@@ -95,18 +90,15 @@ const PVeDichChungPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 
-		// Debug logs to help verify payloads
 		console.info("PLAYER lastMessage:", lastMessage);
 		console.info("PLAYER msg:", msg);
 
-		// Let the question hook handle send_question/clear_question
 		applyWsMessage(msg);
 		if (msg?.type === "send_question" || msg?.type === "clear_question") setVideoPlayState(null);
 
 		switch (msg?.type) {
 			case "send_players_info": {
-				// Receive player information through WebSocket; support both old (players+scoreboard+profiles)
-				// and new (players[] where each player already contains cumulative_score/user_name) shapes.
+
 				const playersList = msg.players ?? [];
 				const scoreboard = msg.scoreboard ?? [];
 				const profiles = msg.profiles ?? [];
@@ -114,7 +106,6 @@ const PVeDichChungPage = () => {
 				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
 					const code = String(p?.user_code ?? "");
 
-					// resolve name: prefer player object, then profiles, then scoreboard entry
 					let name = "";
 					if (p?.user_name) name = p.user_name;
 					else {
@@ -126,7 +117,6 @@ const PVeDichChungPage = () => {
 						}
 					}
 
-					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
 					let scoreVal = 0;
 					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
 					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
@@ -219,7 +209,7 @@ const PVeDichChungPage = () => {
 				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
 				if (metadata.length > 0) {
 					setRoundQuestionsData(metadata);
-					try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch { /* ignore */ }
+					try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch {  }
 				}
 				break;
 			}
@@ -240,15 +230,14 @@ const PVeDichChungPage = () => {
 			case "vd_player_power": {
 				const { user_code, power } = msg;
 				if (user_code && (power === "star" || power === "shield")) {
-					// Update usedPowers state
+
 					setUsedPowers((prev) => {
 						const next = { ...prev, [user_code]: power };
-						// Persist immediately so the choice survives navigation to VDR
-						// and page reloads (admin may not have broadcast vd_powers_used yet).
-						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch { /* ignore */ }
+
+						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch {  }
 						return next;
 					});
-					// Update playerPower in players array for display
+
 					setPlayers((prev) =>
 						prev.map((p) =>
 							p.playerCode === user_code ? { ...p, playerPower: power as "star" | "shield" } : p,
@@ -259,11 +248,11 @@ const PVeDichChungPage = () => {
 			}
 
 			case "vd_powers_used": {
-				// Sync used powers from admin
+
 				if (msg.used_powers) {
 					setUsedPowers(msg.used_powers);
-					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(msg.used_powers)); } catch { /* ignore */ }
-					// Update playerPower in players array for display
+					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(msg.used_powers)); } catch {  }
+
 					setPlayers((prev) =>
 						prev.map((p) => {
 							const power = msg.used_powers[p.playerCode];
@@ -279,14 +268,13 @@ const PVeDichChungPage = () => {
 		}
 	}, [applyWsMessage, lastMessage, startSynced, playerCode, usedPowers, matchCode]);
 
-	// Power window countdown
 	useEffect(() => {
 		if (!powerWindowOpen || powerWindowCountdown <= 0) return;
 		powerWindowTimerRef.current = window.setInterval(() => {
 			setPowerWindowCountdown((prev) => {
 				if (prev <= 1) {
 					setPowerWindowOpen(false);
-					// Notify admin that power window has closed
+
 					void sendMessage({ type: "vd_power_window_closed", user_code: playerCode });
 					return 0;
 				}
@@ -298,7 +286,6 @@ const PVeDichChungPage = () => {
 		};
 	}, [powerWindowOpen, powerWindowCountdown, playerCode, sendMessage]);
 
-	// Auto-submit power when countdown reaches 0 or player selects
 	const handleSelectPower = useCallback(async (power: "star" | "shield") => {
 		if (!powerWindowOpen || usedPowers[playerCode]) return;
 		setSelectedPower(power);
@@ -314,7 +301,6 @@ const PVeDichChungPage = () => {
 		}
 	}, [powerWindowOpen, usedPowers, playerCode, sendMessage]);
 
-	// Cleanup power window on unmount
 	useEffect(() => {
 		return () => {
 			if (powerWindowTimerRef.current) window.clearInterval(powerWindowTimerRef.current);
@@ -340,7 +326,7 @@ const PVeDichChungPage = () => {
 		);
 
 		try {
-			// Persist answer via REST
+
 			const res = await fetch(`${API_BASE_URL}/answers/`, {
 				method: "POST",
 				headers: {
@@ -364,7 +350,6 @@ const PVeDichChungPage = () => {
 			console.warn("Failed to POST answer:", err);
 		}
 
-		// Send real-time frame
 		await sendMessage({
 			type: "player_answer",
 			user_code: playerCode,
@@ -377,7 +362,6 @@ const PVeDichChungPage = () => {
 
 	const isSubmissionDisabled = !isConnected || timer <= 0;
 
-	// Always show the current player's own answer; hide others until admin reveals
 	const displayPlayers = players.map((p) =>
 		showAnswers || p.playerCode === playerCode ? p : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
 	);
@@ -427,7 +411,7 @@ const PVeDichChungPage = () => {
 					placeholderString={timer <= 0 ? "Bạn không thể nhập đáp án tại thời điểm này" : "Nhập đáp án và nhấn Enter"}
 				/>
 
-				{/* Power selection window */}
+				{}
 				{powerWindowOpen && !usedPowers[playerCode] && (
 					<div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-4 flex flex-col items-center gap-3">
 						<p className="text-white font-bold text-lg">Chọn quyền năng ({powerWindowCountdown}s)</p>
@@ -459,9 +443,7 @@ const PVeDichChungPage = () => {
 					</div>
 				)}
 
-				
-
-				{/* Power already used indicator */}
+				{}
 				{!powerWindowOpen && usedPowers[playerCode] && (
 					<div className="bg-blue-900/60 border-2 border-blue-400 rounded-xl p-3 flex items-center gap-2 font-bold text-sm text-blue-100">
 						{usedPowers[playerCode] === 'star' ? <Star size={18} className="shrink-0" /> : <Shield size={18} className="shrink-0" />}
@@ -472,7 +454,6 @@ const PVeDichChungPage = () => {
 					</div>
 				)}
 
-				
 			</>
 		</PBasePageLayout>
 	);

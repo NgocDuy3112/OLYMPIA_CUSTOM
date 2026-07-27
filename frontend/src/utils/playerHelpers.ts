@@ -40,7 +40,6 @@ export function buildPlayersSnapshot(
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
 
-      // Backend returns 'cumulative_score' (with typo), but accept 'cumulative_score' and other variants for defensive coding
       const playerScore = (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ?? previous?.playerScore ?? 0;
 
       return {
@@ -51,7 +50,7 @@ export function buildPlayersSnapshot(
         playerTimestamp: previous?.playerTimestamp,
         playerHasBuzzed: previous?.playerHasBuzzed ?? false,
         playerConnected: previous?.playerConnected ?? false,
-        // Support several possible flag names coming from server/admin snapshots
+
         playerIsTurn:
           (entry as any)?.is_current ?? (entry as any)?.isCurrent ?? (entry as any)?.is_selected ??
           (entry as any)?.selected ?? previous?.playerIsTurn ?? false,

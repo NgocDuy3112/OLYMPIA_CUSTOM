@@ -6,11 +6,11 @@ from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
 from routes import (
-    auth, 
+    auth,
     user,
-    match, 
+    match,
     answer,
-    question, 
+    question,
     record,
     scoreboard,
     qualifier,
@@ -42,9 +42,9 @@ from jwt import PyJWTError
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup code
+
     global_logger.info("Application startup: Database engine initialized")
-    
+
     valkey = None
     manager = await get_ws_manager()
 
@@ -71,18 +71,18 @@ async def lifespan(app: FastAPI):
         ))
         await conn.run_sync(Base.metadata.create_all)
         global_logger.info("Database tables ensured via SQLAlchemy metadata.create_all.")
-    
+
     yield
-    
+
 
     global_logger.info("Application Shutdown: Disposing of database engine.")
-    
-    # Gracefully shut down WebSocket ConnectionManager (cancel Valkey listeners)
+
+
     try:
         await manager.shutdown()
     except Exception as e:
         global_logger.warning(f"Error shutting down ConnectionManager: {e}", exc_info=True)
-    
+
     if valkey:
         try:
             await valkey.close()
@@ -90,14 +90,12 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             global_logger.warning(f"Error closing Valkey connection: {e}", exc_info=True)
 
-    # Tear down the S3 singleton so aiohttp's HTTPConnectionPool releases
-    # its keep-alive sockets. Safe to call even if init_s3_client failed.
+
     await close_s3_client()
 
     if engine:
         await engine.dispose()
         global_logger.info("Database engine disposed.")
-
 
 
 app = FastAPI(lifespan=lifespan, description="OLYMPIA CUSTOM 3 MATCH - API ENDPOINTS", version="0.0.1")
@@ -131,7 +129,7 @@ allowed_origins = [o.strip() for o in cors_origins.split(",") if o.strip()] if c
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=False,  # must be False when allow_origins=["*"]; app uses Bearer tokens, not cookies
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -147,14 +145,13 @@ app.include_router(media.router)
 app.include_router(gm.router)
 
 
-
 @app.websocket("/ws/{match_code}")
 async def websocket_endpoint(
     websocket: WebSocket,
     match_code: str,
     token: str | None = Query(None, description="JWT access token"),
 ):
-    # ── Authenticate WebSocket connection ─────────────────────────────────
+
     if not token:
         await websocket.close(code=4001, reason="Missing authentication token")
         return
@@ -169,8 +166,8 @@ async def websocket_endpoint(
         return
 
     user_role = user_info.get("role", "")
-    # Admin/MC connections are infrequent (per session) and useful for audit;
-    # player connections fire on every page refresh, so demote those to DEBUG.
+
+
     if user_role in ("admin", "mc"):
         global_logger.info(
             f"WebSocket authenticated: user={user_info['user_code']!r} "

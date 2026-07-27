@@ -10,7 +10,7 @@ from models import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M" — drives the match_code prefix constraint
+_MATCH_PATTERN = _settings.MATCH_PATTERN
 
 
 def utcnow():
@@ -18,14 +18,8 @@ def utcnow():
 
 
 class Match(Base):
-    """
-    SQLAlchemy model representing a match in the system.
-    This model defines the matches table with match_code starting with 'M'.
-    
-    Match ids are in the range 3100001 to 3199999.
-    """
     __tablename__ = "matches"
-    # Constraints
+
     __table_args__ = (
         CheckConstraint(
             f"match_code LIKE '{_MATCH_PATTERN}%'",
@@ -43,14 +37,11 @@ class Match(Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True, index=True)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Relationships
+
     players_position: Mapped[list["MatchPlayerPosition"]] = relationship("MatchPlayerPosition", back_populates="match", cascade="all, delete-orphan")
 
 
 class MatchPlayerPosition(Base):
-    """
-    Mapping table to assign players to specific positions in a match.
-    """
     __tablename__ = "match_player_positions"
     __table_args__ = (
         UniqueConstraint('match_id', 'position', name='uq_match_position'),
@@ -63,6 +54,6 @@ class MatchPlayerPosition(Base):
     player_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Relationships
+
     match: Mapped["Match"] = relationship("Match", back_populates="players_position")
     user: Mapped["User"] = relationship("User")

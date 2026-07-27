@@ -8,10 +8,8 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
-
 class BaseRequest(BaseModel):
     pass
-
 
 
 class BaseResponse(BaseModel):

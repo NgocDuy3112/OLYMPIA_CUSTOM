@@ -7,11 +7,8 @@ from logger import global_logger
 class ConnectionManager:
     def __init__(self):
         self.rooms: dict[str, list[WebSocket]] = {}
-        # Maps a connected WebSocket to the authenticated user_code it
-        # represents. Populated by `connect()` and cleared by `disconnect()`.
-        # Used to authoritatively decide which players are still eligible
-        # to pick a Về Đích power (the server-side companion to the
-        # frontend `veDich_powers_${matchCode}` localStorage cache).
+
+
         self._socket_user: dict[WebSocket, str] = {}
         self.valkey: Valkey | None = None
         self._room_tasks: dict[str, asyncio.Task] = {}
@@ -20,7 +17,7 @@ class ConnectionManager:
         self.valkey = valkey
         global_logger.info("Valkey instance set in ConnectionManager.")
 
-        # Nếu set_valkey sau khi đã có room, start listener cho các room đó
+
         for room_id in list(self.rooms.keys()):
             if room_id not in self._room_tasks:
                 self._room_tasks[room_id] = asyncio.create_task(self.__listen_to_valkey_channel(room_id))
@@ -32,14 +29,14 @@ class ConnectionManager:
 
         retry_count = 0
         max_retries = 5
-        retry_delay = 1.0  # seconds
+        retry_delay = 1.0
 
         while retry_count < max_retries:
             try:
                 pubsub = self.valkey.pubsub()
                 await pubsub.subscribe(room_id)
                 global_logger.info(f"[WS] Subscribed to Valkey channel for room {room_id} (attempt {retry_count + 1})")
-                retry_count = 0  # Reset retry count on successful subscribe
+                retry_count = 0
 
                 async for message in pubsub.listen():
                     if message.get("type") != "message":
@@ -50,7 +47,7 @@ class ConnectionManager:
                         global_logger.warning(f"[WS] Invalid JSON from Valkey channel {room_id}: {message.get('data')}", exc_info=True)
                         continue
 
-                    # ✅ nhận từ Valkey => SEND ra websocket local
+
                     await self.send_to_room_local(room_id, data)
 
             except asyncio.CancelledError:
@@ -107,11 +104,6 @@ class ConnectionManager:
         global_logger.debug(f"WS disconnected from room {room_id}: {websocket.client}")
 
     def user_codes_in_room(self, room_id: str) -> list[str]:
-        """Return the unique authenticated user_codes connected to `room_id`.
-
-        Used by the WS receive loop to compute the `eligible_user_codes`
-        list when broadcasting `vd_power_window_open`.
-        """
         conns = self.rooms.get(room_id, [])
         seen: set[str] = set()
         out: list[str] = []
@@ -156,10 +148,10 @@ class ConnectionManager:
     async def broadcast_to_room(self, room_id: str, payload: dict):
         global_logger.debug(f"[WS] broadcast_to_room: room={room_id!r} type={payload.get('type')!r} user={payload.get('user_code')!r}")
 
-        # Always send to local connections first (immediate delivery)
+
         await self.send_to_room_local(room_id, payload)
 
-        # Then publish to Valkey for cross-instance broadcast (if Valkey is available)
+
         if self.valkey:
             try:
                 await self.valkey.publish(room_id, json.dumps(payload))
@@ -170,7 +162,6 @@ class ConnectionManager:
             global_logger.debug(f"[WS] Valkey not set, sending local only")
 
     async def shutdown(self):
-        """Gracefully cancel all Valkey pub/sub listener tasks on shutdown."""
         for room_id, task in list(self._room_tasks.items()):
             if not task.done():
                 task.cancel()

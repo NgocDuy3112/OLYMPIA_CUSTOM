@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
@@ -23,24 +23,21 @@ const AWaitingPage = () => {
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
-	// Debug logging
 	useEffect(() => {
 		logger.info("AWaitingPage mounted:", { urlMatchCode, storedMatchCode, currentMatchCode });
 	}, [urlMatchCode, storedMatchCode, currentMatchCode]);
 
-	// Update localStorage if matchCode is provided in URL
 	useEffect(() => {
 		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
 			try {
 				localStorage.setItem("matchCode", urlMatchCode);
 				logger.info("Updated localStorage matchCode:", urlMatchCode);
 			} catch {
-				// ignore
+
 			}
 		}
 	}, [urlMatchCode, storedMatchCode]);
 
-	// Redirect to game managing page if no match code is available
 	useEffect(() => {
 		if (!currentMatchCode) {
 			logger.warn("No match code available in waiting page, redirecting to manage");
@@ -72,7 +69,7 @@ const AWaitingPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
-			// Check match status
+
 			const matchRes = await fetch(`${API_BASE_URL}/matches/?match_code=${encodeURIComponent(currentMatchCode)}`, {
 				headers: { Authorization: `Bearer ${token}` },
 			});
@@ -98,8 +95,6 @@ const AWaitingPage = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			// user_name is already included in the /matches/{code}/players response,
-			// so we no longer need N separate /users/?user_code= requests.
 			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
 				user_name: entry.user_name ?? "",
@@ -178,7 +173,7 @@ const AWaitingPage = () => {
 					);
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/waiting" });
-					} catch { /* best-effort */ }
+					} catch {  }
 					void sendPlayersSnapshot();
 				}
 				break;
@@ -187,7 +182,7 @@ const AWaitingPage = () => {
 				if (msg.user_code) {
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/mc/waiting" });
-					} catch { /* best-effort */ }
+					} catch {  }
 					void sendPlayersSnapshot();
 				}
 				break;
@@ -198,7 +193,6 @@ const AWaitingPage = () => {
 			}
 		}
 	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendMessage]);
-
 
 	const handleOpenMatch = useCallback(async () => {
 		if (!currentMatchCode) return;
@@ -304,7 +298,6 @@ const AWaitingPage = () => {
 		navigate(`/admin/gm/${currentMatchCode}`);
 	}, [currentMatchCode, navigate]);
 
-	// Don't render anything if no match code - redirect will handle it
 	if (!currentMatchCode) {
 		return null;
 	}
@@ -319,7 +312,7 @@ const AWaitingPage = () => {
 
 				<p className="text-blue-300 text-sm">Mã trận: <strong>{currentMatchCode}</strong></p>
 
-				{/* Player list */}
+				{}
 				{players.length > 0 && (
 					<div className="flex gap-4 max-w-7xl w-full justify-center">
 						{players.map((player) => (
@@ -335,7 +328,7 @@ const AWaitingPage = () => {
 					</div>
 				)}
 
-				{/* Ceremony controls */}
+				{}
 				<div className="flex flex-col gap-4 w-full max-w-2xl">
 					<div className="flex flex-wrap gap-4 items-center justify-center">
 						<AControlButton
@@ -386,7 +379,7 @@ const AWaitingPage = () => {
 					</div>
 				</div>
 
-				{/* Quick navigation to rounds */}
+				{}
 				<div className="flex flex-col gap-4 w-full max-w-2xl">
 				{matchFinished && (
 					<div className="bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center w-full max-w-2xl">
@@ -411,7 +404,7 @@ const AWaitingPage = () => {
 						>
 							Khởi Động Chung
 						</AControlButton>
-						
+
 						<AControlButton
 							onClick={handleNavigateToGM}
 							disabled={!currentMatchCode}

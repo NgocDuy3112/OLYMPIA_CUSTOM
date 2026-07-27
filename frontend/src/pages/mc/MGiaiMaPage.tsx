@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useEffect, useRef, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -72,9 +72,9 @@ const MGiaiMaPage = () => {
     const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
     const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
     const activeClueIdxRef = useRef<number | null>(null);
-    // Hide the question-board content when admin opens/locks the hint
+
     const [hideQuestionContent, setHideQuestionContent] = useState(false);
-    // True while the QuestionBoard timer is the keyword phase
+
     const [isKeywordPhase, setIsKeywordPhase] = useState(false);
 
     useEffect(() => {
@@ -99,7 +99,7 @@ const MGiaiMaPage = () => {
                     "";
                 if (answer) setKeywordBanner(buildKeywordBanner(answer));
             } catch {
-                // keep default banner
+
             }
         };
         void fetchKeywordQ();
@@ -142,7 +142,7 @@ const MGiaiMaPage = () => {
                         })
                     );
                 }
-                // New clue means a fresh question text/media on the board — show it again.
+
                 setHideQuestionContent(false);
                 break;
             }
@@ -150,17 +150,13 @@ const MGiaiMaPage = () => {
                 const { user_code } = msg;
                 if (user_code) {
                     setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
-                    // MC view also shows the 🔑 + "Sau N gợi ý" badge immediately
-                    // (no need to wait for admin to press "HIỆN TỪ KHOÁ")
+
                     applyKeywordSubmit(msg);
                 }
                 break;
             }
             case "keyword_clues_locked": {
-                // Admin pressed "ĐẾM GIỜ TỪ KHOÁ" — subsequent submissions are N = 8.
-                // The MC view is read-only: per-player `clues_opened` is broadcast in
-                // each `keyword_submit` payload, so the badge updates from that path.
-                // No local state to flip on the MC page; intentionally a no-op.
+
                 break;
             }
             case "clear_question":
@@ -173,8 +169,7 @@ const MGiaiMaPage = () => {
                 setHideQuestionContent(false);
                 setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
-                // Also clear per-player answer state so the MC player list doesn't
-                // keep stale answers / buzz flags from the previous question.
+
                 clearAnswers();
                 break;
             case "round_start":
@@ -186,22 +181,19 @@ const MGiaiMaPage = () => {
                 setHideQuestionContent(false);
                 setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
-                // Match the player page: clear per-player answer state on round start
-                // so the MC player list resets alongside the clue grid.
+
                 clearAnswers();
                 break;
             case "show_hint": {
                 const hintContent = msg.hint_content ?? "";
                 const hintMediaSource = msg.hint_media_source ?? "";
-                // If hint content itself is a media filename, swap roles
+
                 const contentIsMedia = isMediaFilename(hintContent);
                 const displayText = contentIsMedia ? hintMediaSource : hintContent;
                 const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
                 setRevealedHint(displayText ?? null);
                 setHideQuestionContent(true);
-                // clue_index (optional) lets admin pin the hint to a specific
-                // card (e.g. when revealing all 8 clues at once). If absent,
-                // fall back to the currently active clue.
+
                 const explicitIdx = Number(msg.clue_index);
                 const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
                 const idx = hasExplicitIdx ? explicitIdx : activeClueIdxRef.current;
@@ -219,20 +211,10 @@ const MGiaiMaPage = () => {
                 break;
             }
             case "hide_hint": {
-                // Mirror the player's behavior: clear the per-clue card text
-                // AND the top-bar revealedHint text. Without clearing
-                // `revealedHints[idx]` the card keeps showing the answer
-                // content after admin presses "KHOÁ GỢI Ý", even though
-                // the question-board hint is hidden.
+
                 setRevealedHint(null);
                 setHideQuestionContent(true);
-                // Prefer the explicit ``clue_index`` from the event when
-                // present — that is the authoritative target the admin
-                // chose to hide. Fall back to ``activeClueIdxRef`` for
-                // the legacy shape (no ``clue_index``). If neither is
-                // available (e.g. a refreshed MC tab receives a hide
-                // hint before any show_hint replay has rebuilt the
-                // ref), fall through with no-op rather than throwing.
+
                 let idx: number | null = null;
                 const explicitIdx = Number(msg.clue_index);
                 if (Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT) {
@@ -259,10 +241,7 @@ const MGiaiMaPage = () => {
                 setKeywordSubmittedCodes(new Set());
                 break;
             case "reveal_keyword_answer": {
-                // Mirror the player page: always update the answer text, and use
-                // the broadcast banner if present, otherwise rebuild it from the
-                // answer (so an older admin client without `keyword_banner` still
-                // produces the right MC display).
+
                 const answer = msg.answer ?? null;
                 const banner = msg.keyword_banner ?? null;
                 setKeywordAnswer(answer);
@@ -272,8 +251,7 @@ const MGiaiMaPage = () => {
                 break;
             }
             case "send_keyword_info":
-                // Admin broadcast — sync keyword-length banner from admin so MC view matches
-                // even if the local /questions/ fetch returned a different/empty payload.
+
                 {
                     const infoBanner = msg.banner;
                     if (typeof infoBanner === "string" && infoBanner) {
@@ -309,8 +287,6 @@ const MGiaiMaPage = () => {
         questionAnswer: questionAnswer ?? currentQuestion.questionAnswer,
     };
 
-    // When the keyword-phase QuestionBoard timer is running, swap the question text to the keyword-length banner
-    // and strip media so the banner is the only thing shown.
     const questionToShow = isKeywordPhase
         ? { ...questionWithAnswer, questionText: keywordBanner, questionMediaURL: undefined }
         : questionWithAnswer;

@@ -1,22 +1,3 @@
-"""Business logic for the Qualifier (Vòng Loại) phase.
-
-Scoring rules per question (image: Thể thức thi đấu - Vòng Loại):
-  Let x = number of players who answered correctly.
-  Let y = number of players who answered wrongly OR did not answer.
-
-  - Each correct answerer receives  +y  points.
-  - All other players (wrong answer or no answer) receive  -x  points.
-  - Players with no answer are NOT exempt from the penalty.
-
-  Scores are reset to 0 at the start of every round. Each round maintains
-  its own leaderboard in Valkey so cumulative cross-round totals are never mixed.
-
-Standings ranking hierarchy (within a round):
-  1. Total cumulative score for the round (descending).
-  2. Total points from correct answers only (descending).
-  3. Average response time of correct answers (ascending – faster is better).
-"""
-
 import json
 import uuid
 
@@ -36,7 +17,6 @@ from schemas.qualifier import QualifierScoreRequest
 from schemas.base import BaseResponse
 
 
-# ── Valkey key templates (scoped per match + round so scores reset each round) ──
 _QUALIFIER_LEADERBOARD_KEY = "qualifier_leaderboard:{match_code}:{round_number}"
 _QUALIFIER_CORRECT_SCORE_KEY = "qualifier_correct_score:{match_code}:{round_number}"
 _QUALIFIER_RESPONSE_TIME_KEY = "qualifier_response_time:{match_code}:{round_number}"
@@ -49,11 +29,6 @@ async def _rebuild_qualifier_leaderboard_from_db(
     session: AsyncSession,
     valkey: Valkey,
 ) -> None:
-    """Rebuild Valkey qualifier leaderboard keys for one round from QualifierRecord rows.
-
-    Called automatically when the Valkey leaderboard key is missing (e.g. after a
-    Valkey restart) so that previously persisted scores are never lost.
-    """
     match_id = await session.scalar(
         select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False)
     )
@@ -134,15 +109,6 @@ async def calculate_and_apply_qualifier_scores(
     session: AsyncSession,
     valkey: Valkey,
 ) -> BaseResponse:
-    """Read all player answers for the question, compute qualifier scores per the
-    Vòng Loại rules, persist them, and broadcast updates via the match WebSocket channel.
-
-    Scoring (x = correct count, y = wrong + no-answer count):
-      - Correct players:    +y
-      - Wrong players:      -x
-      - No-answer players:  -x
-    """
-
     log_message = (
         f"Qualifier score calculation for match={request.match_code} "
         f"question={request.question_code} round={request.round_number}"
@@ -150,7 +116,6 @@ async def calculate_and_apply_qualifier_scores(
     global_logger.info(log_message)
 
     try:
-        # ── Resolve IDs ──────────────────────────────────────────────────────
         match_id = await session.scalar(
             select(Match.id).where(
                 Match.match_code == request.match_code,
@@ -169,17 +134,15 @@ async def calculate_and_apply_qualifier_scores(
         if question is None:
             raise HTTPException(status_code=404, detail=f"Question {request.question_code} not found.")
 
-        # ── Collect all players ──────────────────────────────────────────────
         result = await session.execute(
             select(User.id, User.user_code).where(
                 User.is_deleted == False,
                 User.role == "player",
             )
         )
-        all_players = result.all()  # list of (id, user_code)
+        all_players = result.all()
         total_players = len(all_players)
 
-        # ── Collect answers ──────────────────────────────────────────────────
         answers_by_player: dict[str, tuple[str | None, float | None]] = {}
         for player_id, player_code in all_players:
             cache_key = f"answer:{request.match_code}:{player_code}:{request.question_code}"
@@ -205,9 +168,7 @@ async def calculate_and_apply_qualifier_scores(
                         row.answer_text,
                         float(row.timestamp) if row.timestamp is not None else None,
                     )
-                # else: player did not answer — will be penalised below
 
-        # ── Classify players ─────────────────────────────────────────────────
         correct_players: list[tuple[str, float | None]] = []
         wrong_players: list[tuple[str, float | None]] = []
         no_answer_players: list[str] = []
@@ -225,16 +186,14 @@ async def calculate_and_apply_qualifier_scores(
             else:
                 wrong_players.append((player_code, timestamp))
 
-        x = len(correct_players)                           # correct count
-        y = len(wrong_players) + len(no_answer_players)   # wrong + no-answer
+        x = len(correct_players)
+        y = len(wrong_players) + len(no_answer_players)
 
         global_logger.info(
             f"Question {request.question_code}: x(correct)={x}, "
             f"wrong={len(wrong_players)}, no_answer={len(no_answer_players)}, y={y}"
         )
 
-        # ── Build score deltas ────────────────────────────────────────────────
-        # (player_code, delta, response_time, is_correct)
         score_entries: list[tuple[str, int, float | None, bool]] = []
 
         for player_code, timestamp in correct_players:
@@ -244,7 +203,6 @@ async def calculate_and_apply_qualifier_scores(
         for player_code in no_answer_players:
             score_entries.append((player_code, -x, None, False))
 
-        # ── Persist QualifierRecord rows ──────────────────────────────────────
         player_id_map: dict[str, "uuid.UUID"] = {
             str(code): uid for uid, code in all_players
         }
@@ -256,7 +214,6 @@ async def calculate_and_apply_qualifier_scores(
                 global_logger.warning(f"Player id not found for code={player_code}; skipping record.")
                 continue
             raw_chosen = answers_by_player.get(player_code, (None, None))[0]
-            # chosen_option is VARCHAR(1) — store only the first char (answer letter A-F).
             chosen = raw_chosen[0].upper() if raw_chosen else None
             new_records.append(
                 QualifierRecord(
@@ -271,7 +228,6 @@ async def calculate_and_apply_qualifier_scores(
                 )
             )
 
-        # ── Update Valkey qualifier leaderboard (per-round keys) ─────────────
         leaderboard_key = _QUALIFIER_LEADERBOARD_KEY.format(
             match_code=request.match_code, round_number=request.round_number
         )
@@ -279,8 +235,6 @@ async def calculate_and_apply_qualifier_scores(
             match_code=request.match_code, round_number=request.round_number
         )
 
-        # Restore cumulative scores from DB *before* committing the current question's
-        # records so the rebuild only covers previous questions and INCR below is correct.
         if not await valkey.exists(leaderboard_key):
             await _rebuild_qualifier_leaderboard_from_db(
                 request.match_code, request.round_number, session, valkey
@@ -316,7 +270,6 @@ async def calculate_and_apply_qualifier_scores(
                 }
             )
 
-        # ── Broadcast score updates ───────────────────────────────────────────
         broadcast_payload = {
             "type": "qualifier_scores_updated",
             "question_code": request.question_code,
@@ -365,8 +318,6 @@ async def get_qualifier_standings(
     session: AsyncSession,
     valkey: Valkey,
 ) -> BaseResponse:
-    """Return qualifier standings for a specific round, sorted by ranking rules."""
-
     log_message = f"GET qualifier standings for match_code={match_code} round={round_number}."
     global_logger.info(log_message)
 
@@ -381,7 +332,6 @@ async def get_qualifier_standings(
             await _rebuild_qualifier_leaderboard_from_db(match_code, round_number, session, valkey)
             raw = await valkey.zrangebyscore(leaderboard_key, "-inf", "+inf", withscores=True)
 
-        # Resolve user names
         user_name_map: dict[str, str] = {}
         if raw:
             codes = [item[0].decode() if isinstance(item[0], bytes) else item[0] for item in raw]
@@ -417,7 +367,6 @@ async def get_qualifier_standings(
                 }
             )
 
-        # Sort: highest total_score → highest correct_score → lowest avg_response_time
         standings.sort(
             key=lambda x: (-x["total_score"], -x["correct_score"], x["avg_response_time"])
         )
@@ -445,11 +394,6 @@ async def process_end_of_round(
     valkey: Valkey,
     advance_count: int | None = None,
 ) -> BaseResponse:
-    """Finalize a qualifier round: mark negative-score players as reserve, select top-N to pass.
-
-    Advancement defaults per round: {1: 8, 2: 4, 3: 2, 4: 2}.
-    Players with total_score < 0 for the round are marked as 'reserve' first.
-    """
     global_logger.info(f"Processing end of qualifier round {round_number} for match {match_code}")
     try:
         match_id = await session.scalar(
@@ -502,7 +446,6 @@ async def process_end_of_round(
         to_reserve: list[dict] = []
         new_records: list[QualifierAdvancement] = []
 
-        # Mark negative-score players as reserve
         for entry in standings:
             user_code = entry.get("user_code")
             if user_code is None:
@@ -521,7 +464,6 @@ async def process_end_of_round(
                     reserved_ids.add(uid)
                     to_reserve.append({"user_code": user_code})
 
-        # Select top N from remaining eligible players
         candidates = [
             {"user_code": e.get("user_code"), "user_id": user_map.get(e.get("user_code"))}
             for e in standings
@@ -578,7 +520,6 @@ async def process_end_of_round(
 
 
 async def get_qualifier_advancements(match_code: str, session: AsyncSession) -> BaseResponse:
-    """Return list of qualifier advancement decisions (passed/reserve) for a match."""
     try:
         match_id = await session.scalar(
             select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False)

@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import type { Question } from "@/types/question";
 
-
 interface PVuotDeoClueProps {
     question: Question;
     index?: number;
     onClick?: () => Promise<'correct' | 'incorrect' | boolean> | 'correct' | 'incorrect' | boolean | void;
 }
-
 
 const PVuotDeoClue: React.FC<PVuotDeoClueProps> = ({ question, index = 1, onClick }) => {
     const [status, setStatus] = useState<'idle' | 'selected' | 'correct' | 'incorrect'>('idle');

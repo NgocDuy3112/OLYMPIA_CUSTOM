@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from typing import Annotated
 
 from dependencies.postgresql_db import get_db
@@ -12,9 +12,8 @@ from core.answer import *
 router = APIRouter(prefix='/answers', tags=['Câu trả lời'])
 
 
-
 @router.post(
-    "/", 
+    "/",
     dependencies=[Depends(require_roles(['admin', 'player']))],
     response_model=BaseResponse,
     status_code=201
@@ -46,10 +45,6 @@ async def delete_answer(
     question_code: str,
     session: Annotated[AsyncSession, Depends(get_db)]
 ) -> BaseResponse:
-    """
-    Endpoint to delete an answer based on the provided match, player, and question codes.
-    Accessible only by users with the 'admin' role.
-    """
     try:
         return await delete_answer_from_db(match_code, user_code, question_code, session)
     except HTTPException:
@@ -60,7 +55,6 @@ async def delete_answer(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-
 @router.get(
     "/",
     dependencies=[Depends(require_roles(['admin', 'mc']))],
@@ -68,11 +62,11 @@ async def delete_answer(
     status_code=200
 )
 async def get_answer(
-    match_code: str, 
-    user_code: str,
-    question_code: str,
-    session: Annotated[AsyncSession, Depends(get_db)],
-    valkey: Annotated[Valkey, Depends(get_valkey)]
+    match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OC3_M'")],
+    user_code: Annotated[str | None, Query(description="Mã người chơi. Nếu bỏ qua, trả về tất cả answer trong match (hoặc theo question_code).")] = None,
+    question_code: Annotated[str | None, Query(description="Mã câu hỏi. Nếu bỏ qua, trả về tất cả answer của player trong match.")] = None,
+    session: Annotated[AsyncSession, Depends(get_db)] = None,
+    valkey: Annotated[Valkey, Depends(get_valkey)] = None,
 ) -> BaseResponse:
     try:
         return await get_answer_from_db(match_code, user_code, question_code, session, valkey)

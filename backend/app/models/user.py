@@ -8,7 +8,6 @@ from dependencies.postgresql_db import Base
 from models import *
 
 
-
 class RoleEnum(str, enum.Enum):
     guest = "guest"
     player = "player"
@@ -16,10 +15,8 @@ class RoleEnum(str, enum.Enum):
     admin = "admin"
 
 
-
 def utcnow():
     return datetime.now(timezone.utc)
-
 
 
 class User(Base):
@@ -35,9 +32,8 @@ class User(Base):
     is_deleted: Mapped[bool] = mapped_column(default=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # Use create_type=False to avoid SQLAlchemy auto-creating the enum type at table
-    # creation time; Alembic migration explicitly creates the type in a guarded
-    # DO block so we keep enum creation under migration control.
+
+
     role: Mapped[RoleEnum] = mapped_column(
         Enum(RoleEnum, name="roleenum", create_type=False), default=RoleEnum.player
     )

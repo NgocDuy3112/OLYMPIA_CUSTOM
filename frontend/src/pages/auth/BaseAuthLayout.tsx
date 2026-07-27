@@ -1,13 +1,10 @@
 import React from "react";
 
-
 interface BaseAuthLayoutProps {
     title: string;
     subtitle: string;
     children: React.ReactNode;
 }
-
-
 
 export const BaseAuthLayout: React.FC<BaseAuthLayoutProps> = ({ title, subtitle, children }) => (
     <div className="flex flex-col justify-center items-center min-h-screen bg-cover bg-center">

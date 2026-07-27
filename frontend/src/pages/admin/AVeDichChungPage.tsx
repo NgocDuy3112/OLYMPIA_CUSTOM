@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -26,7 +26,6 @@ import { API_BASE_URL } from "@/configs";
 
 const logger = createLogger("AVeDichChung");
 
-
 const getTimeLimitForPoints = (points: number): number => {
 	switch (points) {
 		case 20: return 15;
@@ -52,18 +51,16 @@ const AVeDichChungPage = () => {
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 
-	// Sync matchCode from URL to localStorage
 	useEffect(() => {
 		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
 			try {
 				localStorage.setItem("matchCode", urlMatchCode);
 			} catch {
-				// ignore
+
 			}
 		}
 	}, [urlMatchCode, storedMatchCode]);
 
-	// Redirect to game managing page if no match code is available
 	useEffect(() => {
 		if (!currentMatchCode) {
 			navigate("/admin/manage");
@@ -71,7 +68,6 @@ const AVeDichChungPage = () => {
 	}, [currentMatchCode, navigate]);
 	const { lastMessage, sendMessage } = useAdminWebSocket();
 
-	// ─── Player state ────────────────────────────────────────────────────────────
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
 	usePlayerPresence({ lastMessage, setPlayers });
 	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
@@ -83,7 +79,6 @@ const AVeDichChungPage = () => {
 		);
 	}, []);
 
-	// ─── Question state ───────────────────────────────────────────────────────────
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [questionCategories, setQuestionCategories] = useState<string[]>([]);
 	const [questionPoints, setQuestionPoints] = useState<number[]>([]);
@@ -97,7 +92,7 @@ const AVeDichChungPage = () => {
 		} catch { return {}; }
 	});
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
-	// Store pending question data to broadcast after power window closes
+
 	const pendingQuestionRef = useRef<{ questionCode: string; question: Question } | null>(null);
 
 	const pendingBroadcastTimerRef = useRef<number | null>(null);
@@ -136,7 +131,6 @@ const AVeDichChungPage = () => {
 		} catch { return []; }
 	});
 
-
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
@@ -161,49 +155,41 @@ const AVeDichChungPage = () => {
 			return migrated;
 		} catch { return {}; }
 	});
-	// Per-player power selection for the current question (cleared after scoring)
+
 	const [playerPowers, setPlayerPowers] = useState<Record<string, "star" | "shield" | null>>({});
 
-	// Persist usedPowers to localStorage whenever it changes (shared with VDR)
 	useEffect(() => {
 		if (!currentMatchCode) return;
 		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
 	}, [usedPowers, currentMatchCode]);
 
-	// Reset playerPowers whenever the active question changes
 	useEffect(() => {
 		setPlayerPowers({});
 	}, [currentQuestion.questionCode]);
 
-	// Listen for power window close event and broadcast pending question immediately
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg = lastMessage as Record<string, any> | null;
 		if (msg?.type === "vd_power_window_closed") {
-			// Power window closed - immediately broadcast the full question (admin manually starts timer)
+
 			broadcastPendingVeDichQuestion();
 		}
 	}, [lastMessage, broadcastPendingVeDichQuestion]);
 
-	// ─── Score state ──────────────────────────────────────────────────────────────
-
 	const questionTitle = "VỀ ĐÍCH - LƯỢT CHUNG";
 	const canShowAnswers = !!currentQuestion.questionCode && !!currentMatchCode && !!token;
 
-	// Point value of the currently active question
 	const currentPoints = (() => {
 		if (!currentQuestion.questionCode) return 0;
 		const idx = questions.findIndex((q) => q.questionCode === currentQuestion.questionCode);
 		return questionPoints[idx] || 0;
 	})();
 
-	// Persist questionStates for CHỌN LẠI within this round, and accumulate answered codes
-	// into a unified cross-round key so the Lượt CÁ NHÂN pick page can also see them as used.
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		// Per-round state (used by CHỌN LẠI to restore board)
+
 		localStorage.setItem(`veDich_chung_states_${currentMatchCode}`, JSON.stringify(questionStates));
-		// Cross-round: accumulate all answered codes into unified list
+
 		const answeredCodes = Object.entries(questionStates)
 			.filter(([, v]) => v === "answered")
 			.map(([k]) => k);
@@ -216,11 +202,10 @@ const AVeDichChungPage = () => {
 					`veDich_used_codes_${currentMatchCode}`,
 					JSON.stringify([...new Set([...existing, ...answeredCodes])]),
 				);
-			} catch { /* ignore */ }
+			} catch {  }
 		}
 	}, [questionStates, currentMatchCode]);
 
-	// ─── Players helpers ──────────────────────────────────────────────────────────
 	const applyPlayersSnapshot = useCallback(
 		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
 			const playersList = Array.isArray(payload?.players) ? payload.players : [];
@@ -251,8 +236,6 @@ const AVeDichChungPage = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			// user_name is already included in the /matches/{code}/players response,
-			// so we no longer need N separate /users/?user_code= requests.
 			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
 				user_name: entry.user_name ?? "",
@@ -298,7 +281,6 @@ const AVeDichChungPage = () => {
 		}
 	}, [currentMatchCode, loadPlayersState, sendMessage]);
 
-	// ─── Question fetch ───────────────────────────────────────────────────────────
 	useEffect(() => {
 		const fetchQuestions = async () => {
 			if (!currentMatchCode || !token) return;
@@ -344,7 +326,6 @@ const AVeDichChungPage = () => {
 		});
 	}, [sendPlayersSnapshot]);
 
-	// Broadcast round question metadata so players can render the 4 question cards
 	useEffect(() => {
 		if (!currentMatchCode || questions.length === 0 || roundQuestionCodes.length === 0) return;
 		const metadata = roundQuestionCodes.map((code) => {
@@ -356,7 +337,6 @@ const AVeDichChungPage = () => {
 		});
 		void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
-
 
 	const mapQuestionPayload = useCallback(
 		(payload: any, fallbackCode?: string): Question => ({
@@ -380,8 +360,7 @@ const AVeDichChungPage = () => {
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setVideoPlayState(null);
-		// Cancel any pending reveal so a stale 5.5s safety timer cannot fire and resurrect
-		// the question we just cleared (e.g. admin toggled a question off mid-window).
+
 		pendingQuestionRef.current = null;
 		clearPendingBroadcastTimer();
 		try {
@@ -428,7 +407,7 @@ const AVeDichChungPage = () => {
 					content: "",
 					media_source: undefined,
 				});
-				// Open 5s power selection window for players
+
 				void sendMessage({ type: "vd_power_window_open", duration: 5 });
 			}
 
@@ -452,7 +431,7 @@ const AVeDichChungPage = () => {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
 				setCurrentQuestion(q);
-				// Store in ref to broadcast after power window closes (5s)
+
 				pendingQuestionRef.current = { questionCode, question: q };
 				logger.info(`[VDC] Question ${questionCode} fetched, waiting for power window to close`);
 
@@ -468,7 +447,6 @@ const AVeDichChungPage = () => {
 	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
 	);
 
-	// ─── Timer ───────────────────────────────────────────────────────────────────
 	const startTheClock = useCallback(() => {
 		if (!currentQuestion.questionCode || isTimerRunning) return;
 		const timeLimit = getTimeLimitForPoints(currentPoints);
@@ -483,9 +461,7 @@ const AVeDichChungPage = () => {
 				question_code: currentQuestion.questionCode,
 				started_at: Date.now(),
 			});
-			// NOTE: play_video is intentionally NOT sent here. In Về Đích rounds the video
-			// autoplays the moment the power window closes (vd_power_window_closed), so the
-			// media is already running by the time admin clicks "Bắt đầu tính giờ".
+
 		}
 	}, [currentQuestion.questionCode, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
 
@@ -506,16 +482,11 @@ const AVeDichChungPage = () => {
 		return () => window.clearInterval(intervalId);
 	}, [timer]);
 
-	// Stop running state when timer expires
 	useEffect(() => {
 		if (timer !== 0 || !isTimerRunning) return;
 		startTransition(() => setIsTimerRunning(false));
 	}, [timer, isTimerRunning]);
 
-	// Reset score flag when active question changes
-	// (no-op placeholder kept for diff clarity)
-
-	// ─── Show answers ─────────────────────────────────────────────────────────────
 	const showAnswers = useCallback(async () => {
 		if (!canShowAnswers) return;
 		const questionCode = currentQuestion.questionCode;
@@ -549,7 +520,6 @@ const AVeDichChungPage = () => {
 		}
 	}, [canShowAnswers, currentMatchCode, token, currentQuestion, players, sendMessage]);
 
-	// ─── Score management ─────────────────────────────────────────────────────────
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
 			if (!playerCode) return;
@@ -620,10 +590,9 @@ const AVeDichChungPage = () => {
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
 
-	// Handle manual score editing from APlayerBar
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
-		// Update local state immediately
+
 		setPlayers((prev) =>
 			prev.map((player) =>
 				player.playerCode === playerCode
@@ -631,71 +600,65 @@ const AVeDichChungPage = () => {
 					: player,
 			),
 		);
-		// Refresh scoreboard from server to ensure consistency
+
 		void sendPlayersSnapshot();
 	}, [sendPlayersSnapshot]);
 
-	// Calculate score: if there are selected players, award them and deduct 50% from everyone;
-	// if no one is selected, deduct 50% from all players (Lượt Chung special rule).
-	// Power modifiers: NSHV (star) → correct +150%, wrong -100%; BHMT (shield) → correct +50%, wrong 0.
 	const handleCalculateScore = useCallback(async () => {
 		if (!currentQuestion.questionCode) return;
 		const points = currentPoints;
-		// Mark question as answered on the board
+
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
-		// Broadcast so player chips update too
+
 		void sendMessage({ type: "vdc_question_state", question_code: currentQuestion.questionCode, state: "answered" });
 		void sendMessage({ type: selectedPlayerCodes.length > 0 ? "vd_dung" : "wrong", phase: "vdc" });
 
 		try {
 			if (selectedPlayerCodes.length === 0) {
-				// No correct answers: apply deduction to all players (respecting shields)
+
 				for (const player of players) {
 					const power = playerPowers[player.playerCode];
 					if (power === 'shield') {
-						// BHMT: no deduction
+
 						continue;
 					}
 					const deduction = power === 'star'
-						? -points // NSHV: -100%
-						: -Math.floor(points * 0.5); // Default: -50%
+						? -points
+						: -Math.floor(points * 0.5);
 					await handleAddScore(player.playerCode, deduction, false);
 				}
 			} else {
-				// Add points to selected players (respecting powers)
+
 				for (const playerCode of selectedPlayerCodes) {
 					const power = playerPowers[playerCode];
 					let awarded: number;
-					if (power === 'star') awarded = Math.round(points * 1.5); // NSHV: +150%
-					else if (power === 'shield') awarded = Math.round(points * 0.5); // BHMT: +50%
-					else awarded = points; // Default: +100%
+					if (power === 'star') awarded = Math.round(points * 1.5);
+					else if (power === 'shield') awarded = Math.round(points * 0.5);
+					else awarded = points;
 					await handleAddScore(playerCode, awarded, false);
 				}
 
-				// Deduct 50% from non-selected players only (respecting shields)
 				for (const player of players) {
 					if (!selectedPlayerCodes.includes(player.playerCode)) {
 						const power = playerPowers[player.playerCode];
 						if (power === 'shield') {
-							// BHMT: no deduction
+
 							continue;
 						}
 						const deduction = power === 'star'
-							? -points // NSHV: -100%
-							: -Math.floor(points * 0.5); // Default: -50%
+							? -points
+							: -Math.floor(points * 0.5);
 						await handleAddScore(player.playerCode, deduction, false);
 					}
 				}
 			}
 
-			// Mark powers as consumed for players who used them
 			const newUsedPowers = { ...usedPowers };
 			for (const [code, power] of Object.entries(playerPowers)) {
 				if (power) newUsedPowers[code] = power;
 			}
 			setUsedPowers(newUsedPowers);
 
-			// Broadcast all player powers so MC/player views update
 			void sendMessage({ type: "vd_powers_used", used_powers: newUsedPowers });
 
 			if (currentMatchCode) {
@@ -719,22 +682,20 @@ const AVeDichChungPage = () => {
 		sendMessage,
 	]);
 
-	// ─── Round control ────────────────────────────────────────────────────────────
 	const handleEndRound = useCallback(async () => {
-		// Reset local state for the next round
+
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
-			// SFX bot plays vd_ket_thuc.mp3 on this event (phase=vdc)
+
 			await sendMessage({ type: "round_end", round: "vdc" });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
 	}, [currentMatchCode, sendMessage]);
 
-	// ─── WebSocket message handling ───────────────────────────────────────────────
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
@@ -765,9 +726,9 @@ const AVeDichChungPage = () => {
 					});
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdc" });
-					} catch { /* best-effort */ }
+					} catch {  }
 					(async () => {
-						// Resend board metadata so the player can see the 4 question cards
+
 						if (roundQuestionCodes.length > 0 && questions.length > 0 && currentMatchCode) {
 							try {
 								const metadata = roundQuestionCodes.map((code) => {
@@ -778,14 +739,14 @@ const AVeDichChungPage = () => {
 									return { code, category: catPrimary || rawCategory, points: pts };
 								});
 								await sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
-							} catch { /* best-effort */ }
+							} catch {  }
 						}
-						// Resend answered question states so the board chips reflect reality
+
 						for (const [code, state] of Object.entries(questionStates)) {
 							if (state === "answered" || state === "answered-wrong") {
 								try {
 									await sendMessage({ type: "vdc_question_state", question_code: code, state });
-								} catch { /* best-effort */ }
+								} catch {  }
 							}
 						}
 						if (currentQuestion.questionCode) {
@@ -797,7 +758,7 @@ const AVeDichChungPage = () => {
 									content: currentQuestion.questionText ?? "",
 									media_source: currentQuestion.questionMediaURL ?? undefined,
 								});
-							} catch { /* best-effort on reconnect */ }
+							} catch {  }
 						}
 						if (timerRef.current > 0 && currentQuestion.questionCode) {
 							try {
@@ -809,22 +770,22 @@ const AVeDichChungPage = () => {
 									question_code: currentQuestion.questionCode,
 									started_at: Date.now(),
 								});
-							} catch { /* best-effort on reconnect */ }
+							} catch {  }
 							if (currentQuestion.questionMediaURL) {
 								try {
 									await sendMessage({ type: "play_video" });
-								} catch { /* best-effort on reconnect */ }
+								} catch {  }
 							}
 						}
 
 						try {
 							await sendPlayersSnapshot();
-						} catch { /* best-effort on reconnect */ }
+						} catch {  }
 
 						if (Object.keys(usedPowers).length > 0) {
 							try {
 								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
-							} catch { /* best-effort */ }
+							} catch {  }
 						}
 					})();
 				}
@@ -849,7 +810,7 @@ const AVeDichChungPage = () => {
 				break;
 			}
 			case "vd_questions_meta_request": {
-				// Player is requesting question metadata (e.g., joined late)
+
 				if (msg.match_code === currentMatchCode && roundQuestionCodes.length > 0 && questions.length > 0) {
 					const metadata = roundQuestionCodes.map((code) => {
 						const idx = questions.findIndex((q) => q.questionCode === code);
@@ -922,7 +883,7 @@ const AVeDichChungPage = () => {
 			}
 
 			case "vd_player_power": {
-				// Player activated a power (star/shield) during the 5s window
+
 				const { user_code, power } = msg;
 				if (user_code && (power === "star" || power === "shield") && !usedPowers[user_code]) {
 					logger.info(`[VDC POWER] Player ${user_code} activated ${power}`);
@@ -936,7 +897,7 @@ const AVeDichChungPage = () => {
 				break;
 			}
 			case "vd_powers_used": {
-				// Sync used powers from another source (e.g. VDR page)
+
 				if (msg.used_powers) {
 					startTransition(() => {
 						setUsedPowers(msg.used_powers);
@@ -950,7 +911,6 @@ const AVeDichChungPage = () => {
 		}
 	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, questionCategories, questionPoints, questionStates, questions, roundQuestionCodes]);
 
-	// ─── Board rendering helpers ──────────────────────────────────────────────────
 	const getQuestionMeta = (questionCode: string) => {
 		const idx = questions.findIndex((q) => q.questionCode === questionCode);
 		const rawCategory = questionCategories[idx] || "Unknown";
@@ -959,7 +919,6 @@ const AVeDichChungPage = () => {
 		return { catPrimary: catPrimary || rawCategory, catSecondary, pts };
 	};
 
-	// ─── Render ───────────────────────────────────────────────────────────────────
 	return (
 		<ABasePageLayout
 			questionTitle={questionTitle}
@@ -1000,7 +959,7 @@ const AVeDichChungPage = () => {
 					})}
 				</div>
 			)}
-			
+
 			playerSectionButtons={
 				<>
 					<AControlButton

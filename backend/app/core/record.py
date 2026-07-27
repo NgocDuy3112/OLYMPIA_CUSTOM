@@ -21,14 +21,8 @@ async def post_record_to_db(
     log_message = f"POST request received to create record for user_code: {request.user_code}, match_code: {request.match_code}, question_code: {request.question_code}."
     global_logger.debug(log_message)
     try:
-        # Save to cache for later queries
         await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: request.points}, incr=True)
-        # Score-change events are loud — the info line at the bottom of this
-        # function already records the persisted record. No duplicate DEBUG
-        # needed for the leaderboard ZADD (it always succeeds or surfaces the
-        # exception below).
 
-        # Find user ID
         user_id = await session.scalar(
             select(User.id).where(
                 User.user_code == request.user_code,
@@ -40,7 +34,6 @@ async def post_record_to_db(
             log_message = f"Player with user_code={request.user_code} does not exist."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
-        # Find match ID
         match_id = await session.scalar(
             select(Match.id).where(
                 Match.match_code == request.match_code,
@@ -51,7 +44,6 @@ async def post_record_to_db(
             log_message = f"Match with match_code={request.match_code} does not exist."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
-        # Find question ID
         question_id = await session.scalar(
             select(Question.id).where(
                 Question.question_code == request.question_code,
@@ -62,7 +54,6 @@ async def post_record_to_db(
             log_message = f"Question with question_code={request.question_code} does not exist."
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
-        # Now create the record
         new_record = Record(
             player_id = user_id,
             match_id = match_id,
@@ -89,46 +80,53 @@ async def post_record_to_db(
 
 async def get_records_from_db(
     match_code: str,
-    user_code: str,
+    user_code: str | None,
     session: AsyncSession
 ) -> BaseResponse:
+
     log_message = f"GET request received to fetch records for user_code: {user_code}, match_code: {match_code}."
     global_logger.debug(log_message)
     try:
-        # Build the query
-        query = select(
-            Record
-        ).join(
-            User, Record.player_id == User.id
-        ).join(
-            Match, Record.match_id == Match.id
-        ).where(
-            User.user_code == user_code,
-            Match.match_code == match_code,
-            User.is_deleted == False,
-            Match.is_deleted == False,
-            Record.is_deleted == False
+        stmt = (
+            select(
+                Record,
+                User.user_code.label("u_code"),
+                Match.match_code.label("m_code"),
+                Question.question_code.label("q_code"),
+            )
+            .join(User, Record.player_id == User.id)
+            .join(Match, Record.match_id == Match.id)
+            .join(Question, Record.question_id == Question.id)
+            .where(
+                Match.match_code == match_code,
+                User.is_deleted == False,
+                Match.is_deleted == False,
+                Record.is_deleted == False,
+            )
         )
-        result = await session.execute(query)
-        records = result.scalars().all()
-        # Demoted to DEBUG — admin GET /records/ is called on every answer
-        # refresh; INFO here was one line per poll and drowned the
-        # post-record success log.
-        global_logger.debug(f"Fetched {len(records)} records for user_code={user_code}, match_code={match_code}.")
+        if user_code is not None:
+            stmt = stmt.where(User.user_code == user_code)
+        stmt = stmt.order_by(Record.created_at.asc())
 
-        # Convert SQLAlchemy model instances to plain dicts for pydantic serialization
+        result = await session.execute(stmt)
+        rows = result.all()
+
         records_list: list[dict[str, object]] = []
-        for r in records:
+        for row in rows:
+            r = row[0]
             records_list.append({
-                "id": str(r.id) if getattr(r, 'id', None) is not None else None,
+                "user_code": row.u_code,
+                "match_code": row.m_code,
+                "question_code": row.q_code,
+                "points": r.points,
+                "round_number": r.round_number,
                 "created_at": r.created_at.isoformat() if getattr(r, 'created_at', None) is not None else None,
                 "updated_at": r.updated_at.isoformat() if getattr(r, 'updated_at', None) is not None else None,
-                "points": r.points,
-                "is_deleted": r.is_deleted,
-                "player_id": str(r.player_id) if getattr(r, 'player_id', None) is not None else None,
-                "match_id": str(r.match_id) if getattr(r, 'match_id', None) is not None else None,
-                "question_id": str(r.question_id) if getattr(r, 'question_id', None) is not None else None,
             })
+
+        global_logger.debug(
+            f"Fetched {len(records_list)} records for user_code={user_code}, match_code={match_code}."
+        )
 
         return BaseResponse(
             status='success',
