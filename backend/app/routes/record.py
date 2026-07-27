@@ -48,10 +48,6 @@ async def get_records(
     user_code: Annotated[str, Query(..., description="Mã người chơi, phải bắt đầu với 'OC_U'")],
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
-    """
-    Endpoint to retrieve records based on match_code and user_code.
-    Accessible by users with 'admin' or 'mc' roles.
-    """
     try:
         return await get_records_from_db(match_code, user_code, session)
     except ValueError as e:

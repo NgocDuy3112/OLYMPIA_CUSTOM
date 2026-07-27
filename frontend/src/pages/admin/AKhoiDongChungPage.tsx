@@ -183,19 +183,11 @@ const AKhoiDongChungPage = () => {
 				logger.error("Failed to load scoreboard:", error);
 			}
 
-			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-
-			const profiles = playersList.map((entry: any, index: number) => ({
+			// user_name is already included in the /matches/{code}/players response,
+			// so we no longer need N separate /users/?user_code= requests.
+			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
-				user_name: profileResponses[index]?.data?.user_name ?? "",
+				user_name: entry.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -722,33 +714,10 @@ const AKhoiDongChungPage = () => {
 							return [...prev, { playerCode: onlineCode, playerName: "", playerScore: 0, playerConnected: true }];
 						});
 					});
-					// when a player reconnects, navigate them to the current round
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdc" });
 					} catch (err) {
 						logger.error("Failed to navigate player on reconnect:", err);
-					}
-					// Fetch player name if they were added as a placeholder
-					if (token) {
-						void fetch(`${API_BASE_URL}/users/?user_code=${encodeURIComponent(onlineCode)}`, {
-							headers: { Authorization: `Bearer ${token}` },
-						})
-							.then((r) => r.json())
-							.then((json) => {
-								const name: string = json?.data?.user_name ?? "";
-								if (name) {
-									startTransition(() => {
-										setPlayers((prev) =>
-											prev.map((p) =>
-												p.playerCode === onlineCode && !p.playerName
-													? { ...p, playerName: name }
-													: p,
-											),
-										);
-									});
-								}
-							})
-							.catch((e) => logger.warn("player_online: failed to fetch profile", e));
 					}
 					(async () => {
 						// resend current question if active
@@ -795,40 +764,6 @@ const AKhoiDongChungPage = () => {
 				startTransition(() => {
 					applyPlayersSnapshot(msg);
 				});
-				break;
-			}
-			case "player_heartbeat": {
-				// usePlayerPresence already marks connected, but we also need to
-				// fetch the name for placeholder players added by that hook.
-				const hbCode = String(msg.user_code ?? "");
-				if (hbCode && token) {
-					// Only fetch name if this player is in the list but has no name
-					setPlayers((prev) => {
-						const p = prev.find((x) => x.playerCode === hbCode);
-						if (p && !p.playerName) {
-							void fetch(`${API_BASE_URL}/users/?user_code=${encodeURIComponent(hbCode)}`, {
-								headers: { Authorization: `Bearer ${token}` },
-							})
-								.then((r) => r.json())
-								.then((json) => {
-									const name: string = json?.data?.user_name ?? "";
-									if (name) {
-										startTransition(() => {
-											setPlayers((prev2) =>
-												prev2.map((x) =>
-													x.playerCode === hbCode && !x.playerName
-														? { ...x, playerName: name }
-														: x,
-												),
-											);
-										});
-									}
-								})
-								.catch((e) => logger.warn("player_heartbeat: failed to fetch profile", e));
-						}
-						return prev;
-					});
-				}
 				break;
 			}
 			case "player_score_updated": {
@@ -901,23 +836,6 @@ const AKhoiDongChungPage = () => {
 				break;
 			}
 
-			case "buzz": {
-				// Buzz notification from player
-				const { user_code } = msg;
-				if (user_code) {
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((player) =>
-								player.playerCode === user_code
-									? { ...player, playerHasBuzzed: true }
-									: player,
-							),
-						);
-					});
-					logger.info("Player buzzed:", user_code);
-				}
-				break;
-			}
 			default:
 				break;
 		}

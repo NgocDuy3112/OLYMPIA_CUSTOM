@@ -150,18 +150,11 @@ const AVeDichPickQuestion = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-			const profiles = playersList.map((entry: any, index: number) => ({
+			// user_name is already included in the /matches/{code}/players response,
+			// so we no longer need N separate /users/?user_code= requests.
+			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
-				user_name: profileResponses[index]?.data?.user_name ?? "",
+				user_name: entry.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));

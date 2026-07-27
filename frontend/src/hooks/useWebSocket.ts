@@ -11,9 +11,16 @@ const createWsUrl = (matchCode: string, token?: string) =>
 export const useWebSocket = (matchCode: string, token?: string) => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef(0);
   const messageDrainTimerRef = useRef<number | null>(null);
   const pendingMessagesRef = useRef<any[]>([]);
   const isDrainingMessagesRef = useRef(false);
+
+  // Exponential backoff: 1s → 2s → 4s → 8s → 15s (cap)
+  const RECONNECT_BASE_MS = 1_000;
+  const RECONNECT_MAX_MS = 16_000;
+  const getReconnectDelay = () =>
+    Math.min(RECONNECT_BASE_MS * 2 ** reconnectAttemptsRef.current, RECONNECT_MAX_MS);
 
   // Debounce: track last send time for events that trigger audio/navigation
   // Prevents duplicate events when user clicks buttons rapidly
@@ -32,6 +39,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
       window.clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
+    reconnectAttemptsRef.current = 0; // reset backoff on matchCode change
 
     if (messageDrainTimerRef.current) {
       window.clearTimeout(messageDrainTimerRef.current);
@@ -94,6 +102,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
       socket.onopen = () => {
         if (closedByCleanup) return;
         logger.info(`Connected to match: ${matchCode}`);
+        reconnectAttemptsRef.current = 0; // reset backoff on successful connect
         setRawIsConnected(true);
       };
 
@@ -116,7 +125,11 @@ export const useWebSocket = (matchCode: string, token?: string) => {
 
       socket.onclose = () => {
         if (closedByCleanup) return;
-        logger.info(`Disconnected from match: ${matchCode}`);
+        const attempt = reconnectAttemptsRef.current + 1;
+        const delay = getReconnectDelay();
+        logger.info(
+          `Disconnected from match: ${matchCode} — reconnect #${attempt} in ${delay}ms`,
+        );
         setRawIsConnected(false);
 
         if (reconnectTimerRef.current) {
@@ -125,9 +138,10 @@ export const useWebSocket = (matchCode: string, token?: string) => {
         }
 
         reconnectTimerRef.current = window.setTimeout(() => {
+          reconnectAttemptsRef.current += 1;
           logger.info("Reconnecting...");
           connect(); // ✅ reconnect đúng cách (gắn handler lại)
-        }, 3000);
+        }, delay);
       };
     };
 
@@ -140,6 +154,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
         window.clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
       }
+      reconnectAttemptsRef.current = 0; // reset backoff on cleanup
 
       if (messageDrainTimerRef.current) {
         window.clearTimeout(messageDrainTimerRef.current);

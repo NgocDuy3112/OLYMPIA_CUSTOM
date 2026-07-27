@@ -403,13 +403,7 @@ const AGiaiMaPage = () => {
 		void fetchAll();
 	}, [loadClueQuestion]);
 
-	// Re-broadcast the current keyword banner. Safe to call at any time:
-	// - on round start so every connected player/MC syncs the banner
-	// - when a late-joining player/mc comes online (they may have missed the
-	//   initial broadcast while their WebSocket was still connecting)
-	// Always sends the current `keyInfo` (which may be the default placeholder
-	// if the keyword question has not been loaded yet) so the broadcast is
-	// idempotent and never references stale state.
+
 	const broadcastKeywordInfo = useCallback(async () => {
 		if (!currentMatchCode) return;
 		try {
@@ -542,18 +536,11 @@ const AGiaiMaPage = () => {
 				logger.error("Failed to load scoreboard:", err);
 			}
 
-			const profileResponses = await Promise.all(
-				playersList.map((entry: any) =>
-					fetch(`${API_BASE_URL}/users/?user_code=${entry.user_code}`, {
-						headers: { Authorization: `Bearer ${token}` },
-					})
-						.then((res) => res.json())
-						.catch(() => null),
-				),
-			);
-			const profiles = playersList.map((entry: any, index: number) => ({
+			// user_name is already included in the /matches/{code}/players response,
+			// so we no longer need N separate /users/?user_code= requests.
+			const profiles = playersList.map((entry: any) => ({
 				user_code: entry.user_code,
-				user_name: profileResponses[index]?.data?.user_name ?? "",
+				user_name: entry.user_name ?? "",
 			}));
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
@@ -1049,14 +1036,6 @@ const AGiaiMaPage = () => {
 			await sendMessage({
 				type: "hide_hint",
 				user_code: "",
-				// ``clue_index`` lets the backend HDEL this clue's hint
-				// from the per-match snapshot so a refreshed player
-				// does not see a hint the admin has explicitly hidden.
-				// 0-based to match the player/MC handlers and the
-				// bulk-reveal show_hint path in this same file.
-				// Falls back to a no-``clue_index`` payload (legacy
-				// shape) if no clue is currently active — backend
-				// treats that as a no-op for the snapshot.
 				...(activeClueIndex !== null ? { clue_index: activeClueIndex } : {}),
 			});
 		} catch (err) {
