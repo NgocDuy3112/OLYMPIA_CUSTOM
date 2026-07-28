@@ -10,6 +10,7 @@ class ConnectionManager:
 
 
         self._socket_user: dict[WebSocket, str] = {}
+        self._socket_role: dict[WebSocket, str] = {}
         self.valkey: Valkey | None = None
         self._room_tasks: dict[str, asyncio.Task] = {}
 
@@ -70,7 +71,7 @@ class ConnectionManager:
 
         global_logger.info(f"[WS] Unsubscribed from Valkey channel for room {room_id} after {max_retries} retries")
 
-    async def connect(self, websocket: WebSocket, room_id: str, user_code: str | None = None):
+    async def connect(self, websocket: WebSocket, room_id: str, user_code: str | None = None, role: str = ""):
         await websocket.accept()
 
         if room_id not in self.rooms:
@@ -81,6 +82,8 @@ class ConnectionManager:
         self.rooms[room_id].append(websocket)
         if user_code:
             self._socket_user[websocket] = user_code
+        if role:
+            self._socket_role[websocket] = role
         global_logger.debug(f"WS connected to room {room_id}: {websocket.client} (count={len(self.rooms[room_id])})")
 
     def disconnect(self, websocket: WebSocket, room_id: str):
@@ -94,6 +97,7 @@ class ConnectionManager:
             pass
 
         self._socket_user.pop(websocket, None)
+        self._socket_role.pop(websocket, None)
 
         if not conns:
             del self.rooms[room_id]
@@ -144,6 +148,42 @@ class ConnectionManager:
                     self._socket_user.pop(ws, None)
 
         global_logger.debug(f"[WS] Sent to room={room_id!r} type={payload.get('type')!r} total={len(conns)} success={success_count} dead={len(dead)}")
+
+    async def send_to_roles_local(self, room_id: str, roles: list[str], payload: dict):
+        conns = list(self.rooms.get(room_id, []))
+        if not conns:
+            global_logger.warning(f"[WS] send_to_roles_local: No connections in room {room_id!r} (type={payload.get('type')!r})")
+            return
+
+        targets = [ws for ws in conns if self._socket_role.get(ws, "") in roles]
+        if not targets:
+            global_logger.debug(f"[WS] send_to_roles_local: No matching roles {roles} in room {room_id!r} (type={payload.get('type')!r})")
+            return
+
+        dead: list[WebSocket] = []
+        success_count = 0
+        for ws in targets:
+            try:
+                await ws.send_json(payload)
+                success_count += 1
+            except WebSocketDisconnect:
+                dead.append(ws)
+            except Exception as e:
+                global_logger.error(f"[WS] send_to_roles_local failed: {ws.client}: {e}")
+                dead.append(ws)
+
+        if dead:
+            room_conns = self.rooms.get(room_id)
+            if room_conns is not None:
+                for ws in dead:
+                    try:
+                        room_conns.remove(ws)
+                    except ValueError:
+                        pass
+                    self._socket_user.pop(ws, None)
+                    self._socket_role.pop(ws, None)
+
+        global_logger.debug(f"[WS] send_to_roles_local: room={room_id!r} roles={roles} type={payload.get('type')!r} targets={len(targets)} success={success_count}")
 
     async def broadcast_to_room(self, room_id: str, payload: dict):
         global_logger.debug(f"[WS] broadcast_to_room: room={room_id!r} type={payload.get('type')!r} user={payload.get('user_code')!r}")

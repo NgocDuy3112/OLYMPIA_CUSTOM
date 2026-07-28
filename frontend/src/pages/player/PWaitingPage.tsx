@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useState, useContext } from "react";
 import { useParams } from "react-router-dom";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
-import { API_BASE_URL } from "@/configs";
 import { PlayerWebSocketContext } from "@/contexts/playerWsImpl";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { usePlayerProtection } from "@/hooks/usePlayerProtection";
@@ -13,7 +12,6 @@ const PWaitingPage: React.FC = () => {
 	const { matchCode: matchCodeParam } = useParams<{ matchCode: string }>();
 	const matchCode = matchCodeParam ?? sessionStorage.getItem("matchCode") ?? "";
 	const playerCode = sessionStorage.getItem("playerCode") ?? "";
-	const token = sessionStorage.getItem("jwtToken_player") ?? "";
 
 	const [matchName, setMatchName] = useState<string>("");
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
@@ -23,69 +21,13 @@ const PWaitingPage: React.FC = () => {
 	const wsCtx = useContext(PlayerWebSocketContext);
 	const lastMessage = wsCtx?.lastMessage ?? null;
 
-	const loadPlayersWithScores = useCallback(async () => {
-		if (!matchCode || !token) {
-			setLoaded(true);
-			return;
-		}
-		try {
-			const [roomRes, scoreRes] = await Promise.all([
-				fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/room`, {
-					headers: { Authorization: `Bearer ${token}` },
-				}).then((r) => r.json()),
-				fetch(`${API_BASE_URL}/scoreboard/${encodeURIComponent(matchCode)}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				}).then((r) => r.json()).catch(() => null),
-			]);
-
-			const roomData = roomRes?.data ?? {};
-			setMatchName(roomData.match_name ?? "");
-
-			if (roomData.match_status === "finished") {
-				setMatchFinished(true);
-			}
-
-			const roomPlayers: any[] = roomData.players ?? [];
-			const scoreboardList: any[] = scoreRes?.data?.scoreboard ?? [];
-
-			const profiles = roomPlayers.map((p: any) => ({
-				user_code: p.user_code,
-				user_name: p.user_name ?? "",
-			}));
-
-			setPlayers((prev) => buildPlayersSnapshot(roomPlayers, scoreboardList, profiles, prev));
-		} catch {
-			try {
-				const roomRes2 = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/room`, {
-					headers: { Authorization: `Bearer ${token}` },
-				}).then((r) => r.json());
-				const roomData = roomRes2?.data ?? {};
-				setMatchName(roomData.match_name ?? "");
-				if (roomData.match_status === "finished") {
-					setMatchFinished(true);
-				}
-				const roomPlayers: any[] = roomData.players ?? [];
-				setPlayers(roomPlayers.map((p: any) => ({
-					playerCode: p.user_code,
-					playerName: p.user_name,
-					playerScore: 0,
-				})));
-			} catch {  }
-		} finally {
-			setLoaded(true);
-		}
-	}, [matchCode, token]);
-
-	useEffect(() => {
-		void loadPlayersWithScores();
-	}, [loadPlayersWithScores]);
-
 	const applyPlayersSnapshot = useCallback(
 		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
 			const playersList = Array.isArray(payload?.players) ? payload.players : [];
 			const scoreboardList = Array.isArray(payload?.scoreboard) ? payload.scoreboard : [];
 			const profileList = Array.isArray(payload?.profiles) ? payload.profiles : [];
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreboardList, profileList, prev));
+			setLoaded(true);
 		},
 		[],
 	);
@@ -96,6 +38,12 @@ const PWaitingPage: React.FC = () => {
 		const msg = raw?.message ?? raw;
 
 		switch (msg?.type) {
+			case "send_room_info": {
+				setMatchName(msg.match_name ?? "");
+				if (msg.match_status === "finished") setMatchFinished(true);
+				setLoaded(true);
+				break;
+			}
 			case "send_players_info": {
 				applyPlayersSnapshot(msg);
 				break;

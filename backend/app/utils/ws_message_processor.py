@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastapi import WebSocket
+
 from logger import global_logger
 from utils.buzzer_winners import (
     clear_buzzer_winners,
@@ -49,6 +51,8 @@ PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "vd_power_window_closed",
     "vd_questions_meta_request",
     "pong_latency",
+    "qualifier_standings",
+    "send_room_info",
 })
 
 MC_ALLOWED_TYPES: frozenset[str] = frozenset({
@@ -95,6 +99,8 @@ MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "buzzer_winner",
     "blocked_buzz",
     "vd_power_window_open",
+    "qualifier_standings",
+    "send_room_info",
 })
 
 
@@ -103,7 +109,105 @@ def is_allowed_by_role(user_role: str, msg_type: str) -> bool:
         return msg_type in PLAYER_ALLOWED_TYPES
     if user_role == "mc":
         return msg_type in MC_ALLOWED_TYPES
+    if user_role == "guest":
+        return False
     return True
+
+
+KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY"
+
+
+async def send_initial_snapshot(
+    ws_manager: ConnectionManager,
+    websocket: WebSocket,
+    match_code: str,
+    user_code: str,
+    user_role: str,
+) -> None:
+    from dependencies.postgresql_db import AsyncSessionLocal
+    from core.match import get_match_by_match_code_from_db
+    from core.scoreboard import get_scoreboard_for_a_match_from_db
+    from core.qualifier import get_qualifier_standings
+    from core.question import get_question_from_request_from_db
+
+    try:
+        async with AsyncSessionLocal() as session:
+            try:
+                room_resp = await get_match_by_match_code_from_db(match_code, session)
+                room_data = room_resp.data if isinstance(room_resp.data, dict) else {}
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] room fetch failed for {match_code!r}: {e}")
+                room_data = {}
+
+            try:
+                score_resp = await get_scoreboard_for_a_match_from_db(match_code, session, ws_manager.valkey)
+                scoreboard_list = (score_resp.data or {}).get("scoreboard", []) if isinstance(score_resp.data, dict) else []
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] scoreboard fetch failed for {match_code!r}: {e}")
+                scoreboard_list = []
+
+            room_players = room_data.get("players", []) if isinstance(room_data, dict) else []
+
+            try:
+                await websocket.send_json({
+                    "type": "send_room_info",
+                    "match_code": match_code,
+                    "match_name": room_data.get("match_name", ""),
+                    "match_status": room_data.get("match_status", ""),
+                    "players": room_players,
+                })
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] send_room_info failed: {e}")
+
+            try:
+                await websocket.send_json({
+                    "type": "send_players_info",
+                    "players": room_players,
+                    "scoreboard": scoreboard_list,
+                    "profiles": [
+                        {"user_code": p.get("user_code", ""), "user_name": p.get("user_name", "")}
+                        for p in room_players
+                    ],
+                })
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] send_players_info failed: {e}")
+
+            if match_code.startswith("OC3_VL"):
+                try:
+                    standings_resp = await get_qualifier_standings(match_code, 1, session, ws_manager.valkey)
+                    standings = (standings_resp.data or {}).get("standings", []) if isinstance(standings_resp.data, dict) else []
+                    if user_role == "player":
+                        standings = [s for s in standings if s.get("user_code") == user_code]
+                    await websocket.send_json({
+                        "type": "qualifier_standings",
+                        "standings": standings,
+                    })
+                except Exception as e:
+                    global_logger.warning(f"[SNAPSHOT] standings fetch failed for {match_code!r}: {e}")
+
+            try:
+                kw_resp = await get_question_from_request_from_db(match_code, KEYWORD_QUESTION_CODE, session)
+                kw_data = kw_resp.data if isinstance(kw_resp.data, dict) else {}
+                kw_answer = kw_data.get("answer", "") if kw_data else ""
+                if kw_answer:
+                    await websocket.send_json({
+                        "type": "send_keyword_info",
+                        "banner": _build_keyword_banner(kw_answer),
+                    })
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] keyword fetch failed for {match_code!r}: {e}")
+    except Exception as e:
+        global_logger.warning(f"[SNAPSHOT] send_initial_snapshot failed for {match_code!r}: {e}", exc_info=True)
+
+
+def _build_keyword_banner(answer: str) -> str:
+    trimmed_len = len(answer.replace(" ", ""))
+    no_space = answer.replace(" ", "")
+    if no_space.isalpha():
+        return f"TỪ KHOÁ GỒM CÓ {trimmed_len} CHỮ CÁI"
+    if no_space.isdigit():
+        return f"TỪ KHOÁ GỒM CÓ {trimmed_len} CHỮ SỐ"
+    return f"TỪ KHOÁ GỒM CÓ {trimmed_len} KÝ TỰ"
 
 
 async def handle_player_reconnect(

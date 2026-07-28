@@ -77,7 +77,7 @@ async def get_advancements(
 
 @router.get(
     "/standings/{match_code}",
-    dependencies=[Depends(require_roles(["admin", "player", "mc"]))],
+    dependencies=[Depends(require_roles(["admin"]))],
     response_model=BaseResponse,
     status_code=200,
 )

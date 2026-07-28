@@ -6,23 +6,24 @@ import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
+import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const MButPhaPage = () => {
-    const { matchCode, token } = useMcSession();
+    const { matchCode } = useMcSession();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
     const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
 
     useEffect(() => {
         if (!lastMessage) return;
         const msg: any = lastMessage;
         applyWsMessage(msg);
+        applyReveal(msg);
 
         switch (msg?.type) {
             case "send_players_info":
@@ -40,13 +41,8 @@ const MButPhaPage = () => {
             case "clear_answers":
                 clearAnswers();
                 break;
-            case "send_question":
-                void fetchAnswer(msg.question_code ?? "");
-                setVideoPlayState(null);
-                break;
             case "clear_question":
                 clearAnswer();
-
                 break;
             case "play_video":
                 setVideoPlayState("playing");
@@ -67,7 +63,7 @@ const MButPhaPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers, fetchAnswer, clearAnswer, buzzerWinnerCode]);
+    }, [lastMessage, applyWsMessage, applyReveal, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers, clearAnswer, buzzerWinnerCode]);
 
     const questionWithAnswer = {
         ...currentQuestion,

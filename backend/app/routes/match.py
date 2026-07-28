@@ -102,7 +102,7 @@ async def get_all_matches(
 
 @router.get(
     "/{match_code}/room",
-    dependencies=[Depends(require_roles(['admin', 'player', 'mc']))],
+    dependencies=[Depends(require_roles(['admin']))],
     response_model=MatchRoomResponse,
     status_code=200
 )

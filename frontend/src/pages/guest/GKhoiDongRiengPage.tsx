@@ -1,22 +1,21 @@
-
 import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import { useGuestSession } from "@/hooks/useGuestSession";
+import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGuestPlayers } from "@/hooks/useGuestPlayers";
+import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
-const MKhoiDongRiengPage = () => {
-    const { matchCode } = useMcSession();
+const GKhoiDongRiengPage = () => {
+    const { matchCode } = useGuestSession();
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
-    const { lastMessage } = useMcWebSocket();
+    const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, applyWrongAttempt, clearAnswers } = useMcPlayers();
-    const { answer: questionAnswer, explanation: questionExplanation, applyReveal, clear: clearAnswer } = useRevealAnswer();
+    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, applyWrongAttempt, clearAnswers } = useGuestPlayers();
+    const { answer: questionAnswer, explanation: questionExplanation, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
     const [currentPlayerCode, setCurrentPlayerCode] = useState("");
 
     useEffect(() => {
@@ -34,7 +33,6 @@ const MKhoiDongRiengPage = () => {
         switch (msg?.type) {
             case "send_players_info":
                 applyPlayersInfo(msg);
-
                 {
                     const current = (msg?.players ?? []).find((p: any) => p?.is_current);
                     setCurrentPlayerCode(current ? String(current.user_code ?? "") : "");
@@ -88,7 +86,7 @@ const MKhoiDongRiengPage = () => {
     const hasPlayerWithSecondAttempt = players.some((p) => p.playerWrongAttempts === 1);
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
+        <GBasePageLayout players={players} currentPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
             <AQuestionBoard
                 title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
                 question={questionWithAnswer}
@@ -98,7 +96,6 @@ const MKhoiDongRiengPage = () => {
             >
                 {() => (
                     <div className="flex gap-2 items-center">
-                        {}
                         {hasPlayerWithSecondAttempt && (
                             <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
                                 Trả lời lần 2
@@ -107,8 +104,8 @@ const MKhoiDongRiengPage = () => {
                     </div>
                 )}
             </AQuestionBoard>
-        </PBasePageLayout>
+        </GBasePageLayout>
     );
 };
 
-export default MKhoiDongRiengPage;
+export default GKhoiDongRiengPage;
