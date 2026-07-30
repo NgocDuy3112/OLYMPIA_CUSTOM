@@ -3,14 +3,12 @@ import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const MButPhaPage = () => {
-    const { matchCode } = useMcSession();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useMcWebSocket();

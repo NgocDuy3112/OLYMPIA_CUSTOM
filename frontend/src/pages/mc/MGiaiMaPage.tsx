@@ -4,14 +4,12 @@ import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const CLUE_COUNT = 8;
-const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
@@ -58,7 +56,6 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
 };
 
 const MGiaiMaPage = () => {
-    const { matchCode } = useMcSession();
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();

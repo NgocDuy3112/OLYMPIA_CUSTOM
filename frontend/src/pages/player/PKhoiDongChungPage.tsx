@@ -22,7 +22,6 @@ const PKhoiDongChungPage = () => {
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
 	const audioRef = useRef<HTMLAudioElement | null>(null);
-	const [isKeywordPhase, setIsKeywordPhase] = useState(false);
 
 	useEffect(() => {
 		return () => { audioRef.current?.pause(); };

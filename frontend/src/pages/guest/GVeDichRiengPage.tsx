@@ -3,7 +3,6 @@ import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useGuestSession } from "@/hooks/useGuestSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
 import { useGuestPlayers } from "@/hooks/useGuestPlayers";
@@ -12,7 +11,6 @@ import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 type RoundQuestion = { code: string; category: string; points: number };
 
 const GVeDichRiengPage = () => {
-    const { matchCode } = useGuestSession();
     const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();

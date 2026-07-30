@@ -2,7 +2,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { useMcSession } from "@/hooks/useMcSession";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
@@ -11,7 +10,6 @@ import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
 const MQualifierPage = () => {
-    const { matchCode } = useMcSession();
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();

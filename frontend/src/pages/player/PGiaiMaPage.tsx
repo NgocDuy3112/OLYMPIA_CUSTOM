@@ -14,7 +14,6 @@ import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
 
 const CLUE_COUNT = 8;
-const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
