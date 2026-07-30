@@ -50,7 +50,6 @@ const LoginPage: React.FC = () => {
                 <button type="submit" className="mt-4 btn-primary-full">
                     ĐĂNG NHẬP
                 </button>
-                <a href="/player/signup" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Chưa có tài khoản? Click vào đây!</a>
                 <a href="/guest/access" className="text-center text-sm text-blue-300 underline opacity-80 hover:opacity-100">Vào xem với tư cách khán giả</a>
             </form>
         </BaseAuthLayout>
