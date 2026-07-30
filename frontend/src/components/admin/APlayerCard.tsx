@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import { Mic, KeyRound, Pencil } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
@@ -110,7 +111,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                 tabIndex={disabled ? -1 : 0}
                 onClick={disabled ? undefined : handleClick}
                 aria-disabled={disabled ?? false}
-                className={`flex flex-col items-center p-3 rounded-lg transition duration-300 flex-1 min-h-[140px] shadow-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
+                className={`flex flex-col items-center p-3 rounded-lg transition duration-300 flex-1 min-h-35 shadow-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
                     ${isActive || isCurrent
                         ? "bg-blue-600 shadow-xl scale-100 ring-2 text-white ring-blue-300"
                         : "ring-2 ring-blue-600 bg-blue-900 text-blue-300"
@@ -149,7 +150,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                 </div>
 
                 {}
-                <div className="mt-1 text-center min-h-[24px] flex flex-col items-center justify-center w-full">
+                <div className="mt-1 text-center min-h-6 flex flex-col items-center justify-center w-full">
                     {player.playerLastAnswer && player.playerLastAnswer !== "---" && (
                         <p className="text-[14px] font-bold text-white uppercase">
                             {player.playerLastAnswer}
