@@ -1,13 +1,12 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import { useGuestSession } from "@/hooks/useGuestSession";
+import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGuestPlayers } from "@/hooks/useGuestPlayers";
+import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const CLUE_COUNT = 8;
@@ -57,13 +56,13 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
     );
 };
 
-const MGiaiMaPage = () => {
-    const { matchCode } = useMcSession();
-    const { lastMessage } = useMcWebSocket();
+const GGiaiMaPage = () => {
+    const { matchCode } = useGuestSession();
+    const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyKeywordSubmit, clearAnswers } = useMcPlayers();
-    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyKeywordSubmit, clearAnswers } = useGuestPlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
     const [_keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
     const [_revealedHint, setRevealedHint] = useState<string | null>(null);
     const [_keywordAnswer, setKeywordAnswer] = useState<string | null>(null);
@@ -71,9 +70,7 @@ const MGiaiMaPage = () => {
     const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
     const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
     const activeClueIdxRef = useRef<number | null>(null);
-
     const [hideQuestionContent, setHideQuestionContent] = useState(false);
-
     const [isKeywordPhase, setIsKeywordPhase] = useState(false);
 
     useEffect(() => {
@@ -113,7 +110,6 @@ const MGiaiMaPage = () => {
                         })
                     );
                 }
-
                 setHideQuestionContent(false);
                 break;
             }
@@ -121,13 +117,8 @@ const MGiaiMaPage = () => {
                 const { user_code } = msg;
                 if (user_code) {
                     setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
-
                     applyKeywordSubmit(msg);
                 }
-                break;
-            }
-            case "keyword_clues_locked": {
-
                 break;
             }
             case "clear_question":
@@ -140,7 +131,6 @@ const MGiaiMaPage = () => {
                 setHideQuestionContent(false);
                 setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
-
                 clearAnswers();
                 break;
             case "round_start":
@@ -152,13 +142,11 @@ const MGiaiMaPage = () => {
                 setHideQuestionContent(false);
                 setIsKeywordPhase(false);
                 activeClueIdxRef.current = null;
-
                 clearAnswers();
                 break;
             case "show_hint": {
                 const hintContent = msg.hint_content ?? "";
                 const hintMediaSource = msg.hint_media_source ?? "";
-
                 const contentIsMedia = isMediaFilename(hintContent);
                 const displayText = contentIsMedia ? hintMediaSource : hintContent;
                 const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
@@ -181,8 +169,7 @@ const MGiaiMaPage = () => {
                 }
                 break;
             }
-            case "hide_hint": {
-
+            case "hide_hint":
                 setRevealedHint(null);
                 setHideQuestionContent(true);
 
@@ -203,7 +190,6 @@ const MGiaiMaPage = () => {
                     });
                 }
                 break;
-            }
             case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
@@ -212,7 +198,6 @@ const MGiaiMaPage = () => {
                 setKeywordSubmittedCodes(new Set());
                 break;
             case "reveal_keyword_answer": {
-
                 const answer = msg.answer ?? null;
                 const banner = msg.keyword_banner ?? null;
                 setKeywordAnswer(answer);
@@ -221,15 +206,13 @@ const MGiaiMaPage = () => {
                 }
                 break;
             }
-            case "send_keyword_info":
-
-                {
-                    const infoBanner = msg.banner;
-                    if (typeof infoBanner === "string" && infoBanner) {
-                        setKeywordBanner(infoBanner);
-                    }
+            case "send_keyword_info": {
+                const infoBanner = msg.banner;
+                if (typeof infoBanner === "string" && infoBanner) {
+                    setKeywordBanner(infoBanner);
                 }
                 break;
+            }
             default:
                 break;
         }
@@ -263,13 +246,12 @@ const MGiaiMaPage = () => {
         : questionWithAnswer;
 
     return (
-        <PBasePageLayout
+        <GBasePageLayout
             players={players}
             currentPlayerCode=""
         >
             <>
                 {clueGrid}
-
                 <AQuestionBoard
                     title="GIẢI MÃ"
                     question={questionToShow}
@@ -279,8 +261,8 @@ const MGiaiMaPage = () => {
                     hideContent={hideQuestionContent || isKeywordPhase}
                 />
             </>
-        </PBasePageLayout>
+        </GBasePageLayout>
     );
 };
 
-export default MGiaiMaPage;
+export default GGiaiMaPage;

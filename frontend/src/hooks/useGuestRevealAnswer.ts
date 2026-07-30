@@ -1,0 +1,1 @@
+export { useRevealAnswer as useGuestRevealAnswer } from "@/hooks/useRevealAnswer";

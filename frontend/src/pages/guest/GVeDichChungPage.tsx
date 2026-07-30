@@ -1,26 +1,25 @@
-
 import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
+import { useGuestSession } from "@/hooks/useGuestSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGuestPlayers } from "@/hooks/useGuestPlayers";
+import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
-const MVeDichChungPage = () => {
-    const { matchCode } = useMcSession();
+const GVeDichChungPage = () => {
+    const { matchCode } = useGuestSession();
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
-    const { lastMessage } = useMcWebSocket();
+    const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyPlayerPower, clearAnswers } = useMcPlayers();
-    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyPlayerPower, clearAnswers } = useGuestPlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
 
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
         if (!matchCode) return [];
@@ -89,16 +88,14 @@ const MVeDichChungPage = () => {
             case "vd_player_power": {
                 const { user_code, power } = msg;
                 if (user_code && (power === "star" || power === "shield")) {
-
                     applyPlayerPower(user_code, power as "star" | "shield");
                 }
                 break;
             }
-
             default:
                 break;
         }
-}, [lastMessage, applyWsMessage, applyReveal, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, clearAnswers, clearAnswer, matchCode, buzzerWinnerCode, setRoundQuestionsData, applyPlayerPower]);
+    }, [lastMessage, applyWsMessage, applyReveal, startSynced, applyPlayersInfo, applyScoreUpdate, applyAnswers, clearAnswers, clearAnswer, matchCode, buzzerWinnerCode, setRoundQuestionsData, applyPlayerPower]);
 
     const questionWithAnswer = {
         ...currentQuestion,
@@ -106,7 +103,7 @@ const MVeDichChungPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
+        <GBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
             <AQuestionBoard
                 title="VỀ ĐÍCH - LƯỢT CHUNG"
                 question={questionWithAnswer}
@@ -140,8 +137,8 @@ const MVeDichChungPage = () => {
                     </div>
                 )}
             </AQuestionBoard>
-        </PBasePageLayout>
+        </GBasePageLayout>
     );
 };
 
-export default MVeDichChungPage;
+export default GVeDichChungPage;

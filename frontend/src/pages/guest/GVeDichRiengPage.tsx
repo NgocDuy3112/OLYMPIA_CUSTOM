@@ -1,24 +1,23 @@
-
 import { useEffect, useRef, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
+import { useGuestSession } from "@/hooks/useGuestSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGuestPlayers } from "@/hooks/useGuestPlayers";
+import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
-const MVeDichRiengPage = () => {
-    const { matchCode } = useMcSession();
-    const { lastMessage } = useMcWebSocket();
+const GVeDichRiengPage = () => {
+    const { matchCode } = useGuestSession();
+    const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyPlayerPower, clearAnswers } = useMcPlayers();
-    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
+    const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyPlayerPower, clearAnswers } = useGuestPlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
 
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
@@ -28,6 +27,7 @@ const MVeDichRiengPage = () => {
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>([]);
     const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
     const [currentPlayerCode, setCurrentPlayerCode] = useState("");
+
     useEffect(() => {
         if (!lastMessage) return;
         const msg: any = lastMessage;
@@ -58,24 +58,19 @@ const MVeDichRiengPage = () => {
                 const winnerQuestion = msg.question_code;
 
                 if (winner && winnerQuestion !== lastBuzzerQuestionRef.current) {
-                    console.info(`[VDR MC] Received buzzer_winner: winner=${winner}, question=${winnerQuestion}`);
                     setBuzzerWinnerCode(winner);
                     lastBuzzerQuestionRef.current = winnerQuestion;
                     setPlayers((prev) =>
                         prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })),
                     );
-                } else {
-                    console.warn(`[VDR MC] Ignoring buzzer_winner: winner=${winner}, question=${winnerQuestion}, current=${buzzerWinnerCode}`);
                 }
                 break;
             }
-            case "clear_buzz": {
-
+            case "clear_buzz":
                 setBuzzerWinnerCode(null);
                 lastBuzzerQuestionRef.current = null;
                 setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
                 break;
-            }
             case "clear_question":
                 clearAnswer();
                 setVideoPlayState(null);
@@ -90,7 +85,6 @@ const MVeDichRiengPage = () => {
                 setAnsweringWindowTimer(msg.countdown ?? 5);
                 break;
             case "vd_player_power": {
-
                 const { user_code, power } = msg;
                 if (user_code && (power === "star" || power === "shield")) {
                     applyPlayerPower(user_code, power as "star" | "shield");
@@ -99,7 +93,6 @@ const MVeDichRiengPage = () => {
             }
             case "vdr_questions_meta":
             case "vd_questions_selected": {
-
                 if (msg.round !== "chung") {
                     setBuzzerWinnerCode(null);
                     lastBuzzerQuestionRef.current = null;
@@ -119,7 +112,7 @@ const MVeDichRiengPage = () => {
             default:
                 break;
         }
-}, [lastMessage, applyWsMessage, applyReveal, startSynced, applyPlayersInfo, applyScoreUpdate, applyPlayerPower, setPlayers, clearAnswers, clearAnswer, setCurrentPlayerCode, setAnsweringWindowTimer, setRoundQuestionsData, setQuestionStates]);
+    }, [lastMessage, applyWsMessage, applyReveal, startSynced, applyPlayersInfo, applyScoreUpdate, applyPlayerPower, setPlayers, clearAnswers, clearAnswer, setCurrentPlayerCode, setAnsweringWindowTimer, setRoundQuestionsData, setQuestionStates]);
 
     useEffect(() => {
         if (answeringWindowTimer <= 0) return;
@@ -135,7 +128,7 @@ const MVeDichRiengPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode={currentPlayerCode} currentTurnPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
+        <GBasePageLayout players={players} currentPlayerCode={currentPlayerCode} currentTurnPlayerCode={currentPlayerCode} buzzerWinnerCode={buzzerWinnerCode}>
             <>
                 <AQuestionBoard
                     title="VỀ ĐÍCH - LƯỢT CÁ NHÂN"
@@ -171,8 +164,8 @@ const MVeDichRiengPage = () => {
                     )}
                 </AQuestionBoard>
             </>
-        </PBasePageLayout>
+        </GBasePageLayout>
     );
 };
 
-export default MVeDichRiengPage;
+export default GVeDichRiengPage;

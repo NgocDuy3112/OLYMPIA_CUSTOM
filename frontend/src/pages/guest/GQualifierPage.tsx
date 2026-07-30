@@ -1,22 +1,21 @@
-
 import { useEffect, useRef, useState } from "react";
-import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { useMcSession } from "@/hooks/useMcSession";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
+import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
+import { useGuestSession } from "@/hooks/useGuestSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGuestPlayers } from "@/hooks/useGuestPlayers";
+import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
-const MQualifierPage = () => {
-    const { matchCode } = useMcSession();
-    const { lastMessage } = useMcWebSocket();
+const GQualifierPage = () => {
+    const { matchCode } = useGuestSession();
+    const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useMcPlayers();
-    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
+    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useGuestPlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
 
     const [boardCount, setBoardCount] = useState<number>(6);
     const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
@@ -139,7 +138,7 @@ const MQualifierPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="">
+        <GBasePageLayout players={players} currentPlayerCode="">
             <>
                 {players.length > 0 && (
                     <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm mb-2">
@@ -216,8 +215,8 @@ const MQualifierPage = () => {
                     </div>
                 )}
             </>
-        </PBasePageLayout>
+        </GBasePageLayout>
     );
 };
 
-export default MQualifierPage;
+export default GQualifierPage;

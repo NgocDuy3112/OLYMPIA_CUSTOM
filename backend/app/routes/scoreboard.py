@@ -15,7 +15,7 @@ router = APIRouter(prefix='/scoreboard', tags=['Bảng xếp hạng'])
 
 @router.get(
     "/{match_code}",
-    dependencies=[Depends(require_roles(['admin', 'player', 'mc']))],
+    dependencies=[Depends(require_roles(['admin']))],
     response_model=BaseResponse,
     status_code=200
 )

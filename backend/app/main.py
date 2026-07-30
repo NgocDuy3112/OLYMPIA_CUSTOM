@@ -34,7 +34,9 @@ from utils.ws_message_processor import (
     handle_mc_reconnect,
     handle_player_reconnect,
     is_allowed_by_role,
+    send_initial_snapshot,
 )
+from core.question import get_question_from_request_from_db
 from logger import global_logger
 import asyncio
 from jwt import PyJWTError
@@ -180,12 +182,15 @@ async def websocket_endpoint(
         )
 
     ws_manager: ConnectionManager = await get_ws_manager()
-    await ws_manager.connect(websocket, match_code, user_code=user_info["user_code"])
+    await ws_manager.connect(websocket, match_code, user_code=user_info["user_code"], role=user_role)
 
     if user_role == "player":
         await handle_player_reconnect(ws_manager, match_code, user_info["user_code"])
     elif user_role == "mc":
         await handle_mc_reconnect(ws_manager, match_code, user_info["user_code"])
+
+    if user_role in ("player", "mc", "guest"):
+        await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
 
     try:
         while True:
@@ -235,6 +240,24 @@ async def websocket_endpoint(
             )
 
             await ws_manager.broadcast_to_room(match_code, broadcast_data)
+
+            if msg_type == "send_question":
+                question_code = broadcast_data.get("question_code", "")
+                if question_code:
+                    try:
+                        async with AsyncSessionLocal() as reveal_session:
+                            q_result = await get_question_from_request_from_db(match_code, question_code, reveal_session)
+                            q_data = q_result.data if isinstance(q_result.data, dict) else {}
+                            answer = q_data.get("answer", "") if q_data else ""
+                            explanation = q_data.get("explanation", "") if q_data else ""
+                            await ws_manager.send_to_roles_local(match_code, ["mc", "guest", "admin"], {
+                                "type": "reveal_answer",
+                                "question_code": question_code,
+                                "answer": answer,
+                                "explanation": explanation,
+                            })
+                    except Exception as e:
+                        global_logger.warning(f"[WS] reveal_answer failed for {question_code!r}: {e}")
 
             if msg_type in {"buzz", "vd_player_power", "answer", "player_answer", "buzzer_winner", "blocked_buzz"}:
                 global_logger.info(

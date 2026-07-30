@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import PlayerRoutes from "@/routes/PlayerRoutes";
 import AdminRoutes from "@/routes/AdminRoutes";
 import MCRoutes from "@/routes/MCRoutes";
+import GuestRoutes from "@/routes/GuestRoutes";
 import LoginPage from "@/pages/auth/LoginPage";
 import PlayerSignupPage from "@/pages/auth/player/PlayerSignupPage";
 import AdminSignupPage from "@/pages/auth/admin/AdminSignupPage";
@@ -28,6 +29,7 @@ function App() {
           <Route path="/admin/*" element={<AdminRoutes />} />
           {}
           <Route path="/mc/*" element={<MCRoutes />} />
+          <Route path="/guest/*" element={<GuestRoutes />} />
         </Routes>
       </div>
     </BrowserRouter>

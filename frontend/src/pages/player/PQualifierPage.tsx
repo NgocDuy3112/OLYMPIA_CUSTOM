@@ -62,21 +62,6 @@ const PQualifierPage = () => {
     const [answeredCount, setAnsweredCount] = useState(0);
 
     useEffect(() => {
-        if (!matchCode || !token) return;
-        fetch(`${API_BASE_URL}/qualifier/standings/${matchCode}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => r.json())
-            .then((json) => {
-                const all: QualifierStandingEntry[] = json.data?.standings ?? [];
-                const mine = all.find((s) => s.user_code === playerCode);
-                if (mine) setMyStanding(mine);
-            })
-            .catch((e) => logger.warn("Failed to fetch initial qualifier standing:", e));
-
-    }, []);
-
-    useEffect(() => {
         if (!isConnected) return;
         void sendMessage({ type: "request_qualifier_state", user_code: playerCode });
 
@@ -171,6 +156,13 @@ const PQualifierPage = () => {
                 });
 
                 setPlayers(finalPlayers);
+                break;
+            }
+
+            case "qualifier_standings": {
+                const all: QualifierStandingEntry[] = Array.isArray(msg.standings) ? msg.standings : [];
+                const mine = all.find((s) => s.user_code === playerCode);
+                if (mine) setMyStanding(mine);
                 break;
             }
 

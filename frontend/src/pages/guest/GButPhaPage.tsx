@@ -1,22 +1,22 @@
-
 import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import { useGuestSession } from "@/hooks/useGuestSession";
+import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGuestPlayers } from "@/hooks/useGuestPlayers";
+import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
-const MKhoiDongChungPage = () => {
-    const { matchCode } = useMcSession();
+const GButPhaPage = () => {
+    const { matchCode } = useGuestSession();
+    const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
-    const { lastMessage } = useMcWebSocket();
+    const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers } = useMcPlayers();
-    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers } = useGuestPlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -28,14 +28,12 @@ const MKhoiDongChungPage = () => {
             case "send_players_info":
                 applyPlayersInfo(msg);
                 break;
-            case "start_the_timer": {
-                const timeLimit = Number(msg.time_limit ?? 60);
-                const startedAt = msg.started_at ?? Date.now();
-                startSynced(timeLimit, startedAt);
+            case "start_the_timer":
+                startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
+                setVideoPlayState("playing");
                 setBuzzerWinnerCode(null);
                 break;
-            }
             case "player_score_updated":
                 applyScoreUpdate(msg);
                 break;
@@ -44,6 +42,12 @@ const MKhoiDongChungPage = () => {
                 break;
             case "clear_question":
                 clearAnswer();
+                break;
+            case "play_video":
+                setVideoPlayState("playing");
+                break;
+            case "pause_video":
+                setVideoPlayState("paused");
                 break;
             case "send_answers_to_players":
                 applyAnswers(msg);
@@ -65,16 +69,20 @@ const MKhoiDongChungPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
-            <AQuestionBoard
-                title="KHỞI ĐỘNG - LƯỢT CHUNG"
-                question={questionWithAnswer}
-                timerDuration={timer}
-                controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
-                boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
-            />
-        </PBasePageLayout>
+        <GBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
+            <>
+                <AQuestionBoard
+                    title="BỨT PHÁ"
+                    question={questionWithAnswer}
+                    timerDuration={timer}
+                    controls={{ variant: "numbers", count: 5, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+                    videoPlayState={videoPlayState}
+                    hideMediaUntilPlayed
+                    boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
+                />
+            </>
+        </GBasePageLayout>
     );
 };
 
-export default MKhoiDongChungPage;
+export default GButPhaPage;

@@ -1,22 +1,21 @@
-
 import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import { useGuestSession } from "@/hooks/useGuestSession";
+import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGuestPlayers } from "@/hooks/useGuestPlayers";
+import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
-const MKhoiDongChungPage = () => {
-    const { matchCode } = useMcSession();
+const GKhoiDongChungPage = () => {
+    const { matchCode } = useGuestSession();
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
-    const { lastMessage } = useMcWebSocket();
+    const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers } = useMcPlayers();
-    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
+    const { players, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyBuzz, clearAnswers } = useGuestPlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -65,7 +64,7 @@ const MKhoiDongChungPage = () => {
     };
 
     return (
-        <PBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
+        <GBasePageLayout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
             <AQuestionBoard
                 title="KHỞI ĐỘNG - LƯỢT CHUNG"
                 question={questionWithAnswer}
@@ -73,8 +72,8 @@ const MKhoiDongChungPage = () => {
                 controls={{ variant: "numbers", count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
                 boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
             />
-        </PBasePageLayout>
+        </GBasePageLayout>
     );
 };
 
-export default MKhoiDongChungPage;
+export default GKhoiDongChungPage;

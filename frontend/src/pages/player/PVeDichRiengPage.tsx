@@ -47,37 +47,6 @@ const PVeDichRiengPage = () => {
 	const powerWindowTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	useEffect(() => {
-		if (!matchCode || !token) return;
-		let mounted = true;
-		const fetchScores = async () => {
-			try {
-				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				if (!res.ok) return;
-				const json = await res.json();
-				const scoreboardList: any[] = json.data?.scoreboard ?? [];
-				if (mounted && scoreboardList.length > 0) {
-					setPlayers((prev) =>
-						prev.map((p) => {
-							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
-							if (scoreEntry) {
-								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
-								return { ...p, playerScore: newScore };
-							}
-							return p;
-						}),
-					);
-				}
-			} catch (err) {
-				console.warn("Failed to fetch scoreboard on mount:", err);
-			}
-		};
-		void fetchScores();
-		return () => { mounted = false; };
-	}, [matchCode, token]);;
-
-	useEffect(() => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 
