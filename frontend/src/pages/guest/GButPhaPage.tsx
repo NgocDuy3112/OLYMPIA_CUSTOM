@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useGuestSession } from "@/hooks/useGuestSession";
 import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
 import { useGuestPlayers } from "@/hooks/useGuestPlayers";
 import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const GButPhaPage = () => {
-    const { matchCode } = useGuestSession();
     const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useGuestWebSocket();

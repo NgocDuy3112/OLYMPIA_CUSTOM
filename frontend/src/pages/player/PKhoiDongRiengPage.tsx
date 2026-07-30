@@ -1,7 +1,6 @@
 
 
 import { useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "@/configs";
 
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -12,7 +11,7 @@ import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
 import type { PlayerStatus } from "@/types/player";
 
 const PKhoiDongRiengPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
+	const { playerCode } = usePlayerSession();
 	const { lastMessage } = usePlayerWebSocket();
 	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();

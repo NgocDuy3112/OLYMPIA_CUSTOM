@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useGuestSession } from "@/hooks/useGuestSession";
 import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
 import { useGuestPlayers } from "@/hooks/useGuestPlayers";
 import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 
 const GKhoiDongChungPage = () => {
-    const { matchCode } = useGuestSession();
     const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
     const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();

@@ -4,7 +4,6 @@ import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useMcSession } from "@/hooks/useMcSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useMcWebSocket } from "@/hooks/useMcWebSocket";
 import { useMcPlayers } from "@/hooks/useMcPlayers";
@@ -13,7 +12,6 @@ import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 type RoundQuestion = { code: string; category: string; points: number };
 
 const MVeDichRiengPage = () => {
-    const { matchCode } = useMcSession();
     const { lastMessage } = useMcWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();

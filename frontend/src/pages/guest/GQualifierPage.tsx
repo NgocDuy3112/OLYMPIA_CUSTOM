@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { useGuestSession } from "@/hooks/useGuestSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
 import { useGuestPlayers } from "@/hooks/useGuestPlayers";
@@ -10,7 +9,6 @@ import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
 const GQualifierPage = () => {
-    const { matchCode } = useGuestSession();
     const { lastMessage } = useGuestWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
