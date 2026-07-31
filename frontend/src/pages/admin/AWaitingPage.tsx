@@ -302,6 +302,7 @@ const AWaitingPage = () => {
 	const handleNavigateToVDC = useCallback(() => broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick", "/mc/vdc/pick", "/guest/vdc/pick"), [broadcastNavigate]);
 	const handleNavigateToVDR = useCallback(() => broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick", "/mc/vdr/pick", "/guest/vdr/pick"), [broadcastNavigate]);
 	const handleNavigateToGM = useCallback(() => broadcastNavigate("/admin/gm", "/player/gm", "/mc/gm", "/guest/gm"), [broadcastNavigate]);
+	const handleNavigateToWaiting = useCallback(() => broadcastNavigate("/admin/waiting", "/player/waiting", "/mc/waiting", "/guest/waiting"), [broadcastNavigate]);
 
 	if (!currentMatchCode) {
 		return null;
@@ -309,7 +310,7 @@ const AWaitingPage = () => {
 
 	return (
 		<div className="flex flex-col h-screen overflow-hidden">
-			<AdminGameplayNavBar />
+			<AdminGameplayNavBar onNavigateToWaiting={handleNavigateToWaiting} />
 			<div className="flex flex-col flex-1 items-center gap-6 p-6 overflow-y-auto">
 				<h1 className="font-[SVN-Gratelos_Display] text-4xl xl:text-5xl font-bold text-white uppercase tracking-wide text-center">
 					Sảnh Chờ

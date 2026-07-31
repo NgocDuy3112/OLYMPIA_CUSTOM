@@ -13,7 +13,11 @@ const ADMIN_TO_PLAYER_NAV: Record<string, string> = {
 	"/admin/vdr": "/player/vdr",
 };
 
-const AdminGameplayNavBar: React.FC = () => {
+interface AdminGameplayNavBarProps {
+	onNavigateToWaiting?: () => void;
+}
+
+const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({ onNavigateToWaiting }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { sendMessage } = useAdminWebSocket();
@@ -69,7 +73,7 @@ const AdminGameplayNavBar: React.FC = () => {
 				<div className="hidden md:flex items-center gap-6">
 					{}
 					<button
-						onClick={() => navigateAndBroadcast("/admin/waiting")}
+						onClick={() => onNavigateToWaiting ? onNavigateToWaiting() : navigateAndBroadcast("/admin/waiting")}
 						className={`px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base ${isActive("/admin/waiting") ? "bg-blue-700 text-white" : "text-blue-100 hover:bg-blue-800 hover:text-white"}`}
 					>
 						Sảnh Chờ
