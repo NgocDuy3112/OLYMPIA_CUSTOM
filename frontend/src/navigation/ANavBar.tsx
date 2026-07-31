@@ -1,18 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-const ADMIN_TO_PLAYER_NAV: Record<string, string> = {
-	"/admin/waiting": "/player/waiting",
-	"/admin/kdr": "/player/kdr",
-	"/admin/kdc": "/player/kdc",
-	"/admin/gm": "/player/gm",
-	"/admin/bp": "/player/bp",
-	"/admin/vdc/pick": "/player/vdc/pick",
-	"/admin/vdc": "/player/vdc",
-	"/admin/vdr/pick": "/player/vdr/pick",
-	"/admin/vdr": "/player/vdr",
-};
-
 interface AdminGameplayNavBarProps {
 	onNavigateToWaiting?: () => void;
 }
@@ -34,25 +22,12 @@ const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({ onNavigateToW
 
 	const matchCode = localStorage.getItem("matchCode") || "";
 
-	const navigateAndBroadcast = (adminPath: string) => {
-		const normalized = adminPath.endsWith("/") ? adminPath.slice(0, -1) : adminPath;
-		const matchedPrefix = Object.keys(ADMIN_TO_PLAYER_NAV)
-			.sort((a, b) => b.length - a.length)
-			.find((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
-		if (!matchedPrefix) return;
-
-		const basePlayerPath = ADMIN_TO_PLAYER_NAV[matchedPrefix];
-		const noParamsPaths = ["/player/waiting"];
-		const playerPath = noParamsPaths.includes(basePlayerPath)
-			? basePlayerPath
-			: `${basePlayerPath}/${matchCode}`;
-
-		const targetAdminPath = normalized === "/admin/waiting" && matchCode
-			? `/admin/waiting/${matchCode}`
-			: adminPath;
-
-		navigate(targetAdminPath);
-		void sendMessage({ type: "navigate", user_code: "", path: playerPath });
+	const handleWaitingClick = () => {
+		if (!matchCode) return;
+		navigate(`/admin/waiting/${matchCode}`);
+		void sendMessage({ type: "navigate", user_code: "", path: `/player/waiting/${matchCode}` });
+		void sendMessage({ type: "navigate", user_code: "", path: `/mc/waiting/${matchCode}` });
+		void sendMessage({ type: "navigate", user_code: "", path: `/guest/waiting/${matchCode}` });
 	};
 
 	return (
@@ -73,8 +48,8 @@ const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({ onNavigateToW
 				<div className="hidden md:flex items-center gap-6">
 					{}
 					<button
-						onClick={() => onNavigateToWaiting ? onNavigateToWaiting() : navigateAndBroadcast("/admin/waiting")}
-						className={`px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base ${isActive("/admin/waiting") ? "bg-blue-700 text-white" : "text-blue-100 hover:bg-blue-800 hover:text-white"}`}
+						onClick={() => onNavigateToWaiting ? onNavigateToWaiting() : handleWaitingClick()}
+						className={`px-2 py-1.5 tablet:px-3 tablet:py-2 rounded transition-all duration-200 font-medium text-sm tablet:text-base`}
 					>
 						Sảnh Chờ
 					</button>
