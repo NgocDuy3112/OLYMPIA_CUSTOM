@@ -285,35 +285,23 @@ const AWaitingPage = () => {
 		}
 	}, [currentMatchCode, token, sendMessage, sendPlayersSnapshot]);
 
-	const handleNavigateToKDC = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/kdc/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
+	const broadcastNavigate = useCallback(
+		(adminPath: string, playerPath: string, mcPath: string, guestPath: string) => {
+			if (!currentMatchCode) return;
+			navigate(`${adminPath}/${currentMatchCode}`);
+			void sendMessage({ type: "navigate", user_code: "", path: `${playerPath}/${currentMatchCode}` });
+			void sendMessage({ type: "navigate", user_code: "", path: `${mcPath}/${currentMatchCode}` });
+			void sendMessage({ type: "navigate", user_code: "", path: `${guestPath}/${currentMatchCode}` });
+		},
+		[currentMatchCode, navigate, sendMessage],
+	);
 
-	const handleNavigateToKDR = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/kdr/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToBP = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/bp/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToVDC = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/vdc/pick/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToVDR = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/vdr/pick/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToGM = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/gm/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
+	const handleNavigateToKDC = useCallback(() => broadcastNavigate("/admin/kdc", "/player/kdc", "mc/kdc", "guest/kdc"), [broadcastNavigate]);
+	const handleNavigateToKDR = useCallback(() => broadcastNavigate("/admin/kdr", "/player/kdr", "/mc/kdr", "/guest/kdr"), [broadcastNavigate]);
+	const handleNavigateToBP = useCallback(() => broadcastNavigate("/admin/bp", "/player/bp", "/mc/bp", "/guest/bp"), [broadcastNavigate]);
+	const handleNavigateToVDC = useCallback(() => broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick", "/mc/vdc/pick", "/guest/vdc/pick"), [broadcastNavigate]);
+	const handleNavigateToVDR = useCallback(() => broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick", "/mc/vdr/pick", "/guest/vdr/pick"), [broadcastNavigate]);
+	const handleNavigateToGM = useCallback(() => broadcastNavigate("/admin/gm", "/player/gm", "/mc/gm", "/guest/gm"), [broadcastNavigate]);
 
 	if (!currentMatchCode) {
 		return null;
