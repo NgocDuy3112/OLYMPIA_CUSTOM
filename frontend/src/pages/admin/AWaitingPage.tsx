@@ -135,7 +135,12 @@ const AWaitingPage = () => {
 					cumulative_score: cumulativeScore,
 				};
 			});
-			await sendMessage({ type: "send_players_info", players: mergedPlayers });
+			await sendMessage({
+				type: "send_players_info",
+				players: mergedPlayers,
+				scoreboard: scoreList ?? [],
+				profiles: profiles ?? [],
+			});
 		} catch (err) {
 			logger.error("Failed to send players snapshot:", err);
 		}

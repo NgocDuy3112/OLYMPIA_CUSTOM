@@ -40,7 +40,10 @@ export function buildPlayersSnapshot(
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
 
-      const playerScore = (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ?? previous?.playerScore ?? 0;
+      const playerScore =
+        (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ??
+        (entry.cumulative_score ?? entry.total_score ?? entry.score) ??
+        previous?.playerScore ?? 0;
 
       return {
         playerCode: code,

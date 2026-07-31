@@ -393,7 +393,6 @@ async def apply_vedich_turn_player(
 ) -> dict[str, Any]:
     msg_type = data.get("type", "")
 
-
     if msg_type in ("round_start", "round_end", "clear_question"):
         await clear_ve_dich_turn_player(ws_manager.valkey, match_code)
         global_logger.debug(
