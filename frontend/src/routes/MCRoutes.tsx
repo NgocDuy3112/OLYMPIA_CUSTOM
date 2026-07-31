@@ -28,7 +28,7 @@ const MCAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { lastMessage } = useMcWebSocket();
-    const matchCode = sessionStorage.getItem("matchCode") || "";
+    const matchCode = localStorage.getItem("matchCode") || "";
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -38,7 +38,7 @@ const MCAutoNavigator: React.FC = () => {
         const msgType = msg?.type ?? "";
 
         if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
-            const target = "/mc/waiting";
+            const target = matchCode ? `/mc/waiting/${matchCode}` : "/mc/waiting";
             if (location.pathname !== target) {
                 navigate(target, { replace: true });
             }
@@ -83,13 +83,13 @@ const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
     const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
     const location = useLocation();
     const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = sessionStorage.getItem("matchCode");
+        const s = localStorage.getItem("matchCode");
         return s && s.trim() !== "" ? s : "";
     });
 
     useEffect(() => {
         if (urlMatchCode && urlMatchCode !== matchCode) {
-            sessionStorage.setItem("matchCode", urlMatchCode);
+            localStorage.setItem("matchCode", urlMatchCode);
             setMatchCode(urlMatchCode);
         }
     }, [urlMatchCode, matchCode]);
@@ -97,7 +97,7 @@ const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
     useEffect(() => {
         if (matchCode) return;
         const onMatchCodeSet = () => {
-            const s = sessionStorage.getItem("matchCode") || "";
+            const s = localStorage.getItem("matchCode") || "";
             if (s && s.trim() !== "") setMatchCode(s);
         };
         window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
@@ -108,7 +108,7 @@ const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
         if (matchCode) return;
         if (location.pathname.startsWith("/mc/vl")) {
             const defaultCode = "OC3_M_VL";
-            sessionStorage.setItem("matchCode", defaultCode);
+            localStorage.setItem("matchCode", defaultCode);
             setMatchCode(defaultCode);
         }
     }, [location.pathname, matchCode]);

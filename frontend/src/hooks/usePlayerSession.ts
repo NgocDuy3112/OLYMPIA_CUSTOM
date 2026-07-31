@@ -6,7 +6,7 @@ export interface PlayerSession {
 
 export function usePlayerSession(): PlayerSession {
 
-    const matchCode = sessionStorage.getItem("matchCode") ?? "";
+    const matchCode = localStorage.getItem("matchCode") ?? "";
     const playerCode = sessionStorage.getItem("playerCode") ?? "";
     const token = sessionStorage.getItem("jwtToken_player") ?? "";
 

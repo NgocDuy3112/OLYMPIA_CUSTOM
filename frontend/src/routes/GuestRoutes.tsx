@@ -27,7 +27,7 @@ const GuestAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { lastMessage } = useGuestWebSocket();
-    const matchCode = sessionStorage.getItem("matchCode") || "";
+    const matchCode = localStorage.getItem("matchCode") || "";
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -37,7 +37,7 @@ const GuestAutoNavigator: React.FC = () => {
         const msgType = msg?.type ?? "";
 
         if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
-            const target = "/guest/waiting";
+            const target = matchCode ? `/guest/waiting/${matchCode}` : "/guest/waiting";
             if (location.pathname !== target) {
                 navigate(target, { replace: true });
             }
@@ -84,13 +84,13 @@ const GuestWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ childr
     const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
     const location = useLocation();
     const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = sessionStorage.getItem("matchCode");
+        const s = localStorage.getItem("matchCode");
         return s && s.trim() !== "" ? s : "";
     });
 
     useEffect(() => {
         if (urlMatchCode && urlMatchCode !== matchCode) {
-            sessionStorage.setItem("matchCode", urlMatchCode);
+            localStorage.setItem("matchCode", urlMatchCode);
             setMatchCode(urlMatchCode);
         }
     }, [urlMatchCode, matchCode]);
@@ -98,7 +98,7 @@ const GuestWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ childr
     useEffect(() => {
         if (matchCode) return;
         const onMatchCodeSet = () => {
-            const s = sessionStorage.getItem("matchCode") || "";
+            const s = localStorage.getItem("matchCode") || "";
             if (s && s.trim() !== "") setMatchCode(s);
         };
         window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
@@ -109,7 +109,7 @@ const GuestWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ childr
         if (matchCode) return;
         if (location.pathname.startsWith("/guest/vl")) {
             const defaultCode = "OC3_M_VL";
-            sessionStorage.setItem("matchCode", defaultCode);
+            localStorage.setItem("matchCode", defaultCode);
             setMatchCode(defaultCode);
         }
     }, [location.pathname, matchCode]);

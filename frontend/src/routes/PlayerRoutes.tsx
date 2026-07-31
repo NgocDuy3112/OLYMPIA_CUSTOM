@@ -104,13 +104,13 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
     const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
     const location = useLocation();
     const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = sessionStorage.getItem("matchCode");
+        const s = localStorage.getItem("matchCode");
         return s && s.trim() !== "" ? s : "";
     });
 
     useEffect(() => {
         if (urlMatchCode && urlMatchCode !== matchCode) {
-            sessionStorage.setItem("matchCode", urlMatchCode);
+            localStorage.setItem("matchCode", urlMatchCode);
             setMatchCode(urlMatchCode);
         }
     }, [urlMatchCode, matchCode]);
@@ -119,7 +119,7 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         if (matchCode) return;
 
         const onMatchCodeSet = () => {
-            const s = sessionStorage.getItem("matchCode") || "";
+            const s = localStorage.getItem("matchCode") || "";
             if (s && s.trim() !== "") setMatchCode(s);
         };
 
@@ -132,7 +132,7 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ child
         try {
             if (location.pathname.startsWith("/player/vl")) {
                 const defaultCode = "OC3_M_VL";
-                sessionStorage.setItem("matchCode", defaultCode);
+                localStorage.setItem("matchCode", defaultCode);
                 setMatchCode(defaultCode);
             }
         } catch (e) {

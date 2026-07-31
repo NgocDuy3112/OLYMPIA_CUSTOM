@@ -5,7 +5,7 @@ export interface GuestSession {
 }
 
 export function useGuestSession(): GuestSession {
-    const matchCode = sessionStorage.getItem("matchCode") ?? "";
+    const matchCode = localStorage.getItem("matchCode") ?? "";
     const guestCode = sessionStorage.getItem("guestCode") ?? "";
     const token = sessionStorage.getItem("jwtToken_guest") ?? "";
     return { matchCode, guestCode, token };

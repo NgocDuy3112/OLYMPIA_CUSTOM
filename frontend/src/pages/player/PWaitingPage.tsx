@@ -10,7 +10,7 @@ import { usePlayerProtection } from "@/hooks/usePlayerProtection";
 const PWaitingPage: React.FC = () => {
     usePlayerProtection(true);
 	const { matchCode: matchCodeParam } = useParams<{ matchCode: string }>();
-	const matchCode = matchCodeParam ?? sessionStorage.getItem("matchCode") ?? "";
+	const matchCode = matchCodeParam ?? localStorage.getItem("matchCode") ?? "";
 	const playerCode = sessionStorage.getItem("playerCode") ?? "";
 
 	const [matchName, setMatchName] = useState<string>("");
