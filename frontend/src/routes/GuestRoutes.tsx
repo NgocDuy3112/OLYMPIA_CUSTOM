@@ -15,6 +15,14 @@ import GGameAccessPage from "@/pages/guest/GGameAccessPage";
 import GWaitingPage from "@/pages/guest/GWaitingPage";
 import { VeDichRound } from "@/types/veDich";
 
+const ProtectedGuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const token = sessionStorage.getItem("jwtToken_guest");
+    if (!token ) {
+        return <Navigate to="/guest/access" replace />;
+    }
+    return <>{children}</>;
+};
+
 const GuestAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -124,16 +132,46 @@ const GuestRoutes = () => {
                 <Route path="/access" element={<GGameAccessPage />} />
                 <Route path="/waiting" element={<GWaitingPage />} />
                 <Route path="/waiting/:matchCode" element={<GWaitingPage />} />
-                <Route path="/kdc/:matchCode" element={<GKhoiDongChungPage />} />
-                <Route path="/kdr/:matchCode" element={<GKhoiDongRiengPage />} />
-                <Route path="/bp/:matchCode" element={<GButPhaPage />} />
-                <Route path="/gm/:matchCode" element={<GGiaiMaPage />} />
-                <Route path="/vl/:matchCode" element={<GQualifierPage />} />
-                <Route path="/vl" element={<GQualifierPage />} />
-                <Route path="/vdc/pick/:matchCode" element={<GVeDichPickPage round={VeDichRound.CHUNG} />} />
-                <Route path="/vdc/:matchCode" element={<GVeDichChungPage />} />
-                <Route path="/vdr/pick/:matchCode" element={<GVeDichPickPage round={VeDichRound.RIENG} />} />
-                <Route path="/vdr/:matchCode" element={<GVeDichRiengPage />} />
+                <Route
+                    path="/kdc/:matchCode"
+                    element={<ProtectedGuestRoute><GKhoiDongChungPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/kdr/:matchCode"
+                    element={<ProtectedGuestRoute><GKhoiDongRiengPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/bp/:matchCode"
+                    element={<ProtectedGuestRoute><GButPhaPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/gm/:matchCode"
+                    element={<ProtectedGuestRoute><GGiaiMaPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vl/:matchCode"
+                    element={<ProtectedGuestRoute><GQualifierPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vl"
+                    element={<ProtectedGuestRoute><GQualifierPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdc/pick/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichPickPage round={VeDichRound.CHUNG} /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdc/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichChungPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdr/pick/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichPickPage round={VeDichRound.RIENG} /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdr/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichRiengPage /></ProtectedGuestRoute>}
+                />
                 <Route path="*" element={<Navigate to="/guest/access" replace />} />
             </Routes>
         </GuestWebSocketWrapper>
