@@ -34,7 +34,7 @@ const PlayerAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const playerCode = sessionStorage.getItem("playerCode") || "";
-    const matchCode = sessionStorage.getItem("matchCode") || "";
+    const matchCode = localStorage.getItem("matchCode") || "";
     const { lastMessage } = usePlayerWebSocket();
 
     useEffect(() => {
