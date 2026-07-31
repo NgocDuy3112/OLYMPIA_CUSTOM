@@ -265,6 +265,21 @@ async def handle_mc_reconnect(
     )
 
 
+async def handle_guest_reconnect(
+    ws_manager: ConnectionManager,
+    match_code: str,
+    user_code: str,
+) -> None:
+    await _replay_role_state(
+        ws_manager=ws_manager,
+        match_code=match_code,
+        user_code=user_code,
+        event_name="guest_reconnected",
+        include_powers=False,
+        log_prefix="guest",
+    )
+
+
 async def _replay_role_state(
     ws_manager: ConnectionManager,
     match_code: str,

@@ -699,6 +699,7 @@ const AKhoiDongRiengPage = () => {
 		switch (msg?.type) {
 			case "mc_online":
 			case "mc_reconnected":
+			case "guest_reconnected":
 			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {

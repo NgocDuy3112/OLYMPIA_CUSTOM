@@ -342,7 +342,8 @@ const AQualifierPage = () => {
 
                 void loadAdvancements();
                 break;
-            case "player_online": {
+            case "player_online":
+            case "guest_reconnected": {
                 const code = String(msg.user_code ?? "");
                 if (!code) break;
 
