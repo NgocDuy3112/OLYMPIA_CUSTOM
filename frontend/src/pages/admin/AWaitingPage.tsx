@@ -193,7 +193,7 @@ const AWaitingPage = () => {
 				}
 				break;
 			}
-			case "guest_reconnected": {
+			case "guest_online": {
 				if (msg.user_code) {
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/guest/waiting" });
@@ -251,12 +251,13 @@ const AWaitingPage = () => {
 		try {
 			await sendMessage({ type: "end_match" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			await sendPlayersSnapshot();
 		} catch (err) {
 			logger.error("Failed to send end_match:", err);
 		} finally {
 			setIsEndingMatch(false);
 		}
-	}, [currentMatchCode, sendMessage]);
+	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleFinishMatch = useCallback(async () => {
 		if (!currentMatchCode || !token) return;
@@ -272,6 +273,7 @@ const AWaitingPage = () => {
 			if (json.status === "success") {
 				setMatchFinished(true);
 				await sendMessage({ type: "finish_match" });
+				await sendPlayersSnapshot();
 			} else {
 				alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành trận đấu"}`);
 			}
@@ -281,7 +283,7 @@ const AWaitingPage = () => {
 		} finally {
 			setIsFinishingMatch(false);
 		}
-	}, [currentMatchCode, token, sendMessage]);
+	}, [currentMatchCode, token, sendMessage, sendPlayersSnapshot]);
 
 	const handleNavigateToKDC = useCallback(() => {
 		if (!currentMatchCode) return;

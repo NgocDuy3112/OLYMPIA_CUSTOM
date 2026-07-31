@@ -714,7 +714,7 @@ const AVeDichChungPage = () => {
 			}
 			case "mc_online":
 			case "mc_reconnected":
-			case "guest_reconnected":
+			case "guest_online":
 			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {

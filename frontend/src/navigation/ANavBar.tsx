@@ -28,15 +28,27 @@ const AdminGameplayNavBar: React.FC = () => {
 		return location.pathname === path || location.pathname.startsWith(path + "/");
 	};
 
+	const matchCode = localStorage.getItem("matchCode") || "";
+
 	const navigateAndBroadcast = (adminPath: string) => {
-		navigate(adminPath);
 		const normalized = adminPath.endsWith("/") ? adminPath.slice(0, -1) : adminPath;
 		const matchedPrefix = Object.keys(ADMIN_TO_PLAYER_NAV)
 			.sort((a, b) => b.length - a.length)
 			.find((prefix) => normalized === prefix || normalized.startsWith(prefix + "/"));
-		if (matchedPrefix) {
-			void sendMessage({ type: "navigate", user_code: "", path: ADMIN_TO_PLAYER_NAV[matchedPrefix] });
-		}
+		if (!matchedPrefix) return;
+
+		const basePlayerPath = ADMIN_TO_PLAYER_NAV[matchedPrefix];
+		const noParamsPaths = ["/player/waiting"];
+		const playerPath = noParamsPaths.includes(basePlayerPath)
+			? basePlayerPath
+			: `${basePlayerPath}/${matchCode}`;
+
+		const targetAdminPath = normalized === "/admin/waiting" && matchCode
+			? `/admin/waiting/${matchCode}`
+			: adminPath;
+
+		navigate(targetAdminPath);
+		void sendMessage({ type: "navigate", user_code: "", path: playerPath });
 	};
 
 	return (

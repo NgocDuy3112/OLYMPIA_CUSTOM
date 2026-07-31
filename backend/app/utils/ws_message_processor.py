@@ -274,7 +274,7 @@ async def handle_guest_reconnect(
         ws_manager=ws_manager,
         match_code=match_code,
         user_code=user_code,
-        event_name="guest_reconnected",
+        event_name="guest_online",
         include_powers=False,
         log_prefix="guest",
     )

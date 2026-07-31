@@ -50,10 +50,10 @@ const AdminRoutes = () => {
         <AdminWebSocketProvider matchCode={matchCode}>
             <Routes>
             <Route path="/" element={
-                <Navigate to={stored ? "/admin/waiting" : "/admin/manage"} replace />
+                <Navigate to={stored ? `/admin/waiting/${stored}` : "/admin/manage"} replace />
             } />
             <Route
-                path="/waiting/:matchCode?"
+                path="/waiting/:matchCode"
                 element={
                     <ProtectedAdminRoute>
                         <AWaitingPage />
