@@ -143,7 +143,8 @@ const AWaitingPage = () => {
 
 	useEffect(() => {
 		void loadPlayersState();
-	}, [loadPlayersState]);
+		void sendPlayersSnapshot();
+	}, [loadPlayersState, sendPlayersSnapshot]);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -182,6 +183,15 @@ const AWaitingPage = () => {
 				if (msg.user_code) {
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/mc/waiting" });
+					} catch {  }
+					void sendPlayersSnapshot();
+				}
+				break;
+			}
+			case "guest_reconnected": {
+				if (msg.user_code) {
+					try {
+						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/guest/waiting" });
 					} catch {  }
 					void sendPlayersSnapshot();
 				}

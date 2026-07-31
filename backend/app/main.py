@@ -31,6 +31,7 @@ from utils.ws_message_processor import (
     apply_gm_player_state,
     apply_vedich_power_gating,
     apply_vedich_turn_player,
+    handle_guest_reconnect,
     handle_mc_reconnect,
     handle_player_reconnect,
     is_allowed_by_role,
@@ -188,6 +189,8 @@ async def websocket_endpoint(
         await handle_player_reconnect(ws_manager, match_code, user_info["user_code"])
     elif user_role == "mc":
         await handle_mc_reconnect(ws_manager, match_code, user_info["user_code"])
+    elif user_role == "guest":
+        await handle_guest_reconnect(ws_manager, match_code, user_info["user_code"])
 
     if user_role in ("player", "mc", "guest"):
         await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
