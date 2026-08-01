@@ -1,5 +1,6 @@
+import type { AudienceLayoutProps } from "@/types/audience";
 import React, { useEffect, useRef, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
@@ -8,7 +9,6 @@ import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { buildKeywordBanner } from "@/utils/keywordBanner";
-import type { PlayerStatus } from "@/types/player";
 
 const CLUE_COUNT = 8;
 type ClueState = "idle" | "active" | "used";
@@ -47,12 +47,6 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
         </div>
     );
 };
-
-interface AudienceLayoutProps {
-    players: PlayerStatus[];
-    currentPlayerCode: string;
-    children?: ReactNode;
-}
 
 interface GiaiMaAudiencePageProps {
     Layout: ComponentType<AudienceLayoutProps>;

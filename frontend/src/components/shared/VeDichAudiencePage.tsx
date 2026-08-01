@@ -1,15 +1,7 @@
-import type { ComponentType, ReactNode } from "react";
+import type { AudienceLayoutProps } from "@/types/audience";
+import type { ComponentType } from "react";
 import { VeDichChungAudiencePage } from "@/components/shared/VeDichChungAudiencePage";
 import { VeDichRiengAudiencePage } from "@/components/shared/VeDichRiengAudiencePage";
-import type { PlayerStatus } from "@/types/player";
-
-interface AudienceLayoutProps {
-  players: PlayerStatus[];
-  currentPlayerCode: string;
-  currentTurnPlayerCode?: string | null;
-  buzzerWinnerCode?: string | null;
-  children?: ReactNode;
-}
 
 interface VeDichAudiencePageProps {
   variant: "chung" | "rieng";
@@ -21,5 +13,5 @@ export function VeDichAudiencePage({ variant, Layout, matchCode }: VeDichAudienc
   if (variant === "chung") {
     return <VeDichChungAudiencePage Layout={Layout} matchCode={matchCode} />;
   }
-  return <VeDichRiengAudiencePage Layout={Layout} />;
+  return <VeDichRiengAudiencePage Layout={Layout} matchCode={matchCode} />;
 }

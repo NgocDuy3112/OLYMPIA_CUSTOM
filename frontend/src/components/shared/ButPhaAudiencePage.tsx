@@ -1,19 +1,12 @@
+import type { AudienceLayoutProps } from "@/types/audience";
 import { useEffect, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
-import type { PlayerStatus } from "@/types/player";
-
-interface AudienceLayoutProps {
-  players: PlayerStatus[];
-  currentPlayerCode: string;
-  buzzerWinnerCode?: string | null;
-  children?: ReactNode;
-}
 
 interface ButPhaAudiencePageProps {
   Layout: ComponentType<AudienceLayoutProps>;

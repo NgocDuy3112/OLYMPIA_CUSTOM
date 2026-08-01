@@ -1,5 +1,6 @@
+import type { AudienceLayoutProps } from "@/types/audience";
 import { useEffect, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType } from "react";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
@@ -13,12 +14,6 @@ const CATEGORIES = [
 	"VĂN HÓA - THỂ THAO",
 	"KIẾN THỨC TỔNG HỢP",
 ];
-
-interface AudienceLayoutProps {
-    players: import("@/types/player").PlayerStatus[];
-    currentPlayerCode: string;
-    children?: ReactNode;
-}
 
 interface VeDichPickAudiencePageProps {
     round: VeDichRound;

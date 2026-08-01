@@ -1,5 +1,6 @@
+import type { AudienceLayoutProps } from "@/types/audience";
 import { useEffect, useState } from "react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
@@ -9,14 +10,6 @@ import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 
 type RoundQuestion = { code: string; category: string; points: number };
-
-interface AudienceLayoutProps {
-    players: import("@/types/player").PlayerStatus[];
-    currentPlayerCode: string;
-    currentTurnPlayerCode?: string | null;
-    buzzerWinnerCode?: string | null;
-    children?: ReactNode;
-}
 
 interface VeDichAudiencePageProps {
     Layout: ComponentType<AudienceLayoutProps>;
