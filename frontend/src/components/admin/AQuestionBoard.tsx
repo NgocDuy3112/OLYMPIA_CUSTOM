@@ -21,7 +21,7 @@ interface AQuestionBoardProps {
     hideMediaUntilPlayed?: boolean;
 }
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[40vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[60vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
@@ -147,13 +147,13 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                 {question.questionMediaURL ? (
                     <>
                         {}
-                        <div className="w-full lg:w-1/2 flex flex-col justify-start min-h-0 overflow-y-auto">
+                        <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
                         {}
-                        <div className="w-full lg:w-1/2 aspect-video lg:aspect-auto lg:h-full min-h-0 overflow-hidden">
+                        <div className="w-full lg:flex-[7] aspect-video lg:aspect-auto lg:h-full min-h-0 overflow-hidden">
                             {
 
 }
