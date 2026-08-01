@@ -12,7 +12,6 @@ interface WaitingViewProps {
 }
 
 export function WaitingView({
-  matchCode,
   matchName,
   players,
   loaded,
@@ -36,9 +35,7 @@ export function WaitingView({
         {loaded && matchName ? (
           <p className="mt-2 text-2xl font-semibold text-blue-300 uppercase">{matchName}</p>
         ) : null}
-        {loaded && !matchName && matchCode ? (
-          <p className="mt-2 text-lg text-blue-300">Mã trận: <strong>{matchCode}</strong></p>
-        ) : null}
+
       </div>
 
       {loaded && players.length > 0 ? (

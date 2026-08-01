@@ -6,8 +6,7 @@ import { useWaitingState } from "@/hooks/useWaitingState";
 
 const PWaitingPage = () => {
   usePlayerProtection(true);
-  const { matchCode: matchCodeParam } = useParams<{ matchCode: string }>();
-  const matchCode = matchCodeParam ?? localStorage.getItem("matchCode") ?? "";
+  const { matchCode } = useParams<{ matchCode: string }>();
   const playerCode = sessionStorage.getItem("playerCode") ?? "";
   const { lastMessage } = useGameWebSocket();
   const state = useWaitingState(lastMessage);
@@ -15,7 +14,7 @@ const PWaitingPage = () => {
   return (
     <WaitingView
       {...state}
-      matchCode={matchCode}
+      matchCode={matchCode ?? ""}
       currentPlayerCode={playerCode}
       finishedMessage="Các vòng thi đã kết thúc. Bạn chỉ có thể xem kết quả."
     />
