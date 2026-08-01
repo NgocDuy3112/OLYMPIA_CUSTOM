@@ -51,7 +51,7 @@ export function buildPlayersSnapshot(
 
       return {
         playerCode: code,
-        playerName: profile?.user_name ?? previous?.playerName ?? "",
+        playerName: profile?.user_name ?? entry.user_name ?? previous?.playerName ?? "",
         playerScore,
         playerLastAnswer: previous?.playerLastAnswer,
         playerTimestamp: previous?.playerTimestamp,
