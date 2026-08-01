@@ -27,9 +27,13 @@ const GButPhaPage = () => {
                 applyPlayersInfo(msg);
                 break;
             case "send_question":
-            case "clear_question":
             case "round_start":
             case "round_end":
+                setVideoPlayState(null);
+                setBuzzerWinnerCode(null);
+                break;
+            case "clear_question":
+                clearAnswer();
                 setVideoPlayState(null);
                 setBuzzerWinnerCode(null);
                 break;
@@ -44,9 +48,6 @@ const GButPhaPage = () => {
                 break;
             case "clear_answers":
                 clearAnswers();
-                break;
-            case "clear_question":
-                clearAnswer();
                 break;
             case "play_video":
                 setVideoPlayState("playing");

@@ -379,6 +379,12 @@ const PVeDichRiengPage = () => {
 		};
 	}, []);
 
+	const currentPoints = (() => {
+		if (!currentQuestion.questionCode) return 0;
+		const q = roundQuestionsData.find((r) => r.code === currentQuestion.questionCode);
+		return q?.points ?? 0;
+	})();
+
 	return (
 		<PBasePageLayout
 			players={players}
