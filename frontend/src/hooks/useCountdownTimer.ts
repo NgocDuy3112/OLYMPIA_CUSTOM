@@ -45,8 +45,7 @@ export function useCountdownTimer(): CountdownTimerState {
         const remaining = Math.max(0, timeLimitSeconds - elapsedSec);
         const normalized = Math.max(0, Math.round(remaining));
 
-        const safeTimer = normalized > 0 ? normalized : Math.max(0, Math.round(timeLimitSeconds));
-        const finalTimer = safeTimer > 0 ? safeTimer : timeLimitSeconds;
+        const finalTimeLimit = Math.max(0, Math.round(timeLimitSeconds));
 
         if (clampedFromFuture) {
 
@@ -55,8 +54,8 @@ export function useCountdownTimer(): CountdownTimerState {
             );
         }
 
-        setTimeLimit(finalTimer);
-        setTimer(finalTimer);
+        setTimeLimit(finalTimeLimit);
+        setTimer(normalized);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
         setSessionId((s) => s + 1);

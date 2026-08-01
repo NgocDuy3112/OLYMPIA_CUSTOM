@@ -1,6 +1,10 @@
+import type { InputHTMLAttributes } from "react";
 
+type InputFieldProps = {
+    label: string;
+} & InputHTMLAttributes<HTMLInputElement>;
 
-export const InputField = ({ label, ...props }: any) => (
+export const InputField = ({ label, ...props }: InputFieldProps) => (
     <div>
         <label className="block mb-1 font-medium text-sm">{label}</label>
         <input

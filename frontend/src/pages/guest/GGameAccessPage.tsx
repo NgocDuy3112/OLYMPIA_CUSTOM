@@ -17,7 +17,7 @@ const GGameAccessPage: React.FC = () => {
             if (!res.ok) throw new Error(data.detail || "Không lấy được token khán giả");
             sessionStorage.setItem("jwtToken_guest", data.access_token);
             sessionStorage.setItem("guestCode", data.user_code ?? "");
-            sessionStorage.setItem("matchCode", matchCode);
+            localStorage.setItem("matchCode", matchCode);
             try { window.dispatchEvent(new Event("oc3_matchCode_set")); } catch {}
             navigate(`/guest/waiting/${matchCode}`);
         } catch (err: any) {

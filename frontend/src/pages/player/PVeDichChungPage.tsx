@@ -1,7 +1,7 @@
 
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "@/configs";
+import { submitAnswer } from "@/api/answers";
 import { Star, Shield } from "lucide-react";
 
 import PQuestionBoard from "@/components/player/PQuestionBoard";
@@ -9,14 +9,14 @@ import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import type { PlayerStatus } from "@/types/player";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 
 const PVeDichChungPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = useRoleSession("player");
+	const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, applyWsMessage } = useQuestionState();
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
@@ -31,7 +31,7 @@ const PVeDichChungPage = () => {
 	});
 	const [questionStates, setQuestionStates] = useState<Record<string, "answered" | "answered-wrong" | "available">>({});
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, setPlayers, applyPlayersInfo, applyScoreUpdate } = useAudiencePlayers();
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
 
@@ -57,7 +57,9 @@ const PVeDichChungPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
+
+		queueMicrotask(() => {
 
 		console.info("PLAYER lastMessage:", lastMessage);
 		console.info("PLAYER msg:", msg);
@@ -66,50 +68,12 @@ const PVeDichChungPage = () => {
 		if (msg?.type === "send_question" || msg?.type === "clear_question") setVideoPlayState(null);
 
 		switch (msg?.type) {
-			case "send_players_info": {
-
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
-					const code = String(p?.user_code ?? "");
-
-					let name = "";
-					if (p?.user_name) name = p.user_name;
-					else {
-						const prof = (profiles ?? []).find((pr: any) => String(pr?.user_code) === code);
-						if (prof) name = prof.user_name ?? "";
-						else {
-							const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else {
-						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: undefined,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
 			case "start_the_timer": {
-				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				startSynced(Number(msg.time_limit ?? 0), Number(msg.started_at ?? Date.now()));
 				setAnswer("");
 				setShowAnswers(false);
 				break;
@@ -123,16 +87,9 @@ const PVeDichChungPage = () => {
 				setVideoPlayState("paused");
 				break;
 
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
+			case "player_score_updated":
+				applyScoreUpdate(msg);
 				break;
-			}
 
 			case "clear_answers": {
 				setPlayers((prev) =>
@@ -152,7 +109,7 @@ const PVeDichChungPage = () => {
 				const answers = msg.answers ?? [];
 				setPlayers((prev) =>
 					prev.map((p) => {
-						const ans = answers.find((a: any) => a.user_code === p.playerCode);
+						const ans = answers.find((a) => String(a.user_code) === p.playerCode);
 						if (!ans) return p;
 						return {
 							...p,
@@ -178,7 +135,7 @@ const PVeDichChungPage = () => {
 				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
 				if (metadata.length > 0) {
 					setRoundQuestionsData(metadata);
-					try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch {  }
+					try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch (error) { console.error("Storage update failed", error); }
 				}
 				break;
 			}
@@ -203,7 +160,7 @@ const PVeDichChungPage = () => {
 					setUsedPowers((prev) => {
 						const next = { ...prev, [user_code]: power };
 
-						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch {  }
+						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
 						return next;
 					});
 
@@ -219,12 +176,13 @@ const PVeDichChungPage = () => {
 			case "vd_powers_used": {
 
 				if (msg.used_powers) {
-					setUsedPowers(msg.used_powers);
-					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(msg.used_powers)); } catch {  }
+					const powers = msg.used_powers;
+					setUsedPowers(powers);
+					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
 
 					setPlayers((prev) =>
 						prev.map((p) => {
-							const power = msg.used_powers[p.playerCode];
+							const power = powers[p.playerCode];
 							return power ? { ...p, playerPower: power as "star" | "shield" } : p;
 						}),
 					);
@@ -235,7 +193,8 @@ const PVeDichChungPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, startSynced, playerCode, usedPowers, matchCode]);
+		});
+	}, [applyPlayersInfo, applyScoreUpdate, applyWsMessage, lastMessage, matchCode, playerCode, setPlayers, startSynced, usedPowers]);
 
 	useEffect(() => {
 		if (!powerWindowOpen || powerWindowCountdown <= 0) return;
@@ -295,28 +254,16 @@ const PVeDichChungPage = () => {
 		);
 
 		try {
-
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					answer_text: trimmed,
-					has_buzzed: false,
-					timestamp: ts,
-				}),
-			});
-			if (!res.ok) {
-				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST answer:", res.status, body);
-			}
-		} catch (err) {
-			console.warn("Failed to POST answer:", err);
+			await submitAnswer({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				answer_text: trimmed,
+				has_buzzed: false,
+				timestamp: ts,
+			}, token);
+		} catch (error) {
+			console.warn("Failed to submit answer:", error);
 		}
 
 		await sendMessage({
@@ -327,9 +274,15 @@ const PVeDichChungPage = () => {
 			timestamp: ts,
 		});
 		setAnswer("");
-	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode]);
+	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, matchCode, playerCode, sendMessage, setPlayers, timeLimit, timer, token]);
 
 	const isSubmissionDisabled = !isConnected || timer <= 0;
+
+	const currentPoints = (() => {
+		if (!currentQuestion.questionCode) return 0;
+		const q = roundQuestionsData.find((r) => r.code === currentQuestion.questionCode);
+		return q?.points ?? 0;
+	})();
 
 	const displayPlayers = players.map((p) =>
 		showAnswers || p.playerCode === playerCode ? p : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
@@ -387,22 +340,24 @@ const PVeDichChungPage = () => {
 						<div className="flex gap-4">
 							<button
 								onClick={() => { void handleSelectPower('star'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
-									selectedPower === 'star'
-										? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
-										: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
-								}`}
-							>
-								<Star size={20} />
-								<span>Ngôi Sao Hy Vọng</span>
-							</button>
-							<button
-								onClick={() => { void handleSelectPower('shield'); }}
+							disabled={currentPoints === 20}
+							className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
+								selectedPower === 'star'
+									? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
+									: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
+							} ${currentPoints === 20 ? 'opacity-40 cursor-not-allowed' : ''}`}
+						>
+							<Star size={20} />
+							<span>Ngôi Sao Hy Vọng</span>
+						</button>
+						<button
+							onClick={() => { void handleSelectPower('shield'); }}
+							disabled={currentPoints === 50}
 								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
 									selectedPower === 'shield'
 										? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
 										: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
-								}`}
+							} ${currentPoints === 50 ? 'opacity-40 cursor-not-allowed' : ''}`}
 							>
 								<Shield size={20} />
 								<span>Bảo Hộ Miễn Trừ</span>

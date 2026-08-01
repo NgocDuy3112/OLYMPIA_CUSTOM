@@ -12,6 +12,7 @@ interface APlayerBarProps {
     isKeywordMode?: boolean;
     hasKeywordSubmission?: boolean;
     playerPower?: "star" | "shield" | null;
+    isBuzzerWinner?: boolean;
     onClick?: (playerCode: string) => void;
     disabled?: boolean;
 
@@ -26,9 +27,10 @@ interface APlayerBarProps {
     showClueCount?: boolean;
 }
 
-const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, hasKeywordSubmission, playerPower, onClick, disabled, disableReason, onEditScore, token, matchCode, sendMessage, cluesOpened, showClueCount }) => {
+const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, hasKeywordSubmission, playerPower, isBuzzerWinner, onClick, disabled, disableReason, onEditScore, token, matchCode, sendMessage, cluesOpened, showClueCount }) => {
 
-    const borderClass = isCurrent ? "border-white" : (player.playerHasBuzzed ? "border-blue-500" : "border-blue-600");
+    const shouldShowPingIcon = isBuzzerWinner ?? !!player.playerHasBuzzed;
+    const borderClass = isCurrent ? "border-white" : (shouldShowPingIcon ? "border-blue-500" : "border-blue-600");
     const handleClick = () => {
         if (disabled) return;
         onClick?.(player.playerCode);
@@ -127,7 +129,6 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                 <div className="flex flex-col flex-1">
                     <p className="font-extrabold uppercase leading-tight">
                         <span className="flex items-center gap-4">
-                            {}
                             <WifiSignal
                                 latencyMs={player.playerLatencyMs}
                                 connected={!!player.playerConnected}
@@ -137,18 +138,15 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                             {player.playerName && (
                                 <span className="font-[SVN-Gratelos_Display] uppercase text-[14px] tablet:text-[16px] xl:text-[24px] font-extrabold flex items-center gap-2">
                                     {player.playerName}
-                                    {}
                                     {playerPower === 'star' && (
                                         <Star size={16} className="text-white-400 shrink-0" />
                                     )}
                                     {playerPower === 'shield' && (
                                         <Shield size={16} className="text-white-400 shrink-0" />
                                     )}
-                                    {}
                                     {isCurrent && (
                                         <Mic size={16} className="text-white shrink-0" />
                                     )}
-                                    {}
                                     {hasKeywordSubmission && (
                                         <>
                                             <KeyRound size={16} className="text-white-400 shrink-0" />
@@ -159,8 +157,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                                             )}
                                         </>
                                     )}
-                                    {}
-                                    {player.playerHasBuzzed && (
+                                    {shouldShowPingIcon && (
                                         <PingIconStyle isKeywordMode={!!isKeywordMode} />
                                     )}
                                 </span>
@@ -176,7 +173,6 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                     <p className="text-[12px] tablet:text-[14px] xl:text-[18px] mt-1 font-medium leading-snug">
                         {player.playerLastAnswer?.toUpperCase() ?? ""}
                     </p>
-                    {}
                     {hasTieBreaker && (
                         <p className="text-[12px] mt-1 text-blue-200 font-normal">
                             {player.playerCorrectScore != null && (
@@ -206,7 +202,6 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                 </div>
             </div>
 
-            {}
             {showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div

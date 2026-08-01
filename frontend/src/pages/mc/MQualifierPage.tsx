@@ -2,18 +2,18 @@
 import { useEffect, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
 const MQualifierPage = () => {
-    const { lastMessage } = useMcWebSocket();
+    const { lastMessage } = useGameWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useMcPlayers();
+    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useAudiencePlayers();
     const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
 
     const [boardCount, setBoardCount] = useState<number>(6);

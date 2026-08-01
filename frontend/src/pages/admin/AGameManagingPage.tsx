@@ -4,7 +4,7 @@ import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil,
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 const logger = createLogger("AGameManaging");
 
@@ -66,7 +66,7 @@ interface ApiResponse {
 
 const AGameManagingPage = () => {
     const token = localStorage.getItem("jwtToken_admin") ?? "";
-    const { sendMessage } = useAdminWebSocket();
+    const { sendMessage } = useGameWebSocket();
 
     const [showChangePassword, setShowChangePassword] = useState(false);
 
@@ -251,7 +251,7 @@ const AGameManagingPage = () => {
         } finally {
             setMatchLoading(false);
         }
-    }, [authHeaders, users]);
+    }, [authHeaders]);
 
     const fetchAllMatches = useCallback(async () => {
         setAllMatchesLoading(true);

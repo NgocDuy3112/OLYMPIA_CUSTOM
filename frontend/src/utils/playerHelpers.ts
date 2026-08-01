@@ -1,21 +1,25 @@
 import type { PlayerStatus } from "@/types/player";
 
-interface RawPlayer {
+export interface RawPlayer {
   user_code?: string | number;
   user_name?: string;
   position?: number;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
+  is_current?: boolean;
+  isCurrent?: boolean;
+  is_selected?: boolean;
+  selected?: boolean;
 }
-interface RawScore {
+export interface RawScore {
   user_code?: string | number;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
   user_name?: string;
 }
-interface RawProfile {
+export interface RawProfile {
   user_code?: string | number;
   user_name?: string;
 }
@@ -40,11 +44,14 @@ export function buildPlayersSnapshot(
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
 
-      const playerScore = (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ?? previous?.playerScore ?? 0;
+      const playerScore =
+        (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ??
+        (entry.cumulative_score ?? entry.total_score ?? entry.score) ??
+        previous?.playerScore ?? 0;
 
       return {
         playerCode: code,
-        playerName: profile?.user_name ?? previous?.playerName ?? "",
+        playerName: profile?.user_name ?? entry.user_name ?? previous?.playerName ?? "",
         playerScore,
         playerLastAnswer: previous?.playerLastAnswer,
         playerTimestamp: previous?.playerTimestamp,
@@ -52,8 +59,8 @@ export function buildPlayersSnapshot(
         playerConnected: previous?.playerConnected ?? false,
 
         playerIsTurn:
-          (entry as any)?.is_current ?? (entry as any)?.isCurrent ?? (entry as any)?.is_selected ??
-          (entry as any)?.selected ?? previous?.playerIsTurn ?? false,
+          entry.is_current ?? entry.isCurrent ?? entry.is_selected ?? entry.selected ??
+          previous?.playerIsTurn ?? false,
       } as PlayerStatus;
     })
     .filter((p): p is PlayerStatus => p !== null);

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useMatchCode } from "@/hooks/useMatchCode";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { GuestWebSocketProvider } from "@/contexts/GuestWebSocketContext";
-import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 import GKhoiDongChungPage from "@/pages/guest/GKhoiDongChungPage";
 import GKhoiDongRiengPage from "@/pages/guest/GKhoiDongRiengPage";
@@ -15,11 +16,19 @@ import GGameAccessPage from "@/pages/guest/GGameAccessPage";
 import GWaitingPage from "@/pages/guest/GWaitingPage";
 import { VeDichRound } from "@/types/veDich";
 
+const ProtectedGuestRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const token = sessionStorage.getItem("jwtToken_guest");
+    if (!token ) {
+        return <Navigate to="/guest/access" replace />;
+    }
+    return <>{children}</>;
+};
+
 const GuestAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { lastMessage } = useGuestWebSocket();
-    const matchCode = sessionStorage.getItem("matchCode") || "";
+    const { lastMessage } = useGameWebSocket();
+    const matchCode = localStorage.getItem("matchCode") || "";
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -29,7 +38,7 @@ const GuestAutoNavigator: React.FC = () => {
         const msgType = msg?.type ?? "";
 
         if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
-            const target = "/guest/waiting";
+            const target = matchCode ? `/guest/waiting/${matchCode}` : "/guest/waiting";
             if (location.pathname !== target) {
                 navigate(target, { replace: true });
             }
@@ -52,9 +61,10 @@ const GuestAutoNavigator: React.FC = () => {
         }
         if (!guestPath) return;
 
-        const isQualifier = guestPath === "/guest/vl";
+        const isQualifier = guestPath.startsWith("/guest/vl");
         const noParamsPaths = ["/guest/waiting"];
-        const target = noParamsPaths.includes(guestPath)
+        const alreadyHasMatchCode = matchCode && guestPath.endsWith(`/${matchCode}`);
+        const target = noParamsPaths.includes(guestPath) || alreadyHasMatchCode
             ? guestPath
             : isQualifier
                 ? `${guestPath}/OC3_M_VL`
@@ -73,38 +83,7 @@ const GuestAutoNavigator: React.FC = () => {
 };
 
 const GuestWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-    const location = useLocation();
-    const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = sessionStorage.getItem("matchCode");
-        return s && s.trim() !== "" ? s : "";
-    });
-
-    useEffect(() => {
-        if (urlMatchCode && urlMatchCode !== matchCode) {
-            sessionStorage.setItem("matchCode", urlMatchCode);
-            setMatchCode(urlMatchCode);
-        }
-    }, [urlMatchCode, matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        const onMatchCodeSet = () => {
-            const s = sessionStorage.getItem("matchCode") || "";
-            if (s && s.trim() !== "") setMatchCode(s);
-        };
-        window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
-        return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
-    }, [matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        if (location.pathname.startsWith("/guest/vl")) {
-            const defaultCode = "OC3_M_VL";
-            sessionStorage.setItem("matchCode", defaultCode);
-            setMatchCode(defaultCode);
-        }
-    }, [location.pathname, matchCode]);
+    const matchCode = useMatchCode({ defaultPath: "/guest/vl", defaultCode: "OC3_M_VL" });
 
     if (!matchCode) return <>{children}</>;
 
@@ -124,16 +103,46 @@ const GuestRoutes = () => {
                 <Route path="/access" element={<GGameAccessPage />} />
                 <Route path="/waiting" element={<GWaitingPage />} />
                 <Route path="/waiting/:matchCode" element={<GWaitingPage />} />
-                <Route path="/kdc/:matchCode" element={<GKhoiDongChungPage />} />
-                <Route path="/kdr/:matchCode" element={<GKhoiDongRiengPage />} />
-                <Route path="/bp/:matchCode" element={<GButPhaPage />} />
-                <Route path="/gm/:matchCode" element={<GGiaiMaPage />} />
-                <Route path="/vl/:matchCode" element={<GQualifierPage />} />
-                <Route path="/vl" element={<GQualifierPage />} />
-                <Route path="/vdc/pick/:matchCode" element={<GVeDichPickPage round={VeDichRound.CHUNG} />} />
-                <Route path="/vdc/:matchCode" element={<GVeDichChungPage />} />
-                <Route path="/vdr/pick/:matchCode" element={<GVeDichPickPage round={VeDichRound.RIENG} />} />
-                <Route path="/vdr/:matchCode" element={<GVeDichRiengPage />} />
+                <Route
+                    path="/kdc/:matchCode"
+                    element={<ProtectedGuestRoute><GKhoiDongChungPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/kdr/:matchCode"
+                    element={<ProtectedGuestRoute><GKhoiDongRiengPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/bp/:matchCode"
+                    element={<ProtectedGuestRoute><GButPhaPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/gm/:matchCode"
+                    element={<ProtectedGuestRoute><GGiaiMaPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vl/:matchCode"
+                    element={<ProtectedGuestRoute><GQualifierPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vl"
+                    element={<ProtectedGuestRoute><GQualifierPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdc/pick/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichPickPage round={VeDichRound.CHUNG} /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdc/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichChungPage /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdr/pick/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichPickPage round={VeDichRound.RIENG} /></ProtectedGuestRoute>}
+                />
+                <Route
+                    path="/vdr/:matchCode"
+                    element={<ProtectedGuestRoute><GVeDichRiengPage /></ProtectedGuestRoute>}
+                />
                 <Route path="*" element={<Navigate to="/guest/access" replace />} />
             </Routes>
         </GuestWebSocketWrapper>

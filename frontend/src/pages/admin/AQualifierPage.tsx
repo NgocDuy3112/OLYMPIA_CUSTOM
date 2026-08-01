@@ -10,9 +10,8 @@ import {
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -54,11 +53,10 @@ const AQualifierPage = () => {
 
     const currentMatchCode = localStorage.getItem("matchCode") ?? "OC3_M_VL";
     const token = localStorage.getItem("jwtToken_admin") ?? "";
-    const { lastMessage, sendMessage } = useAdminWebSocket();
+    const { lastMessage, sendMessage } = useGameWebSocket();
 
     const [players, setPlayers] = useState<PlayerStatus[]>([]);
-    usePlayerPresence({ lastMessage, setPlayers });
-    usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+    usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
     const [timer, setTimer] = useState<number>(0);
     const timerRef = useRef<number>(0);
@@ -343,7 +341,7 @@ const AQualifierPage = () => {
                 void loadAdvancements();
                 break;
             case "player_online":
-            case "guest_reconnected": {
+            case "guest_online": {
                 const code = String(msg.user_code ?? "");
                 if (!code) break;
 

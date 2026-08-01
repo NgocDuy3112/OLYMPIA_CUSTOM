@@ -25,6 +25,7 @@ from utils.gm_player_state import (
     get_player_keyword_submission,
     set_player_keyword_submission,
 )
+from utils.round_snapshot import get_round_snapshot_messages
 from utils.ve_dich_powers import (
     compute_eligible_user_codes,
     get_used_powers,
@@ -196,6 +197,13 @@ async def send_initial_snapshot(
                     })
             except Exception as e:
                 global_logger.warning(f"[SNAPSHOT] keyword fetch failed for {match_code!r}: {e}")
+
+            try:
+                snapshot_messages = await get_round_snapshot_messages(ws_manager.valkey, match_code) if ws_manager.valkey else []
+                for snapshot_message in snapshot_messages:
+                    await websocket.send_json(snapshot_message)
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] round snapshot replay failed for {match_code!r}: {e}", exc_info=True)
     except Exception as e:
         global_logger.warning(f"[SNAPSHOT] send_initial_snapshot failed for {match_code!r}: {e}", exc_info=True)
 
@@ -235,7 +243,6 @@ async def handle_player_reconnect(
                     "type": "keyword_submit",
                     "user_code": user_code,
                     "keyword_text": submission.get("keyword_text", ""),
-                    "timestamp": submission.get("timestamp", 0),
                     "clues_opened": submission.get("clues_opened"),
                 })
 
@@ -274,7 +281,7 @@ async def handle_guest_reconnect(
         ws_manager=ws_manager,
         match_code=match_code,
         user_code=user_code,
-        event_name="guest_reconnected",
+        event_name="guest_online",
         include_powers=False,
         log_prefix="guest",
     )
@@ -364,16 +371,18 @@ async def _replay_role_state(
                         f"match={match_code!r}"
                     )
                     continue
-                await ws_manager.send_to_room_local(match_code, {
+                target_players = [str(code) for code in hint_payload.get("target_players", [])]
+                payload = {
                     "type": "show_hint",
                     "user_code": "",
-
-
                     "clue_index": clue_index_int,
                     "hint_content": hint_payload.get("text", ""),
                     "hint_media_source": hint_payload.get("media_url", ""),
-                    "target_players": hint_payload.get("target_players", []),
-                })
+                    "target_players": target_players,
+                }
+                if log_prefix == "player" and target_players and user_code not in target_players:
+                    payload = {**payload, "hint_content": "", "hint_media_source": ""}
+                await ws_manager.send_to_user_local(match_code, user_code, payload)
 
             global_logger.debug(
                 f"[WS] Sent GM hint snapshot to {user_code!r}: "
@@ -392,7 +401,6 @@ async def apply_vedich_turn_player(
     data: dict[str, Any],
 ) -> dict[str, Any]:
     msg_type = data.get("type", "")
-
 
     if msg_type in ("round_start", "round_end", "clear_question"):
         await clear_ve_dich_turn_player(ws_manager.valkey, match_code)
@@ -748,7 +756,6 @@ async def apply_gm_admin_state(
                     prev_subs = {}
                 prev_subs[str(user_code)] = {
                     "text": data.get("keyword_text") or "",
-                    "timestamp": int(data.get("timestamp") or 0),
                     "cluesOpened": data.get("clues_opened"),
                 }
                 await set_admin_field(valkey, match_code, "keyword_submissions", prev_subs)
@@ -821,21 +828,12 @@ async def apply_gm_player_state(
                 )
             except (TypeError, ValueError):
                 clues_opened_int = None
-            try:
-                timestamp_int: int | None = (
-                    int(data.get("timestamp"))
-                    if data.get("timestamp") is not None
-                    else None
-                )
-            except (TypeError, ValueError):
-                timestamp_int = None
             await set_player_keyword_submission(
                 valkey,
                 match_code,
                 str(user_code),
                 keyword_text=str(data.get("keyword_text") or ""),
                 clues_opened=clues_opened_int,
-                timestamp=timestamp_int,
                 submitted_at=None,
             )
             return data

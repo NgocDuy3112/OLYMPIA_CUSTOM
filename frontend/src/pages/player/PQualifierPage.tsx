@@ -2,8 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
+import { useRoleSession } from "@/hooks/useRoleSession";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { createLogger } from "@/utils/logger";
@@ -33,8 +33,8 @@ const OPTION_SELECTED_BG: Record<string, string> = {
 };
 
 const PQualifierPage = () => {
-    const { matchCode, playerCode, token } = usePlayerSession();
-    const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+    const { matchCode, playerCode, token } = useRoleSession("player");
+    const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
     const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
 
@@ -65,7 +65,7 @@ const PQualifierPage = () => {
         if (!isConnected) return;
         void sendMessage({ type: "request_qualifier_state", user_code: playerCode });
 
-    }, [isConnected]);
+    }, [isConnected, playerCode, sendMessage]);
 
     const parseOptions = (options: string | string[] | undefined): string[] => {
         if (!options) return [];

@@ -3,17 +3,17 @@ import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { GBasePageLayout } from "@/pages/guest/GBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useGuestWebSocket } from "@/hooks/useGuestWebSocket";
-import { useGuestPlayers } from "@/hooks/useGuestPlayers";
-import { useGuestRevealAnswer } from "@/hooks/useGuestRevealAnswer";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
 const GQualifierPage = () => {
-    const { lastMessage } = useGuestWebSocket();
+    const { lastMessage } = useGameWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useGuestPlayers();
-    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useGuestRevealAnswer();
+    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useAudiencePlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
 
     const [boardCount, setBoardCount] = useState<number>(6);
     const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);

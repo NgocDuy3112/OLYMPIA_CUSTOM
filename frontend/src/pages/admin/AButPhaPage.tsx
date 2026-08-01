@@ -5,9 +5,8 @@ import { AlarmClockCheck, Calculator, Eye, Play, Power } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 const logger = createLogger("AButPha");
@@ -33,7 +32,7 @@ const AButPhaPage = () => {
 	const storedMatchCode = localStorage.getItem("matchCode");
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 
 	useEffect(() => {
 		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
@@ -52,8 +51,7 @@ const AButPhaPage = () => {
 	}, [currentMatchCode, navigate]);
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	usePlayerPresence({ lastMessage, setPlayers });
-	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((code: string) => {
 		setSelectedPlayerCodes((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
@@ -514,7 +512,7 @@ const AButPhaPage = () => {
 			logger.error("handleCalculateScore failed:", err);
 			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCodes, currentQuestion.questionCode, currentMatchCode, token, handleAddScore, sendPlayersSnapshot]);
+	}, [selectedPlayerCodes, currentQuestion.questionCode, currentMatchCode, token, handleAddScore, sendPlayersSnapshot, sendMessage]);
 
 	useEffect(() => {
 		startTransition(() => {
@@ -558,7 +556,7 @@ const AButPhaPage = () => {
 					logger.info(`[BP RECONNECT] Resent question to ${user_code}`);
 				}
 
-				if (timer > 0 && timerStartedAtRef.current) {
+				if (timerRef.current > 0 && timerStartedAtRef.current) {
 					void sendMessage({
 						type: "start_the_timer",
 						user_code: "",
@@ -577,7 +575,7 @@ const AButPhaPage = () => {
 
 			case "mc_online":
 			case "mc_reconnected":
-			case "guest_reconnected":
+			case "guest_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -700,21 +698,19 @@ const AButPhaPage = () => {
 				break;
 			}
 
-			case "buzz": {
+			case "buzz":
+				break;
 
-				const { user_code } = msg;
-				if (user_code) {
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((player) =>
-								player.playerCode === user_code
-									? { ...player, playerHasBuzzed: true }
-									: player,
-							),
-						);
-					});
-					logger.info("Player buzzed:", user_code);
-				}
+			case "buzzer_winner": {
+				const winner = msg.user_code ?? "";
+				startTransition(() => {
+					setPlayers((prev) =>
+						prev.map((player) => ({
+							...player,
+							playerHasBuzzed: winner ? player.playerCode === winner : false,
+						})),
+					);
+				});
 				break;
 			}
 

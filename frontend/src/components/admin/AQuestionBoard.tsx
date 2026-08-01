@@ -143,17 +143,17 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
 
             {}
             {!hideContent && (
-            <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
+            <div className="flex flex-col lg:flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL ? (
                     <>
                         {}
-                        <div className="flex-[2] flex flex-col justify-start min-h-0 overflow-y-auto">
+                        <div className="w-full lg:w-1/2 flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
                         {}
-                        <div className="flex-[5] h-full min-h-0 overflow-hidden">
+                        <div className="w-full lg:w-1/2 aspect-video lg:aspect-auto lg:h-full min-h-0 overflow-hidden">
                             {
 
 }

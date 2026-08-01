@@ -6,7 +6,7 @@ import { CheckCircle, RotateCcw, Play, RefreshCw } from "lucide-react";
 import AVeDichPickLayout from "@/pages/admin/AVeDichPickLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import AControlButton from "@/components/admin/AControlButton";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { compareVeDichCodes, generateVeDichPlaceholderCodes, getVeDichMeta } from "@/utils/veDichGrid";
@@ -21,7 +21,7 @@ const AVeDichPickQuestion = () => {
 	const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
 	const currentMatchCode = localStorage.getItem("matchCode") || paramMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 	const navigate = useNavigate();
 
 	useEffect(() => {

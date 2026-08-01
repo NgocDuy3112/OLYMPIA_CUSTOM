@@ -14,9 +14,8 @@ import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
@@ -68,11 +67,10 @@ const AVeDichRiengPage = () => {
 			navigate("/admin/manage");
 		}
 	}, [currentMatchCode, navigate]);
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	usePlayerPresence({ lastMessage, setPlayers });
-	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -161,6 +159,7 @@ const AVeDichRiengPage = () => {
 	});
 
 	const [activePower, setActivePower] = useState<'star' | 'shield' | null>(null);
+	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 
 	const lastBuzzerQuestionRef = useRef<string | null>(null);
 
@@ -290,7 +289,7 @@ const AVeDichRiengPage = () => {
 		} catch (err) {
 			logger.error("Failed to send players snapshot:", err);
 		}
-	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCodes, currentTurnPlayerCode]);
+	}, [currentMatchCode, loadPlayersState, sendMessage, currentTurnPlayerCode]);
 
 	useEffect(() => {
 		const fetchQuestions = async () => {
@@ -403,6 +402,7 @@ const AVeDichRiengPage = () => {
 			setVideoPlayState(null);
 
 			lastBuzzerQuestionRef.current = null;
+			setBuzzerWinnerCode(null);
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -475,6 +475,7 @@ const AVeDichRiengPage = () => {
 		setAnsweringWindowTimer(0);
 
 		lastBuzzerQuestionRef.current = null;
+		setBuzzerWinnerCode(null);
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
 
@@ -710,7 +711,7 @@ const AVeDichRiengPage = () => {
 		currentQuestion.questionCode,
 		currentPoints,
 		activePower,
-	[currentTurnPlayerCode],
+		currentTurnPlayerCode,
 		handleAddScore,
 		sendPlayersSnapshot,
 		sendMessage,
@@ -721,6 +722,7 @@ const AVeDichRiengPage = () => {
 		if (timer !== 0) return;
 		setAnsweringWindowTimer(5);
 		lastBuzzerQuestionRef.current = null;
+		setBuzzerWinnerCode(null);
 		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (currentMatchCode) {
 			void sendMessage({ type: "clear_buzz" });
@@ -737,6 +739,7 @@ const AVeDichRiengPage = () => {
 		setIsTimerRunning(false);
 
 		lastBuzzerQuestionRef.current = null;
+		setBuzzerWinnerCode(null);
 		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (!currentMatchCode) return;
 		try {
@@ -775,6 +778,7 @@ const AVeDichRiengPage = () => {
 						setRoundQuestionCodes(msg.selected_question_codes);
 
 						lastBuzzerQuestionRef.current = null;
+						setBuzzerWinnerCode(null);
 					});
 				}
 
@@ -795,7 +799,7 @@ const AVeDichRiengPage = () => {
 			}
 			case "mc_online":
 			case "mc_reconnected":
-			case "guest_reconnected":
+			case "guest_online":
 			case "player_reconnected":
 			case "player_online": {
 				if (msg.user_code) {
@@ -955,27 +959,23 @@ const AVeDichRiengPage = () => {
 
 			case "buzzer_winner": {
 				const { user_code, question_code } = msg;
+				const winner = user_code ?? "";
+				setBuzzerWinnerCode(winner || null);
+				startTransition(() => {
+					setPlayers((prev) =>
+						prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
+					);
+				});
 
-				if (user_code && question_code !== lastBuzzerQuestionRef.current) {
-					console.info(`[VDR ADMIN] Received buzzer_winner: user_code=${user_code}, question=${question_code}`);
+				if (winner && question_code !== lastBuzzerQuestionRef.current) {
 					lastBuzzerQuestionRef.current = question_code;
-
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((p) =>
-								p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p,
-							),
-						);
-					});
-
-					console.info(`[VDR ADMIN] Locking all buzzers after winner: ${user_code}`);
 					void sendMessage({ type: "blocked_buzz", user_code: null });
 				}
 				break;
 			}
 
 			case "clear_buzz": {
-
+				setBuzzerWinnerCode(null);
 				lastBuzzerQuestionRef.current = null;
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
@@ -1184,6 +1184,7 @@ const AVeDichRiengPage = () => {
 						isActive={selectedPlayerCodes.includes(player.playerCode)}
 						isCurrent={player.playerCode === currentTurnPlayerCode}
 						playerPower={usedPowers[player.playerCode] as "star" | "shield" | undefined}
+						isBuzzerWinner={player.playerCode === buzzerWinnerCode}
 						onClick={toggleSelectedPlayer}
 						disabled={timer > 0}
 						onEditScore={handleEditScore}

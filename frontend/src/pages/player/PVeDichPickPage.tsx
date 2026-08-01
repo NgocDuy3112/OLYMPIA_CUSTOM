@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { VeDichRound, getVeDichRoundLabel } from "@/types/veDich";
-import type { PlayerStatus } from "@/types/player";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 
 const CATEGORIES = [
 	"TOÁN - TIN - THỐNG KÊ",
@@ -27,11 +27,11 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 		matchCode: string;
 		playerCode: string;
 	}>();
-	const { playerCode: sessionPlayerCode } = usePlayerSession();
+	const { playerCode: sessionPlayerCode } = useRoleSession("player");
 	const playerCode = paramPlayerCode || sessionPlayerCode;
-	const { lastMessage } = usePlayerWebSocket();
+	const { lastMessage } = useGameWebSocket();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, applyPlayersInfo } = useAudiencePlayers();
 
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!paramMatchCode) return [];
@@ -63,7 +63,9 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
+
+		queueMicrotask(() => {
 
 		switch (msg?.type) {
 			case "navigate": {
@@ -71,54 +73,9 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 				break;
 			}
 
-			case "send_players_info": {
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = playersList.map((p: any) => {
-					const code = String(p?.user_code ?? "");
-
-					let name = "";
-					if (p?.user_name) {
-						name = p.user_name;
-					} else {
-						const prof = profiles.find((pr: any) => String(pr?.user_code) === code);
-						if (prof) {
-							name = prof.user_name ?? "";
-						} else {
-							const scoreEntry = scoreboard.find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else {
-						const scoreEntry = scoreboard.find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry)
-							scoreVal =
-								scoreEntry?.cumulative_score ??
-								scoreEntry?.cumulative_score ??
-								scoreEntry?.total_score ??
-								scoreEntry?.score ??
-								0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: undefined,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
 			case "vd_selection_update": {
 
@@ -154,7 +111,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 
 					try {
 						localStorage.setItem(`veDich_used_codes_${paramMatchCode}`, JSON.stringify(updated));
-					} catch {  }
+					} catch (error) { console.error("Storage update failed", error); }
 					return updated;
 				});
 				break;
@@ -163,7 +120,8 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 			default:
 				break;
 		}
-	}, [lastMessage]);
+		});
+	}, [applyPlayersInfo, lastMessage, paramMatchCode]);
 
 	const maxQuestions = round === VeDichRound.CHUNG ? Math.max(players.length, 1) : round;
 	const title = getVeDichRoundLabel(round);

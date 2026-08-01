@@ -4,14 +4,17 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerCard from "@/components/admin/APlayerCard";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { useWaitingState } from "@/hooks/useWaitingState";
 import AdminGameplayNavBar from "@/navigation/ANavBar";
-import type { PlayerStatus } from "@/types/player";
-import { API_BASE_URL } from "@/configs";
+import {
+	buildWaitingBroadcastPlayers,
+	finishMatch,
+	loadWaitingSnapshot,
+} from "@/api/waiting";
 
 const logger = createLogger("AWaiting");
 
@@ -21,7 +24,7 @@ const AWaitingPage = () => {
 	const storedMatchCode = localStorage.getItem("matchCode");
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 
 	useEffect(() => {
 		logger.info("AWaitingPage mounted:", { urlMatchCode, storedMatchCode, currentMatchCode });
@@ -32,8 +35,8 @@ const AWaitingPage = () => {
 			try {
 				localStorage.setItem("matchCode", urlMatchCode);
 				logger.info("Updated localStorage matchCode:", urlMatchCode);
-			} catch {
-
+			} catch (error) {
+				logger.error("Failed to persist match code:", error);
 			}
 		}
 	}, [urlMatchCode, storedMatchCode]);
@@ -45,126 +48,54 @@ const AWaitingPage = () => {
 		}
 	}, [currentMatchCode, navigate]);
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	usePlayerPresence({ lastMessage, setPlayers });
-	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	const { players, setPlayers, matchFinished, setMatchFinished } = useWaitingState(lastMessage);
+	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
 	const [isIntroducingPlayers, setIsIntroducingPlayers] = useState(false);
 	const [isShowingScoreboard, setIsShowingScoreboard] = useState(false);
 	const [isEndingMatch, setIsEndingMatch] = useState(false);
 	const [isFinishingMatch, setIsFinishingMatch] = useState(false);
-	const [matchFinished, setMatchFinished] = useState(false);
-
-	const applyPlayersSnapshot = useCallback(
-		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
-			const playersList = Array.isArray(payload?.players) ? payload.players : [];
-			const scoreboardList = Array.isArray(payload?.scoreboard) ? payload.scoreboard : [];
-			const profileList = Array.isArray(payload?.profiles) ? payload.profiles : [];
-			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreboardList, profileList, prev));
-		},
-		[],
-	);
-
-	const loadPlayersState = useCallback(async () => {
-		if (!currentMatchCode || !token) return undefined;
-		try {
-
-			const matchRes = await fetch(`${API_BASE_URL}/matches/?match_code=${encodeURIComponent(currentMatchCode)}`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const matchJson = await matchRes.json();
-			if (matchJson.data?.match_status === "finished") {
-				setMatchFinished(true);
-			}
-
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (err) {
-				logger.error("Failed to load scoreboard:", err);
-			}
-
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
-
-			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
-			return { playersList, scoreList, profiles };
-		} catch (err) {
-			logger.error("Failed to load players:", err);
-			return undefined;
-		}
-	}, [currentMatchCode, token]);
-
-	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
-		setPlayers((prev) =>
-			prev.map((p) =>
-				p.playerCode === playerCode ? { ...p, playerScore: newScore } : p
-			)
-		);
-		void loadPlayersState();
-	}, [loadPlayersState]);
 
 	const sendPlayersSnapshot = useCallback(async () => {
-		if (!currentMatchCode) return;
+		if (!currentMatchCode || !token) return;
 		try {
-			const payload = await loadPlayersState();
-			if (!payload) return;
-			const { playersList, scoreList, profiles } = payload;
-			const mergedPlayers = (playersList ?? []).map((p: any) => {
-				const userCode = String(p?.user_code ?? p?.playerCode ?? "");
-				const profile = (profiles ?? []).find((pr: any) => String(pr?.user_code) === userCode) ?? {};
-				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
-				const cumulativeScore = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
-				return {
-					user_code: userCode,
-					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
-					position: p?.position ?? p?.pos ?? undefined,
-					cumulative_score: cumulativeScore,
-				};
+			const snapshot = await loadWaitingSnapshot(currentMatchCode, token);
+			setMatchFinished(snapshot.matchFinished);
+			setPlayers((previous) => buildPlayersSnapshot(
+				snapshot.players,
+				snapshot.scoreboard,
+				snapshot.profiles,
+				previous,
+			));
+			await sendMessage({
+				type: "send_players_info",
+				players: buildWaitingBroadcastPlayers(snapshot),
+				scoreboard: snapshot.scoreboard,
+				profiles: snapshot.profiles,
 			});
-			await sendMessage({ type: "send_players_info", players: mergedPlayers });
-		} catch (err) {
-			logger.error("Failed to send players snapshot:", err);
+		} catch (error) {
+			logger.error("Failed to load waiting snapshot:", error);
 		}
-	}, [currentMatchCode, loadPlayersState, sendMessage]);
+	}, [currentMatchCode, sendMessage, setMatchFinished, setPlayers, token]);
+
+	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
+		setPlayers((previous) => previous.map((player) =>
+			player.playerCode === playerCode ? { ...player, playerScore: newScore } : player,
+		));
+		void sendPlayersSnapshot();
+	}, [sendPlayersSnapshot, setPlayers]);
 
 	useEffect(() => {
-		void loadPlayersState();
 		void sendPlayersSnapshot();
-	}, [loadPlayersState, sendPlayersSnapshot]);
+	}, [sendPlayersSnapshot]);
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = (lastMessage as any)?.message ?? lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
 
-		switch (msg?.type) {
-			case "send_players_info": {
-				applyPlayersSnapshot(msg);
-				break;
-			}
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
-				break;
-			}
+		queueMicrotask(() => {
+		switch (msg.type) {
 			case "player_online": {
 				if (msg.user_code) {
 					setPlayers((prev) =>
@@ -172,37 +103,28 @@ const AWaitingPage = () => {
 							p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p,
 						),
 					);
-					try {
-						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/waiting" });
-					} catch {  }
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/waiting" });
 					void sendPlayersSnapshot();
 				}
 				break;
 			}
 			case "mc_online": {
 				if (msg.user_code) {
-					try {
-						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/mc/waiting" });
-					} catch {  }
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/mc/waiting" });
 					void sendPlayersSnapshot();
 				}
 				break;
 			}
-			case "guest_reconnected": {
+			case "guest_online": {
 				if (msg.user_code) {
-					try {
-						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/guest/waiting" });
-					} catch {  }
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/guest/waiting" });
 					void sendPlayersSnapshot();
 				}
-				break;
-			}
-			case "finish_match": {
-				setMatchFinished(true);
 				break;
 			}
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendMessage]);
+		});
+	}, [lastMessage, sendPlayersSnapshot, sendMessage, setPlayers]);
 
 	const handleOpenMatch = useCallback(async () => {
 		if (!currentMatchCode) return;
@@ -246,12 +168,13 @@ const AWaitingPage = () => {
 		try {
 			await sendMessage({ type: "end_match" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
+			await sendPlayersSnapshot();
 		} catch (err) {
 			logger.error("Failed to send end_match:", err);
 		} finally {
 			setIsEndingMatch(false);
 		}
-	}, [currentMatchCode, sendMessage]);
+	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleFinishMatch = useCallback(async () => {
 		if (!currentMatchCode || !token) return;
@@ -259,54 +182,36 @@ const AWaitingPage = () => {
 		if (!confirmed) return;
 		setIsFinishingMatch(true);
 		try {
-			const res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(currentMatchCode)}/finish`, {
-				method: "PATCH",
-				headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-			});
-			const json = await res.json();
-			if (json.status === "success") {
-				setMatchFinished(true);
-				await sendMessage({ type: "finish_match" });
-			} else {
-				alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành trận đấu"}`);
-			}
-		} catch (err) {
-			logger.error("Failed to finish match:", err);
+			await finishMatch(currentMatchCode, token);
+			setMatchFinished(true);
+			await sendMessage({ type: "finish_match" });
+			await sendPlayersSnapshot();
+		} catch (error) {
+			logger.error("Failed to finish match:", error);
 			alert("Lỗi kết nối khi hoàn thành trận đấu");
 		} finally {
 			setIsFinishingMatch(false);
 		}
-	}, [currentMatchCode, token, sendMessage]);
+	}, [currentMatchCode, sendMessage, sendPlayersSnapshot, setMatchFinished, token]);
 
-	const handleNavigateToKDC = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/kdc/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
+	const broadcastNavigate = useCallback(
+		(adminPath: string, playerPath: string, mcPath: string, guestPath: string) => {
+			if (!currentMatchCode) return;
+			navigate(`${adminPath}/${currentMatchCode}`);
+			void sendMessage({ type: "navigate", user_code: "", path: `${playerPath}/${currentMatchCode}` });
+			void sendMessage({ type: "navigate", user_code: "", path: `${mcPath}/${currentMatchCode}` });
+			void sendMessage({ type: "navigate", user_code: "", path: `${guestPath}/${currentMatchCode}` });
+		},
+		[currentMatchCode, navigate, sendMessage],
+	);
 
-	const handleNavigateToKDR = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/kdr/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToBP = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/bp/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToVDC = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/vdc/pick/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToVDR = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/vdr/pick/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
-
-	const handleNavigateToGM = useCallback(() => {
-		if (!currentMatchCode) return;
-		navigate(`/admin/gm/${currentMatchCode}`);
-	}, [currentMatchCode, navigate]);
+	const handleNavigateToKDC = useCallback(() => broadcastNavigate("/admin/kdc", "/player/kdc", "mc/kdc", "guest/kdc"), [broadcastNavigate]);
+	const handleNavigateToKDR = useCallback(() => broadcastNavigate("/admin/kdr", "/player/kdr", "/mc/kdr", "/guest/kdr"), [broadcastNavigate]);
+	const handleNavigateToBP = useCallback(() => broadcastNavigate("/admin/bp", "/player/bp", "/mc/bp", "/guest/bp"), [broadcastNavigate]);
+	const handleNavigateToVDC = useCallback(() => broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick", "/mc/vdc/pick", "/guest/vdc/pick"), [broadcastNavigate]);
+	const handleNavigateToVDR = useCallback(() => broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick", "/mc/vdr/pick", "/guest/vdr/pick"), [broadcastNavigate]);
+	const handleNavigateToGM = useCallback(() => broadcastNavigate("/admin/gm", "/player/gm", "/mc/gm", "/guest/gm"), [broadcastNavigate]);
+	const handleNavigateToWaiting = useCallback(() => broadcastNavigate("/admin/waiting", "/player/waiting", "/mc/waiting", "/guest/waiting"), [broadcastNavigate]);
 
 	if (!currentMatchCode) {
 		return null;
@@ -314,7 +219,7 @@ const AWaitingPage = () => {
 
 	return (
 		<div className="flex flex-col h-screen overflow-hidden">
-			<AdminGameplayNavBar />
+			<AdminGameplayNavBar onNavigateToWaiting={handleNavigateToWaiting} />
 			<div className="flex flex-col flex-1 items-center gap-6 p-6 overflow-y-auto">
 				<h1 className="font-[SVN-Gratelos_Display] text-4xl xl:text-5xl font-bold text-white uppercase tracking-wide text-center">
 					Sảnh Chờ

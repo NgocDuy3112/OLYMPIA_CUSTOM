@@ -1,22 +1,22 @@
 
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import type { PlayerStatus } from "@/types/player";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 
 const PKhoiDongRiengPage = () => {
-	const { playerCode } = usePlayerSession();
-	const { lastMessage } = usePlayerWebSocket();
+	const { playerCode } = useRoleSession("player");
+	const { lastMessage } = useGameWebSocket();
 	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyWrongAttempt } = useAudiencePlayers();
 	const audioRef = useRef<HTMLAudioElement | null>(null);
 
 	useEffect(() => {
@@ -25,41 +25,19 @@ const PKhoiDongRiengPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
 
-		console.info("PLAYER lastMessage:", lastMessage);
-		console.info("PLAYER msg:", msg);
+		queueMicrotask(() => {
 
 		applyWsMessage(msg);
 
 		switch (msg?.type) {
-			case "send_players_info": {
-
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = playersList.map((p: any) => {
-					const code = String(p.user_code ?? "");
-					const profile = profiles.find((prof: any) => prof.user_code === code);
-					const score = scoreboard.find((s: any) => s.user_code === code);
-					return {
-						playerCode: code,
-						playerName: p?.user_name ?? profile?.user_name ?? "",
-						playerScore: p?.cumulative_score ?? p?.cumulative_score ?? score?.cumulative_score ?? score?.cumulative_score ?? 0,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: false,
-						playerIsTurn: (p as any)?.is_current ?? false,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
 			case "start_the_timer": {
-				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				startSynced(Number(msg.time_limit ?? 0), Number(msg.started_at ?? Date.now()));
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				audioRef.current?.pause();
 				audioRef.current = new Audio('/audios/bgm/kd_60s.mp3');
@@ -67,47 +45,30 @@ const PKhoiDongRiengPage = () => {
 				break;
 			}
 
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
+			case "player_score_updated":
+				applyScoreUpdate(msg);
 				break;
-			}
 
 			case "clear_buzz": {
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
 
-			case "player_wrong_attempt": {
-				const { user_code, attempt_count } = msg ?? {};
-				if (user_code && attempt_count) {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === user_code
-								? { ...p, playerWrongAttempts: attempt_count }
-								: p,
-						),
-					);
-					console.info("Player wrong attempt:", user_code, "count:", attempt_count);
-				}
+			case "player_wrong_attempt":
+				applyWrongAttempt(msg);
 				break;
-			}
 
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, startSynced]);
+		});
+	}, [applyPlayersInfo, applyScoreUpdate, applyWrongAttempt, applyWsMessage, lastMessage, setPlayers, startSynced]);
 
 	useEffect(() => {
 		setPlayers((prev) =>
 			prev.map((p) => ({ ...p, playerWrongAttempts: undefined })),
 		);
-	}, [currentQuestionIndex]);
+	}, [currentQuestionIndex, setPlayers]);
 
 	const hasPlayerWithSecondAttempt = players.some((p) => p.playerWrongAttempts === 1);
 
@@ -122,7 +83,6 @@ const PKhoiDongRiengPage = () => {
 				timerDuration={timer}
 				controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
 			>
-				{}
 				{hasPlayerWithSecondAttempt && (
 					<div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
 						Trả lời lần 2

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useMatchCode } from "@/hooks/useMatchCode";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { MCWebSocketProvider } from "@/contexts/MCWebSocketContext";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 import MGameAccessPage from "@/pages/mc/MGameAccessPage";
 import MWaitingPage from "@/pages/mc/MWaitingPage";
@@ -27,8 +28,8 @@ const ProtectedMcRoute: React.FC<{ children: React.ReactNode }> = ({ children })
 const MCAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { lastMessage } = useMcWebSocket();
-    const matchCode = sessionStorage.getItem("matchCode") || "";
+    const { lastMessage } = useGameWebSocket();
+    const matchCode = localStorage.getItem("matchCode") || "";
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -38,7 +39,7 @@ const MCAutoNavigator: React.FC = () => {
         const msgType = msg?.type ?? "";
 
         if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
-            const target = "/mc/waiting";
+            const target = matchCode ? `/mc/waiting/${matchCode}` : "/mc/waiting";
             if (location.pathname !== target) {
                 navigate(target, { replace: true });
             }
@@ -59,9 +60,10 @@ const MCAutoNavigator: React.FC = () => {
         }
         if (!mcPath) return;
 
-        const isQualifier = mcPath === "/mc/vl";
+        const isQualifier = mcPath.startsWith("/mc/vl");
         const noParamsPaths = ["/mc/waiting"];
-        const target = noParamsPaths.includes(mcPath)
+        const alreadyHasMatchCode = matchCode && mcPath.endsWith(`/${matchCode}`);
+        const target = noParamsPaths.includes(mcPath) || alreadyHasMatchCode
             ? mcPath
             : isQualifier
                 ? `${mcPath}/OC3_M_VL`
@@ -80,38 +82,7 @@ const MCAutoNavigator: React.FC = () => {
 };
 
 const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-    const location = useLocation();
-    const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = sessionStorage.getItem("matchCode");
-        return s && s.trim() !== "" ? s : "";
-    });
-
-    useEffect(() => {
-        if (urlMatchCode && urlMatchCode !== matchCode) {
-            sessionStorage.setItem("matchCode", urlMatchCode);
-            setMatchCode(urlMatchCode);
-        }
-    }, [urlMatchCode, matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        const onMatchCodeSet = () => {
-            const s = sessionStorage.getItem("matchCode") || "";
-            if (s && s.trim() !== "") setMatchCode(s);
-        };
-        window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
-        return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
-    }, [matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        if (location.pathname.startsWith("/mc/vl")) {
-            const defaultCode = "OC3_M_VL";
-            sessionStorage.setItem("matchCode", defaultCode);
-            setMatchCode(defaultCode);
-        }
-    }, [location.pathname, matchCode]);
+    const matchCode = useMatchCode({ defaultPath: "/mc/vl", defaultCode: "OC3_M_VL" });
 
     if (!matchCode) return <>{children}</>;
 

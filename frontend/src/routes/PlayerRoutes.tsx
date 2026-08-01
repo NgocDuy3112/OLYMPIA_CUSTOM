@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useMatchCode } from "@/hooks/useMatchCode";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
@@ -34,8 +35,8 @@ const PlayerAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const playerCode = sessionStorage.getItem("playerCode") || "";
-    const matchCode = sessionStorage.getItem("matchCode") || "";
-    const { lastMessage } = usePlayerWebSocket();
+    const matchCode = localStorage.getItem("matchCode") || "";
+    const { lastMessage } = useGameWebSocket();
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -83,10 +84,13 @@ const PlayerAutoNavigator: React.FC = () => {
             return;
         }
 
-        const isQualifier = normalized === "/player/vl";
+        const isQualifier = normalized.startsWith("/player/vl");
+        const alreadyHasMatchCode = matchCode && normalized.endsWith(`/${matchCode}`);
         const target = isQualifier
-            ? `${normalized}/OC3_M_VL`
-            : `${normalized}/${matchCode}`;
+            ? (normalized.endsWith("/OC3_M_VL") ? normalized : `${normalized}/OC3_M_VL`)
+            : alreadyHasMatchCode
+                ? normalized
+                : `${normalized}/${matchCode}`;
 
         const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
 
@@ -101,44 +105,7 @@ const PlayerAutoNavigator: React.FC = () => {
 };
 
 const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-    const location = useLocation();
-    const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = sessionStorage.getItem("matchCode");
-        return s && s.trim() !== "" ? s : "";
-    });
-
-    useEffect(() => {
-        if (urlMatchCode && urlMatchCode !== matchCode) {
-            sessionStorage.setItem("matchCode", urlMatchCode);
-            setMatchCode(urlMatchCode);
-        }
-    }, [urlMatchCode, matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-
-        const onMatchCodeSet = () => {
-            const s = sessionStorage.getItem("matchCode") || "";
-            if (s && s.trim() !== "") setMatchCode(s);
-        };
-
-        window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
-        return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
-    }, [matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        try {
-            if (location.pathname.startsWith("/player/vl")) {
-                const defaultCode = "OC3_M_VL";
-                sessionStorage.setItem("matchCode", defaultCode);
-                setMatchCode(defaultCode);
-            }
-        } catch (e) {
-
-        }
-    }, [location.pathname, matchCode]);
+    const matchCode = useMatchCode({ defaultPath: "/player/vl", defaultCode: "OC3_M_VL" });
 
     if (!matchCode) return <>{children}</>;
 

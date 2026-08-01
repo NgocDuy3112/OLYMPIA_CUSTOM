@@ -8,7 +8,7 @@ const MGameAccessPage: React.FC = () => {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!matchCode) return;
-        sessionStorage.setItem("matchCode", matchCode);
+        localStorage.setItem("matchCode", matchCode);
         try {
             window.dispatchEvent(new Event("oc3_matchCode_set"));
         } catch {

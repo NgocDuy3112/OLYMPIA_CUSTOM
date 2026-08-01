@@ -17,11 +17,11 @@ import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { buildKeywordBanner } from "@/utils/keywordBanner";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
@@ -43,14 +43,6 @@ const DEFAULT_QUESTION: Question = {
 
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
-
-function buildKeywordBanner(answer: string): string {
-	const trimmedLen = answer.replace(/\s/g, '').length;
-	const noSpaceAnswer = answer.replace(/\s/g, '');
-	if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ CÁI`;
-	if (/^\d+$/.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ SỐ`;
-	return `TỪ KHOÁ GỒM CÓ ${trimmedLen} KÝ TỰ`;
-}
 
 interface ClueCardProps {
 	index: number;
@@ -115,11 +107,10 @@ const AGiaiMaPage = () => {
 			navigate("/admin/manage");
 		}
 	}, [currentMatchCode, navigate]);
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	usePlayerPresence({ lastMessage, setPlayers });
-	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCodes((prev) =>
@@ -154,7 +145,7 @@ const AGiaiMaPage = () => {
 	const [isKeywordTimerRunning, setIsKeywordTimerRunning] = useState(false);
 
 	const [keywordSubmissions, setKeywordSubmissions] = useState<
-		Record<string, { text: string; timestamp: number; cluesOpened?: number }>
+		Record<string, { text: string; cluesOpened?: number }>
 	>({});
 	const [keywordAnswerRevealed, setKeywordAnswerRevealed] = useState(false);
 	const [keywordQuestion, setKeywordQuestion] = useState<Question | null>(null);
@@ -334,7 +325,7 @@ const AGiaiMaPage = () => {
 					if (snap.keyword_submissions && typeof snap.keyword_submissions === "object") {
 						setKeywordSubmissions(snap.keyword_submissions as Record<
 							string,
-							{ text: string; timestamp: number; cluesOpened?: number }
+							{ text: string; cluesOpened?: number }
 						>);
 					}
 
@@ -437,8 +428,6 @@ const AGiaiMaPage = () => {
 				return wasAlreadyOpened ? prev : prev + 1;
 			});
 
-			const allOpened = nextStates.every((s) => s !== "idle");
-
 			try {
 				await sendMessage({
 					type: "send_question",
@@ -451,10 +440,6 @@ const AGiaiMaPage = () => {
 				const wasAlreadyOpened = clueStates[clueIndex] !== "idle";
 				if (!wasAlreadyOpened) {
 					void sendMessage({ type: "gm_chon_goi_y" });
-				}
-				if (allOpened && !keywordLockedSentRef.current) {
-					keywordLockedSentRef.current = true;
-					await sendMessage({ type: "keyword_locked" });
 				}
 			} catch (err) {
 				logger.error("handleRevealClue: failed to send question via WS:", err);
@@ -633,7 +618,7 @@ const AGiaiMaPage = () => {
 
 			case "mc_online":
 			case "mc_reconnected":
-			case "guest_reconnected":
+			case "guest_online":
 			case "player_online": {
 				if (msg.user_code) {
 					startTransition(() => {
@@ -711,14 +696,13 @@ const AGiaiMaPage = () => {
 				break;
 			}
 			case "keyword_submit": {
-				const { user_code, keyword_text, timestamp, clues_opened } = msg;
+				const { user_code, keyword_text, clues_opened } = msg;
 				if (user_code && keyword_text) {
 					startTransition(() => {
 						setKeywordSubmissions((prev) => ({
 							...prev,
 							[user_code]: {
 								text: keyword_text,
-								timestamp: timestamp ?? 0,
 								cluesOpened: typeof clues_opened === "number" ? clues_opened : undefined,
 							},
 						}));
@@ -730,7 +714,7 @@ const AGiaiMaPage = () => {
 					});
 
 				} else {
-					logger.warn("ADMIN received invalid keyword_submit:", { user_code, keyword_text, timestamp });
+					logger.warn("ADMIN received invalid keyword_submit:", { user_code, keyword_text });
 				}
 				break;
 			}
@@ -894,6 +878,69 @@ const AGiaiMaPage = () => {
 		});
 	}, [keywordPhaseActive, isTimerRunning, isKeywordTimerRunning, currentMatchCode, currentQuestion.questionCode, sendMessage]);
 
+	const handleAddScore = useCallback(
+		async (playerCode: string, delta: number, broadcast = true) => {
+			if (!playerCode) return;
+			setPlayers((prev) =>
+				prev.map((p) =>
+					p.playerCode === playerCode
+						? { ...p, playerScore: (p.playerScore ?? 0) + delta }
+						: p,
+				),
+			);
+			if (!currentMatchCode || !token) return;
+			const questionCode = currentQuestion.questionCode;
+			try {
+				if (questionCode) {
+					const recordRes = await fetch(`${API_BASE_URL}/records/`, {
+						method: "POST",
+						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+						body: JSON.stringify({
+							user_code: playerCode,
+							match_code: currentMatchCode,
+							question_code: questionCode,
+							points: delta,
+						}),
+					});
+					if (!recordRes.ok) {
+						const txt = await recordRes.text().catch(() => "");
+						logger.warn("handleAddScore: record POST failed", recordRes.status, txt);
+					}
+				}
+			} catch (err) {
+				logger.error("handleAddScore: record POST error:", err);
+			}
+			try {
+				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				const scoreJson: any = await scoreRes.json().catch(() => ({}));
+				let scoreboardArr: any[] = [];
+				if (Array.isArray(scoreJson.data)) scoreboardArr = scoreJson.data;
+				else if (Array.isArray(scoreJson.data?.scoreboard)) scoreboardArr = scoreJson.data.scoreboard;
+				else if (Array.isArray(scoreJson.scoreboard)) scoreboardArr = scoreJson.scoreboard;
+				setPlayers((prev) =>
+					prev.map((p) => {
+						const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
+						const updated = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
+						return typeof updated === "number" ? { ...p, playerScore: updated } : p;
+					}),
+				);
+			} catch (err) {
+				logger.error("handleAddScore: scoreboard refresh failed:", err);
+			}
+			if (broadcast) {
+				try {
+					await sendPlayersSnapshot();
+				} catch (err) {
+					logger.error("handleAddScore: broadcast failed:", err);
+				}
+			}
+		},
+		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
+	);
+
+
 	const showAnswers = useCallback(async () => {
 		if (!canShowAnswers) return;
 		const answersPayload = players
@@ -937,7 +984,6 @@ const AGiaiMaPage = () => {
 				hint_content: hintText,
 				hint_media_source: hintMediaUrl ?? undefined,
 				target_players: selectedPlayerCodes,
-
 				...(activeClueIndex !== null ? { clue_index: activeClueIndex } : {}),
 			});
 
@@ -965,7 +1011,7 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("handleShowHint failed:", err);
 		}
-	}, [currentQuestion, selectedPlayerCodes, sendMessage, sendPlayersSnapshot, currentMatchCode, activeClueIndex]);
+	}, [currentQuestion.questionExplanation, currentQuestion.questionCode, activeClueIndex, sendMessage, selectedPlayerCodes, currentMatchCode, handleAddScore, sendPlayersSnapshot]);
 
 	const handleHideHint = useCallback(async () => {
 		setPendingClueAction(false);
@@ -1038,7 +1084,7 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("handleRevealKeywordAnswer failed:", err);
 		}
-	}, [clueQuestions, sendMessage]);
+	}, [clueQuestions, keywordQuestion?.questionAnswer, sendMessage]);
 
 	const handleShowKeywordAnswers = useCallback(async () => {
 		const answer = keywordQuestion?.questionAnswer;
@@ -1068,7 +1114,6 @@ const AGiaiMaPage = () => {
 		const answers = Object.entries(keywordSubmissions).map(([user_code, { text, cluesOpened }]) => ({
 			user_code,
 			content: text,
-			timestamp: undefined as number | undefined,
 			clues_opened: cluesOpened,
 		}));
 		try {
@@ -1078,67 +1123,6 @@ const AGiaiMaPage = () => {
 		}
 	}, [keywordAnswerRevealed, keywordQuestion, keywordSubmissions, sendMessage]);
 
-	const handleAddScore = useCallback(
-		async (playerCode: string, delta: number, broadcast = true) => {
-			if (!playerCode) return;
-			setPlayers((prev) =>
-				prev.map((p) =>
-					p.playerCode === playerCode
-						? { ...p, playerScore: (p.playerScore ?? 0) + delta }
-						: p,
-				),
-			);
-			if (!currentMatchCode || !token) return;
-			const questionCode = currentQuestion.questionCode;
-			try {
-				if (questionCode) {
-					const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-						method: "POST",
-						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-						body: JSON.stringify({
-							user_code: playerCode,
-							match_code: currentMatchCode,
-							question_code: questionCode,
-							points: delta,
-						}),
-					});
-					if (!recordRes.ok) {
-						const txt = await recordRes.text().catch(() => "");
-						logger.warn("handleAddScore: record POST failed", recordRes.status, txt);
-					}
-				}
-			} catch (err) {
-				logger.error("handleAddScore: record POST error:", err);
-			}
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson: any = await scoreRes.json().catch(() => ({}));
-				let scoreboardArr: any[] = [];
-				if (Array.isArray(scoreJson.data)) scoreboardArr = scoreJson.data;
-				else if (Array.isArray(scoreJson.data?.scoreboard)) scoreboardArr = scoreJson.data.scoreboard;
-				else if (Array.isArray(scoreJson.scoreboard)) scoreboardArr = scoreJson.scoreboard;
-				setPlayers((prev) =>
-					prev.map((p) => {
-						const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
-						const updated = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
-						return typeof updated === "number" ? { ...p, playerScore: updated } : p;
-					}),
-				);
-			} catch (err) {
-				logger.error("handleAddScore: scoreboard refresh failed:", err);
-			}
-			if (broadcast) {
-				try {
-					await sendPlayersSnapshot();
-				} catch (err) {
-					logger.error("handleAddScore: broadcast failed:", err);
-				}
-			}
-		},
-		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
-	);
 
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
@@ -1179,7 +1163,7 @@ const AGiaiMaPage = () => {
 			logger.error("handleAddKeywordScoreToSelected failed:", err);
 			setHasAddedKeywordScore(false);
 		}
-	}, [selectedPlayerCodes, keywordSubmissions, totalOpenedCluesCount, keywordCluesLocked, handleAddScore, sendPlayersSnapshot, currentMatchCode]);
+	}, [selectedPlayerCodes, sendMessage, currentMatchCode, sendPlayersSnapshot, keywordSubmissions, keywordCluesLocked, totalOpenedCluesCount, handleAddScore]);
 
 	const clueGrid = (
 		<div className="flex flex-col gap-2 sm:gap-3 w-full">
@@ -1265,9 +1249,7 @@ const AGiaiMaPage = () => {
 					</AControlButton>
 					<AControlButton
 						onClick={() => {
-							void handleShowHint().catch((err) =>
-								logger.error("Mở gợi ý button failed:", err),
-							);
+							void handleShowHint();
 						}}
 						disabled={!currentQuestion.questionCode || shownHintContent !== null || selectedPlayerCodes.length === 0 || isTimerRunning || isKeywordTimerRunning}
 					>
@@ -1302,7 +1284,6 @@ const AGiaiMaPage = () => {
 				</>
 			}
 			renderPlayerList={() => {
-
 				const keywordPhaseRevealed = keywordRevealedCodes.size > 0;
 				return players.map((player) => {
 					const submittedKeyword = !!keywordSubmissions[player.playerCode];
