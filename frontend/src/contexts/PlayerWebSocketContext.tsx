@@ -1,9 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { PlayerWebSocketContext } from "@/contexts/playerWsImpl";
-import type { PlayerWsContextValue } from "@/contexts/playerWsImpl";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { WebSocketContext } from "@/contexts/WebSocketContext";
+import type { WebSocketContextValue } from "@/types/websocket";
+import { useRoleSession } from "@/hooks/useRoleSession";
+import { unwrapWebSocketMessage } from "@/types/websocket";
 
 export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
   matchCode,
@@ -11,48 +12,35 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
 }) => {
   const token = sessionStorage.getItem("jwtToken_player") ?? undefined;
   const ws = useWebSocket(matchCode, token);
+  const { isConnected, lastMessage, sendMessage } = ws;
 
-  const value: PlayerWsContextValue = {
-    isConnected: ws.isConnected,
-    lastMessage: ws.lastMessage,
-    sendMessage: ws.sendMessage,
-  };
+  const value = useMemo<WebSocketContextValue>(
+    () => ({ isConnected, lastMessage, sendMessage }),
+    [isConnected, lastMessage, sendMessage],
+  );
 
-  const { playerCode } = usePlayerSession();
+  const { playerCode } = useRoleSession("player");
   useEffect(() => {
-    if (!ws.isConnected) return;
+    if (!isConnected) return;
     if (!playerCode) return;
 
-    void ws.sendMessage({ type: "player_online", user_code: playerCode });
-  }, [ws.isConnected, playerCode, ws.sendMessage]);
+    void sendMessage({ type: "player_online", user_code: playerCode });
+  }, [isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
-    const raw = ws.lastMessage as { type?: string; message?: { type?: string } } | null;
-    const last = raw?.message ?? raw;
+    const last = unwrapWebSocketMessage(lastMessage);
     if (!last) return;
     if (last.type !== "request_presence") return;
-    if (!ws.isConnected) return;
+    if (!isConnected) return;
     if (!playerCode) return;
-    void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
-  }, [ws.lastMessage, ws.isConnected, playerCode, ws.sendMessage]);
+    void sendMessage({ type: "player_heartbeat", user_code: playerCode });
+  }, [lastMessage, isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
-    const raw = ws.lastMessage as {
-      type?: string;
-      user_code?: string | number;
-      targets?: Array<string | number>;
-      client_ts?: number;
-      message?: {
-        type?: string;
-        user_code?: string | number;
-        targets?: Array<string | number>;
-        client_ts?: number;
-      };
-    } | null;
-    const last = raw?.message ?? raw;
+    const last = unwrapWebSocketMessage(lastMessage);
     if (!last) return;
     if (last.type !== "ping_latency") return;
-    if (!ws.isConnected) return;
+    if (!isConnected) return;
     if (!playerCode) return;
 
     const targets = last.targets;
@@ -60,20 +48,20 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
       const matches = targets.some((t) => String(t) === String(playerCode));
       if (!matches) return;
     }
-    void ws.sendMessage({
+    void sendMessage({
       type: "pong_latency",
       user_code: playerCode,
       client_ts: typeof last.client_ts === "number" ? last.client_ts : Date.now(),
     });
-  }, [ws.lastMessage, ws.isConnected, playerCode, ws.sendMessage]);
+  }, [lastMessage, isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
-    if (!ws.isConnected || !playerCode) return;
+    if (!isConnected || !playerCode) return;
     const intervalId = window.setInterval(() => {
-      void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
+      void sendMessage({ type: "player_heartbeat", user_code: playerCode });
     }, 10_000);
     return () => window.clearInterval(intervalId);
-  }, [ws.isConnected, playerCode, ws.sendMessage]);
+  }, [isConnected, playerCode, sendMessage]);
 
-  return <PlayerWebSocketContext.Provider value={value}>{children}</PlayerWebSocketContext.Provider>;
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };

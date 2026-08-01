@@ -1,8 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "@/pages/auth/LoginPage";
-import PlayerSignupPage from "@/pages/auth/player/PlayerSignupPage";
-import AdminSignupPage from "@/pages/auth/admin/AdminSignupPage";
+import SignupPage from "@/pages/auth/SignupPage";
 import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 
 const PlayerRoutes = lazy(() => import("@/routes/PlayerRoutes"));
@@ -20,11 +19,11 @@ function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/signup" element={<PlayerSignupPage />} />
+            <Route path="/signup" element={<SignupPage password />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/player/signup" element={<PlayerSignupPage />} />
-            <Route path="/admin/signup" element={<AdminSignupPage />} />
+            <Route path="/player/signup" element={<SignupPage />} />
+            <Route path="/admin/signup" element={<SignupPage mode="admin" />} />
             <Route path="/player/*" element={<PlayerRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
             <Route path="/mc/*" element={<MCRoutes />} />

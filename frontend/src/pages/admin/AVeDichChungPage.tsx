@@ -14,9 +14,8 @@ import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
@@ -66,11 +65,10 @@ const AVeDichChungPage = () => {
 			navigate("/admin/manage");
 		}
 	}, [currentMatchCode, navigate]);
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	usePlayerPresence({ lastMessage, setPlayers });
-	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {

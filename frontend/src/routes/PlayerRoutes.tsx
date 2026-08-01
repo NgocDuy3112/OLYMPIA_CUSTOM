@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useMatchCode } from "@/hooks/useMatchCode";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
@@ -35,7 +36,7 @@ const PlayerAutoNavigator: React.FC = () => {
     const location = useLocation();
     const playerCode = sessionStorage.getItem("playerCode") || "";
     const matchCode = localStorage.getItem("matchCode") || "";
-    const { lastMessage } = usePlayerWebSocket();
+    const { lastMessage } = useGameWebSocket();
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -104,44 +105,7 @@ const PlayerAutoNavigator: React.FC = () => {
 };
 
 const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-    const location = useLocation();
-    const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = localStorage.getItem("matchCode");
-        return s && s.trim() !== "" ? s : "";
-    });
-
-    useEffect(() => {
-        if (urlMatchCode && urlMatchCode !== matchCode) {
-            localStorage.setItem("matchCode", urlMatchCode);
-            setMatchCode(urlMatchCode);
-        }
-    }, [urlMatchCode, matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-
-        const onMatchCodeSet = () => {
-            const s = localStorage.getItem("matchCode") || "";
-            if (s && s.trim() !== "") setMatchCode(s);
-        };
-
-        window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
-        return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
-    }, [matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        try {
-            if (location.pathname.startsWith("/player/vl")) {
-                const defaultCode = "OC3_M_VL";
-                localStorage.setItem("matchCode", defaultCode);
-                setMatchCode(defaultCode);
-            }
-        } catch (e) {
-
-        }
-    }, [location.pathname, matchCode]);
+    const matchCode = useMatchCode({ defaultPath: "/player/vl", defaultCode: "OC3_M_VL" });
 
     if (!matchCode) return <>{children}</>;
 

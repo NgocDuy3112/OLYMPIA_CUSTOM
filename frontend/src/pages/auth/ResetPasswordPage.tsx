@@ -39,8 +39,8 @@ const ResetPasswordPage: React.FC = () => {
     return (
         <BaseAuthLayout title="OLYMPIA CUSTOM 3" subtitle="Đặt lại mật khẩu">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <InputField label="Mật khẩu mới" type="password" value={password} onChange={(e: any) => setPassword(e.target.value)} />
-                <InputField label="Nhập lại mật khẩu" type="password" value={password2} onChange={(e: any) => setPassword2(e.target.value)} />
+                <InputField label="Mật khẩu mới" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                <InputField label="Nhập lại mật khẩu" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} />
                 <button type="submit" disabled={loading} className="mt-4 btn-primary-full">
                     {loading ? "Đang gửi…" : "CẬP NHẬT MẬT KHẨU"}
                 </button>

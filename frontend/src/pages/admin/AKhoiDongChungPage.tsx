@@ -12,9 +12,8 @@ import {
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
@@ -41,7 +40,7 @@ const AKhoiDongChungPage = () => {
 	const storedMatchCode = localStorage.getItem("matchCode");
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 
 	useEffect(() => {
 		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
@@ -61,8 +60,7 @@ const AKhoiDongChungPage = () => {
 	}, [currentMatchCode, navigate]);
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	usePlayerPresence({ lastMessage, setPlayers });
-	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
@@ -546,7 +544,7 @@ const AKhoiDongChungPage = () => {
 
 			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCodes, currentMatchCode, currentQuestionIndex, resolveQuestionCode, token, syncAndBroadcastScores]);
+	}, [selectedPlayerCodes, currentMatchCode, currentQuestionIndex, resolveQuestionCode, token, syncAndBroadcastScores, sendMessage]);
 
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);

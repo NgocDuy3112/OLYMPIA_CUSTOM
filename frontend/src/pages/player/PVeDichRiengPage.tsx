@@ -2,27 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Star, Shield } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { submitBuzz } from "@/api/answers";
 
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import type { PlayerStatus } from "@/types/player";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
 const PVeDichRiengPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = useRoleSession("player");
+	const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
 	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, applyWsMessage } = useQuestionState();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, setPlayers, applyPlayersInfo, applyScoreUpdate } = useAudiencePlayers();
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
 	const [hasPinged, setHasPinged] = useState(false);
@@ -48,7 +48,9 @@ const PVeDichRiengPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
+
+		queueMicrotask(() => {
 
 		console.info("PLAYER lastMessage:", lastMessage);
 		console.info("PLAYER msg:", msg);
@@ -57,47 +59,9 @@ const PVeDichRiengPage = () => {
 		if (msg?.type === "send_question" || msg?.type === "clear_question") setVideoPlayState(null);
 
 		switch (msg?.type) {
-			case "send_players_info": {
-
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
-					const code = String(p?.user_code ?? "");
-					let name = "";
-					if (p?.user_name) name = p.user_name;
-					else {
-						const prof = (profiles ?? []).find((pr: any) => String(pr?.user_code) === code);
-						if (prof) name = prof.user_name ?? "";
-						else {
-							const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else {
-						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: false,
-						playerIsTurn: (p as any)?.is_current ?? false,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
 			case "start_the_timer": {
 				setHasPinged(false);
@@ -105,7 +69,7 @@ const PVeDichRiengPage = () => {
 
 				lastBuzzerQuestionRef.current = null;
 				setAnsweringWindowTimer(0);
-				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				startSynced(Number(msg.time_limit ?? 0), Number(msg.started_at ?? Date.now()));
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
@@ -144,7 +108,7 @@ const PVeDichRiengPage = () => {
 					setUsedPowers((prev) => {
 						const next = { ...prev, [user_code]: power };
 
-						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch {  }
+						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
 						return next;
 					});
 
@@ -159,12 +123,13 @@ const PVeDichRiengPage = () => {
 
 			case "vd_powers_used": {
 				if (msg.used_powers) {
-					setUsedPowers(msg.used_powers);
-					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(msg.used_powers)); } catch {  }
+					const powers = msg.used_powers;
+					setUsedPowers(powers);
+					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
 
 					setPlayers((prev) =>
 						prev.map((p) => {
-							const power = msg.used_powers[p.playerCode];
+							const power = powers[p.playerCode];
 							return power ? { ...p, playerPower: power as "star" | "shield" } : p;
 						}),
 					);
@@ -175,23 +140,17 @@ const PVeDichRiengPage = () => {
 			case "buzzer_winner": {
 				const winner = msg.user_code;
 				if (winner) {
-					setBuzzerWinnerCode(winner);
+					const winnerCode = String(winner);
+					setBuzzerWinnerCode(winnerCode);
 					lastBuzzerQuestionRef.current = msg.question_code ?? null;
-					setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })));
+					setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winnerCode })));
 				}
 				break;
 			}
 
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
+			case "player_score_updated":
+				applyScoreUpdate(msg);
 				break;
-			}
 
 			case "clear_buzz": {
 				setHasPinged(false);
@@ -211,7 +170,7 @@ const PVeDichRiengPage = () => {
 					setBlockedPlayerCode(null);
 				} else {
 
-					setBlockedPlayerCode(msg.user_code);
+					setBlockedPlayerCode(String(msg.user_code));
 				}
 				break;
 			}
@@ -247,7 +206,8 @@ const PVeDichRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, startSynced]);
+		});
+	}, [applyPlayersInfo, applyScoreUpdate, applyWsMessage, lastMessage, matchCode, playerCode, setPlayers, startSynced]);
 
 	const handlePing = useCallback(async () => {
 		console.info(`[VDR BUZZ] handlePing called: connected=${isConnected}, hasPinged=${hasPinged}, buzzerWinner=${buzzerWinnerCode}, answeringWindow=${answeringWindowTimer}`);
@@ -283,28 +243,14 @@ const PVeDichRiengPage = () => {
 
 		let wonBuzzer = false;
 		try {
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					has_buzzed: true,
-				}),
-			});
-			if (res.status === 201 || res.status === 200) {
-				wonBuzzer = true;
-			} else if (res.status === 409) {
-				console.info("[VDR BUZZ] Lost buzzer race (409); another player won. Waiting for blocked_buzz event to disable button.");
-			} else {
-				console.warn("[VDR BUZZ] Failed to POST buzz:", res.status);
-			}
-		} catch (err) {
-			console.warn("[VDR BUZZ] Failed to POST buzz:", err);
+			wonBuzzer = await submitBuzz({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				has_buzzed: true,
+			}, token);
+		} catch (error) {
+			console.warn("Failed to submit buzz:", error);
 		}
 
 		const wsEchoOk = await sendMessage({

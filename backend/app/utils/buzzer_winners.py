@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 BUZZER_WINNER_KEY_PREFIX = "buzzer_winner:"
 
 
-BUZZER_WINNER_TTL_SECONDS = 600
+BUZZER_WINNER_TTL_SECONDS = 30
 
 
 def buzzer_winner_key(match_code: str) -> str:

@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { GuestWebSocketContext } from "@/contexts/guestWsImpl";
-import type { GuestWsContextValue } from "@/contexts/guestWsImpl";
+import { WebSocketContext } from "@/contexts/WebSocketContext";
+import type { WebSocketContextValue } from "@/types/websocket";
 
 export const GuestWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
   matchCode,
@@ -11,11 +11,14 @@ export const GuestWebSocketProvider: React.FC<{ matchCode: string; children: Rea
   const token = sessionStorage.getItem("jwtToken_guest") ?? undefined;
   const ws = useWebSocket(matchCode, token);
 
-  const value: GuestWsContextValue = {
-    isConnected: ws.isConnected,
-    lastMessage: ws.lastMessage,
-    sendMessage: ws.sendMessage,
-  };
+  const value = useMemo<WebSocketContextValue>(
+    () => ({
+      isConnected: ws.isConnected,
+      lastMessage: ws.lastMessage,
+      sendMessage: ws.sendMessage,
+    }),
+    [ws.isConnected, ws.lastMessage, ws.sendMessage],
+  );
 
-  return <GuestWebSocketContext.Provider value={value}>{children}</GuestWebSocketContext.Provider>;
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };

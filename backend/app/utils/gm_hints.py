@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 GM_HINTS_KEY_PREFIX = "gm:hints:"
 
 
-GM_HINTS_TTL_SECONDS = 600
+GM_HINTS_TTL_SECONDS = 10800
 
 
 def gm_hints_key(match_code: str) -> str:

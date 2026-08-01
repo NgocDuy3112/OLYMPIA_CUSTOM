@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useMatchCode } from "@/hooks/useMatchCode";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { MCWebSocketProvider } from "@/contexts/MCWebSocketContext";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 import MGameAccessPage from "@/pages/mc/MGameAccessPage";
 import MWaitingPage from "@/pages/mc/MWaitingPage";
@@ -27,7 +28,7 @@ const ProtectedMcRoute: React.FC<{ children: React.ReactNode }> = ({ children })
 const MCAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { lastMessage } = useMcWebSocket();
+    const { lastMessage } = useGameWebSocket();
     const matchCode = localStorage.getItem("matchCode") || "";
 
     useEffect(() => {
@@ -81,38 +82,7 @@ const MCAutoNavigator: React.FC = () => {
 };
 
 const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-    const location = useLocation();
-    const [matchCode, setMatchCode] = useState<string>(() => {
-        const s = localStorage.getItem("matchCode");
-        return s && s.trim() !== "" ? s : "";
-    });
-
-    useEffect(() => {
-        if (urlMatchCode && urlMatchCode !== matchCode) {
-            localStorage.setItem("matchCode", urlMatchCode);
-            setMatchCode(urlMatchCode);
-        }
-    }, [urlMatchCode, matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        const onMatchCodeSet = () => {
-            const s = localStorage.getItem("matchCode") || "";
-            if (s && s.trim() !== "") setMatchCode(s);
-        };
-        window.addEventListener("oc3_matchCode_set", onMatchCodeSet);
-        return () => window.removeEventListener("oc3_matchCode_set", onMatchCodeSet);
-    }, [matchCode]);
-
-    useEffect(() => {
-        if (matchCode) return;
-        if (location.pathname.startsWith("/mc/vl")) {
-            const defaultCode = "OC3_M_VL";
-            localStorage.setItem("matchCode", defaultCode);
-            setMatchCode(defaultCode);
-        }
-    }, [location.pathname, matchCode]);
+    const matchCode = useMatchCode({ defaultPath: "/mc/vl", defaultCode: "OC3_M_VL" });
 
     if (!matchCode) return <>{children}</>;
 

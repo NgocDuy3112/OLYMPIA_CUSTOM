@@ -1,17 +1,18 @@
 
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "@/configs";
+import { submitAnswer } from "@/api/answers";
 
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import type { PlayerStatus } from "@/types/player";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { buildKeywordBanner } from "@/utils/keywordBanner";
 
 const CLUE_COUNT = 8;
 type ClueState = "idle" | "active" | "used";
@@ -19,14 +20,6 @@ type RevealedHint = { text?: string; mediaUrl?: string };
 
 function isMediaFilename(value: string): boolean {
 	return /\.(mp3|ogg|wav|aac|m4a|mp4|webm|mov|jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value.trim());
-}
-
-function buildKeywordBanner(answer: string): string {
-	const trimmedLen = answer.replace(/\s/g, '').length;
-	const noSpaceAnswer = answer.replace(/\s/g, '');
-	if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ CÁI`;
-	if (/^\d+$/.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ SỐ`;
-	return `TỪ KHOÁ GỒM CÓ ${trimmedLen} KÝ TỰ`;
 }
 
 interface PlayerClueCardProps {
@@ -60,12 +53,12 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
 };
 
 const PGiaiMaPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = useRoleSession("player");
+	const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, applyWsMessage } = useQuestionState();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, setPlayers, applyPlayersInfo, applyScoreUpdate } = useAudiencePlayers();
 	const [keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
 	const [questionAnswer, setQuestionAnswer] = useState("");
 	const [keyword, setKeyword] = useState("");
@@ -89,7 +82,9 @@ const PGiaiMaPage = () => {
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
+
+		queueMicrotask(() => {
 
 		console.info("PLAYER lastMessage:", lastMessage);
 		console.info("PLAYER msg:", msg);
@@ -97,47 +92,9 @@ const PGiaiMaPage = () => {
 		applyWsMessage(msg);
 
 		switch (msg?.type) {
-			case "send_players_info": {
-
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
-					const code = String(p?.user_code ?? "");
-
-					let name = "";
-					if (p?.user_name) name = p.user_name;
-					else {
-						const prof = (profiles ?? []).find((pr: any) => String(pr?.user_code) === code);
-						if (prof) name = prof.user_name ?? "";
-						else {
-							const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else {
-						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: undefined,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
 			case "send_question": {
 				const code: string = msg.question_code ?? "";
@@ -164,7 +121,7 @@ const PGiaiMaPage = () => {
 				if (isKeywordTimer) {
 					setIsKeywordLocked(false);
 				}
-				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				startSynced(Number(msg.time_limit ?? 0), Number(msg.started_at ?? Date.now()));
 				setTimerHasStarted(true);
 				if (!isKeywordTimer) {
 					setQuestionAnswer("");
@@ -211,10 +168,12 @@ const PGiaiMaPage = () => {
 			case "show_hint": {
 				const hintContent = msg.hint_content ?? "";
 				const hintMediaSource = msg.hint_media_source ?? "";
+				const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players.map(String) : [];
+				const canSeeHint = targets.length === 0 || targets.includes(String(playerCode));
 
 				const contentIsMedia = isMediaFilename(hintContent);
-				const displayText = contentIsMedia ? hintMediaSource : hintContent;
-				const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
+				const displayText = canSeeHint ? (contentIsMedia ? hintMediaSource : hintContent) : "";
+				const displayMedia = canSeeHint ? (contentIsMedia ? hintContent : hintMediaSource) : "";
 				setHideQuestionContent(true);
 				const explicitIdx = Number(msg.clue_index);
 				const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
@@ -226,22 +185,19 @@ const PGiaiMaPage = () => {
 						if (prev[idx] === "used") return prev;
 						return prev.map((s, i) => (i === idx ? "used" : s));
 					});
-					setRevealedHints((prev) => ({
-						...prev,
-						[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
-					}));
+					setRevealedHints((prev) => {
+						const next = { ...prev };
+						if (displayText || displayMedia) next[idx] = { text: displayText || undefined, mediaUrl: displayMedia || undefined };
+						else delete next[idx];
+						return next;
+					});
 				} else {
 					const idx = activeClueIdxRef.current;
-					if (idx !== null) {
-						const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players : [];
-
-						const isTargeted = targets.length > 0 && targets.includes(playerCode);
-						if (isTargeted) {
-							setRevealedHints((prev) => ({
-								...prev,
-								[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
-							}));
-						}
+					if (idx !== null && canSeeHint) {
+						setRevealedHints((prev) => ({
+							...prev,
+							[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
+						}));
 					}
 				}
 				break;
@@ -269,16 +225,9 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
+			case "player_score_updated":
+				applyScoreUpdate(msg);
 				break;
-			}
 
 			case "clear_answers": {
 				setPlayers((prev) =>
@@ -375,17 +324,16 @@ const PGiaiMaPage = () => {
 			}
 
 			case "send_keyword_answers": {
-				const answers: { user_code: string; content: string; timestamp?: number; clues_opened?: number }[] = msg.answers ?? [];
+				const answers = msg.answers ?? [];
 				console.info("[KEYWORD ANSWERS] Received answers:", answers.length, "submissions");
 				setPlayers((prev) =>
 					prev.map((p) => {
-						const a = answers.find((x: any) => x.user_code === p.playerCode);
+						const a = answers.find((x) => String(x.user_code) === p.playerCode);
 						if (!a) return p;
 						return {
 							...p,
 							playerLastAnswer: a.content,
-
-							playerTimestamp: typeof a.timestamp === "number" ? a.timestamp : p.playerTimestamp,
+							playerTimestamp: undefined,
 							playerKeywordCluesOpened:
 								typeof a.clues_opened === "number" ? a.clues_opened : p.playerKeywordCluesOpened,
 						};
@@ -399,7 +347,7 @@ const PGiaiMaPage = () => {
 				const answers = msg.answers ?? [];
 				setPlayers((prev) =>
 					prev.map((p) => {
-						const ans = answers.find((a: any) => a.user_code === p.playerCode);
+						const ans = answers.find((a) => String(a.user_code) === p.playerCode);
 						if (!ans) return p;
 						return { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp || p.playerTimestamp };
 					}),
@@ -411,7 +359,8 @@ const PGiaiMaPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, startSynced, playerCode]);
+		});
+	}, [applyPlayersInfo, applyScoreUpdate, applyWsMessage, lastMessage, playerCode, setPlayers, startSynced]);
 
 	const handleSubmitQuestionAnswer = useCallback(async () => {
 		const trimmed = questionAnswer.trim();
@@ -423,28 +372,16 @@ const PGiaiMaPage = () => {
 		const ts = Math.max(0, Math.min(timeLimit, elapsed));
 
 		try {
-
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					answer_text: trimmed,
-					has_buzzed: false,
-					timestamp: ts,
-				}),
-			});
-			if (!res.ok) {
-				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST question answer:", res.status, body);
-			}
-		} catch (err) {
-			console.warn("Failed to POST question answer:", err);
+			await submitAnswer({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				answer_text: trimmed,
+				has_buzzed: false,
+				timestamp: ts,
+			}, token);
+		} catch (error) {
+			console.warn("Failed to submit question answer:", error);
 		}
 
 		await sendMessage({
@@ -462,7 +399,7 @@ const PGiaiMaPage = () => {
 			),
 		);
 		setQuestionAnswer("");
-	}, [questionAnswer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, token, matchCode]);
+	}, [currentQuestion.questionCode, getElapsedSeconds, isConnected, matchCode, playerCode, questionAnswer, sendMessage, setPlayers, timeLimit, token]);
 
 	const handleSubmitKeyword = useCallback(() => {
 		if (!keyword.trim()) return;
@@ -482,29 +419,15 @@ const PGiaiMaPage = () => {
 		}
 
 		try {
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					answer_text: trimmed,
-					has_buzzed: false,
-					timestamp: 0,
-				}),
-			});
-			if (!res.ok) {
-				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST keyword:", res.status, body);
-			} else {
-				console.info("[KEYWORD SUBMIT] POST success");
-			}
-		} catch (err) {
-			console.warn("Failed to POST keyword:", err);
+			await submitAnswer({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				answer_text: trimmed,
+				has_buzzed: false,
+			}, token);
+		} catch (error) {
+			console.warn("Failed to submit keyword:", error);
 		}
 
 		console.info("[KEYWORD SUBMIT] Sending WebSocket message...");
@@ -516,7 +439,6 @@ const PGiaiMaPage = () => {
 			type: "keyword_submit",
 			user_code: playerCode,
 			keyword_text: trimmed,
-			timestamp: 0,
 			clues_opened: cluesOpened,
 		});
 		console.info("[KEYWORD SUBMIT] WebSocket message sent");
@@ -531,19 +453,13 @@ const PGiaiMaPage = () => {
 		);
 		console.info("[KEYWORD SUBMIT] State updated, keyword cleared");
 		setKeyword("");
-	}, [keywordToConfirm, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode, clueStates, isKeywordCluesLocked]);
+	}, [clueStates, currentQuestion.questionCode, isKeywordCluesLocked, keywordToConfirm, matchCode, playerCode, sendMessage, setPlayers, token]);
 
 	const isTimerExpired = timeLimit > 0 && timer === 0;
 	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired || isKeywordPhase;
 
 	const isKeywordTimerExpired = isKeywordPhase && timeLimit > 0 && timer === 0;
-	useEffect(() => {
-		if (isKeywordTimerExpired) {
-			setIsKeywordLocked(true);
-		}
-	}, [isKeywordTimerExpired]);
-
-	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || !currentQuestion.questionCode;
+	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || isKeywordTimerExpired || !currentQuestion.questionCode;
 
 	const displayPlayers = players.map((p) => {
 		const withKeyword = keywordSubmittedCodes.has(p.playerCode)

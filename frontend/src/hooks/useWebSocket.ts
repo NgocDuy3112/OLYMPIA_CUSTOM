@@ -1,56 +1,44 @@
-
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WS_BASE_URL } from "@/configs";
+import type { WebSocketMessage, WebSocketPayload } from "@/types/websocket";
+import { parseWebSocketMessage } from "@/types/websocket";
 import { createLogger } from "@/utils/logger";
 
 const logger = createLogger("WS");
+const RECONNECT_BASE_MS = 1_000;
+const RECONNECT_MAX_MS = 16_000;
+const DEBOUNCE_MS = 500;
+const DEBOUNCED_EVENTS = new Set(["navigate", "start_the_timer", "play_bgm", "round_start"]);
 
 const createWsUrl = (matchCode: string, token?: string) =>
-  `${WS_BASE_URL}/ws/${matchCode}${token ? `?token=${encodeURIComponent(token)}` : ``}`;
+  `${WS_BASE_URL}/ws/${matchCode}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
 
 export const useWebSocket = (matchCode: string, token?: string) => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const messageDrainTimerRef = useRef<number | null>(null);
-  const pendingMessagesRef = useRef<any[]>([]);
+  const pendingMessagesRef = useRef<WebSocketMessage[]>([]);
   const isDrainingMessagesRef = useRef(false);
-
-  const RECONNECT_BASE_MS = 1_000;
-  const RECONNECT_MAX_MS = 16_000;
-  const getReconnectDelay = () =>
-    Math.min(RECONNECT_BASE_MS * 2 ** reconnectAttemptsRef.current, RECONNECT_MAX_MS);
-
   const lastEventTimeRef = useRef<Record<string, number>>({});
-  const DEBOUNCE_MS = 500;
-
   const [rawIsConnected, setRawIsConnected] = useState(false);
-  const [rawLastMessage, setRawLastMessage] = useState<any>(null);
+  const [rawLastMessage, setRawLastMessage] = useState<WebSocketMessage | null>(null);
 
   const isConnected = Boolean(matchCode) && rawIsConnected;
   const lastMessage = matchCode ? rawLastMessage : null;
 
   useEffect(() => {
-
-    if (reconnectTimerRef.current) {
-      window.clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
+    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+    if (messageDrainTimerRef.current !== null) window.clearTimeout(messageDrainTimerRef.current);
+    reconnectTimerRef.current = null;
+    messageDrainTimerRef.current = null;
     reconnectAttemptsRef.current = 0;
-
-    if (messageDrainTimerRef.current) {
-      window.clearTimeout(messageDrainTimerRef.current);
-      messageDrainTimerRef.current = null;
-    }
     pendingMessagesRef.current = [];
     isDrainingMessagesRef.current = false;
 
     if (!matchCode) {
-      logger.info("No matchCode provided, skipping WebSocket connection");
-      if (wsRef.current) {
-        wsRef.current.close(1000, "no matchCode");
-        wsRef.current = null;
-      }
+      wsRef.current?.close(1000, "no matchCode");
+      wsRef.current = null;
       return;
     }
 
@@ -64,19 +52,17 @@ export const useWebSocket = (matchCode: string, token?: string) => {
         messageDrainTimerRef.current = null;
         return;
       }
-
       const nextMessage = pendingMessagesRef.current.shift();
-      if (typeof nextMessage === "undefined") {
+      if (!nextMessage) {
         isDrainingMessagesRef.current = false;
         messageDrainTimerRef.current = null;
         return;
       }
-
       setRawLastMessage(nextMessage);
       messageDrainTimerRef.current = window.setTimeout(drainNextMessage, 0);
     };
 
-    const enqueueMessage = (message: any) => {
+    const enqueueMessage = (message: WebSocketMessage) => {
       pendingMessagesRef.current.push(message);
       if (isDrainingMessagesRef.current) return;
       isDrainingMessagesRef.current = true;
@@ -85,57 +71,42 @@ export const useWebSocket = (matchCode: string, token?: string) => {
 
     const connect = () => {
       if (wsRef.current && wsRef.current.readyState <= WebSocket.OPEN) {
-        try {
-          wsRef.current.close(1000, "reconnect-replace");
-        } catch (e) {
-          logger.warn("Error while closing existing WebSocket during reconnect:", e);
-        }
-        wsRef.current = null;
+        wsRef.current.close(1000, "reconnect-replace");
       }
       const socket = new WebSocket(url);
       wsRef.current = socket;
 
       socket.onopen = () => {
         if (closedByCleanup) return;
-        logger.info(`Connected to match: ${matchCode}`);
         reconnectAttemptsRef.current = 0;
         setRawIsConnected(true);
       };
 
-      socket.onmessage = (event) => {
+      socket.onmessage = (event: MessageEvent<string>) => {
         if (closedByCleanup) return;
         try {
-          console.info(`[WS:${matchCode}] raw frame:`, event.data);
-          const raw = JSON.parse(event.data);
-          enqueueMessage(raw);
-          logger.debug("Received WS message:", raw);
+          const message = parseWebSocketMessage(event.data);
+          if (message) enqueueMessage(message);
+          else logger.warn("Ignored invalid WebSocket message");
         } catch (error) {
           logger.error("Error parsing message:", error);
         }
       };
 
       socket.onerror = (error) => {
-        if (closedByCleanup) return;
-        logger.error("WebSocket Error:", error);
+        if (!closedByCleanup) logger.error("WebSocket Error:", error);
       };
 
       socket.onclose = () => {
         if (closedByCleanup) return;
-        const attempt = reconnectAttemptsRef.current + 1;
-        const delay = getReconnectDelay();
-        logger.info(
-          `Disconnected from match: ${matchCode} — reconnect #${attempt} in ${delay}ms`,
-        );
         setRawIsConnected(false);
-
-        if (reconnectTimerRef.current) {
-          window.clearTimeout(reconnectTimerRef.current);
-          reconnectTimerRef.current = null;
-        }
-
+        const delay = Math.min(
+          RECONNECT_BASE_MS * 2 ** reconnectAttemptsRef.current,
+          RECONNECT_MAX_MS,
+        );
+        if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current += 1;
-          logger.info("Reconnecting...");
           connect();
         }, delay);
       };
@@ -145,66 +116,37 @@ export const useWebSocket = (matchCode: string, token?: string) => {
 
     return () => {
       closedByCleanup = true;
-
-      if (reconnectTimerRef.current) {
-        window.clearTimeout(reconnectTimerRef.current);
-        reconnectTimerRef.current = null;
-      }
+      if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+      if (messageDrainTimerRef.current !== null) window.clearTimeout(messageDrainTimerRef.current);
+      reconnectTimerRef.current = null;
+      messageDrainTimerRef.current = null;
       reconnectAttemptsRef.current = 0;
-
-      if (messageDrainTimerRef.current) {
-        window.clearTimeout(messageDrainTimerRef.current);
-        messageDrainTimerRef.current = null;
-      }
       pendingMessagesRef.current = [];
       isDrainingMessagesRef.current = false;
-
-      const s = wsRef.current;
-      if (s) {
-        s.onopen = null;
-        s.onmessage = null;
-        s.onerror = null;
-        s.onclose = null;
-        s.close(1000, "cleanup");
+      const socket = wsRef.current;
+      if (socket) {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
+        socket.close(1000, "cleanup");
       }
       wsRef.current = null;
-
-      Promise.resolve().then(() => {
-        setRawIsConnected(false);
-        setRawLastMessage(null);
-      });
     };
-  }, [matchCode]);
+  }, [matchCode, token]);
 
-  const sendMessage = useCallback(async (payload: Record<string, unknown>): Promise<boolean> => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-
-      const eventType = payload.type as string;
-      const eventsToDebounce = ['navigate', 'start_the_timer', 'play_bgm', 'round_start'];
-
-      if (eventsToDebounce.includes(eventType)) {
-        const now = Date.now();
-        const lastTime = lastEventTimeRef.current[eventType] || 0;
-
-        if (now - lastTime < DEBOUNCE_MS) {
-          logger.debug(`Debounced ${eventType} event (${now - lastTime}ms < ${DEBOUNCE_MS}ms)`);
-          return true;
-        }
-
-        lastEventTimeRef.current[eventType] = now;
-      }
-
-      wsRef.current.send(JSON.stringify(payload));
-      logger.debug("Sent payload:", payload);
-      return true;
+  const sendMessage = useCallback(async (payload: WebSocketPayload): Promise<boolean> => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return false;
+    const eventType = typeof payload.type === "string" ? payload.type : "";
+    if (DEBOUNCED_EVENTS.has(eventType)) {
+      const now = Date.now();
+      const lastTime = lastEventTimeRef.current[eventType] ?? 0;
+      if (now - lastTime < DEBOUNCE_MS) return true;
+      lastEventTimeRef.current[eventType] = now;
     }
-    logger.warn("Cannot send message: Not connected.");
-    return false;
+    wsRef.current.send(JSON.stringify(payload));
+    return true;
   }, []);
 
-  return {
-    isConnected,
-    lastMessage,
-    sendMessage,
-  };
+  return { isConnected, lastMessage, sendMessage };
 };

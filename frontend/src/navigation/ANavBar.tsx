@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 interface AdminGameplayNavBarProps {
 	onNavigateToWaiting?: () => void;
 }
@@ -8,7 +8,7 @@ interface AdminGameplayNavBarProps {
 const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({ onNavigateToWaiting }) => {
 	const navigate = useNavigate();
 	const location = useLocation();
-	const { sendMessage } = useAdminWebSocket();
+	const { sendMessage } = useGameWebSocket();
 
 	const handleLogout = () => {
 		localStorage.removeItem("jwtToken_admin");

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 GM_PLAYER_STATE_KEY_PREFIX = "gm:player_state:"
 
 
-GM_PLAYER_STATE_TTL_SECONDS = 600
+GM_PLAYER_STATE_TTL_SECONDS = 10800
 
 
 def gm_player_state_key(match_code: str, user_code: str) -> str:
@@ -30,7 +30,6 @@ async def set_player_keyword_submission(
     user_code: str,
     keyword_text: str,
     clues_opened: int | None,
-    timestamp: int | None,
     submitted_at: int | None = None,
 ) -> None:
     if not valkey or not match_code or not user_code:
@@ -39,7 +38,6 @@ async def set_player_keyword_submission(
         "has_submitted_keyword": True,
         "keyword_text": keyword_text or "",
         "clues_opened": clues_opened,
-        "timestamp": timestamp,
     }
     if submitted_at is not None:
         payload["submitted_at"] = int(submitted_at)

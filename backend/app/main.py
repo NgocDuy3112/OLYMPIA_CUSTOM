@@ -37,6 +37,7 @@ from utils.ws_message_processor import (
     is_allowed_by_role,
     send_initial_snapshot,
 )
+from utils.round_snapshot import apply_round_snapshot
 from core.question import get_question_from_request_from_db
 from logger import global_logger
 import asyncio
@@ -185,15 +186,15 @@ async def websocket_endpoint(
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code, user_code=user_info["user_code"], role=user_role)
 
+    if user_role in ("player", "mc", "guest"):
+        await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
+
     if user_role == "player":
         await handle_player_reconnect(ws_manager, match_code, user_info["user_code"])
     elif user_role == "mc":
         await handle_mc_reconnect(ws_manager, match_code, user_info["user_code"])
     elif user_role == "guest":
         await handle_guest_reconnect(ws_manager, match_code, user_info["user_code"])
-
-    if user_role in ("player", "mc", "guest"):
-        await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
 
     try:
         while True:
@@ -242,7 +243,12 @@ async def websocket_endpoint(
                 ws_manager, match_code, broadcast_data,
             )
 
-            await ws_manager.broadcast_to_room(match_code, broadcast_data)
+            await apply_round_snapshot(ws_manager.valkey, match_code, broadcast_data)
+
+            if msg_type == "show_hint":
+                await ws_manager.send_gm_hint_local(match_code, broadcast_data)
+            else:
+                await ws_manager.broadcast_to_room(match_code, broadcast_data)
 
             if msg_type == "send_question":
                 question_code = broadcast_data.get("question_code", "")

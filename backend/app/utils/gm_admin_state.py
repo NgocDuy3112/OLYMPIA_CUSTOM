@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 GM_ADMIN_STATE_KEY_PREFIX = "gm:admin_state:"
 
 
-GM_ADMIN_STATE_TTL_SECONDS = 600
+GM_ADMIN_STATE_TTL_SECONDS = 10800
 
 
 def gm_admin_state_key(match_code: str) -> str:
