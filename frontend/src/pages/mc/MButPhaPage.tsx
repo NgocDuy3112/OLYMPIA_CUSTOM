@@ -27,6 +27,13 @@ const MButPhaPage = () => {
             case "send_players_info":
                 applyPlayersInfo(msg);
                 break;
+            case "send_question":
+            case "clear_question":
+            case "round_start":
+            case "round_end":
+                setVideoPlayState(null);
+                setBuzzerWinnerCode(null);
+                break;
             case "start_the_timer":
                 startSynced(Number(msg.time_limit ?? 0), msg.started_at);
                 clearAnswers();
@@ -53,10 +60,9 @@ const MButPhaPage = () => {
                 break;
             case "buzz":
                 applyBuzz(msg);
-
-                if (msg.user_code && !buzzerWinnerCode) {
-                    setBuzzerWinnerCode(msg.user_code);
-                }
+                break;
+            case "buzzer_winner":
+                setBuzzerWinnerCode(msg.user_code || null);
                 break;
             default:
                 break;

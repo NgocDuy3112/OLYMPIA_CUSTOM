@@ -83,10 +83,13 @@ const PlayerAutoNavigator: React.FC = () => {
             return;
         }
 
-        const isQualifier = normalized === "/player/vl";
+        const isQualifier = normalized.startsWith("/player/vl");
+        const alreadyHasMatchCode = matchCode && normalized.endsWith(`/${matchCode}`);
         const target = isQualifier
-            ? `${normalized}/OC3_M_VL`
-            : `${normalized}/${matchCode}`;
+            ? (normalized.endsWith("/OC3_M_VL") ? normalized : `${normalized}/OC3_M_VL`)
+            : alreadyHasMatchCode
+                ? normalized
+                : `${normalized}/${matchCode}`;
 
         const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
 

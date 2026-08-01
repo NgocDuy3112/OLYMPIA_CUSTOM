@@ -700,21 +700,19 @@ const AButPhaPage = () => {
 				break;
 			}
 
-			case "buzz": {
+			case "buzz":
+				break;
 
-				const { user_code } = msg;
-				if (user_code) {
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((player) =>
-								player.playerCode === user_code
-									? { ...player, playerHasBuzzed: true }
-									: player,
-							),
-						);
-					});
-					logger.info("Player buzzed:", user_code);
-				}
+			case "buzzer_winner": {
+				const winner = msg.user_code ?? "";
+				startTransition(() => {
+					setPlayers((prev) =>
+						prev.map((player) => ({
+							...player,
+							playerHasBuzzed: winner ? player.playerCode === winner : false,
+						})),
+					);
+				});
 				break;
 			}
 

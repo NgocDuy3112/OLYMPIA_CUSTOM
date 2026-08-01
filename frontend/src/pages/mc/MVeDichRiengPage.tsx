@@ -52,19 +52,12 @@ const MVeDichRiengPage = () => {
                 applyScoreUpdate(msg);
                 break;
             case "buzzer_winner": {
-                const winner = msg.user_code;
-                const winnerQuestion = msg.question_code;
-
-                if (winner && winnerQuestion !== lastBuzzerQuestionRef.current) {
-                    console.info(`[VDR MC] Received buzzer_winner: winner=${winner}, question=${winnerQuestion}`);
-                    setBuzzerWinnerCode(winner);
-                    lastBuzzerQuestionRef.current = winnerQuestion;
-                    setPlayers((prev) =>
-                        prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })),
-                    );
-                } else {
-                    console.warn(`[VDR MC] Ignoring buzzer_winner: winner=${winner}, question=${winnerQuestion}, current=${buzzerWinnerCode}`);
-                }
+                const winner = msg.user_code ?? "";
+                setBuzzerWinnerCode(winner || null);
+                lastBuzzerQuestionRef.current = winner ? msg.question_code ?? null : null;
+                setPlayers((prev) =>
+                    prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
+                );
                 break;
             }
             case "clear_buzz": {
@@ -97,8 +90,7 @@ const MVeDichRiengPage = () => {
             }
             case "vdr_questions_meta":
             case "vd_questions_selected": {
-
-                if (msg.round !== "chung") {
+                if (msg.type === "vd_questions_selected" && msg.round !== "chung") {
                     setBuzzerWinnerCode(null);
                     lastBuzzerQuestionRef.current = null;
                     setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));

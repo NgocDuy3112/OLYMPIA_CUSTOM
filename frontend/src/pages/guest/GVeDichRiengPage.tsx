@@ -52,16 +52,12 @@ const GVeDichRiengPage = () => {
                 applyScoreUpdate(msg);
                 break;
             case "buzzer_winner": {
-                const winner = msg.user_code;
-                const winnerQuestion = msg.question_code;
-
-                if (winner && winnerQuestion !== lastBuzzerQuestionRef.current) {
-                    setBuzzerWinnerCode(winner);
-                    lastBuzzerQuestionRef.current = winnerQuestion;
-                    setPlayers((prev) =>
-                        prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })),
-                    );
-                }
+                const winner = msg.user_code ?? "";
+                setBuzzerWinnerCode(winner || null);
+                lastBuzzerQuestionRef.current = winner ? msg.question_code ?? null : null;
+                setPlayers((prev) =>
+                    prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
+                );
                 break;
             }
             case "clear_buzz":
@@ -91,7 +87,7 @@ const GVeDichRiengPage = () => {
             }
             case "vdr_questions_meta":
             case "vd_questions_selected": {
-                if (msg.round !== "chung") {
+                if (msg.type === "vd_questions_selected" && msg.round !== "chung") {
                     setBuzzerWinnerCode(null);
                     lastBuzzerQuestionRef.current = null;
                     setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));

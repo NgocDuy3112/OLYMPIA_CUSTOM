@@ -66,9 +66,9 @@ const MVeDichChungPage = () => {
                 applyAnswers(msg);
                 break;
             case "buzz":
-                if (msg.user_code && !buzzerWinnerCode) {
-                    setBuzzerWinnerCode(msg.user_code);
-                }
+                break;
+            case "buzzer_winner":
+                setBuzzerWinnerCode(msg.user_code || null);
                 break;
             case "vdc_question_state": {
                 const { question_code, state: qState } = msg;

@@ -47,9 +47,9 @@ const GKhoiDongChungPage = () => {
                 break;
             case "buzz":
                 applyBuzz(msg);
-                if (msg.user_code && !buzzerWinnerCode) {
-                    setBuzzerWinnerCode(msg.user_code);
-                }
+                break;
+            case "buzzer_winner":
+                setBuzzerWinnerCode(msg.user_code || null);
                 break;
             default:
                 break;

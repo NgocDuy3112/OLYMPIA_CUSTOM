@@ -59,9 +59,10 @@ const MCAutoNavigator: React.FC = () => {
         }
         if (!mcPath) return;
 
-        const isQualifier = mcPath === "/mc/vl";
+        const isQualifier = mcPath.startsWith("/mc/vl");
         const noParamsPaths = ["/mc/waiting"];
-        const target = noParamsPaths.includes(mcPath)
+        const alreadyHasMatchCode = matchCode && mcPath.endsWith(`/${matchCode}`);
+        const target = noParamsPaths.includes(mcPath) || alreadyHasMatchCode
             ? mcPath
             : isQualifier
                 ? `${mcPath}/OC3_M_VL`

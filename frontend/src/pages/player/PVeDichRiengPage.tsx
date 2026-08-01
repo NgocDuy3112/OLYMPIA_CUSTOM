@@ -173,18 +173,11 @@ const PVeDichRiengPage = () => {
 			}
 
 			case "buzzer_winner": {
-
 				const winner = msg.user_code;
-				const winnerQuestion = msg.question_code;
-				if (winner && (winnerQuestion !== lastBuzzerQuestionRef.current)) {
+				if (winner) {
 					setBuzzerWinnerCode(winner);
-					lastBuzzerQuestionRef.current = winnerQuestion;
-					setPlayers((prev) => {
-						const updated = prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner }));
-						return updated;
-					});
-				} else {
-					console.warn(`[VDR PLAYER] Ignoring buzzer_winner: winner=${winner}, existing=${buzzerWinnerCode}`);
+					lastBuzzerQuestionRef.current = msg.question_code ?? null;
+					setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner })));
 				}
 				break;
 			}
@@ -231,10 +224,12 @@ const PVeDichRiengPage = () => {
 					setCurrentTurnPlayerCode(msg.selected_player_code);
 				}
 
-				setHasPinged(false);
-				setBuzzerWinnerCode(null);
-				lastBuzzerQuestionRef.current = null;
-				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+				if (msg.type === "vd_questions_selected") {
+					setHasPinged(false);
+					setBuzzerWinnerCode(null);
+					lastBuzzerQuestionRef.current = null;
+					setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+				}
 				break;
 			}
 			case "vdr_question_state": {
@@ -423,27 +418,28 @@ const PVeDichRiengPage = () => {
 					</div>
 				</PQuestionBoard>
 
-				{}
 				{powerWindowOpen && !usedPowers[playerCode ?? ''] && (
 					<div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-4 flex flex-col items-center gap-3">
 						<p className="text-white font-bold text-lg">Chọn quyền năng ({powerWindowCountdown}s)</p>
 						<div className="flex gap-4">
 							<button
 								onClick={() => { void handleSelectPower('star'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'star'
-										? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
-										: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
-									}`}
-							>
-								<Star size={20} />
-								<span>Ngôi Sao Hy Vọng</span>
-							</button>
-							<button
-								onClick={() => { void handleSelectPower('shield'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'shield'
-										? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
-										: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
-									}`}
+							disabled={currentPoints === 20}
+							className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'star'
+									? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
+									: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
+								} ${currentPoints === 20 ? 'opacity-40 cursor-not-allowed' : ''}`}
+						>
+							<Star size={20} />
+							<span>Ngôi Sao Hy Vọng</span>
+						</button>
+						<button
+							onClick={() => { void handleSelectPower('shield'); }}
+							disabled={currentPoints === 50}
+							className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'shield'
+									? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
+									: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
+								} ${currentPoints === 50 ? 'opacity-40 cursor-not-allowed' : ''}`}
 							>
 								<Shield size={20} />
 								<span>Bảo Hộ Miễn Trừ</span>
@@ -453,7 +449,6 @@ const PVeDichRiengPage = () => {
 					</div>
 				)}
 
-				{}
 				{selectedPower && !powerWindowOpen && !usedPowers[playerCode ?? ''] && (
 					<div className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-sm ${selectedPower === 'star'
 							? 'bg-white-500/20 text-white-300 border border-white-500/50'

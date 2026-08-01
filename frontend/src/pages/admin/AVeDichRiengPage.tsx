@@ -161,6 +161,7 @@ const AVeDichRiengPage = () => {
 	});
 
 	const [activePower, setActivePower] = useState<'star' | 'shield' | null>(null);
+	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 
 	const lastBuzzerQuestionRef = useRef<string | null>(null);
 
@@ -403,6 +404,7 @@ const AVeDichRiengPage = () => {
 			setVideoPlayState(null);
 
 			lastBuzzerQuestionRef.current = null;
+			setBuzzerWinnerCode(null);
 			setPlayers((prev) =>
 				prev.map((p) => ({
 					...p,
@@ -475,6 +477,7 @@ const AVeDichRiengPage = () => {
 		setAnsweringWindowTimer(0);
 
 		lastBuzzerQuestionRef.current = null;
+		setBuzzerWinnerCode(null);
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
 
@@ -721,6 +724,7 @@ const AVeDichRiengPage = () => {
 		if (timer !== 0) return;
 		setAnsweringWindowTimer(5);
 		lastBuzzerQuestionRef.current = null;
+		setBuzzerWinnerCode(null);
 		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (currentMatchCode) {
 			void sendMessage({ type: "clear_buzz" });
@@ -737,6 +741,7 @@ const AVeDichRiengPage = () => {
 		setIsTimerRunning(false);
 
 		lastBuzzerQuestionRef.current = null;
+		setBuzzerWinnerCode(null);
 		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 		if (!currentMatchCode) return;
 		try {
@@ -775,6 +780,7 @@ const AVeDichRiengPage = () => {
 						setRoundQuestionCodes(msg.selected_question_codes);
 
 						lastBuzzerQuestionRef.current = null;
+						setBuzzerWinnerCode(null);
 					});
 				}
 
@@ -955,27 +961,23 @@ const AVeDichRiengPage = () => {
 
 			case "buzzer_winner": {
 				const { user_code, question_code } = msg;
+				const winner = user_code ?? "";
+				setBuzzerWinnerCode(winner || null);
+				startTransition(() => {
+					setPlayers((prev) =>
+						prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
+					);
+				});
 
-				if (user_code && question_code !== lastBuzzerQuestionRef.current) {
-					console.info(`[VDR ADMIN] Received buzzer_winner: user_code=${user_code}, question=${question_code}`);
+				if (winner && question_code !== lastBuzzerQuestionRef.current) {
 					lastBuzzerQuestionRef.current = question_code;
-
-					startTransition(() => {
-						setPlayers((prev) =>
-							prev.map((p) =>
-								p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p,
-							),
-						);
-					});
-
-					console.info(`[VDR ADMIN] Locking all buzzers after winner: ${user_code}`);
 					void sendMessage({ type: "blocked_buzz", user_code: null });
 				}
 				break;
 			}
 
 			case "clear_buzz": {
-
+				setBuzzerWinnerCode(null);
 				lastBuzzerQuestionRef.current = null;
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
@@ -1184,6 +1186,7 @@ const AVeDichRiengPage = () => {
 						isActive={selectedPlayerCodes.includes(player.playerCode)}
 						isCurrent={player.playerCode === currentTurnPlayerCode}
 						playerPower={usedPowers[player.playerCode] as "star" | "shield" | undefined}
+						isBuzzerWinner={player.playerCode === buzzerWinnerCode}
 						onClick={toggleSelectedPlayer}
 						disabled={timer > 0}
 						onEditScore={handleEditScore}

@@ -79,12 +79,7 @@ const PButPhaPage = () => {
 				break;
 			}
 
-			case "clear_question": {
-				setVideoPlayState(null);
-
-				break;
-			}
-
+			case "clear_question": 
 			case "send_question": {
 				setVideoPlayState(null);
 				break;
@@ -155,17 +150,6 @@ const PButPhaPage = () => {
 				setShowAnswers(true);
 				break;
 			}
-
-			case "buzz": {
-
-				const { user_code } = msg;
-				if (user_code && user_code !== playerCode) {
-					setPlayers((prev) => prev.map((p) => (p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p)));
-					console.info("Player received buzz from", user_code);
-				}
-				break;
-			}
-
 			default:
 				break;
 		}

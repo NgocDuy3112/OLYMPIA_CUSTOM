@@ -55,9 +55,6 @@ const GKhoiDongRiengPage = () => {
                 break;
             case "buzz":
                 applyBuzz(msg);
-                if (msg.user_code && !buzzerWinnerCode) {
-                    setBuzzerWinnerCode(msg.user_code);
-                }
                 break;
             case "buzzer_winner": {
                 const winner: string = msg.user_code ?? "";

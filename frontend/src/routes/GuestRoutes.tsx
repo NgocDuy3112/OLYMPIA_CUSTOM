@@ -60,9 +60,10 @@ const GuestAutoNavigator: React.FC = () => {
         }
         if (!guestPath) return;
 
-        const isQualifier = guestPath === "/guest/vl";
+        const isQualifier = guestPath.startsWith("/guest/vl");
         const noParamsPaths = ["/guest/waiting"];
-        const target = noParamsPaths.includes(guestPath)
+        const alreadyHasMatchCode = matchCode && guestPath.endsWith(`/${matchCode}`);
+        const target = noParamsPaths.includes(guestPath) || alreadyHasMatchCode
             ? guestPath
             : isQualifier
                 ? `${guestPath}/OC3_M_VL`

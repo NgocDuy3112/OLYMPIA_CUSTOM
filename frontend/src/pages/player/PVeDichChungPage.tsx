@@ -331,6 +331,12 @@ const PVeDichChungPage = () => {
 
 	const isSubmissionDisabled = !isConnected || timer <= 0;
 
+	const currentPoints = (() => {
+		if (!currentQuestion.questionCode) return 0;
+		const q = roundQuestionsData.find((r) => r.code === currentQuestion.questionCode);
+		return q?.points ?? 0;
+	})();
+
 	const displayPlayers = players.map((p) =>
 		showAnswers || p.playerCode === playerCode ? p : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
 	);
@@ -387,22 +393,24 @@ const PVeDichChungPage = () => {
 						<div className="flex gap-4">
 							<button
 								onClick={() => { void handleSelectPower('star'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
-									selectedPower === 'star'
-										? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
-										: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
-								}`}
-							>
-								<Star size={20} />
-								<span>Ngôi Sao Hy Vọng</span>
-							</button>
-							<button
-								onClick={() => { void handleSelectPower('shield'); }}
+							disabled={currentPoints === 20}
+							className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
+								selectedPower === 'star'
+									? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
+									: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
+							} ${currentPoints === 20 ? 'opacity-40 cursor-not-allowed' : ''}`}
+						>
+							<Star size={20} />
+							<span>Ngôi Sao Hy Vọng</span>
+						</button>
+						<button
+							onClick={() => { void handleSelectPower('shield'); }}
+							disabled={currentPoints === 50}
 								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${
 									selectedPower === 'shield'
 										? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
 										: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
-								}`}
+							} ${currentPoints === 50 ? 'opacity-40 cursor-not-allowed' : ''}`}
 							>
 								<Shield size={20} />
 								<span>Bảo Hộ Miễn Trừ</span>
