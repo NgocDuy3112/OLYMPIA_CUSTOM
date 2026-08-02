@@ -10,6 +10,16 @@ type ChartData = Record<string, ChartPoint[]>;
 
 const COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
 
+function groupFor(code: string) {
+    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ĐIỀU CHỈNH";
+    const value = code.replace(/^OC3_Q_/, "");
+    if (value.startsWith("KD")) return "KĐ";
+    if (value.startsWith("GM")) return "GM";
+    if (value.startsWith("BP")) return "BP";
+    if (value.startsWith("VD")) return "VĐ";
+    return "KHÁC";
+}
+
 function labelFor(code: string) {
     if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ADJUST";
     const value = code.replace(/^OC3_Q_/, "");
@@ -29,6 +39,13 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
     const minScore = Math.min(0, ...scoreValues);
     const maxScore = Math.max(0, ...scoreValues);
     const scoreRange = Math.max(1, maxScore - minScore);
+    const groups = labels.reduce<{ name: string; start: number; end: number }[]>((result, code, index) => {
+        const name = groupFor(code);
+        const previous = result[result.length - 1];
+        if (previous?.name === name) previous.end = index;
+        else result.push({ name, start: index, end: index });
+        return result;
+    }, []);
     const x = (index: number) => padding.left + (index * (width - padding.left - padding.right)) / Math.max(1, labels.length - 1);
     const y = (score: number) => padding.top + ((maxScore - score) * (height - padding.top - padding.bottom)) / scoreRange;
 
@@ -49,6 +66,7 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
                         const lineY = y(value);
                         return <g key={value}><line x1={padding.left} x2={width - padding.right} y1={lineY} y2={lineY} stroke="rgba(148,163,184,.25)" /><text x={padding.left - 8} y={lineY + 4} textAnchor="end" fill="#BAE6FD" fontSize="12">{value}</text></g>;
                     })}
+                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={padding.top - 8} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{group.name}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(148,163,184,.35)" strokeDasharray="4 4" /> : null}</g>)}
                     {labels.map((code, index) => <text key={code} x={x(index)} y={height - 16} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 16})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
