@@ -273,8 +273,8 @@ const AWaitingPage = () => {
 				)}
 
 				{}
-				<div className="flex flex-col gap-4 w-full max-w-2xl">
-					<div className="flex flex-nowrap gap-4 items-center justify-start overflow-x-auto w-full">
+				<div className="flex flex-col gap-4 w-full max-w-7xl">
+					<div className="flex flex-wrap gap-4 items-center justify-center w-full">
 						<AControlButton
 							onClick={handleOpenMatch}
 							disabled={isOpeningMatch || !currentMatchCode || matchFinished}
@@ -324,7 +324,7 @@ const AWaitingPage = () => {
 				</div>
 
 				{}
-				<div className="flex flex-col gap-4 w-full max-w-2xl">
+				<div className="flex flex-col gap-4 w-full max-w-7xl">
 				{matchFinished && (
 					<div className="bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center w-full max-w-2xl">
 						<p className="text-green-300 font-semibold text-lg">✅ Trận đấu đã hoàn thành</p>
@@ -379,9 +379,9 @@ const AWaitingPage = () => {
 						</AControlButton>
 					</div>
 				</div>
-			</div>
 
-			{showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
+				{showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
+			</div>
 		</div>
 	);
 };
