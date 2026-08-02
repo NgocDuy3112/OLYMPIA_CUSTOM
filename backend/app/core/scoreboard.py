@@ -179,8 +179,11 @@ async def update_player_question_score(
                 "cumulative_score": chart_totals[code],
                 "created_at": None,
             })
+    question_rows = await session.execute(select(Question.question_code).where(Question.match_id == match_id, Question.is_deleted == False).order_by(Question.created_at.asc()))
+    question_labels = [row[0] for row in question_rows.all()]
     payload = {
         "type": "score_chart_snapshot",
+        "question_labels": question_labels,
         "match_code": request.match_code,
         "scoreboard": (scoreboard.data or {}).get("scoreboard", []),
         "chart_data": chart_data,

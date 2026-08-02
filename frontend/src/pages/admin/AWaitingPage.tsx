@@ -49,7 +49,7 @@ const AWaitingPage = () => {
 		}
 	}, [currentMatchCode, navigate]);
 
-	const { players, setPlayers, matchFinished, setMatchFinished, chartData } = useWaitingState(lastMessage);
+	const { players, setPlayers, matchFinished, setMatchFinished, chartData, questionLabels } = useWaitingState(lastMessage);
 	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
@@ -229,7 +229,7 @@ const AWaitingPage = () => {
 				<p className="text-blue-300 text-sm">Mã trận: <strong>{currentMatchCode}</strong></p>
 
 				{}
-				{Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} />}
+				{Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} />}
 
 				{players.length > 0 && (
 					<div className="flex gap-4 max-w-7xl w-full justify-center">

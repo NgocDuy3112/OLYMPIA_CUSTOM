@@ -11,6 +11,7 @@ interface WaitingViewProps {
   currentPlayerCode?: string;
   finishedMessage: string;
   chartData: Record<string, { question_code: string; points: number; cumulative_score: number }[]>;
+  questionLabels: string[];
 }
 
 export function WaitingView({
@@ -21,6 +22,7 @@ export function WaitingView({
   currentPlayerCode,
   finishedMessage,
   chartData,
+  questionLabels,
 }: WaitingViewProps) {
   return (
     <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
@@ -41,7 +43,7 @@ export function WaitingView({
 
       </div>
 
-      {Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} /> : null}
+      {Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} /> : null}
 
       {loaded && players.length > 0 ? (
         <div className="flex gap-4 max-w-7xl w-full justify-center mt-8">

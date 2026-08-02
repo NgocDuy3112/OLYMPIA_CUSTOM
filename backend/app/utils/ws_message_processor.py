@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import WebSocket
+from sqlalchemy import select
+from models.question import Question
+from models.match import Match
 
 from logger import global_logger
 from utils.buzzer_winners import (
@@ -151,6 +154,13 @@ async def send_initial_snapshot(
             room_players = room_data.get("players", []) if isinstance(room_data, dict) else []
 
             chart_data: dict[str, list[dict[str, object]]] = {}
+            question_labels: list[str] = []
+            try:
+                match_id = await session.scalar(select(Match.id).where(Match.match_code == match_code, Match.is_deleted == False))
+                question_result = await session.execute(select(Question.question_code).where(Question.match_id == match_id, Question.is_deleted == False).order_by(Question.created_at.asc()))
+                question_labels = [row[0] for row in question_result.all()]
+            except Exception:
+                question_labels = []
             try:
                 records_resp = await get_records_from_db(match_code, None, session)
                 records = records_resp.data if isinstance(records_resp.data, list) else []
@@ -195,6 +205,7 @@ async def send_initial_snapshot(
                     "type": "score_chart_snapshot",
                     "match_code": match_code,
                     "scoreboard": scoreboard_list,
+                    "question_labels": question_labels,
                     "chart_data": chart_data,
                 })
             except Exception as e:
