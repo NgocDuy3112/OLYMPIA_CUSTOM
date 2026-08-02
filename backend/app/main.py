@@ -186,7 +186,7 @@ async def websocket_endpoint(
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code, user_code=user_info["user_code"], role=user_role)
 
-    if user_role in ("player", "mc", "guest"):
+    if user_role in ("admin", "player", "mc", "guest"):
         await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
 
     if user_role == "player":
