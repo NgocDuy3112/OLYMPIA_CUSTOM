@@ -31,10 +31,12 @@ function labelFor(code: string) {
 export default function ScoreChart({ players, chartData }: { players: PlayerStatus[]; chartData: ChartData }) {
     const codes = Object.keys(chartData);
     const labels = Array.from(new Set(codes.flatMap((code) => chartData[code].map((point) => point.question_code))));
+    const groupOrder = ["KĐ", "GM", "BP", "VĐ", "ĐIỀU CHỈNH"];
+    labels.sort((left, right) => groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right)));
     if (!codes.length || !labels.length) return null;
     const width = 900;
-    const height = 320;
-    const padding = { top: 24, right: 24, bottom: 52, left: 48 };
+    const height = 360;
+    const padding = { top: 24, right: 24, bottom: 92, left: 48 };
     const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
     const minScore = Math.min(0, ...scoreValues);
     const maxScore = Math.max(0, ...scoreValues);
@@ -46,7 +48,9 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
         else result.push({ name, start: index, end: index });
         return result;
     }, []);
-    const x = (index: number) => padding.left + (index * (width - padding.left - padding.right)) / Math.max(1, labels.length - 1);
+    const chartLeft = padding.left + 24;
+    const chartRight = width - padding.right - 24;
+    const x = (index: number) => chartLeft + (index * (chartRight - chartLeft)) / Math.max(1, labels.length - 1);
     const y = (score: number) => padding.top + ((maxScore - score) * (height - padding.top - padding.bottom)) / scoreRange;
 
     return (
@@ -62,12 +66,15 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
             </div>
             <div className="overflow-x-auto">
                 <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[680px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm">
+                    <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom} stroke="rgba(230,238,245,.55)" strokeWidth="1.5" />
                     {[maxScore, minScore].map((value) => {
                         const lineY = y(value);
                         return <g key={value}><line x1={padding.left} x2={width - padding.right} y1={lineY} y2={lineY} stroke="rgba(148,163,184,.25)" /><text x={padding.left - 8} y={lineY + 4} textAnchor="end" fill="#BAE6FD" fontSize="12">{value}</text></g>;
                     })}
-                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={padding.top - 8} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{group.name}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(148,163,184,.35)" strokeDasharray="4 4" /> : null}</g>)}
-                    {labels.map((code, index) => <text key={code} x={x(index)} y={height - 16} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 16})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text>)}
+                    <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="#E6EEF5" strokeWidth="1.5" strokeDasharray="6 4" />
+                    <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="#E6EEF5" fontSize="12">0</text>
+                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={height - 8} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{group.name}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(148,163,184,.35)" strokeDasharray="4 4" /> : null}</g>)}
+                    {labels.map((code, index) => <text key={code} x={x(index)} y={height - 42} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 42})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
                         const values = labels.map((label) => points.find((point) => point.question_code === label)?.cumulative_score ?? null);
