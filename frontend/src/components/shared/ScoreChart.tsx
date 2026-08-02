@@ -41,12 +41,12 @@ function labelFor(code: string) {
     if (/^(KĐ|GM|BP|VĐ)_/.test(code)) return code;
     const value = code.replace(/^OC3_Q_/, "");
     const parts = value.split("_");
-    if (parts[0] === "KD" && parts.length >= 3) return `KĐ_${parts[1]}`;
+    if (parts[0] === "KD" && parts.length >= 3) return parts[1] === "C" ? `KĐ_C_${parts[2]}` : `KĐ_${parts[1]}`;
     return value.replace("KD_C", "KĐC").replace("GM", "GM").replace("BP", "BP").replace("VD", "VĐ");
 }
 
 function tooltipLabelFor(code: string, points?: number) {
-    const value = code.replace(/^OC3_Q_/, "");
+    const value = code.replace(/^OC3_Q_/, "").replace(/^KĐ_/, "KD_").replace(/^GM_/, "GM_").replace(/^BP_/, "BP_").replace(/^VĐ_/, "VD_");
     const parts = value.split("_");
     if (parts[0] === "KD") {
         const isCommon = parts[1] === "C";
@@ -80,6 +80,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
     labels.sort((left, right) => {
         const groupDifference = groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right));
         if (groupDifference !== 0) return groupDifference;
+        if (groupFor(left) === "GM" || groupFor(left) === "VĐ") return 0;
         const questionNumber = (label: string) => {
             if (label.includes("Từ khoá")) return Number.MAX_SAFE_INTEGER;
             const match = label.match(/(?:Câu|Gợi ý)\s+(\d+)/) ?? label.match(/_(\d+)$/);
@@ -150,8 +151,10 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         const active = rows.find((row) => row.code === hoveredPoint.playerCode);
                         if (!active?.detail) return null;
                         const hoveredLabel = labels[hoveredPoint.index];
-                        const titleCode = questionLabels.find((code) => labelFor(code) === hoveredLabel) ?? hoveredLabel;
-                        const titlePoints = rows.find((row) => row.current)?.current?.points;
+                        const titleCode = questionLabels.find((code) => labelFor(code) === hoveredLabel)
+                            ?? codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel)?.question_code
+                            ?? hoveredLabel;
+                        const titlePoints = codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel)?.points;
                         return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
