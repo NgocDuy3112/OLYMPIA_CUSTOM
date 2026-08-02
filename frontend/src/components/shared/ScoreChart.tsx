@@ -159,6 +159,12 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                         const isDimmed = activePlayerCode !== null && activePlayerCode !== code;
                         return <g key={code} opacity={isDimmed ? (focusMode ? 0 : 0.2) : 1}><path d={path} fill="none" stroke={colorForPlayer(code, playerIndex)} strokeWidth={activePlayerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} /><circle cx={x(index)} cy={y(value)} r={activePlayerCode === code && hoveredPoint?.index === index ? "4" : "2.5"} fill={colorForPlayer(code, playerIndex)} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
                     })}
+                    {labels.map((_, index) => {
+                        const firstCode = codes.find((code) => chartData[code].some((point) => labelFor(point.question_code) === labels[index]));
+                        if (!firstCode) return null;
+                        const step = (chartRight - chartLeft) / Math.max(1, labels.length - 1);
+                        return <rect key={`hit-${index}`} x={Math.max(0, x(index) - step / 2)} y={0} width={step} height={height} fill="transparent" pointerEvents="all" onMouseEnter={() => updateHoveredPoint({ playerCode: firstCode, index })} />;
+                    })}
                     {hoveredPoint ? (() => {
                         const rows = codes.map((code, playerIndex) => {
                             const points = chartData[code];
