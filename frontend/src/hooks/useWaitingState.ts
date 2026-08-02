@@ -42,6 +42,7 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
           setShowChart(true);
           break;
         case "score_chart_snapshot":
+          setShowChart(true);
           if (Array.isArray(message.question_labels)) setQuestionLabels(message.question_labels.map(String));
           if (message.chart_data && typeof message.chart_data === "object") {
             setChartData(message.chart_data as Record<string, { question_code: string; points: number; cumulative_score: number }[]>);
