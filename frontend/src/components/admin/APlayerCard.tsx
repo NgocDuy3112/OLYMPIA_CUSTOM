@@ -125,7 +125,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                 onMouseEnter={() => !hoverDisabled && onHover?.(player.playerCode)}
                 onMouseLeave={() => !hoverDisabled && onHover?.(null)}
                 aria-disabled={disabled ?? false}
-                style={{ borderColor: accentColor }}
+                style={{ borderColor: accentColor, ['--tw-ring-color' as string]: accentColor }}
                 className={`flex flex-col items-center p-3 rounded-lg border-2 border-transparent transition duration-300 flex-1 min-h-35 shadow-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
                     ${isDimmed ? "opacity-40" : ""} ${isHovered ? "ring-4 ring-cyan-300" : ""}
                     ${isActive || isCurrent
