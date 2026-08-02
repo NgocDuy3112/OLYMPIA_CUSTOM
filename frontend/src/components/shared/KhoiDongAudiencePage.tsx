@@ -130,6 +130,13 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
       currentPlayerCode={variant === "rieng" ? currentPlayerCode : ""}
       buzzerWinnerCode={buzzerWinnerCode}
     >
+      {hasSecondAttempt && (
+        <div className="flex justify-center">
+          <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold animate-pulse">
+            Trả lời lần 2
+          </div>
+        </div>
+      )}
       <AQuestionBoard
         title={variant === "rieng" ? "KHỞI ĐỘNG - LƯỢT CÁ NHÂN" : "KHỞI ĐỘNG - LƯỢT CHUNG"}
         question={question}
@@ -140,15 +147,7 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
           activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
         }}
         boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
-      >
-        {hasSecondAttempt ? () => (
-          <div className="flex gap-2 items-center">
-            <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
-              Trả lời lần 2
-            </div>
-          </div>
-        ) : undefined}
-      </AQuestionBoard>
+      />
     </Layout>
   );
 }
