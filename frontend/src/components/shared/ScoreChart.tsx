@@ -41,6 +41,23 @@ function labelFor(code: string) {
     return value.replace("KD_C", "KĐC").replace("GM", "GM").replace("BP", "BP").replace("VD", "VĐ");
 }
 
+function tooltipLabelFor(code: string) {
+    const value = code.replace(/^OC3_Q_/, "");
+    const parts = value.split("_");
+    if (parts[0] === "KD") {
+        const isCommon = parts[1] === "C";
+        const questionNumber = isCommon ? parts[2] : parts[1];
+        return `[${isCommon ? "Khởi động chung" : "Khởi động riêng"}] Câu ${questionNumber}`;
+    }
+    if (parts[0] === "GM") return parts[1] === "KEY" ? "[Giải mã] Từ khoá" : `[Giải mã] Gợi ý ${parts[1]}`;
+    if (parts[0] === "BP") return `[Bứt phá] Câu ${parts[1]}`;
+    if (parts[0] === "VD") {
+        const subject = parts[1] === "TTTK" ? "Toán học, tin học" : parts.slice(1, -1).join(" ");
+        return `[Về đích] ${subject} - Câu ${parts[1] === "TTTK" ? "1" : parts.at(-1)}`;
+    }
+    return code;
+}
+
 export default function ScoreChart({ players, chartData, questionLabels = [] }: { players: PlayerStatus[]; chartData: ChartData; questionLabels?: string[] }) {
     const [hoveredPoint, setHoveredPoint] = useState<HoveredPoint>(null);
     const codes = Object.keys(chartData);
@@ -92,7 +109,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
                         const pointDetails = labels.map((label) => points.find((point) => labelFor(point.question_code) === label));
-                        let lastScore: number | null = null;
+                        let lastScore = 0;
                         const values = pointDetails.map((point) => {
                             if (point) lastScore = point.cumulative_score;
                             return lastScore;
@@ -109,8 +126,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         });
                         const active = rows.find((row) => row.code === hoveredPoint.playerCode);
                         if (!active?.detail) return null;
-                        const title = labels[hoveredPoint.index];
-                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{title} · {roundName(active.detail.question_code)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
+                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(active.detail.question_code)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
             </div>
