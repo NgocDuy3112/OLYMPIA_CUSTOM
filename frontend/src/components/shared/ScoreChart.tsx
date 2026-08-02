@@ -140,7 +140,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                 </div>
             </div>
             <div className="overflow-x-auto">
-                <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[560px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm" onMouseLeave={() => updateHoveredPoint(null)}>
+                <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[560px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm" onMouseLeave={() => updateHoveredPoint(null)} style={{ pointerEvents: focusMode ? "none" : "auto" }}>
                     <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom} stroke="rgba(230,238,245,.55)" strokeWidth="1.5" />
                     {[maxScore, minScore].map((value) => {
                         const lineY = y(value);

@@ -261,6 +261,7 @@ const AWaitingPage = () => {
 								isHovered={hoveredPlayerCode === player.playerCode}
 								isDimmed={hoveredPlayerCode !== null && hoveredPlayerCode !== player.playerCode}
 								onHover={setHoveredPlayerCode}
+								hoverDisabled={isScoreboardAnimationRunning}
 							/>
 						))}
 					</div>
@@ -291,7 +292,7 @@ const AWaitingPage = () => {
 
 						<AControlButton
 							onClick={handleShowScoreboard}
-							disabled={isShowingScoreboard || !currentMatchCode || matchFinished}
+							disabled={isShowingScoreboard || isScoreboardAnimationRunning || !currentMatchCode || matchFinished}
 							className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
 						>
 							<Trophy size={18} />

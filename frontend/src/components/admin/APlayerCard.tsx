@@ -22,6 +22,7 @@ interface APlayerCardProps {
     isHovered?: boolean;
     isDimmed?: boolean;
     onHover?: (playerCode: string | null) => void;
+    hoverDisabled?: boolean;
 }
 
 const APlayerCard: React.FC<APlayerCardProps> = ({
@@ -39,6 +40,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
     isHovered,
     isDimmed,
     onHover,
+    hoverDisabled,
 }) => {
     const handleClick = () => {
         if (disabled) return;
@@ -118,8 +120,8 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                 role={disabled ? undefined : "button"}
                 tabIndex={disabled ? -1 : 0}
                 onClick={disabled ? undefined : handleClick}
-                onMouseEnter={() => onHover?.(player.playerCode)}
-                onMouseLeave={() => onHover?.(null)}
+                onMouseEnter={() => !hoverDisabled && onHover?.(player.playerCode)}
+                onMouseLeave={() => !hoverDisabled && onHover?.(null)}
                 aria-disabled={disabled ?? false}
                 className={`flex flex-col items-center p-3 rounded-lg transition duration-300 flex-1 min-h-35 shadow-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
                     ${isDimmed ? "opacity-40" : ""} ${isHovered ? "ring-4 ring-cyan-300" : ""}
