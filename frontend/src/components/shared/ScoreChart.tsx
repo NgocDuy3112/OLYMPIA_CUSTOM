@@ -76,6 +76,9 @@ function tooltipLabelFor(code: string, points?: number) {
 
 export default function ScoreChart({ players, chartData, questionLabels = [] }: { players: PlayerStatus[]; chartData: ChartData; questionLabels?: string[] }) {
     const [hoveredPoint, setHoveredPoint] = useState<HoveredPoint>(null);
+    const updateHoveredPoint = (next: HoveredPoint) => {
+        setHoveredPoint((previous) => previous?.playerCode === next?.playerCode && previous?.index === next?.index ? previous : next);
+    };
     const codes = Object.keys(chartData);
     const recordedLabels = codes.flatMap((code) => chartData[code].map((point) => point.question_code));
     const labels = Array.from(new Set([
@@ -146,7 +149,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         });
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
                         const isDimmed = hoveredPoint !== null && hoveredPoint.playerCode !== code;
-                        return <g key={code} opacity={isDimmed ? 0.2 : 1}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth={hoveredPoint?.playerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => setHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} onMouseLeave={() => setHoveredPoint(null)} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => setHoveredPoint({ playerCode: code, index })} onMouseLeave={() => setHoveredPoint(null)} /><circle cx={x(index)} cy={y(value)} r={hoveredPoint?.playerCode === code && hoveredPoint.index === index ? "4" : "2.5"} fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
+                        return <g key={code} opacity={isDimmed ? 0.2 : 1}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth={hoveredPoint?.playerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} onMouseLeave={() => updateHoveredPoint(null)} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} onMouseLeave={() => updateHoveredPoint(null)} /><circle cx={x(index)} cy={y(value)} r={hoveredPoint?.playerCode === code && hoveredPoint.index === index ? "4" : "2.5"} fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
                     })}
                     {hoveredPoint ? (() => {
                         const rows = codes.map((code, playerIndex) => {
