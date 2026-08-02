@@ -91,6 +91,10 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
         onPlayerHover?.(next?.playerCode ?? null);
     };
     const codes = Object.keys(chartData);
+    const colorForPlayer = (code: string, fallbackIndex = 0) => {
+        const playerIndex = players.findIndex((player) => player.playerCode === code);
+        return COLORS[(playerIndex >= 0 ? playerIndex : fallbackIndex) % COLORS.length];
+    };
     const recordedLabels = codes.flatMap((code) => chartData[code].map((point) => point.question_code));
     const labels = Array.from(new Set([
         ...questionLabels.filter((code) => ["KĐ", "BP"].includes(groupFor(labelFor(code)))).map(labelFor),
@@ -153,7 +157,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                         });
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
                         const isDimmed = activePlayerCode !== null && activePlayerCode !== code;
-                        return <g key={code} opacity={isDimmed ? (focusMode ? 0 : 0.2) : 1}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth={activePlayerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} /><circle cx={x(index)} cy={y(value)} r={activePlayerCode === code && hoveredPoint?.index === index ? "4" : "2.5"} fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
+                        return <g key={code} opacity={isDimmed ? (focusMode ? 0 : 0.2) : 1}><path d={path} fill="none" stroke={colorForPlayer(code, playerIndex)} strokeWidth={activePlayerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} /><circle cx={x(index)} cy={y(value)} r={activePlayerCode === code && hoveredPoint?.index === index ? "4" : "2.5"} fill={colorForPlayer(code, playerIndex)} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
                     })}
                     {hoveredPoint ? (() => {
                         const rows = codes.map((code, playerIndex) => {
@@ -170,7 +174,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                             ?? hoveredLabel;
                         const titlePoint = codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel);
                         const titlePoints = titlePoint?.points;
-                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className={`grid grid-cols-[1fr_3rem_4rem] items-center gap-2 leading-4 ${row.code === activePlayerCode ? "" : "opacity-40"}`}><span className="truncate" style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><b className="text-right">{row.current?.points ?? 0}</b><b className="text-right text-cyan-300">{row.value}</b></div>)}</div></foreignObject>;
+                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className={`grid grid-cols-[1fr_3rem_4rem] items-center gap-2 leading-4 ${row.code === activePlayerCode ? "" : "opacity-40"}`}><span className="truncate" style={{ color: colorForPlayer(row.code, row.playerIndex) }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><b className="text-right">{row.current?.points ?? 0}</b><b className="text-right" style={{ color: colorForPlayer(row.code, row.playerIndex) }}>{row.value}</b></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
             </div>
