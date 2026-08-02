@@ -25,9 +25,12 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
     const width = 900;
     const height = 320;
     const padding = { top: 24, right: 24, bottom: 52, left: 48 };
-    const maxScore = Math.max(50, ...codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score)));
+    const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
+    const minScore = Math.min(0, ...scoreValues);
+    const maxScore = Math.max(0, ...scoreValues);
+    const scoreRange = Math.max(1, maxScore - minScore);
     const x = (index: number) => padding.left + (index * (width - padding.left - padding.right)) / Math.max(1, labels.length - 1);
-    const y = (score: number) => height - padding.bottom - (score * (height - padding.top - padding.bottom)) / maxScore;
+    const y = (score: number) => padding.top + ((maxScore - score) * (height - padding.top - padding.bottom)) / scoreRange;
 
     return (
         <section className="w-full max-w-7xl rounded-xl border-2 border-blue-600 bg-blue-950/70 p-4 shadow-xl">
@@ -42,17 +45,16 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
             </div>
             <div className="overflow-x-auto">
                 <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[680px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm">
-                    {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
-                        const value = Math.round(maxScore * ratio);
+                    {[maxScore, minScore].map((value) => {
                         const lineY = y(value);
-                        return <g key={ratio}><line x1={padding.left} x2={width - padding.right} y1={lineY} y2={lineY} stroke="rgba(148,163,184,.2)" /><text x={padding.left - 8} y={lineY + 4} textAnchor="end" fill="#94A3B8" fontSize="12">{value}</text></g>;
+                        return <g key={value}><line x1={padding.left} x2={width - padding.right} y1={lineY} y2={lineY} stroke="rgba(148,163,184,.25)" /><text x={padding.left - 8} y={lineY + 4} textAnchor="end" fill="#BAE6FD" fontSize="12">{value}</text></g>;
                     })}
-                    {labels.map((code, index) => <text key={code} x={x(index)} y={height - 18} textAnchor="middle" fill="#BAE6FD" fontSize="11">{labelFor(code)}</text>)}
+                    {labels.map((code, index) => <text key={code} x={x(index)} y={height - 16} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 16})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
                         const values = labels.map((label) => points.find((point) => point.question_code === label)?.cumulative_score ?? null);
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
-                        return <g key={code}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{values.map((value, index) => value == null ? null : <circle key={`${code}-${index}`} cx={x(index)} cy={y(value)} r="5" fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="2"><title>{`${code} ${labels[index]}: ${value} điểm`}</title></circle>)}</g>;
+                        return <g key={code}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="5" fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="2"><title>{`${code} ${labels[index]}: ${value} điểm`}</title></circle><text x={x(index)} y={y(value) - 9} textAnchor="middle" fill={COLORS[playerIndex % COLORS.length]} fontSize="11" fontWeight="700">{value}</text></g>)}</g>;
                     })}
                 </svg>
             </div>
