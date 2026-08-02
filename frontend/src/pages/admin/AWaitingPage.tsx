@@ -325,10 +325,9 @@ const AWaitingPage = () => {
 
 				{}
 				<div className="flex flex-col gap-4 w-full max-w-7xl">
-				{matchFinished && (
-					<div className="bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center w-full max-w-2xl">
-						<p className="text-green-300 font-semibold text-lg">✅ Trận đấu đã hoàn thành</p>
-						<p className="text-green-200/70 text-sm mt-1">Các vòng thi đã bị khoá. Thí sinh chỉ có thể xem kết quả.</p>
+				{matchFinished && showChart && Object.keys(chartData).length > 0 && (
+					<div className="w-full flex justify-center">
+						<ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />
 					</div>
 				)}
 
@@ -380,7 +379,7 @@ const AWaitingPage = () => {
 					</div>
 				</div>
 
-				{showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
+				{!matchFinished && showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
 			</div>
 		</div>
 	);

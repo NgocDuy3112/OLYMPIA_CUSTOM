@@ -24,7 +24,6 @@ export function WaitingView({
   loaded,
   matchFinished,
   currentPlayerCode,
-  finishedMessage,
   chartData,
   questionLabels,
   showChart = false,
@@ -33,10 +32,9 @@ export function WaitingView({
 
   return (
     <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
-      {matchFinished ? (
-        <div className="w-full max-w-3xl mb-4 bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center">
-          <p className="text-green-300 font-semibold text-lg">✅ Trận đấu đã hoàn thành</p>
-          <p className="text-green-200/70 text-sm mt-1">{finishedMessage}</p>
+      {matchFinished && showChart && Object.keys(chartData).length > 0 ? (
+        <div className="w-full flex justify-center mb-4">
+          <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} />
         </div>
       ) : null}
 
@@ -66,7 +64,7 @@ export function WaitingView({
         </div>
       ) : null}
 
-      {showChart && Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} /> : null}
+      {!matchFinished && showChart && Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} /> : null}
     </div>
   );
 }
