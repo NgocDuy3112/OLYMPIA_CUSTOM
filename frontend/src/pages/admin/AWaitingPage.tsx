@@ -18,6 +18,7 @@ import {
 } from "@/api/waiting";
 
 const logger = createLogger("AWaiting");
+const PLAYER_COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
 
 const AWaitingPage = () => {
 	const navigate = useNavigate();
@@ -253,7 +254,7 @@ const AWaitingPage = () => {
 				{}
 				{players.length > 0 && (
 					<div className="flex gap-4 max-w-7xl w-full justify-center">
-						{players.map((player) => (
+						{players.map((player, index) => (
 							<APlayerCard
 								key={player.playerCode}
 								player={player}
@@ -265,16 +266,15 @@ const AWaitingPage = () => {
 								isDimmed={hoveredPlayerCode !== null && hoveredPlayerCode !== player.playerCode}
 								onHover={setHoveredPlayerCode}
 								hoverDisabled={isScoreboardAnimationRunning}
+								accentColor={PLAYER_COLORS[index % PLAYER_COLORS.length]}
 							/>
 						))}
 					</div>
 				)}
 
-				{showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
-
 				{}
 				<div className="flex flex-col gap-4 w-full max-w-2xl">
-					<div className="flex flex-wrap gap-4 items-center justify-center">
+					<div className="flex flex-nowrap gap-4 items-center justify-start overflow-x-auto w-full">
 						<AControlButton
 							onClick={handleOpenMatch}
 							disabled={isOpeningMatch || !currentMatchCode || matchFinished}
@@ -380,6 +380,8 @@ const AWaitingPage = () => {
 					</div>
 				</div>
 			</div>
+
+			{showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
 		</div>
 	);
 };

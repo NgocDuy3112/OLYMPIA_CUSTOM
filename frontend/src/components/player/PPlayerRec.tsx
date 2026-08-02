@@ -9,9 +9,10 @@ interface PPlayerRecProps {
     isHovered?: boolean;
     isDimmed?: boolean;
     onHover?: (playerCode: string | null) => void;
+    accentColor?: string;
 }
 
-const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinner, isHovered, isDimmed, onHover }) => {
+const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinner, isHovered, isDimmed, onHover, accentColor }) => {
     const answerContent = player.playerLastAnswer?.trim() ?? '';
     const isAnswered = answerContent !== '---' && answerContent !== '';
     let displayAnswer: string | null = null;
@@ -53,6 +54,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
             key={player.playerCode}
             onMouseEnter={() => onHover?.(player.playerCode)}
             onMouseLeave={() => onHover?.(null)}
+            style={{ borderColor: accentColor }}
             className={`flex flex-col items-center p-2 rounded-lg transition duration-300 flex-1 ml-1 mr-1 min-h-31.25 shadow-sm ${isDimmed ? 'opacity-40' : ''} ${isHovered ? 'ring-4 ring-cyan-300' : ''}
                 ${isCurrent
                     ? 'bg-blue-600 shadow-xl scale-100 ring-4 text-white ring-blue-300'

@@ -3,6 +3,8 @@ import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
 import ScoreChart from "@/components/shared/ScoreChart";
 
+const PLAYER_COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
+
 interface WaitingViewProps {
   matchCode: string;
   matchName: string;
@@ -50,7 +52,7 @@ export function WaitingView({
 
       {loaded && players.length > 0 ? (
         <div className="flex gap-4 max-w-7xl w-full justify-center mt-8">
-          {players.map((player) => (
+          {players.map((player, index) => (
             <PPlayerRec
               key={player.playerCode}
               player={player}
@@ -58,6 +60,7 @@ export function WaitingView({
               isHovered={hoveredPlayerCode === player.playerCode}
               isDimmed={hoveredPlayerCode !== null && hoveredPlayerCode !== player.playerCode}
               onHover={setHoveredPlayerCode}
+              accentColor={PLAYER_COLORS[index % PLAYER_COLORS.length]}
             />
           ))}
         </div>

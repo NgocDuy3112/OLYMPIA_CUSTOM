@@ -14,7 +14,7 @@ type HoveredPoint = { playerCode: string; index: number } | null;
 const COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
 
 function groupFor(code: string) {
-    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ĐIỀU CHỈNH";
+    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST" || code.startsWith("Điểm số đã chỉnh sửa")) return "ĐIỀU CHỈNH";
     if (code.startsWith("[Khởi động")) return "KĐ";
     if (code.startsWith("[Giải mã]")) return "GM";
     if (code.startsWith("[Bứt phá]")) return "BP";
@@ -109,8 +109,8 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
         return questionNumber(left) - questionNumber(right);
     });
     if (!codes.length || !labels.length) return null;
-    const width = 640;
-    const height = 300;
+    const width = 560;
+    const height = 260;
     const padding = { top: 20, right: 18, bottom: 70, left: 42 };
     const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
     const minScore = Math.min(0, ...scoreValues);
@@ -129,15 +129,8 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
     const y = (score: number) => padding.top + ((maxScore - score) * (height - padding.top - padding.bottom)) / scoreRange;
 
     return (
-        <section className="w-full max-w-4xl rounded-xl border-2 border-blue-600 bg-blue-950/70 p-3 shadow-xl">
+        <section className="w-full max-w-3xl rounded-xl border-2 border-blue-600 bg-blue-950/70 p-3 shadow-xl">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-bold uppercase text-blue-200">Diễn biến điểm</h2>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    {codes.map((code, index) => {
-                        const player = players.find((item) => item.playerCode === code);
-                        return <span key={code} className="flex items-center gap-1.5 text-blue-100"><i className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />{player?.playerName ?? code}</span>;
-                    })}
-                </div>
             </div>
             <div className="overflow-x-auto">
                 <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[560px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm" onMouseLeave={() => updateHoveredPoint(null)} style={{ pointerEvents: focusMode ? "none" : "auto" }}>
