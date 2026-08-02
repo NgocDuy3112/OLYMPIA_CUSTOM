@@ -13,6 +13,7 @@ const GWaitingPage = () => {
       {...state}
       matchCode={matchCode}
       finishedMessage="Các vòng thi đã kết thúc. Chỉ có thể xem kết quả."
+      showChart
     />
   );
 };

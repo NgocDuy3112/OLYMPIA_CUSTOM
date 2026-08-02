@@ -1,3 +1,4 @@
+import { useState } from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
 import ScoreChart from "@/components/shared/ScoreChart";
@@ -12,6 +13,7 @@ interface WaitingViewProps {
   finishedMessage: string;
   chartData: Record<string, { question_code: string; points: number; cumulative_score: number }[]>;
   questionLabels: string[];
+  showChart?: boolean;
 }
 
 export function WaitingView({
@@ -23,7 +25,10 @@ export function WaitingView({
   finishedMessage,
   chartData,
   questionLabels,
+  showChart = false,
 }: WaitingViewProps) {
+  const [hoveredPlayerCode, setHoveredPlayerCode] = useState<string | null>(null);
+
   return (
     <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
       {matchFinished ? (
@@ -43,8 +48,6 @@ export function WaitingView({
 
       </div>
 
-      {Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} /> : null}
-
       {loaded && players.length > 0 ? (
         <div className="flex gap-4 max-w-7xl w-full justify-center mt-8">
           {players.map((player) => (
@@ -52,10 +55,15 @@ export function WaitingView({
               key={player.playerCode}
               player={player}
               isCurrent={player.playerCode === currentPlayerCode}
+              isHovered={hoveredPlayerCode === player.playerCode}
+              isDimmed={hoveredPlayerCode !== null && hoveredPlayerCode !== player.playerCode}
+              onHover={setHoveredPlayerCode}
             />
           ))}
         </div>
       ) : null}
+
+      {showChart && Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} /> : null}
     </div>
   );
 }

@@ -26,6 +26,8 @@ const AWaitingPage = () => {
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useGameWebSocket();
+	const [hoveredPlayerCode, setHoveredPlayerCode] = useState<string | null>(null);
+	const [isScoreboardAnimationRunning, setIsScoreboardAnimationRunning] = useState(false);
 
 	useEffect(() => {
 		logger.info("AWaitingPage mounted:", { urlMatchCode, storedMatchCode, currentMatchCode });
@@ -49,7 +51,23 @@ const AWaitingPage = () => {
 		}
 	}, [currentMatchCode, navigate]);
 
-	const { players, setPlayers, matchFinished, setMatchFinished, chartData, questionLabels } = useWaitingState(lastMessage);
+	const { players, setPlayers, matchFinished, setMatchFinished, chartData, questionLabels, showChart } = useWaitingState(lastMessage);
+
+	useEffect(() => {
+		if (!isScoreboardAnimationRunning || players.length === 0) return;
+		let playerIndex = 0;
+		setHoveredPlayerCode(players[0].playerCode);
+		const timer = window.setInterval(() => {
+			playerIndex += 1;
+			if (playerIndex >= players.length) {
+				setIsScoreboardAnimationRunning(false);
+				setHoveredPlayerCode(null);
+				return;
+			}
+			setHoveredPlayerCode(players[playerIndex].playerCode);
+		}, 4000);
+		return () => window.clearInterval(timer);
+	}, [isScoreboardAnimationRunning, players]);
 	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
@@ -154,6 +172,7 @@ const AWaitingPage = () => {
 	const handleShowScoreboard = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setIsShowingScoreboard(true);
+		setIsScoreboardAnimationRunning(true);
 		try {
 			await sendMessage({ type: "show_scoreboard" });
 		} catch (err) {
@@ -229,8 +248,6 @@ const AWaitingPage = () => {
 				<p className="text-blue-300 text-sm">Mã trận: <strong>{currentMatchCode}</strong></p>
 
 				{}
-				{Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} />}
-
 				{players.length > 0 && (
 					<div className="flex gap-4 max-w-7xl w-full justify-center">
 						{players.map((player) => (
@@ -241,10 +258,15 @@ const AWaitingPage = () => {
 								token={token}
 								matchCode={currentMatchCode}
 								sendMessage={sendMessage}
+								isHovered={hoveredPlayerCode === player.playerCode}
+								isDimmed={hoveredPlayerCode !== null && hoveredPlayerCode !== player.playerCode}
+								onHover={setHoveredPlayerCode}
 							/>
 						))}
 					</div>
 				)}
+
+				{showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
 
 				{}
 				<div className="flex flex-col gap-4 w-full max-w-2xl">

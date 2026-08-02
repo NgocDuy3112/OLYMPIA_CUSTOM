@@ -33,11 +33,11 @@ function groupFor(code: string) {
 
 function roundName(code: string) {
     const group = groupFor(code);
-    return group === "KĐ" ? "Khởi động" : group === "GM" ? "Giải mã" : group === "BP" ? "Bứt phá" : group === "VĐ" ? "Về đích" : "Điều chỉnh";
+    return group === "KĐ" ? "Khởi động" : group === "GM" ? "Giải mã" : group === "BP" ? "Bứt phá" : group === "VĐ" ? "Về đích" : "";
 }
 
 function labelFor(code: string) {
-    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ADJUST";
+    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "Điểm số đã chỉnh sửa";
     if (/^(KĐ|GM|BP|VĐ)_/.test(code)) return code;
     const value = code.replace(/^OC3_Q_/, "");
     const parts = value.split("_");
@@ -74,10 +74,21 @@ function tooltipLabelFor(code: string, points?: number) {
     return code;
 }
 
-export default function ScoreChart({ players, chartData, questionLabels = [] }: { players: PlayerStatus[]; chartData: ChartData; questionLabels?: string[] }) {
+interface ScoreChartProps {
+    players: PlayerStatus[];
+    chartData: ChartData;
+    questionLabels?: string[];
+    hoveredPlayerCode?: string | null;
+    onPlayerHover?: (playerCode: string | null) => void;
+    focusMode?: boolean;
+}
+
+export default function ScoreChart({ players, chartData, questionLabels = [], hoveredPlayerCode, onPlayerHover, focusMode = false }: ScoreChartProps) {
     const [hoveredPoint, setHoveredPoint] = useState<HoveredPoint>(null);
+    const activePlayerCode = hoveredPlayerCode ?? hoveredPoint?.playerCode ?? null;
     const updateHoveredPoint = (next: HoveredPoint) => {
         setHoveredPoint((previous) => previous?.playerCode === next?.playerCode && previous?.index === next?.index ? previous : next);
+        onPlayerHover?.(next?.playerCode ?? null);
     };
     const codes = Object.keys(chartData);
     const recordedLabels = codes.flatMap((code) => chartData[code].map((point) => point.question_code));
@@ -98,8 +109,8 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
         return questionNumber(left) - questionNumber(right);
     });
     if (!codes.length || !labels.length) return null;
-    const width = 760;
-    const height = 360;
+    const width = 640;
+    const height = 300;
     const padding = { top: 20, right: 18, bottom: 70, left: 42 };
     const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
     const minScore = Math.min(0, ...scoreValues);
@@ -118,7 +129,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
     const y = (score: number) => padding.top + ((maxScore - score) * (height - padding.top - padding.bottom)) / scoreRange;
 
     return (
-        <section className="w-full max-w-6xl rounded-xl border-2 border-blue-600 bg-blue-950/70 p-4 shadow-xl">
+        <section className="w-full max-w-4xl rounded-xl border-2 border-blue-600 bg-blue-950/70 p-3 shadow-xl">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-bold uppercase text-blue-200">Diễn biến điểm</h2>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
@@ -129,7 +140,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                 </div>
             </div>
             <div className="overflow-x-auto">
-                <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[680px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm" onMouseLeave={() => updateHoveredPoint(null)}>
+                <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[560px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm" onMouseLeave={() => updateHoveredPoint(null)}>
                     <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom} stroke="rgba(230,238,245,.55)" strokeWidth="1.5" />
                     {[maxScore, minScore].map((value) => {
                         const lineY = y(value);
@@ -148,8 +159,8 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                             return lastScore;
                         });
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
-                        const isDimmed = hoveredPoint !== null && hoveredPoint.playerCode !== code;
-                        return <g key={code} opacity={isDimmed ? 0.2 : 1}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth={hoveredPoint?.playerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} /><circle cx={x(index)} cy={y(value)} r={hoveredPoint?.playerCode === code && hoveredPoint.index === index ? "4" : "2.5"} fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
+                        const isDimmed = activePlayerCode !== null && activePlayerCode !== code;
+                        return <g key={code} opacity={isDimmed ? (focusMode ? 0 : 0.2) : 1}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth={activePlayerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} /><circle cx={x(index)} cy={y(value)} r={activePlayerCode === code && hoveredPoint?.index === index ? "4" : "2.5"} fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
                     })}
                     {hoveredPoint ? (() => {
                         const rows = codes.map((code, playerIndex) => {
@@ -166,7 +177,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                             ?? hoveredLabel;
                         const titlePoint = codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel);
                         const titlePoints = titlePoint?.points;
-                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
+                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className={`grid grid-cols-[1fr_3rem_4rem] items-center gap-2 leading-4 ${row.code === activePlayerCode ? "" : "opacity-40"}`}><span className="truncate" style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><b className="text-right">{row.current?.points ?? 0}</b><b className="text-right text-cyan-300">{row.value}</b></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
             </div>
