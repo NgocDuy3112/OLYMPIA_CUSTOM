@@ -55,7 +55,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({ player, isCurrent, isBuzzerWinn
             onMouseEnter={() => onHover?.(player.playerCode)}
             onMouseLeave={() => onHover?.(null)}
             style={{ borderColor: accentColor }}
-            className={`flex flex-col items-center p-2 rounded-lg transition duration-300 flex-1 ml-1 mr-1 min-h-31.25 shadow-sm ${isDimmed ? 'opacity-40' : ''} ${isHovered ? 'ring-4 ring-cyan-300' : ''}
+            className={`flex flex-col items-center p-2 rounded-lg border-2 border-transparent transition duration-300 flex-1 ml-1 mr-1 min-h-31.25 shadow-sm ${isDimmed ? 'opacity-40' : ''} ${isHovered ? 'ring-4 ring-cyan-300' : ''}
                 ${isCurrent
                     ? 'bg-blue-600 shadow-xl scale-100 ring-4 text-white ring-blue-300'
                     : 'ring-2 ring-blue-600 bg-blue-900 text-blue-300'

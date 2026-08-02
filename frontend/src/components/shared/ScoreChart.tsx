@@ -92,7 +92,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
     };
     const codes = Object.keys(chartData);
     const colorForPlayer = (code: string, fallbackIndex = 0) => {
-        const playerIndex = players.findIndex((player) => player.playerCode === code);
+        const playerIndex = players.findIndex((player) => String(player.playerCode) === String(code));
         return COLORS[(playerIndex >= 0 ? playerIndex : fallbackIndex) % COLORS.length];
     };
     const recordedLabels = codes.flatMap((code) => chartData[code].map((point) => point.question_code));
