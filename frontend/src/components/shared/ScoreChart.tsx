@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { PlayerStatus } from "@/types/player";
 
 interface ChartPoint {
@@ -8,10 +9,16 @@ interface ChartPoint {
 
 type ChartData = Record<string, ChartPoint[]>;
 
+type HoveredPoint = { playerCode: string; index: number } | null;
+
 const COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
 
 function groupFor(code: string) {
     if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ĐIỀU CHỈNH";
+    if (code.startsWith("KĐ")) return "KĐ";
+    if (code.startsWith("GM")) return "GM";
+    if (code.startsWith("BP")) return "BP";
+    if (code.startsWith("VĐ")) return "VĐ";
     const value = code.replace(/^OC3_Q_/, "");
     if (value.startsWith("KD")) return "KĐ";
     if (value.startsWith("GM")) return "GM";
@@ -22,6 +29,7 @@ function groupFor(code: string) {
 
 function labelFor(code: string) {
     if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ADJUST";
+    if (/^(KĐ|GM|BP|VĐ)_/.test(code)) return code;
     const value = code.replace(/^OC3_Q_/, "");
     const parts = value.split("_");
     if (parts[0] === "KD" && parts.length >= 3) return `KĐ_${parts[1]}`;
@@ -29,14 +37,15 @@ function labelFor(code: string) {
 }
 
 export default function ScoreChart({ players, chartData }: { players: PlayerStatus[]; chartData: ChartData }) {
+    const [hoveredPoint, setHoveredPoint] = useState<HoveredPoint>(null);
     const codes = Object.keys(chartData);
-    const labels = Array.from(new Set(codes.flatMap((code) => chartData[code].map((point) => point.question_code))));
+    const labels = Array.from(new Set(codes.flatMap((code) => chartData[code].map((point) => labelFor(point.question_code)))));
     const groupOrder = ["KĐ", "GM", "BP", "VĐ", "ĐIỀU CHỈNH"];
     labels.sort((left, right) => groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right)));
     if (!codes.length || !labels.length) return null;
     const width = 900;
-    const height = 420;
-    const padding = { top: 24, right: 24, bottom: 92, left: 48 };
+    const height = 460;
+    const padding = { top: 24, right: 24, bottom: 128, left: 48 };
     const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
     const minScore = Math.min(0, ...scoreValues);
     const maxScore = Math.max(0, ...scoreValues);
@@ -73,13 +82,14 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
                     })}
                     <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="#E6EEF5" strokeWidth="1.5" strokeDasharray="6 4" />
                     <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="#E6EEF5" fontSize="12">0</text>
-                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={height - 8} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{group.name}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(148,163,184,.35)" strokeDasharray="4 4" /> : null}</g>)}
-                    {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /><text x={x(index)} y={height - 42} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 42})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text></g>)}
+                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={height - 12} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{group.name}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(148,163,184,.35)" strokeDasharray="4 4" /> : null}</g>)}
+                    {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /><text x={x(index)} y={height - 64} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 64})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text></g>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
-                        const values = labels.map((label) => points.find((point) => point.question_code === label)?.cumulative_score ?? null);
+                        const pointDetails = labels.map((label) => points.find((point) => labelFor(point.question_code) === label));
+                        const values = pointDetails.map((point) => point?.cumulative_score ?? null);
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
-                        return <g key={code}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="5" fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="2"><title>{`${code} ${labels[index]}: ${value} điểm`}</title></circle></g>)}</g>;
+                        return <g key={code}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="13" fill="transparent" onMouseEnter={() => setHoveredPoint({ playerCode: code, index })} onMouseLeave={() => setHoveredPoint(null)} /><circle cx={x(index)} cy={y(value)} r="5" fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="2" />{hoveredPoint?.playerCode === code && hoveredPoint.index === index ? (<foreignObject x={Math.min(width - 220, Math.max(8, x(index) - 100))} y={Math.max(8, y(value) - 92)} width="212" height="82"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-cyan-300">{players.find((player) => player.playerCode === code)?.playerName ?? code}</div><div className="font-mono text-[11px] text-blue-200">{pointDetails[index]?.question_code ?? labels[index]}</div><div className="mt-1 flex justify-between gap-3"><span>Điểm câu: <b>{pointDetails[index]?.points ?? 0}</b></span><span>Tổng: <b className="text-cyan-300">{value}</b></span></div></div></foreignObject>) : null}</g>)}</g>;
                     })}
                 </svg>
             </div>
