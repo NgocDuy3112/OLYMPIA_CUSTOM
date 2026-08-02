@@ -53,21 +53,24 @@ const AWaitingPage = () => {
 
 	const { players, setPlayers, matchFinished, setMatchFinished, chartData, questionLabels, showChart } = useWaitingState(lastMessage);
 
+	const playerCodesKey = players.map((player) => player.playerCode).join("|");
+
 	useEffect(() => {
-		if (!isScoreboardAnimationRunning || players.length === 0) return;
+		const animationPlayerCodes = playerCodesKey ? playerCodesKey.split("|") : [];
+		if (!isScoreboardAnimationRunning || animationPlayerCodes.length === 0) return;
 		let playerIndex = 0;
-		setHoveredPlayerCode(players[0].playerCode);
+		setHoveredPlayerCode(animationPlayerCodes[0]);
 		const timer = window.setInterval(() => {
 			playerIndex += 1;
-			if (playerIndex >= players.length) {
+			if (playerIndex >= animationPlayerCodes.length) {
 				setIsScoreboardAnimationRunning(false);
 				setHoveredPlayerCode(null);
 				return;
 			}
-			setHoveredPlayerCode(players[playerIndex].playerCode);
+			setHoveredPlayerCode(animationPlayerCodes[playerIndex]);
 		}, 4000);
 		return () => window.clearInterval(timer);
-	}, [isScoreboardAnimationRunning, players]);
+	}, [isScoreboardAnimationRunning, playerCodesKey]);
 	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
