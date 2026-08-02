@@ -5,6 +5,7 @@ import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
+import ScoreEditModal from "./ScoreEditModal";
 
 interface APlayerCardProps {
     player: PlayerStatus;
@@ -41,12 +42,13 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
     const [showEditModal, setShowEditModal] = useState(false);
     const [editScoreValue, setEditScoreValue] = useState(player.playerScore.toString());
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showQuestionScoreModal, setShowQuestionScoreModal] = useState(false);
 
     const handleEditScoreClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (disabled || !onEditScore) return;
         setEditScoreValue(player.playerScore.toString());
-        setShowEditModal(true);
+        setShowQuestionScoreModal(true);
     };
 
     const handleUpdateScore = async () => {
@@ -165,7 +167,20 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
             </div>
 
             {}
-            {showEditModal && (
+            <ScoreEditModal
+                open={showQuestionScoreModal}
+                playerCode={player.playerCode}
+                playerName={player.playerName}
+                matchCode={matchCode ?? ""}
+                token={token ?? ""}
+                currentScore={player.playerScore}
+                onClose={() => setShowQuestionScoreModal(false)}
+                onSaved={(score) => {
+                    onEditScore?.(player.playerCode, score);
+                    setShowQuestionScoreModal(false);
+                }}
+            />
+            {false && showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div
                         className="bg-blue-950 border border-blue-700 rounded-xl p-6 w-full max-w-sm shadow-2xl"

@@ -128,6 +128,7 @@ async def send_initial_snapshot(
     from dependencies.postgresql_db import AsyncSessionLocal
     from core.match import get_match_by_match_code_from_db
     from core.scoreboard import get_scoreboard_for_a_match_from_db
+    from core.record import get_records_from_db
     from core.qualifier import get_qualifier_standings
     from core.question import get_question_from_request_from_db
 
@@ -141,13 +142,42 @@ async def send_initial_snapshot(
                 room_data = {}
 
             try:
-                score_resp = await get_scoreboard_for_a_match_from_db(match_code, session, ws_manager.valkey)
+                score_resp = await get_scoreboard_for_a_match_from_db(match_code, ws_manager.valkey, session)
                 scoreboard_list = (score_resp.data or {}).get("scoreboard", []) if isinstance(score_resp.data, dict) else []
             except Exception as e:
                 global_logger.warning(f"[SNAPSHOT] scoreboard fetch failed for {match_code!r}: {e}")
                 scoreboard_list = []
 
             room_players = room_data.get("players", []) if isinstance(room_data, dict) else []
+
+            chart_data: dict[str, list[dict[str, object]]] = {}
+            try:
+                records_resp = await get_records_from_db(match_code, None, session)
+                records = records_resp.data if isinstance(records_resp.data, list) else []
+                totals: dict[str, int] = {}
+                adjustments: dict[str, int] = {}
+                for record in records:
+                    code = str(record.get("user_code", ""))
+                    points = int(record.get("points", 0) or 0)
+                    if record.get("question_code") == "OC3_Q_ADMIN_ADJUST":
+                        adjustments[code] = adjustments.get(code, 0) + points
+                        continue
+                    totals[code] = totals.get(code, 0) + points
+                    chart_data.setdefault(code, []).append({
+                        "question_code": record.get("question_code", ""),
+                        "points": points,
+                        "cumulative_score": totals[code],
+                    })
+                for code, adjustment in adjustments.items():
+                    if adjustment:
+                        totals[code] = totals.get(code, 0) + adjustment
+                        chart_data.setdefault(code, []).append({
+                            "question_code": "ADJUST",
+                            "points": adjustment,
+                            "cumulative_score": totals[code],
+                        })
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] chart fetch failed for {match_code!r}: {e}")
 
             try:
                 await websocket.send_json({
@@ -159,6 +189,16 @@ async def send_initial_snapshot(
                 })
             except Exception as e:
                 global_logger.warning(f"[SNAPSHOT] send_room_info failed: {e}")
+
+            try:
+                await websocket.send_json({
+                    "type": "score_chart_snapshot",
+                    "match_code": match_code,
+                    "scoreboard": scoreboard_list,
+                    "chart_data": chart_data,
+                })
+            except Exception as e:
+                global_logger.warning(f"[SNAPSHOT] score chart send failed: {e}")
 
             try:
                 await websocket.send_json({

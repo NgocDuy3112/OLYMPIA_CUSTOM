@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerCard from "@/components/admin/APlayerCard";
+import ScoreChart from "@/components/shared/ScoreChart";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
@@ -48,7 +49,7 @@ const AWaitingPage = () => {
 		}
 	}, [currentMatchCode, navigate]);
 
-	const { players, setPlayers, matchFinished, setMatchFinished } = useWaitingState(lastMessage);
+	const { players, setPlayers, matchFinished, setMatchFinished, chartData } = useWaitingState(lastMessage);
 	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
@@ -228,6 +229,8 @@ const AWaitingPage = () => {
 				<p className="text-blue-300 text-sm">Mã trận: <strong>{currentMatchCode}</strong></p>
 
 				{}
+				{Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} />}
+
 				{players.length > 0 && (
 					<div className="flex gap-4 max-w-7xl w-full justify-center">
 						{players.map((player) => (

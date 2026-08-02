@@ -1,5 +1,6 @@
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
+import ScoreChart from "@/components/shared/ScoreChart";
 
 interface WaitingViewProps {
   matchCode: string;
@@ -9,6 +10,7 @@ interface WaitingViewProps {
   matchFinished: boolean;
   currentPlayerCode?: string;
   finishedMessage: string;
+  chartData: Record<string, { question_code: string; points: number; cumulative_score: number }[]>;
 }
 
 export function WaitingView({
@@ -18,6 +20,7 @@ export function WaitingView({
   matchFinished,
   currentPlayerCode,
   finishedMessage,
+  chartData,
 }: WaitingViewProps) {
   return (
     <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
@@ -37,6 +40,8 @@ export function WaitingView({
         ) : null}
 
       </div>
+
+      {Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} /> : null}
 
       {loaded && players.length > 0 ? (
         <div className="flex gap-4 max-w-7xl w-full justify-center mt-8">

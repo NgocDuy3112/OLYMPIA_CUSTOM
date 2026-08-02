@@ -5,12 +5,15 @@ from fastapi import HTTPException
 from logger import global_logger
 from schemas.base import BaseResponse
 from schemas.scoreboard import ScoreAdjustRequest
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from models.match import Match, MatchPlayerPosition
 from models.user import User, RoleEnum
+from models.record import Record
+from models.question import Question
+from utils.ws_connection import manager
 
 
 def _safe_convert_score(value) -> int:
@@ -100,6 +103,95 @@ async def get_scoreboard_for_a_match_from_db(
         raise HTTPException(status_code=500, detail=log_message)
 
 
+async def update_player_question_score(
+    request: ScoreAdjustRequest,
+    valkey: Valkey,
+    session: AsyncSession,
+) -> BaseResponse:
+    if request.question_code is None or request.points is None:
+        raise HTTPException(status_code=422, detail="question_code and points are required")
+
+    match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
+    player_id = await session.scalar(select(User.id).where(User.user_code == request.user_code, User.role == RoleEnum.player, User.is_deleted == False))
+    question = await session.scalar(select(Question).where(Question.match_id == match_id, Question.question_code == request.question_code, Question.is_deleted == False))
+    if match_id is None or player_id is None or question is None:
+        raise HTTPException(status_code=404, detail="Match, player, or question not found")
+
+    record = await session.scalar(select(Record).where(
+        Record.match_id == match_id,
+        Record.player_id == player_id,
+        Record.question_id == question.id,
+        Record.is_deleted == False,
+    ).order_by(Record.created_at.asc()))
+    if record is None:
+        record = Record(
+            player_id=player_id,
+            match_id=match_id,
+            question_id=question.id,
+            question_code=request.question_code,
+            points=request.points,
+        )
+        session.add(record)
+    else:
+        record.points = request.points
+        record.question_code = request.question_code
+
+    total = await session.scalar(select(func.coalesce(func.sum(Record.points), 0)).where(
+        Record.match_id == match_id,
+        Record.player_id == player_id,
+        Record.is_deleted == False,
+    ))
+    await session.flush()
+    total = int(total or 0) - (record.points or 0) + request.points if record in session.dirty else int(total or 0)
+    await session.commit()
+    await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: total})
+
+    scoreboard = await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)
+    chart_rows = await session.execute(
+        select(Record, User.user_code).join(User, Record.player_id == User.id).where(
+            Record.match_id == match_id,
+            Record.is_deleted == False,
+            User.is_deleted == False,
+        ).order_by(Record.created_at.asc())
+    )
+    chart_data: dict[str, list[dict[str, object]]] = {}
+    chart_totals: dict[str, int] = {}
+    adjustments: dict[str, int] = {}
+    for row in chart_rows.all():
+        item = row[0]
+        code = row[1]
+        if item.question_code == "OC3_Q_ADMIN_ADJUST":
+            adjustments[code] = adjustments.get(code, 0) + item.points
+            continue
+        chart_totals[code] = chart_totals.get(code, 0) + item.points
+        chart_data.setdefault(code, []).append({
+            "question_code": item.question_code,
+            "points": item.points,
+            "cumulative_score": chart_totals[code],
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        })
+    for code, adjustment in adjustments.items():
+        if adjustment:
+            chart_totals[code] = chart_totals.get(code, 0) + adjustment
+            chart_data.setdefault(code, []).append({
+                "question_code": "ADJUST",
+                "points": adjustment,
+                "cumulative_score": chart_totals[code],
+                "created_at": None,
+            })
+    payload = {
+        "type": "score_chart_snapshot",
+        "match_code": request.match_code,
+        "scoreboard": (scoreboard.data or {}).get("scoreboard", []),
+        "chart_data": chart_data,
+        "updated_user_code": request.user_code,
+        "question_code": request.question_code,
+        "points": request.points,
+    }
+    await manager.broadcast_to_room(request.match_code, payload)
+    return scoreboard
+
+
 async def adjust_player_score(
     request: ScoreAdjustRequest,
     valkey: Valkey,
@@ -107,6 +199,9 @@ async def adjust_player_score(
 ) -> BaseResponse:
     match_code = request.match_code
     user_code = request.user_code
+    if request.question_code is not None:
+        return await update_player_question_score(request, valkey, session)
+
     new_score = request.new_score
     reason = request.reason or "admin_adjust"
 

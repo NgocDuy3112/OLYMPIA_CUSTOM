@@ -12,6 +12,7 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
   const [players, setPlayers] = useState<PlayerStatus[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [matchFinished, setMatchFinished] = useState(false);
+  const [chartData, setChartData] = useState<Record<string, { question_code: string; points: number; cumulative_score: number }[]>>({});
 
   useEffect(() => {
     const message = unwrapWebSocketMessage(lastMessage);
@@ -34,6 +35,14 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
             previous,
           ));
           setLoaded(true);
+          break;
+        case "score_chart_snapshot":
+          if (message.chart_data && typeof message.chart_data === "object") {
+            setChartData(message.chart_data as Record<string, { question_code: string; points: number; cumulative_score: number }[]>);
+          }
+          if (Array.isArray(message.scoreboard)) {
+            setPlayers((previous) => buildPlayersSnapshot([], toArray<RawScore>(message.scoreboard), [], previous));
+          }
           break;
         case "player_score_updated":
           if (
@@ -58,5 +67,5 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
     };
   }, [lastMessage]);
 
-  return { matchName, players, setPlayers, loaded, matchFinished, setMatchFinished };
+  return { matchName, players, setPlayers, loaded, matchFinished, setMatchFinished, chartData };
 }
