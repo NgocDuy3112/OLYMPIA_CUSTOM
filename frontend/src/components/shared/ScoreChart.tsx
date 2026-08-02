@@ -58,9 +58,9 @@ function tooltipLabelFor(code: string, points?: number) {
     if (parts[0] === "VD") {
         const subjects: Record<string, string> = {
             TTTK: "Toán học, tin học",
-            TNST: "Tự nhiên, sự sống",
+            TNSS: "Tự nhiên, sự sống",
             XHPL: "Xã hội, pháp luật",
-            NTVH: "Nghệ thuật, nhân văn",
+            NTNV: "Nghệ thuật, nhân văn",
             VHTT: "Văn hoá, thể thao",
             KTTH: "Kiến thức tổng hợp",
         };
@@ -127,7 +127,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                     })}
                     <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="#E6EEF5" strokeWidth="1.5" strokeDasharray="6 4" />
                     <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="#E6EEF5" fontSize="12">0</text>
-                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={height - 18} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{roundName(group.name)}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(103,232,249,.55)" strokeWidth="1.5" strokeDasharray="5 4" /> : null}</g>)}
+                    {groups.map((group, index) => <g key={group.name}><rect x={group.start === 0 ? padding.left : x(group.start) - 12} y={padding.top} width={(group.end === labels.length - 1 ? width - padding.right : x(group.end + 1) - 12) - (group.start === 0 ? padding.left : x(group.start) - 12)} height={height - padding.top - padding.bottom} fill={index % 2 === 0 ? "rgba(30, 64, 175, .08)" : "rgba(8, 145, 178, .08)"} /><text x={(x(group.start) + x(group.end)) / 2} y={height - 18} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{roundName(group.name)}</text>{group.start > 0 ? <line x1={x(group.start) - 12} x2={x(group.start) - 12} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(103,232,249,.75)" strokeWidth="2" strokeDasharray="5 4" /> : null}</g>)}
                     {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /></g>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
@@ -149,7 +149,10 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         });
                         const active = rows.find((row) => row.code === hoveredPoint.playerCode);
                         if (!active?.detail) return null;
-                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(active.detail.question_code, active.detail.points)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
+                        const hoveredLabel = labels[hoveredPoint.index];
+                        const titleCode = questionLabels.find((code) => labelFor(code) === hoveredLabel) ?? hoveredLabel;
+                        const titlePoints = rows.find((row) => row.current)?.current?.points;
+                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
             </div>
