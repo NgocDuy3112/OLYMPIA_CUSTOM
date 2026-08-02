@@ -66,7 +66,9 @@ function tooltipLabelFor(code: string, points?: number) {
         };
         const subjectKey = parts.slice(1, -1).join("_");
         const subject = subjects[subjectKey] ?? subjects[parts[1]] ?? parts.slice(1, -1).join(" ");
-        const question = points === 20 || points === 30 || points === 40 || points === 50 ? `${points} điểm` : "1";
+        const codePoints = Number(parts.at(-1));
+        const questionPoints = points === 20 || points === 30 || points === 40 || points === 50 ? points : codePoints;
+        const question = [20, 30, 40, 50].includes(questionPoints) ? `${questionPoints} điểm` : "1";
         return `[Về đích] ${subject} - Câu ${question}`;
     }
     return code;
@@ -75,7 +77,11 @@ function tooltipLabelFor(code: string, points?: number) {
 export default function ScoreChart({ players, chartData, questionLabels = [] }: { players: PlayerStatus[]; chartData: ChartData; questionLabels?: string[] }) {
     const [hoveredPoint, setHoveredPoint] = useState<HoveredPoint>(null);
     const codes = Object.keys(chartData);
-    const labels = Array.from(new Set([...questionLabels.map(labelFor), ...codes.flatMap((code) => chartData[code].map((point) => labelFor(point.question_code)))]));
+    const recordedLabels = codes.flatMap((code) => chartData[code].map((point) => point.question_code));
+    const labels = Array.from(new Set([
+        ...questionLabels.filter((code) => ["KĐ", "BP"].includes(groupFor(labelFor(code)))).map(labelFor),
+        ...recordedLabels.map(labelFor),
+    ]));
     const groupOrder = ["KĐ", "GM", "BP", "VĐ", "ĐIỀU CHỈNH"];
     labels.sort((left, right) => {
         const groupDifference = groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right));
@@ -154,7 +160,8 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         const titleCode = questionLabels.find((code) => labelFor(code) === hoveredLabel)
                             ?? codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel)?.question_code
                             ?? hoveredLabel;
-                        const titlePoints = codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel)?.points;
+                        const titlePoint = codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel);
+                        const titlePoints = titlePoint?.points;
                         return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
