@@ -15,6 +15,10 @@ const COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"
 
 function groupFor(code: string) {
     if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ĐIỀU CHỈNH";
+    if (code.startsWith("[Khởi động")) return "KĐ";
+    if (code.startsWith("[Giải mã]")) return "GM";
+    if (code.startsWith("[Bứt phá]")) return "BP";
+    if (code.startsWith("[Về đích]")) return "VĐ";
     if (code.startsWith("KĐ")) return "KĐ";
     if (code.startsWith("GM")) return "GM";
     if (code.startsWith("BP")) return "BP";
@@ -41,7 +45,7 @@ function labelFor(code: string) {
     return value.replace("KD_C", "KĐC").replace("GM", "GM").replace("BP", "BP").replace("VD", "VĐ");
 }
 
-function tooltipLabelFor(code: string) {
+function tooltipLabelFor(code: string, points?: number) {
     const value = code.replace(/^OC3_Q_/, "");
     const parts = value.split("_");
     if (parts[0] === "KD") {
@@ -52,8 +56,18 @@ function tooltipLabelFor(code: string) {
     if (parts[0] === "GM") return parts[1] === "KEY" ? "[Giải mã] Từ khoá" : `[Giải mã] Gợi ý ${parts[1]}`;
     if (parts[0] === "BP") return `[Bứt phá] Câu ${parts[1]}`;
     if (parts[0] === "VD") {
-        const subject = parts[1] === "TTTK" ? "Toán học, tin học" : parts.slice(1, -1).join(" ");
-        return `[Về đích] ${subject} - Câu ${parts[1] === "TTTK" ? "1" : parts.at(-1)}`;
+        const subjects: Record<string, string> = {
+            TTTK: "Toán học, tin học",
+            TNST: "Tự nhiên, sự sống",
+            XHPL: "Xã hội, pháp luật",
+            NTVH: "Nghệ thuật, nhân văn",
+            VHTT: "Văn hoá, thể thao",
+            KTTH: "Kiến thức tổng hợp",
+        };
+        const subjectKey = parts.slice(1, -1).join("_");
+        const subject = subjects[subjectKey] ?? subjects[parts[1]] ?? parts.slice(1, -1).join(" ");
+        const question = points === 20 || points === 30 || points === 40 || points === 50 ? `${points} điểm` : "1";
+        return `[Về đích] ${subject} - Câu ${question}`;
     }
     return code;
 }
@@ -63,7 +77,16 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
     const codes = Object.keys(chartData);
     const labels = Array.from(new Set([...questionLabels.map(labelFor), ...codes.flatMap((code) => chartData[code].map((point) => labelFor(point.question_code)))]));
     const groupOrder = ["KĐ", "GM", "BP", "VĐ", "ĐIỀU CHỈNH"];
-    labels.sort((left, right) => groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right)));
+    labels.sort((left, right) => {
+        const groupDifference = groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right));
+        if (groupDifference !== 0) return groupDifference;
+        const questionNumber = (label: string) => {
+            if (label.includes("Từ khoá")) return Number.MAX_SAFE_INTEGER;
+            const match = label.match(/(?:Câu|Gợi ý)\s+(\d+)/) ?? label.match(/_(\d+)$/);
+            return match ? Number(match[1]) : 0;
+        };
+        return questionNumber(left) - questionNumber(right);
+    });
     if (!codes.length || !labels.length) return null;
     const width = 760;
     const height = 360;
@@ -126,7 +149,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         });
                         const active = rows.find((row) => row.code === hoveredPoint.playerCode);
                         if (!active?.detail) return null;
-                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(active.detail.question_code)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
+                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(active.detail.question_code, active.detail.points)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
             </div>
