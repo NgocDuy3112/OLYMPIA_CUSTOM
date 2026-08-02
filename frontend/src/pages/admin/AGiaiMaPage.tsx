@@ -892,8 +892,8 @@ const AGiaiMaPage = () => {
 			const questionCode = currentQuestion.questionCode;
 			try {
 				if (questionCode) {
-					const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-						method: "POST",
+					const recordRes = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+						method: "PATCH",
 						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
 						body: JSON.stringify({
 							user_code: playerCode,

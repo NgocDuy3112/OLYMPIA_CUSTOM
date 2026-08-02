@@ -136,14 +136,14 @@ async def update_player_question_score(
         record.points = request.points
         record.question_code = request.question_code
 
+    await session.flush()
+    await session.commit()
     total = await session.scalar(select(func.coalesce(func.sum(Record.points), 0)).where(
         Record.match_id == match_id,
         Record.player_id == player_id,
         Record.is_deleted == False,
     ))
-    await session.flush()
-    total = int(total or 0) - (record.points or 0) + request.points if record in session.dirty else int(total or 0)
-    await session.commit()
+    total = int(total or 0)
     await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: total})
 
     scoreboard = await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)

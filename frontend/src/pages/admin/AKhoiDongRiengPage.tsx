@@ -415,8 +415,8 @@ const AKhoiDongRiengPage = () => {
 					if (!questionCode || String(questionCode).length === 0) {
 						logger.warn("handleAddScore: no question_code available; skipping POST to /records");
 					} else {
-						const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-							method: "POST",
+						const recordRes = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+							method: "PATCH",
 							headers: {
 								"Content-Type": "application/json",
 								Authorization: `Bearer ${token}`,

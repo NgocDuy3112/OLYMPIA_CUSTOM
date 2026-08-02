@@ -32,28 +32,6 @@ function roundName(code: string) {
     return group === "KĐ" ? "Khởi động" : group === "GM" ? "Giải mã" : group === "BP" ? "Bứt phá" : group === "VĐ" ? "Về đích" : "Điều chỉnh";
 }
 
-function questionName(code: string, points = 0) {
-    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "Điều chỉnh điểm";
-    const value = code.replace(/^OC3_Q_/, "");
-    if (value === "GM_KEY") return points > 0 ? "Đã giải từ khóa" : "Từ khóa";
-    const parts = value.split("_");
-    if (parts[0] === "KD") return `Câu ${parts[1] ?? ""}`;
-    if (parts[0] === "GM" || parts[0] === "BP") return `Câu ${parts[1] ?? ""}`;
-    if (parts[0] === "VD") {
-        const categories: Record<string, string> = {
-            TTTK: "Toán học - Tin học",
-            TNSS: "Tự nhiên - Sự sống",
-            XHPL: "Xã hội - Pháp luật",
-            NTNV: "Văn học - Nghệ thuật",
-            VHTT: "Văn hoá - Thể thao",
-            KTTH: "Kiến thức tổng hợp",
-        };
-        const category = categories[parts[1]] ?? parts[1] ?? "";
-        return `${category} - ${parts[2] ?? ""} điểm`;
-    }
-    return labelFor(code);
-}
-
 function labelFor(code: string) {
     if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "ADJUST";
     if (/^(KĐ|GM|BP|VĐ)_/.test(code)) return code;
@@ -70,9 +48,9 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
     const groupOrder = ["KĐ", "GM", "BP", "VĐ", "ĐIỀU CHỈNH"];
     labels.sort((left, right) => groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right)));
     if (!codes.length || !labels.length) return null;
-    const width = 900;
-    const height = 420;
-    const padding = { top: 24, right: 24, bottom: 118, left: 48 };
+    const width = 760;
+    const height = 360;
+    const padding = { top: 20, right: 18, bottom: 70, left: 42 };
     const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
     const minScore = Math.min(0, ...scoreValues);
     const maxScore = Math.max(0, ...scoreValues);
@@ -109,7 +87,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                     })}
                     <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="#E6EEF5" strokeWidth="1.5" strokeDasharray="6 4" />
                     <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="#E6EEF5" fontSize="12">0</text>
-                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={height - 28} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{roundName(group.name)}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(103,232,249,.55)" strokeWidth="1.5" strokeDasharray="5 4" /> : null}</g>)}
+                    {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={height - 18} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{roundName(group.name)}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(103,232,249,.55)" strokeWidth="1.5" strokeDasharray="5 4" /> : null}</g>)}
                     {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /></g>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
@@ -123,13 +101,16 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         return <g key={code}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => setHoveredPoint({ playerCode: code, index })} onMouseLeave={() => setHoveredPoint(null)} /><circle cx={x(index)} cy={y(value)} r="2.5" fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
                     })}
                     {hoveredPoint ? (() => {
-                        const playerIndex = codes.indexOf(hoveredPoint.playerCode);
-                        const points = chartData[hoveredPoint.playerCode];
-                        const pointDetails = labels.map((label) => points.find((point) => labelFor(point.question_code) === label));
-                        const point = pointDetails.slice(0, hoveredPoint.index + 1).reverse().find(Boolean);
-                        const value = points.slice().reverse().find((item: ChartPoint) => labels.slice(0, hoveredPoint.index + 1).some((label) => labelFor(item.question_code) === label))?.cumulative_score;
-                        if (playerIndex < 0 || !point || value == null) return null;
-                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 220, Math.max(8, x(hoveredPoint.index) - 100))} y={Math.max(8, y(value) - 92)} width="212" height="82" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold" style={{ color: COLORS[playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === hoveredPoint.playerCode)?.playerName ?? hoveredPoint.playerCode}</div><div className="text-[11px] text-blue-200">Vòng: {roundName(point.question_code)}</div><div className="font-semibold text-[11px] text-blue-100">{questionName(point.question_code, pointDetails[hoveredPoint.index]?.points ?? 0)}</div><div className="mt-1 flex justify-between gap-3"><span>Điểm câu: <b>{pointDetails[hoveredPoint.index]?.points ?? 0}</b></span><span>Tổng: <b className="text-cyan-300">{value}</b></span></div></div></foreignObject>;
+                        const rows = codes.map((code, playerIndex) => {
+                            const points = chartData[code];
+                            const detail = labels.slice(0, hoveredPoint.index + 1).map((label) => points.find((point) => labelFor(point.question_code) === label)).reverse().find(Boolean);
+                            const current = points.find((point) => labelFor(point.question_code) === labels[hoveredPoint.index]);
+                            return { code, playerIndex, detail, current, value: detail?.cumulative_score ?? 0 };
+                        });
+                        const active = rows.find((row) => row.code === hoveredPoint.playerCode);
+                        if (!active?.detail) return null;
+                        const title = labels[hoveredPoint.index];
+                        return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{title} · {roundName(active.detail.question_code)}</div>{rows.map((row) => <div key={row.code} className="flex justify-between gap-3 leading-4"><span style={{ color: COLORS[row.playerIndex % COLORS.length] }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><span><b>{row.current?.points ?? 0}</b> · <b className="text-cyan-300">{row.value}</b></span></div>)}</div></foreignObject>;
                     })() : null}
                 </svg>
             </div>

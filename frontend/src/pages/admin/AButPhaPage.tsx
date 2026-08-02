@@ -318,6 +318,7 @@ const AButPhaPage = () => {
 
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
+			
 			if (!currentMatchCode || !token) return;
 			if (timer > 0) {
 				logger.warn("startTheClock: timer already running, ignoring start request");
@@ -329,6 +330,14 @@ const AButPhaPage = () => {
 			const startedAt = Date.now();
 			timerStartedAtRef.current = startedAt;
 			setTimer(TIME_LIMIT);
+			setPlayers((prev) =>
+				prev.map((p) => ({
+					...p,
+					playerLastAnswer: undefined,
+					playerTimestamp: undefined,
+					playerHasBuzzed: undefined,
+				})),
+			);
 
 			try {
 				await sendMessage({
@@ -387,8 +396,8 @@ const AButPhaPage = () => {
 			const questionCode = currentQuestion.questionCode;
 			try {
 				if (questionCode) {
-					const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-						method: "POST",
+					const recordRes = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+						method: "PATCH",
 						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
 						body: JSON.stringify({ user_code: playerCode, match_code: currentMatchCode, question_code: questionCode, points: delta }),
 					});

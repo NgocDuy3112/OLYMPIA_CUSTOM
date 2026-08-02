@@ -511,8 +511,8 @@ const AKhoiDongChungPage = () => {
 					if (!questionCode || String(questionCode).length === 0) {
 						logger.warn("handleAddScoreToSelected: no question_code; skipping POST for", code);
 					} else {
-						const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-							method: "POST",
+						const recordRes = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+							method: "PATCH",
 							headers: {
 								"Content-Type": "application/json",
 								Authorization: `Bearer ${token}`,
