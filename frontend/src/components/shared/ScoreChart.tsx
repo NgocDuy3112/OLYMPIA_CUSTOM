@@ -129,7 +129,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                 </div>
             </div>
             <div className="overflow-x-auto">
-                <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[680px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm">
+                <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[680px] w-full" role="img" aria-label="Biểu đồ diễn biến điểm" onMouseLeave={() => updateHoveredPoint(null)}>
                     <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom} stroke="rgba(230,238,245,.55)" strokeWidth="1.5" />
                     {[maxScore, minScore].map((value) => {
                         const lineY = y(value);
@@ -149,7 +149,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [] }: 
                         });
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
                         const isDimmed = hoveredPoint !== null && hoveredPoint.playerCode !== code;
-                        return <g key={code} opacity={isDimmed ? 0.2 : 1}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth={hoveredPoint?.playerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} onMouseLeave={() => updateHoveredPoint(null)} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} onMouseLeave={() => updateHoveredPoint(null)} /><circle cx={x(index)} cy={y(value)} r={hoveredPoint?.playerCode === code && hoveredPoint.index === index ? "4" : "2.5"} fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
+                        return <g key={code} opacity={isDimmed ? 0.2 : 1}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth={hoveredPoint?.playerCode === code ? "5" : "3"} strokeLinejoin="round" strokeLinecap="round" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index: hoveredPoint?.index ?? Math.max(0, values.length - 1) })} />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="7" fill="transparent" onMouseEnter={() => updateHoveredPoint({ playerCode: code, index })} /><circle cx={x(index)} cy={y(value)} r={hoveredPoint?.playerCode === code && hoveredPoint.index === index ? "4" : "2.5"} fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="1.5" /></g>)}</g>;
                     })}
                     {hoveredPoint ? (() => {
                         const rows = codes.map((code, playerIndex) => {
