@@ -35,7 +35,7 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
     labels.sort((left, right) => groupOrder.indexOf(groupFor(left)) - groupOrder.indexOf(groupFor(right)));
     if (!codes.length || !labels.length) return null;
     const width = 900;
-    const height = 360;
+    const height = 420;
     const padding = { top: 24, right: 24, bottom: 92, left: 48 };
     const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
     const minScore = Math.min(0, ...scoreValues);
@@ -74,12 +74,12 @@ export default function ScoreChart({ players, chartData }: { players: PlayerStat
                     <line x1={padding.left} x2={width - padding.right} y1={y(0)} y2={y(0)} stroke="#E6EEF5" strokeWidth="1.5" strokeDasharray="6 4" />
                     <text x={padding.left - 8} y={y(0) + 4} textAnchor="end" fill="#E6EEF5" fontSize="12">0</text>
                     {groups.map((group) => <g key={group.name}><text x={(x(group.start) + x(group.end)) / 2} y={height - 8} textAnchor="middle" fill="#E6EEF5" fontSize="12" fontWeight="700">{group.name}</text>{group.start > 0 ? <line x1={x(group.start) - 8} x2={x(group.start) - 8} y1={padding.top} y2={height - padding.bottom + 8} stroke="rgba(148,163,184,.35)" strokeDasharray="4 4" /> : null}</g>)}
-                    {labels.map((code, index) => <text key={code} x={x(index)} y={height - 42} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 42})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text>)}
+                    {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /><text x={x(index)} y={height - 42} textAnchor="end" transform={`rotate(-28 ${x(index)} ${height - 42})`} fill="#BAE6FD" fontSize="11">{labelFor(code)}</text></g>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
                         const values = labels.map((label) => points.find((point) => point.question_code === label)?.cumulative_score ?? null);
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
-                        return <g key={code}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="5" fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="2"><title>{`${code} ${labels[index]}: ${value} điểm`}</title></circle><text x={x(index)} y={y(value) - 9} textAnchor="middle" fill={COLORS[playerIndex % COLORS.length]} fontSize="11" fontWeight="700">{value}</text></g>)}</g>;
+                        return <g key={code}><path d={path} fill="none" stroke={COLORS[playerIndex % COLORS.length]} strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />{values.map((value, index) => value == null ? null : <g key={`${code}-${index}`}><circle cx={x(index)} cy={y(value)} r="5" fill={COLORS[playerIndex % COLORS.length]} stroke="#061226" strokeWidth="2"><title>{`${code} ${labels[index]}: ${value} điểm`}</title></circle></g>)}</g>;
                     })}
                 </svg>
             </div>
