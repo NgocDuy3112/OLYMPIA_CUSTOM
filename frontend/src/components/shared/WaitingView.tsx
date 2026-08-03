@@ -12,7 +12,7 @@ interface WaitingViewProps {
   matchFinished: boolean;
   currentPlayerCode?: string;
   finishedMessage: string;
-  chartData: Record<string, { question_code: string; points: number; cumulative_score: number }[]>;
+  chartData: Record<string, { question_code: string; points: number; cummulative_score: number }[]>;
   questionLabels: string[];
   showChart?: boolean;
 }

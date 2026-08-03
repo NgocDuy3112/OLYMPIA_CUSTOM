@@ -59,8 +59,8 @@ export default function ScoreEditModal({ open, playerCode, playerName, matchCode
             const json = await response.json();
             if (!response.ok || json.status !== "success") throw new Error(json.detail ?? "Không thể cập nhật điểm");
             const scoreboard = json.data?.scoreboard ?? [];
-            const updated = scoreboard.find((entry: { user_code: string; cumulative_score: number }) => entry.user_code === playerCode);
-            onSaved(updated?.cumulative_score ?? currentScore);
+            const updated = scoreboard.find((entry: { user_code: string; cummulative_score: number }) => entry.user_code === playerCode);
+            onSaved(updated?.cummulative_score ?? currentScore);
             onClose();
         } catch (error) {
             alert(error instanceof Error ? error.message : "Không thể cập nhật điểm");

@@ -1,5 +1,6 @@
 
 import React, { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
@@ -25,6 +26,7 @@ import { buildKeywordBanner } from "@/utils/keywordBanner";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AGiaiMa");
@@ -169,29 +171,6 @@ const AGiaiMaPage = () => {
 		});
 	}, [activeClueIndex]);
 
-	const mapQuestionPayload = useCallback(
-		(payload: any, fallbackCode?: string): Question => ({
-			questionCode:
-				payload?.question_code ?? payload?.question?.question_code ?? fallbackCode ?? "",
-			questionText:
-				payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
-			questionAnswer:
-				payload?.question?.correct_answers ??
-				payload?.question?.correct_answer ??
-				payload?.answer ??
-				payload?.correct_answer ??
-				"",
-			questionExplanation:
-				payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL:
-				payload?.question?.extra_info?.media_source ??
-				payload?.question_media_url ??
-				payload?.media_url ??
-				undefined,
-		}),
-		[],
-	);
-
 	const loadClueQuestion = useCallback(
 		async (clueIndex: number): Promise<Question | undefined> => {
 
@@ -202,7 +181,7 @@ const AGiaiMaPage = () => {
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 				if (!res.ok) {
 					logger.warn(`loadClueQuestion: server returned ${res.status} for ${questionCode}`);
-					return mapQuestionPayload(null, questionCode);
+					return mapQuestionApiPayload(null, questionCode);
 				}
 				const data = await res.json();
 				let payload: any = null;
@@ -214,13 +193,13 @@ const AGiaiMaPage = () => {
 				} else {
 					payload = data.data ?? null;
 				}
-				return mapQuestionPayload(payload, questionCode);
+				return mapQuestionApiPayload(payload, questionCode);
 			} catch (err) {
 				logger.error("loadClueQuestion failed:", err);
-				return mapQuestionPayload(null, questionCode);
+				return mapQuestionApiPayload(null, questionCode);
 			}
 		},
-		[currentMatchCode, mapQuestionPayload, token],
+		[currentMatchCode, mapQuestionApiPayload, token],
 	);
 
 	useEffect(() => {
@@ -386,7 +365,7 @@ const AGiaiMaPage = () => {
 					payload = data.data ?? null;
 				}
 				if (payload) {
-					const q = mapQuestionPayload(payload, KEYWORD_QUESTION_CODE);
+					const q = mapQuestionApiPayload(payload, KEYWORD_QUESTION_CODE);
 					setKeywordQuestion(q);
 					const answer: string = q.questionAnswer ?? "";
 					if (answer) {
@@ -405,7 +384,7 @@ const AGiaiMaPage = () => {
 			}
 		};
 		void fetchKeywordQ();
-	}, [currentMatchCode, token, mapQuestionPayload, sendMessage]);
+	}, [currentMatchCode, token, mapQuestionApiPayload, sendMessage]);
 
 	const handleRevealClue = useCallback(
 		async (clueIndex: number) => {
@@ -462,27 +441,10 @@ const AGiaiMaPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (err) {
-				logger.error("Failed to load scoreboard:", err);
-			}
-
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
+			const snapshot = await loadAdminPlayersSnapshot(currentMatchCode, token);
+			const playersList = snapshot.players;
+			const scoreList = snapshot.scoreboard;
+			const profiles = snapshot.profiles;
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 			return { playersList, scoreList, profiles };
@@ -506,8 +468,8 @@ const AGiaiMaPage = () => {
 				const scoreEntry =
 					(scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 				const cumulativeScore =
-					scoreEntry?.cumulative_score ??
-					scoreEntry?.cumulative_score ??
+					scoreEntry?.cummulative_score ??
+					scoreEntry?.cummulative_score ??
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
@@ -515,7 +477,7 @@ const AGiaiMaPage = () => {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
-					cumulative_score: cumulativeScore,
+					cummulative_score: cumulativeScore,
 				};
 			});
 
@@ -707,7 +669,13 @@ const AGiaiMaPage = () => {
 						}));
 						setPlayers((prev) =>
 							prev.map((p) =>
-								p.playerCode === user_code ? { ...p, playerHasSubmittedKeyword: true } : p,
+								p.playerCode === user_code
+									? {
+											...p,
+											playerHasSubmittedKeyword: true,
+											playerKeywordCluesOpened: typeof clues_opened === "number" ? clues_opened : p.playerKeywordCluesOpened,
+										}
+									: p,
 							),
 						);
 					});
@@ -921,7 +889,7 @@ const AGiaiMaPage = () => {
 				setPlayers((prev) =>
 					prev.map((p) => {
 						const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
-						const updated = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
+						const updated = entry?.cummulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
 						return typeof updated === "number" ? { ...p, playerScore: updated } : p;
 					}),
 				);

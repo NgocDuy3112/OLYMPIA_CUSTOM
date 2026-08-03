@@ -1,5 +1,6 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
@@ -22,6 +23,7 @@ import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AVeDichChung");
@@ -218,27 +220,10 @@ const AVeDichChungPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (err) {
-				logger.error("Failed to load scoreboard:", err);
-			}
-
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
+			const snapshot = await loadAdminPlayersSnapshot(currentMatchCode, token);
+			const playersList = snapshot.players;
+			const scoreList = snapshot.scoreboard;
+			const profiles = snapshot.profiles;
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 			return { playersList, scoreList, profiles };
@@ -261,8 +246,8 @@ const AVeDichChungPage = () => {
 				const scoreEntry =
 					(scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 				const cumulativeScore =
-					scoreEntry?.cumulative_score ??
-					scoreEntry?.cumulative_score ??
+					scoreEntry?.cummulative_score ??
+					scoreEntry?.cummulative_score ??
 					scoreEntry?.total_score ??
 					scoreEntry?.score ??
 					0;
@@ -270,7 +255,7 @@ const AVeDichChungPage = () => {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
-					cumulative_score: cumulativeScore,
+					cummulative_score: cumulativeScore,
 				};
 			});
 
@@ -336,25 +321,6 @@ const AVeDichChungPage = () => {
 		});
 		void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
-
-	const mapQuestionPayload = useCallback(
-		(payload: any, fallbackCode?: string): Question => ({
-			questionCode:
-				payload?.question_code ?? payload?.question?.question_code ?? fallbackCode ?? "",
-			questionText:
-				payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
-			questionAnswer:
-				payload?.question?.correct_answers ??
-				payload?.question?.correct_answer ??
-				payload?.answer ??
-				payload?.correct_answer ??
-				"",
-			questionExplanation: payload?.question?.explanation ?? payload?.explanation ?? "",
-			questionMediaURL:
-				payload?.question?.extra_info?.media_source ?? payload?.media_url ?? undefined,
-		}),
-		[],
-	);
 
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -425,7 +391,7 @@ const AVeDichChungPage = () => {
 					} else {
 						payload = data.data ?? null;
 					}
-					q = mapQuestionPayload(payload, questionCode);
+					q = mapQuestionApiPayload(payload, questionCode);
 				} else {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
@@ -443,7 +409,7 @@ const AVeDichChungPage = () => {
 			logger.error("handleQuestionActivate: failed to load question:", err);
 		}
 	},
-	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
+	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionApiPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
 	);
 
 	const startTheClock = useCallback(() => {
@@ -565,8 +531,8 @@ const AVeDichChungPage = () => {
 									(item: any) => item.user_code === player.playerCode,
 								);
 								const updatedScore =
-									entry?.cumulative_score ??
-									entry?.cumulative_score ??
+									entry?.cummulative_score ??
+									entry?.cummulative_score ??
 									entry?.total_score ??
 									entry?.score;
 								return typeof updatedScore === "number"

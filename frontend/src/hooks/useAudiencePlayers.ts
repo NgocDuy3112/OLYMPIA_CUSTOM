@@ -1,8 +1,7 @@
 import { useCallback, useState } from "react";
 import type { PlayerStatus } from "@/types/player";
 import type { WebSocketMessage } from "@/types/websocket";
-import type { RawPlayer, RawProfile, RawScore } from "@/utils/playerHelpers";
-import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import { buildPlayersSnapshot, normalizePlayerSnapshot } from "@/utils/playerHelpers";
 
 interface AnswerMessage {
   user_code?: string | number;
@@ -19,10 +18,8 @@ export function useAudiencePlayers() {
   const [players, setPlayers] = useState<PlayerStatus[]>([]);
 
   const applyPlayersInfo = useCallback((message: WebSocketMessage) => {
-    const list = Array.isArray(message.players) ? message.players as RawPlayer[] : [];
-    const scores = Array.isArray(message.scoreboard) ? message.scoreboard as RawScore[] : [];
-    const profiles = Array.isArray(message.profiles) ? message.profiles as RawProfile[] : [];
-    setPlayers((previous) => buildPlayersSnapshot(list, scores, profiles, previous));
+    const snapshot = normalizePlayerSnapshot(message);
+    setPlayers((previous) => buildPlayersSnapshot(snapshot.players, snapshot.scoreboard, snapshot.profiles, previous));
   }, []);
 
   const applyScoreUpdate = useCallback((message: WebSocketMessage) => {

@@ -10,6 +10,7 @@ import {
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
@@ -92,15 +93,6 @@ const AQualifierPage = () => {
             return [];
         }
     }, []);
-
-    const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => ({
-        questionCode: payload?.question_code ?? fallbackCode ?? "",
-        questionText: payload?.content ?? payload?.question?.content ?? "",
-        questionAnswer: payload?.answer ?? payload?.question?.answer ?? "",
-        questionExplanation: payload?.explanation ?? payload?.question?.explanation ?? "",
-        questionMediaURL: payload?.media_url ?? payload?.question?.media_url ?? undefined,
-        questionOptions: payload?.options ?? payload?.question?.options ?? undefined,
-    }), []);
 
     const computePlayersSnapshot = useCallback(
         (playersList: any[], scoreboard: any[] = [], profiles: any[] = [], prev: PlayerStatus[] = []) =>
@@ -220,7 +212,7 @@ const AQualifierPage = () => {
 
                     const payload = Array.isArray(data.data) ? data.data[0] : data.data;
                     if (!payload) return undefined;
-                    return mapQuestionPayload(payload, qCode);
+                    return mapQuestionApiPayload(payload, qCode);
                 } catch (e) {
 
                     logger.warn("tryFetch candidate failed:", e);
@@ -252,7 +244,7 @@ const AQualifierPage = () => {
                     if (m) {
                         const idx = Number(m[1]);
                         if (idx === questionIndex) {
-                            const mapped = mapQuestionPayload(item, code);
+                            const mapped = mapQuestionApiPayload(item, code);
                             setCurrentQuestion(mapped);
                             setParsedOptions(parseOptions(mapped.questionOptions));
                             return mapped;
@@ -262,7 +254,7 @@ const AQualifierPage = () => {
 
                 if (list.length >= questionIndex) {
                     const item = list[questionIndex - 1];
-                    const mapped = mapQuestionPayload(item, String(item?.question_code ?? ""));
+                    const mapped = mapQuestionApiPayload(item, String(item?.question_code ?? ""));
                     setCurrentQuestion(mapped);
                     setParsedOptions(parseOptions(mapped.questionOptions));
                     return mapped;
@@ -272,12 +264,12 @@ const AQualifierPage = () => {
             }
 
             const fallbackCode = resolveQuestionCode(round, questionIndex);
-            const fallback = mapQuestionPayload(null, fallbackCode);
+            const fallback = mapQuestionApiPayload(null, fallbackCode);
             setCurrentQuestion(fallback);
             setParsedOptions([]);
             return fallback;
         },
-        [currentMatchCode, mapQuestionPayload, parseOptions, resolveQuestionCode, token],
+        [currentMatchCode, mapQuestionApiPayload, parseOptions, resolveQuestionCode, token],
     );
 
     useEffect(() => {

@@ -75,7 +75,7 @@ async def get_scoreboard_for_a_match_from_db(
                 {
                     "user_code": p["user_code"],
                     "user_name": p["user_name"],
-                    "cumulative_score": _safe_convert_score(score),
+                    "cummulative_score": _safe_convert_score(score),
                 }
                 for p, score in zip(players_data, scores)
             ]
@@ -85,7 +85,7 @@ async def get_scoreboard_for_a_match_from_db(
                 {
                     "user_code": p["user_code"],
                     "user_name": p["user_name"],
-                    "cumulative_score": 0,
+                    "cummulative_score": 0,
                 }
                 for p in players_data
             ]
@@ -186,7 +186,7 @@ async def update_player_question_score(
         chart_data.setdefault(code, []).append({
             "question_code": item.question_code,
             "points": item.points,
-            "cumulative_score": chart_totals[code],
+            "cummulative_score": chart_totals[code],
             "created_at": item.created_at.isoformat() if item.created_at else None,
         })
     for code, adjustment in adjustments.items():
@@ -195,7 +195,7 @@ async def update_player_question_score(
             chart_data.setdefault(code, []).append({
                 "question_code": "ADJUST",
                 "points": adjustment,
-                "cumulative_score": chart_totals[code],
+                "cummulative_score": chart_totals[code],
                 "created_at": None,
             })
     question_rows = await session.execute(select(Question.question_code).where(Question.match_id == match_id, Question.is_deleted == False).order_by(Question.created_at.asc()))

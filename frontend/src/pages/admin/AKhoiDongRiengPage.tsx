@@ -1,5 +1,6 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
 	Play,
@@ -20,6 +21,7 @@ import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AKhoiDongRieng");
@@ -104,33 +106,15 @@ const AKhoiDongRiengPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (error) {
-				logger.error("Failed to load scoreboard:", error);
-			}
-
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
-
+			const snapshot = await loadAdminPlayersSnapshot(currentMatchCode, token);
+			const playersList = snapshot.players;
+			const scoreList = snapshot.scoreboard;
+			const profiles = snapshot.profiles;
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 
 			const positions: Record<string, number> = {};
 			for (const entry of playersList) {
-				if (entry.user_code && entry.position) positions[String(entry.user_code)] = entry.position;
+				if (entry.user_code && typeof entry.position === "number") positions[String(entry.user_code)] = entry.position;
 			}
 			setPlayerPositions(positions);
 
@@ -158,13 +142,13 @@ const AKhoiDongRiengPage = () => {
 				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 
 				const cumulativeScore =
-					scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+					scoreEntry?.cummulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 
 				return {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
-					cumulative_score: cumulativeScore,
+					cummulative_score: cumulativeScore,
 					is_current: selectedPlayerCode ? selectedPlayerCode === String(userCode) : false,
 				};
 			});
@@ -196,21 +180,6 @@ const AKhoiDongRiengPage = () => {
 		return `${QUESTION_PREFIX}_${playerIndex}_${questionIndex}`;
 	}, [selectedPlayerCode, playerPositions]);
 
-	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
-
-		return {
-			questionCode: payload?.question_code ?? payload?.question?.question_code ?? fallbackCode ?? "",
-			questionText:
-				payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
-			questionAnswer:
-				payload?.question?.correct_answers ?? payload?.question?.correct_answer ?? payload?.answer ?? payload?.correct_answer ?? "",
-			questionExplanation:
-				payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL:
-				payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? payload?.media_url ?? payload?.media_url ?? undefined,
-		};
-	}, []);
-
 	const loadQuestion = useCallback(
 		async (questionIndex: number): Promise<Question | undefined> => {
 			if (!currentMatchCode || !token) return undefined;
@@ -227,7 +196,7 @@ const AKhoiDongRiengPage = () => {
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 				if (!res.ok) {
 					logger.warn(`loadQuestion: server returned ${res.status} for ${questionCode}`);
-					const mappedFallback = mapQuestionPayload(null, questionCode);
+					const mappedFallback = mapQuestionApiPayload(null, questionCode);
 					setCurrentQuestion(mappedFallback);
 					return mappedFallback;
 				}
@@ -245,17 +214,17 @@ const AKhoiDongRiengPage = () => {
 				} else {
 					payload = data.data ?? null;
 				}
-				const mapped = mapQuestionPayload(payload, questionCode);
+				const mapped = mapQuestionApiPayload(payload, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			} catch (error) {
 				logger.error("Failed to load question:", error);
-				const mapped = mapQuestionPayload(null, questionCode);
+				const mapped = mapQuestionApiPayload(null, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			}
 		},
-		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
+		[currentMatchCode, mapQuestionApiPayload, resolveQuestionCode, token],
 	);
 
 	const sendQuestionToPlayers = useCallback(
@@ -468,14 +437,14 @@ const AKhoiDongRiengPage = () => {
 					setPlayers((prev) =>
 						prev.map((player) => {
 							const entry = scoreboardArr.find((item: any) => item.user_code === player.playerCode);
-							const updatedScore = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
+							const updatedScore = entry?.cummulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
 							return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
 						}),
 					);
 
 					for (const entry of scoreboardArr) {
 						const userCode = String(entry?.user_code ?? "");
-						const totalScore = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
+						const totalScore = entry?.cummulative_score ?? entry?.cummulative_score ?? entry?.total_score ?? entry?.score;
 						if (userCode && typeof totalScore === "number") {
 							void sendMessage({
 								type: "player_score_updated",

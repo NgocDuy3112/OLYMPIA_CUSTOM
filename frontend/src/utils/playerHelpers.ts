@@ -1,9 +1,10 @@
 import type { PlayerStatus } from "@/types/player";
+import { getScoreValue } from "@/utils/scoreHelpers";
 
 export interface RawPlayer {
   user_code?: string | number;
   user_name?: string;
-  position?: number;
+  cummulative_scorer;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
@@ -13,7 +14,7 @@ export interface RawPlayer {
   selected?: boolean;
 }
 export interface RawScore {
-  user_code?: string | number;
+  cummulative_scoreng | number;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
@@ -24,10 +25,28 @@ export interface RawProfile {
   user_name?: string;
 }
 
+export interface PlayerSnapshotPayload {
+  players?: unknown;
+  scoreboard?: unknown;
+  profiles?: unknown;
+}
+
+export function normalizePlayerSnapshot(payload: PlayerSnapshotPayload): {
+  players: RawPlayer[];
+  scoreboard: RawScore[];
+  profiles: RawProfile[];
+} {
+  return {
+    players: Array.isArray(payload.players) ? payload.players as RawPlayer[] : [],
+    scoreboard: Array.isArray(payload.scoreboard) ? payload.scoreboard as RawScore[] : [],
+    profiles: Array.isArray(payload.profiles) ? payload.profiles as RawProfile[] : [],
+  };
+}
+
 export function buildPlayersSnapshot(
   playersList: RawPlayer[],
-  scoreboard: RawScore[] = [],
-  profiles: RawProfile[] = [],
+  scoreboard: RawScore[] = [],cummulative_score
+  profiles: Rawcummulative_score
   previousPlayers: PlayerStatus[] = [],
 ): PlayerStatus[] {
   if (!playersList?.length) return previousPlayers;
@@ -45,8 +64,8 @@ export function buildPlayersSnapshot(
       const scoreInfo = scoreMap.get(code);
 
       const playerScore =
-        (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ??
-        (entry.cumulative_score ?? entry.total_score ?? entry.score) ??
+        getScoreValue(scoreInfo) ??
+        getScoreValue(entry) ??
         previous?.playerScore ?? 0;
 
       return {

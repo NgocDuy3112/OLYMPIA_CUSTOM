@@ -13,6 +13,8 @@ interface APlayerCardProps {
     isCurrent?: boolean;
     isKeywordMode?: boolean;
     hasKeywordSubmission?: boolean;
+    cluesOpened?: number;
+    showClueCount?: boolean;
     onClick?: (playerCode: string) => void;
     disabled?: boolean;
     onEditScore?: (playerCode: string, newScore: number) => void;
@@ -32,6 +34,8 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
     isCurrent,
     isKeywordMode,
     hasKeywordSubmission,
+    cluesOpened,
+    showClueCount,
     onClick,
     disabled,
     onEditScore,
@@ -143,7 +147,14 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                     <p className="font-[SVN-Gratelos_Display] text-[22px] xl:text-[26px] font-bold uppercase truncate text-center flex items-center gap-1">
                         {player.playerName}
                         {isCurrent && <Mic size={16} className="text-white shrink-0" />}
-                        {hasKeywordSubmission && <KeyRound size={14} className="text-white-400 shrink-0" />}
+                        {hasKeywordSubmission && (
+                            <>
+                                <KeyRound size={14} className="text-white-400 shrink-0" />
+                                {showClueCount && typeof cluesOpened === "number" && (
+                                    <span className="text-[16px] font-normal text-white">{cluesOpened}</span>
+                                )}
+                            </>
+                        )}
                         {player.playerHasBuzzed && <PingIconStyle isKeywordMode={!!isKeywordMode} />}
                     </p>
                 </div>

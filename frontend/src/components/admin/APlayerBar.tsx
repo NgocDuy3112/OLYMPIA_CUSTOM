@@ -153,7 +153,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                                         <>
                                             <KeyRound size={16} className="text-white-400 shrink-0" />
                                             {showClueCount && typeof cluesOpened === "number" && (
-                                                <span className="text-[11px] tablet:text-[13px] xl:text-[16px] font-normal text-white">
+                                                <span className="text-[16px] tablet:text-[18px] xl:text-[22px] font-normal text-white">
                                                     {cluesOpened}
                                                 </span>
                                             )}

@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import type { PlayerStatus } from "@/types/player";
 import type { WebSocketMessage } from "@/types/websocket";
 import { unwrapWebSocketMessage } from "@/types/websocket";
-import type { RawPlayer, RawProfile, RawScore } from "@/utils/playerHelpers";
-import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import type { RawScore } from "@/utils/playerHelpers";
+import { buildPlayersSnapshot, normalizePlayerSnapshot } from "@/utils/playerHelpers";
 
 const toArray = <T,>(value: unknown): T[] => Array.isArray(value) ? value as T[] : [];
 
@@ -12,7 +12,7 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
   const [players, setPlayers] = useState<PlayerStatus[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [matchFinished, setMatchFinished] = useState(false);
-  const [chartData, setChartData] = useState<Record<string, { question_code: string; points: number; cumulative_score: number }[]>>({});
+  const [chartData, setChartData] = useState<Record<string, { question_code: string; points: number; cummulative_score: number }[]>>({});
   const [questionLabels, setQuestionLabels] = useState<string[]>([]);
 
   useEffect(() => {
@@ -29,15 +29,18 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
           setLoaded(true);
           break;
         case "send_players_info":
-          setPlayers((previous) => buildPlayersSnapshot(
-            toArray<RawPlayer>(message.players),
-            toArray<RawScore>(message.scoreboard),
-            toArray<RawProfile>(message.profiles),
-            previous,
-          ));
+          {
+            const snapshot = normalizePlayerSnapshot(message);
+            setPlayers((previous) => buildPlayersSnapshot(
+              snapshot.players,
+              snapshot.scoreboard,
+              snapshot.profiles,
+              previous,
+            ));
+          }
           setLoaded(true);
           break;
-        case "score_chart_snapshot":
+        case "score_chart_snapshot":cummulative_score
           if (Array.isArray(message.question_labels)) setQuestionLabels(message.question_labels.map(String));
           if (message.chart_data && typeof message.chart_data === "object") {
             setChartData(message.chart_data as Record<string, { question_code: string; points: number; cumulative_score: number }[]>);
