@@ -1,34 +1,15 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Annotated
 
 from dependencies.postgresql_db import get_db
-from dependencies.valkey_store import get_valkey
 from dependencies.user_auth import require_roles
-from schemas.record import *
-from models.record import *
-from core.record import *
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from schemas.base import BaseResponse
+from core.record import get_records_from_db
 
 
 router = APIRouter(prefix='/records', tags=['Bản ghi'])
-
-
-@router.post(
-    "/",
-    dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse,
-    status_code=201
-)
-async def post_record(
-    request: RecordPostRequest,
-    session: AsyncSession = Depends(get_db),
-    valkey: Valkey = Depends(get_valkey)
-) -> BaseResponse:
-    try:
-        return await post_record_to_db(request, session, valkey)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get(

@@ -36,7 +36,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!paramMatchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_pick_all_codes_${paramMatchCode}`);
+			const stored = localStorage.getItem(`vd_pick_all_codes_${paramMatchCode}`);
 			const codes = stored ? (JSON.parse(stored) as string[]) : [];
 
 			return codes.length > 0 ? codes : [];
@@ -46,7 +46,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	const [liveSelectedCodes, setLiveSelectedCodes] = useState<string[]>(() => {
 		if (!paramMatchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_pick_selected_${paramMatchCode}`);
+			const stored = localStorage.getItem(`vd_pick_selected_${paramMatchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
@@ -56,7 +56,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
 		if (!paramMatchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_used_codes_${paramMatchCode}`);
+			const stored = localStorage.getItem(`vd_used_codes_${paramMatchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
@@ -110,7 +110,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 					const updated = [...new Set([...prev, ...finalCodes])];
 
 					try {
-						localStorage.setItem(`veDich_used_codes_${paramMatchCode}`, JSON.stringify(updated));
+						localStorage.setItem(`vd_used_codes_${paramMatchCode}`, JSON.stringify(updated));
 					} catch (error) { console.error("Storage update failed", error); }
 					return updated;
 				});

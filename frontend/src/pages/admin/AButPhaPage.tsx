@@ -449,6 +449,20 @@ const AButPhaPage = () => {
 		setHasAddedScore(true);
 		void sendMessage({ type: "bp_dung" });
 		try {
+			const response = await fetch(`${API_BASE_URL}/scoreboard/calculate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+				body: JSON.stringify({
+					match_code: currentMatchCode,
+					question_code: currentQuestion.questionCode,
+					action: "bp_resolve",
+					user_codes: selectedPlayerCodes,
+				}),
+			});
+			if (!response.ok) throw new Error("Không thể tính điểm Bứt phá");
+			await sendPlayersSnapshot();
+			setSelectedPlayerCodes([]);
+			return;
 
 			const playerAnswers: Array<{ playerCode: string; timestamp: number; elapsedSeconds: number }> = [];
 			const startedAt = timerStartedAtRef.current;
@@ -581,11 +595,9 @@ const AButPhaPage = () => {
 				logger.info(`[BP RECONNECT] Resent players snapshot to ${user_code}`);
 				break;
 			}
-
-			case "mc_online":
 			case "mc_reconnected":
 			case "guest_online":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));

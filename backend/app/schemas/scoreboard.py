@@ -6,6 +6,34 @@ _MATCH_PATTERN = _settings.MATCH_PATTERN
 _QUESTION_PATTERN = _settings.QUESTION_PATTERN
 
 
+class ScoreEventRequest(BaseRequest):
+    match_code: str
+    question_code: str
+    action: str
+    user_codes: list[str] = []
+
+    @field_validator('match_code', mode='after')
+    @classmethod
+    def ensure_match_code_format(cls, value: str) -> str:
+        if not value.startswith(_MATCH_PATTERN):
+            raise ValueError(f"match_code must start with '{_MATCH_PATTERN}'")
+        return value
+
+    @field_validator('question_code', mode='after')
+    @classmethod
+    def ensure_question_code_format(cls, value: str) -> str:
+        if not value.startswith(_QUESTION_PATTERN):
+            raise ValueError(f"question_code must start with '{_QUESTION_PATTERN}'")
+        return value
+
+    @field_validator('user_codes', mode='after')
+    @classmethod
+    def ensure_user_codes_format(cls, value: list[str]) -> list[str]:
+        if any(not code.startswith('OC_U') for code in value):
+            raise ValueError("user_codes must contain only player codes")
+        return value
+
+
 class ScoreAdjustRequest(BaseRequest):
     match_code: str
     user_code: str

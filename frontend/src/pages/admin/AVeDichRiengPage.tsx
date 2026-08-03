@@ -22,6 +22,7 @@ import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AVeDichRieng");
 
@@ -86,7 +87,7 @@ const AVeDichRiengPage = () => {
 	>(() => {
 		if (!currentMatchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_rieng_states_${currentMatchCode}`);
+			const stored = localStorage.getItem(`vd_rieng_states_${currentMatchCode}`);
 			return stored ? (JSON.parse(stored) as Record<string, "answered" | "answered-wrong" | "available">) : {};
 		} catch { return {}; }
 	});
@@ -125,7 +126,7 @@ const AVeDichRiengPage = () => {
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
 		if (!currentMatchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_rieng_codes_${currentMatchCode}`);
+			const stored = localStorage.getItem(`vd_rieng_codes_${currentMatchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
@@ -133,14 +134,14 @@ const AVeDichRiengPage = () => {
 	const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<string | null>(() => {
 		if (!currentMatchCode) return null;
 		try {
-			return localStorage.getItem(`veDich_rieng_selected_player_${currentMatchCode}`) || null;
+			return localStorage.getItem(`vd_rieng_selected_player_${currentMatchCode}`) || null;
 		} catch { return null; }
 	});
 
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!currentMatchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
+			const stored = localStorage.getItem(`vd_powers_${currentMatchCode}`);
 			if (!stored) return {};
 			const parsed = JSON.parse(stored);
 
@@ -181,7 +182,7 @@ const AVeDichRiengPage = () => {
 	useEffect(() => {
 		if (!currentMatchCode) return;
 
-		localStorage.setItem(`veDich_rieng_states_${currentMatchCode}`, JSON.stringify(questionStates));
+		localStorage.setItem(`vd_rieng_states_${currentMatchCode}`, JSON.stringify(questionStates));
 
 		const answeredCodes = Object.entries(questionStates)
 			.filter(([, v]) => v === "answered")
@@ -189,10 +190,10 @@ const AVeDichRiengPage = () => {
 		if (answeredCodes.length > 0) {
 			try {
 				const existing = JSON.parse(
-					localStorage.getItem(`veDich_used_codes_${currentMatchCode}`) ?? "[]"
+					localStorage.getItem(`vd_used_codes_${currentMatchCode}`) ?? "[]"
 				) as string[];
 				localStorage.setItem(
-					`veDich_used_codes_${currentMatchCode}`,
+					`vd_used_codes_${currentMatchCode}`,
 					JSON.stringify([...new Set([...existing, ...answeredCodes])]),
 				);
 			} catch {  }
@@ -201,7 +202,7 @@ const AVeDichRiengPage = () => {
 
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
+		localStorage.setItem(`vd_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
 	}, [usedPowers, currentMatchCode]);
 
 	useEffect(() => {
@@ -637,17 +638,8 @@ const AVeDichRiengPage = () => {
 		void sendMessage({ type: "vd_dung", phase: "vdr" });
 
 		try {
-			for (const playerCode of selectedPlayerCodes) {
-				let points: number;
-				if (playerCode === currentTurnPlayerCode && activePower === 'star')
-					points = Math.round(currentPoints * 1.5);
-				else if (playerCode === currentTurnPlayerCode && activePower === 'shield')
-					points = Math.round(currentPoints * 0.5);
-				else
-					points = currentPoints;
-				await handleAddScore(playerCode, points, false);
-			}
-			if (currentMatchCode) await sendPlayersSnapshot();
+			await calculateScore(token, currentMatchCode, answeredCode, "vdr_correct", selectedPlayerCodes);
+			await sendPlayersSnapshot();
 
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
@@ -682,16 +674,8 @@ const AVeDichRiengPage = () => {
 		void sendMessage({ type: "wrong", phase: "vdr" });
 
 		try {
-			for (const playerCode of selectedPlayerCodes) {
-				const isCurrentTurnPlayer = playerCode === currentTurnPlayerCode;
-
-				if (isCurrentTurnPlayer && activePower === 'shield') continue;
-				const points = (isCurrentTurnPlayer && activePower === 'star')
-					? -currentPoints
-					: Math.floor(currentPoints * -0.5);
-				await handleAddScore(playerCode, points, false);
-			}
-			if (currentMatchCode) await sendPlayersSnapshot();
+			await calculateScore(token, currentMatchCode, answeredCode, "vdr_wrong", selectedPlayerCodes);
+			await sendPlayersSnapshot();
 
 			if (activePower && currentTurnPlayerCode) {
 				setUsedPowers((prev) => ({
@@ -772,7 +756,7 @@ const AVeDichRiengPage = () => {
 
 				if (Array.isArray(msg.selected_question_codes) && msg.round === "rieng") {
 					if (currentMatchCode) {
-						localStorage.setItem(`veDich_rieng_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
+						localStorage.setItem(`vd_rieng_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
 					}
 					startTransition(() => {
 						setRoundQuestionCodes(msg.selected_question_codes);
@@ -791,17 +775,16 @@ const AVeDichRiengPage = () => {
 						logger.info(`[VDR ADMIN] Setting current turn player: ${msg.selected_player_code}`);
 						startTransition(() => setCurrentTurnPlayerCode(msg.selected_player_code));
 						if (currentMatchCode) {
-							localStorage.setItem(`veDich_rieng_selected_player_${currentMatchCode}`, msg.selected_player_code);
+							localStorage.setItem(`vd_rieng_selected_player_${currentMatchCode}`, msg.selected_player_code);
 						}
 					}
 				}
 				break;
 			}
-			case "mc_online":
 			case "mc_reconnected":
 			case "guest_online":
 			case "player_reconnected":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) =>
@@ -996,7 +979,7 @@ const AVeDichRiengPage = () => {
 					});
 					try {
 						localStorage.setItem(
-							`veDich_powers_${currentMatchCode}`,
+							`vd_powers_${currentMatchCode}`,
 							JSON.stringify(nextUsedPowers),
 						);
 					} catch {  }
@@ -1034,7 +1017,7 @@ const AVeDichRiengPage = () => {
 					startTransition(() => {
 						setUsedPowers(msg.used_powers);
 					});
-					try { localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(msg.used_powers)); } catch {  }
+					try { localStorage.setItem(`vd_powers_${currentMatchCode}`, JSON.stringify(msg.used_powers)); } catch {  }
 
 					startTransition(() => {
 						setPlayers((prev) =>

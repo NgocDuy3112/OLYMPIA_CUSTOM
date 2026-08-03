@@ -36,7 +36,7 @@ const PVeDichRiengPage = () => {
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!matchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_powers_${matchCode}`);
+			const stored = localStorage.getItem(`vd_powers_${matchCode}`);
 			return stored ? JSON.parse(stored) : {};
 		} catch { return {}; }
 	});
@@ -108,7 +108,7 @@ const PVeDichRiengPage = () => {
 					setUsedPowers((prev) => {
 						const next = { ...prev, [user_code]: power };
 
-						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
+						try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
 						return next;
 					});
 
@@ -125,7 +125,7 @@ const PVeDichRiengPage = () => {
 				if (msg.used_powers) {
 					const powers = msg.used_powers;
 					setUsedPowers(powers);
-					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
+					try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
 
 					setPlayers((prev) =>
 						prev.map((p) => {

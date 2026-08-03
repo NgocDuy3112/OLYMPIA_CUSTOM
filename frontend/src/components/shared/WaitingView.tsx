@@ -1,7 +1,6 @@
 import { useState } from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
-import ScoreChart from "@/components/shared/ScoreChart";
 
 const PLAYER_COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
 
@@ -25,7 +24,6 @@ export function WaitingView({
   matchFinished,
   currentPlayerCode,
   chartData,
-  questionLabels,
   showChart = true,
 }: WaitingViewProps) {
   const [hoveredPlayerCode, setHoveredPlayerCode] = useState<string | null>(null);
@@ -34,7 +32,6 @@ export function WaitingView({
     <div className="flex flex-col justify-start items-center h-screen overflow-hidden p-4">
       {matchFinished && showChart && Object.keys(chartData).length > 0 ? (
         <div className="w-full flex justify-center mb-4">
-          <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} />
         </div>
       ) : null}
 
@@ -64,7 +61,6 @@ export function WaitingView({
         </div>
       ) : null}
 
-      {!matchFinished && showChart && Object.keys(chartData).length > 0 ? <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} /> : null}
     </div>
   );
 }

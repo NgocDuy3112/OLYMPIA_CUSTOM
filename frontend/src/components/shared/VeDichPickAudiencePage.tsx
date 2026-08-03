@@ -28,7 +28,7 @@ export function VeDichPickAudiencePage({ round, matchCode = "", Layout }: VeDich
 	const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_pick_all_codes_${matchCode}`);
+			const stored = localStorage.getItem(`vd_pick_all_codes_${matchCode}`);
 			const codes = stored ? (JSON.parse(stored) as string[]) : [];
 			return codes.length > 0 ? codes : [];
 		} catch { return []; }
@@ -37,7 +37,7 @@ export function VeDichPickAudiencePage({ round, matchCode = "", Layout }: VeDich
 	const [liveSelectedCodes, setLiveSelectedCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_pick_selected_${matchCode}`);
+			const stored = localStorage.getItem(`vd_pick_selected_${matchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
@@ -47,7 +47,7 @@ export function VeDichPickAudiencePage({ round, matchCode = "", Layout }: VeDich
 	const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
 		if (!matchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_used_codes_${matchCode}`);
+			const stored = localStorage.getItem(`vd_used_codes_${matchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});

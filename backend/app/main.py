@@ -199,11 +199,10 @@ async def websocket_endpoint(
     try:
         while True:
             data = await websocket.receive_json()
-            if "user_code" not in data:
+            msg_type = data.get("type", "")
+            if msg_type == "user_online" or "user_code" not in data:
                 data["user_code"] = user_info["user_code"]
             data["role"] = user_role
-
-            msg_type = data.get("type", "")
 
             if not is_allowed_by_role(user_role, msg_type):
                 global_logger.warning(

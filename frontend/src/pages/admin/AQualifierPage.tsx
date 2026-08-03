@@ -340,7 +340,7 @@ const AQualifierPage = () => {
 
                 void loadAdvancements();
                 break;
-            case "player_online":
+            case "user_online":
             case "guest_online": {
                 const code = String(msg.user_code ?? "");
                 if (!code) break;
@@ -375,45 +375,7 @@ const AQualifierPage = () => {
                                 });
                             }
                         })
-                        .catch((e) => logger.warn("player_online: failed to fetch profile", e));
-                }
-                break;
-            }
-            case "player_heartbeat": {
-                const code = String(msg.user_code ?? "");
-                if (!code) break;
-
-                startTransition(() => {
-                    setPlayers((prev) => {
-                        if (prev.some((p) => p.playerCode === code)) {
-                            return prev.map((p) =>
-                                p.playerCode === code ? { ...p, playerConnected: true } : p,
-                            );
-                        }
-
-                        return [...prev, { playerCode: code, playerName: "", playerScore: 0, playerConnected: true }];
-                    });
-                });
-                if (token) {
-                    void fetch(`${API_BASE_URL}/users/?user_code=${encodeURIComponent(code)}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    })
-                        .then((r) => r.json())
-                        .then((json) => {
-                            const name: string = json?.data?.user_name ?? "";
-                            if (name) {
-                                startTransition(() => {
-                                    setPlayers((prev) =>
-                                        prev.map((p) =>
-                                            p.playerCode === code && !p.playerName
-                                                ? { ...p, playerName: name }
-                                                : p,
-                                        ),
-                                    );
-                                });
-                            }
-                        })
-                        .catch((e) => logger.warn("player_heartbeat: failed to fetch profile", e));
+                        .catch((e) => logger.warn("user_online: failed to fetch profile", e));
                 }
                 break;
             }

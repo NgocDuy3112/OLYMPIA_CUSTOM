@@ -20,6 +20,7 @@ import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AKhoiDongRieng");
 
@@ -501,6 +502,7 @@ const AKhoiDongRiengPage = () => {
 		},
 		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token, sendPlayersSnapshot, sendMessage],
 	);
+	void handleAddScore;
 
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
@@ -549,26 +551,12 @@ const AKhoiDongRiengPage = () => {
 		}
 
 		setHasAddedScore(true);
-		const attemptCount = attempts[selectedPlayerCode] ?? 0;
-		let score = 0;
-		if (attemptCount === 0) score = 10;
-		else if (attemptCount === 1) score = 5;
-		else score = 0;
-
-		logger.info("handleAddScoreToSelected: starting for player=", selectedPlayerCode, "attempts=", attemptCount, "award=", score);
 
 		try {
-			if (score > 0) {
-				void sendMessage({ type: "kd_cong_diem" });
-				try {
-					await handleAddScore(selectedPlayerCode, score, true);
-					logger.info("handleAddScoreToSelected: applied", selectedPlayerCode, score);
-				} catch (innerErr) {
-					logger.error("handleAddScoreToSelected: failed applying score to", selectedPlayerCode, innerErr);
-				}
-			} else {
-				logger.info("handleAddScoreToSelected: no points to award for", selectedPlayerCode);
-			}
+			if (!currentQuestion.questionCode) throw new Error("Không có mã câu hỏi");
+			void sendMessage({ type: "kd_cong_diem" });
+			await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "kdr_correct", [selectedPlayerCode]);
+			await sendPlayersSnapshot();
 
 			if (timer <= 0) {
 				await clearQuestion();
@@ -580,7 +568,7 @@ const AKhoiDongRiengPage = () => {
 			logger.error("Failed adding score to selected player:", err);
 			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCode, handleAddScore, currentQuestionIndex, attempts, handleNextQuestion, clearQuestion, timer, sendMessage]);
+	}, [selectedPlayerCode, currentQuestionIndex, currentQuestion.questionCode, currentMatchCode, token, handleNextQuestion, clearQuestion, timer, sendMessage, sendPlayersSnapshot]);
 
 	const handleMarkWrong = useCallback(async () => {
 		if (!selectedPlayerCode) {
@@ -604,6 +592,15 @@ const AKhoiDongRiengPage = () => {
 			return updated;
 		});
 
+		if (currentQuestion.questionCode) {
+			try {
+				await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "kdr_wrong", [selectedPlayerCode]);
+			} catch (err) {
+				logger.error("Không thể lưu lượt trả lời sai:", err);
+				return;
+			}
+		}
+
 		if (nextCount === 1) {
 			logger.info("handleMarkWrong: sending player_wrong_attempt for", selectedPlayerCode);
 			void sendMessage({ type: "player_wrong_attempt", user_code: selectedPlayerCode, attempt_count: 1, phase: "kdr" });
@@ -622,7 +619,7 @@ const AKhoiDongRiengPage = () => {
 				handleNextQuestion(currentQuestionIndex);
 			}
 		}
-	}, [selectedPlayerCode, currentQuestionIndex, attempts, handleNextQuestion, sendMessage, clearQuestion, timer]);
+	}, [selectedPlayerCode, currentQuestionIndex, currentQuestion.questionCode, currentMatchCode, token, attempts, handleNextQuestion, sendMessage, clearQuestion, timer]);
 
 	const handleSkip = useCallback(async () => {
 		if (!selectedPlayerCode) return;
@@ -695,11 +692,10 @@ const AKhoiDongRiengPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
-			case "mc_online":
 			case "mc_reconnected":
 			case "guest_online":
 			case "player_reconnected":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
@@ -708,9 +704,9 @@ const AKhoiDongRiengPage = () => {
 
 						try {
 							await sendPlayersSnapshot();
-							logger.info("Resent players snapshot after player_online for", msg.user_code);
+							logger.info("Resent players snapshot after user_online for", msg.user_code);
 						} catch (err) {
-							logger.error("Failed to resend players snapshot on player_online:", err);
+							logger.error("Failed to resend players snapshot on user_online:", err);
 						}
 
 						try {
@@ -722,9 +718,9 @@ const AKhoiDongRiengPage = () => {
 						if (currentQuestionIndex > 0) {
 							try {
 								await sendQuestionToPlayers(currentQuestionIndex);
-								logger.info("Resent question to players after player_online for", msg.user_code);
+								logger.info("Resent question to players after user_online for", msg.user_code);
 							} catch (err) {
-								logger.error("Failed to resend question on player_online:", err);
+								logger.error("Failed to resend question on user_online:", err);
 							}
 						}
 
@@ -732,9 +728,9 @@ const AKhoiDongRiengPage = () => {
 							try {
 								const questionCode = resolveQuestionCode(currentQuestionIndex);
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: questionCode, started_at: Date.now() });
-								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
+								logger.info("Resent timer to players after user_online for", msg.user_code, "time_left=", timer);
 							} catch (err) {
-								logger.error("Failed to resend timer on player_online:", err);
+								logger.error("Failed to resend timer on user_online:", err);
 							}
 						}
 					})();

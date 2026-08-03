@@ -50,11 +50,11 @@ export function usePlayerTelemetry({
     const message = unwrapWebSocketMessage(lastMessage);
     if (!message) return;
 
-    if (message.type === "player_online" || message.type === "player_heartbeat") {
+    if (message.type === "user_online") {
       const code = String(message.user_code ?? "");
       if (!code) return;
       lastSeenRef.current[code] = Date.now();
-      if (message.type === "player_heartbeat") {
+      if (message.status === "heartbeat") {
         queueMicrotask(() => {
           setPlayers((previous) => {
             if (previous.some((player) => player.playerCode === code)) {

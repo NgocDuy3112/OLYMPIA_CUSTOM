@@ -13,16 +13,14 @@ export const MCWebSocketProvider: React.FC<{ matchCode: string; children: ReactN
   const ws = useWebSocket(matchCode, token);
   const { isConnected, lastMessage, sendMessage } = ws;
   const { mcCode } = useRoleSession("mc");
-
   const value = useMemo<WebSocketContextValue>(
     () => ({ isConnected, lastMessage, sendMessage }),
     [isConnected, lastMessage, sendMessage],
   );
 
   useEffect(() => {
-    if (!isConnected) return;
-    if (!mcCode) return;
-    void sendMessage({ type: "mc_online", user_code: mcCode });
+    if (!isConnected || !mcCode) return;
+    void sendMessage({ type: "user_online", user_code: mcCode, status: "online" });
   }, [isConnected, mcCode, sendMessage]);
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;

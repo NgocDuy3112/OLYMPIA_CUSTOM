@@ -46,6 +46,8 @@ export interface WebSocketMessage extends WebSocketPayload {
   question_metadata?: Array<{ code: string; category: string; points: number }>;
   used_powers?: Record<string, "star" | "shield" | null>;
   round?: string;
+  status?: "online" | "heartbeat";
+  role?: "player" | "mc" | "guest" | "admin";
   selected_player_code?: string;
 }
 

@@ -86,12 +86,12 @@ const AVeDichPickQuestion = () => {
 		});
 
 		if (allCodes.length > 0) {
-			localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
+			localStorage.setItem(`vd_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
 		}
 		if (selectedQuestionCodes.length > 0) {
-			localStorage.setItem(`veDich_pick_selected_${currentMatchCode}`, JSON.stringify(selectedQuestionCodes));
+			localStorage.setItem(`vd_pick_selected_${currentMatchCode}`, JSON.stringify(selectedQuestionCodes));
 		} else {
-			localStorage.removeItem(`veDich_pick_selected_${currentMatchCode}`);
+			localStorage.removeItem(`vd_pick_selected_${currentMatchCode}`);
 		}
 	}, [selectedQuestionCodes, questions, currentMatchCode, isChung, sendMessage]);
 
@@ -102,7 +102,7 @@ const AVeDichPickQuestion = () => {
 		sendMessage({ type: "blocked_buzz", user_code: selectedPlayerCode ?? null, match_code: currentMatchCode });
 
 		try {
-			localStorage.setItem(`veDich_rieng_selected_player_${currentMatchCode}`, selectedPlayerCode ?? "");
+			localStorage.setItem(`vd_rieng_selected_player_${currentMatchCode}`, selectedPlayerCode ?? "");
 		} catch {  }
 	}, [selectedPlayerCode, currentMatchCode, isChung, sendMessage]);
 
@@ -169,7 +169,7 @@ const AVeDichPickQuestion = () => {
 	useEffect(() => {
 		if (!currentMatchCode) return;
 		try {
-			const stored = localStorage.getItem(`veDich_rieng_selected_player_${currentMatchCode}`);
+			const stored = localStorage.getItem(`vd_rieng_selected_player_${currentMatchCode}`);
 			if (stored) setSelectedPlayerCode(stored || null);
 		} catch {  }
 	}, [currentMatchCode]);
@@ -196,7 +196,7 @@ const AVeDichPickQuestion = () => {
 			});
 
 			try {
-				localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allPlaceholderCodes));
+				localStorage.setItem(`vd_pick_all_codes_${currentMatchCode}`, JSON.stringify(allPlaceholderCodes));
 			} catch {  }
 		}
 	}, [currentMatchCode, isChung, sendMessage]);
@@ -249,13 +249,13 @@ const AVeDichPickQuestion = () => {
 					.map((q: { question_code: string }) => q.question_code);
 
 				try {
-					const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
+					const storedUsed = localStorage.getItem(`vd_used_codes_${currentMatchCode}`);
 					if (storedUsed) {
 						const usedCodes = JSON.parse(storedUsed) as string[];
 						setUsedQuestionCodes([...new Set([...used, ...usedCodes])]);
 					} else {
 
-						const storedChungStates = localStorage.getItem(`veDich_chung_states_${currentMatchCode}`);
+						const storedChungStates = localStorage.getItem(`vd_chung_states_${currentMatchCode}`);
 						if (storedChungStates) {
 							const statesMap = JSON.parse(storedChungStates) as Record<string, string>;
 							const answeredCodes = Object.entries(statesMap)
@@ -285,7 +285,7 @@ const AVeDichPickQuestion = () => {
 				const allCodes = deduped.map((q) => q.questionCode);
 				if (currentMatchCode && allCodes.length > 0) {
 					try {
-						localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
+						localStorage.setItem(`vd_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
 					} catch (err) {
 						logger.error("Failed to persist question codes to localStorage:", err);
 					}
@@ -345,10 +345,10 @@ const AVeDichPickQuestion = () => {
 			if (currentMatchCode) {
 				try {
 					const existing = JSON.parse(
-						localStorage.getItem(`veDich_used_codes_${currentMatchCode}`) ?? "[]"
+						localStorage.getItem(`vd_used_codes_${currentMatchCode}`) ?? "[]"
 					) as string[];
 					localStorage.setItem(
-						`veDich_used_codes_${currentMatchCode}`,
+						`vd_used_codes_${currentMatchCode}`,
 						JSON.stringify([...new Set([...existing, ...selectedQuestionCodes])]),
 					);
 				} catch {  }
@@ -381,11 +381,11 @@ const AVeDichPickQuestion = () => {
 
 			if (currentMatchCode) {
 				const codesKey = isChung
-					? `veDich_chung_codes_${currentMatchCode}`
-					: `veDich_rieng_codes_${currentMatchCode}`;
+					? `vd_chung_codes_${currentMatchCode}`
+					: `vd_rieng_codes_${currentMatchCode}`;
 				localStorage.setItem(codesKey, JSON.stringify(selectedQuestionCodes));
 				if (!isChung) {
-					const selKey = `veDich_rieng_selected_player_${currentMatchCode}`;
+					const selKey = `vd_rieng_selected_player_${currentMatchCode}`;
 					localStorage.setItem(selKey, selectedPlayerCode ?? "");
 				}
 			}
@@ -416,13 +416,13 @@ const AVeDichPickQuestion = () => {
 			setUsedQuestionCodes([]);
 
 			try {
-				localStorage.removeItem(`veDich_used_codes_${currentMatchCode}`);
+				localStorage.removeItem(`vd_used_codes_${currentMatchCode}`);
 			} catch {}
 			try {
-				localStorage.removeItem(`veDich_chung_codes_${currentMatchCode}`);
+				localStorage.removeItem(`vd_chung_codes_${currentMatchCode}`);
 			} catch {}
 			try {
-				localStorage.removeItem(`veDich_rieng_codes_${currentMatchCode}`);
+				localStorage.removeItem(`vd_rieng_codes_${currentMatchCode}`);
 			} catch {}
 
 			sendMessage({
@@ -449,7 +449,7 @@ const AVeDichPickQuestion = () => {
 
 		let mergedUsed = [...usedQuestionCodes];
 		try {
-			const storedUsed = localStorage.getItem(`veDich_used_codes_${currentMatchCode}`);
+			const storedUsed = localStorage.getItem(`vd_used_codes_${currentMatchCode}`);
 			if (storedUsed) {
 				const usedCodes = JSON.parse(storedUsed) as string[];
 				mergedUsed = [...new Set([...mergedUsed, ...usedCodes])];
@@ -469,12 +469,12 @@ const AVeDichPickQuestion = () => {
 		});
 
 		if (currentMatchCode && allCodes.length > 0) {
-			localStorage.setItem(`veDich_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
+			localStorage.setItem(`vd_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
 		}
 		if (currentMatchCode) {
 			try {
 				localStorage.setItem(
-					`veDich_used_codes_${currentMatchCode}`,
+					`vd_used_codes_${currentMatchCode}`,
 					JSON.stringify(mergedUsed),
 				);
 			} catch {  }

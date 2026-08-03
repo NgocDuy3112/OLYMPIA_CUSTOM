@@ -46,9 +46,7 @@ PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "answer",
     "player_answer",
     "buzz",
-    "player_heartbeat",
-    "player_online",
-    "mc_online",
+    "user_online",
     "request_presence",
     "keyword_submit",
     "vd_player_power",
@@ -62,9 +60,7 @@ PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
 MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "answer",
     "buzz",
-    "mc_online",
-    "player_heartbeat",
-    "player_online",
+    "user_online",
     "request_presence",
     "send_question",
     "clear_question",
@@ -114,7 +110,7 @@ def is_allowed_by_role(user_role: str, msg_type: str) -> bool:
     if user_role == "mc":
         return msg_type in MC_ALLOWED_TYPES
     if user_role == "guest":
-        return False
+        return msg_type == "user_online"
     return True
 
 

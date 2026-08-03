@@ -1,8 +1,9 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { WebSocketContext } from "@/contexts/WebSocketContext";
 import type { WebSocketContextValue } from "@/types/websocket";
+import { useRoleSession } from "@/hooks/useRoleSession";
 
 export const GuestWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
   matchCode,
@@ -10,6 +11,7 @@ export const GuestWebSocketProvider: React.FC<{ matchCode: string; children: Rea
 }) => {
   const token = sessionStorage.getItem("jwtToken_guest") ?? undefined;
   const ws = useWebSocket(matchCode, token);
+  const { guestCode } = useRoleSession("guest");
 
   const value = useMemo<WebSocketContextValue>(
     () => ({
@@ -19,6 +21,11 @@ export const GuestWebSocketProvider: React.FC<{ matchCode: string; children: Rea
     }),
     [ws.isConnected, ws.lastMessage, ws.sendMessage],
   );
+
+  useEffect(() => {
+    if (!ws.isConnected || !guestCode) return;
+    void ws.sendMessage({ type: "user_online", user_code: guestCode, status: "online" });
+  }, [ws.isConnected, ws.sendMessage, guestCode]);
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };

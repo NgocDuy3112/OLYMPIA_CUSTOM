@@ -4,7 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerCard from "@/components/admin/APlayerCard";
-import ScoreChart from "@/components/shared/ScoreChart";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
@@ -51,7 +50,7 @@ const AWaitingPage = () => {
 		}
 	}, [currentMatchCode, navigate]);
 
-	const { players, setPlayers, matchFinished, setMatchFinished, chartData, questionLabels } = useWaitingState(lastMessage);
+	const { players, setPlayers, matchFinished, setMatchFinished } = useWaitingState(lastMessage);
 	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
@@ -99,30 +98,22 @@ const AWaitingPage = () => {
 
 		queueMicrotask(() => {
 		switch (msg.type) {
-			case "player_online": {
-				if (msg.user_code) {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p,
-						),
-					);
-					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/waiting" });
-					void sendPlayersSnapshot();
+			case "user_online": {
+				if (!msg.user_code) break;
+				const pathByRole = {
+					player: "/player/waiting",
+					mc: "/mc/waiting",
+					guest: "/guest/waiting",
+				};
+				const path = pathByRole[msg.role as keyof typeof pathByRole];
+				if (!path) break;
+				if (msg.role === "player") {
+					setPlayers((prev) => prev.map((p) =>
+						p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p,
+					));
 				}
-				break;
-			}
-			case "mc_online": {
-				if (msg.user_code) {
-					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/mc/waiting" });
-					void sendPlayersSnapshot();
-				}
-				break;
-			}
-			case "guest_online": {
-				if (msg.user_code) {
-					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/guest/waiting" });
-					void sendPlayersSnapshot();
-				}
+				void sendMessage({ type: "navigate", user_code: msg.user_code, path });
+				void sendPlayersSnapshot();
 				break;
 			}
 		}
@@ -351,7 +342,6 @@ const AWaitingPage = () => {
 					</div>
 				</div>
 
-				{Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} />}
 			</div>
 		</div>
 	);

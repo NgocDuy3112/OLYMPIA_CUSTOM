@@ -25,6 +25,7 @@ import { buildKeywordBanner } from "@/utils/keywordBanner";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AGiaiMa");
 
@@ -138,7 +139,7 @@ const AGiaiMaPage = () => {
 	const [revealedHints, setRevealedHints] = useState<Record<number, RevealedHint>>({});
 	const [, setCorrectClues] = useState<Set<number>>(new Set());
 	const [pendingClueAction, setPendingClueAction] = useState(false);
-	const [totalOpenedCluesCount, setTotalOpenedCluesCount] = useState(0);
+	const [, setTotalOpenedCluesCount] = useState(0);
 
 	const [hideQuestionContent, setHideQuestionContent] = useState(false);
 
@@ -615,11 +616,9 @@ const AGiaiMaPage = () => {
 				}
 				break;
 			}
-
-			case "mc_online":
 			case "mc_reconnected":
 			case "guest_online":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
@@ -939,7 +938,7 @@ const AGiaiMaPage = () => {
 		},
 		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
 	);
-
+	void handleAddScore;
 
 	const showAnswers = useCallback(async () => {
 		if (!canShowAnswers) return;
@@ -990,15 +989,10 @@ const AGiaiMaPage = () => {
 			sendMessage({ type: "gm_dung" });
 
 			if (selectedPlayerCodes.length > 0 && currentQuestion.questionCode) {
-				const score = 10;
 				if (activeClueIndex !== null) {
 					setCorrectClues((prev) => new Set([...prev, activeClueIndex]));
 				}
-				for (const code of selectedPlayerCodes) {
-					await handleAddScore(code, score, false).catch((err) =>
-						logger.error("Score failed for", code, err),
-					);
-				}
+				await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "gm_clue_correct", selectedPlayerCodes);
 
 				if (currentMatchCode) {
 					try {
@@ -1011,7 +1005,7 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("handleShowHint failed:", err);
 		}
-	}, [currentQuestion.questionExplanation, currentQuestion.questionCode, activeClueIndex, sendMessage, selectedPlayerCodes, currentMatchCode, handleAddScore, sendPlayersSnapshot]);
+	}, [currentQuestion.questionExplanation, currentQuestion.questionCode, activeClueIndex, sendMessage, selectedPlayerCodes, currentMatchCode, token, sendPlayersSnapshot]);
 
 	const handleHideHint = useCallback(async () => {
 		setPendingClueAction(false);
@@ -1150,12 +1144,7 @@ const AGiaiMaPage = () => {
 					logger.info("handleAddKeywordScoreToSelected: skipping", code, "(no submission)");
 					continue;
 				}
-				const cluesOpened = submission.cluesOpened
-					?? (keywordCluesLocked ? CLUE_COUNT : totalOpenedCluesCount);
-				const score = Math.max(0, 100 - 10 * cluesOpened);
-				await handleAddScore(code, score, false).catch((err) =>
-					logger.error("Keyword score failed for", code, err),
-				);
+				await calculateScore(token, currentMatchCode, KEYWORD_QUESTION_CODE, "gm_keyword_correct", [code]);
 			}
 			if (currentMatchCode) await sendPlayersSnapshot();
 			setSelectedPlayerCodes([]);
@@ -1163,7 +1152,7 @@ const AGiaiMaPage = () => {
 			logger.error("handleAddKeywordScoreToSelected failed:", err);
 			setHasAddedKeywordScore(false);
 		}
-	}, [selectedPlayerCodes, sendMessage, currentMatchCode, sendPlayersSnapshot, keywordSubmissions, keywordCluesLocked, totalOpenedCluesCount, handleAddScore]);
+	}, [selectedPlayerCodes, sendMessage, currentMatchCode, token, sendPlayersSnapshot, keywordSubmissions]);
 
 	const clueGrid = (
 		<div className="flex flex-col gap-2 sm:gap-3 w-full">
