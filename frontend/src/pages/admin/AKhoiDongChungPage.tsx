@@ -73,6 +73,7 @@ const AKhoiDongChungPage = () => {
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [hasStartedRoundTimer, setHasStartedRoundTimer] = useState(false);
 
 	const lastAutoAdvancedIndexRef = useRef<number>(0);
 
@@ -301,6 +302,8 @@ const AKhoiDongChungPage = () => {
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 		const startTheClock = useCallback(async () => {
+			if (hasStartedRoundTimer || isTimerRunning) return;
+			setHasStartedRoundTimer(true);
 
 			const targetIndex = 1;
 
@@ -351,7 +354,7 @@ const AKhoiDongChungPage = () => {
 					}
 				})
 				.catch((err) => logger.error("Failed to load question in background:", err));
-		}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToplayers]);
+		}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToplayers, hasStartedRoundTimer, isTimerRunning]);
 
 	const syncAndBroadcastScores = useCallback(async () => {
 		if (!currentMatchCode || !token) return;
@@ -752,7 +755,7 @@ const AKhoiDongChungPage = () => {
 						onClick={() => {
 							void startTheClock();
 						}}
-						disabled={isTimerRunning}
+						disabled={isTimerRunning || hasStartedRoundTimer}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>

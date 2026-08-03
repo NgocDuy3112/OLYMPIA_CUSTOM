@@ -7,6 +7,7 @@ import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useQuestionTimerLock } from "@/hooks/useQuestionTimerLock";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
@@ -260,10 +261,12 @@ const AButPhaPage = () => {
 
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
+	const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
+
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
-			
-			if (!currentMatchCode || !token) return;
+			if (!currentMatchCode || !token || isTimerLocked) return;
+			lockTimer();
 			if (timer > 0) {
 				logger.warn("startTheClock: timer already running, ignoring start request");
 				return;
@@ -302,7 +305,7 @@ const AButPhaPage = () => {
 				logger.error("Failed to send play_video via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer],
+		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer, isTimerLocked, lockTimer],
 	);
 
 	const showAnswers = useCallback(async () => {
@@ -650,7 +653,7 @@ const AButPhaPage = () => {
 							if (!hasQuestionSelected) return;
 							void startTheClock(currentQuestionIndex);
 						}}
-						disabled={!hasQuestionSelected || timer > 0}
+						disabled={!hasQuestionSelected || timer > 0 || isTimerLocked}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>

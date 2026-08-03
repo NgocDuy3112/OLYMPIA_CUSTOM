@@ -70,6 +70,7 @@ const AKhoiDongRiengPage = () => {
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [hasStartedRoundTimer, setHasStartedRoundTimer] = useState(false);
 	const autoAdvanceRef = useRef<number | null>(null);
 
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
@@ -277,6 +278,8 @@ const AKhoiDongRiengPage = () => {
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
+		if (hasStartedRoundTimer || isTimerRunning) return;
+		setHasStartedRoundTimer(true);
 
 		const targetIndex = 1;
 
@@ -328,7 +331,7 @@ const AKhoiDongRiengPage = () => {
 				}
 			})
 			.catch((err) => logger.error("Failed to load question in background:", err));
-	}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToPlayers]);
+	}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToPlayers, hasStartedRoundTimer, isTimerRunning]);
 
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -853,7 +856,7 @@ const AKhoiDongRiengPage = () => {
 						onClick={() => {
 							void startTheClock();
 						}}
-						disabled={isTimerRunning}
+						disabled={isTimerRunning || hasStartedRoundTimer}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>

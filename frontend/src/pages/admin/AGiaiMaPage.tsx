@@ -154,7 +154,6 @@ const AGiaiMaPage = () => {
 	const [keywordAnswerRevealed, setKeywordAnswerRevealed] = useState(false);
 	const [keywordQuestion, setKeywordQuestion] = useState<Question | null>(null);
 	const [keywordRevealedCodes, setKeywordRevealedCodes] = useState<Set<string>>(new Set());
-	const keywordLockedSentRef = useRef(false);
 
 	const [keywordPhaseActive, setKeywordPhaseActive] = useState(false);
 
@@ -722,15 +721,6 @@ const AGiaiMaPage = () => {
 	}, [isTimerRunning, isKeywordTimerRunning, sendMessage]);
 
 	useEffect(() => {
-		if (players.length === 0 || keywordLockedSentRef.current) return;
-		const allSubmitted = players.every((p) => !!keywordSubmissions[p.playerCode]);
-		if (allSubmitted) {
-			keywordLockedSentRef.current = true;
-			void sendMessage({ type: "keyword_locked" });
-		}
-	}, [keywordSubmissions, players, sendMessage]);
-
-	useEffect(() => {
 		startTransition(() => { void loadPlayersState(); });
 	}, [loadPlayersState]);
 
@@ -1144,18 +1134,11 @@ const AGiaiMaPage = () => {
 			playerSectionButtons={
 				<>
 					<AControlButton
-						onClick={() => { void startTheClock(); }}
-						disabled={isTimerRunning || !currentQuestion.questionCode}
+						onClick={() => { void (keywordPhaseActive ? startKeywordTimer() : startTheClock()); }}
+						disabled={isTimerRunning || (keywordPhaseActive ? keywordTimerStarted : !currentQuestion.questionCode || timedClueCodes.has(currentQuestion.questionCode))}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { void startKeywordTimer(); }}
-						disabled={!keywordPhaseActive || isTimerRunning || isKeywordTimerRunning || !currentQuestion.questionCode}
-					>
-						<AlarmClockCheck size={18} />
-						<span className="ml-2 font-bold">ĐẾM GIỜ TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void showAnswers(); }}
