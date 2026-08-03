@@ -130,13 +130,6 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
       currentPlayerCode={variant === "rieng" ? currentPlayerCode : ""}
       buzzerWinnerCode={buzzerWinnerCode}
     >
-      {hasSecondAttempt && (
-        <div className="flex justify-center">
-          <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold animate-pulse">
-            Trả lời lần 2
-          </div>
-        </div>
-      )}
       <AQuestionBoard
         title={variant === "rieng" ? "KHỞI ĐỘNG - LƯỢT CÁ NHÂN" : "KHỞI ĐỘNG - LƯỢT CHUNG"}
         question={question}
@@ -147,7 +140,17 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
           activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
         }}
         boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
-      />
+      >
+        {(api) => (
+          <div className="flex gap-2 items-center">
+            {hasSecondAttempt && <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">Trả lời lần 2</div>}
+            {api.boxStates.map((_, index) => {
+              const active = api.activeIndices.includes(index);
+              return <button key={index} type="button" aria-pressed={active} onClick={() => api.toggle(index)} className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}>{index + 1}</button>;
+            })}
+          </div>
+        )}
+      </AQuestionBoard>
     </Layout>
   );
 }
