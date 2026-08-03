@@ -95,7 +95,8 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
         const playerIndex = players.findIndex((player) => String(player.playerCode) === String(code));
         return COLORS[(playerIndex >= 0 ? playerIndex : fallbackIndex) % COLORS.length];
     };
-    const recordedLabels = codes.flatMap((code) => chartData[code].map((point) => point.question_code));
+    const recordedPoints = codes.flatMap((code) => chartData[code]);
+    const recordedLabels = recordedPoints.map((point) => point.question_code);
     const recordedGroups = new Set(recordedLabels.map((code) => groupFor(labelFor(code))));
     const labels = Array.from(new Set([
         ...questionLabels.filter((code) => recordedGroups.has(groupFor(labelFor(code)))).map(labelFor),
@@ -150,7 +151,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                     {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /></g>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
-                        const pointDetails = labels.map((label) => points.filter((point) => labelFor(point.question_code) === label).at(-1));
+                        const pointDetails = labels.map((label) => points.filter((point) => labelFor(point.question_code) === label).reduce<ChartPoint | undefined>((latest, point) => !latest || point.cumulative_score >= latest.cumulative_score ? point : latest, undefined));
                         let lastScore = 0;
                         const values = pointDetails.map((point) => {
                             if (point) lastScore = point.cumulative_score;
@@ -179,7 +180,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                         const titleCode = questionLabels.find((code) => labelFor(code) === hoveredLabel)
                             ?? codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel)?.question_code
                             ?? hoveredLabel;
-                        const titlePoint = codes.flatMap((code) => chartData[code]).find((point) => labelFor(point.question_code) === hoveredLabel);
+                        const titlePoint = recordedPoints.find((point) => labelFor(point.question_code) === hoveredLabel);
                         const titlePoints = titlePoint?.points;
                         return <foreignObject style={{ overflow: "visible", zIndex: 100 }} x={Math.min(width - 230, Math.max(8, x(hoveredPoint.index) - 108))} y={Math.max(8, y(Math.max(...rows.map((row) => row.value))) - 112)} width="222" height="104" pointerEvents="none"><div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl"><div className="mb-1 font-bold text-blue-100">{tooltipLabelFor(titleCode, titlePoints)}</div>{rows.map((row) => <div key={row.code} className={`grid grid-cols-[1fr_3rem_4rem] items-center gap-2 leading-4 ${row.code === activePlayerCode ? "" : "opacity-40"}`}><span className="truncate" style={{ color: colorForPlayer(row.code, row.playerIndex) }}>{players.find((player) => player.playerCode === row.code)?.playerName ?? row.code}</span><b className="text-right">{row.current?.points ?? 0}</b><b className="text-right" style={{ color: colorForPlayer(row.code, row.playerIndex) }}>{row.value}</b></div>)}</div></foreignObject>;
                     })() : null}
