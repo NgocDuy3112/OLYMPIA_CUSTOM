@@ -17,6 +17,7 @@ import {
 } from "@/api/waiting";
 
 const logger = createLogger("AWaiting");
+const PLAYER_COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
 
 const AWaitingPage = () => {
 	const navigate = useNavigate();
@@ -25,6 +26,7 @@ const AWaitingPage = () => {
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useGameWebSocket();
+	const [hoveredPlayerCode, setHoveredPlayerCode] = useState<string | null>(null);
 
 	useEffect(() => {
 		logger.info("AWaitingPage mounted:", { urlMatchCode, storedMatchCode, currentMatchCode });
@@ -96,30 +98,22 @@ const AWaitingPage = () => {
 
 		queueMicrotask(() => {
 		switch (msg.type) {
-			case "player_online": {
-				if (msg.user_code) {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p,
-						),
-					);
-					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/waiting" });
-					void sendPlayersSnapshot();
+			case "user_online": {
+				if (!msg.user_code) break;
+				const pathByRole = {
+					player: "/player/waiting",
+					mc: "/mc/waiting",
+					guest: "/guest/waiting",
+				};
+				const path = pathByRole[msg.role as keyof typeof pathByRole];
+				if (!path) break;
+				if (msg.role === "player") {
+					setPlayers((prev) => prev.map((p) =>
+						p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p,
+					));
 				}
-				break;
-			}
-			case "mc_online": {
-				if (msg.user_code) {
-					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/mc/waiting" });
-					void sendPlayersSnapshot();
-				}
-				break;
-			}
-			case "guest_online": {
-				if (msg.user_code) {
-					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/guest/waiting" });
-					void sendPlayersSnapshot();
-				}
+				void sendMessage({ type: "navigate", user_code: msg.user_code, path });
+				void sendPlayersSnapshot();
 				break;
 			}
 		}
@@ -130,7 +124,7 @@ const AWaitingPage = () => {
 		if (!currentMatchCode) return;
 		setIsOpeningMatch(true);
 		try {
-			await sendMessage({ type: "open_match" });
+			await sendMessage({ type: "match_state", state: "open" });
 		} catch (err) {
 			logger.error("Failed to send open_match:", err);
 		} finally {
@@ -166,7 +160,7 @@ const AWaitingPage = () => {
 		if (!currentMatchCode) return;
 		setIsEndingMatch(true);
 		try {
-			await sendMessage({ type: "end_match" });
+			await sendMessage({ type: "match_state", state: "ended" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 			await sendPlayersSnapshot();
 		} catch (err) {
@@ -184,7 +178,7 @@ const AWaitingPage = () => {
 		try {
 			await finishMatch(currentMatchCode, token);
 			setMatchFinished(true);
-			await sendMessage({ type: "finish_match" });
+			await sendMessage({ type: "match_state", state: "finished" });
 			await sendPlayersSnapshot();
 		} catch (error) {
 			logger.error("Failed to finish match:", error);
@@ -195,23 +189,24 @@ const AWaitingPage = () => {
 	}, [currentMatchCode, sendMessage, sendPlayersSnapshot, setMatchFinished, token]);
 
 	const broadcastNavigate = useCallback(
-		(adminPath: string, playerPath: string, mcPath: string, guestPath: string) => {
+		async (adminPath: string, playerPath: string, round: string) => {
 			if (!currentMatchCode) return;
+			await sendMessage({ type: "round_start", round });
+			await sendMessage({ type: "clear_question", user_code: "" });
 			navigate(`${adminPath}/${currentMatchCode}`);
-			void sendMessage({ type: "navigate", user_code: "", path: `${playerPath}/${currentMatchCode}` });
-			void sendMessage({ type: "navigate", user_code: "", path: `${mcPath}/${currentMatchCode}` });
-			void sendMessage({ type: "navigate", user_code: "", path: `${guestPath}/${currentMatchCode}` });
+			await sendMessage({ type: "navigate", user_code: "", path: `${playerPath}/${currentMatchCode}` });
+			await sendPlayersSnapshot();
 		},
-		[currentMatchCode, navigate, sendMessage],
+		[currentMatchCode, navigate, sendMessage, sendPlayersSnapshot],
 	);
 
-	const handleNavigateToKDC = useCallback(() => broadcastNavigate("/admin/kdc", "/player/kdc", "mc/kdc", "guest/kdc"), [broadcastNavigate]);
-	const handleNavigateToKDR = useCallback(() => broadcastNavigate("/admin/kdr", "/player/kdr", "/mc/kdr", "/guest/kdr"), [broadcastNavigate]);
-	const handleNavigateToBP = useCallback(() => broadcastNavigate("/admin/bp", "/player/bp", "/mc/bp", "/guest/bp"), [broadcastNavigate]);
-	const handleNavigateToVDC = useCallback(() => broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick", "/mc/vdc/pick", "/guest/vdc/pick"), [broadcastNavigate]);
-	const handleNavigateToVDR = useCallback(() => broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick", "/mc/vdr/pick", "/guest/vdr/pick"), [broadcastNavigate]);
-	const handleNavigateToGM = useCallback(() => broadcastNavigate("/admin/gm", "/player/gm", "/mc/gm", "/guest/gm"), [broadcastNavigate]);
-	const handleNavigateToWaiting = useCallback(() => broadcastNavigate("/admin/waiting", "/player/waiting", "/mc/waiting", "/guest/waiting"), [broadcastNavigate]);
+	const handleNavigateToKDC = useCallback(() => { void broadcastNavigate("/admin/kdc", "/player/kdc", "kdc"); }, [broadcastNavigate]);
+	const handleNavigateToKDR = useCallback(() => { void broadcastNavigate("/admin/kdr", "/player/kdr", "kdr"); }, [broadcastNavigate]);
+	const handleNavigateToBP = useCallback(() => { void broadcastNavigate("/admin/bp", "/player/bp", "bp"); }, [broadcastNavigate]);
+	const handleNavigateToVDC = useCallback(() => { void broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick", "vdc"); }, [broadcastNavigate]);
+	const handleNavigateToVDR = useCallback(() => { void broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick", "vdr"); }, [broadcastNavigate]);
+	const handleNavigateToGM = useCallback(() => { void broadcastNavigate("/admin/gm", "/player/gm", "gm"); }, [broadcastNavigate]);
+	const handleNavigateToWaiting = useCallback(() => { void broadcastNavigate("/admin/waiting", "/player/waiting", "waiting"); }, [broadcastNavigate]);
 
 	if (!currentMatchCode) {
 		return null;
@@ -230,7 +225,7 @@ const AWaitingPage = () => {
 				{}
 				{players.length > 0 && (
 					<div className="flex gap-4 max-w-7xl w-full justify-center">
-						{players.map((player) => (
+						{players.map((player, index) => (
 							<APlayerCard
 								key={player.playerCode}
 								player={player}
@@ -238,14 +233,18 @@ const AWaitingPage = () => {
 								token={token}
 								matchCode={currentMatchCode}
 								sendMessage={sendMessage}
+								isHovered={hoveredPlayerCode === player.playerCode}
+								isDimmed={hoveredPlayerCode !== null && hoveredPlayerCode !== player.playerCode}
+								onHover={setHoveredPlayerCode}
+																accentColor={PLAYER_COLORS[index % PLAYER_COLORS.length]}
 							/>
 						))}
 					</div>
 				)}
 
 				{}
-				<div className="flex flex-col gap-4 w-full max-w-2xl">
-					<div className="flex flex-wrap gap-4 items-center justify-center">
+				<div className="flex flex-col gap-4 w-full max-w-7xl">
+					<div className="flex flex-wrap gap-4 items-center justify-center w-full">
 						<AControlButton
 							onClick={handleOpenMatch}
 							disabled={isOpeningMatch || !currentMatchCode || matchFinished}
@@ -295,14 +294,7 @@ const AWaitingPage = () => {
 				</div>
 
 				{}
-				<div className="flex flex-col gap-4 w-full max-w-2xl">
-				{matchFinished && (
-					<div className="bg-green-900/40 border border-green-500/50 rounded-xl p-4 text-center w-full max-w-2xl">
-						<p className="text-green-300 font-semibold text-lg">✅ Trận đấu đã hoàn thành</p>
-						<p className="text-green-200/70 text-sm mt-1">Các vòng thi đã bị khoá. Thí sinh chỉ có thể xem kết quả.</p>
-					</div>
-				)}
-
+				<div className="flex flex-col gap-4 w-full max-w-7xl">
 				<p className="text-white/60 text-xs uppercase tracking-widest text-center">Vòng chơi</p>
 				<div className={`flex flex-wrap gap-4 items-center justify-center${matchFinished ? " pointer-events-none opacity-50" : ""}`}>
 						<AControlButton
@@ -350,6 +342,7 @@ const AWaitingPage = () => {
 						</AControlButton>
 					</div>
 				</div>
+
 			</div>
 		</div>
 	);

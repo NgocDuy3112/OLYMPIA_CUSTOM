@@ -1,4 +1,5 @@
 import { ApiError, requestJson } from "@/api/client";
+import { validateAnswerInput } from "@/utils/validation";
 
 interface SubmitAnswerInput {
   user_code: string;
@@ -10,6 +11,7 @@ interface SubmitAnswerInput {
 }
 
 export async function submitAnswer(input: SubmitAnswerInput, token: string): Promise<void> {
+  validateAnswerInput(input);
   await requestJson<unknown>(
     "/answers/",
     { method: "POST", body: JSON.stringify(input) },

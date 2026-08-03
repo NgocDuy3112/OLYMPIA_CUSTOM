@@ -68,9 +68,7 @@ PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
         "vd_dung":                 "vd_dung",
         "send_answers_to_players": "vd_hien_tra_loi",
         "vd_selection_update":     "vd_pick",
-        "vd_questions_selected":   "vd_xac_nhan",  # Admin confirms selection from pick page
-        # VĐC plays vd_quyen_nang at most once per question — admin gates the broadcast
-        # (see AVeDichChungPage vd_player_power handler).
+        "vd_questions_selected":   "vd_xac_nhan", 
         "power_star":              "vd_quyen_nang",
         "power_shield":            "vd_quyen_nang",
     },
@@ -276,6 +274,11 @@ async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
     global _current_phase
     msg_type = message.get("type", "")
+    if msg_type == "match_state":
+        msg_type = {
+            "open": "open_match",
+            "ended": "end_match",
+        }.get(message.get("state", ""), "")
     logger.debug(f"Received event: type={msg_type!r} keys={list(message.keys())}")
 
     # Track current game phase from navigate events and clear queue on phase change

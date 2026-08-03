@@ -672,7 +672,7 @@ const AGameManagingPage = () => {
 
     return (
         <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-4 p-6 h-screen text-white overflow-hidden">
-            {}
+            { }
             <button
                 onClick={() => setShowChangePassword(true)}
                 className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 hover:bg-blue-600 shadow-lg transition-colors text-sm font-semibold"
@@ -724,7 +724,7 @@ const AGameManagingPage = () => {
                 </div>
             )}
 
-            {}
+            { }
             {editingQuestion && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                     <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-2xl">
@@ -833,7 +833,7 @@ const AGameManagingPage = () => {
                 </div>
             )}
 
-            {}
+            { }
             {editingUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                     <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
@@ -884,7 +884,7 @@ const AGameManagingPage = () => {
                 </div>
             )}
 
-            {}
+            { }
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -906,11 +906,10 @@ const AGameManagingPage = () => {
                     <div className="flex gap-2">
                         <button
                             onClick={() => setShowAddPlayer((v: boolean) => !v)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                                showAddPlayer
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${showAddPlayer
                                     ? "bg-green-700 hover:bg-green-600 text-white"
                                     : "bg-blue-700 hover:bg-blue-600 text-white"
-                            }`}
+                                }`}
                         >
                             <Plus size={14} /> Thêm người dùng
                         </button>
@@ -1032,7 +1031,7 @@ const AGameManagingPage = () => {
                 </div>
             </div>
 
-            {}
+            { }
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden row-span-2">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
@@ -1048,81 +1047,81 @@ const AGameManagingPage = () => {
                     </button>
                 </div>
 
-                {}
+                { }
                 <div className="bg-blue-800/20 border border-blue-700 rounded-lg p-4 flex flex-col gap-3">
                     <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Tạo / Cập nhật trận đấu</h3>
 
-                {}
-                <input
-                    type="text"
-                    placeholder="Mã trận đấu"
-                    value={matchCode}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setMatchCode(val);
-                        setQuestionsMatchCode(val);
-                        setMatchExists(false);
-                        localStorage.setItem("matchCode", val);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
+                    { }
+                    <input
+                        type="text"
+                        placeholder="Mã trận đấu"
+                        value={matchCode}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setMatchCode(val);
+                            setQuestionsMatchCode(val);
+                            setMatchExists(false);
+                            localStorage.setItem("matchCode", val);
+                        }}
+                        className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
 
-                {}
-                <input
-                    type="text"
-                    placeholder="Tên trận đấu"
-                    value={matchName}
-                    onChange={(e) => setMatchName(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
+                    { }
+                    <input
+                        type="text"
+                        placeholder="Tên trận đấu"
+                        value={matchName}
+                        onChange={(e) => setMatchName(e.target.value)}
+                        className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
 
-                {}
+                    { }
 
-                {}
-                <datalist id="player-list">
-                    {users.map((u: UserData) => (
-                        <option key={u.user_code} value={u.user_name} />
-                    ))}
-                </datalist>
-                <div className="grid grid-cols-2 gap-2">
-                    {userInputs.map((input, i) => (
-                        <div key={i} className="relative">
-                            <input
-                                type="text"
-                                list="player-list"
-                                placeholder={`Tên / mã vị trí #${i + 1}`}
-                                value={input}
-                                onChange={(e) => handleUserInputChange(i, e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            />
-                            {userCodes[i] && userCodes[i] !== input && (
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400 font-mono pointer-events-none">
-                                    {userCodes[i]}
-                                </span>
-                            )}
-                        </div>
-                    ))}
+                    { }
+                    <datalist id="player-list">
+                        {users.map((u: UserData) => (
+                            <option key={u.user_code} value={u.user_name} />
+                        ))}
+                    </datalist>
+                    <div className="grid grid-cols-2 gap-2">
+                        {userInputs.map((input, i) => (
+                            <div key={i} className="relative">
+                                <input
+                                    type="text"
+                                    list="player-list"
+                                    placeholder={`Tên / mã vị trí #${i + 1}`}
+                                    value={input}
+                                    onChange={(e) => handleUserInputChange(i, e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                                {userCodes[i] && userCodes[i] !== input && (
+                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400 font-mono pointer-events-none">
+                                        {userCodes[i]}
+                                    </span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    { }
+                    <div className="flex gap-2">
+                        <button
+                            onClick={createMatch}
+                            disabled={matchLoading || !matchCode || !matchName || userCodes.filter((c) => c.trim() !== "").length < 3}
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
+                        >
+                            <Plus size={16} />
+                            {matchExists ? "Cập nhật trận đấu" : "Tạo trận đấu"}
+                        </button>
+
+                        <VaoPhongButton matchCode={matchCode} disabled={!matchCode || !matchExists} />
+                    </div>
                 </div>
 
-                {}
-                <div className="flex gap-2">
-                    <button
-                        onClick={createMatch}
-                        disabled={matchLoading || !matchCode || !matchName || userCodes.filter((c) => c.trim() !== "").length < 3}
-                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
-                    >
-                        <Plus size={16} />
-                        {matchExists ? "Cập nhật trận đấu" : "Tạo trận đấu"}
-                    </button>
-
-                    <VaoPhongButton matchCode={matchCode} disabled={!matchCode || !matchExists} />
-                </div>
-                </div>
-
-                {}
+                { }
                 <div className="border-t border-blue-700 my-2"></div>
 
-                {}
+                { }
                 <div className="flex flex-col gap-2 flex-1 min-h-0">
                     <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Danh sách trận đấu</h3>
                     <div className="overflow-y-auto flex-1 min-h-0 -mr-2 pr-2">
@@ -1227,14 +1226,14 @@ const AGameManagingPage = () => {
                 </div>
             </div>
 
-            {}
+            { }
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
                         <HelpCircle size={22} /> Câu hỏi
                     </h2>
                     <div className="flex items-center gap-2">
-                        {}
+                        { }
                         <input
                             ref={excelInputRef}
                             type="file"
@@ -1282,7 +1281,7 @@ const AGameManagingPage = () => {
                         >
                             <Search size={14} /> Tải câu hỏi
                         </button>
-                        {}
+                        { }
                         <div className="relative" ref={importMenuRef}>
                             <button
                                 onClick={() => setShowImportMenu((v) => !v)}
@@ -1370,16 +1369,16 @@ const AGameManagingPage = () => {
                                         <td className="py-2 px-2 text-xs">
                                             {q.media_url
                                                 ? q.media_url.split(',').map((url, i) => (
-                                                      <a
-                                                          key={i}
-                                                          href={url.trim()}
-                                                          target="_blank"
-                                                          rel="noreferrer"
-                                                          className="text-blue-400 hover:underline block truncate max-w-40"
-                                                      >
-                                                          {url.trim()}
-                                                      </a>
-                                                  ))
+                                                    <a
+                                                        key={i}
+                                                        href={url.trim()}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-blue-400 hover:underline block truncate max-w-40"
+                                                    >
+                                                        {url.trim()}
+                                                    </a>
+                                                ))
                                                 : "—"}
                                         </td>
                                     </tr>
@@ -1390,7 +1389,7 @@ const AGameManagingPage = () => {
                 </div>
             </div>
 
-            {}
+            { }
             {false && <div className="col-span-2 bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">

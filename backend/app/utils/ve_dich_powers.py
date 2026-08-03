@@ -17,7 +17,8 @@ from utils.power_lock import (
 )
 
 
-POWER_KEY_PREFIX = "vedich:powers:"
+POWER_KEY_PREFIX = "vd:powers:"
+OLD_POWER_KEY_PREFIX = "vedich:powers:"
 
 
 POWER_HASH_TTL_SECONDS = 24 * 60 * 60
@@ -29,10 +30,23 @@ def powers_key(match_code: str) -> str:
     return f"{POWER_KEY_PREFIX}{match_code}"
 
 
+def old_powers_key(match_code: str) -> str:
+    return f"{OLD_POWER_KEY_PREFIX}{match_code}"
+
+
+async def migrate_powers_key(valkey: Valkey, match_code: str) -> None:
+    new_key = powers_key(match_code)
+    old_key = old_powers_key(match_code)
+    if await valkey.exists(new_key) or not await valkey.exists(old_key):
+        return
+    await valkey.rename(old_key, new_key)
+
+
 async def get_used_powers(valkey: Valkey, match_code: str) -> dict[str, str]:
     if not valkey or not match_code:
         return {}
     try:
+        await migrate_powers_key(valkey, match_code)
         raw = await valkey.hgetall(powers_key(match_code))
     except Exception as exc:
         global_logger.warning(
@@ -76,6 +90,7 @@ async def set_used_power(
 
     changed = False
     try:
+        await migrate_powers_key(valkey, match_code)
         key = powers_key(match_code)
         try:
 

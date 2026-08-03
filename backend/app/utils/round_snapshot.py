@@ -20,8 +20,7 @@ SIMPLE_FIELDS = {
     "send_keyword_info": "keyword_info",
     "keyword_clues_locked": "keyword_clues_locked",
     "reveal_keyword_answer": "keyword_answer",
-    "play_video": "video",
-    "pause_video": "video",
+    "media_control": "video",
     "sync_qualifier_round": "qualifier_round",
     "qualifier_round_result": "qualifier_round_result",
 }

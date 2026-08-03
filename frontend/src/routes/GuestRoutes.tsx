@@ -27,7 +27,7 @@ const ProtectedGuestRoute: React.FC<{ children: React.ReactNode }> = ({ children
 const GuestAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { lastMessage } = useGameWebSocket();
+    const { lastMessage, sendMessage } = useGameWebSocket();
     const matchCode = localStorage.getItem("matchCode") || "";
 
     useEffect(() => {
@@ -37,7 +37,7 @@ const GuestAutoNavigator: React.FC = () => {
 
         const msgType = msg?.type ?? "";
 
-        if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
+        if (msgType === "match_state") {
             const target = matchCode ? `/guest/waiting/${matchCode}` : "/guest/waiting";
             if (location.pathname !== target) {
                 navigate(target, { replace: true });
@@ -76,8 +76,9 @@ const GuestAutoNavigator: React.FC = () => {
 
         if (currentPath !== target) {
             navigate(target, { replace: true });
+            void sendMessage({ type: "request_snapshot" });
         }
-    }, [lastMessage, matchCode, navigate, location.pathname]);
+    }, [lastMessage, matchCode, navigate, location.pathname, sendMessage]);
 
     return null;
 };

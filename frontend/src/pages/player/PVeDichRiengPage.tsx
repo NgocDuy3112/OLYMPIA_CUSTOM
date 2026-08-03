@@ -26,6 +26,7 @@ const PVeDichRiengPage = () => {
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
 	const [hasPinged, setHasPinged] = useState(false);
+	const hasPingedRef = useRef(false);
 	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 	const lastBuzzerQuestionRef = useRef<string | null>(null);
 	const [blockedPlayerCode, setBlockedPlayerCode] = useState<string | null>(null);
@@ -36,7 +37,7 @@ const PVeDichRiengPage = () => {
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!matchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_powers_${matchCode}`);
+			const stored = localStorage.getItem(`vd_powers_${matchCode}`);
 			return stored ? JSON.parse(stored) : {};
 		} catch { return {}; }
 	});
@@ -64,6 +65,7 @@ const PVeDichRiengPage = () => {
 				break;
 
 			case "start_the_timer": {
+				hasPingedRef.current = false;
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
 
@@ -74,15 +76,10 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 
-			case "play_video":
-				setVideoPlayState("playing");
-				break;
-
-			case "pause_video":
-				setVideoPlayState("paused");
-				break;
-
-			case "vd_power_activated":
+			case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
+                break;
+                case "vd_power_activated":
 				setActivePower((msg.power as "star" | "shield") ?? null);
 				break;
 
@@ -108,7 +105,7 @@ const PVeDichRiengPage = () => {
 					setUsedPowers((prev) => {
 						const next = { ...prev, [user_code]: power };
 
-						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
+						try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
 						return next;
 					});
 
@@ -125,7 +122,7 @@ const PVeDichRiengPage = () => {
 				if (msg.used_powers) {
 					const powers = msg.used_powers;
 					setUsedPowers(powers);
-					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
+					try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
 
 					setPlayers((prev) =>
 						prev.map((p) => {
@@ -153,6 +150,7 @@ const PVeDichRiengPage = () => {
 				break;
 
 			case "clear_buzz": {
+				hasPingedRef.current = false;
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
 				lastBuzzerQuestionRef.current = null;
@@ -184,6 +182,7 @@ const PVeDichRiengPage = () => {
 				}
 
 				if (msg.type === "vd_questions_selected") {
+					hasPingedRef.current = false;
 					setHasPinged(false);
 					setBuzzerWinnerCode(null);
 					lastBuzzerQuestionRef.current = null;
@@ -215,7 +214,7 @@ const PVeDichRiengPage = () => {
 			console.warn("[VDR BUZZ] Not connected");
 			return;
 		}
-		if (hasPinged) {
+		if (hasPingedRef.current) {
 			console.warn("[VDR BUZZ] Already pinged");
 			return;
 		}
@@ -241,9 +240,11 @@ const PVeDichRiengPage = () => {
 			return;
 		}
 
-		let wonBuzzer = false;
+		hasPingedRef.current = true;
+		setHasPinged(true);
+
 		try {
-			wonBuzzer = await submitBuzz({
+			await submitBuzz({
 				user_code: playerCode,
 				match_code: matchCode,
 				question_code: currentQuestion.questionCode,
@@ -253,16 +254,13 @@ const PVeDichRiengPage = () => {
 			console.warn("Failed to submit buzz:", error);
 		}
 
-		const wsEchoOk = await sendMessage({
+		await sendMessage({
 			type: "buzz",
 			user_code: playerCode,
 			question_code: currentQuestion.questionCode,
 			has_buzzed: true
 		});
 
-		if (wonBuzzer && wsEchoOk) {
-			setHasPinged(true);
-		}
 	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, token, matchCode, blockedPlayerCode, currentTurnPlayerCode, answeringWindowTimer]);
 
 	const isPingDisabled =

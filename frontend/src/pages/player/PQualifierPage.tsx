@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { useRoleSession } from "@/hooks/useRoleSession";
+import { validateAnswerInput } from "@/utils/validation";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
@@ -246,17 +247,19 @@ const PQualifierPage = () => {
             );
 
             try {
+                const answerPayload = {
+                    user_code: playerCode,
+                    match_code: matchCode,
+                    question_code: currentQuestion.questionCode,
+                    answer_text: option,
+                    has_buzzed: false,
+                    timestamp: ts,
+                };
+                validateAnswerInput(answerPayload);
                 const res = await fetch(`${API_BASE_URL}/answers/`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({
-                        user_code: playerCode,
-                        match_code: matchCode,
-                        question_code: currentQuestion.questionCode,
-                        answer_text: option,
-                        has_buzzed: false,
-                        timestamp: ts,
-                    }),
+                    body: JSON.stringify(answerPayload),
                 });
                 if (!res.ok) logger.warn("Failed to POST answer:", res.status);
             } catch (err) {

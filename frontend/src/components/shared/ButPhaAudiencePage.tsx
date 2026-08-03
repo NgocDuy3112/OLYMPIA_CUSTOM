@@ -63,11 +63,8 @@ export function ButPhaAudiencePage({ Layout }: ButPhaAudiencePageProps) {
         case "clear_answers":
           clearAnswers();
           break;
-        case "play_video":
-          setVideoPlayState("playing");
-          break;
-        case "pause_video":
-          setVideoPlayState("paused");
+        case "media_control":
+          setVideoPlayState(message.action === "pause" ? "paused" : "playing");
           break;
         case "send_answers_to_players":
           applyAnswers(message);

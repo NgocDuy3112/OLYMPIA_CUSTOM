@@ -25,7 +25,7 @@ const PVeDichChungPage = () => {
 	const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
 		if (!matchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_chung_meta_${matchCode}`);
+			const stored = localStorage.getItem(`vd_chung_meta_${matchCode}`);
 			return stored ? (JSON.parse(stored) as RoundQuestion[]) : [];
 		} catch { return []; }
 	});
@@ -38,7 +38,7 @@ const PVeDichChungPage = () => {
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!matchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_powers_${matchCode}`);
+			const stored = localStorage.getItem(`vd_powers_${matchCode}`);
 			return stored ? JSON.parse(stored) : {};
 		} catch { return {}; }
 	});
@@ -79,15 +79,10 @@ const PVeDichChungPage = () => {
 				break;
 			}
 
-			case "play_video":
-				setVideoPlayState("playing");
-				break;
-
-			case "pause_video":
-				setVideoPlayState("paused");
-				break;
-
-			case "player_score_updated":
+			case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
+                break;
+                case "player_score_updated":
 				applyScoreUpdate(msg);
 				break;
 
@@ -135,7 +130,7 @@ const PVeDichChungPage = () => {
 				const metadata: RoundQuestion[] = msg.question_metadata ?? [];
 				if (metadata.length > 0) {
 					setRoundQuestionsData(metadata);
-					try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch (error) { console.error("Storage update failed", error); }
+					try { localStorage.setItem(`vd_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch (error) { console.error("Storage update failed", error); }
 				}
 				break;
 			}
@@ -160,7 +155,7 @@ const PVeDichChungPage = () => {
 					setUsedPowers((prev) => {
 						const next = { ...prev, [user_code]: power };
 
-						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
+						try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
 						return next;
 					});
 
@@ -178,7 +173,7 @@ const PVeDichChungPage = () => {
 				if (msg.used_powers) {
 					const powers = msg.used_powers;
 					setUsedPowers(powers);
-					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
+					try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
 
 					setPlayers((prev) =>
 						prev.map((p) => {

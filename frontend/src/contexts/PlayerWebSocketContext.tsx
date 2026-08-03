@@ -24,7 +24,7 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     if (!isConnected) return;
     if (!playerCode) return;
 
-    void sendMessage({ type: "player_online", user_code: playerCode });
+    void sendMessage({ type: "user_online", user_code: playerCode, status: "online" });
   }, [isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     if (last.type !== "request_presence") return;
     if (!isConnected) return;
     if (!playerCode) return;
-    void sendMessage({ type: "player_heartbeat", user_code: playerCode });
+    void sendMessage({ type: "user_online", user_code: playerCode, status: "heartbeat" });
   }, [lastMessage, isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
   useEffect(() => {
     if (!isConnected || !playerCode) return;
     const intervalId = window.setInterval(() => {
-      void sendMessage({ type: "player_heartbeat", user_code: playerCode });
+      void sendMessage({ type: "user_online", user_code: playerCode, status: "heartbeat" });
     }, 10_000);
     return () => window.clearInterval(intervalId);
   }, [isConnected, playerCode, sendMessage]);

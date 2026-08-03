@@ -23,6 +23,7 @@ export interface WebSocketMessage extends WebSocketPayload {
   hint_content?: string;
   hint_media_source?: string;
   state?: string;
+  action?: "play" | "pause";
   power?: "star" | "shield";
   phase?: string;
   time_limit?: number | string;
@@ -46,6 +47,8 @@ export interface WebSocketMessage extends WebSocketPayload {
   question_metadata?: Array<{ code: string; category: string; points: number }>;
   used_powers?: Record<string, "star" | "shield" | null>;
   round?: string;
+  status?: "online" | "heartbeat";
+  role?: "player" | "mc" | "guest" | "admin";
   selected_player_code?: string;
 }
 

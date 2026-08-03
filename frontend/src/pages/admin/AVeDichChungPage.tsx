@@ -1,5 +1,6 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
 	AlarmClockCheck,
@@ -15,6 +16,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useQuestionTimerLock } from "@/hooks/useQuestionTimerLock";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
@@ -22,6 +24,8 @@ import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AVeDichChung");
 
@@ -85,7 +89,7 @@ const AVeDichChungPage = () => {
 	>(() => {
 		if (!currentMatchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_chung_states_${currentMatchCode}`);
+			const stored = localStorage.getItem(`vd_chung_states_${currentMatchCode}`);
 			return stored ? (JSON.parse(stored) as Record<string, "answered" | "answered-wrong" | "available">) : {};
 		} catch { return {}; }
 	});
@@ -114,7 +118,7 @@ const AVeDichChungPage = () => {
 			media_source: question.questionMediaURL ?? undefined,
 		});
 		if (question.questionMediaURL) {
-			void sendMessage({ type: "play_video" });
+			void sendMessage({ type: "media_control", action: "play" });
 			setVideoPlayState("playing");
 		}
 		pendingQuestionRef.current = null;
@@ -124,7 +128,7 @@ const AVeDichChungPage = () => {
 	const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
 		if (!currentMatchCode) return [];
 		try {
-			const stored = localStorage.getItem(`veDich_chung_codes_${currentMatchCode}`);
+			const stored = localStorage.getItem(`vd_chung_codes_${currentMatchCode}`);
 			return stored ? (JSON.parse(stored) as string[]) : [];
 		} catch { return []; }
 	});
@@ -132,12 +136,13 @@ const AVeDichChungPage = () => {
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!currentMatchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_powers_${currentMatchCode}`);
+			const stored = localStorage.getItem(`vd_powers_${currentMatchCode}`);
 			if (!stored) return {};
 			const parsed = JSON.parse(stored);
 			const migrated: Record<string, string | null> = {};
@@ -158,7 +163,7 @@ const AVeDichChungPage = () => {
 
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		localStorage.setItem(`veDich_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
+		localStorage.setItem(`vd_powers_${currentMatchCode}`, JSON.stringify(usedPowers));
 	}, [usedPowers, currentMatchCode]);
 
 	useEffect(() => {
@@ -186,7 +191,7 @@ const AVeDichChungPage = () => {
 	useEffect(() => {
 		if (!currentMatchCode) return;
 
-		localStorage.setItem(`veDich_chung_states_${currentMatchCode}`, JSON.stringify(questionStates));
+		localStorage.setItem(`vd_chung_states_${currentMatchCode}`, JSON.stringify(questionStates));
 
 		const answeredCodes = Object.entries(questionStates)
 			.filter(([, v]) => v === "answered")
@@ -194,10 +199,10 @@ const AVeDichChungPage = () => {
 		if (answeredCodes.length > 0) {
 			try {
 				const existing = JSON.parse(
-					localStorage.getItem(`veDich_used_codes_${currentMatchCode}`) ?? "[]"
+					localStorage.getItem(`vd_used_codes_${currentMatchCode}`) ?? "[]"
 				) as string[];
 				localStorage.setItem(
-					`veDich_used_codes_${currentMatchCode}`,
+					`vd_used_codes_${currentMatchCode}`,
 					JSON.stringify([...new Set([...existing, ...answeredCodes])]),
 				);
 			} catch {  }
@@ -217,27 +222,10 @@ const AVeDichChungPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (err) {
-				logger.error("Failed to load scoreboard:", err);
-			}
-
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
+			const snapshot = await loadAdminPlayersSnapshot(currentMatchCode, token);
+			const playersList = snapshot.players;
+			const scoreList = snapshot.scoreboard;
+			const profiles = snapshot.profiles;
 
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 			return { playersList, scoreList, profiles };
@@ -336,25 +324,6 @@ const AVeDichChungPage = () => {
 		void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
-	const mapQuestionPayload = useCallback(
-		(payload: any, fallbackCode?: string): Question => ({
-			questionCode:
-				payload?.question_code ?? payload?.question?.question_code ?? fallbackCode ?? "",
-			questionText:
-				payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
-			questionAnswer:
-				payload?.question?.correct_answers ??
-				payload?.question?.correct_answer ??
-				payload?.answer ??
-				payload?.correct_answer ??
-				"",
-			questionExplanation: payload?.question?.explanation ?? payload?.explanation ?? "",
-			questionMediaURL:
-				payload?.question?.extra_info?.media_source ?? payload?.media_url ?? undefined,
-		}),
-		[],
-	);
-
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setVideoPlayState(null);
@@ -424,7 +393,7 @@ const AVeDichChungPage = () => {
 					} else {
 						payload = data.data ?? null;
 					}
-					q = mapQuestionPayload(payload, questionCode);
+					q = mapQuestionApiPayload(payload, questionCode);
 				} else {
 					q = { ...DEFAULT_QUESTION, questionCode };
 				}
@@ -442,11 +411,12 @@ const AVeDichChungPage = () => {
 			logger.error("handleQuestionActivate: failed to load question:", err);
 		}
 	},
-	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
+	[isTimerRunning, currentQuestion.questionCode, clearQuestion, currentMatchCode, token, sendMessage, mapQuestionApiPayload, clearPendingBroadcastTimer, broadcastPendingVeDichQuestion],
 	);
 
 	const startTheClock = useCallback(() => {
-		if (!currentQuestion.questionCode || isTimerRunning) return;
+		if (!currentQuestion.questionCode || isTimerRunning || isTimerLocked) return;
+		lockTimer();
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
 		setIsTimerRunning(true);
@@ -461,7 +431,7 @@ const AVeDichChungPage = () => {
 			});
 
 		}
-	}, [currentQuestion.questionCode, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
+	}, [currentQuestion.questionCode, isTimerRunning, isTimerLocked, lockTimer, currentPoints, currentMatchCode, sendMessage]);
 
 	useEffect(() => {
 		timerRef.current = timer;
@@ -531,8 +501,8 @@ const AVeDichChungPage = () => {
 
 			try {
 				if (questionCode) {
-					const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-						method: "POST",
+					const recordRes = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+						method: "PATCH",
 						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
 						body: JSON.stringify({
 							user_code: playerCode,
@@ -604,7 +574,6 @@ const AVeDichChungPage = () => {
 
 	const handleCalculateScore = useCallback(async () => {
 		if (!currentQuestion.questionCode) return;
-		const points = currentPoints;
 
 		setQuestionStates((prev) => ({ ...prev, [currentQuestion.questionCode]: "answered" }));
 
@@ -612,44 +581,7 @@ const AVeDichChungPage = () => {
 		void sendMessage({ type: selectedPlayerCodes.length > 0 ? "vd_dung" : "wrong", phase: "vdc" });
 
 		try {
-			if (selectedPlayerCodes.length === 0) {
-
-				for (const player of players) {
-					const power = playerPowers[player.playerCode];
-					if (power === 'shield') {
-
-						continue;
-					}
-					const deduction = power === 'star'
-						? -points
-						: -Math.floor(points * 0.5);
-					await handleAddScore(player.playerCode, deduction, false);
-				}
-			} else {
-
-				for (const playerCode of selectedPlayerCodes) {
-					const power = playerPowers[playerCode];
-					let awarded: number;
-					if (power === 'star') awarded = Math.round(points * 1.5);
-					else if (power === 'shield') awarded = Math.round(points * 0.5);
-					else awarded = points;
-					await handleAddScore(playerCode, awarded, false);
-				}
-
-				for (const player of players) {
-					if (!selectedPlayerCodes.includes(player.playerCode)) {
-						const power = playerPowers[player.playerCode];
-						if (power === 'shield') {
-
-							continue;
-						}
-						const deduction = power === 'star'
-							? -points
-							: -Math.floor(points * 0.5);
-						await handleAddScore(player.playerCode, deduction, false);
-					}
-				}
-			}
+			await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "vdc_resolve", selectedPlayerCodes);
 
 			const newUsedPowers = { ...usedPowers };
 			for (const [code, power] of Object.entries(playerPowers)) {
@@ -702,7 +634,7 @@ const AVeDichChungPage = () => {
 			case "vd_questions_selected": {
 				if (Array.isArray(msg.selected_question_codes)) {
 					if (currentMatchCode) {
-						localStorage.setItem(`veDich_chung_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
+						localStorage.setItem(`vd_chung_codes_${currentMatchCode}`, JSON.stringify(msg.selected_question_codes));
 					}
 					startTransition(() => {
 						setRoundQuestionCodes(msg.selected_question_codes);
@@ -710,11 +642,10 @@ const AVeDichChungPage = () => {
 				}
 				break;
 			}
-			case "mc_online":
 			case "mc_reconnected":
 			case "guest_online":
 			case "player_reconnected":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) =>
@@ -772,7 +703,7 @@ const AVeDichChungPage = () => {
 							} catch {  }
 							if (currentQuestion.questionMediaURL) {
 								try {
-									await sendMessage({ type: "play_video" });
+									await sendMessage({ type: "media_control", action: "play" });
 								} catch {  }
 							}
 						}
@@ -963,7 +894,7 @@ const AVeDichChungPage = () => {
 				<>
 					<AControlButton
 						onClick={startTheClock}
-						disabled={!currentQuestion.questionCode || isTimerRunning}
+						disabled={!currentQuestion.questionCode || isTimerRunning || isTimerLocked}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>

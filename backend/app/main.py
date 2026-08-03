@@ -186,7 +186,7 @@ async def websocket_endpoint(
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code, user_code=user_info["user_code"], role=user_role)
 
-    if user_role in ("player", "mc", "guest"):
+    if user_role in ("admin", "player", "mc", "guest"):
         await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
 
     if user_role == "player":
@@ -199,17 +199,26 @@ async def websocket_endpoint(
     try:
         while True:
             data = await websocket.receive_json()
-            if "user_code" not in data:
+            msg_type = data.get("type", "")
+            if msg_type == "user_online" or "user_code" not in data:
                 data["user_code"] = user_info["user_code"]
             data["role"] = user_role
-
-            msg_type = data.get("type", "")
 
             if not is_allowed_by_role(user_role, msg_type):
                 global_logger.warning(
                     f"[BP ANSWER SYNC] Blocked {user_role} message: type={msg_type!r} "
                     f"user={user_info['user_code']!r} room={match_code!r}"
                 )
+                continue
+
+            if msg_type == "request_snapshot":
+                await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
+                if user_role == "player":
+                    await handle_player_reconnect(ws_manager, match_code, user_info["user_code"])
+                elif user_role == "mc":
+                    await handle_mc_reconnect(ws_manager, match_code, user_info["user_code"])
+                elif user_role == "guest":
+                    await handle_guest_reconnect(ws_manager, match_code, user_info["user_code"])
                 continue
 
             if msg_type in {"buzz", "vd_player_power", "answer", "player_answer"}:

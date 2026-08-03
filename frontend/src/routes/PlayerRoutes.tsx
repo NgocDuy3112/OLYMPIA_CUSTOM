@@ -36,7 +36,7 @@ const PlayerAutoNavigator: React.FC = () => {
     const location = useLocation();
     const playerCode = sessionStorage.getItem("playerCode") || "";
     const matchCode = localStorage.getItem("matchCode") || "";
-    const { lastMessage } = useGameWebSocket();
+    const { lastMessage, sendMessage } = useGameWebSocket();
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -46,7 +46,7 @@ const PlayerAutoNavigator: React.FC = () => {
 
         console.info("[PlayerAutoNavigator] Received message:", msgType, msg);
 
-        if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
+        if (msgType === "match_state") {
             const target = `/player/waiting/${matchCode}`;
             if (location.pathname !== target) {
                 console.info("[PlayerAutoNavigator] Navigating to waiting:", target);
@@ -97,9 +97,10 @@ const PlayerAutoNavigator: React.FC = () => {
         console.info("[PlayerAutoNavigator] Navigating:", { currentPath, target });
         if (currentPath !== target) {
             navigate(target, { replace: true });
+            void sendMessage({ type: "request_snapshot" });
         }
 
-    }, [lastMessage, matchCode, playerCode, navigate, location.pathname]);
+    }, [lastMessage, matchCode, playerCode, navigate, location.pathname, sendMessage]);
 
     return null;
 };

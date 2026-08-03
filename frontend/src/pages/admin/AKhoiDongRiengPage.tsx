@@ -1,8 +1,8 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-	Play,
 	AlarmClockCheck,
 	Plus,
 	Power,
@@ -20,6 +20,8 @@ import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { calculateScore } from "@/api/scores";
 
 const logger = createLogger("AKhoiDongRieng");
 
@@ -68,6 +70,7 @@ const AKhoiDongRiengPage = () => {
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [hasStartedRoundTimer, setHasStartedRoundTimer] = useState(false);
 	const autoAdvanceRef = useRef<number | null>(null);
 
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
@@ -103,33 +106,15 @@ const AKhoiDongRiengPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (error) {
-				logger.error("Failed to load scoreboard:", error);
-			}
-
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
-
+			const snapshot = await loadAdminPlayersSnapshot(currentMatchCode, token);
+			const playersList = snapshot.players;
+			const scoreList = snapshot.scoreboard;
+			const profiles = snapshot.profiles;
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 
 			const positions: Record<string, number> = {};
 			for (const entry of playersList) {
-				if (entry.user_code && entry.position) positions[String(entry.user_code)] = entry.position;
+				if (entry.user_code && typeof entry.position === "number") positions[String(entry.user_code)] = entry.position;
 			}
 			setPlayerPositions(positions);
 
@@ -195,21 +180,6 @@ const AKhoiDongRiengPage = () => {
 		return `${QUESTION_PREFIX}_${playerIndex}_${questionIndex}`;
 	}, [selectedPlayerCode, playerPositions]);
 
-	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
-
-		return {
-			questionCode: payload?.question_code ?? payload?.question?.question_code ?? fallbackCode ?? "",
-			questionText:
-				payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
-			questionAnswer:
-				payload?.question?.correct_answers ?? payload?.question?.correct_answer ?? payload?.answer ?? payload?.correct_answer ?? "",
-			questionExplanation:
-				payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL:
-				payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? payload?.media_url ?? payload?.media_url ?? undefined,
-		};
-	}, []);
-
 	const loadQuestion = useCallback(
 		async (questionIndex: number): Promise<Question | undefined> => {
 			if (!currentMatchCode || !token) return undefined;
@@ -226,7 +196,7 @@ const AKhoiDongRiengPage = () => {
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 				if (!res.ok) {
 					logger.warn(`loadQuestion: server returned ${res.status} for ${questionCode}`);
-					const mappedFallback = mapQuestionPayload(null, questionCode);
+					const mappedFallback = mapQuestionApiPayload(null, questionCode);
 					setCurrentQuestion(mappedFallback);
 					return mappedFallback;
 				}
@@ -244,17 +214,17 @@ const AKhoiDongRiengPage = () => {
 				} else {
 					payload = data.data ?? null;
 				}
-				const mapped = mapQuestionPayload(payload, questionCode);
+				const mapped = mapQuestionApiPayload(payload, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			} catch (error) {
 				logger.error("Failed to load question:", error);
-				const mapped = mapQuestionPayload(null, questionCode);
+				const mapped = mapQuestionApiPayload(null, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			}
 		},
-		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
+		[currentMatchCode, mapQuestionApiPayload, resolveQuestionCode, token],
 	);
 
 	const sendQuestionToPlayers = useCallback(
@@ -290,38 +260,6 @@ const AKhoiDongRiengPage = () => {
 		}
 	}, [currentMatchCode, sendMessage]);
 
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestionIndex(0);
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		setIsPlayerLocked(false);
-
-		await clearQuestion();
-
-		if (!currentMatchCode) return;
-		try {
-			try {
-				await sendMessage({ type: "round_start", round: "kdr" });
-			} catch (err) {
-				logger.error("Failed to start round:", err);
-			}
-
-			try {
-				await sendMessage({ type: "navigate", user_code: "", path: "/player/kdr" });
-			} catch (err) {
-				logger.error("Failed to send navigate on start:", err);
-			}
-
-			try {
-				await sendPlayersSnapshot();
-			} catch (err) {
-				logger.error("Failed to send players snapshot on start:", err);
-			}
-		} catch (error) {
-			logger.error("Failed to start round via WS:", error);
-		}
-	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
-
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -340,6 +278,8 @@ const AKhoiDongRiengPage = () => {
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
+		if (hasStartedRoundTimer || isTimerRunning) return;
+		setHasStartedRoundTimer(true);
 
 		const targetIndex = 1;
 
@@ -391,7 +331,7 @@ const AKhoiDongRiengPage = () => {
 				}
 			})
 			.catch((err) => logger.error("Failed to load question in background:", err));
-	}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToPlayers]);
+	}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToPlayers, hasStartedRoundTimer, isTimerRunning]);
 
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -415,8 +355,8 @@ const AKhoiDongRiengPage = () => {
 					if (!questionCode || String(questionCode).length === 0) {
 						logger.warn("handleAddScore: no question_code available; skipping POST to /records");
 					} else {
-						const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-							method: "POST",
+						const recordRes = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+							method: "PATCH",
 							headers: {
 								"Content-Type": "application/json",
 								Authorization: `Bearer ${token}`,
@@ -501,6 +441,7 @@ const AKhoiDongRiengPage = () => {
 		},
 		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token, sendPlayersSnapshot, sendMessage],
 	);
+	void handleAddScore;
 
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
@@ -549,26 +490,12 @@ const AKhoiDongRiengPage = () => {
 		}
 
 		setHasAddedScore(true);
-		const attemptCount = attempts[selectedPlayerCode] ?? 0;
-		let score = 0;
-		if (attemptCount === 0) score = 10;
-		else if (attemptCount === 1) score = 5;
-		else score = 0;
-
-		logger.info("handleAddScoreToSelected: starting for player=", selectedPlayerCode, "attempts=", attemptCount, "award=", score);
 
 		try {
-			if (score > 0) {
-				void sendMessage({ type: "kd_cong_diem" });
-				try {
-					await handleAddScore(selectedPlayerCode, score, true);
-					logger.info("handleAddScoreToSelected: applied", selectedPlayerCode, score);
-				} catch (innerErr) {
-					logger.error("handleAddScoreToSelected: failed applying score to", selectedPlayerCode, innerErr);
-				}
-			} else {
-				logger.info("handleAddScoreToSelected: no points to award for", selectedPlayerCode);
-			}
+			if (!currentQuestion.questionCode) throw new Error("Không có mã câu hỏi");
+			void sendMessage({ type: "kd_cong_diem" });
+			await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "kdr_correct", [selectedPlayerCode]);
+			await sendPlayersSnapshot();
 
 			if (timer <= 0) {
 				await clearQuestion();
@@ -580,7 +507,7 @@ const AKhoiDongRiengPage = () => {
 			logger.error("Failed adding score to selected player:", err);
 			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCode, handleAddScore, currentQuestionIndex, attempts, handleNextQuestion, clearQuestion, timer, sendMessage]);
+	}, [selectedPlayerCode, currentQuestionIndex, currentQuestion.questionCode, currentMatchCode, token, handleNextQuestion, clearQuestion, timer, sendMessage, sendPlayersSnapshot]);
 
 	const handleMarkWrong = useCallback(async () => {
 		if (!selectedPlayerCode) {
@@ -604,6 +531,15 @@ const AKhoiDongRiengPage = () => {
 			return updated;
 		});
 
+		if (currentQuestion.questionCode) {
+			try {
+				await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "kdr_wrong", [selectedPlayerCode]);
+			} catch (err) {
+				logger.error("Không thể lưu lượt trả lời sai:", err);
+				return;
+			}
+		}
+
 		if (nextCount === 1) {
 			logger.info("handleMarkWrong: sending player_wrong_attempt for", selectedPlayerCode);
 			void sendMessage({ type: "player_wrong_attempt", user_code: selectedPlayerCode, attempt_count: 1, phase: "kdr" });
@@ -622,7 +558,7 @@ const AKhoiDongRiengPage = () => {
 				handleNextQuestion(currentQuestionIndex);
 			}
 		}
-	}, [selectedPlayerCode, currentQuestionIndex, attempts, handleNextQuestion, sendMessage, clearQuestion, timer]);
+	}, [selectedPlayerCode, currentQuestionIndex, currentQuestion.questionCode, currentMatchCode, token, attempts, handleNextQuestion, sendMessage, clearQuestion, timer]);
 
 	const handleSkip = useCallback(async () => {
 		if (!selectedPlayerCode) return;
@@ -695,11 +631,10 @@ const AKhoiDongRiengPage = () => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
-			case "mc_online":
 			case "mc_reconnected":
 			case "guest_online":
 			case "player_reconnected":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
@@ -708,9 +643,9 @@ const AKhoiDongRiengPage = () => {
 
 						try {
 							await sendPlayersSnapshot();
-							logger.info("Resent players snapshot after player_online for", msg.user_code);
+							logger.info("Resent players snapshot after user_online for", msg.user_code);
 						} catch (err) {
-							logger.error("Failed to resend players snapshot on player_online:", err);
+							logger.error("Failed to resend players snapshot on user_online:", err);
 						}
 
 						try {
@@ -722,9 +657,9 @@ const AKhoiDongRiengPage = () => {
 						if (currentQuestionIndex > 0) {
 							try {
 								await sendQuestionToPlayers(currentQuestionIndex);
-								logger.info("Resent question to players after player_online for", msg.user_code);
+								logger.info("Resent question to players after user_online for", msg.user_code);
 							} catch (err) {
-								logger.error("Failed to resend question on player_online:", err);
+								logger.error("Failed to resend question on user_online:", err);
 							}
 						}
 
@@ -732,9 +667,9 @@ const AKhoiDongRiengPage = () => {
 							try {
 								const questionCode = resolveQuestionCode(currentQuestionIndex);
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: questionCode, started_at: Date.now() });
-								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
+								logger.info("Resent timer to players after user_online for", msg.user_code, "time_left=", timer);
 							} catch (err) {
-								logger.error("Failed to resend timer on player_online:", err);
+								logger.error("Failed to resend timer on user_online:", err);
 							}
 						}
 					})();
@@ -907,13 +842,6 @@ const AKhoiDongRiengPage = () => {
 			bottomActionButtons={
 				<>
 					<AControlButton
-						onClick={() => { handleStartRound() }}
-						disabled={isTimerRunning}
-					>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
-					<AControlButton
 						onClick={() => { handleEndRound() }}
 						disabled={isTimerRunning}
 					>
@@ -928,7 +856,7 @@ const AKhoiDongRiengPage = () => {
 						onClick={() => {
 							void startTheClock();
 						}}
-						disabled={isTimerRunning}
+						disabled={isTimerRunning || hasStartedRoundTimer}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>

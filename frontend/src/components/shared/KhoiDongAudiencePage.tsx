@@ -141,13 +141,15 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
         }}
         boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
       >
-        {hasSecondAttempt ? () => (
+        {(api) => (
           <div className="flex gap-2 items-center">
-            <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
-              Trả lời lần 2
-            </div>
+            {hasSecondAttempt && <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">Trả lời lần 2</div>}
+            {api.boxStates.map((_, index) => {
+              const active = api.activeIndices.includes(index);
+              return <button key={index} type="button" aria-pressed={active} onClick={() => api.toggle(index)} className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}>{index + 1}</button>;
+            })}
           </div>
-        ) : undefined}
+        )}
       </AQuestionBoard>
     </Layout>
   );

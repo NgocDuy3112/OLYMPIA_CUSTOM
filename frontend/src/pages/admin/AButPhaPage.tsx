@@ -1,11 +1,13 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlarmClockCheck, Calculator, Eye, Play, Power } from "lucide-react";
+import { AlarmClockCheck, Calculator, Eye, Power } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useQuestionTimerLock } from "@/hooks/useQuestionTimerLock";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
@@ -13,6 +15,7 @@ const logger = createLogger("AButPha");
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 
 const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 5;
@@ -113,28 +116,10 @@ const AButPhaPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return;
 		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (error) {
-				logger.error("Failed to load scoreboard:", error);
-			}
-
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
-
+			const snapshot = await loadAdminPlayersSnapshot(currentMatchCode, token);
+			const playersList = snapshot.players;
+			const scoreList = snapshot.scoreboard;
+			const profiles = snapshot.profiles;
 			setPlayers((prev) => computePlayersSnapshot(playersList, scoreList, profiles, prev));
 
 			return { playersList, scoreList, profiles };
@@ -185,16 +170,6 @@ const AButPhaPage = () => {
 		return `${QUESTION_PREFIX}_${String(questionIndex)}`;
 	}, []);
 
-	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
-		return {
-			questionCode: payload?.question_code ?? fallbackCode ?? "",
-			questionText: payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
-			questionAnswer: payload?.question?.correct_answers ?? payload?.correct_answer ?? payload?.answer ?? "",
-			questionExplanation: payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL: payload?.question?.extra_info?.media_source ?? payload?.media_url ?? undefined,
-		};
-	}, []);
-
 	const loadQuestion = useCallback(
 		async (questionIndex: number): Promise<Question | undefined> => {
 			if (!currentMatchCode || !token) return undefined;
@@ -211,7 +186,7 @@ const AButPhaPage = () => {
 				});
 				if (!res.ok) {
 					logger.warn(`loadQuestion: server returned ${res.status} for ${questionCode}`);
-					const mapped = mapQuestionPayload(null, questionCode);
+					const mapped = mapQuestionApiPayload(null, questionCode);
 					setCurrentQuestion(mapped);
 					return mapped;
 				}
@@ -222,17 +197,17 @@ const AButPhaPage = () => {
 				} else {
 					payload = data.data ?? null;
 				}
-				const mapped = mapQuestionPayload(payload, questionCode);
+				const mapped = mapQuestionApiPayload(payload, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			} catch (error) {
 				logger.error("Failed to load question:", error);
-				const mapped = mapQuestionPayload(null, questionCode);
+				const mapped = mapQuestionApiPayload(null, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			}
 		},
-		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
+		[currentMatchCode, mapQuestionApiPayload, resolveQuestionCode, token],
 	);
 
 	const sendQuestionToplayers = useCallback(
@@ -271,36 +246,6 @@ const AButPhaPage = () => {
 
 	useEffect(() => { setHasAddedScore(false); }, [currentQuestionIndex]);
 
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestionIndex(0);
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		await clearQuestion();
-
-		if (!currentMatchCode) { return; }
-		try {
-			try {
-				await sendMessage({ type: "round_start", round: "bp" });
-			} catch (err) {
-				logger.error("Failed to start round via WS:", err);
-			}
-
-			try {
-				await sendMessage({ type: "navigate", user_code: "", path: "/player/bp" });
-			} catch (err) {
-				logger.error("Failed to send navigate on start:", err);
-			}
-
-			try {
-				await sendPlayersSnapshot();
-			} catch (err) {
-				logger.error("Failed to send players snapshot on start:", err);
-			}
-		} catch (error) {
-			logger.error("Failed to start round via WS:", error);
-		}
-	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
-
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -316,9 +261,12 @@ const AButPhaPage = () => {
 
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
+	const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
+
 	const startTheClock = useCallback(
 		async (questionIndex: number) => {
-			if (!currentMatchCode || !token) return;
+			if (!currentMatchCode || !token || isTimerLocked) return;
+			lockTimer();
 			if (timer > 0) {
 				logger.warn("startTheClock: timer already running, ignoring start request");
 				return;
@@ -329,6 +277,14 @@ const AButPhaPage = () => {
 			const startedAt = Date.now();
 			timerStartedAtRef.current = startedAt;
 			setTimer(TIME_LIMIT);
+			setPlayers((prev) =>
+				prev.map((p) => ({
+					...p,
+					playerLastAnswer: undefined,
+					playerTimestamp: undefined,
+					playerHasBuzzed: undefined,
+				})),
+			);
 
 			try {
 				await sendMessage({
@@ -343,13 +299,13 @@ const AButPhaPage = () => {
 				logger.error("Failed to start the clock via WS:", error);
 			}
 			try {
-				await sendMessage({ type: "play_video" });
+				await sendMessage({ type: "media_control", action: "play" });
 				setVideoPlayState("playing");
 			} catch (error) {
 				logger.error("Failed to send play_video via WS:", error);
 			}
 		},
-		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer],
+		[currentMatchCode, resolveQuestionCode, sendMessage, token, timer, isTimerLocked, lockTimer],
 	);
 
 	const showAnswers = useCallback(async () => {
@@ -380,46 +336,6 @@ const AButPhaPage = () => {
 		}
 	}, [canShowAnswers, currentMatchCode, token, currentQuestion, players, sendMessage]);
 
-	const handleAddScore = useCallback(
-		async (playerCode: string, delta: number, broadcast = true) => {
-			if (!playerCode) return;
-			if (!currentMatchCode || !token) return;
-			const questionCode = currentQuestion.questionCode;
-			try {
-				if (questionCode) {
-					const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-						method: "POST",
-						headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-						body: JSON.stringify({ user_code: playerCode, match_code: currentMatchCode, question_code: questionCode, points: delta }),
-					});
-					if (!recordRes.ok) logger.warn("handleAddScore: record POST failed", recordRes.status);
-				}
-			} catch (err) {
-				logger.error("handleAddScore: record POST error:", err);
-			}
-
-			await new Promise(resolve => setTimeout(resolve, 100));
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, { headers: { Authorization: `Bearer ${token}` } });
-				const scoreJson: any = await scoreRes.json().catch(() => ({}));
-				let scoreboardArr: any[] = [];
-				if (Array.isArray(scoreJson.data)) scoreboardArr = scoreJson.data;
-				else if (Array.isArray(scoreJson.data?.scoreboard)) scoreboardArr = scoreJson.data.scoreboard;
-				else if (Array.isArray(scoreJson.scoreboard)) scoreboardArr = scoreJson.scoreboard;
-				setPlayers((prev) => prev.map((p) => {
-					const entry = scoreboardArr.find((item: any) => item.user_code === p.playerCode);
-					const updated = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
-					return typeof updated === "number" ? { ...p, playerScore: updated } : p;
-				}));
-			} catch (err) {
-				logger.error("handleAddScore: scoreboard refresh failed:", err);
-			}
-			if (broadcast) {
-				try { await sendPlayersSnapshot(); } catch (err) { logger.error("handleAddScore: broadcast failed:", err); }
-			}
-		},
-		[currentMatchCode, currentQuestion.questionCode, token, sendPlayersSnapshot],
-	);
 
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
@@ -440,79 +356,26 @@ const AButPhaPage = () => {
 		setHasAddedScore(true);
 		void sendMessage({ type: "bp_dung" });
 		try {
-
-			const playerAnswers: Array<{ playerCode: string; timestamp: number; elapsedSeconds: number }> = [];
-			const startedAt = timerStartedAtRef.current;
-			const hasValidStartTime = startedAt > 0;
-			logger.info(`handleCalculateScore: startedAt=${startedAt}, hasValidStartTime=${hasValidStartTime}, current time=${Date.now()}`);
-
-			for (const code of selectedPlayerCodes) {
-				try {
-					const url = `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(currentMatchCode!)}&user_code=${encodeURIComponent(code)}&question_code=${encodeURIComponent(currentQuestion.questionCode)}`;
-					const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-					if (res.ok) {
-						const json = await res.json();
-						const data = json.data;
-						if (data) {
-
-							const answers = Array.isArray(data) ? data : [data];
-							const last = answers.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), answers[0]);
-							const answerTimestamp = last?.timestamp ?? 0;
-
-							let elapsedSeconds: number;
-							if (typeof answerTimestamp === 'number' && answerTimestamp >= 0 && answerTimestamp <= 3600) {
-
-								elapsedSeconds = answerTimestamp;
-								logger.info(`handleCalculateScore: ${code} using server elapsed=${elapsedSeconds.toFixed(1)}s`);
-							} else if (hasValidStartTime && answerTimestamp >= startedAt) {
-
-								elapsedSeconds = (answerTimestamp - startedAt) / 1000;
-								elapsedSeconds = Math.min(elapsedSeconds, TIME_LIMIT);
-								logger.info(`handleCalculateScore: ${code} epoch ms mode, elapsed=${elapsedSeconds.toFixed(1)}s`);
-							} else {
-
-								elapsedSeconds = TIME_LIMIT;
-								logger.warn(`handleCalculateScore: ${code} using fallback elapsedSeconds=${TIME_LIMIT} (answerTimestamp=${answerTimestamp})`);
-							}
-							logger.info(`handleCalculateScore: ${code} answerTimestamp=${answerTimestamp} elapsed=${elapsedSeconds.toFixed(1)}s`);
-							playerAnswers.push({ playerCode: code, timestamp: answerTimestamp, elapsedSeconds });
-							continue;
-						}
-					}
-				} catch (err) {
-					logger.warn("handleCalculateScore: failed to fetch answer for", code, err);
-				}
-
-				playerAnswers.push({ playerCode: code, timestamp: 0, elapsedSeconds: TIME_LIMIT });
-			}
-
-			playerAnswers.sort((a, b) => a.timestamp - b.timestamp);
-
-			const ORDER_MULTIPLIERS = [2, 1.5, 1, 0.5];
-
-			for (let i = 0; i < playerAnswers.length; i++) {
-				const { playerCode, elapsedSeconds } = playerAnswers[i];
-
-				let basePoints: number;
-				if (elapsedSeconds < 10) basePoints = 30;
-				else if (elapsedSeconds < 20) basePoints = 20;
-				else basePoints = 10;
-
-				const multiplier = ORDER_MULTIPLIERS[Math.min(i, ORDER_MULTIPLIERS.length - 1)];
-				const score = Math.round(basePoints * multiplier);
-				logger.info(`handleCalculateScore: ${playerCode} rank=${i + 1} elapsed=${elapsedSeconds.toFixed(1)}s base=${basePoints} x${multiplier} = ${score}`);
-				await handleAddScore(playerCode, score, false).catch((err) =>
-					logger.error("Score failed for", playerCode, err),
-				);
-			}
-
-			if (currentMatchCode) await sendPlayersSnapshot();
+			const response = await fetch(`${API_BASE_URL}/scoreboard/calculate`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+				body: JSON.stringify({
+					match_code: currentMatchCode,
+					question_code: currentQuestion.questionCode,
+					action: "bp_resolve",
+					user_codes: selectedPlayerCodes,
+				}),
+			});
+			if (!response.ok) throw new Error("Không thể tính điểm Bứt phá");
+			await sendPlayersSnapshot();
 			setSelectedPlayerCodes([]);
+			return;
+
 		} catch (err) {
 			logger.error("handleCalculateScore failed:", err);
 			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCodes, currentQuestion.questionCode, currentMatchCode, token, handleAddScore, sendPlayersSnapshot, sendMessage]);
+	}, [selectedPlayerCodes, currentQuestion.questionCode, currentMatchCode, token, sendPlayersSnapshot, sendMessage]);
 
 	useEffect(() => {
 		startTransition(() => {
@@ -572,11 +435,9 @@ const AButPhaPage = () => {
 				logger.info(`[BP RECONNECT] Resent players snapshot to ${user_code}`);
 				break;
 			}
-
-			case "mc_online":
 			case "mc_reconnected":
 			case "guest_online":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
@@ -604,7 +465,7 @@ const AButPhaPage = () => {
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch {  }
 							try {
-								await sendMessage({ type: "play_video" });
+								await sendMessage({ type: "media_control", action: "play" });
 							} catch {  }
 						}
 						try {
@@ -777,15 +638,6 @@ const AButPhaPage = () => {
 				<>
 					<AControlButton
 						onClick={() => {
-							void handleStartRound();
-						}}
-						disabled={timer > 0}
-					>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => {
 							void handleEndRound();
 						}}
 						disabled={timer > 0}
@@ -801,7 +653,7 @@ const AButPhaPage = () => {
 							if (!hasQuestionSelected) return;
 							void startTheClock(currentQuestionIndex);
 						}}
-						disabled={!hasQuestionSelected || timer > 0}
+						disabled={!hasQuestionSelected || timer > 0 || isTimerLocked}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>

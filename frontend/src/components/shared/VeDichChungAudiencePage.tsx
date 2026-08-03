@@ -28,7 +28,7 @@ export function VeDichChungAudiencePage({ Layout, matchCode = "" }: VeDichAudien
     const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(() => {
         if (!matchCode) return [];
         try {
-            const stored = localStorage.getItem(`veDich_chung_meta_${matchCode}`);
+            const stored = localStorage.getItem(`vd_chung_meta_${matchCode}`);
             return stored ? (JSON.parse(stored) as RoundQuestion[]) : [];
         } catch { return []; }
     });
@@ -60,13 +60,10 @@ export function VeDichChungAudiencePage({ Layout, matchCode = "" }: VeDichAudien
                 clearAnswer();
                 setVideoPlayState(null);
                 break;
-            case "play_video":
-                setVideoPlayState("playing");
+            case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
                 break;
-            case "pause_video":
-                setVideoPlayState("paused");
-                break;
-            case "send_answers_to_players":
+                case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
             case "buzz":
@@ -86,7 +83,7 @@ export function VeDichChungAudiencePage({ Layout, matchCode = "" }: VeDichAudien
                 const metadata: RoundQuestion[] = msg.question_metadata ?? [];
                 if (metadata.length > 0) {
                     setRoundQuestionsData(metadata);
-                    try { localStorage.setItem(`veDich_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch (error) { console.error("Storage update failed", error); }
+                    try { localStorage.setItem(`vd_chung_meta_${matchCode}`, JSON.stringify(metadata)); } catch (error) { console.error("Storage update failed", error); }
                 }
                 break;
             }
