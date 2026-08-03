@@ -124,7 +124,7 @@ const AWaitingPage = () => {
 		if (!currentMatchCode) return;
 		setIsOpeningMatch(true);
 		try {
-			await sendMessage({ type: "open_match" });
+			await sendMessage({ type: "match_state", state: "open" });
 		} catch (err) {
 			logger.error("Failed to send open_match:", err);
 		} finally {
@@ -160,7 +160,7 @@ const AWaitingPage = () => {
 		if (!currentMatchCode) return;
 		setIsEndingMatch(true);
 		try {
-			await sendMessage({ type: "end_match" });
+			await sendMessage({ type: "match_state", state: "ended" });
 			await sendMessage({ type: "navigate", user_code: "", path: "/player/waiting" });
 			await sendPlayersSnapshot();
 		} catch (err) {
@@ -178,7 +178,7 @@ const AWaitingPage = () => {
 		try {
 			await finishMatch(currentMatchCode, token);
 			setMatchFinished(true);
-			await sendMessage({ type: "finish_match" });
+			await sendMessage({ type: "match_state", state: "finished" });
 			await sendPlayersSnapshot();
 		} catch (error) {
 			logger.error("Failed to finish match:", error);

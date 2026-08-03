@@ -58,8 +58,8 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
             ));
           }
           break;
-        case "finish_match":
-          setMatchFinished(true);
+        case "match_state":
+          setMatchFinished(message.state === "finished");
           break;
       }
     });

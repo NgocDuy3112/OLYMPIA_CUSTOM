@@ -352,7 +352,7 @@ const AButPhaPage = () => {
 				logger.error("Failed to start the clock via WS:", error);
 			}
 			try {
-				await sendMessage({ type: "play_video" });
+				await sendMessage({ type: "media_control", action: "play" });
 				setVideoPlayState("playing");
 			} catch (error) {
 				logger.error("Failed to send play_video via WS:", error);
@@ -625,7 +625,7 @@ const AButPhaPage = () => {
 								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
 							} catch {  }
 							try {
-								await sendMessage({ type: "play_video" });
+								await sendMessage({ type: "media_control", action: "play" });
 							} catch {  }
 						}
 						try {

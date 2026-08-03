@@ -60,13 +60,10 @@ export function VeDichChungAudiencePage({ Layout, matchCode = "" }: VeDichAudien
                 clearAnswer();
                 setVideoPlayState(null);
                 break;
-            case "play_video":
-                setVideoPlayState("playing");
+            case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
                 break;
-            case "pause_video":
-                setVideoPlayState("paused");
-                break;
-            case "send_answers_to_players":
+                case "send_answers_to_players":
                 applyAnswers(msg);
                 break;
             case "buzz":

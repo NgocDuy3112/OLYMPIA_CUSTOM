@@ -74,15 +74,10 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 
-			case "play_video":
-				setVideoPlayState("playing");
-				break;
-
-			case "pause_video":
-				setVideoPlayState("paused");
-				break;
-
-			case "vd_power_activated":
+			case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
+                break;
+                case "vd_power_activated":
 				setActivePower((msg.power as "star" | "shield") ?? null);
 				break;
 

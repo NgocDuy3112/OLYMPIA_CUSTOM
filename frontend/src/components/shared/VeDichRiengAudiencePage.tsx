@@ -77,13 +77,10 @@ export function VeDichRiengAudiencePage({ Layout }: VeDichAudiencePageProps) {
                 clearAnswer();
                 setVideoPlayState(null);
                 break;
-            case "play_video":
-                setVideoPlayState("playing");
+            case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
                 break;
-            case "pause_video":
-                setVideoPlayState("paused");
-                break;
-            case "answering_window_activated":
+                case "answering_window_activated":
                 setAnsweringWindowTimer(msg.countdown ?? 5);
                 break;
             case "vd_player_power": {

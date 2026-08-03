@@ -115,7 +115,7 @@ const AVeDichChungPage = () => {
 			media_source: question.questionMediaURL ?? undefined,
 		});
 		if (question.questionMediaURL) {
-			void sendMessage({ type: "play_video" });
+			void sendMessage({ type: "media_control", action: "play" });
 			setVideoPlayState("playing");
 		}
 		pendingQuestionRef.current = null;
@@ -734,7 +734,7 @@ const AVeDichChungPage = () => {
 							} catch {  }
 							if (currentQuestion.questionMediaURL) {
 								try {
-									await sendMessage({ type: "play_video" });
+									await sendMessage({ type: "media_control", action: "play" });
 								} catch {  }
 							}
 						}

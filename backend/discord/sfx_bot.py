@@ -276,6 +276,11 @@ async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
     global _current_phase
     msg_type = message.get("type", "")
+    if msg_type == "match_state":
+        msg_type = {
+            "open": "open_match",
+            "ended": "end_match",
+        }.get(message.get("state", ""), "")
     logger.debug(f"Received event: type={msg_type!r} keys={list(message.keys())}")
 
     # Track current game phase from navigate events and clear queue on phase change

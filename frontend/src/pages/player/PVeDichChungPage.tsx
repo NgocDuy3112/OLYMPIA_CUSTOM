@@ -79,15 +79,10 @@ const PVeDichChungPage = () => {
 				break;
 			}
 
-			case "play_video":
-				setVideoPlayState("playing");
-				break;
-
-			case "pause_video":
-				setVideoPlayState("paused");
-				break;
-
-			case "player_score_updated":
+			case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
+                break;
+                case "player_score_updated":
 				applyScoreUpdate(msg);
 				break;
 

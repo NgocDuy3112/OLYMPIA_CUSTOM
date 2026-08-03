@@ -37,7 +37,7 @@ const GuestAutoNavigator: React.FC = () => {
 
         const msgType = msg?.type ?? "";
 
-        if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
+        if (msgType === "match_state") {
             const target = matchCode ? `/guest/waiting/${matchCode}` : "/guest/waiting";
             if (location.pathname !== target) {
                 navigate(target, { replace: true });

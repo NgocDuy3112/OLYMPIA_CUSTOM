@@ -38,7 +38,7 @@ const MCAutoNavigator: React.FC = () => {
 
         const msgType = msg?.type ?? "";
 
-        if (msgType === "end_match" || msgType === "open_match" || msgType === "finish_match") {
+        if (msgType === "match_state") {
             const target = matchCode ? `/mc/waiting/${matchCode}` : "/mc/waiting";
             if (location.pathname !== target) {
                 navigate(target, { replace: true });

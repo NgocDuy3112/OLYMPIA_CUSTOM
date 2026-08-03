@@ -46,17 +46,10 @@ const PButPhaPage = () => {
 				break;
 			}
 
-			case "play_video": {
-				setVideoPlayState("playing");
-				break;
-			}
-
-			case "pause_video": {
-				setVideoPlayState("paused");
-				break;
-			}
-
-			case "start_the_timer": {
+			case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
+                break;
+                case "start_the_timer": {
 				const timeLimitNum = Number(msg.time_limit ?? 0);
 				const startedAtNum = typeof msg.started_at === 'string' ? parseInt(msg.started_at, 10) : Number(msg.started_at ?? Date.now());
 				console.info("[TIMER] start_the_timer received:", { time_limit: timeLimitNum, started_at: startedAtNum, started_at_raw: msg.started_at, now: Date.now() });

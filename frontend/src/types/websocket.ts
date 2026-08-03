@@ -23,6 +23,7 @@ export interface WebSocketMessage extends WebSocketPayload {
   hint_content?: string;
   hint_media_source?: string;
   state?: string;
+  action?: "play" | "pause";
   power?: "star" | "shield";
   phase?: string;
   time_limit?: number | string;
