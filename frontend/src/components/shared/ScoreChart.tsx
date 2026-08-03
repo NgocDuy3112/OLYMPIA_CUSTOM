@@ -41,7 +41,7 @@ function labelFor(code: string) {
     if (/^(KĐ|GM|BP|VĐ)_/.test(code)) return code;
     const value = code.replace(/^OC3_Q_/, "");
     const parts = value.split("_");
-    if (parts[0] === "KD" && parts.length >= 3) return parts[1] === "C" ? `KĐ_C_${parts[2]}` : `KĐ_${parts[1]}`;
+    if (parts[0] === "KD" && parts.length >= 2) return parts[1] === "C" ? `KĐ_C_${parts.slice(2).join("_")}` : `KĐ_${parts.slice(1).join("_")}`;
     return value.replace("KD_C", "KĐC").replace("GM", "GM").replace("BP", "BP").replace("VD", "VĐ");
 }
 
@@ -96,8 +96,9 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
         return COLORS[(playerIndex >= 0 ? playerIndex : fallbackIndex) % COLORS.length];
     };
     const recordedLabels = codes.flatMap((code) => chartData[code].map((point) => point.question_code));
+    const recordedGroups = new Set(recordedLabels.map((code) => groupFor(labelFor(code))));
     const labels = Array.from(new Set([
-        ...questionLabels.filter((code) => ["KĐ", "BP"].includes(groupFor(labelFor(code)))).map(labelFor),
+        ...questionLabels.filter((code) => recordedGroups.has(groupFor(labelFor(code)))).map(labelFor),
         ...recordedLabels.map(labelFor),
     ]));
     const groupOrder = ["KĐ", "GM", "BP", "VĐ", "ĐIỀU CHỈNH"];
@@ -149,7 +150,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                     {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /></g>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
-                        const pointDetails = labels.map((label) => points.find((point) => labelFor(point.question_code) === label));
+                        const pointDetails = labels.map((label) => points.filter((point) => labelFor(point.question_code) === label).at(-1));
                         let lastScore = 0;
                         const values = pointDetails.map((point) => {
                             if (point) lastScore = point.cumulative_score;
