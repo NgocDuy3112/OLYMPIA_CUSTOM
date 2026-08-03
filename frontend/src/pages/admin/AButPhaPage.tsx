@@ -2,7 +2,7 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
-import { AlarmClockCheck, Calculator, Eye, Play, Power } from "lucide-react";
+import { AlarmClockCheck, Calculator, Eye, Power } from "lucide-react";
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -244,36 +244,6 @@ const AButPhaPage = () => {
 	}, [currentMatchCode, sendMessage]);
 
 	useEffect(() => { setHasAddedScore(false); }, [currentQuestionIndex]);
-
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestionIndex(0);
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		await clearQuestion();
-
-		if (!currentMatchCode) { return; }
-		try {
-			try {
-				await sendMessage({ type: "round_start", round: "bp" });
-			} catch (err) {
-				logger.error("Failed to start round via WS:", err);
-			}
-
-			try {
-				await sendMessage({ type: "navigate", user_code: "", path: "/player/bp" });
-			} catch (err) {
-				logger.error("Failed to send navigate on start:", err);
-			}
-
-			try {
-				await sendPlayersSnapshot();
-			} catch (err) {
-				logger.error("Failed to send players snapshot on start:", err);
-			}
-		} catch (error) {
-			logger.error("Failed to start round via WS:", error);
-		}
-	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -663,15 +633,6 @@ const AButPhaPage = () => {
 			topControlButtons={null}
 			bottomActionButtons={
 				<>
-					<AControlButton
-						onClick={() => {
-							void handleStartRound();
-						}}
-						disabled={timer > 0}
-					>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
 					<AControlButton
 						onClick={() => {
 							void handleEndRound();

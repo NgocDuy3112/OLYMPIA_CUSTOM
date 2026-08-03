@@ -11,7 +11,6 @@ import {
 	Lightbulb,
 	KeyRound,
 	SendToBack,
-	Play,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -146,6 +145,8 @@ const AGiaiMaPage = () => {
 	const [hideQuestionContent, setHideQuestionContent] = useState(false);
 
 	const [isKeywordTimerRunning, setIsKeywordTimerRunning] = useState(false);
+	const [timedClueCodes, setTimedClueCodes] = useState<Set<string>>(new Set());
+	const [keywordTimerStarted, setKeywordTimerStarted] = useState(false);
 
 	const [keywordSubmissions, setKeywordSubmissions] = useState<
 		Record<string, { text: string; cluesOpened?: number }>
@@ -743,39 +744,6 @@ const AGiaiMaPage = () => {
 		}
 	}, [currentMatchCode, sendMessage]);
 
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		setIsTimerRunning(false);
-		setActiveClueIndex(null);
-		setClueStates(Array(CLUE_COUNT).fill("idle"));
-		setRevealedHints({});
-		setCorrectClues(new Set());
-		setPendingClueAction(false);
-		setSelectedPlayerCodes([]);
-		setKeywordSubmissions({});
-		setKeywordAnswerRevealed(false);
-		setKeywordRevealedCodes(new Set());
-		setHasAddedKeywordScore(false);
-		setKeywordPhaseActive(false);
-		setKeywordCluesLocked(false);
-		setTotalOpenedCluesCount(0);
-		setHideQuestionContent(false);
-		setIsKeywordTimerRunning(false);
-		keywordLockedSentRef.current = false;
-		await clearQuestion();
-		if (!currentMatchCode) { return; }
-		try {
-			await sendMessage({ type: "round_start", round: "gm" });
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/gm" });
-
-			await broadcastKeywordInfo();
-			await sendPlayersSnapshot();
-		} catch (err) {
-			logger.error("handleStartRound failed:", err);
-		}
-	}, [broadcastKeywordInfo, clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
-
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
@@ -795,6 +763,8 @@ const AGiaiMaPage = () => {
 	}, [clearQuestion, currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
+		if (!currentQuestion.questionCode || isTimerRunning || timedClueCodes.has(currentQuestion.questionCode)) return;
+		setTimedClueCodes((prev) => new Set(prev).add(currentQuestion.questionCode));
 		setSelectedPlayerCodes([]);
 		setKeywordRevealedCodes(new Set());
 		setIsKeywordTimerRunning(false);
@@ -821,10 +791,11 @@ const AGiaiMaPage = () => {
 				started_at: Date.now(),
 			});
 		}
-	}, [currentMatchCode, currentQuestion.questionCode, sendMessage]);
+	}, [currentMatchCode, currentQuestion.questionCode, isTimerRunning, sendMessage, timedClueCodes]);
 
 	const startKeywordTimer = useCallback(async () => {
-		if (!keywordPhaseActive || isTimerRunning || isKeywordTimerRunning || !currentMatchCode) return;
+		if (!keywordPhaseActive || isTimerRunning || isKeywordTimerRunning || keywordTimerStarted || !currentMatchCode) return;
+		setKeywordTimerStarted(true);
 		setIsKeywordTimerRunning(true);
 		setTimer(15);
 		setIsTimerRunning(true);
@@ -834,7 +805,7 @@ const AGiaiMaPage = () => {
 			user_code: "",
 			phase: "gm_keyword",
 			time_limit: 15,
-			question_code: currentQuestion.questionCode,
+			question_code: KEYWORD_QUESTION_CODE,
 			started_at: Date.now(),
 		});
 
@@ -843,7 +814,7 @@ const AGiaiMaPage = () => {
 			user_code: "",
 			total_clues: CLUE_COUNT,
 		});
-	}, [keywordPhaseActive, isTimerRunning, isKeywordTimerRunning, currentMatchCode, currentQuestion.questionCode, sendMessage]);
+	}, [keywordPhaseActive, isTimerRunning, isKeywordTimerRunning, keywordTimerStarted, currentMatchCode, sendMessage]);
 
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -1164,10 +1135,6 @@ const AGiaiMaPage = () => {
 			topControlButtons={null}
 			bottomActionButtons={
 				<>
-					<AControlButton onClick={() => { void handleStartRound(); }} disabled={isTimerRunning || isKeywordTimerRunning}>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
 					<AControlButton onClick={() => { void handleEndRound(); }} disabled={isTimerRunning || isKeywordTimerRunning}>
 						<Power size={18} />
 						<span className="ml-2 font-bold">KẾT THÚC</span>

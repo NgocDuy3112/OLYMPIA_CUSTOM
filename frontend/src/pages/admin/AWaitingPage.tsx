@@ -189,21 +189,24 @@ const AWaitingPage = () => {
 	}, [currentMatchCode, sendMessage, sendPlayersSnapshot, setMatchFinished, token]);
 
 	const broadcastNavigate = useCallback(
-		(adminPath: string, playerPath: string) => {
+		async (adminPath: string, playerPath: string, round: string) => {
 			if (!currentMatchCode) return;
+			await sendMessage({ type: "round_start", round });
+			await sendMessage({ type: "clear_question", user_code: "" });
 			navigate(`${adminPath}/${currentMatchCode}`);
-			void sendMessage({ type: "navigate", user_code: "", path: `${playerPath}/${currentMatchCode}` });
+			await sendMessage({ type: "navigate", user_code: "", path: `${playerPath}/${currentMatchCode}` });
+			await sendPlayersSnapshot();
 		},
-		[currentMatchCode, navigate, sendMessage],
+		[currentMatchCode, navigate, sendMessage, sendPlayersSnapshot],
 	);
 
-	const handleNavigateToKDC = useCallback(() => broadcastNavigate("/admin/kdc", "/player/kdc"), [broadcastNavigate]);
-	const handleNavigateToKDR = useCallback(() => broadcastNavigate("/admin/kdr", "/player/kdr"), [broadcastNavigate]);
-	const handleNavigateToBP = useCallback(() => broadcastNavigate("/admin/bp", "/player/bp"), [broadcastNavigate]);
-	const handleNavigateToVDC = useCallback(() => broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick"), [broadcastNavigate]);
-	const handleNavigateToVDR = useCallback(() => broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick"), [broadcastNavigate]);
-	const handleNavigateToGM = useCallback(() => broadcastNavigate("/admin/gm", "/player/gm"), [broadcastNavigate]);
-	const handleNavigateToWaiting = useCallback(() => broadcastNavigate("/admin/waiting", "/player/waiting"), [broadcastNavigate]);
+	const handleNavigateToKDC = useCallback(() => { void broadcastNavigate("/admin/kdc", "/player/kdc", "kdc"); }, [broadcastNavigate]);
+	const handleNavigateToKDR = useCallback(() => { void broadcastNavigate("/admin/kdr", "/player/kdr", "kdr"); }, [broadcastNavigate]);
+	const handleNavigateToBP = useCallback(() => { void broadcastNavigate("/admin/bp", "/player/bp", "bp"); }, [broadcastNavigate]);
+	const handleNavigateToVDC = useCallback(() => { void broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick", "vdc"); }, [broadcastNavigate]);
+	const handleNavigateToVDR = useCallback(() => { void broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick", "vdr"); }, [broadcastNavigate]);
+	const handleNavigateToGM = useCallback(() => { void broadcastNavigate("/admin/gm", "/player/gm", "gm"); }, [broadcastNavigate]);
+	const handleNavigateToWaiting = useCallback(() => { void broadcastNavigate("/admin/waiting", "/player/waiting", "waiting"); }, [broadcastNavigate]);
 
 	if (!currentMatchCode) {
 		return null;

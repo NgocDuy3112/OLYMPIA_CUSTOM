@@ -2,7 +2,7 @@
 
 import { startTransition, useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { CheckCircle, RotateCcw, Play, RefreshCw } from "lucide-react";
+import { CheckCircle, RotateCcw, RefreshCw } from "lucide-react";
 import AVeDichPickLayout from "@/pages/admin/AVeDichPickLayout";
 import APlayerBar from "@/components/admin/APlayerBar";
 import AControlButton from "@/components/admin/AControlButton";
@@ -441,63 +441,8 @@ const AVeDichPickQuestion = () => {
 		}
 	}, [currentMatchCode, questions, selectedQuestionCodes, isChung, sendMessage]);
 
-	const handleStartRound = useCallback(() => {
-
-		const allCodes = questions.length > 0
-			? questions.map((q) => q.questionCode)
-			: placeholderQuestions.map((q) => q.questionCode);
-
-		let mergedUsed = [...usedQuestionCodes];
-		try {
-			const storedUsed = localStorage.getItem(`vd_used_codes_${currentMatchCode}`);
-			if (storedUsed) {
-				const usedCodes = JSON.parse(storedUsed) as string[];
-				mergedUsed = [...new Set([...mergedUsed, ...usedCodes])];
-
-				setUsedQuestionCodes(mergedUsed);
-			}
-		} catch {  }
-
-		sendMessage({
-			type: "vd_selection_update",
-			match_code: currentMatchCode,
-			round: isChung ? "chung" : "rieng",
-			selected_question_codes: selectedQuestionCodes,
-			all_question_codes: allCodes,
-			used_question_codes: mergedUsed,
-			silent: true,
-		});
-
-		if (currentMatchCode && allCodes.length > 0) {
-			localStorage.setItem(`vd_pick_all_codes_${currentMatchCode}`, JSON.stringify(allCodes));
-		}
-		if (currentMatchCode) {
-			try {
-				localStorage.setItem(
-					`vd_used_codes_${currentMatchCode}`,
-					JSON.stringify(mergedUsed),
-				);
-			} catch {  }
-		}
-
-		const pickPath = isChung ? "/player/vdc/pick" : "/player/vdr/pick";
-		sendMessage({ type: "navigate", user_code: "", path: pickPath });
-
-		sendMessage({ type: "round_start", round: isChung ? "vdc" : "vdr" });
-
-		void loadPlayersState();
-	}, [currentMatchCode, questions, placeholderQuestions, usedQuestionCodes, selectedQuestionCodes, isChung, sendMessage, loadPlayersState]);
-
 	const topControlButtons = (
 		<>
-			<AControlButton
-				onClick={handleStartRound}
-				disabled={isLoading && questions.length === 0}
-			>
-				<Play size={18} />
-				<span className="ml-2 font-bold">BẮT ĐẦU</span>
-			</AControlButton>
-
 			<AControlButton
 				onClick={handleConfirmSelection}
 				disabled={selectedQuestionCodes.length !== requiredCount || requiredCount === 0 || isLoading}

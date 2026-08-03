@@ -16,6 +16,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useQuestionTimerLock } from "@/hooks/useQuestionTimerLock";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
@@ -169,6 +170,7 @@ const AVeDichRiengPage = () => {
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
 	const [answeringWindowTimer, setAnsweringWindowTimer] = useState<number>(0);
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const wasTimerRunningRef = useRef<boolean>(false);
@@ -436,7 +438,8 @@ const AVeDichRiengPage = () => {
 	);
 
 	const startTheClock = useCallback(() => {
-		if (!currentQuestion.questionCode || isTimerRunning) return;
+		if (!currentQuestion.questionCode || isTimerRunning || isTimerLocked) return;
+		lockTimer();
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
 		setAnsweringWindowTimer(0);
@@ -455,7 +458,7 @@ const AVeDichRiengPage = () => {
 				started_at: Date.now(),
 			});
 		}
-	}, [currentQuestion.questionCode, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
+	}, [currentQuestion.questionCode, isTimerRunning, isTimerLocked, lockTimer, currentPoints, currentMatchCode, sendMessage]);
 
 	useEffect(() => {
 		timerRef.current = timer;
@@ -682,24 +685,6 @@ const AVeDichRiengPage = () => {
 			});
 		}
 	}, [timer, currentMatchCode, sendMessage]);
-
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		setIsTimerRunning(false);
-
-		lastBuzzerQuestionRef.current = null;
-		setBuzzerWinnerCode(null);
-		setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
-		if (!currentMatchCode) return;
-		try {
-			await sendMessage({ type: "round_start", round: "vdr" });
-			await sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
-			await sendPlayersSnapshot();
-		} catch (err) {
-			logger.error("handleStartRound failed:", err);
-		}
-	}, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -1060,7 +1045,7 @@ const AVeDichRiengPage = () => {
 				<>
 					<AControlButton
 						onClick={startTheClock}
-						disabled={!currentQuestion.questionCode || isTimerRunning || !currentTurnPlayerCode}
+						disabled={!currentQuestion.questionCode || isTimerRunning || isTimerLocked || !currentTurnPlayerCode}
 						title={!currentTurnPlayerCode ? 'Vui lòng chọn thí sinh trước' : undefined}
 					>
 						<AlarmClockCheck size={18} />
@@ -1102,13 +1087,6 @@ const AVeDichRiengPage = () => {
 			}
 			bottomActionButtons={
 				<>
-					<AControlButton
-						onClick={() => { void handleStartRound(); }}
-						disabled={isTimerRunning}
-					>
-						<Power size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
 					<AControlButton
 						onClick={() => navigate(`/admin/vdr/pick/${currentMatchCode ?? ""}`)}
 						disabled={isTimerRunning}

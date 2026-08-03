@@ -16,6 +16,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useQuestionTimerLock } from "@/hooks/useQuestionTimerLock";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
@@ -135,6 +136,7 @@ const AVeDichChungPage = () => {
 	const [timer, setTimer] = useState<number>(0);
 	const timerRef = useRef<number>(0);
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
@@ -413,7 +415,8 @@ const AVeDichChungPage = () => {
 	);
 
 	const startTheClock = useCallback(() => {
-		if (!currentQuestion.questionCode || isTimerRunning) return;
+		if (!currentQuestion.questionCode || isTimerRunning || isTimerLocked) return;
+		lockTimer();
 		const timeLimit = getTimeLimitForPoints(currentPoints);
 		setTimer(timeLimit);
 		setIsTimerRunning(true);
@@ -428,7 +431,7 @@ const AVeDichChungPage = () => {
 			});
 
 		}
-	}, [currentQuestion.questionCode, isTimerRunning, currentPoints, currentMatchCode, sendMessage]);
+	}, [currentQuestion.questionCode, isTimerRunning, isTimerLocked, lockTimer, currentPoints, currentMatchCode, sendMessage]);
 
 	useEffect(() => {
 		timerRef.current = timer;
@@ -891,7 +894,7 @@ const AVeDichChungPage = () => {
 				<>
 					<AControlButton
 						onClick={startTheClock}
-						disabled={!currentQuestion.questionCode || isTimerRunning}
+						disabled={!currentQuestion.questionCode || isTimerRunning || isTimerLocked}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>

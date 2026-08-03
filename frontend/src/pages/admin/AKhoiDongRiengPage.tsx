@@ -3,7 +3,6 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-	Play,
 	AlarmClockCheck,
 	Plus,
 	Power,
@@ -259,38 +258,6 @@ const AKhoiDongRiengPage = () => {
 			logger.error("Failed to clear question via WS:", error);
 		}
 	}, [currentMatchCode, sendMessage]);
-
-	const handleStartRound = useCallback(async () => {
-		setCurrentQuestionIndex(0);
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		setTimer(0);
-		setIsPlayerLocked(false);
-
-		await clearQuestion();
-
-		if (!currentMatchCode) return;
-		try {
-			try {
-				await sendMessage({ type: "round_start", round: "kdr" });
-			} catch (err) {
-				logger.error("Failed to start round:", err);
-			}
-
-			try {
-				await sendMessage({ type: "navigate", user_code: "", path: "/player/kdr" });
-			} catch (err) {
-				logger.error("Failed to send navigate on start:", err);
-			}
-
-			try {
-				await sendPlayersSnapshot();
-			} catch (err) {
-				logger.error("Failed to send players snapshot on start:", err);
-			}
-		} catch (error) {
-			logger.error("Failed to start round via WS:", error);
-		}
-	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -871,13 +838,6 @@ const AKhoiDongRiengPage = () => {
 			topControlButtons={null}
 			bottomActionButtons={
 				<>
-					<AControlButton
-						onClick={() => { handleStartRound() }}
-						disabled={isTimerRunning}
-					>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
-					</AControlButton>
 					<AControlButton
 						onClick={() => { handleEndRound() }}
 						disabled={isTimerRunning}
