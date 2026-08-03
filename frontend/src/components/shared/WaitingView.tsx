@@ -26,7 +26,7 @@ export function WaitingView({
   currentPlayerCode,
   chartData,
   questionLabels,
-  showChart = false,
+  showChart = true,
 }: WaitingViewProps) {
   const [hoveredPlayerCode, setHoveredPlayerCode] = useState<string | null>(null);
 

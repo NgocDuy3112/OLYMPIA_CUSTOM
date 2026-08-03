@@ -14,7 +14,6 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
   const [matchFinished, setMatchFinished] = useState(false);
   const [chartData, setChartData] = useState<Record<string, { question_code: string; points: number; cumulative_score: number }[]>>({});
   const [questionLabels, setQuestionLabels] = useState<string[]>([]);
-  const [showChart, setShowChart] = useState(false);
 
   useEffect(() => {
     const message = unwrapWebSocketMessage(lastMessage);
@@ -38,11 +37,7 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
           ));
           setLoaded(true);
           break;
-        case "show_scoreboard":
-          setShowChart(true);
-          break;
         case "score_chart_snapshot":
-          setShowChart(true);
           if (Array.isArray(message.question_labels)) setQuestionLabels(message.question_labels.map(String));
           if (message.chart_data && typeof message.chart_data === "object") {
             setChartData(message.chart_data as Record<string, { question_code: string; points: number; cumulative_score: number }[]>);
@@ -74,5 +69,5 @@ export function useWaitingState(lastMessage: WebSocketMessage | null) {
     };
   }, [lastMessage]);
 
-  return { matchName, players, setPlayers, loaded, matchFinished, setMatchFinished, chartData, questionLabels, showChart };
+  return { matchName, players, setPlayers, loaded, matchFinished, setMatchFinished, chartData, questionLabels };
 }

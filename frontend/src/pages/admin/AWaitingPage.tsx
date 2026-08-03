@@ -28,7 +28,6 @@ const AWaitingPage = () => {
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
 	const { lastMessage, sendMessage } = useGameWebSocket();
 	const [hoveredPlayerCode, setHoveredPlayerCode] = useState<string | null>(null);
-	const [isScoreboardAnimationRunning, setIsScoreboardAnimationRunning] = useState(false);
 
 	useEffect(() => {
 		logger.info("AWaitingPage mounted:", { urlMatchCode, storedMatchCode, currentMatchCode });
@@ -52,26 +51,7 @@ const AWaitingPage = () => {
 		}
 	}, [currentMatchCode, navigate]);
 
-	const { players, setPlayers, matchFinished, setMatchFinished, chartData, questionLabels, showChart } = useWaitingState(lastMessage);
-
-	const playerCodesKey = players.map((player) => player.playerCode).join("|");
-
-	useEffect(() => {
-		const animationPlayerCodes = playerCodesKey ? playerCodesKey.split("|") : [];
-		if (!isScoreboardAnimationRunning || animationPlayerCodes.length === 0) return;
-		let playerIndex = 0;
-		setHoveredPlayerCode(animationPlayerCodes[0]);
-		const timer = window.setInterval(() => {
-			playerIndex += 1;
-			if (playerIndex >= animationPlayerCodes.length) {
-				setIsScoreboardAnimationRunning(false);
-				setHoveredPlayerCode(null);
-				return;
-			}
-			setHoveredPlayerCode(animationPlayerCodes[playerIndex]);
-		}, 4000);
-		return () => window.clearInterval(timer);
-	}, [isScoreboardAnimationRunning, playerCodesKey]);
+	const { players, setPlayers, matchFinished, setMatchFinished, chartData, questionLabels } = useWaitingState(lastMessage);
 	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
 	const [isOpeningMatch, setIsOpeningMatch] = useState(false);
@@ -176,7 +156,6 @@ const AWaitingPage = () => {
 	const handleShowScoreboard = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setIsShowingScoreboard(true);
-		setIsScoreboardAnimationRunning(true);
 		try {
 			await sendMessage({ type: "show_scoreboard" });
 		} catch (err) {
@@ -265,8 +244,7 @@ const AWaitingPage = () => {
 								isHovered={hoveredPlayerCode === player.playerCode}
 								isDimmed={hoveredPlayerCode !== null && hoveredPlayerCode !== player.playerCode}
 								onHover={setHoveredPlayerCode}
-								hoverDisabled={isScoreboardAnimationRunning}
-								accentColor={PLAYER_COLORS[index % PLAYER_COLORS.length]}
+																accentColor={PLAYER_COLORS[index % PLAYER_COLORS.length]}
 							/>
 						))}
 					</div>
@@ -295,7 +273,7 @@ const AWaitingPage = () => {
 
 						<AControlButton
 							onClick={handleShowScoreboard}
-							disabled={isShowingScoreboard || isScoreboardAnimationRunning || !currentMatchCode || matchFinished}
+							disabled={isShowingScoreboard || !currentMatchCode || matchFinished}
 							className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
 						>
 							<Trophy size={18} />
@@ -325,12 +303,6 @@ const AWaitingPage = () => {
 
 				{}
 				<div className="flex flex-col gap-4 w-full max-w-7xl">
-				{matchFinished && showChart && Object.keys(chartData).length > 0 && (
-					<div className="w-full flex justify-center">
-						<ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />
-					</div>
-				)}
-
 				<p className="text-white/60 text-xs uppercase tracking-widest text-center">Vòng chơi</p>
 				<div className={`flex flex-wrap gap-4 items-center justify-center${matchFinished ? " pointer-events-none opacity-50" : ""}`}>
 						<AControlButton
@@ -379,7 +351,7 @@ const AWaitingPage = () => {
 					</div>
 				</div>
 
-				{!matchFinished && showChart && Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} focusMode={isScoreboardAnimationRunning} />}
+				{Object.keys(chartData).length > 0 && <ScoreChart players={players} chartData={chartData} questionLabels={questionLabels} hoveredPlayerCode={hoveredPlayerCode} onPlayerHover={setHoveredPlayerCode} />}
 			</div>
 		</div>
 	);
