@@ -4,7 +4,7 @@ import type { PlayerStatus } from "@/types/player";
 interface ChartPoint {
     question_code: string;
     points: number;
-    cummulative_score: number;
+    cumulative_score: number;
 }
 
 type ChartData = Record<string, ChartPoint[]>;
@@ -118,7 +118,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
     const width = 560;
     const height = 260;
     const padding = { top: 20, right: 18, bottom: 70, left: 42 };
-    const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cummulative_score));
+    const scoreValues = codes.flatMap((code) => chartData[code].map((point) => point.cumulative_score));
     const minScore = Math.min(0, ...scoreValues);
     const maxScore = Math.max(0, ...scoreValues);
     const scoreRange = Math.max(1, maxScore - minScore);
@@ -151,10 +151,10 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                     {labels.map((code, index) => <g key={code}><line x1={x(index)} x2={x(index)} y1={padding.top} y2={height - padding.bottom} stroke="rgba(148,163,184,.16)" strokeDasharray="3 5" /></g>)}
                     {codes.map((code, playerIndex) => {
                         const points = chartData[code];
-                        const pointDetails = labels.map((label) => points.filter((point) => labelFor(point.question_code) === label).reduce<ChartPoint | undefined>((latest, point) => !latest || point.cummulative_score >= latest.cummulative_score ? point : latest, undefined));
+                        const pointDetails = labels.map((label) => points.filter((point) => labelFor(point.question_code) === label).reduce<ChartPoint | undefined>((latest, point) => !latest || point.cumulative_score >= latest.cumulative_score ? point : latest, undefined));
                         let lastScore = 0;
                         const values = pointDetails.map((point) => {
-                            if (point) lastScore = point.cummulative_score;
+                            if (point) lastScore = point.cumulative_score;
                             return lastScore;
                         });
                         const path = values.reduce((result, value, index) => value == null ? result : `${result}${result ? " L" : "M"}${x(index)} ${y(value)}`, "");
@@ -172,7 +172,7 @@ export default function ScoreChart({ players, chartData, questionLabels = [], ho
                             const points = chartData[code];
                             const detail = labels.slice(0, hoveredPoint.index + 1).map((label) => points.find((point) => labelFor(point.question_code) === label)).reverse().find(Boolean);
                             const current = points.find((point) => labelFor(point.question_code) === labels[hoveredPoint.index]);
-                            return { code, playerIndex, detail, current, value: detail?.cummulative_score ?? 0 };
+                            return { code, playerIndex, detail, current, value: detail?.cumulative_score ?? 0 };
                         });
                         const active = rows.find((row) => row.code === hoveredPoint.playerCode);
                         if (!active?.detail) return null;

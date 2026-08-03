@@ -123,7 +123,7 @@ const AGameManagingPage = () => {
     const [editEmail, setEditEmail] = useState("");
     const [savingEdit, setSavingEdit] = useState(false);
 
-    const [scoreboard, setScoreboard] = useState<{ user_code: string; user_name: string; cummulative_score: number }[]>([]);
+    const [scoreboard, setScoreboard] = useState<{ user_code: string; user_name: string; cumulative_score: number }[]>([]);
     const [scoreboardLoading, setScoreboardLoading] = useState(false);
     const [editingScoreUser, setEditingScoreUser] = useState<string | null>(null);
     const [editScoreValue, setEditScoreValue] = useState("");
@@ -533,7 +533,7 @@ const AGameManagingPage = () => {
             });
             const json: ApiResponse = await res.json();
             if (json.status === "success" && json.data) {
-                const list = (json.data as { scoreboard?: { user_code: string; user_name: string; cummulative_score: number }[] }).scoreboard ?? [];
+                const list = (json.data as { scoreboard?: { user_code: string; user_name: string; cumulative_score: number }[] }).scoreboard ?? [];
                 setScoreboard(list);
             } else {
                 setScoreboard([]);
@@ -567,7 +567,7 @@ const AGameManagingPage = () => {
             });
             const json: ApiResponse = await res.json();
             if (json.status === "success" && json.data) {
-                const list = (json.data as { scoreboard?: { user_code: string; user_name: string; cummulative_score: number }[] }).scoreboard ?? [];
+                const list = (json.data as { scoreboard?: { user_code: string; user_name: string; cumulative_score: number }[] }).scoreboard ?? [];
                 setScoreboard(list);
                 setEditingScoreUser(null);
                 setEditScoreValue("");
@@ -582,7 +582,7 @@ const AGameManagingPage = () => {
                     const playersSnapshot = list.map((entry) => ({
                         user_code: entry.user_code,
                         user_name: entry.user_name,
-                        cummulative_score: entry.cummulative_score,
+                        cumulative_score: entry.cumulative_score,
                     }));
                     await sendMessage({
                         type: "send_players_info",
@@ -1444,7 +1444,7 @@ const AGameManagingPage = () => {
                                                     autoFocus
                                                 />
                                             ) : (
-                                                entry.cummulative_score
+                                                entry.cumulative_score
                                             )}
                                         </td>
                                         <td className="py-2 px-2 text-right">
@@ -1466,7 +1466,7 @@ const AGameManagingPage = () => {
                                                 </div>
                                             ) : (
                                                 <button
-                                                    onClick={() => { setEditingScoreUser(entry.user_code); setEditScoreValue(String(entry.cummulative_score)); }}
+                                                    onClick={() => { setEditingScoreUser(entry.user_code); setEditScoreValue(String(entry.cumulative_score)); }}
                                                     className="p-1.5 rounded bg-white-600/70 hover:bg-white-500 transition-colors"
                                                     title="Sửa điểm"
                                                 >

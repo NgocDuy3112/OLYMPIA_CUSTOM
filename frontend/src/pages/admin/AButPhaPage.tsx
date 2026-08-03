@@ -144,13 +144,13 @@ const AButPhaPage = () => {
 				const scoreEntry = (scoreList ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
 
 				const cumulativeScore =
-					scoreEntry?.cummulative_score ?? scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
+					scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
 
 				return {
 					user_code: userCode,
 					user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
 					position: p?.position ?? p?.pos ?? undefined,
-					cummulative_score: cumulativeScore,
+					cumulative_score: cumulativeScore,
 				};
 			});
 

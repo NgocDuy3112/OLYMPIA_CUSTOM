@@ -144,7 +144,7 @@ const AVeDichPickQuestion = () => {
 				return {
 					user_code: userCode,
 					user_name: (profile as any)?.user_name ?? p?.user_name ?? (scoreEntry as any)?.user_name ?? "",
-					cummulative_score: (scoreEntry as any)?.cummulative_score ?? (scoreEntry as any)?.cummulative_score ?? (scoreEntry as any)?.total_score ?? 0,
+					cumulative_score: (scoreEntry as any)?.cumulative_score ?? (scoreEntry as any)?.cumulative_score ?? (scoreEntry as any)?.total_score ?? 0,
 				};
 			});
 			sendMessage({ type: "send_players_info", players: mergedPlayers });

@@ -2,7 +2,7 @@ import type { RawScore } from "@/utils/playerHelpers";
 
 export function getScoreValue(score: RawScore | null | undefined): number | undefined {
     if (!score) return undefined;
-    const value = score.cummulative_score ?? score.total_score ?? score.score;
+    const value = score.cumulative_score ?? score.total_score ?? score.score;
     return typeof value === "number" ? value : undefined;
 }
 

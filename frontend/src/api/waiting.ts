@@ -57,7 +57,7 @@ export function buildWaitingBroadcastPlayers(snapshot: WaitingSnapshot): RawPlay
       user_code: code,
       user_name: profile?.user_name ?? player.user_name ?? score?.user_name ?? "",
       position: player.position,
-      cummulative_score: score?.cummulative_score ?? score?.total_score ?? score?.score ?? 0,
+      cumulative_score: score?.cumulative_score ?? score?.total_score ?? score?.score ?? 0,
     };
   });
 }

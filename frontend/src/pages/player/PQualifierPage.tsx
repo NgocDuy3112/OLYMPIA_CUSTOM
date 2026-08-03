@@ -148,10 +148,10 @@ const PQualifierPage = () => {
                         }
                     }
                     let scoreVal = 0;
-                    if (typeof p?.cummulative_score === "number") scoreVal = p.cummulative_score;
+                    if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
                     else {
                         const scoreEntry = scoreboard.find((s: any) => String(s?.user_code) === code);
-                        scoreVal = scoreEntry?.cummulative_score ?? scoreEntry?.total_score ?? 0;
+                        scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? 0;
                     }
                     return { playerCode: code, playerName: name, playerScore: scoreVal };
                 });

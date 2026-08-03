@@ -4,22 +4,24 @@ import { getScoreValue } from "@/utils/scoreHelpers";
 export interface RawPlayer {
   user_code?: string | number;
   user_name?: string;
-  cummulative_scorer;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
+  position?: number;
   is_current?: boolean;
   isCurrent?: boolean;
   is_selected?: boolean;
   selected?: boolean;
 }
+
 export interface RawScore {
-  cummulative_scoreng | number;
+  user_code?: string | number;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
   user_name?: string;
 }
+
 export interface RawProfile {
   user_code?: string | number;
   user_name?: string;
@@ -45,8 +47,8 @@ export function normalizePlayerSnapshot(payload: PlayerSnapshotPayload): {
 
 export function buildPlayersSnapshot(
   playersList: RawPlayer[],
-  scoreboard: RawScore[] = [],cummulative_score
-  profiles: Rawcummulative_score
+  scoreboard: RawScore[] = [],
+  profiles: RawProfile[] = [],
   previousPlayers: PlayerStatus[] = [],
 ): PlayerStatus[] {
   if (!playersList?.length) return previousPlayers;
@@ -62,11 +64,7 @@ export function buildPlayersSnapshot(
       const previous = previousPlayers.find((p) => p.playerCode === code);
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
-
-      const playerScore =
-        getScoreValue(scoreInfo) ??
-        getScoreValue(entry) ??
-        previous?.playerScore ?? 0;
+      const playerScore = getScoreValue(scoreInfo) ?? getScoreValue(entry) ?? previous?.playerScore ?? 0;
 
       return {
         playerCode: code,
@@ -76,10 +74,7 @@ export function buildPlayersSnapshot(
         playerTimestamp: previous?.playerTimestamp,
         playerHasBuzzed: previous?.playerHasBuzzed ?? false,
         playerConnected: previous?.playerConnected ?? false,
-
-        playerIsTurn:
-          entry.is_current ?? entry.isCurrent ?? entry.is_selected ?? entry.selected ??
-          previous?.playerIsTurn ?? false,
+        playerIsTurn: entry.is_current ?? entry.isCurrent ?? entry.is_selected ?? entry.selected ?? previous?.playerIsTurn ?? false,
       } as PlayerStatus;
     })
     .filter((p): p is PlayerStatus => p !== null);
