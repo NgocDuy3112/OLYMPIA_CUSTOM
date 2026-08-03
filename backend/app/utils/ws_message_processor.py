@@ -55,6 +55,7 @@ PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "pong_latency",
     "qualifier_standings",
     "send_room_info",
+    "request_snapshot",
 })
 
 MC_ALLOWED_TYPES: frozenset[str] = frozenset({
@@ -98,6 +99,7 @@ MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "vd_power_window_open",
     "qualifier_standings",
     "send_room_info",
+    "request_snapshot",
 })
 
 
@@ -107,7 +109,7 @@ def is_allowed_by_role(user_role: str, msg_type: str) -> bool:
     if user_role == "mc":
         return msg_type in MC_ALLOWED_TYPES
     if user_role == "guest":
-        return msg_type == "user_online"
+        return msg_type in {"user_online", "request_snapshot"}
     return True
 
 

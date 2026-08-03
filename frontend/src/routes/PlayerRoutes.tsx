@@ -36,7 +36,7 @@ const PlayerAutoNavigator: React.FC = () => {
     const location = useLocation();
     const playerCode = sessionStorage.getItem("playerCode") || "";
     const matchCode = localStorage.getItem("matchCode") || "";
-    const { lastMessage } = useGameWebSocket();
+    const { lastMessage, sendMessage } = useGameWebSocket();
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -97,9 +97,10 @@ const PlayerAutoNavigator: React.FC = () => {
         console.info("[PlayerAutoNavigator] Navigating:", { currentPath, target });
         if (currentPath !== target) {
             navigate(target, { replace: true });
+            void sendMessage({ type: "request_snapshot" });
         }
 
-    }, [lastMessage, matchCode, playerCode, navigate, location.pathname]);
+    }, [lastMessage, matchCode, playerCode, navigate, location.pathname, sendMessage]);
 
     return null;
 };
