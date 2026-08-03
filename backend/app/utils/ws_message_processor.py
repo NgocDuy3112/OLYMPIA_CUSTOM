@@ -169,7 +169,7 @@ async def send_initial_snapshot(
                     chart_data.setdefault(code, []).append({
                         "question_code": record.get("question_code", ""),
                         "points": points,
-                        "cummulative_score": totals[code],
+                        "cumulative_score": totals[code],
                     })
                 for code, adjustment in adjustments.items():
                     if adjustment:
@@ -177,7 +177,7 @@ async def send_initial_snapshot(
                         chart_data.setdefault(code, []).append({
                             "question_code": "ADJUST",
                             "points": adjustment,
-                            "cummulative_score": totals[code],
+                            "cumulative_score": totals[code],
                         })
             except Exception as e:
                 global_logger.warning(f"[SNAPSHOT] chart fetch failed for {match_code!r}: {e}")
