@@ -419,7 +419,7 @@ const AGiaiMaPage = () => {
 
 				const wasAlreadyOpened = clueStates[clueIndex] !== "idle";
 				if (!wasAlreadyOpened) {
-					void sendMessage({ type: "gm_chon_goi_y" });
+					void sendMessage({ type: "gm_chon_goi_y", clue_index: clueIndex, question_code: q.questionCode });
 				}
 			} catch (err) {
 				logger.error("handleRevealClue: failed to send question via WS:", err);

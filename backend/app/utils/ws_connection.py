@@ -256,18 +256,15 @@ class ConnectionManager:
     async def broadcast_to_room(self, room_id: str, payload: dict):
         global_logger.debug(f"[WS] broadcast_to_room: room={room_id!r} type={payload.get('type')!r} user={payload.get('user_code')!r}")
 
-
-        await self.send_to_room_local(room_id, payload)
-
-
         if self.valkey:
             try:
                 await self.valkey.publish(room_id, json.dumps(payload))
                 global_logger.debug(f"[WS] Published to Valkey channel {room_id!r}")
+                return
             except Exception as e:
                 global_logger.error(f"[WS] Failed to publish to Valkey: {e}", exc_info=True)
-        else:
-            global_logger.debug(f"[WS] Valkey not set, sending local only")
+
+        await self.send_to_room_local(room_id, payload)
 
     async def shutdown(self):
         for room_id, task in list(self._room_tasks.items()):

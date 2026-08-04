@@ -141,6 +141,21 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
                 activeClueIdxRef.current = null;
                 clearAnswers();
                 break;
+            case "gm_chon_goi_y": {
+                const clueIndex = Number(msg.clue_index);
+                if (Number.isInteger(clueIndex) && clueIndex >= 0 && clueIndex < CLUE_COUNT) {
+                    activeClueIdxRef.current = clueIndex;
+                    setClueStates((prev) =>
+                        prev.map((state, index) => {
+                            if (index === clueIndex) return "active";
+                            if (state === "active") return "used";
+                            return state;
+                        }),
+                    );
+                    setHideQuestionContent(false);
+                }
+                break;
+            }
             case "show_hint": {
                 const hintContent = msg.hint_content ?? "";
                 const hintMediaSource = msg.hint_media_source ?? "";
