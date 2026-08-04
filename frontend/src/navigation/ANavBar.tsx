@@ -26,8 +26,6 @@ const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({ onNavigateToW
 		if (!matchCode) return;
 		navigate(`/admin/waiting/${matchCode}`);
 		void sendMessage({ type: "navigate", user_code: "", path: `/player/waiting/${matchCode}` });
-		void sendMessage({ type: "navigate", user_code: "", path: `/mc/waiting/${matchCode}` });
-		void sendMessage({ type: "navigate", user_code: "", path: `/guest/waiting/${matchCode}` });
 	};
 
 	return (

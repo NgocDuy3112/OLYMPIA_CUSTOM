@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
@@ -11,6 +12,7 @@ import AQualifierPage from "@/pages/admin/AQualifierPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 import AWaitingPage from "@/pages/admin/AWaitingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 interface AProtectedRouteProps {
     children: React.ReactNode;
@@ -28,6 +30,34 @@ export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }
 }
 
 const QUALIFIER_MATCH_CODE = "OC3_M_VL";
+
+const AdminAutoNavigator: React.FC = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { lastMessage, sendMessage } = useGameWebSocket();
+    const matchCode = localStorage.getItem("matchCode") || "";
+
+    useEffect(() => {
+        const msg = (lastMessage?.message ?? lastMessage) as { type?: string; path?: unknown } | null;
+        if (msg?.type !== "navigate" || typeof msg.path !== "string" || !matchCode) return;
+
+        const path = msg.path.endsWith("/") ? msg.path.slice(0, -1) : msg.path;
+        const adminPath = path.startsWith("/player/")
+            ? path.replace("/player/", "/admin/")
+            : path.startsWith("/admin/")
+                ? path
+                : null;
+        if (!adminPath) return;
+
+        const target = adminPath.endsWith(`/${matchCode}`) ? adminPath : `${adminPath}/${matchCode}`;
+        if (location.pathname === target) return;
+
+        navigate(target, { replace: true });
+        void sendMessage({ type: "request_snapshot" });
+    }, [lastMessage, location.pathname, matchCode, navigate, sendMessage]);
+
+    return null;
+};
 
 const AdminRoutes = () => {
 
@@ -48,6 +78,7 @@ const AdminRoutes = () => {
 
     return (
         <AdminWebSocketProvider matchCode={matchCode}>
+            <AdminAutoNavigator />
             <Routes>
             <Route path="/" element={
                 <Navigate to={stored ? `/admin/waiting/${stored}` : "/admin/manage"} replace />
