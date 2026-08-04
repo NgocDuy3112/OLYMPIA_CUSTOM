@@ -211,6 +211,9 @@ async def websocket_endpoint(
                 )
                 continue
 
+            if msg_type == "user_online" and data.get("status") == "heartbeat":
+                continue
+
             if msg_type == "request_snapshot":
                 await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
                 if user_role == "player":

@@ -11,22 +11,26 @@ export const GuestWebSocketProvider: React.FC<{ matchCode: string; children: Rea
 }) => {
   const token = sessionStorage.getItem("jwtToken_guest") ?? undefined;
   const ws = useWebSocket(matchCode, token);
+  const { isConnected, lastMessage, sendMessage } = ws;
   const { guestCode } = useRoleSession("guest");
 
   const value = useMemo<WebSocketContextValue>(
-    () => ({
-      isConnected: ws.isConnected,
-      lastMessage: ws.lastMessage,
-      sendMessage: ws.sendMessage,
-    }),
-    [ws.isConnected, ws.lastMessage, ws.sendMessage],
+    () => ({ isConnected, lastMessage, sendMessage }),
+    [isConnected, lastMessage, sendMessage],
   );
 
   useEffect(() => {
-    if (!ws.isConnected || !guestCode) return;
-    void ws.sendMessage({ type: "user_online", user_code: guestCode, status: "online" });
-    void ws.sendMessage({ type: "request_snapshot" });
-  }, [ws.isConnected, ws.sendMessage, guestCode]);
+    if (!isConnected || !guestCode) return;
+    void sendMessage({ type: "user_online", user_code: guestCode, status: "online" });
+  }, [isConnected, guestCode, sendMessage]);
+
+  useEffect(() => {
+    if (!isConnected || !guestCode) return;
+    const intervalId = window.setInterval(() => {
+      void sendMessage({ type: "user_online", user_code: guestCode, status: "heartbeat" });
+    }, 10_000);
+    return () => window.clearInterval(intervalId);
+  }, [isConnected, guestCode, sendMessage]);
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };
