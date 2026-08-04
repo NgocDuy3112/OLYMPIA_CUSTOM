@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
@@ -36,6 +36,14 @@ const AdminAutoNavigator: React.FC = () => {
     const location = useLocation();
     const { lastMessage, sendMessage } = useGameWebSocket();
     const matchCode = localStorage.getItem("matchCode") || "";
+    const pendingSnapshotPathRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
+        if (pendingSnapshotPathRef.current !== currentPath) return;
+        pendingSnapshotPathRef.current = null;
+        void sendMessage({ type: "request_snapshot" });
+    }, [location.pathname, sendMessage]);
 
     useEffect(() => {
         const msg = (lastMessage?.message ?? lastMessage) as { type?: string; path?: unknown } | null;
@@ -49,11 +57,13 @@ const AdminAutoNavigator: React.FC = () => {
                 : null;
         if (!adminPath) return;
 
+        if (adminPath.startsWith("/admin/vl")) return;
+
         const target = adminPath.endsWith(`/${matchCode}`) ? adminPath : `${adminPath}/${matchCode}`;
         if (location.pathname === target) return;
 
+        pendingSnapshotPathRef.current = target;
         navigate(target, { replace: true });
-        void sendMessage({ type: "request_snapshot" });
     }, [lastMessage, location.pathname, matchCode, navigate, sendMessage]);
 
     return null;

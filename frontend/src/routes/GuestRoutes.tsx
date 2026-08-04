@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useMatchCode } from "@/hooks/useMatchCode";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { GuestWebSocketProvider } from "@/contexts/GuestWebSocketContext";
@@ -29,6 +29,16 @@ const GuestAutoNavigator: React.FC = () => {
     const location = useLocation();
     const { lastMessage, sendMessage } = useGameWebSocket();
     const matchCode = localStorage.getItem("matchCode") || "";
+    const pendingSnapshotPathRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const currentPath = location.pathname.endsWith("/")
+            ? location.pathname.slice(0, -1)
+            : location.pathname;
+        if (pendingSnapshotPathRef.current !== currentPath) return;
+        pendingSnapshotPathRef.current = null;
+        void sendMessage({ type: "request_snapshot" });
+    }, [location.pathname, sendMessage]);
 
     useEffect(() => {
         if (!lastMessage) return;
@@ -75,8 +85,8 @@ const GuestAutoNavigator: React.FC = () => {
             : location.pathname;
 
         if (currentPath !== target) {
+            if (!isQualifier) pendingSnapshotPathRef.current = target;
             navigate(target, { replace: true });
-            void sendMessage({ type: "request_snapshot" });
         }
     }, [lastMessage, matchCode, navigate, location.pathname, sendMessage]);
 
