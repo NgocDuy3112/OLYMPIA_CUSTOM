@@ -25,6 +25,7 @@ export const GuestWebSocketProvider: React.FC<{ matchCode: string; children: Rea
   useEffect(() => {
     if (!ws.isConnected || !guestCode) return;
     void ws.sendMessage({ type: "user_online", user_code: guestCode, status: "online" });
+    void ws.sendMessage({ type: "request_snapshot" });
   }, [ws.isConnected, ws.sendMessage, guestCode]);
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
