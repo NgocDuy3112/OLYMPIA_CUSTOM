@@ -21,6 +21,7 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
 
 const logger = createLogger("AKhoiDongChung");
 
@@ -279,7 +280,7 @@ const AKhoiDongChungPage = () => {
 			await sendQuestionToplayers(currentQuestionIndex);
 		}
 		if (timer > 0 && currentQuestionIndex > 0) {
-			await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdc", time_limit: timer, question_code: resolveQuestionCode(currentQuestionIndex), started_at: Date.now() });
+			await sendStartTimer({ sendMessage, phase: "kdc", timeLimit: timer, questionCode: resolveQuestionCode(currentQuestionIndex) });
 		}
 	}, [currentQuestionIndex, resolveQuestionCode, sendMessage, sendPlayersSnapshot, sendQuestionToplayers, timer]);
 
@@ -355,7 +356,7 @@ const AKhoiDongChungPage = () => {
 					content: fallbackQuestion.questionText,
 					media_source: fallbackQuestion.questionMediaURL,
 				});
-				void sendMessage({ type: "start_the_timer", user_code: "", phase: "kdc", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
+				void sendStartTimer({ sendMessage, phase: "kdc", timeLimit: TIME_LIMIT, questionCode: fallbackQuestion.questionCode });
 			}
 
 			void loadQuestion(targetIndex)

@@ -16,6 +16,7 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { sendStartTimer } from "@/utils/wsStartTimer";
 
 const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 5;
@@ -244,7 +245,7 @@ const AButPhaPage = () => {
 			});
 		}
 		if (timerRef.current > 0 && currentQuestion.questionCode) {
-			await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+			await sendStartTimer({ sendMessage, phase: "bp", timeLimit: timerRef.current, questionCode: currentQuestion.questionCode });
 			if (videoPlayState === "playing") await sendMessage({ type: "media_control", action: "play" });
 		}
 	}, [currentQuestion, sendMessage, videoPlayState]);
@@ -308,14 +309,7 @@ const AButPhaPage = () => {
 			);
 
 			try {
-				await sendMessage({
-					type: "start_the_timer",
-					user_code: "",
-					phase: "bp",
-					time_limit: TIME_LIMIT,
-					question_code: questionCode,
-					started_at: startedAt
-				});
+				await sendStartTimer({ sendMessage, phase: "bp", timeLimit: TIME_LIMIT, questionCode, startedAt });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}
@@ -441,19 +435,12 @@ const AButPhaPage = () => {
 				}
 
 				if (timerRef.current > 0 && timerStartedAtRef.current) {
-					void sendMessage({
-						type: "start_the_timer",
-						user_code: "",
-						phase: "bp",
-						time_limit: TIME_LIMIT,
-						question_code: currentQuestion.questionCode,
-						started_at: timerStartedAtRef.current,
-					});
+					void sendStartTimer({ sendMessage, phase: "bp", timeLimit: TIME_LIMIT, questionCode: currentQuestion.questionCode, startedAt: timerStartedAtRef.current });
 					logger.info(`[BP RECONNECT] Resent timer to ${user_code} (started_at=${timerStartedAtRef.current})`);
 				}
 
-				void sendPlayersSnapshot();
-				logger.info(`[BP RECONNECT] Resent players snapshot to ${user_code}`);
+				void sendRoundSnapshot();
+				logger.info(`[BP RECONNECT] Resent round snapshot to ${user_code}`);
 				break;
 			}
 			case "mc_reconnected":
@@ -576,7 +563,7 @@ const AButPhaPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot, sendRoundSnapshot]);
+	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	const questionTitle = `BỨT PHÁ`;
 

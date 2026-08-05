@@ -27,6 +27,7 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
 
 const logger = createLogger("AGiaiMa");
 
@@ -498,7 +499,7 @@ const AGiaiMaPage = () => {
 			await sendMessage({ type: "send_question", user_code: "", question_code: currentQuestion.questionCode, content: currentQuestion.questionText ?? "", media_source: currentQuestion.questionMediaURL ?? undefined });
 		}
 		if (isTimerRunning && timerRef.current > 0) {
-			await sendMessage({ type: "start_the_timer", user_code: "", phase: isKeywordTimerRunning ? "gm_keyword" : "gm", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+			await sendStartTimer({ sendMessage, phase: isKeywordTimerRunning ? "gm_keyword" : "gm", timeLimit: timerRef.current, questionCode: currentQuestion.questionCode });
 		}
 		await broadcastKeywordInfo();
 		for (let idx = 0; idx < CLUE_COUNT; idx++) {
@@ -522,82 +523,7 @@ const AGiaiMaPage = () => {
 
 		switch (msg?.type) {
 			case "player_reconnected": {
-				const user_code = msg.user_code;
-				logger.info(`[GM RECONNECT] Player ${user_code} reconnected, resending state...`);
-
-				if (currentQuestion.questionCode) {
-					try {
-						void sendMessage({
-							type: "send_question",
-							user_code: "",
-							question_code: currentQuestion.questionCode,
-							content: currentQuestion.questionText ?? "",
-							media_source: currentQuestion.questionMediaURL ?? undefined,
-						});
-						logger.info(`[GM RECONNECT] Resent question to ${user_code}`);
-					} catch (err) {
-						logger.error("[GM RECONNECT] Resend send_question failed:", err);
-					}
-				}
-
-				if (isTimerRunning && timerRef.current > 0) {
-					try {
-						const phase = isKeywordTimerRunning ? "gm_keyword" : "gm";
-						void sendMessage({
-							type: "start_the_timer",
-							user_code: "",
-							phase,
-							time_limit: timerRef.current,
-							question_code: currentQuestion.questionCode,
-							started_at: Date.now(),
-						});
-						logger.info(`[GM RECONNECT] Resent timer to ${user_code} (phase=${phase})`);
-					} catch (err) {
-						logger.error("[GM RECONNECT] Resend start_the_timer failed:", err);
-					}
-				}
-
-				try {
-					await broadcastKeywordInfo();
-				} catch (err) {
-					logger.error("[GM RECONNECT] broadcastKeywordInfo failed:", err);
-				}
-
-				for (let idx = 0; idx < CLUE_COUNT; idx++) {
-					const s = clueStates[idx];
-					if (s === "idle") continue;
-					const q = clueQuestions[idx];
-					if (!q) continue;
-					try {
-						void sendMessage({
-							type: "send_question",
-							user_code: "",
-							question_code: q.questionCode,
-							content: q.questionText,
-							media_source: q.questionMediaURL ?? undefined,
-						});
-					} catch (err) {
-						logger.error(`[GM RECONNECT] Resend clue ${idx + 1} failed:`, err);
-					}
-				}
-
-				if (keywordCluesLocked) {
-					try {
-						void sendMessage({
-							type: "keyword_clues_locked",
-							user_code: "",
-							total_clues: CLUE_COUNT,
-						});
-					} catch (err) {
-						logger.error("[GM RECONNECT] Resend keyword_clues_locked failed:", err);
-					}
-				}
-
-				try {
-					await sendPlayersSnapshot();
-				} catch (err) {
-					logger.error("[GM RECONNECT] sendPlayersSnapshot failed:", err);
-				}
+				void sendRoundSnapshot();
 				break;
 			}
 			case "mc_reconnected":
@@ -689,7 +615,7 @@ const AGiaiMaPage = () => {
 				break;
 		}
 		})();
-	}, [applyPlayersSnapshot, broadcastKeywordInfo, clueQuestions, clueStates, currentQuestion, isKeywordTimerRunning, isTimerRunning, keywordCluesLocked, lastMessage, sendMessage, sendPlayersSnapshot, sendRoundSnapshot]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	useEffect(() => {
 		if (!isTimerRunning) return;
@@ -766,14 +692,7 @@ const AGiaiMaPage = () => {
 
 		if (currentMatchCode) {
 			void sendMessage({ type: "clear_answers", user_code: "" });
-			void sendMessage({
-				type: "start_the_timer",
-				user_code: "",
-				phase: "gm",
-				time_limit: TIME_LIMIT,
-				question_code: currentQuestion.questionCode,
-				started_at: Date.now(),
-			});
+			void sendStartTimer({ sendMessage, phase: "gm", timeLimit: TIME_LIMIT, questionCode: currentQuestion.questionCode });
 		}
 	}, [currentMatchCode, currentQuestion.questionCode, isTimerRunning, sendMessage, timedClueCodes]);
 
@@ -784,14 +703,7 @@ const AGiaiMaPage = () => {
 		setTimer(15);
 		setIsTimerRunning(true);
 
-		await sendMessage({
-			type: "start_the_timer",
-			user_code: "",
-			phase: "gm_keyword",
-			time_limit: 15,
-			question_code: KEYWORD_QUESTION_CODE,
-			started_at: Date.now(),
-		});
+		await sendStartTimer({ sendMessage, phase: "gm_keyword", timeLimit: 15, questionCode: KEYWORD_QUESTION_CODE });
 
 		await sendMessage({
 			type: "keyword_clues_locked",

@@ -216,12 +216,6 @@ async def websocket_endpoint(
 
             if msg_type == "request_snapshot":
                 await send_initial_snapshot(ws_manager, websocket, match_code, user_info["user_code"], user_role)
-                if user_role == "player":
-                    await handle_player_reconnect(ws_manager, match_code, user_info["user_code"])
-                elif user_role == "mc":
-                    await handle_mc_reconnect(ws_manager, match_code, user_info["user_code"])
-                elif user_role == "guest":
-                    await handle_guest_reconnect(ws_manager, match_code, user_info["user_code"])
                 continue
 
             if msg_type in {"buzz", "vd_player_power", "answer", "player_answer"}:

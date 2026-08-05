@@ -1,6 +1,4 @@
 import json
-import asyncio
-import uuid
 from fastapi import WebSocket, WebSocketDisconnect
 from valkey.asyncio import Valkey
 from logger import global_logger
@@ -13,66 +11,10 @@ class ConnectionManager:
         self._socket_user: dict[WebSocket, str] = {}
         self._socket_role: dict[WebSocket, str] = {}
         self.valkey: Valkey | None = None
-        self._room_tasks: dict[str, asyncio.Task] = {}
-        self._instance_id = uuid.uuid4().hex
 
     def set_valkey(self, valkey: Valkey):
         self.valkey = valkey
         global_logger.info("Valkey instance set in ConnectionManager.")
-
-
-        return
-
-    async def __listen_to_valkey_channel(self, room_id: str):
-        if not self.valkey:
-            global_logger.warning(f"Valkey not initialized for room {room_id}")
-            return
-
-        retry_count = 0
-        max_retries = 5
-        retry_delay = 1.0
-
-        while retry_count < max_retries:
-            try:
-                pubsub = self.valkey.pubsub()
-                await pubsub.subscribe(room_id)
-                global_logger.info(f"[WS] Subscribed to Valkey channel for room {room_id} (attempt {retry_count + 1})")
-                retry_count = 0
-
-                async for message in pubsub.listen():
-                    if message.get("type") != "message":
-                        continue
-                    try:
-                        data = json.loads(message["data"])
-                    except Exception:
-                        global_logger.warning(f"[WS] Invalid JSON from Valkey channel {room_id}: {message.get('data')}", exc_info=True)
-                        continue
-
-
-                    if data.get("_origin_instance_id") == self._instance_id:
-                        continue
-                    data.pop("_origin_instance_id", None)
-                    await self.send_to_room_local(room_id, data)
-
-            except asyncio.CancelledError:
-                global_logger.info(f"[WS] Valkey listener cancelled for room {room_id}")
-                raise
-            except Exception as e:
-                retry_count += 1
-                global_logger.error(f"[WS] Valkey listener error for room {room_id} (attempt {retry_count}/{max_retries}): {e}", exc_info=True)
-                if retry_count < max_retries:
-                    global_logger.info(f"[WS] Retrying in {retry_delay}s for room {room_id}")
-                    await asyncio.sleep(retry_delay)
-                else:
-                    global_logger.error(f"[WS] Max retries reached for room {room_id}, giving up")
-            finally:
-                try:
-                    await pubsub.unsubscribe(room_id)
-                    await pubsub.close()
-                except Exception:
-                    pass
-
-        global_logger.info(f"[WS] Unsubscribed from Valkey channel for room {room_id} after {max_retries} retries")
 
     async def connect(self, websocket: WebSocket, room_id: str, user_code: str | None = None, role: str = ""):
         await websocket.accept()
@@ -102,9 +44,6 @@ class ConnectionManager:
 
         if not conns:
             del self.rooms[room_id]
-            task = self._room_tasks.pop(room_id, None)
-            if task:
-                task.cancel()
 
         global_logger.debug(f"WS disconnected from room {room_id}: {websocket.client}")
 
@@ -262,23 +201,15 @@ class ConnectionManager:
         if self.valkey:
             try:
                 event_channel = f"events:{room_id}"
-                publish_payload = {**payload, "_origin_instance_id": self._instance_id}
-                await self.valkey.publish(event_channel, json.dumps(publish_payload))
+                await self.valkey.publish(event_channel, json.dumps(payload))
                 global_logger.debug(f"[WS] Published to Valkey channel {event_channel!r}")
             except Exception as e:
                 global_logger.error(f"[WS] Failed to publish to Valkey: {e}", exc_info=True)
 
     async def shutdown(self):
-        for room_id, task in list(self._room_tasks.items()):
-            if not task.done():
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-                global_logger.info(f"Cancelled Valkey listener for room {room_id!r}")
-        self._room_tasks.clear()
         self.rooms.clear()
+        self._socket_user.clear()
+        self._socket_role.clear()
         global_logger.info("ConnectionManager shutdown complete.")
 
 

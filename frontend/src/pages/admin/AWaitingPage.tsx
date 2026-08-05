@@ -89,7 +89,12 @@ const AWaitingPage = () => {
 	}, [sendPlayersSnapshot, setPlayers]);
 
 	const sendSpecificRoundSnapshot = useCallback(async () => {
-	}, [sendPlayersSnapshot]);
+	}, []);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
 
 	useEffect(() => {
 		void sendPlayersSnapshot();
@@ -116,17 +121,12 @@ const AWaitingPage = () => {
 					));
 				}
 				void sendMessage({ type: "navigate", user_code: msg.user_code, path });
-				void sendPlayersSnapshot();
+				void sendRoundSnapshot();
 				break;
 			}
 		}
 		});
-	}, [lastMessage, sendPlayersSnapshot, sendMessage, setPlayers]);
-
-	const sendRoundSnapshot = useCallback(async () => {
-		await sendPlayersSnapshot();
-		await sendSpecificRoundSnapshot();
-	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+	}, [lastMessage, sendMessage, sendRoundSnapshot, setPlayers]);
 
 	const handleOpenMatch = useCallback(async () => {
 		if (!currentMatchCode) return;

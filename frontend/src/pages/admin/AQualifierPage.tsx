@@ -26,6 +26,7 @@ import {
     type QualifierStandingEntry,
 } from "@/types/qualifier";
 import { API_BASE_URL } from "@/configs";
+import { sendStartTimer } from "@/utils/wsStartTimer";
 
 const logger = createLogger("AQualifier");
 
@@ -390,14 +391,7 @@ const AQualifierPage = () => {
                     });
 
                     if (isTimerRunningRef.current && timerRef.current > 0 && timerStartedAtRef.current !== null) {
-                        void sendMessage({
-                            type: "start_the_timer",
-                            user_code: "",
-                            phase: "vl",
-                            time_limit: QUALIFIER_TIME_LIMIT,
-                            question_code: currentQuestion.questionCode,
-                            started_at: timerStartedAtRef.current,
-                        });
+                        void sendStartTimer({ sendMessage, phase: "vl", timeLimit: QUALIFIER_TIME_LIMIT, questionCode: currentQuestion.questionCode, startedAt: timerStartedAtRef.current });
                     }
                 }
                 break;
@@ -497,14 +491,7 @@ const AQualifierPage = () => {
         setTimer(QUALIFIER_TIME_LIMIT);
         setIsTimerRunning(true);
         try {
-            await sendMessage({
-                type: "start_the_timer",
-                user_code: "",
-                phase: "vl",
-                time_limit: QUALIFIER_TIME_LIMIT,
-                question_code: questionCode,
-                started_at: startedAt,
-            });
+            await sendStartTimer({ sendMessage, phase: "vl", timeLimit: QUALIFIER_TIME_LIMIT, questionCode, startedAt });
         } catch (err) {
             logger.error("Failed to start timer:", err);
         }

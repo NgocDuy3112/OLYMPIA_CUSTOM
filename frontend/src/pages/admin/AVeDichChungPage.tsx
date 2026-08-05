@@ -26,6 +26,7 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
 
 const logger = createLogger("AVeDichChung");
 
@@ -342,7 +343,7 @@ const AVeDichChungPage = () => {
 			await sendMessage({ type: "send_question", user_code: "", question_code: currentQuestion.questionCode, content: currentQuestion.questionText ?? "", media_source: currentQuestion.questionMediaURL ?? undefined });
 		}
 		if (timerRef.current > 0 && currentQuestion.questionCode) {
-			await sendMessage({ type: "start_the_timer", user_code: "", phase: "vdc", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+			await sendStartTimer({ sendMessage, phase: "vdc", timeLimit: timerRef.current, questionCode: currentQuestion.questionCode });
 			if (videoPlayState === "playing") await sendMessage({ type: "media_control", action: "play" });
 		}
 		if (Object.keys(usedPowers).length > 0) await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
@@ -450,14 +451,7 @@ const AVeDichChungPage = () => {
 		setTimer(timeLimit);
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
-			void sendMessage({
-				type: "start_the_timer",
-				user_code: "",
-				phase: "vdc",
-				time_limit: timeLimit,
-				question_code: currentQuestion.questionCode,
-				started_at: Date.now(),
-			});
+			void sendStartTimer({ sendMessage, phase: "vdc", timeLimit, questionCode: currentQuestion.questionCode });
 
 		}
 	}, [currentQuestion.questionCode, isTimerRunning, isTimerLocked, lockTimer, currentPoints, currentMatchCode, sendMessage]);

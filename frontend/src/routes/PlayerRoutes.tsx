@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useMatchCode } from "@/hooks/useMatchCode";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
@@ -37,15 +37,6 @@ const PlayerAutoNavigator: React.FC = () => {
     const playerCode = sessionStorage.getItem("playerCode") || "";
     const matchCode = localStorage.getItem("matchCode") || "";
     const { lastMessage, sendMessage } = useGameWebSocket();
-    const pendingSnapshotPathRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
-        if (pendingSnapshotPathRef.current !== currentPath) return;
-        pendingSnapshotPathRef.current = null;
-        void sendMessage({ type: "request_snapshot" });
-    }, [location.pathname, sendMessage]);
-
     useEffect(() => {
         if (!lastMessage) return;
 
@@ -104,7 +95,6 @@ const PlayerAutoNavigator: React.FC = () => {
 
         console.info("[PlayerAutoNavigator] Navigating:", { currentPath, target });
         if (currentPath !== target) {
-            if (!isQualifier) pendingSnapshotPathRef.current = target;
             navigate(target, { replace: true });
         }
 
