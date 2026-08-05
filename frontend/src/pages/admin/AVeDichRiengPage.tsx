@@ -9,6 +9,7 @@ import {
 	Zap,
 	Plus,
 	Minus,
+	SkipForward,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -707,6 +708,25 @@ const AVeDichRiengPage = () => {
 		}
 	}, [timer, currentMatchCode, sendMessage]);
 
+	const handleEndTurn = useCallback(async () => {
+		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setTimer(0);
+		setIsTimerRunning(false);
+		setSelectedPlayerCodes([]);
+		setCurrentTurnPlayerCode(null);
+		setActivePower(null);
+		setBuzzerWinnerCode(null);
+		lastBuzzerQuestionRef.current = null;
+		if (currentMatchCode) localStorage.removeItem(`vd_rieng_selected_player_${currentMatchCode}`);
+		await Promise.all([
+			clearQuestion(),
+			sendMessage({ type: "blocked_buzz", user_code: null }),
+			sendMessage({ type: "vd_power_activated", power: null }),
+			sendMessage({ type: "navigate", user_code: "", path: "/player/vdr/pick" }),
+		]);
+		if (currentMatchCode) navigate(`/admin/vdr/pick/${currentMatchCode}`);
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
+
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
@@ -1049,6 +1069,13 @@ const AVeDichRiengPage = () => {
 					>
 						<ListRestart size={18} />
 						<span className="ml-2 font-bold">CHỌN LẠI</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleEndTurn(); }}
+						disabled={isTimerRunning || !currentTurnPlayerCode}
+					>
+						<SkipForward size={18} />
+						<span className="ml-2 font-bold">HẾT LƯỢT</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}

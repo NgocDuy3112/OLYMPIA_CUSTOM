@@ -276,6 +276,17 @@ const AKhoiDongRiengPage = () => {
 		}
 	}, [currentMatchCode, sendMessage]);
 
+	const handleEndTurn = useCallback(async () => {
+		setCurrentQuestionIndex(0);
+		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setTimer(0);
+		setSelectedPlayerCode(null);
+		setIsPlayerLocked(false);
+		setIsTimerRunning(false);
+		setHasStartedRoundTimer(false);
+		await clearQuestion();
+	}, [clearQuestion]);
+
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -826,7 +837,14 @@ const AKhoiDongRiengPage = () => {
 			bottomActionButtons={
 				<>
 					<AControlButton
-						onClick={() => { handleEndRound() }}
+						onClick={() => { void handleEndTurn(); }}
+						disabled={isTimerRunning || !selectedPlayerCode}
+					>
+						<SkipForward size={18} />
+						<span className="ml-2 font-bold">HẾT LƯỢT</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleEndRound(); }}
 						disabled={isTimerRunning}
 					>
 						<Power size={18} />
