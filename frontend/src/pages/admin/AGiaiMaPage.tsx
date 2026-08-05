@@ -493,6 +493,28 @@ const AGiaiMaPage = () => {
 		}
 	}, [currentMatchCode, loadPlayersState, sendMessage]);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestion.questionCode) {
+			await sendMessage({ type: "send_question", user_code: "", question_code: currentQuestion.questionCode, content: currentQuestion.questionText ?? "", media_source: currentQuestion.questionMediaURL ?? undefined });
+		}
+		if (isTimerRunning && timerRef.current > 0) {
+			await sendMessage({ type: "start_the_timer", user_code: "", phase: isKeywordTimerRunning ? "gm_keyword" : "gm", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+		}
+		await broadcastKeywordInfo();
+		for (let idx = 0; idx < CLUE_COUNT; idx++) {
+			const state = clueStates[idx];
+			const question = clueQuestions[idx];
+			if (state === "idle" || !question) continue;
+			await sendMessage({ type: "send_question", user_code: "", question_code: question.questionCode, content: question.questionText, media_source: question.questionMediaURL ?? undefined });
+		}
+		if (keywordCluesLocked) await sendMessage({ type: "keyword_clues_locked", user_code: "", total_clues: CLUE_COUNT });
+	}, [broadcastKeywordInfo, clueQuestions, clueStates, currentQuestion, isKeywordTimerRunning, isTimerRunning, keywordCluesLocked, sendMessage]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	useEffect(() => {
 		(async () => {
 		if (!lastMessage) return;
@@ -585,36 +607,8 @@ const AGiaiMaPage = () => {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
-					try {
-						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
-					} catch (err) {
-						logger.error("Failed to navigate player on reconnect:", err);
-					}
-					(async () => {
-						if (currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "send_question",
-									user_code: "",
-									question_code: currentQuestion.questionCode,
-									content: currentQuestion.questionText ?? "",
-									media_source: currentQuestion.questionMediaURL ?? undefined,
-								});
-							} catch {  }
-						}
-						if (isTimerRunning && timerRef.current > 0) {
-							try {
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "gm", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
-							} catch {  }
-						}
-						try {
-							await broadcastKeywordInfo();
-						} catch {  }
-
-						try {
-							await sendPlayersSnapshot();
-						} catch {  }
-					})();
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -695,7 +689,7 @@ const AGiaiMaPage = () => {
 				break;
 		}
 		})();
-	}, [applyPlayersSnapshot, broadcastKeywordInfo, clueQuestions, clueStates, currentQuestion, isKeywordTimerRunning, isTimerRunning, keywordCluesLocked, lastMessage, sendMessage, sendPlayersSnapshot]);
+	}, [applyPlayersSnapshot, broadcastKeywordInfo, clueQuestions, clueStates, currentQuestion, isKeywordTimerRunning, isTimerRunning, keywordCluesLocked, lastMessage, sendMessage, sendPlayersSnapshot, sendRoundSnapshot]);
 
 	useEffect(() => {
 		if (!isTimerRunning) return;

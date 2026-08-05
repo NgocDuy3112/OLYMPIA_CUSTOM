@@ -1,5 +1,6 @@
 import json
 import asyncio
+import uuid
 from fastapi import WebSocket, WebSocketDisconnect
 from valkey.asyncio import Valkey
 from logger import global_logger
@@ -13,15 +14,14 @@ class ConnectionManager:
         self._socket_role: dict[WebSocket, str] = {}
         self.valkey: Valkey | None = None
         self._room_tasks: dict[str, asyncio.Task] = {}
+        self._instance_id = uuid.uuid4().hex
 
     def set_valkey(self, valkey: Valkey):
         self.valkey = valkey
         global_logger.info("Valkey instance set in ConnectionManager.")
 
 
-        for room_id in list(self.rooms.keys()):
-            if room_id not in self._room_tasks:
-                self._room_tasks[room_id] = asyncio.create_task(self.__listen_to_valkey_channel(room_id))
+        return
 
     async def __listen_to_valkey_channel(self, room_id: str):
         if not self.valkey:
@@ -49,6 +49,9 @@ class ConnectionManager:
                         continue
 
 
+                    if data.get("_origin_instance_id") == self._instance_id:
+                        continue
+                    data.pop("_origin_instance_id", None)
                     await self.send_to_room_local(room_id, data)
 
             except asyncio.CancelledError:
@@ -76,8 +79,6 @@ class ConnectionManager:
 
         if room_id not in self.rooms:
             self.rooms[room_id] = []
-            if self.valkey and room_id not in self._room_tasks:
-                self._room_tasks[room_id] = asyncio.create_task(self.__listen_to_valkey_channel(room_id))
 
         self.rooms[room_id].append(websocket)
         if user_code:
@@ -256,15 +257,16 @@ class ConnectionManager:
     async def broadcast_to_room(self, room_id: str, payload: dict):
         global_logger.debug(f"[WS] broadcast_to_room: room={room_id!r} type={payload.get('type')!r} user={payload.get('user_code')!r}")
 
+        await self.send_to_room_local(room_id, payload)
+
         if self.valkey:
             try:
-                await self.valkey.publish(room_id, json.dumps(payload))
-                global_logger.debug(f"[WS] Published to Valkey channel {room_id!r}")
-                return
+                event_channel = f"events:{room_id}"
+                publish_payload = {**payload, "_origin_instance_id": self._instance_id}
+                await self.valkey.publish(event_channel, json.dumps(publish_payload))
+                global_logger.debug(f"[WS] Published to Valkey channel {event_channel!r}")
             except Exception as e:
                 global_logger.error(f"[WS] Failed to publish to Valkey: {e}", exc_info=True)
-
-        await self.send_to_room_local(room_id, payload)
 
     async def shutdown(self):
         for room_id, task in list(self._room_tasks.items()):

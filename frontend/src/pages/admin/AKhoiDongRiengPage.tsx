@@ -250,6 +250,20 @@ const AKhoiDongRiengPage = () => {
 		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestionIndex > 0) {
+			await sendQuestionToPlayers(currentQuestionIndex);
+		}
+		if (timer > 0 && currentQuestionIndex > 0) {
+			await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: resolveQuestionCode(currentQuestionIndex), started_at: Date.now() });
+		}
+	}, [currentQuestionIndex, resolveQuestionCode, sendMessage, sendPlayersSnapshot, sendQuestionToPlayers, timer]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -639,40 +653,8 @@ const AKhoiDongRiengPage = () => {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
-					(async () => {
-
-						try {
-							await sendPlayersSnapshot();
-							logger.info("Resent players snapshot after user_online for", msg.user_code);
-						} catch (err) {
-							logger.error("Failed to resend players snapshot on user_online:", err);
-						}
-
-						try {
-							void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdr" });
-						} catch (err) {
-							logger.error("Failed to navigate player on reconnect:", err);
-						}
-
-						if (currentQuestionIndex > 0) {
-							try {
-								await sendQuestionToPlayers(currentQuestionIndex);
-								logger.info("Resent question to players after user_online for", msg.user_code);
-							} catch (err) {
-								logger.error("Failed to resend question on user_online:", err);
-							}
-						}
-
-						if (timer > 0 && currentQuestionIndex > 0) {
-							try {
-								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: questionCode, started_at: Date.now() });
-								logger.info("Resent timer to players after user_online for", msg.user_code, "time_left=", timer);
-							} catch (err) {
-								logger.error("Failed to resend timer on user_online:", err);
-							}
-						}
-					})();
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdr" });
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -776,7 +758,7 @@ const AKhoiDongRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendQuestionToPlayers, currentQuestionIndex, timer, sendMessage, resolveQuestionCode]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	return (
 		<ABasePageLayout

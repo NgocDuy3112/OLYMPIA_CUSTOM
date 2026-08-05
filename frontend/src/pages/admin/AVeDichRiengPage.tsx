@@ -338,6 +338,32 @@ const AVeDichRiengPage = () => {
 		void sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (roundQuestionCodes.length > 0 && questions.length > 0) {
+			const metadata = roundQuestionCodes.map((code) => {
+				const idx = questions.findIndex((q) => q.questionCode === code);
+				return { code, category: questionCategories[idx] ?? "", points: questionPoints[idx] ?? 0 };
+			});
+			await sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
+			for (const [code, qState] of Object.entries(questionStates)) {
+				if (qState === "answered" || qState === "answered-wrong") await sendMessage({ type: "vdr_question_state", question_code: code, state: qState });
+			}
+		}
+		if (currentQuestion.questionCode) {
+			await sendMessage({ type: "send_question", user_code: "", question_code: currentQuestion.questionCode, content: currentQuestion.questionText ?? "", media_source: currentQuestion.questionMediaURL ?? undefined });
+		}
+		if (timerRef.current > 0 && currentQuestion.questionCode) {
+			await sendMessage({ type: "start_the_timer", user_code: "", phase: "vdr", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+			if (videoPlayState === "playing") await sendMessage({ type: "media_control", action: "play" });
+		}
+		if (Object.keys(usedPowers).length > 0) await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
+	}, [currentQuestion, questionCategories, questionPoints, questionStates, questions, roundQuestionCodes, sendMessage, sendPlayersSnapshot, usedPowers, videoPlayState]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
@@ -744,73 +770,8 @@ const AVeDichRiengPage = () => {
 							),
 						);
 					});
-					(async () => {
-
-						try {
-							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdr" });
-						} catch {  }
-
-						if (roundQuestionCodes.length > 0 && questions.length > 0) {
-							const metadata = roundQuestionCodes.map((code) => {
-								const idx = questions.findIndex((q) => q.questionCode === code);
-								return {
-									code,
-									category: questionCategories[idx] ?? "",
-									points: questionPoints[idx] ?? 0,
-								};
-							});
-							try {
-								await sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
-							} catch {  }
-
-							for (const [code, qState] of Object.entries(questionStates)) {
-								if (qState === "answered" || qState === "answered-wrong") {
-									try {
-										await sendMessage({ type: "vdr_question_state", question_code: code, state: qState });
-									} catch {  }
-								}
-							}
-						}
-						if (currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "send_question",
-									user_code: "",
-									question_code: currentQuestion.questionCode,
-									content: currentQuestion.questionText ?? "",
-									media_source: currentQuestion.questionMediaURL ?? undefined,
-								});
-							} catch {  }
-						}
-						if (timerRef.current > 0 && currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "start_the_timer",
-									user_code: "",
-									phase: "vdr",
-									time_limit: timerRef.current,
-									question_code: currentQuestion.questionCode,
-									started_at: Date.now(),
-								});
-							} catch {  }
-
-							if (currentQuestion.questionMediaURL) {
-								try {
-									await sendMessage({ type: "media_control", action: "play" });
-								} catch {  }
-							}
-						}
-
-						try {
-							await sendPlayersSnapshot();
-						} catch {  }
-
-						if (Object.keys(usedPowers).length > 0) {
-							try {
-								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
-							} catch {  }
-						}
-					})();
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdr" });
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -990,7 +951,7 @@ const AVeDichRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, roundQuestionCodes, questions, questionCategories, questionPoints, questionStates, broadcastPendingVeDichQuestion]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot, broadcastPendingVeDichQuestion]);
 
 	const getQuestionMeta = (questionCode: string) => {
 		const idx = questions.findIndex((q) => q.questionCode === questionCode);

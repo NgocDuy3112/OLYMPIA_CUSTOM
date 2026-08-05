@@ -233,6 +233,27 @@ const AButPhaPage = () => {
 		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestion.questionCode) {
+			await sendMessage({
+				type: "send_question",
+				user_code: "",
+				question_code: currentQuestion.questionCode,
+				content: currentQuestion.questionText ?? "",
+				media_source: currentQuestion.questionMediaURL ?? undefined,
+			});
+		}
+		if (timerRef.current > 0 && currentQuestion.questionCode) {
+			await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
+			if (videoPlayState === "playing") await sendMessage({ type: "media_control", action: "play" });
+		}
+	}, [currentQuestion, sendMessage, videoPlayState]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -448,30 +469,7 @@ const AButPhaPage = () => {
 					} catch (err) {
 						logger.error("Failed to navigate player on reconnect:", err);
 					}
-					(async () => {
-						if (currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "send_question",
-									user_code: "",
-									question_code: currentQuestion.questionCode,
-									content: currentQuestion.questionText ?? "",
-									media_source: currentQuestion.questionMediaURL ?? undefined,
-								});
-							} catch {  }
-						}
-						if (timerRef.current > 0 && currentQuestion.questionCode) {
-							try {
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
-							} catch {  }
-							try {
-								await sendMessage({ type: "media_control", action: "play" });
-							} catch {  }
-						}
-						try {
-							await sendPlayersSnapshot();
-						} catch {  }
-					})();
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -578,7 +576,7 @@ const AButPhaPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot]);
+	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot, sendRoundSnapshot]);
 
 	const questionTitle = `BỨT PHÁ`;
 

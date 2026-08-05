@@ -153,6 +153,40 @@ const AVeDichPickQuestion = () => {
 		}
 	}, [currentMatchCode, token, sendMessage]);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (!currentMatchCode) return;
+		const allCodes = questions.map((q) => q.questionCode);
+		await sendMessage({
+			type: "vd_selection_update",
+			match_code: currentMatchCode,
+			round: isChung ? "chung" : "rieng",
+			selected_question_codes: selectedQuestionCodes,
+			all_question_codes: allCodes,
+			used_question_codes: usedQuestionCodes,
+		});
+		if (selectedQuestionCodes.length > 0) {
+			const payload = {
+				type: "vd_questions_selected",
+				match_code: currentMatchCode,
+				round: isChung ? "chung" : "rieng",
+				selected_question_codes: selectedQuestionCodes,
+				all_question_codes: allCodes,
+				question_metadata: selectedQuestionCodes.map((code) => {
+					const idx = allCodes.findIndex((c) => c === code);
+					return { code, category: questionCategories[idx] ?? `Category ${Math.floor(idx / 4) + 1}`, points: questionPoints[idx] ?? 0 };
+				}),
+				timestamp: Date.now(),
+			};
+			if (!isChung) (payload as any).selected_player_code = selectedPlayerCode ?? null;
+			await sendMessage(payload);
+		}
+	}, [currentMatchCode, isChung, loadPlayersState, questionCategories, questionPoints, questions, selectedPlayerCode, selectedQuestionCodes, sendMessage, usedQuestionCodes]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await loadPlayersState();
+		await sendSpecificRoundSnapshot();
+	}, [loadPlayersState, sendSpecificRoundSnapshot]);
+
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		setPlayers((prev) =>
 			prev.map((p) =>
@@ -375,6 +409,7 @@ const AVeDichPickQuestion = () => {
 				(payload as any).selected_player_code = selectedPlayerCode ?? null;
 			}
 			sendMessage(payload);
+			void sendRoundSnapshot();
 
 			const playerPath = isChung ? "/player/vdc" : "/player/vdr";
 			sendMessage({ type: "navigate", user_code: "", path: playerPath });
@@ -401,7 +436,7 @@ const AVeDichPickQuestion = () => {
 			logger.error("Failed to confirm selection:", err);
 			setErrorMessage("Lỗi khi xác nhận câu hỏi");
 		}
-	}, [selectedQuestionCodes, questions, requiredCount, currentMatchCode, isChung, sendMessage, navigate, selectedPlayerCode, questionCategories, questionPoints]);
+	}, [selectedQuestionCodes, questions, requiredCount, currentMatchCode, isChung, sendMessage, navigate, selectedPlayerCode, questionCategories, questionPoints, sendRoundSnapshot]);
 
 	const handleResetSelection = useCallback(() => {
 		setSelectedQuestionCodes([]);
