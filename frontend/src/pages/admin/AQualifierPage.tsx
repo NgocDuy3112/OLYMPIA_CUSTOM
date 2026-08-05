@@ -1,5 +1,6 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     AlarmClockCheck,
     Play,
@@ -27,6 +28,7 @@ import {
 } from "@/types/qualifier";
 import { API_BASE_URL } from "@/configs";
 import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AQualifier");
 
@@ -52,6 +54,7 @@ const OPTION_BG: Record<string, string> = {
 };
 
 const AQualifierPage = () => {
+    const navigate = useNavigate();
 
     const currentMatchCode = localStorage.getItem("matchCode") ?? "OC3_M_VL";
     const token = localStorage.getItem("jwtToken_admin") ?? "";
@@ -457,13 +460,11 @@ const AQualifierPage = () => {
         setIsTimerRunning(false);
         if (!currentMatchCode) return;
         try {
-            await sendMessage({ type: "round_end", round: "vl" });
-
+            await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "vl", sendMessage });
         } catch (err) {
             logger.error("Failed to end qualifier round:", err);
         }
         try {
-
             const res = await fetch(`${API_BASE_URL}/qualifier/end-round`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -481,7 +482,7 @@ const AQualifierPage = () => {
             logger.error("Failed to call end-round API:", err);
             await loadQualifierStandings();
         }
-    }, [currentMatchCode, currentRound, loadQualifierStandings, loadAdvancements, sendMessage, token]);
+    }, [currentMatchCode, currentRound, loadQualifierStandings, loadAdvancements, navigate, sendMessage, token]);
 
     const startTheClock = useCallback(async () => {
         if (!currentMatchCode || !token || currentQuestionIndex <= 0 || timer > 0) return;

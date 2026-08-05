@@ -27,6 +27,7 @@ import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AVeDichRieng");
 
@@ -712,11 +713,11 @@ const AVeDichRiengPage = () => {
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "round_end", round: "vdr" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "vdr", sendMessage });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-	}, [currentMatchCode, sendMessage]);
+	}, [currentMatchCode, navigate, sendMessage]);
 
 	useEffect(() => {
 		if (!lastMessage) return;

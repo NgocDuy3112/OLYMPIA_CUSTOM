@@ -17,6 +17,7 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 5;
@@ -276,12 +277,12 @@ const AButPhaPage = () => {
 
 		if (!currentMatchCode) { return; }
 		try {
-			await sendMessage({ type: "round_end", round: "bp" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "bp", sendMessage });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
 
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
 
 	const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
 

@@ -22,6 +22,7 @@ import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AKhoiDongChung");
 
@@ -309,12 +310,12 @@ const AKhoiDongChungPage = () => {
 
 		if (!currentMatchCode) { return; }
 		try {
-			await sendMessage({ type: "round_end", round: "kdc" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "kdc", sendMessage });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
 
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
 
 		const startTheClock = useCallback(async () => {
 			if (hasStartedRoundTimer || isTimerRunning) return;

@@ -27,6 +27,7 @@ import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AGiaiMa");
 
@@ -649,12 +650,11 @@ const AGiaiMaPage = () => {
 		setIsKeywordTimerRunning(false);
 		if (!currentMatchCode) { return; }
 		try {
-			await sendMessage({ type: "round_end", round: "gm" });
-
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "gm", sendMessage });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-	}, [currentMatchCode, sendMessage]);
+	}, [currentMatchCode, navigate, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
 		if (!currentQuestion.questionCode || isTimerRunning || timedClueCodes.has(currentQuestion.questionCode)) return;
