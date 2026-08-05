@@ -166,8 +166,11 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
                 setHideQuestionContent(true);
 
                 const explicitIdx = Number(msg.clue_index);
+                const questionCodeMatch = String(msg.question_code ?? "").match(/(\d+)\s*$/);
+                const questionCodeIdx = questionCodeMatch ? Number(questionCodeMatch[1]) - 1 : null;
+                const hasQuestionCodeIdx = Number.isInteger(questionCodeIdx) && questionCodeIdx !== null && questionCodeIdx >= 0 && questionCodeIdx < CLUE_COUNT;
                 const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
-                const idx = hasExplicitIdx ? explicitIdx : activeClueIdxRef.current;
+                const idx = hasExplicitIdx ? explicitIdx : hasQuestionCodeIdx ? questionCodeIdx : activeClueIdxRef.current;
                 if (idx !== null) {
                     if (hasExplicitIdx) activeClueIdxRef.current = idx;
                     setClueStates((prev) => {

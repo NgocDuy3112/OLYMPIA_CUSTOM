@@ -800,11 +800,15 @@ const AGiaiMaPage = () => {
 		const hintMediaUrl: string | undefined = undefined;
 
 		if (!hintText && !hintMediaUrl) return;
+		const codeMatch = String(currentQuestion.questionCode ?? "").match(/(\d+)\s*$/);
+		const codeIndex = codeMatch ? Number(codeMatch[1]) - 1 : null;
+		const clueIndexForHint = activeClueIndex !== null ? activeClueIndex : Number.isInteger(codeIndex) && codeIndex !== null && codeIndex >= 0 && codeIndex < CLUE_COUNT ? codeIndex : null;
 		setPendingClueAction(false);
 		setShownHintContent(hintText);
 		setHideQuestionContent(true);
-		if (activeClueIndex !== null) {
-			const idx = activeClueIndex;
+		if (clueIndexForHint !== null) {
+			const idx = clueIndexForHint;
+			setActiveClueIndex(idx);
 			setRevealedHints((prev) => {
 				const next: Record<number, RevealedHint> = { ...prev };
 				next[idx] = { text: hintText || undefined, mediaUrl: hintMediaUrl || undefined };
@@ -818,14 +822,14 @@ const AGiaiMaPage = () => {
 				hint_content: hintText,
 				hint_media_source: hintMediaUrl ?? undefined,
 				target_players: selectedPlayerCodes,
-				...(activeClueIndex !== null ? { clue_index: activeClueIndex } : {}),
+				...(clueIndexForHint !== null ? { clue_index: clueIndexForHint, question_code: currentQuestion.questionCode } : {}),
 			});
 
 			sendMessage({ type: "gm_dung" });
 
 			if (selectedPlayerCodes.length > 0 && currentQuestion.questionCode) {
-				if (activeClueIndex !== null) {
-					setCorrectClues((prev) => new Set([...prev, activeClueIndex]));
+				if (clueIndexForHint !== null) {
+					setCorrectClues((prev) => new Set([...prev, clueIndexForHint]));
 				}
 				await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "gm_clue_correct", selectedPlayerCodes);
 
