@@ -1,3 +1,4 @@
+import asyncio
 import json
 from fastapi import WebSocket, WebSocketDisconnect
 from valkey.asyncio import Valkey
@@ -47,6 +48,17 @@ class ConnectionManager:
 
         global_logger.debug(f"WS disconnected from room {room_id}: {websocket.client}")
 
+    async def _send_json_safe(self, websocket: WebSocket, payload: dict) -> bool:
+        try:
+            await websocket.send_json(payload)
+            return True
+        except WebSocketDisconnect:
+            global_logger.info(f"[WS] Player disconnected (WebSocketDisconnect): {websocket.client}")
+            return False
+        except Exception as e:
+            global_logger.error(f"[WS] Failed to send to connection {websocket.client}: {e}")
+            return False
+
     def user_codes_in_room(self, room_id: str) -> list[str]:
         conns = self.rooms.get(room_id, [])
         seen: set[str] = set()
@@ -64,18 +76,12 @@ class ConnectionManager:
             global_logger.warning(f"[WS] send_to_room_local: No connections in room {room_id!r} (type={payload.get('type')!r})")
             return
 
-        dead: list[WebSocket] = []
-        success_count = 0
-        for ws in conns:
-            try:
-                await ws.send_json(payload)
-                success_count += 1
-            except WebSocketDisconnect:
-                global_logger.info(f"[WS] Player disconnected (WebSocketDisconnect): {ws.client}")
-                dead.append(ws)
-            except Exception as e:
-                global_logger.error(f"[WS] Failed to send to connection {ws.client}: {e}")
-                dead.append(ws)
+        results = await asyncio.gather(
+            *(self._send_json_safe(ws, payload) for ws in conns),
+            return_exceptions=True,
+        )
+        dead = [ws for ws, ok in zip(conns, results) if ok is not True]
+        success_count = len(conns) - len(dead)
 
         if dead:
             room_conns = self.rooms.get(room_id)

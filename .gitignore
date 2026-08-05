@@ -11,9 +11,7 @@ audios/
 *.sqlite3
 
 # Ignore env files with real values, but allow .env.example templates
-configs/.env
-configs/*.json
-backend/app/.env
+configs/
 credentials.json
 **/credentials.json
 
