@@ -157,8 +157,9 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
                 break;
             }
             case "show_hint": {
-                const hintContent = msg.hint_content ?? "";
-                const hintMediaSource = msg.hint_media_source ?? "";
+                const audienceVisible = msg.audience_visible === true;
+                const hintContent = audienceVisible ? msg.hint_content ?? "" : "";
+                const hintMediaSource = audienceVisible ? msg.hint_media_source ?? "" : "";
                 const contentIsMedia = isMediaFilename(hintContent);
                 const displayText = contentIsMedia ? hintMediaSource : hintContent;
                 const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
@@ -273,7 +274,7 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
                     title="GIẢI MÃ"
                     question={questionToShow}
                     timerDuration={timer}
-                    boardHeightClass="h-[22vh] sm:h-[25vh] lg:h-[28vh]"
+                    boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
                     controls={{ variant: 'numbers', count: 0 }}
                     hideContent={hideQuestionContent || isKeywordPhase}
                 />

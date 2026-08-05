@@ -506,7 +506,7 @@ const PGiaiMaPage = () => {
 					title="GIẢI MÃ"
 					question={isKeywordPhase ? { ...currentQuestion, questionText: keywordBanner, questionMediaURL: undefined } : currentQuestion}
 					timerDuration={timer}
-					boardHeightClass="h-[18vh] sm:h-[20vh] lg:h-[26vh]"
+					boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
 					controls={{ variant: 'numbers', count: 0 }}
 					hideContent={hideQuestionContent || isKeywordPhase}
 					/>

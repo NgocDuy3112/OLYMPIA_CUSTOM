@@ -72,7 +72,7 @@ async def apply_round_snapshot(valkey: Valkey, match_code: str, data: dict[str, 
     key = round_snapshot_key(match_code)
 
     try:
-        if msg_type in ("round_start", "round_end"):
+        if msg_type == "round_start" or (msg_type == "round_end" and data.get("round") != "gm"):
             await valkey.delete(key)
             return
 

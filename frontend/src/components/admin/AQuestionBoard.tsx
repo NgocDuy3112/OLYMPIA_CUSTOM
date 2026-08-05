@@ -109,7 +109,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         return <span>{t}</span>;
     };
 
-    const containerHeightClass = hideContent ? "" : boardHeightClass;
+    const containerHeightClass = boardHeightClass;
 
     return (
         <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${containerHeightClass}`}>

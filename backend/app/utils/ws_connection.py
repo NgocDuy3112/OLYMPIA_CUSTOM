@@ -122,40 +122,6 @@ class ConnectionManager:
 
         global_logger.debug(f"[WS] send_to_user_local: room={room_id!r} user={user_code!r} type={payload.get('type')!r} targets={len(targets)} success={success_count}")
 
-    async def send_gm_hint_local(self, room_id: str, payload: dict):
-        conns = list(self.rooms.get(room_id, []))
-        if not conns:
-            global_logger.warning(f"[WS] send_gm_hint_local: No connections in room {room_id!r}")
-            return
-
-        targets = {str(code) for code in (payload.get("target_players") or [])}
-        sanitized = {**payload, "hint_content": "", "hint_media_source": ""}
-        ws_payloads = []
-        for ws in conns:
-            role = self._socket_role.get(ws, "")
-            code = self._socket_user.get(ws, "")
-            ws_payload = sanitized if role == "player" and targets and code not in targets else payload
-            ws_payloads.append((ws, ws_payload))
-        results = await asyncio.gather(
-            *(self._send_json_safe(ws, ws_payload) for ws, ws_payload in ws_payloads),
-            return_exceptions=True,
-        )
-        dead = [ws for (ws, _), ok in zip(ws_payloads, results) if ok is not True]
-        success_count = len(ws_payloads) - len(dead)
-
-        if dead:
-            room_conns = self.rooms.get(room_id)
-            if room_conns is not None:
-                for ws in dead:
-                    try:
-                        room_conns.remove(ws)
-                    except ValueError:
-                        pass
-                    self._socket_user.pop(ws, None)
-                    self._socket_role.pop(ws, None)
-
-        global_logger.debug(f"[WS] send_gm_hint_local: room={room_id!r} type={payload.get('type')!r} total={len(conns)} success={success_count}")
-
     async def send_to_roles_local(self, room_id: str, roles: list[str], payload: dict):
         conns = list(self.rooms.get(room_id, []))
         if not conns:

@@ -10,7 +10,6 @@ import {
 	EyeOff,
 	Lightbulb,
 	KeyRound,
-	SendToBack,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -644,25 +643,10 @@ const AGiaiMaPage = () => {
 		startTransition(() => { void loadPlayersState(); });
 	}, [loadPlayersState]);
 
-	const clearQuestion = useCallback(async () => {
-		if (!currentMatchCode) return;
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		try {
-			await sendMessage({ type: "clear_question", user_code: "" });
-		} catch (err) {
-			logger.error("clearQuestion failed:", err);
-		}
-	}, [currentMatchCode, sendMessage]);
-
 	const handleEndRound = useCallback(async () => {
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		setActiveClueIndex(null);
-		setClueStates(Array(CLUE_COUNT).fill("idle"));
 		setIsKeywordTimerRunning(false);
-		setHideQuestionContent(false);
-		await clearQuestion();
 		if (!currentMatchCode) { return; }
 		try {
 			await sendMessage({ type: "round_end", round: "gm" });
@@ -670,7 +654,7 @@ const AGiaiMaPage = () => {
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [currentMatchCode, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
 		if (!currentQuestion.questionCode || isTimerRunning || timedClueCodes.has(currentQuestion.questionCode)) return;
@@ -822,6 +806,7 @@ const AGiaiMaPage = () => {
 				hint_content: hintText,
 				hint_media_source: hintMediaUrl ?? undefined,
 				target_players: selectedPlayerCodes,
+				audience_visible: selectedPlayerCodes.length > 0,
 				...(clueIndexForHint !== null ? { clue_index: clueIndexForHint, question_code: currentQuestion.questionCode } : {}),
 			});
 
@@ -908,6 +893,7 @@ const AGiaiMaPage = () => {
 						hint_content: text,
 						hint_media_source: mediaUrl ?? undefined,
 						target_players: [],
+						audience_visible: true,
 						clue_index: i,
 					});
 				} catch (err) {
@@ -918,6 +904,8 @@ const AGiaiMaPage = () => {
 			logger.error("handleRevealKeywordAnswer failed:", err);
 		}
 	}, [clueQuestions, keywordQuestion?.questionAnswer, sendMessage]);
+
+	const canShowKeywordAnswers = keywordPhaseActive && Object.keys(keywordSubmissions).length > 0 && keywordRevealedCodes.size === 0;
 
 	const handleShowKeywordAnswers = useCallback(async () => {
 		const answer = keywordQuestion?.questionAnswer;
@@ -1029,7 +1017,7 @@ const AGiaiMaPage = () => {
 			question={questionToShow}
 			timerDuration={timer}
 			aboveQuestionBoard={clueGrid}
-			boardHeightClass="h-[35vh]"
+			boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
 			hideQuestionContent={hideQuestionContent || isKeywordTimerRunning}
 			controlsChildren={() => null}
 			topControlButtons={null}
@@ -1051,18 +1039,11 @@ const AGiaiMaPage = () => {
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
 					<AControlButton
-						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers || isTimerRunning || isKeywordTimerRunning}
+						onClick={() => { void (keywordPhaseActive ? handleShowKeywordAnswers() : showAnswers()); }}
+						disabled={(keywordPhaseActive ? !canShowKeywordAnswers : !canShowAnswers) || isTimerRunning || isKeywordTimerRunning}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { void handleShowKeywordAnswers(); }}
-						disabled={!keywordPhaseActive || isTimerRunning || isKeywordTimerRunning}
-					>
-						<SendToBack size={18} />
-						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => {
@@ -1072,6 +1053,13 @@ const AGiaiMaPage = () => {
 					>
 						<Lightbulb size={18} />
 						<span className="ml-2 font-bold">MỞ GỢI Ý</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleHideHint(); }}
+						disabled={!currentQuestion.questionCode || hintHidden || isTimerRunning || isKeywordTimerRunning}
+					>
+						<EyeOff size={18} />
+						<span className="ml-2 font-bold">KHOÁ GỢI Ý</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => {
@@ -1085,18 +1073,11 @@ const AGiaiMaPage = () => {
 						<span className="ml-2 font-bold">TÍNH TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton
-						onClick={() => { void handleHideHint(); }}
-						disabled={!currentQuestion.questionCode || hintHidden || isTimerRunning || isKeywordTimerRunning}
-					>
-						<EyeOff size={18} />
-						<span className="ml-2 font-bold">KHOÁ GỢI Ý</span>
-					</AControlButton>
-					<AControlButton
 						onClick={() => { void handleRevealKeywordAnswer(); }}
 						disabled={!keywordPhaseActive || keywordAnswerRevealed || isTimerRunning || isKeywordTimerRunning}
 					>
 						<KeyRound size={18} />
-						<span className="ml-2 font-bold">MỞ TỪ KHOÁ</span>
+						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
 					</AControlButton>
 				</>
 			}
