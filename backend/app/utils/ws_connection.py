@@ -102,17 +102,12 @@ class ConnectionManager:
             return
 
         targets = [ws for ws in conns if self._socket_user.get(ws) == user_code]
-        dead: list[WebSocket] = []
-        success_count = 0
-        for ws in targets:
-            try:
-                await ws.send_json(payload)
-                success_count += 1
-            except WebSocketDisconnect:
-                dead.append(ws)
-            except Exception as e:
-                global_logger.error(f"[WS] send_to_user_local failed: {ws.client}: {e}")
-                dead.append(ws)
+        results = await asyncio.gather(
+            *(self._send_json_safe(ws, payload) for ws in targets),
+            return_exceptions=True,
+        )
+        dead = [ws for ws, ok in zip(targets, results) if ok is not True]
+        success_count = len(targets) - len(dead)
 
         if dead:
             room_conns = self.rooms.get(room_id)
@@ -135,20 +130,18 @@ class ConnectionManager:
 
         targets = {str(code) for code in (payload.get("target_players") or [])}
         sanitized = {**payload, "hint_content": "", "hint_media_source": ""}
-        dead: list[WebSocket] = []
-        success_count = 0
+        ws_payloads = []
         for ws in conns:
             role = self._socket_role.get(ws, "")
             code = self._socket_user.get(ws, "")
             ws_payload = sanitized if role == "player" and targets and code not in targets else payload
-            try:
-                await ws.send_json(ws_payload)
-                success_count += 1
-            except WebSocketDisconnect:
-                dead.append(ws)
-            except Exception as e:
-                global_logger.error(f"[WS] send_gm_hint_local failed: {ws.client}: {e}")
-                dead.append(ws)
+            ws_payloads.append((ws, ws_payload))
+        results = await asyncio.gather(
+            *(self._send_json_safe(ws, ws_payload) for ws, ws_payload in ws_payloads),
+            return_exceptions=True,
+        )
+        dead = [ws for (ws, _), ok in zip(ws_payloads, results) if ok is not True]
+        success_count = len(ws_payloads) - len(dead)
 
         if dead:
             room_conns = self.rooms.get(room_id)
@@ -174,17 +167,12 @@ class ConnectionManager:
             global_logger.debug(f"[WS] send_to_roles_local: No matching roles {roles} in room {room_id!r} (type={payload.get('type')!r})")
             return
 
-        dead: list[WebSocket] = []
-        success_count = 0
-        for ws in targets:
-            try:
-                await ws.send_json(payload)
-                success_count += 1
-            except WebSocketDisconnect:
-                dead.append(ws)
-            except Exception as e:
-                global_logger.error(f"[WS] send_to_roles_local failed: {ws.client}: {e}")
-                dead.append(ws)
+        results = await asyncio.gather(
+            *(self._send_json_safe(ws, payload) for ws in targets),
+            return_exceptions=True,
+        )
+        dead = [ws for ws, ok in zip(targets, results) if ok is not True]
+        success_count = len(targets) - len(dead)
 
         if dead:
             room_conns = self.rooms.get(room_id)
