@@ -93,7 +93,7 @@ def sync_audio_from_s3() -> None:
                     client.download_file(configs.S3_BUCKET_NAME, key, local_path)
                     downloaded += 1
                     logger.info(f"Downloaded: {key} -> {local_path}")
-                except (BotoCoreError, ClientError) as e:
+                except (BotoCoreError, ClientError, OSError) as e:
                     logger.error(f"Failed to download '{key}': {e}")
 
     logger.info(f"S3 audio sync complete: {downloaded} downloaded, {skipped} skipped")

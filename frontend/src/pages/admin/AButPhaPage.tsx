@@ -16,6 +16,8 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 5;
@@ -233,6 +235,27 @@ const AButPhaPage = () => {
 		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestion.questionCode) {
+			await sendMessage({
+				type: "send_question",
+				user_code: "",
+				question_code: currentQuestion.questionCode,
+				content: currentQuestion.questionText ?? "",
+				media_source: currentQuestion.questionMediaURL ?? undefined,
+			});
+		}
+		if (timerRef.current > 0 && currentQuestion.questionCode) {
+			await sendStartTimer({ sendMessage, phase: "bp", timeLimit: timerRef.current, questionCode: currentQuestion.questionCode });
+			if (videoPlayState === "playing") await sendMessage({ type: "media_control", action: "play" });
+		}
+	}, [currentQuestion, sendMessage, videoPlayState]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -254,12 +277,12 @@ const AButPhaPage = () => {
 
 		if (!currentMatchCode) { return; }
 		try {
-			await sendMessage({ type: "round_end", round: "bp" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "bp", sendMessage });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
 
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
 
 	const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
 
@@ -287,14 +310,7 @@ const AButPhaPage = () => {
 			);
 
 			try {
-				await sendMessage({
-					type: "start_the_timer",
-					user_code: "",
-					phase: "bp",
-					time_limit: TIME_LIMIT,
-					question_code: questionCode,
-					started_at: startedAt
-				});
+				await sendStartTimer({ sendMessage, phase: "bp", timeLimit: TIME_LIMIT, questionCode, startedAt });
 			} catch (error) {
 				logger.error("Failed to start the clock via WS:", error);
 			}
@@ -420,19 +436,12 @@ const AButPhaPage = () => {
 				}
 
 				if (timerRef.current > 0 && timerStartedAtRef.current) {
-					void sendMessage({
-						type: "start_the_timer",
-						user_code: "",
-						phase: "bp",
-						time_limit: TIME_LIMIT,
-						question_code: currentQuestion.questionCode,
-						started_at: timerStartedAtRef.current,
-					});
+					void sendStartTimer({ sendMessage, phase: "bp", timeLimit: TIME_LIMIT, questionCode: currentQuestion.questionCode, startedAt: timerStartedAtRef.current });
 					logger.info(`[BP RECONNECT] Resent timer to ${user_code} (started_at=${timerStartedAtRef.current})`);
 				}
 
-				void sendPlayersSnapshot();
-				logger.info(`[BP RECONNECT] Resent players snapshot to ${user_code}`);
+				void sendRoundSnapshot();
+				logger.info(`[BP RECONNECT] Resent round snapshot to ${user_code}`);
 				break;
 			}
 			case "mc_reconnected":
@@ -448,30 +457,7 @@ const AButPhaPage = () => {
 					} catch (err) {
 						logger.error("Failed to navigate player on reconnect:", err);
 					}
-					(async () => {
-						if (currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "send_question",
-									user_code: "",
-									question_code: currentQuestion.questionCode,
-									content: currentQuestion.questionText ?? "",
-									media_source: currentQuestion.questionMediaURL ?? undefined,
-								});
-							} catch {  }
-						}
-						if (timerRef.current > 0 && currentQuestion.questionCode) {
-							try {
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "bp", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
-							} catch {  }
-							try {
-								await sendMessage({ type: "media_control", action: "play" });
-							} catch {  }
-						}
-						try {
-							await sendPlayersSnapshot();
-						} catch {  }
-					})();
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -578,7 +564,7 @@ const AButPhaPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendPlayersSnapshot]);
+	}, [applyPlayersSnapshot, currentQuestion, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	const questionTitle = `BỨT PHÁ`;
 

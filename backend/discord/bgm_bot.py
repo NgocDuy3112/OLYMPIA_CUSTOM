@@ -14,7 +14,7 @@ from discord.ext import commands
 
 import configs
 import s3_audio
-from valkey_listener import get_valkey_client, subscribe_to_match_channels
+from valkey_listener import get_valkey_client, subscribe_to_event_channels
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 
@@ -292,9 +292,9 @@ async def _valkey_listener() -> None:
 
     Automatically reconnects with exponential backoff if the connection drops.
     """
-    match_code = configs.MATCH_CODE
+    event_channel_pattern = configs.EVENT_CHANNEL_PATTERN
     loop = asyncio.get_running_loop()
-    logger.info(f"BGM Bot listening on channel '{match_code}'")
+    logger.info(f"BGM Bot listening on channel '{event_channel_pattern}'")
     retry_delay = 2
 
     def _on_done(fut: asyncio.Future) -> None:
@@ -303,7 +303,7 @@ async def _valkey_listener() -> None:
 
     def _sync_subscribe():
         valkey_client = get_valkey_client()
-        for message in subscribe_to_match_channels(valkey_client, match_code):
+        for message in subscribe_to_event_channels(valkey_client, event_channel_pattern):
             fut = asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
             fut.add_done_callback(_on_done)
 

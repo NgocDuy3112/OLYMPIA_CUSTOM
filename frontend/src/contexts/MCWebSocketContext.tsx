@@ -23,5 +23,13 @@ export const MCWebSocketProvider: React.FC<{ matchCode: string; children: ReactN
     void sendMessage({ type: "user_online", user_code: mcCode, status: "online" });
   }, [isConnected, mcCode, sendMessage]);
 
+  useEffect(() => {
+    if (!isConnected || !mcCode) return;
+    const intervalId = window.setInterval(() => {
+      void sendMessage({ type: "user_online", user_code: mcCode, status: "heartbeat" });
+    }, 10_000);
+    return () => window.clearInterval(intervalId);
+  }, [isConnected, mcCode, sendMessage]);
+
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };

@@ -37,6 +37,7 @@ VALKEY_DB = int(os.getenv("VALKEY_DB", "0"))
 # instance receives events from every match of the current season.
 SEASON = os.getenv("SEASON", "3")
 MATCH_CODE = os.getenv("MATCH_CODE", f"OC{SEASON}_M*")
+EVENT_CHANNEL_PATTERN = os.getenv("EVENT_CHANNEL_PATTERN", f"events:{MATCH_CODE}")
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 

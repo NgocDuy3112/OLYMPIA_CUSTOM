@@ -153,11 +153,11 @@ async def post_answer_to_db(
             }
             try:
                 await valkey.publish(
-                    channel=request.match_code,
+                    channel=f"events:{request.match_code}",
                     message=json.dumps(winner_payload),
                 )
                 await valkey.publish(
-                    channel=request.match_code,
+                    channel=f"events:{request.match_code}",
                     message=json.dumps(block_payload),
                 )
                 global_logger.info(
@@ -186,7 +186,7 @@ async def post_answer_to_db(
             }
             try:
                 await valkey.set(cache_key, json.dumps(cache_payload))
-                await valkey.publish(channel=request.match_code, message=json.dumps(cache_payload))
+                await valkey.publish(channel=f"events:{request.match_code}", message=json.dumps(cache_payload))
                 global_logger.debug(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
             except Exception as e:
                 global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}", exc_info=True)

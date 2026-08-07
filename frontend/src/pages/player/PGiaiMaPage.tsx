@@ -176,10 +176,14 @@ const PGiaiMaPage = () => {
 				const displayMedia = canSeeHint ? (contentIsMedia ? hintContent : hintMediaSource) : "";
 				setHideQuestionContent(true);
 				const explicitIdx = Number(msg.clue_index);
+				const questionCodeMatch = String(msg.question_code ?? "").match(/(\d+)\s*$/);
+				const questionCodeIdx = questionCodeMatch ? Number(questionCodeMatch[1]) - 1 : null;
+				const hasQuestionCodeIdx = Number.isInteger(questionCodeIdx) && questionCodeIdx !== null && questionCodeIdx >= 0 && questionCodeIdx < CLUE_COUNT;
 				const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
+				const resolvedIdx = hasExplicitIdx ? explicitIdx : hasQuestionCodeIdx ? questionCodeIdx : null;
 
-				if (hasExplicitIdx) {
-					const idx = explicitIdx;
+				if (resolvedIdx !== null) {
+					const idx = resolvedIdx;
 					activeClueIdxRef.current = idx;
 					setClueStates((prev) => {
 						if (prev[idx] === "used") return prev;
@@ -502,7 +506,7 @@ const PGiaiMaPage = () => {
 					title="GIẢI MÃ"
 					question={isKeywordPhase ? { ...currentQuestion, questionText: keywordBanner, questionMediaURL: undefined } : currentQuestion}
 					timerDuration={timer}
-					boardHeightClass="h-[18vh] sm:h-[20vh] lg:h-[26vh]"
+					boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
 					controls={{ variant: 'numbers', count: 0 }}
 					hideContent={hideQuestionContent || isKeywordPhase}
 					/>

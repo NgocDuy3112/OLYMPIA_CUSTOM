@@ -141,9 +141,25 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
                 activeClueIdxRef.current = null;
                 clearAnswers();
                 break;
+            case "gm_chon_goi_y": {
+                const clueIndex = Number(msg.clue_index);
+                if (Number.isInteger(clueIndex) && clueIndex >= 0 && clueIndex < CLUE_COUNT) {
+                    activeClueIdxRef.current = clueIndex;
+                    setClueStates((prev) =>
+                        prev.map((state, index) => {
+                            if (index === clueIndex) return "active";
+                            if (state === "active") return "used";
+                            return state;
+                        }),
+                    );
+                    setHideQuestionContent(false);
+                }
+                break;
+            }
             case "show_hint": {
-                const hintContent = msg.hint_content ?? "";
-                const hintMediaSource = msg.hint_media_source ?? "";
+                const audienceVisible = msg.audience_visible === true;
+                const hintContent = audienceVisible ? msg.hint_content ?? "" : "";
+                const hintMediaSource = audienceVisible ? msg.hint_media_source ?? "" : "";
                 const contentIsMedia = isMediaFilename(hintContent);
                 const displayText = contentIsMedia ? hintMediaSource : hintContent;
                 const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
@@ -151,8 +167,11 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
                 setHideQuestionContent(true);
 
                 const explicitIdx = Number(msg.clue_index);
+                const questionCodeMatch = String(msg.question_code ?? "").match(/(\d+)\s*$/);
+                const questionCodeIdx = questionCodeMatch ? Number(questionCodeMatch[1]) - 1 : null;
+                const hasQuestionCodeIdx = Number.isInteger(questionCodeIdx) && questionCodeIdx !== null && questionCodeIdx >= 0 && questionCodeIdx < CLUE_COUNT;
                 const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
-                const idx = hasExplicitIdx ? explicitIdx : activeClueIdxRef.current;
+                const idx = hasExplicitIdx ? explicitIdx : hasQuestionCodeIdx ? questionCodeIdx : activeClueIdxRef.current;
                 if (idx !== null) {
                     if (hasExplicitIdx) activeClueIdxRef.current = idx;
                     setClueStates((prev) => {
@@ -255,7 +274,7 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
                     title="GIẢI MÃ"
                     question={questionToShow}
                     timerDuration={timer}
-                    boardHeightClass="h-[22vh] sm:h-[25vh] lg:h-[28vh]"
+                    boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
                     controls={{ variant: 'numbers', count: 0 }}
                     hideContent={hideQuestionContent || isKeywordPhase}
                 />

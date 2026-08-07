@@ -8,7 +8,7 @@ const logger = createLogger("WS");
 const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 16_000;
 const DEBOUNCE_MS = 500;
-const DEBOUNCED_EVENTS = new Set(["navigate", "start_the_timer", "play_bgm", "round_start"]);
+const DEBOUNCED_EVENTS = new Set(["play_bgm"]);
 
 const createWsUrl = (matchCode: string, token?: string) =>
   `${WS_BASE_URL}/ws/${matchCode}${token ? `?token=${encodeURIComponent(token)}` : ""}`;

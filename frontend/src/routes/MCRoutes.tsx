@@ -30,7 +30,6 @@ const MCAutoNavigator: React.FC = () => {
     const location = useLocation();
     const { lastMessage, sendMessage } = useGameWebSocket();
     const matchCode = localStorage.getItem("matchCode") || "";
-
     useEffect(() => {
         if (!lastMessage) return;
         const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
@@ -75,7 +74,6 @@ const MCAutoNavigator: React.FC = () => {
 
         if (currentPath !== target) {
             navigate(target, { replace: true });
-            void sendMessage({ type: "request_snapshot" });
         }
     }, [lastMessage, matchCode, navigate, location.pathname, sendMessage]);
 

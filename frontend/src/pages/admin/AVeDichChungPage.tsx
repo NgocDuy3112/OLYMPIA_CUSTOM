@@ -26,6 +26,8 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AVeDichChung");
 
@@ -324,6 +326,35 @@ const AVeDichChungPage = () => {
 		void sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (roundQuestionCodes.length > 0 && questions.length > 0 && currentMatchCode) {
+			const metadata = roundQuestionCodes.map((code) => {
+				const idx = questions.findIndex((q) => q.questionCode === code);
+				const rawCategory = questionCategories[idx] || "Unknown";
+				const pts = questionPoints[idx] || 0;
+				const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
+				return { code, category: catPrimary || rawCategory, points: pts };
+			});
+			await sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
+		}
+		for (const [code, state] of Object.entries(questionStates)) {
+			if (state === "answered" || state === "answered-wrong") await sendMessage({ type: "vdc_question_state", question_code: code, state });
+		}
+		if (currentQuestion.questionCode) {
+			await sendMessage({ type: "send_question", user_code: "", question_code: currentQuestion.questionCode, content: currentQuestion.questionText ?? "", media_source: currentQuestion.questionMediaURL ?? undefined });
+		}
+		if (timerRef.current > 0 && currentQuestion.questionCode) {
+			await sendStartTimer({ sendMessage, phase: "vdc", timeLimit: timerRef.current, questionCode: currentQuestion.questionCode });
+			if (videoPlayState === "playing") await sendMessage({ type: "media_control", action: "play" });
+		}
+		if (Object.keys(usedPowers).length > 0) await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
+	}, [currentMatchCode, currentQuestion, questionCategories, questionPoints, questionStates, questions, roundQuestionCodes, sendMessage, sendPlayersSnapshot, usedPowers, videoPlayState]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setVideoPlayState(null);
@@ -421,14 +452,7 @@ const AVeDichChungPage = () => {
 		setTimer(timeLimit);
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
-			void sendMessage({
-				type: "start_the_timer",
-				user_code: "",
-				phase: "vdc",
-				time_limit: timeLimit,
-				question_code: currentQuestion.questionCode,
-				started_at: Date.now(),
-			});
+			void sendStartTimer({ sendMessage, phase: "vdc", timeLimit, questionCode: currentQuestion.questionCode });
 
 		}
 	}, [currentQuestion.questionCode, isTimerRunning, isTimerLocked, lockTimer, currentPoints, currentMatchCode, sendMessage]);
@@ -619,12 +643,11 @@ const AVeDichChungPage = () => {
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
-
-			await sendMessage({ type: "round_end", round: "vdc" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "vdc", sendMessage });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-	}, [currentMatchCode, sendMessage]);
+	}, [currentMatchCode, navigate, sendMessage]);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -657,67 +680,7 @@ const AVeDichChungPage = () => {
 					try {
 						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdc" });
 					} catch {  }
-					(async () => {
-
-						if (roundQuestionCodes.length > 0 && questions.length > 0 && currentMatchCode) {
-							try {
-								const metadata = roundQuestionCodes.map((code) => {
-									const idx = questions.findIndex((q) => q.questionCode === code);
-									const rawCategory = questionCategories[idx] || "Unknown";
-									const pts = questionPoints[idx] || 0;
-									const [catPrimary] = rawCategory.split("|").map((s) => s?.trim());
-									return { code, category: catPrimary || rawCategory, points: pts };
-								});
-								await sendMessage({ type: "vdc_questions_meta", match_code: currentMatchCode, question_metadata: metadata });
-							} catch {  }
-						}
-
-						for (const [code, state] of Object.entries(questionStates)) {
-							if (state === "answered" || state === "answered-wrong") {
-								try {
-									await sendMessage({ type: "vdc_question_state", question_code: code, state });
-								} catch {  }
-							}
-						}
-						if (currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "send_question",
-									user_code: "",
-									question_code: currentQuestion.questionCode,
-									content: currentQuestion.questionText ?? "",
-									media_source: currentQuestion.questionMediaURL ?? undefined,
-								});
-							} catch {  }
-						}
-						if (timerRef.current > 0 && currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "start_the_timer",
-									user_code: "",
-									phase: "vdc",
-									time_limit: timerRef.current,
-									question_code: currentQuestion.questionCode,
-									started_at: Date.now(),
-								});
-							} catch {  }
-							if (currentQuestion.questionMediaURL) {
-								try {
-									await sendMessage({ type: "media_control", action: "play" });
-								} catch {  }
-							}
-						}
-
-						try {
-							await sendPlayersSnapshot();
-						} catch {  }
-
-						if (Object.keys(usedPowers).length > 0) {
-							try {
-								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
-							} catch {  }
-						}
-					})();
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -839,7 +802,7 @@ const AVeDichChungPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, questionCategories, questionPoints, questionStates, questions, roundQuestionCodes]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	const getQuestionMeta = (questionCode: string) => {
 		const idx = questions.findIndex((q) => q.questionCode === questionCode);

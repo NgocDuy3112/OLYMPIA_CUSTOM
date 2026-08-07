@@ -22,6 +22,8 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AKhoiDongRieng");
 
@@ -250,6 +252,20 @@ const AKhoiDongRiengPage = () => {
 		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestionIndex > 0) {
+			await sendQuestionToPlayers(currentQuestionIndex);
+		}
+		if (timer > 0 && currentQuestionIndex > 0) {
+			await sendStartTimer({ sendMessage, phase: "kdr", timeLimit: timer, questionCode: resolveQuestionCode(currentQuestionIndex) });
+		}
+	}, [currentQuestionIndex, resolveQuestionCode, sendMessage, sendPlayersSnapshot, sendQuestionToPlayers, timer]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -259,6 +275,17 @@ const AKhoiDongRiengPage = () => {
 			logger.error("Failed to clear question via WS:", error);
 		}
 	}, [currentMatchCode, sendMessage]);
+
+	const handleEndTurn = useCallback(async () => {
+		setCurrentQuestionIndex(0);
+		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setTimer(0);
+		setSelectedPlayerCode(null);
+		setIsPlayerLocked(false);
+		setIsTimerRunning(false);
+		setHasStartedRoundTimer(false);
+		await clearQuestion();
+	}, [clearQuestion]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -270,12 +297,12 @@ const AKhoiDongRiengPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "round_end", round: "kdr" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "kdr", sendMessage });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
 
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
 		if (hasStartedRoundTimer || isTimerRunning) return;
@@ -318,7 +345,7 @@ const AKhoiDongRiengPage = () => {
 				content: fallbackQuestion.questionText,
 				media_source: fallbackQuestion.questionMediaURL,
 			});
-			void sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
+			void sendStartTimer({ sendMessage, phase: "kdr", timeLimit: TIME_LIMIT, questionCode: fallbackQuestion.questionCode });
 		}
 
 		void loadQuestion(targetIndex)
@@ -639,40 +666,8 @@ const AKhoiDongRiengPage = () => {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
-					(async () => {
-
-						try {
-							await sendPlayersSnapshot();
-							logger.info("Resent players snapshot after user_online for", msg.user_code);
-						} catch (err) {
-							logger.error("Failed to resend players snapshot on user_online:", err);
-						}
-
-						try {
-							void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdr" });
-						} catch (err) {
-							logger.error("Failed to navigate player on reconnect:", err);
-						}
-
-						if (currentQuestionIndex > 0) {
-							try {
-								await sendQuestionToPlayers(currentQuestionIndex);
-								logger.info("Resent question to players after user_online for", msg.user_code);
-							} catch (err) {
-								logger.error("Failed to resend question on user_online:", err);
-							}
-						}
-
-						if (timer > 0 && currentQuestionIndex > 0) {
-							try {
-								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: questionCode, started_at: Date.now() });
-								logger.info("Resent timer to players after user_online for", msg.user_code, "time_left=", timer);
-							} catch (err) {
-								logger.error("Failed to resend timer on user_online:", err);
-							}
-						}
-					})();
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdr" });
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -776,7 +771,7 @@ const AKhoiDongRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendQuestionToPlayers, currentQuestionIndex, timer, sendMessage, resolveQuestionCode]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	return (
 		<ABasePageLayout
@@ -842,7 +837,14 @@ const AKhoiDongRiengPage = () => {
 			bottomActionButtons={
 				<>
 					<AControlButton
-						onClick={() => { handleEndRound() }}
+						onClick={() => { void handleEndTurn(); }}
+						disabled={isTimerRunning || !selectedPlayerCode}
+					>
+						<SkipForward size={18} />
+						<span className="ml-2 font-bold">HẾT LƯỢT</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleEndRound(); }}
 						disabled={isTimerRunning}
 					>
 						<Power size={18} />

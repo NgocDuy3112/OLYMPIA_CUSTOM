@@ -88,6 +88,14 @@ const AWaitingPage = () => {
 		void sendPlayersSnapshot();
 	}, [sendPlayersSnapshot, setPlayers]);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+	}, []);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	useEffect(() => {
 		void sendPlayersSnapshot();
 	}, [sendPlayersSnapshot]);
@@ -113,12 +121,12 @@ const AWaitingPage = () => {
 					));
 				}
 				void sendMessage({ type: "navigate", user_code: msg.user_code, path });
-				void sendPlayersSnapshot();
+				void sendRoundSnapshot();
 				break;
 			}
 		}
 		});
-	}, [lastMessage, sendPlayersSnapshot, sendMessage, setPlayers]);
+	}, [lastMessage, sendMessage, sendRoundSnapshot, setPlayers]);
 
 	const handleOpenMatch = useCallback(async () => {
 		if (!currentMatchCode) return;
@@ -195,9 +203,9 @@ const AWaitingPage = () => {
 			await sendMessage({ type: "clear_question", user_code: "" });
 			navigate(`${adminPath}/${currentMatchCode}`);
 			await sendMessage({ type: "navigate", user_code: "", path: `${playerPath}/${currentMatchCode}` });
-			await sendPlayersSnapshot();
+			await sendRoundSnapshot();
 		},
-		[currentMatchCode, navigate, sendMessage, sendPlayersSnapshot],
+		[currentMatchCode, navigate, sendMessage, sendRoundSnapshot],
 	);
 
 	const handleNavigateToKDC = useCallback(() => { void broadcastNavigate("/admin/kdc", "/player/kdc", "kdc"); }, [broadcastNavigate]);

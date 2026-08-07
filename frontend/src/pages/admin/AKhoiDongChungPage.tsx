@@ -21,6 +21,8 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AKhoiDongChung");
 
@@ -274,6 +276,20 @@ const AKhoiDongChungPage = () => {
 		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestionIndex > 0) {
+			await sendQuestionToplayers(currentQuestionIndex);
+		}
+		if (timer > 0 && currentQuestionIndex > 0) {
+			await sendStartTimer({ sendMessage, phase: "kdc", timeLimit: timer, questionCode: resolveQuestionCode(currentQuestionIndex) });
+		}
+	}, [currentQuestionIndex, resolveQuestionCode, sendMessage, sendPlayersSnapshot, sendQuestionToplayers, timer]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -294,12 +310,12 @@ const AKhoiDongChungPage = () => {
 
 		if (!currentMatchCode) { return; }
 		try {
-			await sendMessage({ type: "round_end", round: "kdc" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "kdc", sendMessage });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
 
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
 
 		const startTheClock = useCallback(async () => {
 			if (hasStartedRoundTimer || isTimerRunning) return;
@@ -341,7 +357,7 @@ const AKhoiDongChungPage = () => {
 					content: fallbackQuestion.questionText,
 					media_source: fallbackQuestion.questionMediaURL,
 				});
-				void sendMessage({ type: "start_the_timer", user_code: "", phase: "kdc", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
+				void sendStartTimer({ sendMessage, phase: "kdc", timeLimit: TIME_LIMIT, questionCode: fallbackQuestion.questionCode });
 			}
 
 			void loadQuestion(targetIndex)
@@ -563,34 +579,7 @@ const AKhoiDongChungPage = () => {
 					} catch (err) {
 						logger.error("Failed to navigate player on reconnect:", err);
 					}
-					(async () => {
-
-						if (currentQuestionIndex > 0) {
-							try {
-								await sendQuestionToplayers(currentQuestionIndex);
-								logger.info("Resent question to players after user_online for", msg.user_code);
-							} catch (err) {
-								logger.error("Failed to resend question on user_online:", err);
-							}
-						}
-
-						if (timer > 0 && currentQuestionIndex > 0) {
-							try {
-								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdc", time_limit: timer, question_code: questionCode, started_at: Date.now() });
-								logger.info("Resent timer to players after user_online for", msg.user_code, "time_left=", timer);
-							} catch (err) {
-								logger.error("Failed to resend timer on user_online:", err);
-							}
-						}
-
-						try {
-							await sendPlayersSnapshot();
-							logger.info("Resent players snapshot after user_online for", msg.user_code);
-						} catch (err) {
-							logger.error("Failed to resend players snapshot on user_online:", err);
-						}
-					})();
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -681,7 +670,7 @@ const AKhoiDongChungPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendQuestionToplayers, currentQuestionIndex, timer, sendMessage, resolveQuestionCode]);
+	}, [applyPlayersSnapshot, lastMessage, sendRoundSnapshot]);
 
 	return (
 		<ABasePageLayout

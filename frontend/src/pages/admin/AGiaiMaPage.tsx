@@ -10,7 +10,6 @@ import {
 	EyeOff,
 	Lightbulb,
 	KeyRound,
-	SendToBack,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -27,6 +26,8 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AGiaiMa");
 
@@ -419,7 +420,7 @@ const AGiaiMaPage = () => {
 
 				const wasAlreadyOpened = clueStates[clueIndex] !== "idle";
 				if (!wasAlreadyOpened) {
-					void sendMessage({ type: "gm_chon_goi_y" });
+					void sendMessage({ type: "gm_chon_goi_y", clue_index: clueIndex, question_code: q.questionCode });
 				}
 			} catch (err) {
 				logger.error("handleRevealClue: failed to send question via WS:", err);
@@ -493,6 +494,28 @@ const AGiaiMaPage = () => {
 		}
 	}, [currentMatchCode, loadPlayersState, sendMessage]);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestion.questionCode) {
+			await sendMessage({ type: "send_question", user_code: "", question_code: currentQuestion.questionCode, content: currentQuestion.questionText ?? "", media_source: currentQuestion.questionMediaURL ?? undefined });
+		}
+		if (isTimerRunning && timerRef.current > 0) {
+			await sendStartTimer({ sendMessage, phase: isKeywordTimerRunning ? "gm_keyword" : "gm", timeLimit: timerRef.current, questionCode: currentQuestion.questionCode });
+		}
+		await broadcastKeywordInfo();
+		for (let idx = 0; idx < CLUE_COUNT; idx++) {
+			const state = clueStates[idx];
+			const question = clueQuestions[idx];
+			if (state === "idle" || !question) continue;
+			await sendMessage({ type: "send_question", user_code: "", question_code: question.questionCode, content: question.questionText, media_source: question.questionMediaURL ?? undefined });
+		}
+		if (keywordCluesLocked) await sendMessage({ type: "keyword_clues_locked", user_code: "", total_clues: CLUE_COUNT });
+	}, [broadcastKeywordInfo, clueQuestions, clueStates, currentQuestion, isKeywordTimerRunning, isTimerRunning, keywordCluesLocked, sendMessage]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	useEffect(() => {
 		(async () => {
 		if (!lastMessage) return;
@@ -500,82 +523,7 @@ const AGiaiMaPage = () => {
 
 		switch (msg?.type) {
 			case "player_reconnected": {
-				const user_code = msg.user_code;
-				logger.info(`[GM RECONNECT] Player ${user_code} reconnected, resending state...`);
-
-				if (currentQuestion.questionCode) {
-					try {
-						void sendMessage({
-							type: "send_question",
-							user_code: "",
-							question_code: currentQuestion.questionCode,
-							content: currentQuestion.questionText ?? "",
-							media_source: currentQuestion.questionMediaURL ?? undefined,
-						});
-						logger.info(`[GM RECONNECT] Resent question to ${user_code}`);
-					} catch (err) {
-						logger.error("[GM RECONNECT] Resend send_question failed:", err);
-					}
-				}
-
-				if (isTimerRunning && timerRef.current > 0) {
-					try {
-						const phase = isKeywordTimerRunning ? "gm_keyword" : "gm";
-						void sendMessage({
-							type: "start_the_timer",
-							user_code: "",
-							phase,
-							time_limit: timerRef.current,
-							question_code: currentQuestion.questionCode,
-							started_at: Date.now(),
-						});
-						logger.info(`[GM RECONNECT] Resent timer to ${user_code} (phase=${phase})`);
-					} catch (err) {
-						logger.error("[GM RECONNECT] Resend start_the_timer failed:", err);
-					}
-				}
-
-				try {
-					await broadcastKeywordInfo();
-				} catch (err) {
-					logger.error("[GM RECONNECT] broadcastKeywordInfo failed:", err);
-				}
-
-				for (let idx = 0; idx < CLUE_COUNT; idx++) {
-					const s = clueStates[idx];
-					if (s === "idle") continue;
-					const q = clueQuestions[idx];
-					if (!q) continue;
-					try {
-						void sendMessage({
-							type: "send_question",
-							user_code: "",
-							question_code: q.questionCode,
-							content: q.questionText,
-							media_source: q.questionMediaURL ?? undefined,
-						});
-					} catch (err) {
-						logger.error(`[GM RECONNECT] Resend clue ${idx + 1} failed:`, err);
-					}
-				}
-
-				if (keywordCluesLocked) {
-					try {
-						void sendMessage({
-							type: "keyword_clues_locked",
-							user_code: "",
-							total_clues: CLUE_COUNT,
-						});
-					} catch (err) {
-						logger.error("[GM RECONNECT] Resend keyword_clues_locked failed:", err);
-					}
-				}
-
-				try {
-					await sendPlayersSnapshot();
-				} catch (err) {
-					logger.error("[GM RECONNECT] sendPlayersSnapshot failed:", err);
-				}
+				void sendRoundSnapshot();
 				break;
 			}
 			case "mc_reconnected":
@@ -585,36 +533,8 @@ const AGiaiMaPage = () => {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
-					try {
-						void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
-					} catch (err) {
-						logger.error("Failed to navigate player on reconnect:", err);
-					}
-					(async () => {
-						if (currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "send_question",
-									user_code: "",
-									question_code: currentQuestion.questionCode,
-									content: currentQuestion.questionText ?? "",
-									media_source: currentQuestion.questionMediaURL ?? undefined,
-								});
-							} catch {  }
-						}
-						if (isTimerRunning && timerRef.current > 0) {
-							try {
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "gm", time_limit: timerRef.current, question_code: currentQuestion.questionCode, started_at: Date.now() });
-							} catch {  }
-						}
-						try {
-							await broadcastKeywordInfo();
-						} catch {  }
-
-						try {
-							await sendPlayersSnapshot();
-						} catch {  }
-					})();
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/gm" });
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -695,7 +615,7 @@ const AGiaiMaPage = () => {
 				break;
 		}
 		})();
-	}, [applyPlayersSnapshot, broadcastKeywordInfo, clueQuestions, clueStates, currentQuestion, isKeywordTimerRunning, isTimerRunning, keywordCluesLocked, lastMessage, sendMessage, sendPlayersSnapshot]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	useEffect(() => {
 		if (!isTimerRunning) return;
@@ -724,33 +644,17 @@ const AGiaiMaPage = () => {
 		startTransition(() => { void loadPlayersState(); });
 	}, [loadPlayersState]);
 
-	const clearQuestion = useCallback(async () => {
-		if (!currentMatchCode) return;
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
-		try {
-			await sendMessage({ type: "clear_question", user_code: "" });
-		} catch (err) {
-			logger.error("clearQuestion failed:", err);
-		}
-	}, [currentMatchCode, sendMessage]);
-
 	const handleEndRound = useCallback(async () => {
-		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
-		setActiveClueIndex(null);
-		setClueStates(Array(CLUE_COUNT).fill("idle"));
 		setIsKeywordTimerRunning(false);
-		setHideQuestionContent(false);
-		await clearQuestion();
 		if (!currentMatchCode) { return; }
 		try {
-			await sendMessage({ type: "round_end", round: "gm" });
-
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "gm", sendMessage });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+	}, [currentMatchCode, navigate, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
 		if (!currentQuestion.questionCode || isTimerRunning || timedClueCodes.has(currentQuestion.questionCode)) return;
@@ -772,14 +676,7 @@ const AGiaiMaPage = () => {
 
 		if (currentMatchCode) {
 			void sendMessage({ type: "clear_answers", user_code: "" });
-			void sendMessage({
-				type: "start_the_timer",
-				user_code: "",
-				phase: "gm",
-				time_limit: TIME_LIMIT,
-				question_code: currentQuestion.questionCode,
-				started_at: Date.now(),
-			});
+			void sendStartTimer({ sendMessage, phase: "gm", timeLimit: TIME_LIMIT, questionCode: currentQuestion.questionCode });
 		}
 	}, [currentMatchCode, currentQuestion.questionCode, isTimerRunning, sendMessage, timedClueCodes]);
 
@@ -790,14 +687,7 @@ const AGiaiMaPage = () => {
 		setTimer(15);
 		setIsTimerRunning(true);
 
-		await sendMessage({
-			type: "start_the_timer",
-			user_code: "",
-			phase: "gm_keyword",
-			time_limit: 15,
-			question_code: KEYWORD_QUESTION_CODE,
-			started_at: Date.now(),
-		});
+		await sendStartTimer({ sendMessage, phase: "gm_keyword", timeLimit: 15, questionCode: KEYWORD_QUESTION_CODE });
 
 		await sendMessage({
 			type: "keyword_clues_locked",
@@ -894,11 +784,15 @@ const AGiaiMaPage = () => {
 		const hintMediaUrl: string | undefined = undefined;
 
 		if (!hintText && !hintMediaUrl) return;
+		const codeMatch = String(currentQuestion.questionCode ?? "").match(/(\d+)\s*$/);
+		const codeIndex = codeMatch ? Number(codeMatch[1]) - 1 : null;
+		const clueIndexForHint = activeClueIndex !== null ? activeClueIndex : Number.isInteger(codeIndex) && codeIndex !== null && codeIndex >= 0 && codeIndex < CLUE_COUNT ? codeIndex : null;
 		setPendingClueAction(false);
 		setShownHintContent(hintText);
 		setHideQuestionContent(true);
-		if (activeClueIndex !== null) {
-			const idx = activeClueIndex;
+		if (clueIndexForHint !== null) {
+			const idx = clueIndexForHint;
+			setActiveClueIndex(idx);
 			setRevealedHints((prev) => {
 				const next: Record<number, RevealedHint> = { ...prev };
 				next[idx] = { text: hintText || undefined, mediaUrl: hintMediaUrl || undefined };
@@ -912,14 +806,15 @@ const AGiaiMaPage = () => {
 				hint_content: hintText,
 				hint_media_source: hintMediaUrl ?? undefined,
 				target_players: selectedPlayerCodes,
-				...(activeClueIndex !== null ? { clue_index: activeClueIndex } : {}),
+				audience_visible: selectedPlayerCodes.length > 0,
+				...(clueIndexForHint !== null ? { clue_index: clueIndexForHint, question_code: currentQuestion.questionCode } : {}),
 			});
 
 			sendMessage({ type: "gm_dung" });
 
 			if (selectedPlayerCodes.length > 0 && currentQuestion.questionCode) {
-				if (activeClueIndex !== null) {
-					setCorrectClues((prev) => new Set([...prev, activeClueIndex]));
+				if (clueIndexForHint !== null) {
+					setCorrectClues((prev) => new Set([...prev, clueIndexForHint]));
 				}
 				await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "gm_clue_correct", selectedPlayerCodes);
 
@@ -998,6 +893,7 @@ const AGiaiMaPage = () => {
 						hint_content: text,
 						hint_media_source: mediaUrl ?? undefined,
 						target_players: [],
+						audience_visible: true,
 						clue_index: i,
 					});
 				} catch (err) {
@@ -1008,6 +904,8 @@ const AGiaiMaPage = () => {
 			logger.error("handleRevealKeywordAnswer failed:", err);
 		}
 	}, [clueQuestions, keywordQuestion?.questionAnswer, sendMessage]);
+
+	const canShowKeywordAnswers = keywordPhaseActive && Object.keys(keywordSubmissions).length > 0 && keywordRevealedCodes.size === 0;
 
 	const handleShowKeywordAnswers = useCallback(async () => {
 		const answer = keywordQuestion?.questionAnswer;
@@ -1119,7 +1017,7 @@ const AGiaiMaPage = () => {
 			question={questionToShow}
 			timerDuration={timer}
 			aboveQuestionBoard={clueGrid}
-			boardHeightClass="h-[35vh]"
+			boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
 			hideQuestionContent={hideQuestionContent || isKeywordTimerRunning}
 			controlsChildren={() => null}
 			topControlButtons={null}
@@ -1141,18 +1039,11 @@ const AGiaiMaPage = () => {
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
 					</AControlButton>
 					<AControlButton
-						onClick={() => { void showAnswers(); }}
-						disabled={!canShowAnswers || isTimerRunning || isKeywordTimerRunning}
+						onClick={() => { void (keywordPhaseActive ? handleShowKeywordAnswers() : showAnswers()); }}
+						disabled={(keywordPhaseActive ? !canShowKeywordAnswers : !canShowAnswers) || isTimerRunning || isKeywordTimerRunning}
 					>
 						<Eye size={18} />
 						<span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-					</AControlButton>
-					<AControlButton
-						onClick={() => { void handleShowKeywordAnswers(); }}
-						disabled={!keywordPhaseActive || isTimerRunning || isKeywordTimerRunning}
-					>
-						<SendToBack size={18} />
-						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => {
@@ -1162,6 +1053,13 @@ const AGiaiMaPage = () => {
 					>
 						<Lightbulb size={18} />
 						<span className="ml-2 font-bold">MỞ GỢI Ý</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleHideHint(); }}
+						disabled={!currentQuestion.questionCode || hintHidden || isTimerRunning || isKeywordTimerRunning}
+					>
+						<EyeOff size={18} />
+						<span className="ml-2 font-bold">KHOÁ GỢI Ý</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => {
@@ -1175,18 +1073,11 @@ const AGiaiMaPage = () => {
 						<span className="ml-2 font-bold">TÍNH TỪ KHOÁ</span>
 					</AControlButton>
 					<AControlButton
-						onClick={() => { void handleHideHint(); }}
-						disabled={!currentQuestion.questionCode || hintHidden || isTimerRunning || isKeywordTimerRunning}
-					>
-						<EyeOff size={18} />
-						<span className="ml-2 font-bold">KHOÁ GỢI Ý</span>
-					</AControlButton>
-					<AControlButton
 						onClick={() => { void handleRevealKeywordAnswer(); }}
 						disabled={!keywordPhaseActive || keywordAnswerRevealed || isTimerRunning || isKeywordTimerRunning}
 					>
 						<KeyRound size={18} />
-						<span className="ml-2 font-bold">MỞ TỪ KHOÁ</span>
+						<span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
 					</AControlButton>
 				</>
 			}

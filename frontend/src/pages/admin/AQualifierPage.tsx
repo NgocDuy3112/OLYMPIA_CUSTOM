@@ -1,5 +1,6 @@
 
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     AlarmClockCheck,
     Play,
@@ -26,6 +27,8 @@ import {
     type QualifierStandingEntry,
 } from "@/types/qualifier";
 import { API_BASE_URL } from "@/configs";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AQualifier");
 
@@ -51,6 +54,7 @@ const OPTION_BG: Record<string, string> = {
 };
 
 const AQualifierPage = () => {
+    const navigate = useNavigate();
 
     const currentMatchCode = localStorage.getItem("matchCode") ?? "OC3_M_VL";
     const token = localStorage.getItem("jwtToken_admin") ?? "";
@@ -390,14 +394,7 @@ const AQualifierPage = () => {
                     });
 
                     if (isTimerRunningRef.current && timerRef.current > 0 && timerStartedAtRef.current !== null) {
-                        void sendMessage({
-                            type: "start_the_timer",
-                            user_code: "",
-                            phase: "vl",
-                            time_limit: QUALIFIER_TIME_LIMIT,
-                            question_code: currentQuestion.questionCode,
-                            started_at: timerStartedAtRef.current,
-                        });
+                        void sendStartTimer({ sendMessage, phase: "vl", timeLimit: QUALIFIER_TIME_LIMIT, questionCode: currentQuestion.questionCode, startedAt: timerStartedAtRef.current });
                     }
                 }
                 break;
@@ -463,13 +460,11 @@ const AQualifierPage = () => {
         setIsTimerRunning(false);
         if (!currentMatchCode) return;
         try {
-            await sendMessage({ type: "round_end", round: "vl" });
-
+            await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "vl", sendMessage });
         } catch (err) {
             logger.error("Failed to end qualifier round:", err);
         }
         try {
-
             const res = await fetch(`${API_BASE_URL}/qualifier/end-round`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -487,7 +482,7 @@ const AQualifierPage = () => {
             logger.error("Failed to call end-round API:", err);
             await loadQualifierStandings();
         }
-    }, [currentMatchCode, currentRound, loadQualifierStandings, loadAdvancements, sendMessage, token]);
+    }, [currentMatchCode, currentRound, loadQualifierStandings, loadAdvancements, navigate, sendMessage, token]);
 
     const startTheClock = useCallback(async () => {
         if (!currentMatchCode || !token || currentQuestionIndex <= 0 || timer > 0) return;
@@ -497,14 +492,7 @@ const AQualifierPage = () => {
         setTimer(QUALIFIER_TIME_LIMIT);
         setIsTimerRunning(true);
         try {
-            await sendMessage({
-                type: "start_the_timer",
-                user_code: "",
-                phase: "vl",
-                time_limit: QUALIFIER_TIME_LIMIT,
-                question_code: questionCode,
-                started_at: startedAt,
-            });
+            await sendStartTimer({ sendMessage, phase: "vl", timeLimit: QUALIFIER_TIME_LIMIT, questionCode, startedAt });
         } catch (err) {
             logger.error("Failed to start timer:", err);
         }

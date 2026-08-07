@@ -9,6 +9,7 @@ import {
 	Zap,
 	Plus,
 	Minus,
+	SkipForward,
 } from "lucide-react";
 
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
@@ -26,6 +27,8 @@ import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
 import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AVeDichRieng");
 
@@ -338,6 +341,32 @@ const AVeDichRiengPage = () => {
 		void sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
 	}, [questions, roundQuestionCodes, questionCategories, questionPoints, currentMatchCode, sendMessage]);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (roundQuestionCodes.length > 0 && questions.length > 0) {
+			const metadata = roundQuestionCodes.map((code) => {
+				const idx = questions.findIndex((q) => q.questionCode === code);
+				return { code, category: questionCategories[idx] ?? "", points: questionPoints[idx] ?? 0 };
+			});
+			await sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
+			for (const [code, qState] of Object.entries(questionStates)) {
+				if (qState === "answered" || qState === "answered-wrong") await sendMessage({ type: "vdr_question_state", question_code: code, state: qState });
+			}
+		}
+		if (currentQuestion.questionCode) {
+			await sendMessage({ type: "send_question", user_code: "", question_code: currentQuestion.questionCode, content: currentQuestion.questionText ?? "", media_source: currentQuestion.questionMediaURL ?? undefined });
+		}
+		if (timerRef.current > 0 && currentQuestion.questionCode) {
+			await sendStartTimer({ sendMessage, phase: "vdr", timeLimit: timerRef.current, questionCode: currentQuestion.questionCode });
+			if (videoPlayState === "playing") await sendMessage({ type: "media_control", action: "play" });
+		}
+		if (Object.keys(usedPowers).length > 0) await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
+	}, [currentQuestion, questionCategories, questionPoints, questionStates, questions, roundQuestionCodes, sendMessage, sendPlayersSnapshot, usedPowers, videoPlayState]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
@@ -449,14 +478,7 @@ const AVeDichRiengPage = () => {
 		setIsTimerRunning(true);
 		if (currentMatchCode) {
 
-			void sendMessage({
-				type: "start_the_timer",
-				user_code: "",
-				phase: "vdr",
-				time_limit: timeLimit,
-				question_code: currentQuestion.questionCode,
-				started_at: Date.now(),
-			});
+			void sendStartTimer({ sendMessage, phase: "vdr", timeLimit, questionCode: currentQuestion.questionCode });
 		}
 	}, [currentQuestion.questionCode, isTimerRunning, isTimerLocked, lockTimer, currentPoints, currentMatchCode, sendMessage]);
 
@@ -686,17 +708,36 @@ const AVeDichRiengPage = () => {
 		}
 	}, [timer, currentMatchCode, sendMessage]);
 
+	const handleEndTurn = useCallback(async () => {
+		setCurrentQuestion({ ...DEFAULT_QUESTION });
+		setTimer(0);
+		setIsTimerRunning(false);
+		setSelectedPlayerCodes([]);
+		setCurrentTurnPlayerCode(null);
+		setActivePower(null);
+		setBuzzerWinnerCode(null);
+		lastBuzzerQuestionRef.current = null;
+		if (currentMatchCode) localStorage.removeItem(`vd_rieng_selected_player_${currentMatchCode}`);
+		await Promise.all([
+			clearQuestion(),
+			sendMessage({ type: "blocked_buzz", user_code: null }),
+			sendMessage({ type: "vd_power_activated", power: null }),
+			sendMessage({ type: "navigate", user_code: "", path: "/player/vdr/pick" }),
+		]);
+		if (currentMatchCode) navigate(`/admin/vdr/pick/${currentMatchCode}`);
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
+
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
 		setIsTimerRunning(false);
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "round_end", round: "vdr" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "vdr", sendMessage });
 		} catch (err) {
 			logger.error("handleEndRound failed:", err);
 		}
-	}, [currentMatchCode, sendMessage]);
+	}, [currentMatchCode, navigate, sendMessage]);
 
 	useEffect(() => {
 		if (!lastMessage) return;
@@ -744,73 +785,8 @@ const AVeDichRiengPage = () => {
 							),
 						);
 					});
-					(async () => {
-
-						try {
-							await sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdr" });
-						} catch {  }
-
-						if (roundQuestionCodes.length > 0 && questions.length > 0) {
-							const metadata = roundQuestionCodes.map((code) => {
-								const idx = questions.findIndex((q) => q.questionCode === code);
-								return {
-									code,
-									category: questionCategories[idx] ?? "",
-									points: questionPoints[idx] ?? 0,
-								};
-							});
-							try {
-								await sendMessage({ type: "vdr_questions_meta", question_metadata: metadata });
-							} catch {  }
-
-							for (const [code, qState] of Object.entries(questionStates)) {
-								if (qState === "answered" || qState === "answered-wrong") {
-									try {
-										await sendMessage({ type: "vdr_question_state", question_code: code, state: qState });
-									} catch {  }
-								}
-							}
-						}
-						if (currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "send_question",
-									user_code: "",
-									question_code: currentQuestion.questionCode,
-									content: currentQuestion.questionText ?? "",
-									media_source: currentQuestion.questionMediaURL ?? undefined,
-								});
-							} catch {  }
-						}
-						if (timerRef.current > 0 && currentQuestion.questionCode) {
-							try {
-								await sendMessage({
-									type: "start_the_timer",
-									user_code: "",
-									phase: "vdr",
-									time_limit: timerRef.current,
-									question_code: currentQuestion.questionCode,
-									started_at: Date.now(),
-								});
-							} catch {  }
-
-							if (currentQuestion.questionMediaURL) {
-								try {
-									await sendMessage({ type: "media_control", action: "play" });
-								} catch {  }
-							}
-						}
-
-						try {
-							await sendPlayersSnapshot();
-						} catch {  }
-
-						if (Object.keys(usedPowers).length > 0) {
-							try {
-								await sendMessage({ type: "vd_powers_used", used_powers: usedPowers });
-							} catch {  }
-						}
-					})();
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/vdr" });
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -990,7 +966,7 @@ const AVeDichRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, currentQuestion, sendMessage, currentMatchCode, roundQuestionCodes, questions, questionCategories, questionPoints, questionStates, broadcastPendingVeDichQuestion]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot, broadcastPendingVeDichQuestion]);
 
 	const getQuestionMeta = (questionCode: string) => {
 		const idx = questions.findIndex((q) => q.questionCode === questionCode);
@@ -1093,6 +1069,13 @@ const AVeDichRiengPage = () => {
 					>
 						<ListRestart size={18} />
 						<span className="ml-2 font-bold">CHỌN LẠI</span>
+					</AControlButton>
+					<AControlButton
+						onClick={() => { void handleEndTurn(); }}
+						disabled={isTimerRunning || !currentTurnPlayerCode}
+					>
+						<SkipForward size={18} />
+						<span className="ml-2 font-bold">HẾT LƯỢT</span>
 					</AControlButton>
 					<AControlButton
 						onClick={() => { void handleEndRound(); }}

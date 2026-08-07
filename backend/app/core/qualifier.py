@@ -280,7 +280,7 @@ async def calculate_and_apply_qualifier_scores(
             "score_updates": score_updates,
         }
         try:
-            await valkey.publish(channel=request.match_code, message=json.dumps(broadcast_payload))
+            await valkey.publish(channel=f"events:{request.match_code}", message=json.dumps(broadcast_payload))
         except Exception:
             global_logger.exception(
                 f"Failed to broadcast qualifier scores via Valkey for question={request.question_code}; "
@@ -499,7 +499,7 @@ async def process_end_of_round(
             "slots_remaining": slots_after,
         }
         try:
-            await valkey.publish(channel=match_code, message=json.dumps(payload))
+            await valkey.publish(channel=f"events:{match_code}", message=json.dumps(payload))
         except Exception:
             global_logger.exception("Failed to publish qualifier round results via Valkey")
 

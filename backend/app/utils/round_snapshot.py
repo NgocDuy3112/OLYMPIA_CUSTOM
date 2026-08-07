@@ -18,6 +18,7 @@ SIMPLE_FIELDS = {
     "send_answers_to_players": "answers",
     "send_keyword_answers": "keyword_answers",
     "send_keyword_info": "keyword_info",
+    "vd_selection_update": "vd_selection_update",
     "keyword_clues_locked": "keyword_clues_locked",
     "reveal_keyword_answer": "keyword_answer",
     "media_control": "video",
@@ -37,6 +38,7 @@ REPLAY_ORDER = [
     "timer",
     "video",
     "answers",
+    "vd_selection_update",
     "keyword_info",
     "keyword_clues_locked",
     "keyword_answers",
@@ -49,6 +51,7 @@ CLEAR_FIELDS = [
     "timer",
     "video",
     "answers",
+    "vd_selection_update",
     "keyword_answers",
     "keyword_info",
     "keyword_clues_locked",
@@ -69,7 +72,7 @@ async def apply_round_snapshot(valkey: Valkey, match_code: str, data: dict[str, 
     key = round_snapshot_key(match_code)
 
     try:
-        if msg_type in ("round_start", "round_end"):
+        if msg_type == "round_start" or (msg_type == "round_end" and data.get("round") != "gm"):
             await valkey.delete(key)
             return
 
