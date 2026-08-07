@@ -9,7 +9,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 settings = AppSettings()
 
 
-
 def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
@@ -31,7 +30,7 @@ def require_roles(*allowed_roles):
 
     def role_checker(user: dict = Depends(get_current_user)):
         user_role = user["role"]
-        # Allow 'admin' to access endpoints requiring other roles (superuser)
+
         if user_role not in normalized_roles and user_role != "admin":
             raise HTTPException(
                 status_code=403,
@@ -40,7 +39,6 @@ def require_roles(*allowed_roles):
         return user
 
     return role_checker
-
 
 
 def get_ws_user(token: str) -> dict:

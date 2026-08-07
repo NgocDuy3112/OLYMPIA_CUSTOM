@@ -12,10 +12,6 @@ def utcnow():
 
 
 class QualifierAdvancement(Base):
-    """Records which players have passed or been reserved during the Qualifier rounds.
-
-    status: one of ('passed', 'reserve')
-    """
 
     __tablename__ = "qualifier_advancements"
 

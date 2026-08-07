@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
+import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-	Play,
 	AlarmClockCheck,
 	Plus,
 	Power,
@@ -13,21 +13,22 @@ import {
 import ABasePageLayout from "@/pages/admin/ABasePageLayout";
 import AControlButton from "@/components/admin/AControlButton";
 import APlayerBar from "@/components/admin/APlayerBar";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
-import { usePlayerPresence } from "@/hooks/usePlayerPresence";
-import { usePlayerLatency } from "@/hooks/usePlayerLatency";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
+import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { calculateScore } from "@/api/scores";
+import { sendStartTimer } from "@/utils/wsStartTimer";
+import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const logger = createLogger("AKhoiDongRieng");
 
-
 const TIME_LIMIT = 40;
-const QUESTION_PREFIX = "OC3_Q_KD"; // Matches the Khởi Động CÁ NHÂN question naming convention.
-
+const QUESTION_PREFIX = "OC3_Q_KD";
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",
@@ -37,29 +38,24 @@ const DEFAULT_QUESTION: Question = {
 	questionMediaURL: undefined,
 };
 
-
-
-
 const AKhoiDongRiengPage = () => {
 	const navigate = useNavigate();
 	const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
 	const storedMatchCode = localStorage.getItem("matchCode");
 	const currentMatchCode = urlMatchCode || storedMatchCode || "";
 	const token = localStorage.getItem("jwtToken_admin") ?? "";
-	const { lastMessage, sendMessage } = useAdminWebSocket();
+	const { lastMessage, sendMessage } = useGameWebSocket();
 
-	// Sync matchCode from URL to localStorage
 	useEffect(() => {
 		if (urlMatchCode && urlMatchCode !== storedMatchCode) {
 			try {
 				localStorage.setItem("matchCode", urlMatchCode);
 			} catch {
-				// ignore
+
 			}
 		}
 	}, [urlMatchCode, storedMatchCode]);
 
-	// Redirect to game managing page if no match code is available
 	useEffect(() => {
 		if (!currentMatchCode) {
 			navigate("/admin/manage");
@@ -67,34 +63,28 @@ const AKhoiDongRiengPage = () => {
 	}, [currentMatchCode, navigate]);
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
-	usePlayerPresence({ lastMessage, setPlayers });
-	usePlayerLatency({ lastMessage, sendMessage, players, setPlayers });
+	usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 	const [playerPositions, setPlayerPositions] = useState<Record<string, number>>({});
-	// Solo round: allow only ONE player to be selected at a time
+
 	const [selectedPlayerCode, setSelectedPlayerCode] = useState<string | null>(null);
 	const [timer, setTimer] = useState<number>(0);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
 	const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
 
-	// countdown running state & auto-advance interval ref
 	const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
+	const [hasStartedRoundTimer, setHasStartedRoundTimer] = useState(false);
 	const autoAdvanceRef = useRef<number | null>(null);
 
-	// Track whether admin has already applied score for the current question
 	const [hasAddedScore, setHasAddedScore] = useState<boolean>(false);
 	const [isSkipping, setIsSkipping] = useState<boolean>(false);
 	const [isAdvancing, setIsAdvancing] = useState<boolean>(false);
 
-	// Track per-player attempt counts for the current question (0 = not attempted, 1 = one wrong, 2 = exhausted)
 	const [attempts, setAttempts] = useState<Record<string, number>>({});
 
-	// Lock in the selected player when round starts — cannot switch to another player
 	const [isPlayerLocked, setIsPlayerLocked] = useState<boolean>(false);
 
-	// Check if any player has 1 wrong attempt (show "Trả lời lần 2" banner)
 	const hasPlayerWithSecondAttempt = Object.values(attempts).some(count => count === 1);
 
-	// Debug: Log attempts state changes
 	useEffect(() => {
 		logger.info("DEBUG: attempts=", attempts, "hasPlayerWithSecondAttempt=", hasPlayerWithSecondAttempt);
 	}, [attempts, hasPlayerWithSecondAttempt]);
@@ -103,11 +93,7 @@ const AKhoiDongRiengPage = () => {
 		setSelectedPlayerCode((prev) => (prev === playerCode ? null : playerCode));
 	}, []);
 
-
 	const questionTitle = "KHỞI ĐỘNG - LƯỢT CÁ NHÂN";
-
-	// use shared helper for mapping players + profiles + scoreboard into PlayerStatus[]
-	// keep the same pure function semantics as before
 
 	const applyPlayersSnapshot = useCallback(
 		(payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
@@ -122,35 +108,15 @@ const AKhoiDongRiengPage = () => {
 	const loadPlayersState = useCallback(async () => {
 		if (!currentMatchCode || !token) return undefined;
 		try {
-			const playersRes = await fetch(`${API_BASE_URL}/matches/${currentMatchCode}/players`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const playersJson = await playersRes.json();
-			const playersList = playersJson.data?.players ?? [];
-
-			let scoreList: any[] = [];
-			try {
-				const scoreRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				const scoreJson = await scoreRes.json();
-				scoreList = scoreJson.data?.scoreboard ?? [];
-			} catch (error) {
-				logger.error("Failed to load scoreboard:", error);
-			}
-
-			// user_name is already included in the /matches/{code}/players response,
-			// so we no longer need N separate /users/?user_code= requests.
-			const profiles = playersList.map((entry: any) => ({
-				user_code: entry.user_code,
-				user_name: entry.user_name ?? "",
-			}));
-
+			const snapshot = await loadAdminPlayersSnapshot(currentMatchCode, token);
+			const playersList = snapshot.players;
+			const scoreList = snapshot.scoreboard;
+			const profiles = snapshot.profiles;
 			setPlayers((prev) => buildPlayersSnapshot(playersList, scoreList, profiles, prev));
 
 			const positions: Record<string, number> = {};
 			for (const entry of playersList) {
-				if (entry.user_code && entry.position) positions[String(entry.user_code)] = entry.position;
+				if (entry.user_code && typeof entry.position === "number") positions[String(entry.user_code)] = entry.position;
 			}
 			setPlayerPositions(positions);
 
@@ -161,7 +127,6 @@ const AKhoiDongRiengPage = () => {
 		}
 	}, [currentMatchCode, token]);
 
-	// Broadcast the current players/scoreboard/profiles snapshot to players via WS
 	const sendPlayersSnapshot = useCallback(async () => {
 		if (!currentMatchCode) return;
 		logger.info("sendPlayersSnapshot: preparing to send snapshot");
@@ -173,8 +138,6 @@ const AKhoiDongRiengPage = () => {
 			}
 			const { playersList, scoreList, profiles } = payload;
 
-			// build a consolidated players array that includes cumulative score and position
-			// include `is_current` flag for the player currently selected for the solo turn
 			const mergedPlayers = (playersList ?? []).map((p: any) => {
 				const userCode = String(p?.user_code ?? p?.playerCode ?? "");
 				const profile = (profiles ?? []).find((pr: any) => String(pr?.user_code) === userCode) ?? {};
@@ -193,7 +156,7 @@ const AKhoiDongRiengPage = () => {
 			});
 
 			try {
-				// send a single, consolidated players array to the players client
+
 				await sendMessage({ type: "send_players_info", players: mergedPlayers });
 				logger.info("sendPlayersSnapshot: sent players snapshot via WS");
 			} catch (err) {
@@ -204,7 +167,6 @@ const AKhoiDongRiengPage = () => {
 		}
 	}, [currentMatchCode, loadPlayersState, sendMessage, selectedPlayerCode]);
 
-	// Auto-broadcast players snapshot when selected player changes (for sync with Player/MC)
 	useEffect(() => {
 		if (selectedPlayerCode !== null) {
 			const timer = setTimeout(() => {
@@ -220,21 +182,6 @@ const AKhoiDongRiengPage = () => {
 		return `${QUESTION_PREFIX}_${playerIndex}_${questionIndex}`;
 	}, [selectedPlayerCode, playerPositions]);
 
-	const mapQuestionPayload = useCallback((payload: any, fallbackCode?: string): Question => {
-		// Support multiple possible shapes returned by different endpoints
-		return {
-			questionCode: payload?.question_code ?? payload?.question?.question_code ?? fallbackCode ?? "",
-			questionText:
-				payload?.question?.content ?? payload?.question_content ?? payload?.content ?? "",
-			questionAnswer:
-				payload?.question?.correct_answers ?? payload?.question?.correct_answer ?? payload?.answer ?? payload?.correct_answer ?? "",
-			questionExplanation:
-				payload?.question?.explanation ?? payload?.question_explanation ?? payload?.explanation ?? "",
-			questionMediaURL:
-				payload?.question?.extra_info?.media_source ?? payload?.question_media_url ?? payload?.media_url ?? payload?.media_url ?? undefined,
-		};
-	}, []);
-
 	const loadQuestion = useCallback(
 		async (questionIndex: number): Promise<Question | undefined> => {
 			if (!currentMatchCode || !token) return undefined;
@@ -246,20 +193,20 @@ const AKhoiDongRiengPage = () => {
 			const questionCode = resolveQuestionCode(questionIndex);
 
 			try {
-				// Use query endpoint which the backend exposes for fetching questions
+
 				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(questionCode)}`;
 				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
 				if (!res.ok) {
 					logger.warn(`loadQuestion: server returned ${res.status} for ${questionCode}`);
-					const mappedFallback = mapQuestionPayload(null, questionCode);
+					const mappedFallback = mapQuestionApiPayload(null, questionCode);
 					setCurrentQuestion(mappedFallback);
 					return mappedFallback;
 				}
 				const data = await res.json();
-				// backend returns BaseResponse with data being either a dict or list; normalize to single payload
+
 				let payload: any = null;
 				if (Array.isArray(data.data)) {
-					// try to find the exact question in the returned list (some endpoints return list even when queried)
+
 					if (questionCode) {
 						payload = data.data.find((q: any) => String(q?.question_code) === String(questionCode)) ?? data.data[0] ?? null;
 						if (!payload) logger.warn(`loadQuestion: could not find question_code=${questionCode} in returned data, falling back to first item`);
@@ -269,17 +216,17 @@ const AKhoiDongRiengPage = () => {
 				} else {
 					payload = data.data ?? null;
 				}
-				const mapped = mapQuestionPayload(payload, questionCode);
+				const mapped = mapQuestionApiPayload(payload, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			} catch (error) {
 				logger.error("Failed to load question:", error);
-				const mapped = mapQuestionPayload(null, questionCode);
+				const mapped = mapQuestionApiPayload(null, questionCode);
 				setCurrentQuestion(mapped);
 				return mapped;
 			}
 		},
-		[currentMatchCode, mapQuestionPayload, resolveQuestionCode, token],
+		[currentMatchCode, mapQuestionApiPayload, resolveQuestionCode, token],
 	);
 
 	const sendQuestionToPlayers = useCallback(
@@ -305,6 +252,20 @@ const AKhoiDongRiengPage = () => {
 		[currentMatchCode, resolveQuestionCode, sendMessage, currentQuestion],
 	);
 
+	const sendSpecificRoundSnapshot = useCallback(async () => {
+		if (currentQuestionIndex > 0) {
+			await sendQuestionToPlayers(currentQuestionIndex);
+		}
+		if (timer > 0 && currentQuestionIndex > 0) {
+			await sendStartTimer({ sendMessage, phase: "kdr", timeLimit: timer, questionCode: resolveQuestionCode(currentQuestionIndex) });
+		}
+	}, [currentQuestionIndex, resolveQuestionCode, sendMessage, sendPlayersSnapshot, sendQuestionToPlayers, timer]);
+
+	const sendRoundSnapshot = useCallback(async () => {
+		await sendPlayersSnapshot();
+		await sendSpecificRoundSnapshot();
+	}, [sendPlayersSnapshot, sendSpecificRoundSnapshot]);
+
 	const clearQuestion = useCallback(async () => {
 		if (!currentMatchCode) return;
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -315,37 +276,16 @@ const AKhoiDongRiengPage = () => {
 		}
 	}, [currentMatchCode, sendMessage]);
 
-	const handleStartRound = useCallback(async () => {
+	const handleEndTurn = useCallback(async () => {
 		setCurrentQuestionIndex(0);
 		setCurrentQuestion({ ...DEFAULT_QUESTION });
 		setTimer(0);
+		setSelectedPlayerCode(null);
 		setIsPlayerLocked(false);
-		// Keep selectedPlayerCode - do not reset to preserve player selection for sync
+		setIsTimerRunning(false);
+		setHasStartedRoundTimer(false);
 		await clearQuestion();
-
-		if (!currentMatchCode) return;
-		try {
-			try {
-				await sendMessage({ type: "round_start", round: "kdr" });
-			} catch (err) {
-				logger.error("Failed to start round:", err);
-			}
-
-			try {
-				await sendMessage({ type: "navigate", user_code: "", path: "/player/kdr" });
-			} catch (err) {
-				logger.error("Failed to send navigate on start:", err);
-			}
-
-			try {
-				await sendPlayersSnapshot();
-			} catch (err) {
-				logger.error("Failed to send players snapshot on start:", err);
-			}
-		} catch (error) {
-			logger.error("Failed to start round via WS:", error);
-		}
-	}, [clearQuestion, currentMatchCode, sendMessage, sendPlayersSnapshot]);
+	}, [clearQuestion]);
 
 	const handleEndRound = useCallback(async () => {
 		setCurrentQuestionIndex(0);
@@ -357,23 +297,23 @@ const AKhoiDongRiengPage = () => {
 
 		if (!currentMatchCode) return;
 		try {
-			await sendMessage({ type: "round_end", round: "kdr" });
+			await endRoundAndReturnToWaiting({ currentMatchCode, navigate, round: "kdr", sendMessage });
 		} catch (error) {
 			logger.error("Failed to end round via WS:", error);
 		}
-		// Removed navigate to waiting page - players and MC stay on KDR page to preserve score context
-	}, [clearQuestion, currentMatchCode, sendMessage]);
+
+	}, [clearQuestion, currentMatchCode, navigate, sendMessage]);
 
 	const startTheClock = useCallback(async () => {
-		// Always target question 1 when starting the timer
+		if (hasStartedRoundTimer || isTimerRunning) return;
+		setHasStartedRoundTimer(true);
+
 		const targetIndex = 1;
 
-		// Lock in the selected player when the timer starts
 		setIsPlayerLocked(true);
 
-		// Reset answers/attempts
 		setHasAddedScore(false);
-		// reset per-player attempts for this question
+
 		setAttempts({});
 		setPlayers((prev) => prev.map((p) => ({
 			...p,
@@ -384,7 +324,6 @@ const AKhoiDongRiengPage = () => {
 
 		setCurrentQuestionIndex(targetIndex);
 
-		// Immediately show a fallback question on admin so UI is responsive
 		const fallbackQuestion: Question = {
 			questionCode: resolveQuestionCode(targetIndex),
 			questionText: `Câu hỏi ${targetIndex}`,
@@ -394,11 +333,9 @@ const AKhoiDongRiengPage = () => {
 		};
 		setCurrentQuestion(fallbackQuestion);
 
-		// start local timer immediately (do this before fire-and-forget network calls)
 		setTimer(TIME_LIMIT);
 		setIsTimerRunning(true);
 
-		// Notify players ASAP: clear previous answers, send fallback question and start timer
 		if (currentMatchCode) {
 			void sendMessage({ type: "clear_answers", user_code: "" });
 			void sendMessage({
@@ -408,10 +345,9 @@ const AKhoiDongRiengPage = () => {
 				content: fallbackQuestion.questionText,
 				media_source: fallbackQuestion.questionMediaURL,
 			});
-			void sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: TIME_LIMIT, question_code: fallbackQuestion.questionCode, started_at: Date.now() });
+			void sendStartTimer({ sendMessage, phase: "kdr", timeLimit: TIME_LIMIT, questionCode: fallbackQuestion.questionCode });
 		}
 
-		// Fetch the authoritative question in background and re-broadcast when ready
 		void loadQuestion(targetIndex)
 			.then((q) => {
 				if (q) {
@@ -422,7 +358,7 @@ const AKhoiDongRiengPage = () => {
 				}
 			})
 			.catch((err) => logger.error("Failed to load question in background:", err));
-	}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToPlayers]);
+	}, [currentMatchCode, resolveQuestionCode, sendMessage, loadQuestion, sendQuestionToPlayers, hasStartedRoundTimer, isTimerRunning]);
 
 	const handleAddScore = useCallback(
 		async (playerCode: string, delta: number, broadcast = true) => {
@@ -441,13 +377,13 @@ const AKhoiDongRiengPage = () => {
 			const questionCode = resolveQuestionCode(currentQuestionIndex);
 
 			try {
-				// create record (may return 4xx). If we don't have a valid question_code, skip the POST
+
 				try {
 					if (!questionCode || String(questionCode).length === 0) {
 						logger.warn("handleAddScore: no question_code available; skipping POST to /records");
 					} else {
-						const recordRes = await fetch(`${API_BASE_URL}/records/`, {
-							method: "POST",
+						const recordRes = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+							method: "PATCH",
 							headers: {
 								"Content-Type": "application/json",
 								Authorization: `Bearer ${token}`,
@@ -470,8 +406,6 @@ const AKhoiDongRiengPage = () => {
 					logger.error("handleAddScore: error posting record:", postErr);
 				}
 
-				// Refresh scoreboard from server to get the authoritative cumulative scores
-				// and broadcast player_score_updated events so all clients stay in sync
 				try {
 					const recentRes = await fetch(`${API_BASE_URL}/scoreboard/${currentMatchCode}`, {
 						method: "GET",
@@ -505,9 +439,6 @@ const AKhoiDongRiengPage = () => {
 						}),
 					);
 
-					// Broadcast individual player_score_updated events so player clients
-					// can update their own scoreboards in real-time without waiting for a
-					// full send_players_info snapshot.
 					for (const entry of scoreboardArr) {
 						const userCode = String(entry?.user_code ?? "");
 						const totalScore = entry?.cumulative_score ?? entry?.cumulative_score ?? entry?.total_score ?? entry?.score;
@@ -523,7 +454,6 @@ const AKhoiDongRiengPage = () => {
 					logger.error("handleAddScore: failed to refresh scoreboard:", err);
 				}
 
-				// broadcast updated players/scoreboard after applying score
 				if (broadcast) {
 					try {
 						await sendPlayersSnapshot();
@@ -538,10 +468,11 @@ const AKhoiDongRiengPage = () => {
 		},
 		[currentMatchCode, currentQuestionIndex, resolveQuestionCode, token, sendPlayersSnapshot, sendMessage],
 	);
-	// Handle manual score editing from APlayerBar
+	void handleAddScore;
+
 	const handleEditScore = useCallback((playerCode: string, newScore: number) => {
 		logger.info("handleEditScore: player=", playerCode, "newScore=", newScore);
-		// Update local state immediately
+
 		setPlayers((prev) =>
 			prev.map((player) =>
 				player.playerCode === playerCode
@@ -549,12 +480,12 @@ const AKhoiDongRiengPage = () => {
 					: player,
 			),
 		);
-		// Refresh scoreboard from server to ensure consistency
+
 		void sendPlayersSnapshot();
 	}, [sendPlayersSnapshot]);
 	const handleNextQuestion = useCallback(async (fromIndex: number) => {
 		const nextIndex = fromIndex < 6 ? fromIndex + 1 : fromIndex;
-		if (nextIndex === fromIndex) return; // already at last question
+		if (nextIndex === fromIndex) return;
 		setCurrentQuestionIndex(nextIndex);
 		try {
 			const q = await loadQuestion(nextIndex);
@@ -564,15 +495,14 @@ const AKhoiDongRiengPage = () => {
 		}
 	}, [loadQuestion, sendQuestionToPlayers]);
 
-	// Reset the "has added score" flag and attempts when advancing to a different question
 	useEffect(() => {
 		if (currentQuestionIndex > 0) {
-			// schedule state update async to avoid cascading renders
+
 			Promise.resolve().then(() => {
 				setHasAddedScore(false);
 				setIsSkipping(false);
 				setIsAdvancing(false);
-				// clear attempts for the new question
+
 				setAttempts({});
 			});
 		}
@@ -580,36 +510,20 @@ const AKhoiDongRiengPage = () => {
 
 	const handleAddScoreToSelected = useCallback(async () => {
 		if (!selectedPlayerCode) return;
-		// CHỈ cho phép tính điểm khi có câu hỏi đang hoạt động (index > 0)
+
 		if (currentQuestionIndex <= 0) {
 			logger.warn("handleAddScoreToSelected: No active question selected (index 0). Aborting score award.");
 			return;
 		}
 
 		setHasAddedScore(true);
-		const attemptCount = attempts[selectedPlayerCode] ?? 0;
-		let score = 0;
-		if (attemptCount === 0) score = 10;
-		else if (attemptCount === 1) score = 5;
-		else score = 0;
-
-		logger.info("handleAddScoreToSelected: starting for player=", selectedPlayerCode, "attempts=", attemptCount, "award=", score);
 
 		try {
-			if (score > 0) {
-				void sendMessage({ type: "kd_cong_diem" });
-				try {
-					await handleAddScore(selectedPlayerCode, score, true);
-					logger.info("handleAddScoreToSelected: applied", selectedPlayerCode, score);
-				} catch (innerErr) {
-					logger.error("handleAddScoreToSelected: failed applying score to", selectedPlayerCode, innerErr);
-				}
-			} else {
-				logger.info("handleAddScoreToSelected: no points to award for", selectedPlayerCode);
-			}
-			// Khi timer đã hết (timer <= 0): clear câu hỏi trên UI player/MC ngay lập tức,
-			// không tự chuyển câu (vì round đã kết thúc).
-			// Khi timer > 0: giữ hành vi cũ — chuyển câu sau 1s.
+			if (!currentQuestion.questionCode) throw new Error("Không có mã câu hỏi");
+			void sendMessage({ type: "kd_cong_diem" });
+			await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "kdr_correct", [selectedPlayerCode]);
+			await sendPlayersSnapshot();
+
 			if (timer <= 0) {
 				await clearQuestion();
 			} else if (currentQuestionIndex > 0) {
@@ -620,7 +534,7 @@ const AKhoiDongRiengPage = () => {
 			logger.error("Failed adding score to selected player:", err);
 			setHasAddedScore(false);
 		}
-	}, [selectedPlayerCode, handleAddScore, currentQuestionIndex, attempts, handleNextQuestion, clearQuestion, timer]);
+	}, [selectedPlayerCode, currentQuestionIndex, currentQuestion.questionCode, currentMatchCode, token, handleNextQuestion, clearQuestion, timer, sendMessage, sendPlayersSnapshot]);
 
 	const handleMarkWrong = useCallback(async () => {
 		if (!selectedPlayerCode) {
@@ -644,11 +558,15 @@ const AKhoiDongRiengPage = () => {
 			return updated;
 		});
 
-		// Broadcast wrong attempt to Player/MC clients.
-		// On the FIRST wrong, send player_wrong_attempt (SFX bot plays kd_sai_lan_1).
-		// On the SECOND wrong (exhausted), send generic "wrong" (SFX bot plays kd_sai).
-		// Sending both at once queues two SFX files in a row, which sounds like a
-		// false positive on the second-attempt sfx.
+		if (currentQuestion.questionCode) {
+			try {
+				await calculateScore(token, currentMatchCode, currentQuestion.questionCode, "kdr_wrong", [selectedPlayerCode]);
+			} catch (err) {
+				logger.error("Không thể lưu lượt trả lời sai:", err);
+				return;
+			}
+		}
+
 		if (nextCount === 1) {
 			logger.info("handleMarkWrong: sending player_wrong_attempt for", selectedPlayerCode);
 			void sendMessage({ type: "player_wrong_attempt", user_code: selectedPlayerCode, attempt_count: 1, phase: "kdr" });
@@ -659,8 +577,7 @@ const AKhoiDongRiengPage = () => {
 
 		if (exhausted) {
 			setIsAdvancing(true);
-			// Sai lần 2: khi timer đã hết, clear câu hỏi trên UI player/MC ngay lập tức
-			// thay vì chuyển câu (round kết thúc).
+
 			if (timer <= 0) {
 				await clearQuestion();
 			} else if (currentQuestionIndex > 0) {
@@ -668,17 +585,16 @@ const AKhoiDongRiengPage = () => {
 				handleNextQuestion(currentQuestionIndex);
 			}
 		}
-	}, [selectedPlayerCode, currentQuestionIndex, attempts, handleNextQuestion, sendMessage, clearQuestion, timer]);
+	}, [selectedPlayerCode, currentQuestionIndex, currentQuestion.questionCode, currentMatchCode, token, attempts, handleNextQuestion, sendMessage, clearQuestion, timer]);
 
 	const handleSkip = useCallback(async () => {
 		if (!selectedPlayerCode) return;
 		if (currentQuestionIndex <= 0) return;
 		setIsSkipping(true);
-		// Bỏ qua: set attempts = 2 để chặn SAI LẦN 1/2
+
 		setAttempts((prev) => ({ ...prev, [selectedPlayerCode]: 2 }));
 		void sendMessage({ type: "skip", user_code: selectedPlayerCode, phase: "kdr" });
-		// Khi timer đã hết: clear câu hỏi trên UI player/MC ngay lập tức.
-		// Khi timer > 0: giữ hành vi cũ — chuyển câu sau 1s.
+
 		if (timer <= 0) {
 			await clearQuestion();
 		} else if (currentQuestionIndex > 0) {
@@ -687,7 +603,6 @@ const AKhoiDongRiengPage = () => {
 		}
 	}, [selectedPlayerCode, currentQuestionIndex, handleNextQuestion, sendMessage, clearQuestion, timer]);
 
-	// Global error hooks to capture unexpected runtime errors for diagnostics
 	useEffect(() => {
 		const onUnhandledRejection = (ev: PromiseRejectionEvent) => {
 			logger.error("Unhandled promise rejection:", ev.reason ?? ev);
@@ -711,22 +626,18 @@ const AKhoiDongRiengPage = () => {
 
 	useEffect(() => {
 		if (timer <= 0) {
-			// stop auto-advance and running state when timer reaches zero
+
 			if (autoAdvanceRef.current) {
 				window.clearInterval(autoAdvanceRef.current);
 				autoAdvanceRef.current = null;
 			}
 
-			// clear highlighted question and stop running state.
-			// Also reset currentQuestion to DEFAULT so the admin's question board
-			// no longer displays the question text/media once time runs out.
 			startTransition(() => {
 				setIsTimerRunning(false);
 				setCurrentQuestionIndex(0);
 				setCurrentQuestion({ ...DEFAULT_QUESTION });
 			});
 
-			// clear question on players (schedule async to avoid sync setState inside effect)
 			Promise.resolve().then(() => void clearQuestion());
 			return;
 		}
@@ -743,58 +654,20 @@ const AKhoiDongRiengPage = () => {
 		return () => window.clearInterval(intervalId);
 	}, [timer, clearQuestion]);
 
-	// Auto-advance disabled: admin now manually controls question progression
-
 	useEffect(() => {
 		if (!lastMessage) return;
 		const msg: any = lastMessage;
 		switch (msg?.type) {
-			case "mc_online":
 			case "mc_reconnected":
+			case "guest_online":
 			case "player_reconnected":
-			case "player_online": {
+			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {
 						setPlayers((prev) => prev.map((p) => (p.playerCode === msg.user_code ? { ...p, playerConnected: true } : p)));
 					});
-					(async () => {
-						// FIRST: Send players/scores snapshot so player has correct scoreboard on reconnect
-						// This must happen BEFORE question/timer to ensure score sync
-						try {
-							await sendPlayersSnapshot();
-							logger.info("Resent players snapshot after player_online for", msg.user_code);
-						} catch (err) {
-							logger.error("Failed to resend players snapshot on player_online:", err);
-						}
-
-						// SECOND: Navigate player to correct page
-						try {
-							void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdr" });
-						} catch (err) {
-							logger.error("Failed to navigate player on reconnect:", err);
-						}
-
-						// THIRD: Resend current question if active
-						if (currentQuestionIndex > 0) {
-							try {
-								await sendQuestionToPlayers(currentQuestionIndex);
-								logger.info("Resent question to players after player_online for", msg.user_code);
-							} catch (err) {
-								logger.error("Failed to resend question on player_online:", err);
-							}
-						}
-
-						// FOURTH: If timer is running, send remaining time
-						if (timer > 0 && currentQuestionIndex > 0) {
-							try {
-								const questionCode = resolveQuestionCode(currentQuestionIndex);
-								await sendMessage({ type: "start_the_timer", user_code: "", phase: "kdr", time_limit: timer, question_code: questionCode, started_at: Date.now() });
-								logger.info("Resent timer to players after player_online for", msg.user_code, "time_left=", timer);
-							} catch (err) {
-								logger.error("Failed to resend timer on player_online:", err);
-							}
-						}
-					})();
+					void sendMessage({ type: "navigate", user_code: msg.user_code, path: "/player/kdr" });
+					void sendRoundSnapshot();
 				}
 				break;
 			}
@@ -875,7 +748,7 @@ const AKhoiDongRiengPage = () => {
 			}
 			case "player_answer":
 			case "answer": {
-				// Real-time answer from player via WebSocket
+
 				const { user_code, answer_text, timestamp } = msg;
 				if (user_code && answer_text) {
 					startTransition(() => {
@@ -898,7 +771,7 @@ const AKhoiDongRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyPlayersSnapshot, lastMessage, sendPlayersSnapshot, sendQuestionToPlayers, currentQuestionIndex, timer, sendMessage, resolveQuestionCode]);
+	}, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot]);
 
 	return (
 		<ABasePageLayout
@@ -912,7 +785,7 @@ const AKhoiDongRiengPage = () => {
 			}}
 			controlsChildren={(api) => (
 				<div className="flex gap-2 items-center">
-					{/* "Trả lời lần 2" banner - shown when any player has 1 wrong attempt */}
+					{}
 					{hasPlayerWithSecondAttempt && (
 						<div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
 							Trả lời lần 2
@@ -938,7 +811,7 @@ const AKhoiDongRiengPage = () => {
 											logger.error('Failed to load/send question:', err);
 										}
 									} else {
-										// If it's the active question, trigger point award for selected player
+
 										if (selectedPlayerCode && !hasAddedScore) {
 											void handleAddScoreToSelected().catch((err) => {
 												logger.error("Auto point award failed:", err);
@@ -964,14 +837,14 @@ const AKhoiDongRiengPage = () => {
 			bottomActionButtons={
 				<>
 					<AControlButton
-						onClick={() => { handleStartRound() }}
-						disabled={isTimerRunning}
+						onClick={() => { void handleEndTurn(); }}
+						disabled={isTimerRunning || !selectedPlayerCode}
 					>
-						<Play size={18} />
-						<span className="ml-2 font-bold">BẮT ĐẦU</span>
+						<SkipForward size={18} />
+						<span className="ml-2 font-bold">HẾT LƯỢT</span>
 					</AControlButton>
 					<AControlButton
-						onClick={() => { handleEndRound() }}
+						onClick={() => { void handleEndRound(); }}
 						disabled={isTimerRunning}
 					>
 						<Power size={18} />
@@ -985,7 +858,7 @@ const AKhoiDongRiengPage = () => {
 						onClick={() => {
 							void startTheClock();
 						}}
-						disabled={isTimerRunning}
+						disabled={isTimerRunning || hasStartedRoundTimer}
 					>
 						<AlarmClockCheck size={18} />
 						<span className="ml-2 font-bold">ĐẾM GIỜ</span>
@@ -1037,6 +910,5 @@ const AKhoiDongRiengPage = () => {
 		/>
 	);
 };
-
 
 export default AKhoiDongRiengPage;

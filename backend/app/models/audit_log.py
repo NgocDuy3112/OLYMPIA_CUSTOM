@@ -13,7 +13,6 @@ def utcnow():
 
 
 class AuditActionType(str, enum.Enum):
-    """Types of auditable actions."""
     LOGIN = "LOGIN"
     LOGOUT = "LOGOUT"
     SCORE_CHANGE = "SCORE_CHANGE"
@@ -26,10 +25,6 @@ class AuditActionType(str, enum.Enum):
 
 
 class AuditLog(Base):
-    """
-    SQLAlchemy model for audit trail.
-    Records important actions for accountability and debugging.
-    """
     __tablename__ = "audit_logs"
 
     id: Mapped[uuid.UUID] = mapped_column(

@@ -11,7 +11,6 @@ const LEVELS: Record<LogLevel, number> = {
 const isDev = Boolean(import.meta.env.DEV);
 let currentLevel: LogLevel = isDev ? "DEBUG" : "WARN";
 
-// Allow overriding with VITE_LOG_LEVEL (DEBUG|INFO|WARN|ERROR|NONE)
 const envLevel = import.meta.env.VITE_LOG_LEVEL as string | undefined;
 if (envLevel) {
     const up = envLevel.toUpperCase();
@@ -27,7 +26,7 @@ const shouldLog = (level: LogLevel) => LEVELS[level] >= LEVELS[currentLevel];
 const sendToRemote = async (payload: Record<string, unknown>) => {
     if (!LOG_ENDPOINT) return;
     try {
-        // Fire-and-forget; don't block the UI
+
         await fetch(LOG_ENDPOINT, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -35,7 +34,7 @@ const sendToRemote = async (payload: Record<string, unknown>) => {
             keepalive: true,
         });
     } catch {
-        // Ignore remote logging errors
+
     }
 };
 
@@ -58,7 +57,6 @@ const makeLogMethod = (level: LogLevel, ctx?: string) => {
 
         const prefix = createPrefix(level, ctx);
 
-        // Pick console method (avoid console.log)
         const method: ((...m: unknown[]) => void) = (() => {
             switch (level) {
                 case "DEBUG":
@@ -77,11 +75,10 @@ const makeLogMethod = (level: LogLevel, ctx?: string) => {
         try {
             method(prefix, ...args);
         } catch {
-            // If console.* throws for some reason, fallback to console.error (if available)
+
             try { console.error(prefix, ...args); } catch {}
         }
 
-        // Remote logging (non-blocking)
         if (LOG_ENDPOINT) {
             const [first, ...rest] = args;
             const payload: Record<string, unknown> = {
@@ -110,8 +107,6 @@ export const createLogger = (context?: string): Logger => {
     };
 };
 
-// Default, app-wide logger
 const defaultLogger = createLogger();
-
 
 export default defaultLogger;

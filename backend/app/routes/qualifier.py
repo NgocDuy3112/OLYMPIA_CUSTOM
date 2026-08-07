@@ -30,7 +30,6 @@ async def post_qualifier_calculate_scores(
     session: Annotated[AsyncSession, Depends(get_db)],
     valkey: Annotated[Valkey, Depends(get_valkey)],
 ) -> BaseResponse:
-    """Calculate and apply qualifier scores for all players who answered the given question."""
     try:
         return await calculate_and_apply_qualifier_scores(request, session, valkey)
     except HTTPException:
@@ -50,7 +49,6 @@ async def post_end_round(
     session: Annotated[AsyncSession, Depends(get_db)],
     valkey: Annotated[Valkey, Depends(get_valkey)],
 ) -> BaseResponse:
-    """Admin endpoint to finalize a qualifier round. Marks reserves and advances top N players."""
     try:
         return await process_end_of_round(request.match_code, request.round_number, session, valkey, request.advance_count)
     except HTTPException:
@@ -79,7 +77,7 @@ async def get_advancements(
 
 @router.get(
     "/standings/{match_code}",
-    dependencies=[Depends(require_roles(["admin", "player", "mc"]))],
+    dependencies=[Depends(require_roles(["admin"]))],
     response_model=BaseResponse,
     status_code=200,
 )
@@ -89,7 +87,6 @@ async def get_standings(
     valkey: Annotated[Valkey, Depends(get_valkey)],
     round_number: int = Query(default=1, ge=1, le=5),
 ) -> BaseResponse:
-    """Return qualifier standings for a specific round, sorted by ranking rules."""
     try:
         return await get_qualifier_standings(match_code, round_number, session, valkey)
     except HTTPException:

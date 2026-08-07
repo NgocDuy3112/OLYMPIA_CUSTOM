@@ -1,9 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
+import { useRoleSession } from "@/hooks/useRoleSession";
+import { validateAnswerInput } from "@/utils/validation";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { createLogger } from "@/utils/logger";
@@ -33,12 +34,11 @@ const OPTION_SELECTED_BG: Record<string, string> = {
 };
 
 const PQualifierPage = () => {
-    const { matchCode, playerCode, token } = usePlayerSession();
-    const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+    const { matchCode, playerCode, token } = useRoleSession("player");
+    const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
     const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
 
-    // Decode player name from JWT payload — no network call needed
     const playerName = useMemo((): string => {
         try {
             const payload = JSON.parse(atob(token.split(".")[1]));
@@ -52,41 +52,21 @@ const PQualifierPage = () => {
     const [boardCount, setBoardCount] = useState<number>(6);
     const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
     const [parsedOptions, setParsedOptions] = useState<string[]>([]);
-    /** The option letter the player selected (or null if not yet answered) */
+
     const [selectedOption, setSelectedOption] = useState<string | null>(null);
-    /** Option the player clicked but hasn't confirmed yet */
+
     const [pendingOption, setPendingOption] = useState<string | null>(null);
     const [showAnswers, setShowAnswers] = useState(false);
     const [myStanding, setMyStanding] = useState<QualifierStandingEntry | null>(null);
-    /** Set of user_codes that have submitted an answer for the current question (for live count) */
+
     const answeredCodesRef = useRef<Set<string>>(new Set());
     const [answeredCount, setAnsweredCount] = useState(0);
 
-    // ── On mount: fetch own standing ─────────────────────────────────────────
-
-    useEffect(() => {
-        if (!matchCode || !token) return;
-        fetch(`${API_BASE_URL}/qualifier/standings/${matchCode}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => r.json())
-            .then((json) => {
-                const all: QualifierStandingEntry[] = json.data?.standings ?? [];
-                const mine = all.find((s) => s.user_code === playerCode);
-                if (mine) setMyStanding(mine);
-            })
-            .catch((e) => logger.warn("Failed to fetch initial qualifier standing:", e));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // ── Request state sync once WebSocket is connected ────────────────────────
-    // sendMessage only works when readyState === OPEN, so we must wait for isConnected.
-    // Also re-requests on reconnect so player re-syncs after a dropped connection.
     useEffect(() => {
         if (!isConnected) return;
         void sendMessage({ type: "request_qualifier_state", user_code: playerCode });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isConnected]);
+
+    }, [isConnected, playerCode, sendMessage]);
 
     const parseOptions = (options: string | string[] | undefined): string[] => {
         if (!options) return [];
@@ -100,19 +80,16 @@ const PQualifierPage = () => {
         }
     };
 
-    // ── WS message handler ────────────────────────────────────────────────────
-
     useEffect(() => {
         if (!lastMessage) return;
         const raw: any = lastMessage;
         const msg: any = raw?.message ?? raw;
 
-        // Let the question hook handle send_question / clear_question
         applyWsMessage(msg);
 
         switch (msg?.type) {
             case "send_question": {
-                // Parse options from WS message (admin sends options field)
+
                 const opts = parseOptions(msg.options ?? undefined);
                 setParsedOptions(opts);
                 setSelectedOption(null);
@@ -120,7 +97,7 @@ const PQualifierPage = () => {
                 setShowAnswers(false);
                 answeredCodesRef.current.clear();
                 setAnsweredCount(0);
-                // sync board count and active index when admin broadcasts question
+
                 if (typeof msg.count === "number") setBoardCount(Number(msg.count));
                 if (typeof msg.question_index === "number") setActiveQuestionIndex(Number(msg.question_index));
                 break;
@@ -183,8 +160,15 @@ const PQualifierPage = () => {
                 break;
             }
 
+            case "qualifier_standings": {
+                const all: QualifierStandingEntry[] = Array.isArray(msg.standings) ? msg.standings : [];
+                const mine = all.find((s) => s.user_code === playerCode);
+                if (mine) setMyStanding(mine);
+                break;
+            }
+
             case "qualifier_scores_updated": {
-                // Update this player's standing score display
+
                 const updates: any[] = Array.isArray(msg.score_updates) ? msg.score_updates : [];
                 const myUpdate = updates.find((u: any) => u.user_code === playerCode);
                 if (myUpdate) {
@@ -232,9 +216,6 @@ const PQualifierPage = () => {
         }
     }, [applyWsMessage, lastMessage, startSynced, playerCode]);
 
-    // ── Submit answer ─────────────────────────────────────────────────────────
-
-    /** Step 1: player clicks an option — show confirmation popup */
     const handleClickOption = useCallback(
         (option: string) => {
             if (selectedOption !== null) return;
@@ -246,7 +227,6 @@ const PQualifierPage = () => {
         [selectedOption, isConnected, timer, currentQuestion.questionCode],
     );
 
-    /** Step 2: player confirms in popup — actually submit */
     const handleConfirmOption = useCallback(
         async () => {
             if (!pendingOption) return;
@@ -258,7 +238,6 @@ const PQualifierPage = () => {
             const elapsed = getElapsedSeconds();
             const ts = Math.max(0, Math.min(timeLimit, elapsed));
 
-            // Optimistic player list update
             setPlayers((prev) =>
                 prev.map((p) =>
                     p.playerCode === playerCode
@@ -268,17 +247,19 @@ const PQualifierPage = () => {
             );
 
             try {
+                const answerPayload = {
+                    user_code: playerCode,
+                    match_code: matchCode,
+                    question_code: currentQuestion.questionCode,
+                    answer_text: option,
+                    has_buzzed: false,
+                    timestamp: ts,
+                };
+                validateAnswerInput(answerPayload);
                 const res = await fetch(`${API_BASE_URL}/answers/`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({
-                        user_code: playerCode,
-                        match_code: matchCode,
-                        question_code: currentQuestion.questionCode,
-                        answer_text: option,
-                        has_buzzed: false,
-                        timestamp: ts,
-                    }),
+                    body: JSON.stringify(answerPayload),
                 });
                 if (!res.ok) logger.warn("Failed to POST answer:", res.status);
             } catch (err) {
@@ -300,21 +281,15 @@ const PQualifierPage = () => {
         [pendingOption, getElapsedSeconds, timeLimit, playerCode, matchCode, token, currentQuestion.questionCode, sendMessage],
     );
 
-    // ── Render ────────────────────────────────────────────────────────────────
-
     const correctAnswer = currentQuestion.questionAnswer?.toUpperCase() ?? "";
     const buttonsDisabled = selectedOption !== null || timer <= 0 || !isConnected;
 
-    // Only show other players' answers when admin reveals them
     const displayPlayers = players.map((p) =>
         showAnswers || p.playerCode === playerCode
             ? p
             : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
     );
 
-    // ── Stats bar computation ─────────────────────────────────────────────────
-    // Before reveal: use the live count of WS answer messages received
-    // After reveal: compute from displayPlayers (which has all answers visible)
     const statsAnswered = showAnswers
         ? displayPlayers.filter((p) => p.playerLastAnswer).length
         : answeredCount;
@@ -333,7 +308,7 @@ const PQualifierPage = () => {
                     playerRank={myStanding?.rank ?? null}
                 />
 
-                {/* Answer stats bar */}
+                {}
                 {players.length > 0 && (
                     <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-900 border-2 border-blue-600 w-full text-sm">
                         {showAnswers ? (
@@ -381,7 +356,7 @@ const PQualifierPage = () => {
                     controls={{ variant: "numbers", count: boardCount, activeIndices: activeQuestionIndex ? [activeQuestionIndex - 1] : [] }}
                 />
 
-                {/* Option grid — 2 columns of 3 */}
+                {}
                 <div className="grid grid-cols-2 gap-3 mt-5 w-full">
                     {QUALIFIER_OPTIONS.map((opt, idx) => {
                         const text = parsedOptions[idx] ?? "";
@@ -408,7 +383,7 @@ const PQualifierPage = () => {
                                 <span className={`leading-snug text-left ${isCorrect ? "text-gray-900" : ""}`}>
                                     {text}
                                 </span>
-                                {/* Only show result icon after admin reveals answers */}
+                                {}
                                 {showAnswers && isSelected && (
                                     <span className="ml-auto text-2xl">
                                         {isCorrect ? "✓" : "✗"}
@@ -419,7 +394,7 @@ const PQualifierPage = () => {
                     })}
                 </div>
 
-                {/* Confirmation popup */}
+                {}
                 {pendingOption && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                         <div className="bg-blue-900 border-2 border-blue-400 rounded-2xl shadow-2xl px-8 py-6 flex flex-col items-center gap-5 w-80">

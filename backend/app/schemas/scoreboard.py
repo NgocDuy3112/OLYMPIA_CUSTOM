@@ -2,15 +2,45 @@ from schemas.base import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
+_MATCH_PATTERN = _settings.MATCH_PATTERN
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN
+
+
+class ScoreEventRequest(BaseRequest):
+    match_code: str
+    question_code: str
+    action: str
+    user_codes: list[str] = []
+
+    @field_validator('match_code', mode='after')
+    @classmethod
+    def ensure_match_code_format(cls, value: str) -> str:
+        if not value.startswith(_MATCH_PATTERN):
+            raise ValueError(f"match_code must start with '{_MATCH_PATTERN}'")
+        return value
+
+    @field_validator('question_code', mode='after')
+    @classmethod
+    def ensure_question_code_format(cls, value: str) -> str:
+        if not value.startswith(_QUESTION_PATTERN):
+            raise ValueError(f"question_code must start with '{_QUESTION_PATTERN}'")
+        return value
+
+    @field_validator('user_codes', mode='after')
+    @classmethod
+    def ensure_user_codes_format(cls, value: list[str]) -> list[str]:
+        if any(not code.startswith('OC_U') for code in value):
+            raise ValueError("user_codes must contain only player codes")
+        return value
 
 
 class ScoreAdjustRequest(BaseRequest):
-    """Request body for adjusting a player's score directly."""
     match_code: str
     user_code: str
-    new_score: int
-    reason: str | None = None  # optional audit reason
+    new_score: int | None = None
+    question_code: str | None = None
+    points: int | None = None
+    reason: str | None = None
 
     @field_validator('match_code', mode='after')
     @classmethod
@@ -26,9 +56,19 @@ class ScoreAdjustRequest(BaseRequest):
             raise ValueError("user_code must start with 'OC_U'")
         return value
 
-    @field_validator('new_score', mode='after')
+    @field_validator('question_code', mode='after')
     @classmethod
-    def ensure_score_multiple_of_5(cls, value: int) -> int:
-        if value % 5 != 0:
-            raise ValueError("new_score must be a multiple of 5")
+    def ensure_question_code_format(cls, value: str | None) -> str | None:
+        if value is not None and not value.startswith(_QUESTION_PATTERN):
+            raise ValueError(f"question_code must start with '{_QUESTION_PATTERN}'")
         return value
+
+    @model_validator(mode='after')
+    def ensure_score_input(self):
+        if self.new_score is None and (self.question_code is None or self.points is None):
+            raise ValueError("Provide new_score or question_code with points")
+        if self.new_score is not None and self.new_score % 5 != 0:
+            raise ValueError("new_score must be a multiple of 5")
+        if self.points is not None and self.points % 5 != 0:
+            raise ValueError("points must be a multiple of 5")
+        return self

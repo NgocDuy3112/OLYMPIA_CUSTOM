@@ -1,14 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
-import { InputField } from "@/components/shared/InputField";
-import { BaseAuthLayout }from "@/pages/auth/BaseAuthLayout";
-import { useAuthSession } from "@/hooks/useAuthSession";
-import { API_BASE_URL } from "@/configs";
 
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { InputField } from "@/components/shared/InputField";
+import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
+import { API_BASE_URL } from "@/configs";
+import type { AuthSessionData } from "@/utils/authSession";
+import { saveAuthSession } from "@/utils/authSession";
 
 const LoginPage: React.FC = () => {
     const [credentials, setCredentials] = useState({ username: "", password: "" });
-    const { saveSession } = useAuthSession();
+    const navigate = useNavigate();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setCredentials(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -24,12 +25,12 @@ const LoginPage: React.FC = () => {
                 body: formData.toString(),
             });
 
-            const data = await response.json();
+            const data = await response.json() as AuthSessionData & { detail?: string };
             if (!response.ok) throw new Error(data.detail || "Đăng nhập thất bại");
 
-            saveSession(data);
-        } catch (err: any) {
-            alert(err.message);
+            saveAuthSession(data, navigate);
+        } catch (error: unknown) {
+            alert(error instanceof Error ? error.message : "Đăng nhập thất bại");
         }
     };
 
@@ -51,11 +52,10 @@ const LoginPage: React.FC = () => {
                 <button type="submit" className="mt-4 btn-primary-full">
                     ĐĂNG NHẬP
                 </button>
-                <a href="/player/signup" className="text-center text-sm text-white underline opacity-80 hover:opacity-100">Chưa có tài khoản? Click vào đây!</a>
+                <a href="/guest/access" className="text-center text-sm text-blue-300 underline opacity-80 hover:opacity-100">Vào xem với tư cách khán giả</a>
             </form>
         </BaseAuthLayout>
     );
 };
-
 
 export default LoginPage;

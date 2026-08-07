@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { AdminWebSocketContext } from "@/contexts/adminWsImpl";
-import type { AdminWsContextValue } from "@/contexts/adminWsImpl";
+import { WebSocketContext } from "@/contexts/WebSocketContext";
+import type { WebSocketContextValue } from "@/types/websocket";
 
 export const AdminWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
   matchCode,
@@ -11,32 +11,29 @@ export const AdminWebSocketProvider: React.FC<{ matchCode: string; children: Rea
   const token = localStorage.getItem("jwtToken_admin") ?? undefined;
   const ws = useWebSocket(matchCode, token);
 
-  const value: AdminWsContextValue = {
-    isConnected: ws.isConnected,
-    lastMessage: ws.lastMessage,
-    sendMessage: ws.sendMessage,
-  };
+  const { isConnected, lastMessage, sendMessage } = ws;
 
-  // When admin UI connects (or reconnects), request players to re-advertise presence.
-  // Delayed by 1.5 s so the admin page has time to load player data from the API before
-  // the player_heartbeat responses arrive (avoids a race where player_online is processed
-  // while the players list is still empty).
+  const value = useMemo<WebSocketContextValue>(
+    () => ({ isConnected, lastMessage, sendMessage }),
+    [isConnected, lastMessage, sendMessage],
+  );
+
   useEffect(() => {
-    if (!ws.isConnected) return;
+    if (!isConnected) return;
     const initialTimer = window.setTimeout(() => {
-      void ws.sendMessage({ type: "request_presence" });
+      void sendMessage({ type: "request_presence" });
     }, 1500);
-    // Re-request every 30 s so newly-arrived players are picked up without a full reconnect.
+
     const periodicTimer = window.setInterval(() => {
-      void ws.sendMessage({ type: "request_presence" });
+      void sendMessage({ type: "request_presence" });
     }, 30_000);
     return () => {
       window.clearTimeout(initialTimer);
       window.clearInterval(periodicTimer);
     };
-  }, [ws.isConnected, ws.sendMessage]);
+  }, [isConnected, sendMessage]);
 
-  return <AdminWebSocketContext.Provider value={value}>{children}</AdminWebSocketContext.Provider>;
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };
 
 export default AdminWebSocketProvider;

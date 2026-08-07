@@ -1,22 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useRef, useState } from "react";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { useMcSession } from "@/hooks/useMcSession";
-import { useMcWebSocket } from "@/hooks/useMcWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { useMcPlayers } from "@/hooks/useMcPlayers";
-import { useMcQuestionReveal } from "@/hooks/useMcQuestionReveal";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { QUALIFIER_OPTIONS, QUALIFIER_TIME_LIMIT } from "@/types/qualifier";
 
 const MQualifierPage = () => {
-    const { matchCode, token } = useMcSession();
-    const { lastMessage } = useMcWebSocket();
+    const { lastMessage } = useGameWebSocket();
     const { timer, startSynced } = useCountdownTimer();
     const { currentQuestion, applyWsMessage } = useQuestionState();
-    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useMcPlayers();
-    const { questionAnswer, fetchAnswer, clearAnswer } = useMcQuestionReveal(matchCode, token);
+    const { players, setPlayers, applyPlayersInfo, applyAnswers, clearAnswers } = useAudiencePlayers();
+    const { answer: questionAnswer, applyReveal, clear: clearAnswer } = useRevealAnswer();
 
     const [boardCount, setBoardCount] = useState<number>(6);
     const [activeQuestionIndex, setActiveQuestionIndex] = useState<number | null>(null);
@@ -40,6 +38,7 @@ const MQualifierPage = () => {
         if (!lastMessage) return;
         const msg: any = lastMessage;
         applyWsMessage(msg);
+        applyReveal(msg);
 
         switch (msg?.type) {
             case "send_players_info":
@@ -52,7 +51,6 @@ const MQualifierPage = () => {
                 setAnsweredCount(0);
                 if (typeof msg.count === "number") setBoardCount(Number(msg.count));
                 if (typeof msg.question_index === "number") setActiveQuestionIndex(Number(msg.question_index));
-                void fetchAnswer(msg.question_code ?? "");
                 break;
             }
             case "clear_question": {
@@ -75,6 +73,18 @@ const MQualifierPage = () => {
                 setAnsweredCount(0);
                 clearAnswers();
                 break;
+            case "qualifier_standings": {
+                const standings: any[] = Array.isArray(msg.standings) ? msg.standings : [];
+                if (standings.length > 0) {
+                    setPlayers((prev) =>
+                        prev.map((p) => {
+                            const s = standings.find((ss: any) => ss.user_code === p.playerCode);
+                            return s ? { ...p, playerScore: s.total_score ?? p.playerScore } : p;
+                        }),
+                    );
+                }
+                break;
+            }
             case "qualifier_scores_updated": {
                 const updates: any[] = Array.isArray(msg.score_updates) ? msg.score_updates : [];
                 if (updates.length > 0) {
@@ -107,7 +117,7 @@ const MQualifierPage = () => {
             default:
                 break;
         }
-    }, [lastMessage, applyWsMessage, startSynced, applyPlayersInfo, setPlayers, applyAnswers, clearAnswers, fetchAnswer, clearAnswer]);
+    }, [lastMessage, applyWsMessage, applyReveal, startSynced, applyPlayersInfo, setPlayers, applyAnswers, clearAnswers, clearAnswer]);
 
     const correctAnswer = (questionAnswer || currentQuestion.questionAnswer)?.toUpperCase() ?? "";
 

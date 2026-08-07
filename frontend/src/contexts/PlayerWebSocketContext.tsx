@@ -1,9 +1,10 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { PlayerWebSocketContext } from "@/contexts/playerWsImpl";
-import type { PlayerWsContextValue } from "@/contexts/playerWsImpl";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { WebSocketContext } from "@/contexts/WebSocketContext";
+import type { WebSocketContextValue } from "@/types/websocket";
+import { useRoleSession } from "@/hooks/useRoleSession";
+import { unwrapWebSocketMessage } from "@/types/websocket";
 
 export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
   matchCode,
@@ -11,79 +12,56 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
 }) => {
   const token = sessionStorage.getItem("jwtToken_player") ?? undefined;
   const ws = useWebSocket(matchCode, token);
+  const { isConnected, lastMessage, sendMessage } = ws;
 
-  const value: PlayerWsContextValue = {
-    isConnected: ws.isConnected,
-    lastMessage: ws.lastMessage,
-    sendMessage: ws.sendMessage,
-  };
+  const value = useMemo<WebSocketContextValue>(
+    () => ({ isConnected, lastMessage, sendMessage }),
+    [isConnected, lastMessage, sendMessage],
+  );
 
-  // announce presence when this player's websocket connects
-  const { playerCode } = usePlayerSession();
+  const { playerCode } = useRoleSession("player");
   useEffect(() => {
-    if (!ws.isConnected) return;
+    if (!isConnected) return;
     if (!playerCode) return;
-    // fire-and-forget presence message
-    void ws.sendMessage({ type: "player_online", user_code: playerCode });
-  }, [ws.isConnected, playerCode, ws.sendMessage]);
 
-  // respond to presence requests from admin with a lightweight heartbeat (not player_online,
-  // which would trigger a full state-resend on the admin side).
+    void sendMessage({ type: "user_online", user_code: playerCode, status: "online" });
+  }, [isConnected, playerCode, sendMessage]);
+
   useEffect(() => {
-    const raw = ws.lastMessage as { type?: string; message?: { type?: string } } | null;
-    const last = raw?.message ?? raw;
+    const last = unwrapWebSocketMessage(lastMessage);
     if (!last) return;
     if (last.type !== "request_presence") return;
-    if (!ws.isConnected) return;
+    if (!isConnected) return;
     if (!playerCode) return;
-    void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
-  }, [ws.lastMessage, ws.isConnected, playerCode, ws.sendMessage]);
+    void sendMessage({ type: "user_online", user_code: playerCode, status: "heartbeat" });
+  }, [lastMessage, isConnected, playerCode, sendMessage]);
 
-  // Respond to admin's `ping_latency` with a `pong_latency` so admin can
-  // measure this player's RTT for the wifi signal indicator. We also handle
-  // the broadcast flavour where admin sends a `targets` array; only this
-  // player's own pong is sent back to keep traffic low.
   useEffect(() => {
-    const raw = ws.lastMessage as {
-      type?: string;
-      user_code?: string | number;
-      targets?: Array<string | number>;
-      client_ts?: number;
-      message?: {
-        type?: string;
-        user_code?: string | number;
-        targets?: Array<string | number>;
-        client_ts?: number;
-      };
-    } | null;
-    const last = raw?.message ?? raw;
+    const last = unwrapWebSocketMessage(lastMessage);
     if (!last) return;
     if (last.type !== "ping_latency") return;
-    if (!ws.isConnected) return;
+    if (!isConnected) return;
     if (!playerCode) return;
-    // If `targets` is provided, only respond when this player is listed.
+
     const targets = last.targets;
     if (Array.isArray(targets) && targets.length > 0) {
       const matches = targets.some((t) => String(t) === String(playerCode));
       if (!matches) return;
     }
-    void ws.sendMessage({
+    void sendMessage({
       type: "pong_latency",
       user_code: playerCode,
       client_ts: typeof last.client_ts === "number" ? last.client_ts : Date.now(),
     });
-  }, [ws.lastMessage, ws.isConnected, playerCode, ws.sendMessage]);
+  }, [lastMessage, isConnected, playerCode, sendMessage]);
 
-  // Periodic heartbeat so admin can detect disconnects within ~25 s.
-  // Lowered to 10 s to match the latency-ping cadence and tighten the
-  // disconnect detection window for the wifi indicator.
   useEffect(() => {
-    if (!ws.isConnected || !playerCode) return;
+    if (!isConnected || !playerCode) return;
     const intervalId = window.setInterval(() => {
-      void ws.sendMessage({ type: "player_heartbeat", user_code: playerCode });
+      void sendMessage({ type: "user_online", user_code: playerCode, status: "heartbeat" });
     }, 10_000);
     return () => window.clearInterval(intervalId);
-  }, [ws.isConnected, playerCode, ws.sendMessage]);
+  }, [isConnected, playerCode, sendMessage]);
 
-  return <PlayerWebSocketContext.Provider value={value}>{children}</PlayerWebSocketContext.Provider>;
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };

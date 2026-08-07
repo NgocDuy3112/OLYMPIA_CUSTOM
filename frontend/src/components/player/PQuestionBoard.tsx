@@ -3,23 +3,21 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import type { Question } from "@/types/question";
 import type { PlayerQuestionBoardControls } from "@/types/questionBoardTypes";
 
-
 interface PQuestionBoardProps {
     title: string;
     question: Question;
     timerDuration: number;
     controls?: PlayerQuestionBoardControls;
-    // optional custom content to render in the controls area (not a render-prop)
+
     children?: React.ReactNode;
-    /** Tailwind height class applied to the board container. Defaults to h-[40vh]. */
+
     boardHeightClass?: string;
     videoPlayState?: "playing" | "paused" | null;
-    /** When true, media is hidden until videoPlayState becomes non-null (e.g. until timer starts). */
+
     hideMediaUntilPlayed?: boolean;
-    /** When true, hides the question content area (text + media) but keeps the header. */
+
     hideContent?: boolean;
 }
-
 
 const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
     title,
@@ -27,7 +25,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
     timerDuration,
     controls,
     children,
-    boardHeightClass = "h-[40vh]",
+    boardHeightClass = "h-[60vh]",
     videoPlayState,
     hideMediaUntilPlayed,
     hideContent = false,
@@ -114,26 +112,20 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
             </div>
 
             {!hideContent && (
-            <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
+            <div className="flex flex-col lg:flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL ? (
                     <>
-                        {/* Left side: question text (compact) */}
-                        <div className="flex-[2] flex flex-col justify-start min-h-0 overflow-y-auto">
+                        {}
+                        <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
-                        {/* Right side: media — dominant width so the image is clearly visible */}
-                        <div className="flex-[5] h-full min-h-0 overflow-hidden">
-                            {/*
-                                When hideMediaUntilPlayed is set and the clip has not
-                                been triggered yet (videoPlayState == null), keep the
-                                media visually hidden but STILL mounted so that S3
-                                presign + video buffering happen in the background.
-                                This removes the startup latency that used to occur
-                                the moment the timer started — the video is already
-                                loaded and ready to autoplay instantly.
-                            */}
+                        {}
+                        <div className="w-full lg:flex-[7] aspect-video lg:aspect-auto lg:h-full min-h-0 overflow-hidden">
+                            {
+
+}
                             <div className={hideMediaUntilPlayed && videoPlayState == null ? "h-full w-full overflow-hidden opacity-0 pointer-events-none absolute -z-10" : "h-full w-full overflow-hidden"}>
                                 <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                             </div>
@@ -151,6 +143,5 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
         </div>
     )
 }
-
 
 export default PQuestionBoard;

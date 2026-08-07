@@ -4,17 +4,21 @@ from fastapi import HTTPException
 
 from logger import global_logger
 from schemas.base import BaseResponse
-from schemas.scoreboard import ScoreAdjustRequest
-from sqlalchemy import select, update
+from schemas.scoreboard import ScoreAdjustRequest, ScoreEventRequest
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from models.match import Match, MatchPlayerPosition
 from models.user import User, RoleEnum
+from models.record import Record
+from models.question import Question
+from models.answer import Answer
+from utils.ws_connection import manager
+from utils.ve_dich_powers import get_used_powers
 
 
 def _safe_convert_score(value) -> int:
-    """Helper function to safely convert score from Valkey to int."""
     if value is None:
         return 0
     try:
@@ -31,14 +35,12 @@ async def get_scoreboard_for_a_match_from_db(
     valkey: Valkey,
     session: AsyncSession,
 ) -> BaseResponse:
-    """Return full scoreboard for a match. Prioritizes Valkey cache."""
     log_message = f"GET request received to fetch scoreboard for match_code: {match_code}."
     global_logger.info(log_message)
     
     try:
         leaderboard_key = f"leaderboard:{match_code}"
-        
-        # Step 1: Query DB to get player info
+
         query = (
             select(Match)
             .options(selectinload(Match.players_position).joinedload(MatchPlayerPosition.user))
@@ -51,7 +53,6 @@ async def get_scoreboard_for_a_match_from_db(
             global_logger.warning(log_message)
             raise HTTPException(status_code=404, detail=log_message)
 
-        # Step 2: Build players data and sort by position
         players_data = [
             {
                 "user_code": pp.user.user_code,
@@ -62,33 +63,24 @@ async def get_scoreboard_for_a_match_from_db(
         ]
         players_data.sort(key=lambda x: x["position"])
         
-        # Step 3: Fetch all scores from Valkey in one operation
         player_codes = [p["user_code"] for p in players_data]
-        
+
         if await valkey.exists(leaderboard_key):
-            # The leaderboard is stored as a sorted set (zset) under the leaderboard_key.
-            # Use ZSCORE per player to retrieve their cumulative score. We intentionally
-            # avoid mget here because scores are stored as zset member scores, not as
-            # separate string keys.
-            scoreboard_list = []
-            for p in players_data:
-                try:
-                    score = await valkey.zscore(leaderboard_key, p["user_code"])  # may return None
-                except Exception:
-                    score = None
-                scoreboard_list.append(
-                    {
-                        "user_code": p["user_code"],
-                        "user_name": p["user_name"],
-                        "cumulative_score": _safe_convert_score(score),
-                    }
-                )
-            # Demoted to DEBUG — admin GET /scoreboard/ is called every few
-            # seconds while the round is live. INFO here was one line per
-            # poll, drowning out buzz / scoring events.
+            try:
+                scores = await valkey.zmscore(leaderboard_key, player_codes) or []
+            except Exception:
+                scores = []
+            scores = list(scores) + [None] * (len(player_codes) - len(scores))
+            scoreboard_list = [
+                {
+                    "user_code": p["user_code"],
+                    "user_name": p["user_name"],
+                    "cumulative_score": _safe_convert_score(score),
+                }
+                for p, score in zip(players_data, scores)
+            ]
             global_logger.debug(f"Fetched scoreboard from cache for match_code={match_code}.")
         else:
-            # No leaderboard in cache -> return zeros for all players
             scoreboard_list = [
                 {
                     "user_code": p["user_code"],
@@ -97,8 +89,6 @@ async def get_scoreboard_for_a_match_from_db(
                 }
                 for p in players_data
             ]
-            # Keep at INFO — first hit on a brand-new match is genuinely useful
-            # to confirm the cold-start path works.
             global_logger.info(f"No leaderboard cache found; returning zeroed scoreboard for match_code={match_code}.")
 
         return BaseResponse(
@@ -115,21 +105,211 @@ async def get_scoreboard_for_a_match_from_db(
         raise HTTPException(status_code=500, detail=log_message)
 
 
+def _apply_vedich_power(points: int, power: str | None) -> int:
+    if power not in ("star", "shield") or points == 0:
+        return points
+    if points > 0:
+        return round(points * (1.5 if power == "star" else 0.5))
+    if power == "shield":
+        return 0
+    return points
+
+
+async def update_player_question_score(
+    request: ScoreAdjustRequest,
+    valkey: Valkey,
+    session: AsyncSession,
+) -> BaseResponse:
+    if request.question_code is None or request.points is None:
+        raise HTTPException(status_code=422, detail="question_code and points are required")
+
+    raw_points = request.points
+    if request.question_code.startswith("OC3_Q_VD"):
+        power = (await get_used_powers(valkey, request.match_code)).get(request.user_code)
+        if raw_points < 0 and power not in ("star", "shield"):
+            raw_points = round(raw_points * 0.5)
+        raw_points = _apply_vedich_power(raw_points, power)
+
+    match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
+    player_id = await session.scalar(select(User.id).where(User.user_code == request.user_code, User.role == RoleEnum.player, User.is_deleted == False))
+    question = await session.scalar(select(Question).where(Question.match_id == match_id, Question.question_code == request.question_code, Question.is_deleted == False))
+    if match_id is None or player_id is None or question is None:
+        raise HTTPException(status_code=404, detail="Match, player, or question not found")
+
+    record = await session.scalar(select(Record).where(
+        Record.match_id == match_id,
+        Record.player_id == player_id,
+        Record.question_id == question.id,
+        Record.is_deleted == False,
+    ).order_by(Record.created_at.asc()))
+    if record is None:
+        record = Record(
+            player_id=player_id,
+            match_id=match_id,
+            question_id=question.id,
+            question_code=request.question_code,
+            points=raw_points,
+        )
+        session.add(record)
+    else:
+        record.points = raw_points
+        record.question_code = request.question_code
+
+    await session.flush()
+    await session.commit()
+    total = await session.scalar(select(func.coalesce(func.sum(Record.points), 0)).where(
+        Record.match_id == match_id,
+        Record.player_id == player_id,
+        Record.is_deleted == False,
+    ))
+    total = int(total or 0)
+    await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: total})
+
+    scoreboard = await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)
+    chart_rows = await session.execute(
+        select(Record, User.user_code).join(User, Record.player_id == User.id).where(
+            Record.match_id == match_id,
+            Record.is_deleted == False,
+            User.is_deleted == False,
+        ).order_by(Record.created_at.asc())
+    )
+    chart_data: dict[str, list[dict[str, object]]] = {}
+    chart_totals: dict[str, int] = {}
+    adjustments: dict[str, int] = {}
+    for row in chart_rows.all():
+        item = row[0]
+        code = row[1]
+        if item.question_code == "OC3_Q_ADMIN_ADJUST":
+            adjustments[code] = adjustments.get(code, 0) + item.points
+            continue
+        chart_totals[code] = chart_totals.get(code, 0) + item.points
+        chart_data.setdefault(code, []).append({
+            "question_code": item.question_code,
+            "points": item.points,
+            "cumulative_score": chart_totals[code],
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        })
+    for code, adjustment in adjustments.items():
+        if adjustment:
+            chart_totals[code] = chart_totals.get(code, 0) + adjustment
+            chart_data.setdefault(code, []).append({
+                "question_code": "ADJUST",
+                "points": adjustment,
+                "cumulative_score": chart_totals[code],
+                "created_at": None,
+            })
+    question_rows = await session.execute(select(Question.question_code).where(Question.match_id == match_id, Question.is_deleted == False).order_by(Question.created_at.asc()))
+    question_labels = [row[0] for row in question_rows.all()]
+    payload = {
+        "type": "score_chart_snapshot",
+        "question_labels": question_labels,
+        "match_code": request.match_code,
+        "scoreboard": (scoreboard.data or {}).get("scoreboard", []),
+        "chart_data": chart_data,
+        "updated_user_code": request.user_code,
+        "question_code": request.question_code,
+        "points": raw_points,
+    }
+    await manager.broadcast_to_room(request.match_code, payload)
+    return scoreboard
+
+
+async def calculate_score_event(
+    request: ScoreEventRequest,
+    valkey: Valkey,
+    session: AsyncSession,
+) -> BaseResponse:
+    match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
+    question = await session.scalar(select(Question).where(Question.match_id == match_id, Question.question_code == request.question_code, Question.is_deleted == False))
+    if match_id is None or question is None:
+        raise HTTPException(status_code=404, detail="Match or question not found")
+
+    player_rows = await session.execute(
+        select(User.user_code).join(MatchPlayerPosition, MatchPlayerPosition.player_id == User.id).where(
+            MatchPlayerPosition.match_id == match_id,
+            User.role == RoleEnum.player,
+            User.is_deleted == False,
+        )
+    )
+    match_players = {row[0] for row in player_rows.all()}
+    selected = list(dict.fromkeys(code for code in request.user_codes if code in match_players))
+    if len(selected) != len(request.user_codes):
+        raise HTTPException(status_code=422, detail="user_codes must be unique players in this match")
+
+    points_by_player: dict[str, int] = {}
+    if request.action == "kdc_correct":
+        points_by_player = {code: 10 for code in selected}
+    elif request.action == "kdr_wrong":
+        if len(selected) != 1:
+            raise HTTPException(status_code=422, detail="kdr_wrong requires one player")
+        await valkey.incr(f"score:kdr:attempts:{request.match_code}:{request.question_code}:{selected[0]}")
+        return await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)
+    elif request.action == "kdr_correct":
+        if len(selected) != 1:
+            raise HTTPException(status_code=422, detail="kdr_correct requires one player")
+        attempts = _safe_convert_score(await valkey.get(f"score:kdr:attempts:{request.match_code}:{request.question_code}:{selected[0]}"))
+        points_by_player[selected[0]] = 10 if attempts == 0 else 5 if attempts == 1 else 0
+    elif request.action == "gm_clue_correct":
+        points_by_player = {code: 10 for code in selected}
+    elif request.action == "gm_keyword_correct":
+        from utils.gm_player_state import get_player_keyword_submission
+        for code in selected:
+            submission = await get_player_keyword_submission(valkey, request.match_code, code)
+            if submission and submission.get("has_submitted_keyword"):
+                points_by_player[code] = max(0, 100 - 10 * _safe_convert_score(submission.get("clues_opened")))
+    elif request.action in ("vdr_correct", "vdr_wrong"):
+        try:
+            points = int(request.question_code.rsplit("_", 1)[1])
+        except (IndexError, ValueError):
+            raise HTTPException(status_code=422, detail="Về đích question_code must end with points")
+        points_by_player = {code: points if request.action == "vdr_correct" else -points for code in selected}
+    elif request.action == "vdc_resolve":
+        try:
+            points = int(request.question_code.rsplit("_", 1)[1])
+        except (IndexError, ValueError):
+            raise HTTPException(status_code=422, detail="Về đích question_code must end with points")
+        points_by_player = {code: points if code in selected else -points for code in match_players}
+    elif request.action == "bp_resolve":
+        answers: list[tuple[str, float]] = []
+        for code in selected:
+            answer = await session.scalar(
+                select(Answer).join(User, Answer.player_id == User.id).where(
+                    Answer.match_id == match_id,
+                    Answer.question_id == question.id,
+                    User.user_code == code,
+                    Answer.is_deleted == False,
+                ).order_by(Answer.created_at.desc())
+            )
+            timestamp = float(answer.timestamp) if answer and answer.timestamp is not None else 30
+            answers.append((code, timestamp))
+        answers.sort(key=lambda item: item[1])
+        multipliers = (2, 1.5, 1, 0.5)
+        for index, (code, elapsed) in enumerate(answers):
+            base = 30 if elapsed < 10 else 20 if elapsed < 20 else 10
+            points_by_player[code] = round(base * multipliers[min(index, len(multipliers) - 1)])
+    else:
+        raise HTTPException(status_code=422, detail="Unsupported score action")
+
+    for code, points in points_by_player.items():
+        if points:
+            await update_player_question_score(
+                ScoreAdjustRequest(match_code=request.match_code, user_code=code, question_code=request.question_code, points=points),
+                valkey,
+                session,
+            )
+    return await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)
+
+
 async def adjust_player_score(
     request: ScoreAdjustRequest,
     valkey: Valkey,
     session: AsyncSession,
 ) -> BaseResponse:
-    """Set a player's cumulative score to a specific value.
-
-    This works by:
-    1. Reading the current score from Valkey (ZSCORE).
-    2. Computing the delta needed to reach the target.
-    3. Applying the delta via ZADD INCR so the leaderboard stays consistent.
-    4. Creating a Record row in PostgreSQL for audit purposes.
-    """
     match_code = request.match_code
     user_code = request.user_code
+    if request.question_code is not None:
+        return await update_player_question_score(request, valkey, session)
+
     new_score = request.new_score
     reason = request.reason or "admin_adjust"
 
@@ -137,7 +317,6 @@ async def adjust_player_score(
     global_logger.info(log_message)
 
     try:
-        # ── 1. Validate match exists ──────────────────────────────────
         match = await session.scalar(
             select(Match.id).where(
                 Match.match_code == match_code,
@@ -147,7 +326,6 @@ async def adjust_player_score(
         if match is None:
             raise HTTPException(status_code=404, detail=f"Match {match_code} not found")
 
-        # ── 2. Validate player exists ────────────────────────────────
         user = await session.scalar(
             select(User.id).where(
                 User.user_code == user_code,
@@ -158,12 +336,10 @@ async def adjust_player_score(
         if user is None:
             raise HTTPException(status_code=404, detail=f"Player {user_code} not found")
 
-        # ── 3. Read current score from Valkey ────────────────────────
         leaderboard_key = f"leaderboard:{match_code}"
         current_score = await valkey.zscore(leaderboard_key, user_code)
         current_score = _safe_convert_score(current_score)
 
-        # ── 4. Compute delta and apply ───────────────────────────────
         delta = new_score - current_score
         if delta != 0:
             await valkey.zadd(leaderboard_key, {user_code: delta}, incr=True)
@@ -176,8 +352,6 @@ async def adjust_player_score(
                 f"Score unchanged: {user_code} in {match_code} already at {new_score}"
             )
 
-        # ── 5. Create audit Record in PostgreSQL ─────────────────────
-        # Find or create a special "admin_adjust" question for this match
         from models.question import Question as QuestionModel
         from models.record import Record as RecordModel
 
@@ -189,7 +363,6 @@ async def adjust_player_score(
             )
         )
         if adjust_question is None:
-            # Auto-create the placeholder question if it doesn't exist
             new_q = QuestionModel(
                 question_code="OC3_Q_ADMIN_ADJUST",
                 content="(Admin score adjustment)",
@@ -200,7 +373,6 @@ async def adjust_player_score(
             await session.flush()
             adjust_question = new_q.id
 
-        # Record the delta (round to nearest 5 to satisfy CHECK constraint)
         rounded_delta = round(delta / 5) * 5
         if rounded_delta != 0:
             record = RecordModel(
@@ -215,7 +387,6 @@ async def adjust_player_score(
         else:
             await session.commit()
 
-        # ── 6. Return updated scoreboard ─────────────────────────────
         updated_scoreboard = await get_scoreboard_for_a_match_from_db(
             match_code, valkey, session
         )

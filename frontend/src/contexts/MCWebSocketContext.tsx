@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { MCWebSocketContext } from "@/contexts/mcWsImpl";
-import type { McWsContextValue } from "@/contexts/mcWsImpl";
-import { useMcSession } from "@/hooks/useMcSession";
+import { WebSocketContext } from "@/contexts/WebSocketContext";
+import type { WebSocketContextValue } from "@/types/websocket";
+import { useRoleSession } from "@/hooks/useRoleSession";
 
 export const MCWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
   matchCode,
@@ -11,20 +11,25 @@ export const MCWebSocketProvider: React.FC<{ matchCode: string; children: ReactN
 }) => {
   const token = sessionStorage.getItem("jwtToken_mc") ?? undefined;
   const ws = useWebSocket(matchCode, token);
-  const { mcCode } = useMcSession();
+  const { isConnected, lastMessage, sendMessage } = ws;
+  const { mcCode } = useRoleSession("mc");
+  const value = useMemo<WebSocketContextValue>(
+    () => ({ isConnected, lastMessage, sendMessage }),
+    [isConnected, lastMessage, sendMessage],
+  );
 
-  const value: McWsContextValue = {
-    isConnected: ws.isConnected,
-    lastMessage: ws.lastMessage,
-    sendMessage: ws.sendMessage,
-  };
-
-  // Announce presence when MC websocket connects so admin can resync timer/question state.
   useEffect(() => {
-    if (!ws.isConnected) return;
-    if (!mcCode) return;
-    void ws.sendMessage({ type: "mc_online", user_code: mcCode });
-  }, [ws.isConnected, mcCode, ws.sendMessage]);
+    if (!isConnected || !mcCode) return;
+    void sendMessage({ type: "user_online", user_code: mcCode, status: "online" });
+  }, [isConnected, mcCode, sendMessage]);
 
-  return <MCWebSocketContext.Provider value={value}>{children}</MCWebSocketContext.Provider>;
+  useEffect(() => {
+    if (!isConnected || !mcCode) return;
+    const intervalId = window.setInterval(() => {
+      void sendMessage({ type: "user_online", user_code: mcCode, status: "heartbeat" });
+    }, 10_000);
+    return () => window.clearInterval(intervalId);
+  }, [isConnected, mcCode, sendMessage]);
+
+  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
 };

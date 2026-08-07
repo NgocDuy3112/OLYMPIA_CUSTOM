@@ -16,10 +16,10 @@ def get_valkey_client() -> valkey.Valkey:
     )
 
 
-def subscribe_to_match_channels(valkey_client: valkey.Valkey, match_code: str):
-    """Subscribe to a match channel (or pattern) and yield messages.
+def subscribe_to_event_channels(valkey_client: valkey.Valkey, event_channel_pattern: str):
+    """Subscribe to an event channel (or pattern) and yield messages.
 
-    If match_code contains '*' or '?', uses psubscribe (pattern matching).
+    If event_channel_pattern contains '*' or '?', uses psubscribe (pattern matching).
     Otherwise uses exact subscribe.
 
     Yields:
@@ -30,14 +30,14 @@ def subscribe_to_match_channels(valkey_client: valkey.Valkey, match_code: str):
 
     logger = logging.getLogger(__name__)
     pubsub = valkey_client.pubsub()
-    is_pattern = "*" in match_code or "?" in match_code
+    is_pattern = "*" in event_channel_pattern or "?" in event_channel_pattern
 
     if is_pattern:
-        pubsub.psubscribe(match_code)
-        logger.info(f"Subscribed to pattern '{match_code}'")
+        pubsub.psubscribe(event_channel_pattern)
+        logger.info(f"Subscribed to pattern '{event_channel_pattern}'")
     else:
-        pubsub.subscribe(match_code)
-        logger.info(f"Subscribed to channel '{match_code}'")
+        pubsub.subscribe(event_channel_pattern)
+        logger.info(f"Subscribed to channel '{event_channel_pattern}'")
 
     try:
         for message in pubsub.listen():
@@ -46,11 +46,11 @@ def subscribe_to_match_channels(valkey_client: valkey.Valkey, match_code: str):
                 try:
                     yield json.loads(message["data"])
                 except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON on channel {match_code}: {message['data']}")
+                    logger.warning(f"Invalid JSON on channel {event_channel_pattern}: {message['data']}")
     finally:
         if is_pattern:
-            pubsub.punsubscribe(match_code)
+            pubsub.punsubscribe(event_channel_pattern)
         else:
-            pubsub.unsubscribe(match_code)
+            pubsub.unsubscribe(event_channel_pattern)
         pubsub.close()
-        logger.info(f"Unsubscribed from '{match_code}'")
+        logger.info(f"Unsubscribed from '{event_channel_pattern}'")

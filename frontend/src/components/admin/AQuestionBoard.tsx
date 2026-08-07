@@ -3,33 +3,31 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import type { Question } from "@/types/question";
 import type { AdminQuestionBoardControls, ControlsRenderApi } from "@/types/questionBoardTypes";
 
-
 interface AQuestionBoardProps {
     title: string;
     question: Question;
     timerDuration: number;
-    /** Optional node rendered next to the title in the header (e.g. dropdown) */
+
     titleExtra?: React.ReactNode;
     controls?: AdminQuestionBoardControls;
-    // children must be a render-prop that receives control APIs
+
     children?: (api: ControlsRenderApi) => React.ReactNode;
-    /** Tailwind height class applied to the board container. Defaults to h-[50vh]. */
+
     boardHeightClass?: string;
-    /** When true, hides the question content area (text + media) but keeps the header. */
+
     hideContent?: boolean;
     videoPlayState?: "playing" | "paused" | null;
-    /** When true, media is hidden until videoPlayState becomes non-null (e.g. until timer starts). */
+
     hideMediaUntilPlayed?: boolean;
 }
 
-
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[40vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
+const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerDuration, controls, children,     boardHeightClass = "h-[60vh]", hideContent = false, titleExtra, videoPlayState, hideMediaUntilPlayed }) => {
     const variant = controls?.variant ?? "numbers";
     const count = controls?.count ?? (variant === "numbers" ? 6 : controls?.subjects?.length ?? 4);
     const [boxStates, setBoxStates] = useState<boolean[]>(() => Array(count).fill(false));
 
     useEffect(() => {
-        // Reset button states when question or controls change
+
         setBoxStates(Array(count).fill(false));
     }, [question.questionCode, count]);
 
@@ -63,7 +61,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                         );
                     })
                 ) : (
-                    // subjects variant: render larger rectangles with score and two-line subject name
+
                     Array.from({ length: count }).map((_, idx) => {
                         const active = controls?.activeIndices?.includes(idx) ?? boxStates[idx];
                         const subject = controls?.subjects?.[idx] ?? "";
@@ -111,18 +109,11 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         return <span>{t}</span>;
     };
 
-    // When the content area is hidden (e.g. Mở/Khoá gợi ý in Giải Mã round),
-    // the question text + media are removed from the DOM. Keeping a fixed
-    // `boardHeightClass` (e.g. h-[35vh]) would force the answer box — which is
-    // `shrink-0` — to dock at the top of the container and leave an empty
-    // gutter below. Drop the fixed height in that case so the container
-    // collapses to fit the remaining children (header + answer box) and the
-    // answer stays anchored at the bottom of the page.
-    const containerHeightClass = hideContent ? "" : boardHeightClass;
+    const containerHeightClass = boardHeightClass;
 
     return (
         <div className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${containerHeightClass}`}>
-            {/* Header: title, timer and six control boxes */}
+            {}
             <div className="flex justify-between items-center pb-1">
                 <div className="flex items-center gap-4">
                     <div className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
@@ -131,7 +122,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                     {titleExtra && <div className="ml-2">{titleExtra}</div>}
                 </div>
                 <div className="flex items-center gap-4">
-                    {/* keep controls container from shrinking so timer changes don't push it */}
+                    {}
                     <div className="flex gap-2 shrink-0">
                         {children
                             ? children({
@@ -143,42 +134,36 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
                             })
                             : renderDefaultControls()}
                     </div>
-                    {/* give timer a fixed width so its digit changes won't shift surrounding layout */}
+                    {}
                     <div className="text-3xl tablet:text-3xl xl:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-1 tablet:px-2 xl:px-3 py-1 transition-colors duration-500 text-white w-12 tablet:w-14 xl:w-20 text-center shrink-0">
                         {timerDuration.toString().padStart(2, '0')}
                     </div>
                 </div>
             </div>
 
-            {/* Content area: question text and optional media - takes remaining space */}
+            {}
             {!hideContent && (
-            <div className="flex flex-row flex-1 gap-4 min-h-0 overflow-hidden">
+            <div className="flex flex-col lg:flex-row flex-1 gap-4 min-h-0 overflow-hidden">
                 {question.questionMediaURL ? (
                     <>
-                        {/* Left side: question text (compact) */}
-                        <div className="flex-[2] flex flex-col justify-start min-h-0 overflow-y-auto">
+                        {}
+                        <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
                             <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                                 {question.questionText}
                             </p>
                         </div>
-                        {/* Right side: media — dominant width so the image is clearly visible */}
-                        <div className="flex-[5] h-full min-h-0 overflow-hidden">
-                            {/*
-                                When hideMediaUntilPlayed is set and the clip has not
-                                been triggered yet (videoPlayState == null), keep the
-                                media visually hidden but STILL mounted so that S3
-                                presign + video buffering happen in the background.
-                                This removes the startup latency that used to occur
-                                the moment admin pressed "ĐẾM GIỜ" — the video is
-                                already loaded and ready to autoplay instantly.
-                            */}
+                        {}
+                        <div className="w-full lg:flex-[7] aspect-video lg:aspect-auto lg:h-full min-h-0 overflow-hidden">
+                            {
+
+}
                             <div className={hideMediaUntilPlayed && videoPlayState == null ? "h-full w-full overflow-hidden opacity-0 pointer-events-none absolute -z-10" : "h-full w-full overflow-hidden"}>
                                 <RenderMedia mediaUrl={question.questionMediaURL} videoPlayState={videoPlayState} />
                             </div>
                         </div>
                     </>
                 ) : (
-                    /* Full width: question text only */
+
                     <div className="w-full overflow-y-auto min-h-0">
                         <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
                             {question.questionText}
@@ -191,6 +176,5 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({ title, question, timerD
         </div>
     )
 }
-
 
 export default AQuestionBoard;

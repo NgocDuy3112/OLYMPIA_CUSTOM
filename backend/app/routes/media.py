@@ -2,13 +2,22 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import RedirectResponse
+from pydantic import BaseModel, Field
 
 from dependencies.user_auth import require_roles
 from dependencies.s3_services import get_s3_client, s3_settings
-from core.media import upload_file_to_s3, generate_presigned_url
+from core.media import upload_file_to_s3, generate_presigned_url, generate_presigned_urls_batch
 
 
 router = APIRouter(prefix="/media", tags=["Media"])
+
+
+class PresignBatchRequest(BaseModel):
+    keys: list[str] = Field(..., description="S3 object keys to presign. Max 50 per request.")
+
+
+class PresignBatchResponse(BaseModel):
+    urls: dict[str, str] = Field(..., description="Map of S3 key → presigned URL. Missing keys are omitted.")
 
 
 @router.post(
@@ -79,3 +88,21 @@ async def get_presigned_url(
         expiry=s3_settings.S3_PRESIGNED_URL_EXPIRY,
     )
     return {"url": url}
+
+
+@router.post(
+    "/presign-batch/",
+    dependencies=[Depends(require_roles(["admin", "player", "mc"]))],
+    response_model=PresignBatchResponse,
+)
+async def get_presigned_urls_batch(
+    request: PresignBatchRequest,
+    s3_client=Depends(get_s3_client),
+) -> PresignBatchResponse:
+    urls = await generate_presigned_urls_batch(
+        s3_client=s3_client,
+        bucket=s3_settings.S3_BUCKET_NAME,
+        keys=request.keys,
+        expiry=s3_settings.S3_PRESIGNED_URL_EXPIRY,
+    )
+    return PresignBatchResponse(urls=urls)

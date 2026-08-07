@@ -1,27 +1,24 @@
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "@/configs";
-// temporary page-level logging uses console.info; createLogger import removed for brevity
+import { submitAnswer } from "@/api/answers";
+
 import PAnswerBox from "@/components/player/PAnswerBox";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import type { PlayerStatus } from "@/types/player";
-
-
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 
 const PButPhaPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = useRoleSession("player");
+	const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, clearAnswers } = useAudiencePlayers();
 	const [answer, setAnswer] = useState("");
 	const [showAnswers, setShowAnswers] = useState(false);
 	const [timerHasStarted, setTimerHasStarted] = useState(false);
@@ -30,117 +27,29 @@ const PButPhaPage = () => {
 	const submitTimeoutRef = useRef<number | null>(null);
 	const [submitDisableSecondsLeft, setSubmitDisableSecondsLeft] = useState(0);
 
-	// Auto-fetch scoreboard on mount to ensure accurate initial scores
-	useEffect(() => {
-		if (!matchCode || !token) return;
-		let mounted = true;
-		const fetchScores = async () => {
-			try {
-				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				if (!res.ok) return;
-				const json = await res.json();
-				const scoreboardList: any[] = json.data?.scoreboard ?? [];
-				if (mounted && scoreboardList.length > 0) {
-					setPlayers((prev) =>
-						prev.map((p) => {
-							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
-							if (scoreEntry) {
-								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
-								return { ...p, playerScore: newScore };
-							}
-							return p;
-						}),
-					);
-				}
-			} catch (err) {
-				console.warn("Failed to fetch scoreboard on mount:", err);
-			}
-		};
-		void fetchScores();
-		return () => { mounted = false; };
-	}, [matchCode, token]);
-
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
 
-		// Debug logs to help verify payloads
-		console.info("PLAYER lastMessage:", lastMessage);
-		console.info("PLAYER msg:", msg);
+		queueMicrotask(() => {
 
-		// Let the question hook handle send_question/clear_question
 		applyWsMessage(msg);
 
 		switch (msg?.type) {
-			case "send_players_info": {
-				// Receive player information through WebSocket; support both old (players+scoreboard+profiles)
-				// and new (players[] where each player already contains cumulative_score/user_name) shapes.
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
-					const code = String(p?.user_code ?? "");
-
-					// resolve name: prefer player object, then profiles, then scoreboard entry
-					let name = "";
-					if (p?.user_name) name = p.user_name;
-					else {
-						const prof = (profiles ?? []).find((pr: any) => String(pr?.user_code) === code);
-						if (prof) name = prof.user_name ?? "";
-						else {
-							const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else {
-						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.new_total_score ?? scoreEntry?.score ?? 0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: undefined,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
-			case "clear_question": {
-				setVideoPlayState(null);
-				// Keep timerHasStarted unchanged - do not lock input when admin switches questions
-				break;
-			}
-
+			case "clear_question": 
 			case "send_question": {
 				setVideoPlayState(null);
 				break;
 			}
 
-			case "play_video": {
-				setVideoPlayState("playing");
-				break;
-			}
-
-			case "pause_video": {
-				setVideoPlayState("paused");
-				break;
-			}
-
-			case "start_the_timer": {
+			case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
+                break;
+                case "start_the_timer": {
 				const timeLimitNum = Number(msg.time_limit ?? 0);
 				const startedAtNum = typeof msg.started_at === 'string' ? parseInt(msg.started_at, 10) : Number(msg.started_at ?? Date.now());
 				console.info("[TIMER] start_the_timer received:", { time_limit: timeLimitNum, started_at: startedAtNum, started_at_raw: msg.started_at, now: Date.now() });
@@ -153,26 +62,12 @@ const PButPhaPage = () => {
 				break;
 			}
 
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
+			case "player_score_updated":
+				applyScoreUpdate(msg);
 				break;
-			}
 
 			case "clear_answers": {
-				setPlayers((prev) =>
-					prev.map((p) => ({
-						...p,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: undefined,
-					})),
-				);
+				clearAnswers();
 				setAnswer("");
 				setShowAnswers(false);
 				setTimerHasStarted(false);
@@ -180,36 +75,15 @@ const PButPhaPage = () => {
 			}
 
 			case "send_answers_to_players": {
-				const answers = msg.answers ?? [];
-				setPlayers((prev) =>
-					prev.map((p) => {
-						const ans = answers.find((a: any) => a.user_code === p.playerCode);
-						if (!ans) return p;
-						return {
-							...p,
-							playerLastAnswer: ans.content,
-							playerTimestamp: ans.timestamp || p.playerTimestamp,
-						};
-					}),
-				);
+				applyAnswers(msg);
 				setShowAnswers(true);
 				break;
 			}
-
-			case "buzz": {
-				// Buzz notification from another player
-				const { user_code } = msg;
-				if (user_code && user_code !== playerCode) {
-					setPlayers((prev) => prev.map((p) => (p.playerCode === user_code ? { ...p, playerHasBuzzed: true } : p)));
-					console.info("Player received buzz from", user_code);
-				}
-				break;
-			}
-
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, startSynced, playerCode]);
+		});
+	}, [applyAnswers, applyPlayersInfo, applyScoreUpdate, applyWsMessage, clearAnswers, lastMessage, startSynced]);
 
 	const handleSubmitAnswer = useCallback(async () => {
 		const trimmed = answer.trim();
@@ -217,7 +91,7 @@ const PButPhaPage = () => {
 		if (submitDisabledTemporarily) return;
 		if (!isConnected) return;
 		if (!currentQuestion.questionCode) return;
-		// Input is only enabled after admin starts the timer; never allow pre-timer submissions
+
 		if (!timerHasStarted) return;
 		if (timer <= 0) return;
 
@@ -226,16 +100,15 @@ const PButPhaPage = () => {
 
 		console.info(`[BP ANSWER SYNC] Player submitting answer: user=${playerCode} question=${currentQuestion.questionCode} answer=${trimmed} ts=${ts} connected=${isConnected}`);
 
-		// disable submission for a short period to prevent rapid re-submits
 		const DISABLE_SECONDS = 3;
 		setSubmitDisabledTemporarily(true);
 		setSubmitDisableSecondsLeft(DISABLE_SECONDS);
-		if (submitTimeoutRef.current) window.clearInterval(submitTimeoutRef.current as any);
+		if (submitTimeoutRef.current) window.clearInterval(submitTimeoutRef.current);
 		submitTimeoutRef.current = window.setInterval(() => {
 			setSubmitDisableSecondsLeft((prev) => {
 				if (prev <= 1) {
 					if (submitTimeoutRef.current) {
-						window.clearInterval(submitTimeoutRef.current as any);
+						window.clearInterval(submitTimeoutRef.current);
 						submitTimeoutRef.current = null;
 					}
 					setSubmitDisabledTemporarily(false);
@@ -254,51 +127,29 @@ const PButPhaPage = () => {
 		);
 
 		try {
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-						user_code: playerCode,
-						match_code: matchCode,
-						question_code: currentQuestion.questionCode,
-						answer_text: trimmed,
-						has_buzzed: false,
-						timestamp: ts,
-					}),
+			await submitAnswer({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				answer_text: trimmed,
+				has_buzzed: false,
+				timestamp: ts,
+			}, token);
+			await sendMessage({
+				type: "player_answer",
+				user_code: playerCode,
+				question_code: currentQuestion.questionCode,
+				answer_text: trimmed,
+				timestamp: ts,
 			});
-			if (res.ok) {
-				console.info(`[BP ANSWER SYNC] Player POST answer success: user=${playerCode} question=${currentQuestion.questionCode} answer=${trimmed} ts=${ts}`);
-				// Only broadcast via WS after successful HTTP persist
-				const wsPayload = {
-					type: "player_answer",
-					user_code: playerCode,
-					question_code: currentQuestion.questionCode,
-					answer_text: trimmed,
-					timestamp: ts,
-				};
-				console.info(`[BP ANSWER SYNC] Broadcasting WebSocket message:`, wsPayload);
-				await sendMessage(wsPayload);
-				console.info(`[BP ANSWER SYNC] WebSocket broadcast completed`);
-			} else {
-				const body = await res.text().catch(() => "");
-				console.warn(`[BP ANSWER SYNC] Player POST answer failed: status=${res.status} body=${body}`);
-			}
-		} catch (err) {
-			console.warn("[BP ANSWER SYNC] Failed to POST answer:", err);
+		} catch (error) {
+			console.warn("Failed to submit answer:", error);
 		}
 		setAnswer("");
-	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, timer, token, matchCode, submitDisabledTemporarily, timerHasStarted]);
+	}, [answer, currentQuestion.questionCode, getElapsedSeconds, isConnected, matchCode, playerCode, sendMessage, setPlayers, submitDisabledTemporarily, timeLimit, timer, timerHasStarted, token]);
 
 	const isTimerExpired = timerHasStarted && timeLimit > 0 && timer === 0;
-	// Disable input when:
-	// - Not connected
-	// - No question selected
-	// - Admin hasn't started the timer yet (locked until "ĐẾM GIỜ" is pressed)
-	// - Timer expired (timer === 0 after running)
-	// - Temporarily disabled after recent submission
+
 	const isSubmissionDisabled =
 		!isConnected ||
 		!currentQuestion.questionCode ||
@@ -311,7 +162,7 @@ const PButPhaPage = () => {
 	useEffect(() => {
 		return () => {
 			if (submitTimeoutRef.current) {
-				window.clearInterval(submitTimeoutRef.current as any);
+				window.clearInterval(submitTimeoutRef.current);
 				submitTimeoutRef.current = null;
 			}
 		};
@@ -327,7 +178,6 @@ const PButPhaPage = () => {
 					? `Vui lòng đợi trong ${submitDisableSecondsLeft} giây`
 					: "Nhập đáp án và nhấn Enter";
 
-	// Always show the current player's own answer; hide others until admin reveals
 	const displayPlayers = players.map((p) =>
 		showAnswers || p.playerCode === playerCode ? p : { ...p, playerLastAnswer: undefined, playerTimestamp: undefined },
 	);

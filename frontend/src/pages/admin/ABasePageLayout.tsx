@@ -5,71 +5,38 @@ import type { AdminQuestionBoardControls, ControlsRenderApi } from "@/types/ques
 import type { Question } from "@/types/question";
 
 interface ABasePageLayoutProps {
-	// Question board props
+
 	questionTitle: string;
 	question: Question;
 	timerDuration: number;
 
-	// Optional node rendered above the AQuestionBoard in the left column
 	aboveQuestionBoard?: ReactNode;
 
-	// Optional node rendered next to the title in the question board header
 	titleExtra?: ReactNode;
 
-	// Optional node rendered directly under the AQuestionBoard (e.g. answer options)
 	underQuestionBoard?: ReactNode;
 
-	/** Tailwind height class forwarded to AQuestionBoard. Defaults to h-[50vh]. */
 	boardHeightClass?: string;
 
-	/** When true, hides the question content area (text + media) in AQuestionBoard */
 	hideQuestionContent?: boolean;
 	videoPlayState?: "playing" | "paused" | null;
 	hideMediaUntilPlayed?: boolean;
 
-	// Optional controls configuration for the question board (numbers / subjects)
 	controls?: AdminQuestionBoardControls;
 
-	// Optional custom controls provided as a render-prop and passed into AQuestionBoard
 	controlsChildren?: (api: ControlsRenderApi) => ReactNode;
 
-	// Control buttons (top row - navigation/clock controls)
 	topControlButtons: ReactNode;
 
-	// Action buttons (bottom row - start/end/refresh controls)
 	bottomActionButtons: ReactNode;
 
-	// Optional status messages (buzzer winner, blocked player, etc.)
 	statusMessages?: ReactNode;
 
-	// Player list render function
 	renderPlayerList: () => ReactNode;
 
-	// Optional buttons rendered below the player list (e.g. TÍNH ĐIỂM, HIỆN TRẢ LỜI, CẬP NHẬT)
 	playerSectionButtons?: ReactNode;
 }
 
-/**
- * ABasePageLayout - Reusable layout for admin gameplay pages
- *
- * This layout provides a consistent structure with:
- * - AdminGameplayNavBar at the top
- * - Left section (flex-3): Question board + control buttons
- * - Right section (flex-1): Player list with scrollable overflow
- *
- * Usage example:
- * ```tsx
- * <ABasePageLayout
- *   questionTitle="KHỞI ĐỘNG - LƯỢT CHUNG - CÂU HỎI SỐ 1"
- *   question={currentQuestion}
- *   timerDuration={timer}
- *   topControlButtons={<>...navigation buttons...</>}
- *   bottomActionButtons={<>...start/end buttons...</>}
- *   statusMessages={<p>Status message</p>}
- *   renderPlayerList={() => players.map(...)}
- * />
- * ```
- */
 const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 	questionTitle,
 	question,
@@ -93,13 +60,13 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 		<div className="flex flex-col h-screen overflow-hidden">
 			<AdminGameplayNavBar />
 			<div className="flex flex-row w-full flex-1 p-2 tablet:p-3 xl:p-6 gap-3 tablet:gap-4 xl:gap-8 overflow-hidden">
-				{/* Left section: Question board and controls */}
+				{}
 				<div className="flex flex-col flex-3 gap-3 tablet:gap-4 xl:gap-6 overflow-y-auto min-w-0">					{aboveQuestionBoard}
 					<AQuestionBoard title={questionTitle} titleExtra={titleExtra} question={question} timerDuration={timerDuration} controls={controls} boardHeightClass={boardHeightClass} hideContent={hideQuestionContent} videoPlayState={videoPlayState} hideMediaUntilPlayed={hideMediaUntilPlayed}>
 						{controlsChildren}
 					</AQuestionBoard>
 
-					{/* Optional content rendered directly under the question board (e.g. MC options) */}
+					{}
 					{underQuestionBoard}
 
 					<div className="flex flex-wrap items-center justify-center gap-2 tablet:gap-3 xl:gap-4 max-w-220 mx-auto">
@@ -107,11 +74,11 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
 						{bottomActionButtons}
 					</div>
 
-					{/* Optional status messages */}
+					{}
 					{statusMessages}
 				</div>
 
-				{/* Right section: Player list + optional action buttons */}
+				{}
 				<div className="flex flex-col flex-1 gap-2 tablet:gap-3 xl:gap-5 overflow-hidden">
 					<div className="flex flex-col gap-2 tablet:gap-3 xl:gap-5 overflow-y-auto pr-2">{renderPlayerList()}</div>
 					{playerSectionButtons && (

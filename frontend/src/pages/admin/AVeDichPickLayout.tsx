@@ -3,64 +3,30 @@ import AdminGameplayNavBar from "@/navigation/ANavBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import type { Question } from "@/types/question";
 interface AVeDichPickLayoutProps {
-	// Title and round info
+
 	title: string;
-	maxQuestions: number;  // Dynamic: players.length for CHUNG, 3 for RIENG
+	maxQuestions: number;
 
-	// Questions data
-	questions: Question[];  // All available questions
-	categories: string[];   // Category labels for each question (same order as questions)
-	points: number[];       // Point values for each question (same order as questions)
+	questions: Question[];
+	categories: string[];
+	points: number[];
 
-	// Selection state
-	selectedQuestionCodes: string[];  // Which questions are selected
+	selectedQuestionCodes: string[];
 	onQuestionSelect?: (questionCode: string) => void;
-	canSelectQuestions?: boolean;  // Whether question selection is enabled (e.g., player selected for RIENG round)
+	canSelectQuestions?: boolean;
 
-	// Question states
-	disabledQuestionCodes?: string[];  // Questions that can't be selected
+	disabledQuestionCodes?: string[];
 	questionStates?: Record<string, "answered" | "answered-wrong" | "available">;
 
-	// Control buttons (top row - navigation/clock controls)
 	topControlButtons: ReactNode;
 
-	// Action buttons (bottom row - start/end/refresh controls)
 	bottomActionButtons: ReactNode;
 
-	// Optional status messages
 	statusMessages?: ReactNode;
 
-	// Player list render function
 	renderPlayerList: () => ReactNode;
 }
 
-/**
- * AVeDichPickLayout - Layout for VỀ ĐÍCH (Pick Questions) pages
- *
- * Displays a responsive grid of VeDichQuestionCard components.
- * Used for admin to pick questions for Lượt Chung (dynamic player count) or Lượt CÁ NHÂN (3).
- *
- * Structure:
- * - Top: Title + NavBar
- * - Left (flex-3): Question cards grid + control buttons
- * - Right (flex-1): Player list
- *
- * Usage example:
- * ```tsx
- * <AVeDichPickLayout
- *   title="VỀ ĐÍCH - LƯỢT CHUNG - CHỌN CÂU HỎI"
- *   round={VeDichRound.CHUNG}
- *   questions={allQuestions}
- *   categories={questionCategories}
- *   points={questionPoints}
- *   selectedQuestionCodes={selected}
- *   onQuestionSelect={(code) => handleSelect(code)}
- *   topControlButtons={<>...buttons...</>}
- *   bottomActionButtons={<>...buttons...</>}
- *   renderPlayerList={() => <APlayerBar {...} />}
- * />
- * ```
- */
 const AVeDichPickLayout = ({
 	title,
 	maxQuestions,
@@ -92,15 +58,15 @@ const AVeDichPickLayout = ({
 	};
 
 	const handleQuestionClick = (questionCode: string) => {
-		// Block selection if canSelectQuestions is false (e.g., no player selected for RIENG)
+
 		if (!canSelectQuestions) return;
 		if (isQuestionDisabled(questionCode)) return;
 
 		if (isQuestionSelected(questionCode)) {
-			// Deselect
+
 			onQuestionSelect?.(questionCode);
 		} else if (canSelectMore) {
-			// Select if we haven't reached max
+
 			onQuestionSelect?.(questionCode);
 		}
 	};
@@ -109,13 +75,13 @@ const AVeDichPickLayout = ({
 		<>
 			<AdminGameplayNavBar />
 			<div className="flex flex-row w-full h-screen p-3 xl:p-6 gap-4 xl:gap-8 overflow-hidden">
-				{/* Left section: Board + controls (same flex-3 as ABasePageLayout) */}
+				{}
 				<div className="flex flex-col flex-3 gap-4 xl:gap-6">
 
-					{/* Board — mirrors AQuestionBoard shell */}
+					{}
 					<div className="p-3 xl:p-4 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 xl:gap-3">
 
-						{/* Board header: title + selected preview + counter — all in one row */}
+						{}
 						<div className="flex items-center gap-4 pb-1">
 							{(() => {
 								const parts = title.split(" - ");
@@ -134,10 +100,10 @@ const AVeDichPickLayout = ({
 									return <span className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">{title}</span>;
 								})()}
 
-							{/* Spacer */}
+							{}
 							<div className="flex-1" />
 
-							{/* Selected questions preview — grouped near counter */}
+							{}
 							<div className="flex gap-0.5 overflow-x-auto">
 								{Array.from({ length: maxQuestions }).map((_, i) => {
 									const code = selectedQuestionCodes[i];
@@ -171,10 +137,10 @@ const AVeDichPickLayout = ({
 							</div>
 						</div>
 
-						{/* Divider */}
+						{}
 						<div className="border-t border-blue-700" />
 
-						{/* Questions Grid — 6×4 */}
+						{}
 						<div
 							className="grid gap-1.5"
 						style={{ gridTemplateColumns: "repeat(4, 1fr)", gridAutoRows: "minmax(80px, 80px)" }}
@@ -211,7 +177,7 @@ const AVeDichPickLayout = ({
 						</div>
 					</div>
 
-					{/* Control buttons — same structure as ABasePageLayout */}
+					{}
 					<div className="flex flex-wrap items-center justify-center gap-3 xl:gap-4 max-w-220 mx-auto">
 						{topControlButtons}
 						{bottomActionButtons}
@@ -219,7 +185,7 @@ const AVeDichPickLayout = ({
 					{statusMessages}
 				</div>
 
-				{/* Right section: Player list (same flex-1 as ABasePageLayout) */}
+				{}
 			<div className="flex flex-col flex-1 gap-3 xl:gap-5 overflow-hidden pr-2">{renderPlayerList()}</div>
 			</div>
 		</>

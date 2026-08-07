@@ -1,31 +1,32 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
+
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Star, Shield } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
-// temporary page-level logging uses console.info; createLogger import removed for brevity
+import { submitBuzz } from "@/api/answers";
+
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import type { PlayerStatus } from "@/types/player";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
 const PVeDichRiengPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = useRoleSession("player");
+	const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
 	const { timer, startSynced } = useCountdownTimer();
 	const { currentQuestion, applyWsMessage } = useQuestionState();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, setPlayers, applyPlayersInfo, applyScoreUpdate } = useAudiencePlayers();
 	const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
 	const [activePower, setActivePower] = useState<"star" | "shield" | null>(null);
 	const [hasPinged, setHasPinged] = useState(false);
+	const hasPingedRef = useRef(false);
 	const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
 	const lastBuzzerQuestionRef = useRef<string | null>(null);
 	const [blockedPlayerCode, setBlockedPlayerCode] = useState<string | null>(null);
@@ -36,141 +37,54 @@ const PVeDichRiengPage = () => {
 	const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(() => {
 		if (!matchCode) return {};
 		try {
-			const stored = localStorage.getItem(`veDich_powers_${matchCode}`);
+			const stored = localStorage.getItem(`vd_powers_${matchCode}`);
 			return stored ? JSON.parse(stored) : {};
 		} catch { return {}; }
 	});
 
-	// ─── Power window state (mirrors VDC behaviour) ────────────────────────────
 	const [powerWindowOpen, setPowerWindowOpen] = useState(false);
 	const [powerWindowCountdown, setPowerWindowCountdown] = useState(0);
 	const [selectedPower, setSelectedPower] = useState<"star" | "shield" | null>(null);
 	const powerWindowTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-	// Auto-fetch scoreboard on mount to ensure accurate initial scores
-	useEffect(() => {
-		if (!matchCode || !token) return;
-		let mounted = true;
-		const fetchScores = async () => {
-			try {
-				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				if (!res.ok) return;
-				const json = await res.json();
-				const scoreboardList: any[] = json.data?.scoreboard ?? [];
-				if (mounted && scoreboardList.length > 0) {
-					setPlayers((prev) =>
-						prev.map((p) => {
-							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
-							if (scoreEntry) {
-								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
-								return { ...p, playerScore: newScore };
-							}
-							return p;
-						}),
-					);
-				}
-			} catch (err) {
-				console.warn("Failed to fetch scoreboard on mount:", err);
-			}
-		};
-		void fetchScores();
-		return () => { mounted = false; };
-	}, [matchCode, token]);;
-
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
 
-		// Debug logs to help verify payloads
+		queueMicrotask(() => {
+
 		console.info("PLAYER lastMessage:", lastMessage);
 		console.info("PLAYER msg:", msg);
 
-		// Handles send_question/clear_question
 		applyWsMessage(msg);
 		if (msg?.type === "send_question" || msg?.type === "clear_question") setVideoPlayState(null);
 
 		switch (msg?.type) {
-			case "send_players_info": {
-				// Receive player information through WebSocket instead of API
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
-					const code = String(p?.user_code ?? "");
-					let name = "";
-					if (p?.user_name) name = p.user_name;
-					else {
-						const prof = (profiles ?? []).find((pr: any) => String(pr?.user_code) === code);
-						if (prof) name = prof.user_name ?? "";
-						else {
-							const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else {
-						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: false,
-						playerIsTurn: (p as any)?.is_current ?? false,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
 			case "start_the_timer": {
+				hasPingedRef.current = false;
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
-				// Also reset the buzzer-question ref so the next `buzzer_winner`
-				// for a fresh timer is accepted even if the previous buzz was
-				// for the same `question_code`. Without this, an admin who
-				// re-uses the previous question (no fresh `clear_buzz` between
-				// rounds) would have the new winner dropped by the guard.
+
 				lastBuzzerQuestionRef.current = null;
-				setAnsweringWindowTimer(0); // Reset answering window when new timer starts
-				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				setAnsweringWindowTimer(0);
+				startSynced(Number(msg.time_limit ?? 0), Number(msg.started_at ?? Date.now()));
 				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
 				break;
 			}
 
-			case "play_video":
-				setVideoPlayState("playing");
-				break;
-
-			case "pause_video":
-				setVideoPlayState("paused");
-				break;
-
-			case "vd_power_activated":
+			case "media_control":
+                setVideoPlayState(msg.action === "pause" ? "paused" : "playing");
+                break;
+                case "vd_power_activated":
 				setActivePower((msg.power as "star" | "shield") ?? null);
 				break;
 
 			case "vd_power_window_open": {
-				// Server is the source of truth: if it attached an explicit
-				// eligible list, drop the message when we're not on it. This
-				// also implicitly handles "already used a power" because the
-				// server's `compute_eligible_user_codes` filters out players
-				// in the used-powers HASH. We deliberately do NOT consult the
-				// local `usedPowers` cache here — a stale localStorage entry
-				// (e.g. from a previous match that reused the same matchCode)
-				// would otherwise block the panel forever.
+
 				const eligible = msg.eligible_user_codes;
 				if (Array.isArray(eligible) && eligible.length > 0 && !eligible.includes(playerCode ?? "")) {
 					console.info("[VDR] Ignoring vd_power_window_open: not in eligible_user_codes", { eligible, me: playerCode });
@@ -184,18 +98,17 @@ const PVeDichRiengPage = () => {
 			}
 
 			case "vd_player_power": {
-				// Player activated a power (star/shield) during the 5s window
+
 				const { user_code, power } = msg;
 				if (user_code && (power === "star" || power === "shield")) {
-					// Update usedPowers state
+
 					setUsedPowers((prev) => {
 						const next = { ...prev, [user_code]: power };
-						// Persist immediately so the choice survives page reloads
-						// (admin may not have broadcast vd_powers_used yet).
-						try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(next)); } catch { /* ignore */ }
+
+						try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(next)); } catch (error) { console.error("Storage update failed", error); }
 						return next;
 					});
-					// Update playerPower in players array for display
+
 					setPlayers((prev) =>
 						prev.map((p) =>
 							p.playerCode === user_code ? { ...p, playerPower: power as "star" | "shield" } : p,
@@ -207,12 +120,13 @@ const PVeDichRiengPage = () => {
 
 			case "vd_powers_used": {
 				if (msg.used_powers) {
-					setUsedPowers(msg.used_powers);
-					try { localStorage.setItem(`veDich_powers_${matchCode}`, JSON.stringify(msg.used_powers)); } catch { /* ignore */ }
-					// Update playerPower in players array for display
+					const powers = msg.used_powers;
+					setUsedPowers(powers);
+					try { localStorage.setItem(`vd_powers_${matchCode}`, JSON.stringify(powers)); } catch (error) { console.error("Storage update failed", error); }
+
 					setPlayers((prev) =>
 						prev.map((p) => {
-							const power = msg.used_powers[p.playerCode];
+							const power = powers[p.playerCode];
 							return power ? { ...p, playerPower: power as "star" | "shield" } : p;
 						}),
 					);
@@ -221,34 +135,22 @@ const PVeDichRiengPage = () => {
 			}
 
 			case "buzzer_winner": {
-				// Admin broadcasted the winner - show lightning icon for them
 				const winner = msg.user_code;
-				const winnerQuestion = msg.question_code;
-				if (winner && (winnerQuestion !== lastBuzzerQuestionRef.current)) {
-					setBuzzerWinnerCode(winner);
-					lastBuzzerQuestionRef.current = winnerQuestion;
-					setPlayers((prev) => {
-						const updated = prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winner }));
-						return updated;
-					});
-				} else {
-					console.warn(`[VDR PLAYER] Ignoring buzzer_winner: winner=${winner}, existing=${buzzerWinnerCode}`);
+				if (winner) {
+					const winnerCode = String(winner);
+					setBuzzerWinnerCode(winnerCode);
+					lastBuzzerQuestionRef.current = msg.question_code ?? null;
+					setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: p.playerCode === winnerCode })));
 				}
 				break;
 			}
 
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
+			case "player_score_updated":
+				applyScoreUpdate(msg);
 				break;
-			}
 
 			case "clear_buzz": {
+				hasPingedRef.current = false;
 				setHasPinged(false);
 				setBuzzerWinnerCode(null);
 				lastBuzzerQuestionRef.current = null;
@@ -256,17 +158,17 @@ const PVeDichRiengPage = () => {
 				break;
 			}
 			case "blocked_buzz": {
-				// msg.user_code may be null/empty to block all players or clear the blocked player
+
 				if (msg.user_code === null || msg.user_code === undefined) {
-					// Block all players - no one can buzz anymore
+
 					console.info("[VDR PLAYER] Blocking all buzzers");
 					setBlockedPlayerCode("*ALL*");
 				} else if (msg.user_code === "") {
-					// Clear blocked player
+
 					setBlockedPlayerCode(null);
 				} else {
-					// Block specific player
-					setBlockedPlayerCode(msg.user_code);
+
+					setBlockedPlayerCode(String(msg.user_code));
 				}
 				break;
 			}
@@ -278,11 +180,14 @@ const PVeDichRiengPage = () => {
 				if (msg.round === "rieng" && msg.selected_player_code) {
 					setCurrentTurnPlayerCode(msg.selected_player_code);
 				}
-				// Reset buzz state when new question is selected so players can buzz again
-				setHasPinged(false);
-				setBuzzerWinnerCode(null);
-				lastBuzzerQuestionRef.current = null;
-				setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+
+				if (msg.type === "vd_questions_selected") {
+					hasPingedRef.current = false;
+					setHasPinged(false);
+					setBuzzerWinnerCode(null);
+					lastBuzzerQuestionRef.current = null;
+					setPlayers((prev) => prev.map((p) => ({ ...p, playerHasBuzzed: false })));
+				}
 				break;
 			}
 			case "vdr_question_state": {
@@ -300,7 +205,8 @@ const PVeDichRiengPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, startSynced]);
+		});
+	}, [applyPlayersInfo, applyScoreUpdate, applyWsMessage, lastMessage, matchCode, playerCode, setPlayers, startSynced]);
 
 	const handlePing = useCallback(async () => {
 		console.info(`[VDR BUZZ] handlePing called: connected=${isConnected}, hasPinged=${hasPinged}, buzzerWinner=${buzzerWinnerCode}, answeringWindow=${answeringWindowTimer}`);
@@ -308,7 +214,7 @@ const PVeDichRiengPage = () => {
 			console.warn("[VDR BUZZ] Not connected");
 			return;
 		}
-		if (hasPinged) {
+		if (hasPingedRef.current) {
 			console.warn("[VDR BUZZ] Already pinged");
 			return;
 		}
@@ -328,52 +234,33 @@ const PVeDichRiengPage = () => {
 			console.warn("[VDR BUZZ] No question selected");
 			return;
 		}
-		// Only allow buzz when answering window is active (admin clicked "Mở chuông")
+
 		if (answeringWindowTimer <= 0) {
 			console.warn(`[VDR BUZZ] Cannot buzz: answeringWindow=${answeringWindowTimer}`);
 			return;
 		}
 
-		// Track whether we WON the buzzer race server-side. Only set hasPinged
-		// if we won, otherwise the player will be wrongly marked as already-
-		// buzzed on the client and unable to retry after admin reopens the
-		// answering window (e.g. buzzed-wrong → clear_buzz → Mở Chuông again).
-		let wonBuzzer = false;
+		hasPingedRef.current = true;
+		setHasPinged(true);
+
 		try {
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					has_buzzed: true,
-				}),
-			});
-			if (res.status === 201 || res.status === 200) {
-				wonBuzzer = true;
-			} else if (res.status === 409) {
-				console.info("[VDR BUZZ] Lost buzzer race (409); another player won. Waiting for blocked_buzz event to disable button.");
-			} else {
-				console.warn("[VDR BUZZ] Failed to POST buzz:", res.status);
-			}
-		} catch (err) {
-			console.warn("[VDR BUZZ] Failed to POST buzz:", err);
+			await submitBuzz({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				has_buzzed: true,
+			}, token);
+		} catch (error) {
+			console.warn("Failed to submit buzz:", error);
 		}
 
-		const wsEchoOk = await sendMessage({
+		await sendMessage({
 			type: "buzz",
 			user_code: playerCode,
 			question_code: currentQuestion.questionCode,
 			has_buzzed: true
 		});
 
-		if (wonBuzzer && wsEchoOk) {
-			setHasPinged(true);
-		}
 	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, token, matchCode, blockedPlayerCode, currentTurnPlayerCode, answeringWindowTimer]);
 
 	const isPingDisabled =
@@ -384,7 +271,6 @@ const PVeDichRiengPage = () => {
 		currentTurnPlayerCode === playerCode ||
 		answeringWindowTimer <= 0;
 
-	// Countdown answering window timer
 	useEffect(() => {
 		if (answeringWindowTimer <= 0) return;
 		const intervalId = window.setInterval(() => {
@@ -393,14 +279,13 @@ const PVeDichRiengPage = () => {
 		return () => window.clearInterval(intervalId);
 	}, [answeringWindowTimer]);
 
-	// Power window countdown (mirrors VDC behaviour)
 	useEffect(() => {
 		if (!powerWindowOpen || powerWindowCountdown <= 0) return;
 		powerWindowTimerRef.current = window.setInterval(() => {
 			setPowerWindowCountdown((prev) => {
 				if (prev <= 1) {
 					setPowerWindowOpen(false);
-					// Notify admin that power window has closed
+
 					void sendMessage({
 						type: "vd_power_window_closed",
 						user_code: playerCode
@@ -416,12 +301,11 @@ const PVeDichRiengPage = () => {
 		};
 	}, [powerWindowOpen, powerWindowCountdown, playerCode, sendMessage]);
 
-
 	const handleSelectPower = useCallback(async (power: "star" | "shield") => {
 		if (!powerWindowOpen || usedPowers[playerCode]) return;
 		setSelectedPower(power);
 		setPowerWindowOpen(false);
-		// Send to admin via WS
+
 		try {
 			await sendMessage({
 				type: "vd_player_power",
@@ -433,12 +317,17 @@ const PVeDichRiengPage = () => {
 		}
 	}, [powerWindowOpen, usedPowers, playerCode, sendMessage]);
 
-	// Cleanup power window on unmount
 	useEffect(() => {
 		return () => {
 			if (powerWindowTimerRef.current) window.clearInterval(powerWindowTimerRef.current);
 		};
 	}, []);
+
+	const currentPoints = (() => {
+		if (!currentQuestion.questionCode) return 0;
+		const q = roundQuestionsData.find((r) => r.code === currentQuestion.questionCode);
+		return q?.points ?? 0;
+	})();
 
 	return (
 		<PBasePageLayout
@@ -479,27 +368,28 @@ const PVeDichRiengPage = () => {
 					</div>
 				</PQuestionBoard>
 
-				{/* Power selection window */}
 				{powerWindowOpen && !usedPowers[playerCode ?? ''] && (
 					<div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-4 flex flex-col items-center gap-3">
 						<p className="text-white font-bold text-lg">Chọn quyền năng ({powerWindowCountdown}s)</p>
 						<div className="flex gap-4">
 							<button
 								onClick={() => { void handleSelectPower('star'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'star'
-										? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
-										: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
-									}`}
-							>
-								<Star size={20} />
-								<span>Ngôi Sao Hy Vọng</span>
-							</button>
-							<button
-								onClick={() => { void handleSelectPower('shield'); }}
-								className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'shield'
-										? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
-										: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
-									}`}
+							disabled={currentPoints === 20}
+							className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'star'
+									? 'bg-white-500 text-blue-900 ring-2 ring-white-300'
+									: 'bg-white-500/20 text-white-300 border-2 border-white-500/50 hover:bg-white-500/40'
+								} ${currentPoints === 20 ? 'opacity-40 cursor-not-allowed' : ''}`}
+						>
+							<Star size={20} />
+							<span>Ngôi Sao Hy Vọng</span>
+						</button>
+						<button
+							onClick={() => { void handleSelectPower('shield'); }}
+							disabled={currentPoints === 50}
+							className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all duration-150 ${selectedPower === 'shield'
+									? 'bg-blue-500 text-blue-900 ring-2 ring-blue-300'
+									: 'bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40'
+								} ${currentPoints === 50 ? 'opacity-40 cursor-not-allowed' : ''}`}
 							>
 								<Shield size={20} />
 								<span>Bảo Hộ Miễn Trừ</span>
@@ -509,7 +399,6 @@ const PVeDichRiengPage = () => {
 					</div>
 				)}
 
-				{/* Power just selected indicator */}
 				{selectedPower && !powerWindowOpen && !usedPowers[playerCode ?? ''] && (
 					<div className={`flex items-center gap-2 px-3 py-2 rounded-xl font-bold text-sm ${selectedPower === 'star'
 							? 'bg-white-500/20 text-white-300 border border-white-500/50'
@@ -551,7 +440,6 @@ const PVeDichRiengPage = () => {
 						</span>
 					</div>
 				)}
-
 
 			</>
 		</PBasePageLayout>

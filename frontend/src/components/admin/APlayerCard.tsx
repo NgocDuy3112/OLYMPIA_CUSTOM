@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import { Mic, KeyRound, Pencil } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
-
+import ScoreEditModal from "./ScoreEditModal";
 
 interface APlayerCardProps {
     player: PlayerStatus;
@@ -12,14 +13,20 @@ interface APlayerCardProps {
     isCurrent?: boolean;
     isKeywordMode?: boolean;
     hasKeywordSubmission?: boolean;
+    cluesOpened?: number;
+    showClueCount?: boolean;
     onClick?: (playerCode: string) => void;
     disabled?: boolean;
     onEditScore?: (playerCode: string, newScore: number) => void;
     token?: string;
     matchCode?: string;
     sendMessage?: (msg: any) => void;
+    isHovered?: boolean;
+    isDimmed?: boolean;
+    onHover?: (playerCode: string | null) => void;
+    hoverDisabled?: boolean;
+    accentColor?: string;
 }
-
 
 const APlayerCard: React.FC<APlayerCardProps> = ({
     player,
@@ -27,28 +34,35 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
     isCurrent,
     isKeywordMode,
     hasKeywordSubmission,
+    cluesOpened,
+    showClueCount,
     onClick,
     disabled,
     onEditScore,
     token,
     matchCode,
     sendMessage,
+    isHovered,
+    isDimmed,
+    onHover,
+    hoverDisabled,
+    accentColor,
 }) => {
     const handleClick = () => {
         if (disabled) return;
         onClick?.(player.playerCode);
     };
 
-    // Edit score modal state
     const [showEditModal, setShowEditModal] = useState(false);
     const [editScoreValue, setEditScoreValue] = useState(player.playerScore.toString());
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showQuestionScoreModal, setShowQuestionScoreModal] = useState(false);
 
     const handleEditScoreClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (disabled || !onEditScore) return;
         setEditScoreValue(player.playerScore.toString());
-        setShowEditModal(true);
+        setShowQuestionScoreModal(true);
     };
 
     const handleUpdateScore = async () => {
@@ -112,14 +126,18 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                 role={disabled ? undefined : "button"}
                 tabIndex={disabled ? -1 : 0}
                 onClick={disabled ? undefined : handleClick}
+                onMouseEnter={() => !hoverDisabled && onHover?.(player.playerCode)}
+                onMouseLeave={() => !hoverDisabled && onHover?.(null)}
                 aria-disabled={disabled ?? false}
-                className={`flex flex-col items-center p-3 rounded-lg transition duration-300 flex-1 min-h-[140px] shadow-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
+                style={{ borderColor: accentColor, ['--tw-ring-color' as string]: accentColor }}
+                className={`flex flex-col items-center p-3 rounded-lg border-2 border-transparent transition duration-300 flex-1 min-h-35 shadow-sm cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400
+                    ${isDimmed ? "opacity-40" : ""} ${isHovered ? "ring-4 ring-cyan-300" : ""}
                     ${isActive || isCurrent
                         ? "bg-blue-600 shadow-xl scale-100 ring-2 text-white ring-blue-300"
                         : "ring-2 ring-blue-600 bg-blue-900 text-blue-300"
                     } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
             >
-                {/* Top row: name + wifi signal + icons */}
+                {}
                 <div className="flex items-center gap-2 w-full justify-center">
                     <WifiSignal
                         latencyMs={player.playerLatencyMs}
@@ -129,12 +147,19 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                     <p className="font-[SVN-Gratelos_Display] text-[22px] xl:text-[26px] font-bold uppercase truncate text-center flex items-center gap-1">
                         {player.playerName}
                         {isCurrent && <Mic size={16} className="text-white shrink-0" />}
-                        {hasKeywordSubmission && <KeyRound size={14} className="text-white-400 shrink-0" />}
+                        {hasKeywordSubmission && (
+                            <>
+                                <KeyRound size={14} className="text-white-400 shrink-0" />
+                                {showClueCount && typeof cluesOpened === "number" && (
+                                    <span className="text-[16px] font-normal text-white">{cluesOpened}</span>
+                                )}
+                            </>
+                        )}
                         {player.playerHasBuzzed && <PingIconStyle isKeywordMode={!!isKeywordMode} />}
                     </p>
                 </div>
 
-                {/* Score row */}
+                {}
                 <div className="flex items-center gap-2 mt-2">
                     <p className="font-[SVN-Gratelos_Display] text-[36px] xl:text-[44px] font-extrabold leading-none">
                         {player.playerScore}
@@ -151,8 +176,8 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                     )}
                 </div>
 
-                {/* Answer / timestamp */}
-                <div className="mt-1 text-center min-h-[24px] flex flex-col items-center justify-center w-full">
+                {}
+                <div className="mt-1 text-center min-h-6 flex flex-col items-center justify-center w-full">
                     {player.playerLastAnswer && player.playerLastAnswer !== "---" && (
                         <p className="text-[14px] font-bold text-white uppercase">
                             {player.playerLastAnswer}
@@ -166,8 +191,21 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
                 </div>
             </div>
 
-            {/* Edit Score Modal */}
-            {showEditModal && (
+            {}
+            <ScoreEditModal
+                open={showQuestionScoreModal}
+                playerCode={player.playerCode}
+                playerName={player.playerName}
+                matchCode={matchCode ?? ""}
+                token={token ?? ""}
+                currentScore={player.playerScore}
+                onClose={() => setShowQuestionScoreModal(false)}
+                onSaved={(score) => {
+                    onEditScore?.(player.playerCode, score);
+                    setShowQuestionScoreModal(false);
+                }}
+            />
+            {false && showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
                     <div
                         className="bg-blue-950 border border-blue-700 rounded-xl p-6 w-full max-w-sm shadow-2xl"

@@ -4,8 +4,7 @@ import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
-
-
+import ScoreEditModal from "./ScoreEditModal";
 
 interface APlayerBarProps {
     player: PlayerStatus;
@@ -14,26 +13,25 @@ interface APlayerBarProps {
     isKeywordMode?: boolean;
     hasKeywordSubmission?: boolean;
     playerPower?: "star" | "shield" | null;
+    isBuzzerWinner?: boolean;
     onClick?: (playerCode: string) => void;
     disabled?: boolean;
-    /** Optional human-readable reason shown as a tooltip when `disabled` is true. */
+
     disableReason?: string;
     onEditScore?: (playerCode: string, newScore: number) => void;
     token?: string;
     matchCode?: string;
     sendMessage?: (msg: any) => void;
-    /** Number of clue cards the player saw open at the moment they submitted their keyword. */
+
     cluesOpened?: number;
-    /** When true, show the "Sau N gợi ý" badge next to the key icon. */
+
     showClueCount?: boolean;
 }
 
+const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, hasKeywordSubmission, playerPower, isBuzzerWinner, onClick, disabled, disableReason, onEditScore, token, matchCode, sendMessage, cluesOpened, showClueCount }) => {
 
-
-const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, isKeywordMode, hasKeywordSubmission, playerPower, onClick, disabled, disableReason, onEditScore, token, matchCode, sendMessage, cluesOpened, showClueCount }) => {
-    // Use a single border instead of nested rings to avoid double-outline visual glitches
-    // If this player is the current responder, show a white border per design
-    const borderClass = isCurrent ? "border-white" : (player.playerHasBuzzed ? "border-blue-500" : "border-blue-600");
+    const shouldShowPingIcon = isBuzzerWinner ?? !!player.playerHasBuzzed;
+    const borderClass = isCurrent ? "border-white" : (shouldShowPingIcon ? "border-blue-500" : "border-blue-600");
     const handleClick = () => {
         if (disabled) return;
         onClick?.(player.playerCode);
@@ -46,16 +44,16 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
         }
     };
 
-    // Edit score modal state
     const [showEditModal, setShowEditModal] = useState(false);
     const [editScoreValue, setEditScoreValue] = useState(player.playerScore.toString());
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showQuestionScoreModal, setShowQuestionScoreModal] = useState(false);
 
     const handleEditScoreClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (disabled || !onEditScore) return;
         setEditScoreValue(player.playerScore.toString());
-        setShowEditModal(true);
+        setShowQuestionScoreModal(true);
     };
 
     const handleUpdateScore = async () => {
@@ -68,7 +66,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
 
         setIsUpdating(true);
         try {
-            // Call API to adjust score directly
+
             const res = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
                 method: "PATCH",
                 headers: {
@@ -85,10 +83,9 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
 
             const json = await res.json();
             if (res.ok && json.status === "success") {
-                // Call the callback to update local state
+
                 onEditScore?.(player.playerCode, newScore);
-                
-                // Broadcast via WebSocket
+
                 if (sendMessage) {
                     sendMessage({
                         type: "player_score_updated",
@@ -96,7 +93,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                         new_total_score: newScore,
                     });
                 }
-                
+
                 setShowEditModal(false);
             } else {
                 console.error("Failed to update score:", json);
@@ -118,7 +115,6 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
         }
     };
 
-    // Qualifier tie-breaker info (only shown when available)
     const hasTieBreaker = player.playerCorrectScore != null || player.playerAvgResponseTime != null;
 
     return (
@@ -135,7 +131,6 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                 <div className="flex flex-col flex-1">
                     <p className="font-extrabold uppercase leading-tight">
                         <span className="flex items-center gap-4">
-                            {/* Wifi signal indicator (replaces the previous connection dot). */}
                             <WifiSignal
                                 latencyMs={player.playerLatencyMs}
                                 connected={!!player.playerConnected}
@@ -145,30 +140,26 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                             {player.playerName && (
                                 <span className="font-[SVN-Gratelos_Display] uppercase text-[14px] tablet:text-[16px] xl:text-[24px] font-extrabold flex items-center gap-2">
                                     {player.playerName}
-                                    {/* Power icon: Star (NSHV) or Shield (BHMT) */}
                                     {playerPower === 'star' && (
                                         <Star size={16} className="text-white-400 shrink-0" />
                                     )}
                                     {playerPower === 'shield' && (
                                         <Shield size={16} className="text-white-400 shrink-0" />
                                     )}
-                                    {/* Turn indicator icon (plain Mic, no red theme) */}
                                     {isCurrent && (
                                         <Mic size={16} className="text-white shrink-0" />
                                     )}
-                                    {/* Keyword submitted but not yet revealed */}
                                     {hasKeywordSubmission && (
                                         <>
                                             <KeyRound size={16} className="text-white-400 shrink-0" />
                                             {showClueCount && typeof cluesOpened === "number" && (
-                                                <span className="text-[11px] tablet:text-[13px] xl:text-[16px] font-normal text-white">
+                                                <span className="text-[16px] tablet:text-[18px] xl:text-[22px] font-normal text-white">
                                                     {cluesOpened}
                                                 </span>
                                             )}
                                         </>
                                     )}
-                                    {/* Buzzer icon inline next to name */}
-                                    {player.playerHasBuzzed && (
+                                    {shouldShowPingIcon && (
                                         <PingIconStyle isKeywordMode={!!isKeywordMode} />
                                     )}
                                 </span>
@@ -184,7 +175,6 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                     <p className="text-[12px] tablet:text-[14px] xl:text-[18px] mt-1 font-medium leading-snug">
                         {player.playerLastAnswer?.toUpperCase() ?? ""}
                     </p>
-                    {/* Qualifier tie-breaker info */}
                     {hasTieBreaker && (
                         <p className="text-[12px] mt-1 text-blue-200 font-normal">
                             {player.playerCorrectScore != null && (
@@ -214,10 +204,22 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                 </div>
             </div>
 
-            {/* Edit Score Modal */}
-            {showEditModal && (
+            <ScoreEditModal
+                open={showQuestionScoreModal}
+                playerCode={player.playerCode}
+                playerName={player.playerName}
+                matchCode={matchCode ?? ""}
+                token={token ?? ""}
+                currentScore={player.playerScore}
+                onClose={() => setShowQuestionScoreModal(false)}
+                onSaved={(score) => {
+                    onEditScore?.(player.playerCode, score);
+                    setShowQuestionScoreModal(false);
+                }}
+            />
+            {false && showEditModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div 
+                    <div
                         className="bg-blue-950 border border-blue-700 rounded-xl p-6 w-full max-w-sm shadow-2xl"
                         onKeyDown={handleKeyDownModal}
                     >

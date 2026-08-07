@@ -1,23 +1,48 @@
 import type { PlayerStatus } from "@/types/player";
+import { getScoreValue } from "@/utils/scoreHelpers";
 
-interface RawPlayer {
+export interface RawPlayer {
   user_code?: string | number;
   user_name?: string;
+  cumulative_score?: number;
+  total_score?: number;
+  score?: number;
   position?: number;
-  cumulative_score?: number;
-  total_score?: number;
-  score?: number;
+  is_current?: boolean;
+  isCurrent?: boolean;
+  is_selected?: boolean;
+  selected?: boolean;
 }
-interface RawScore {
+
+export interface RawScore {
   user_code?: string | number;
   cumulative_score?: number;
   total_score?: number;
   score?: number;
   user_name?: string;
 }
-interface RawProfile {
+
+export interface RawProfile {
   user_code?: string | number;
   user_name?: string;
+}
+
+export interface PlayerSnapshotPayload {
+  players?: unknown;
+  scoreboard?: unknown;
+  profiles?: unknown;
+}
+
+export function normalizePlayerSnapshot(payload: PlayerSnapshotPayload): {
+  players: RawPlayer[];
+  scoreboard: RawScore[];
+  profiles: RawProfile[];
+} {
+  return {
+    players: Array.isArray(payload.players) ? payload.players as RawPlayer[] : [],
+    scoreboard: Array.isArray(payload.scoreboard) ? payload.scoreboard as RawScore[] : [],
+    profiles: Array.isArray(payload.profiles) ? payload.profiles as RawProfile[] : [],
+  };
 }
 
 export function buildPlayersSnapshot(
@@ -39,22 +64,17 @@ export function buildPlayersSnapshot(
       const previous = previousPlayers.find((p) => p.playerCode === code);
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
-
-      // Backend returns 'cumulative_score' (with typo), but accept 'cumulative_score' and other variants for defensive coding
-      const playerScore = (scoreInfo && (scoreInfo.cumulative_score ?? scoreInfo.cumulative_score ?? scoreInfo.total_score ?? scoreInfo.score)) ?? previous?.playerScore ?? 0;
+      const playerScore = getScoreValue(scoreInfo) ?? getScoreValue(entry) ?? previous?.playerScore ?? 0;
 
       return {
         playerCode: code,
-        playerName: profile?.user_name ?? previous?.playerName ?? "",
+        playerName: profile?.user_name ?? entry.user_name ?? previous?.playerName ?? "",
         playerScore,
         playerLastAnswer: previous?.playerLastAnswer,
         playerTimestamp: previous?.playerTimestamp,
         playerHasBuzzed: previous?.playerHasBuzzed ?? false,
         playerConnected: previous?.playerConnected ?? false,
-        // Support several possible flag names coming from server/admin snapshots
-        playerIsTurn:
-          (entry as any)?.is_current ?? (entry as any)?.isCurrent ?? (entry as any)?.is_selected ??
-          (entry as any)?.selected ?? previous?.playerIsTurn ?? false,
+        playerIsTurn: entry.is_current ?? entry.isCurrent ?? entry.is_selected ?? entry.selected ?? previous?.playerIsTurn ?? false,
       } as PlayerStatus;
     })
     .filter((p): p is PlayerStatus => p !== null);

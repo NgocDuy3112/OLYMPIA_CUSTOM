@@ -5,9 +5,7 @@ export interface CountdownTimerState {
     timer: number;
     timerDisplay: string;
     start: (timeLimitSeconds: number) => void;
-    /** Start the timer synced to when admin fired the signal.
-     *  Automatically subtracts elapsed time since `startedAt` (ms epoch).
-     *  Falls back to `Date.now()` when `startedAt` is not provided. */
+
     startSynced: (timeLimitSeconds: number, startedAt?: number) => void;
     stop: () => void;
     reset: () => void;
@@ -20,8 +18,7 @@ export function useCountdownTimer(): CountdownTimerState {
 
     const startTimeMsRef = useRef<number | null>(null);
     const runningRef = useRef(false);
-    // Incremented on each start/startSynced so the interval effect re-runs only
-    // when a new countdown session begins, not on every tick.
+
     const [sessionId, setSessionId] = useState(0);
     const intervalRef = useRef<number | null>(null);
 
@@ -36,11 +33,7 @@ export function useCountdownTimer(): CountdownTimerState {
 
     const startSynced = useCallback((timeLimitSeconds: number, startedAt?: number) => {
         const now = Date.now();
-        // Guard against clock skew: if the sender's `startedAt` is in the future
-        // (e.g. admin browser clock is ahead of MC browser), treating it as
-        // "now" prevents the timer from displaying a value larger than the
-        // actual time limit. A negative elapsed window would otherwise make
-        // `remaining = timeLimit - (negative)` larger than the intended limit.
+
         let ref = typeof startedAt === 'number' ? startedAt : now;
         let clampedFromFuture = false;
         if (ref > now) {
@@ -51,21 +44,18 @@ export function useCountdownTimer(): CountdownTimerState {
         const elapsedSec = (now - ref) / 1000;
         const remaining = Math.max(0, timeLimitSeconds - elapsedSec);
         const normalized = Math.max(0, Math.round(remaining));
-        // If sync math collapses to 0 but the time limit is positive, start from the full limit
-        // to guard against clock skew between admin and player browsers.
-        const safeTimer = normalized > 0 ? normalized : Math.max(0, Math.round(timeLimitSeconds));
-        const finalTimer = safeTimer > 0 ? safeTimer : timeLimitSeconds;
+
+        const finalTimeLimit = Math.max(0, Math.round(timeLimitSeconds));
 
         if (clampedFromFuture) {
-            // Only log when the guard actually fires — keeps production output clean
-            // while making clock-skew issues easy to diagnose.
+
             console.warn(
                 `[useCountdownTimer] startSynced: startedAt was ${typeof startedAt === 'number' ? startedAt : 'n/a'} (in the future), clamped to Date.now(). timeLimit=${timeLimitSeconds}s`,
             );
         }
 
-        setTimeLimit(finalTimer);
-        setTimer(finalTimer);
+        setTimeLimit(finalTimeLimit);
+        setTimer(normalized);
         startTimeMsRef.current = Date.now();
         runningRef.current = true;
         setSessionId((s) => s + 1);
@@ -95,7 +85,6 @@ export function useCountdownTimer(): CountdownTimerState {
         return (Date.now() - startTimeMsRef.current) / 1000;
     }, []);
 
-    // One stable interval per countdown session — does not restart every tick.
     useEffect(() => {
         if (!runningRef.current) return;
 
@@ -131,7 +120,7 @@ export function useCountdownTimer(): CountdownTimerState {
                 intervalRef.current = null;
             }
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, [sessionId]);
 
     const timerDisplay = useMemo(() => timer.toString().padStart(2, "0"), [timer]);

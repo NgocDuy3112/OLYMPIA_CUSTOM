@@ -4,11 +4,10 @@ import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil,
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
-import { useAdminWebSocket } from "@/hooks/useAdminWebSocket";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 const logger = createLogger("AGameManaging");
 
-// Small button component to navigate directly into the admin room for a match code
 const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?: boolean }) => {
     const navigate = useNavigate();
     const handleClick = () => {
@@ -20,7 +19,7 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
         try {
             localStorage.setItem("matchCode", codeToUse);
         } catch {
-            // ignore
+
         }
         navigate(`/admin/waiting/${codeToUse}`);
     };
@@ -36,11 +35,6 @@ const VaoPhongButton = ({ matchCode, disabled }: { matchCode: string; disabled?:
     );
 };
 
-/* ------------------------------------------------------------------ */
-/*  Types matching backend schemas                                     */
-/* ------------------------------------------------------------------ */
-
-/** Maps to backend `core/user.py` response fields */
 interface UserData {
     user_code: string;
     user_name: string;
@@ -50,63 +44,52 @@ interface UserData {
     updated_at: string;
 }
 
-/** Maps to backend `core/match.py` response fields */
 interface MatchData {
     match_code: string;
     match_name: string;
     match_status?: string;
 }
 
-/** Maps to backend `core/question.py` response fields */
 interface QuestionData {
     question_code: string;
     content: string;
     answer: string;
     explanation: string | null;
-    media_url: string | null;  // comma-separated URLs or single URL
+    media_url: string | null;
 }
 
-/** Maps to backend `schemas/base.py` BaseResponse */
 interface ApiResponse {
     status: "success" | "error";
     message: string;
     data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
 const AGameManagingPage = () => {
     const token = localStorage.getItem("jwtToken_admin") ?? "";
-    const { sendMessage } = useAdminWebSocket();
+    const { sendMessage } = useGameWebSocket();
 
     const [showChangePassword, setShowChangePassword] = useState(false);
 
-    // ── Users state ──────────────────────────────────────────────────
     const [users, setUsers] = useState<UserData[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
 
-    // ── All matches list state ───────────────────────────────────────
     const [allMatches, setAllMatches] = useState<MatchData[]>([]);
     const [allMatchesLoading, setAllMatchesLoading] = useState(false);
 
-    // ── Room (match) state ───────────────────────────────────────────
     const [matchCode, setMatchCode] = useState(localStorage.getItem("matchCode") || "");
     const [matchName, setMatchName] = useState("");
     const [userCodes, setUserCodes] = useState<string[]>(["", "", "", ""]);
-    // Display values for the 4 position inputs — may be name or code
+
     const [userInputs, setUserInputs] = useState<string[]>(["", "", "", ""]);
     const [matchExists, setMatchExists] = useState(false);
     const [matchLoading, setMatchLoading] = useState(false);
 
-    // ── Questions state ──────────────────────────────────────────────
     const [questions, setQuestions] = useState<QuestionData[]>([]);
     const [questionsLoading, setQuestionsLoading] = useState(false);
     const [questionsMatchCode, setQuestionsMatchCode] = useState(localStorage.getItem("matchCode") || "");
     const [showImportMenu, setShowImportMenu] = useState(false);
     const importMenuRef = useRef<HTMLDivElement>(null);
-    // ── Edit question state ──────────────────────────────────────────
+
     const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(null);
     const [editQContent, setEditQContent] = useState("");
     const [editQAnswer, setEditQAnswer] = useState("");
@@ -122,7 +105,6 @@ const AGameManagingPage = () => {
     const excelQlInputRef = useRef<HTMLInputElement>(null);
     const zipInputRef = useRef<HTMLInputElement>(null);
 
-    // ── Add user form state ──────────────────────────────────────────
     const [showAddPlayer, setShowAddPlayer] = useState(false);
     const [newPlayerName, setNewPlayerName] = useState("");
     const [newPlayerCode, setNewPlayerCode] = useState("");
@@ -130,30 +112,22 @@ const AGameManagingPage = () => {
     const [newUserRole, setNewUserRole] = useState<"guest" | "player" | "mc" | "admin">("player");
     const [addingPlayer, setAddingPlayer] = useState(false);
 
-    // ── User list role filter ────────────────────────────────────────
     const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
 
-    // ── Send credentials state (tracks which user_code is in-flight) ─
     const [sendingCredentials, setSendingCredentials] = useState<string | null>(null);
-    // ── Revealed password after reset ───────────────────────────────
+
     const [revealedPassword, setRevealedPassword] = useState<{ userCode: string; password: string } | null>(null);
 
-    // ── Edit player state ────────────────────────────────────────────
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
     const [editName, setEditName] = useState("");
     const [editEmail, setEditEmail] = useState("");
     const [savingEdit, setSavingEdit] = useState(false);
 
-    // ── Score adjustment state ───────────────────────────────────────
     const [scoreboard, setScoreboard] = useState<{ user_code: string; user_name: string; cumulative_score: number }[]>([]);
     const [scoreboardLoading, setScoreboardLoading] = useState(false);
-    const [editingScoreUser, setEditingScoreUser] = useState<string | null>(null); // user_code being edited
+    const [editingScoreUser, setEditingScoreUser] = useState<string | null>(null);
     const [editScoreValue, setEditScoreValue] = useState("");
     const [savingScore, setSavingScore] = useState(false);
-
-    /* ================================================================
-     *  API helpers
-     * ================================================================ */
 
     const authHeaders = useCallback(
         (): HeadersInit => ({
@@ -163,14 +137,13 @@ const AGameManagingPage = () => {
         [token],
     );
 
-    // Auto-generate S3 key for edit question media when editing starts
     useEffect(() => {
         if (editingQuestion && !editQMediaFile) {
             const codeToUse = questionsMatchCode || matchCode;
             if (codeToUse && editingQuestion.question_code) {
                 const ext = editQMediaUrl ? editQMediaUrl.split('.').pop() || 'png' : 'png';
                 const suggestedKey = `${codeToUse}/${editingQuestion.question_code}.${ext}`;
-                // Only auto-generate if current URL matches the pattern or is empty
+
                 if (!editQMediaUrl || editQMediaUrl.startsWith(codeToUse)) {
                     setEditQMediaUrl(suggestedKey);
                 }
@@ -178,7 +151,6 @@ const AGameManagingPage = () => {
         }
     }, [editQMediaUrl, editingQuestion, questionsMatchCode, matchCode, editQMediaFile]);
 
-    // Close import dropdown when clicking outside
     useEffect(() => {
         const handleClick = (e: MouseEvent) => {
             if (importMenuRef.current && !importMenuRef.current.contains(e.target as Node)) {
@@ -191,7 +163,6 @@ const AGameManagingPage = () => {
         }
     }, [showImportMenu]);
 
-    // ── Fetch users (GET /users) ─────────────────────────────────────
     const fetchUsers = useCallback(async () => {
         setUsersLoading(true);
         try {
@@ -211,7 +182,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders]);
 
-    // ── Send / reset credentials (POST /auth/send-credentials/{code}) ─
     const sendCredentials = useCallback(async (userCode: string) => {
         setSendingCredentials(userCode);
         try {
@@ -236,7 +206,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders]);
 
-    // ── Look up existing match by code ───────────────────────────────
     const lookupMatchByCode = useCallback(async (code: string) => {
         if (!code) return;
         setMatchLoading(true);
@@ -251,32 +220,25 @@ const AGameManagingPage = () => {
                 setMatchName(match.match_name);
                 setMatchExists(true);
 
-                // Try to load players that already belong to this match
                 try {
                     const playersRes = await fetch(
                         `${API_BASE_URL}/matches/${encodeURIComponent(code)}/players`,
                         { headers: authHeaders() },
                     );
                     const playersJson = await playersRes.json();
-                    const playersList: { user_code: string }[] =
+                    const playersList: { user_code: string; user_name?: string }[] =
                         playersJson.response?.data?.players ??
                         playersJson.data?.players ??
                         (Array.isArray(playersJson.data) ? playersJson.data : []);
 
-                    const codes = playersList
-                        .slice(0, 4)
-                        .map((p) => p.user_code ?? "");
-                    const paddedCodes = [
-                        codes[0] ?? "",
-                        codes[1] ?? "",
-                        codes[2] ?? "",
-                        codes[3] ?? "",
-                    ];
+                    const paddedCodes = ["", "", "", ""];
+                    const paddedNames = ["", "", "", ""];
+                    playersList.slice(0, 4).forEach((p, idx) => {
+                        paddedCodes[idx] = p.user_code ?? "";
+                        paddedNames[idx] = p.user_name ?? p.user_code ?? "";
+                    });
                     setUserCodes(paddedCodes);
-                    setUserInputs(paddedCodes.map((c) => {
-                        const found = users.find((u: UserData) => u.user_code === c);
-                        return found ? found.user_name : c;
-                    }));
+                    setUserInputs(paddedNames);
                 } catch {
                     logger.warn("Could not load players for match", code);
                 }
@@ -289,9 +251,8 @@ const AGameManagingPage = () => {
         } finally {
             setMatchLoading(false);
         }
-    }, [authHeaders, users]);
+    }, [authHeaders]);
 
-    // ── Fetch all matches (GET /matches/all) ─────────────────────────
     const fetchAllMatches = useCallback(async () => {
         setAllMatchesLoading(true);
         try {
@@ -311,7 +272,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders]);
 
-    // ── Create (POST) or Update (PATCH) match ────────────────────────
     const createMatch = useCallback(async () => {
         if (!matchCode || !matchName) return;
         setMatchLoading(true);
@@ -326,7 +286,7 @@ const AGameManagingPage = () => {
         try {
             let res: Response;
             if (!matchExists) {
-                // Match chưa tồn tại → POST để tạo mới
+
                 res = await fetch(`${API_BASE_URL}/matches/`, {
                     method: "POST",
                     headers: authHeaders(),
@@ -337,7 +297,7 @@ const AGameManagingPage = () => {
                     }),
                 });
             } else {
-                // Match đã tồn tại → PATCH để cập nhật
+
                 res = await fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}`, {
                     method: "PATCH",
                     headers: authHeaders(),
@@ -368,7 +328,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, matchCode, matchName, userCodes, matchExists, fetchAllMatches]);
 
-    // ── Fetch questions (GET /questions?match_code=...&question_code=)
     const fetchQuestions = useCallback(async () => {
         const code = questionsMatchCode || matchCode;
         if (!code) return;
@@ -394,22 +353,20 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, matchCode, questionsMatchCode]);
 
-    // ── Patch question (PATCH /questions/{match_code}/{question_code}) ─
     const patchQuestion = useCallback(async () => {
         if (!editingQuestion) return;
         const code = questionsMatchCode || matchCode;
         setSavingQuestionEdit(true);
         try {
             let mediaUrl = editQMediaUrl.trim() || null;
-            
-            // Upload new media file if provided
+
             if (editQMediaFile) {
                 const ext = editQMediaFile.name.split('.').pop() || 'png';
                 const s3Key = `${code}/${editingQuestion.question_code}.${ext}`;
-                
+
                 const formData = new FormData();
                 formData.append('file', editQMediaFile);
-                
+
                 const uploadRes = await fetch(
                     `${API_BASE_URL}/media/upload/?match_code=${encodeURIComponent(code)}`,
                     {
@@ -418,7 +375,7 @@ const AGameManagingPage = () => {
                         body: formData,
                     }
                 );
-                
+
                 if (uploadRes.ok) {
                     const uploadJson = await uploadRes.json();
                     mediaUrl = uploadJson.key || s3Key;
@@ -427,7 +384,7 @@ const AGameManagingPage = () => {
                     logger.warn('Media upload failed, using existing media URL');
                 }
             }
-            
+
             const body: Record<string, string | null> = {
                 content: editQContent.trim() || null,
                 answer: editQAnswer.trim() || null,
@@ -455,7 +412,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, editingQuestion, editQContent, editQAnswer, editQExplanation, editQMediaUrl, editQMediaFile, questionsMatchCode, matchCode, token, fetchQuestions]);
 
-    // ── Upload Excel (POST /questions/excel/ or /excel/qualifier/) ────
     const uploadExcel = useCallback(async (file: File, isQualifier: boolean) => {
         const code = questionsMatchCode || matchCode;
         if (!isQualifier && !code) {
@@ -490,8 +446,6 @@ const AGameManagingPage = () => {
         }
     }, [token, questionsMatchCode, matchCode, fetchQuestions]);
 
-    // ── Upload ZIP (POST /questions/zip/) ──────────────────
-    // Luôn dùng overwrite: xóa câu hỏi cũ → upload media lên S3 → import DB mới.
     const uploadZip = useCallback(async (file: File) => {
         if (!confirm("Upload ZIP sẽ XÓA câu hỏi cũ và thay bằng nội dung mới (cả media trên S3). Tiếp tục?")) {
             return;
@@ -520,7 +474,6 @@ const AGameManagingPage = () => {
         }
     }, [token, fetchQuestions]);
 
-    // ── Patch player (PATCH /users/{user_code}) ──────────────────────
     const patchUser = useCallback(async () => {
         if (!editingUser) return;
         setSavingEdit(true);
@@ -548,7 +501,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, editingUser, editName, editEmail, fetchUsers]);
 
-    // ── Delete user (DELETE /users/{user_code}) ──────────────────────
     const deleteUser = useCallback(async (userCode: string, userName: string) => {
         const confirmed = window.confirm(
             `Bạn có chắc muốn xoá thí sinh "${userName}" (${userCode})?\nHành động này không thể hoàn tác.`
@@ -571,7 +523,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, fetchUsers]);
 
-    // ── Fetch scoreboard (GET /scoreboard/{match_code}) ──────────────
     const fetchScoreboard = useCallback(async () => {
         const code = matchCode;
         if (!code) return;
@@ -595,7 +546,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, matchCode]);
 
-    // ── Adjust player score (PATCH /scoreboard/adjust) ──────────────
     const adjustScore = useCallback(async () => {
         if (!editingScoreUser || !editScoreValue || !matchCode) return;
         const newScore = parseInt(editScoreValue, 10);
@@ -621,14 +571,14 @@ const AGameManagingPage = () => {
                 setScoreboard(list);
                 setEditingScoreUser(null);
                 setEditScoreValue("");
-                // Broadcast score update to all connected clients via WebSocket
+
                 try {
                     await sendMessage({
                         type: "player_score_updated",
                         user_code: editingScoreUser,
                         new_total_score: newScore,
                     });
-                    // Also send full players snapshot so all clients sync
+
                     const playersSnapshot = list.map((entry) => ({
                         user_code: entry.user_code,
                         user_name: entry.user_name,
@@ -652,20 +602,17 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, editingScoreUser, editScoreValue, matchCode, sendMessage]);
 
-    // ── Load users and matches on mount ─────────────────────────────
     useEffect(() => {
         fetchUsers();
         void fetchAllMatches();
     }, [fetchUsers, fetchAllMatches]);
 
-    // ── Load scoreboard when match exists ───────────────────────────
     useEffect(() => {
         if (matchCode && matchExists) {
             void fetchScoreboard();
         }
     }, [matchCode, matchExists, fetchScoreboard]);
 
-    // ── Create user (POST /auth/signup) ─────────────────────────────
     const createUser = useCallback(async () => {
         if (!newPlayerName.trim()) {
             alert("Vui lòng nhập tên người dùng");
@@ -706,17 +653,13 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, newPlayerName, newPlayerCode, newPlayerEmail, newUserRole, fetchUsers]);
 
-    /* ================================================================
-     *  Handlers
-     * ================================================================ */
-
     const handleUserInputChange = (index: number, value: string) => {
         setUserInputs((prev: string[]) => {
             const next = [...prev];
             next[index] = value;
             return next;
         });
-        // Resolve to user_code: match by name first, then by code
+
         const matched = users.find(
             (u: UserData) => u.user_name === value || u.user_code === value,
         );
@@ -727,13 +670,9 @@ const AGameManagingPage = () => {
         });
     };
 
-    /* ================================================================
-     *  Render
-     * ================================================================ */
-
     return (
         <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-4 p-6 h-screen text-white overflow-hidden">
-            {/* ─── Floating change-password button ───────────────────── */}
+            { }
             <button
                 onClick={() => setShowChangePassword(true)}
                 className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 hover:bg-blue-600 shadow-lg transition-colors text-sm font-semibold"
@@ -785,7 +724,7 @@ const AGameManagingPage = () => {
                 </div>
             )}
 
-            {/* ─── Edit question modal ────────────────────────────────── */}
+            { }
             {editingQuestion && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                     <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-2xl">
@@ -847,8 +786,8 @@ const AGameManagingPage = () => {
                                                     setEditQMediaFile(file);
                                                     const ext = file.name.split('.').pop() || 'png';
                                                     const codeToUse = questionsMatchCode || matchCode;
-                                                    const suggestedKey = codeToUse && editingQuestion?.question_code 
-                                                        ? `${codeToUse}/${editingQuestion.question_code}.${ext}` 
+                                                    const suggestedKey = codeToUse && editingQuestion?.question_code
+                                                        ? `${codeToUse}/${editingQuestion.question_code}.${ext}`
                                                         : `filename.${ext}`;
                                                     setEditQMediaUrl(suggestedKey);
                                                 }
@@ -894,7 +833,7 @@ const AGameManagingPage = () => {
                 </div>
             )}
 
-            {/* ─── Edit player modal ──────────────────────────────────── */}
+            { }
             {editingUser && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                     <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
@@ -945,7 +884,7 @@ const AGameManagingPage = () => {
                 </div>
             )}
 
-            {/* ─── Card 1 : Users ────────────────────────────────────── */}
+            { }
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -967,11 +906,10 @@ const AGameManagingPage = () => {
                     <div className="flex gap-2">
                         <button
                             onClick={() => setShowAddPlayer((v: boolean) => !v)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                                showAddPlayer
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${showAddPlayer
                                     ? "bg-green-700 hover:bg-green-600 text-white"
                                     : "bg-blue-700 hover:bg-blue-600 text-white"
-                            }`}
+                                }`}
                         >
                             <Plus size={14} /> Thêm người dùng
                         </button>
@@ -1093,7 +1031,7 @@ const AGameManagingPage = () => {
                 </div>
             </div>
 
-            {/* ─── Card 2 : Tạo trận đấu & Danh sách trận đấu ───────────────────────────────── */}
+            { }
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden row-span-2">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
@@ -1109,81 +1047,81 @@ const AGameManagingPage = () => {
                     </button>
                 </div>
 
-                {/* Form Tạo trận đấu */}
+                { }
                 <div className="bg-blue-800/20 border border-blue-700 rounded-lg p-4 flex flex-col gap-3">
                     <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Tạo / Cập nhật trận đấu</h3>
 
-                {/* matchCode input */}
-                <input
-                    type="text"
-                    placeholder="Mã trận đấu"
-                    value={matchCode}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setMatchCode(val);
-                        setQuestionsMatchCode(val);
-                        setMatchExists(false);
-                        localStorage.setItem("matchCode", val);
-                    }}
-                    className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
+                    { }
+                    <input
+                        type="text"
+                        placeholder="Mã trận đấu"
+                        value={matchCode}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setMatchCode(val);
+                            setQuestionsMatchCode(val);
+                            setMatchExists(false);
+                            localStorage.setItem("matchCode", val);
+                        }}
+                        className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
 
-                {/* matchName input */}
-                <input
-                    type="text"
-                    placeholder="Tên trận đấu"
-                    value={matchName}
-                    onChange={(e) => setMatchName(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
+                    { }
+                    <input
+                        type="text"
+                        placeholder="Tên trận đấu"
+                        value={matchName}
+                        onChange={(e) => setMatchName(e.target.value)}
+                        className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    />
 
-                {/* previously showed a green "match exists" helper; removed per UX request */}
+                    { }
 
-                {/* 4 player inputs — accept name or code */}
-                <datalist id="player-list">
-                    {users.map((u: UserData) => (
-                        <option key={u.user_code} value={u.user_name} />
-                    ))}
-                </datalist>
-                <div className="grid grid-cols-2 gap-2">
-                    {userInputs.map((input, i) => (
-                        <div key={i} className="relative">
-                            <input
-                                type="text"
-                                list="player-list"
-                                placeholder={`Tên / mã vị trí #${i + 1}`}
-                                value={input}
-                                onChange={(e) => handleUserInputChange(i, e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                            />
-                            {userCodes[i] && userCodes[i] !== input && (
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400 font-mono pointer-events-none">
-                                    {userCodes[i]}
-                                </span>
-                            )}
-                        </div>
-                    ))}
+                    { }
+                    <datalist id="player-list">
+                        {users.map((u: UserData) => (
+                            <option key={u.user_code} value={u.user_name} />
+                        ))}
+                    </datalist>
+                    <div className="grid grid-cols-2 gap-2">
+                        {userInputs.map((input, i) => (
+                            <div key={i} className="relative">
+                                <input
+                                    type="text"
+                                    list="player-list"
+                                    placeholder={`Tên / mã vị trí #${i + 1}`}
+                                    value={input}
+                                    onChange={(e) => handleUserInputChange(i, e.target.value)}
+                                    className="w-full px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                />
+                                {userCodes[i] && userCodes[i] !== input && (
+                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400 font-mono pointer-events-none">
+                                        {userCodes[i]}
+                                    </span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    { }
+                    <div className="flex gap-2">
+                        <button
+                            onClick={createMatch}
+                            disabled={matchLoading || !matchCode || !matchName || userCodes.filter((c) => c.trim() !== "").length < 3}
+                            className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
+                        >
+                            <Plus size={16} />
+                            {matchExists ? "Cập nhật trận đấu" : "Tạo trận đấu"}
+                        </button>
+
+                        <VaoPhongButton matchCode={matchCode} disabled={!matchCode || !matchExists} />
+                    </div>
                 </div>
 
-                {/* Action button */}
-                <div className="flex gap-2">
-                    <button
-                        onClick={createMatch}
-                        disabled={matchLoading || !matchCode || !matchName || userCodes.filter((c) => c.trim() !== "").length < 3}
-                        className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
-                    >
-                        <Plus size={16} />
-                        {matchExists ? "Cập nhật trận đấu" : "Tạo trận đấu"}
-                    </button>
-
-                    <VaoPhongButton matchCode={matchCode} disabled={!matchCode || !matchExists} />
-                </div>
-                </div>
-
-                {/* Divider */}
+                { }
                 <div className="border-t border-blue-700 my-2"></div>
 
-                {/* Danh sách trận đấu */}
+                { }
                 <div className="flex flex-col gap-2 flex-1 min-h-0">
                     <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">Danh sách trận đấu</h3>
                     <div className="overflow-y-auto flex-1 min-h-0 -mr-2 pr-2">
@@ -1288,14 +1226,14 @@ const AGameManagingPage = () => {
                 </div>
             </div>
 
-            {/* ─── Card 3 : Câu hỏi ───────────────────────────────────── */}
+            { }
             <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
                         <HelpCircle size={22} /> Câu hỏi
                     </h2>
                     <div className="flex items-center gap-2">
-                        {/* Hidden file inputs */}
+                        { }
                         <input
                             ref={excelInputRef}
                             type="file"
@@ -1343,7 +1281,7 @@ const AGameManagingPage = () => {
                         >
                             <Search size={14} /> Tải câu hỏi
                         </button>
-                        {/* Import dropdown */}
+                        { }
                         <div className="relative" ref={importMenuRef}>
                             <button
                                 onClick={() => setShowImportMenu((v) => !v)}
@@ -1431,16 +1369,16 @@ const AGameManagingPage = () => {
                                         <td className="py-2 px-2 text-xs">
                                             {q.media_url
                                                 ? q.media_url.split(',').map((url, i) => (
-                                                      <a
-                                                          key={i}
-                                                          href={url.trim()}
-                                                          target="_blank"
-                                                          rel="noreferrer"
-                                                          className="text-blue-400 hover:underline block truncate max-w-40"
-                                                      >
-                                                          {url.trim()}
-                                                      </a>
-                                                  ))
+                                                    <a
+                                                        key={i}
+                                                        href={url.trim()}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-blue-400 hover:underline block truncate max-w-40"
+                                                    >
+                                                        {url.trim()}
+                                                    </a>
+                                                ))
                                                 : "—"}
                                         </td>
                                     </tr>
@@ -1451,7 +1389,7 @@ const AGameManagingPage = () => {
                 </div>
             </div>
 
-            {/* ─── Card 4 : Sửa điểm (ẩn) ────────────────────────────── */}
+            { }
             {false && <div className="col-span-2 bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
                 <div className="flex items-center justify-between">
                     <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">

@@ -2,16 +2,15 @@ from schemas.base import *
 from configs import AppSettings
 
 _settings = AppSettings()
-_MATCH_PATTERN = _settings.MATCH_PATTERN  # e.g. "OC3_M"
-_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
+_MATCH_PATTERN = _settings.MATCH_PATTERN
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN
 
 
 class QualifierScoreRequest(BaseRequest):
-    """Request to calculate and apply qualifier scores for one question."""
 
     match_code: str
     question_code: str
-    correct_answer: str  # e.g. "A", "B", ...  "F"
+    correct_answer: str
     round_number: int = 1
 
     @field_validator("match_code", mode="after")
@@ -46,7 +45,7 @@ class QualifierScoreRequest(BaseRequest):
 class EndRoundRequest(BaseRequest):
     match_code: str
     round_number: int
-    # Optional override of how many to advance this round (if not provided, use defaults)
+
     advance_count: int | None = None
 
     @field_validator("match_code", mode="after")

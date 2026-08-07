@@ -8,7 +8,7 @@ from configs import AppSettings
 import json
 
 _settings = AppSettings()
-_QUESTION_PATTERN = _settings.QUESTION_PATTERN  # e.g. "OC3_Q"
+_QUESTION_PATTERN = _settings.QUESTION_PATTERN
 
 
 def utcnow():
@@ -30,20 +30,19 @@ class Question(Base):
     question_code: Mapped[str] = mapped_column(String(length=25))
     content: Mapped[str] = mapped_column(String)
     answer: Mapped[str] = mapped_column(String)
-    # store single media URL (or comma-separated URLs) as a string
+
     media_url: Mapped[str] = mapped_column(String, nullable=True)
     explanation: Mapped[str] = mapped_column(String, nullable=True)
-    # JSON-encoded list of 6 option strings for Qualifier questions, e.g. '["A text","B text",...]'
+
     options: Mapped[str | None] = mapped_column(String, nullable=True)
-    
+
     is_used: Mapped[bool] = mapped_column(Boolean, default=False)
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Foreign Keys
+
     match_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('matches.id'), nullable=False, index=True)
 
-    # Backwards-compatible properties for older tests/code that expect individual
-    # answer_a..answer_f fields and a 'correct_answer' field.
+
     @property
     def _options_list(self) -> list[str] | None:
         if not self.options:
@@ -51,7 +50,7 @@ class Question(Base):
         try:
             return json.loads(self.options)
         except Exception:
-            # If options stored as a plain string, return None
+
             return None
 
     @property
@@ -86,15 +85,11 @@ class Question(Base):
 
     @property
     def correct_answer(self) -> str | None:
-        # The stored `answer` field contains the correct option indicator (e.g., 'A')
+
         return self.answer
 
     def __init__(self, *args, **kwargs):
-        """Allow construction with legacy fields answer_a..answer_f and correct_answer.
-        If those are provided, convert them into the `options` JSON string and
-        set the `answer` field to the provided correct_answer.
-        """
-        # Extract legacy answer fields if present
+
         answers = []
         for key in ('answer_a', 'answer_b', 'answer_c', 'answer_d', 'answer_e', 'answer_f'):
             if key in kwargs:
@@ -104,17 +99,17 @@ class Question(Base):
 
         correct = kwargs.pop('correct_answer', None)
 
-        # If legacy answers were provided, encode them into options
+
         if answers:
             try:
                 kwargs['options'] = json.dumps(answers, ensure_ascii=False)
             except Exception:
                 kwargs['options'] = None
 
-        # If correct_answer provided, map it to the 'answer' field
+
         if correct is not None:
             kwargs['answer'] = correct
 
-        # Now set remaining attributes via SQLAlchemy's attribute system
+
         for k, v in kwargs.items():
             setattr(self, k, v)

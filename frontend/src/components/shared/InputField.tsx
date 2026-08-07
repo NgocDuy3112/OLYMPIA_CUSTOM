@@ -1,6 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { InputHTMLAttributes } from "react";
 
-export const InputField = ({ label, ...props }: any) => (
+type InputFieldProps = {
+    label: string;
+} & InputHTMLAttributes<HTMLInputElement>;
+
+export const InputField = ({ label, ...props }: InputFieldProps) => (
     <div>
         <label className="block mb-1 font-medium text-sm">{label}</label>
         <input

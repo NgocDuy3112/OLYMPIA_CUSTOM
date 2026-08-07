@@ -10,7 +10,7 @@ Role = Literal["guest", "player", "mc", "admin"]
 class UserCreate(BaseModel):
     user_name: str
     user_code: str | None = None
-    # Password optional: backend will generate and email credentials when omitted
+
     password: str | None = None
     role: Role = "player"
     email: str | None = None

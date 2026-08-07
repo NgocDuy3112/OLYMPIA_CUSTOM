@@ -1,10 +1,4 @@
-/**
- * VỀ ĐÍCH (About Round) Types
- *
- * Two variations:
- * - CHUNG (Joint): Pick 4 questions
- * - RIENG (Individual): Pick 3 questions
- */
+
 
 export const VeDichRound = {
 	CHUNG: 4,
@@ -13,11 +7,6 @@ export const VeDichRound = {
 
 export type VeDichRound = (typeof VeDichRound)[keyof typeof VeDichRound];
 
-/**
- * Get human-readable label for VeDichRound
- * @param round - VeDichRound enum value
- * @returns Vietnamese label
- */
 export const getVeDichRoundLabel = (round: VeDichRound): string => {
 	switch (round) {
 		case VeDichRound.CHUNG:
@@ -29,12 +18,6 @@ export const getVeDichRoundLabel = (round: VeDichRound): string => {
 	}
 };
 
-/**
- * Get route path for VeDichRound
- * @param round - VeDichRound enum value
- * @param matchCode - Match code
- * @returns Route path
- */
 export const getVeDichRoutePath = (round: VeDichRound, matchCode: string): string => {
 	const roundPath = round === VeDichRound.CHUNG ? "vdc" : "vdr";
 	return `/admin/${roundPath}/pick/${matchCode}`;

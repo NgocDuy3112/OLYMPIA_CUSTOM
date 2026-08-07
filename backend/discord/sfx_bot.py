@@ -16,7 +16,7 @@ from discord.ext import commands
 
 import configs
 import s3_audio
-from valkey_listener import get_valkey_client, subscribe_to_match_channels
+from valkey_listener import get_valkey_client, subscribe_to_event_channels
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 
@@ -68,9 +68,7 @@ PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
         "vd_dung":                 "vd_dung",
         "send_answers_to_players": "vd_hien_tra_loi",
         "vd_selection_update":     "vd_pick",
-        "vd_questions_selected":   "vd_xac_nhan",  # Admin confirms selection from pick page
-        # VĐC plays vd_quyen_nang at most once per question — admin gates the broadcast
-        # (see AVeDichChungPage vd_player_power handler).
+        "vd_questions_selected":   "vd_xac_nhan", 
         "power_star":              "vd_quyen_nang",
         "power_shield":            "vd_quyen_nang",
     },
@@ -276,6 +274,11 @@ async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
     global _current_phase
     msg_type = message.get("type", "")
+    if msg_type == "match_state":
+        msg_type = {
+            "open": "open_match",
+            "ended": "end_match",
+        }.get(message.get("state", ""), "")
     logger.debug(f"Received event: type={msg_type!r} keys={list(message.keys())}")
 
     # Track current game phase from navigate events and clear queue on phase change
@@ -381,9 +384,9 @@ async def _valkey_listener():
     heartbeat loop. Each message is dispatched back to the event loop via
     run_coroutine_threadsafe. Automatically reconnects with exponential backoff.
     """
-    match_code = configs.MATCH_CODE
+    event_channel_pattern = configs.EVENT_CHANNEL_PATTERN
     loop = asyncio.get_running_loop()
-    logger.info(f"SFX Bot listening to channel '{match_code}'")
+    logger.info(f"SFX Bot listening to channel '{event_channel_pattern}'")
     retry_delay = 2
 
     def _on_done(fut: asyncio.Future) -> None:
@@ -392,7 +395,7 @@ async def _valkey_listener():
 
     def _sync_subscribe():
         valkey_client = get_valkey_client()
-        for message in subscribe_to_match_channels(valkey_client, match_code):
+        for message in subscribe_to_event_channels(valkey_client, event_channel_pattern):
             fut = asyncio.run_coroutine_threadsafe(_handle_message(message), loop)
             fut.add_done_callback(_on_done)
 

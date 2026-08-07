@@ -1,33 +1,25 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable react-hooks/set-state-in-effect */
+
+
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { API_BASE_URL } from "@/configs";
-// temporary page-level logging uses console.info; createLogger import removed for brevity
+import { submitAnswer } from "@/api/answers";
+
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
-import { usePlayerSession } from "@/hooks/usePlayerSession";
+import { useRoleSession } from "@/hooks/useRoleSession";
 import { useQuestionState } from "@/hooks/useQuestionState";
-import { usePlayerWebSocket } from "@/hooks/usePlayerWebSocket";
-import type { PlayerStatus } from "@/types/player";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { buildKeywordBanner } from "@/utils/keywordBanner";
 
 const CLUE_COUNT = 8;
-const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
 type ClueState = "idle" | "active" | "used";
 type RevealedHint = { text?: string; mediaUrl?: string };
 
 function isMediaFilename(value: string): boolean {
 	return /\.(mp3|ogg|wav|aac|m4a|mp4|webm|mov|jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(value.trim());
-}
-
-function buildKeywordBanner(answer: string): string {
-	const trimmedLen = answer.replace(/\s/g, '').length;
-	const noSpaceAnswer = answer.replace(/\s/g, '');
-	if (/^[A-ZÀ-Ỹa-zà-ỹ]+$/u.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ CÁI`;
-	if (/^\d+$/.test(noSpaceAnswer)) return `TỪ KHOÁ GỒM CÓ ${trimmedLen} CHỮ SỐ`;
-	return `TỪ KHOÁ GỒM CÓ ${trimmedLen} KÝ TỰ`;
 }
 
 interface PlayerClueCardProps {
@@ -60,15 +52,13 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({ index, state, hintConte
 	);
 };
 
-
-
 const PGiaiMaPage = () => {
-	const { matchCode, playerCode, token } = usePlayerSession();
-	const { isConnected, lastMessage, sendMessage } = usePlayerWebSocket();
+	const { matchCode, playerCode, token } = useRoleSession("player");
+	const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
 	const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
 	const { currentQuestion, applyWsMessage } = useQuestionState();
 
-	const [players, setPlayers] = useState<PlayerStatus[]>([]);
+	const { players, setPlayers, applyPlayersInfo, applyScoreUpdate } = useAudiencePlayers();
 	const [keywordSubmittedCodes, setKeywordSubmittedCodes] = useState<Set<string>>(new Set());
 	const [questionAnswer, setQuestionAnswer] = useState("");
 	const [keyword, setKeyword] = useState("");
@@ -84,143 +74,27 @@ const PGiaiMaPage = () => {
 	const [keywordBanner, setKeywordBanner] = useState("MẬT MÃ GỒM CÓ ... CHỮ CÁI");
 	const activeClueIdxRef = useRef<number | null>(null);
 
-	// Hide the question-board content when admin opens/locks the hint
 	const [hideQuestionContent, setHideQuestionContent] = useState(false);
-	// True while the QuestionBoard timer is the keyword phase (vs. the regular question timer)
+
 	const [isKeywordPhase, setIsKeywordPhase] = useState(false);
-	// True once the admin has pressed "ĐẾM GIỜ TỪ KHOÁ" — from this point on,
-	// any keyword submission is scored as if all 8 clues were used (N = 8).
+
 	const [isKeywordCluesLocked, setIsKeywordCluesLocked] = useState(false);
-
-	// Auto-fetch scoreboard on mount to ensure accurate initial scores
-	useEffect(() => {
-		if (!matchCode || !token) return;
-		let mounted = true;
-		const fetchScores = async () => {
-			try {
-				const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				if (!res.ok) return;
-				const json = await res.json();
-				const scoreboardList: any[] = json.data?.scoreboard ?? [];
-				if (mounted && scoreboardList.length > 0) {
-					setPlayers((prev) =>
-						prev.map((p) => {
-							const scoreEntry = scoreboardList.find((s) => s.user_code === p.playerCode);
-							if (scoreEntry) {
-								const newScore = scoreEntry.cumulative_score ?? scoreEntry.cumulative_score ?? scoreEntry.total_score ?? scoreEntry.score ?? 0;
-								return { ...p, playerScore: newScore };
-							}
-							return p;
-						}),
-					);
-				}
-			} catch (err) {
-				console.warn("Failed to fetch scoreboard on mount:", err);
-			}
-		};
-		void fetchScores();
-		return () => { mounted = false; };
-	}, [matchCode, token]);
-
-	useEffect(() => {
-		if (!matchCode || !token) return;
-		const fetchKeywordQ = async () => {
-			try {
-				const url = `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}&question_code=${encodeURIComponent(KEYWORD_QUESTION_CODE)}`;
-				const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-				if (!res.ok) {
-					console.warn("[KEYWORD BANNER] Fetch failed with status:", res.status);
-					return;
-				}
-				const data = await res.json();
-				let payload: any = null;
-				if (Array.isArray(data.data)) {
-					payload = data.data.find((q: any) => String(q?.question_code) === KEYWORD_QUESTION_CODE) ?? data.data[0] ?? null;
-				} else {
-					payload = data.data ?? null;
-				}
-				console.info("[KEYWORD BANNER] Raw payload:", payload);
-				// Use same extraction logic as Admin
-				const answer: string =
-					payload?.question?.correct_answers ??
-					payload?.question?.correct_answer ??
-					payload?.answer ??
-					payload?.correct_answer ??
-					"";
-				console.info("[KEYWORD BANNER] Extracted answer:", answer, "length:", answer.replace(/\s/g, '').length);
-				if (answer) {
-					const newBanner = buildKeywordBanner(answer);
-					console.info("[KEYWORD BANNER] Setting banner:", newBanner);
-					setKeywordBanner(newBanner);
-				} else {
-					console.warn("[KEYWORD BANNER] No answer found in payload");
-				}
-			} catch (err) {
-				console.warn("[KEYWORD BANNER] Fetch error:", err);
-				// keep default banner
-			}
-		};
-		void fetchKeywordQ();
-	}, [matchCode, token]);
 
 	useEffect(() => {
 		if (!lastMessage) return;
-		const msg: any = lastMessage;
+		const msg = lastMessage.message ?? lastMessage;
 
-		// Debug logs to help verify payloads
+		queueMicrotask(() => {
+
 		console.info("PLAYER lastMessage:", lastMessage);
 		console.info("PLAYER msg:", msg);
 
-		// Let the question hook handle send_question/clear_question
 		applyWsMessage(msg);
 
 		switch (msg?.type) {
-			case "send_players_info": {
-				// Receive player information through WebSocket; support both old (players+scoreboard+profiles)
-				// and new (players[] where each player already contains cumulative_score/user_name) shapes.
-				const playersList = msg.players ?? [];
-				const scoreboard = msg.scoreboard ?? [];
-				const profiles = msg.profiles ?? [];
-
-				const finalPlayers: PlayerStatus[] = (playersList ?? []).map((p: any) => {
-					const code = String(p?.user_code ?? "");
-
-					// resolve name: prefer player object, then profiles, then scoreboard entry
-					let name = "";
-					if (p?.user_name) name = p.user_name;
-					else {
-						const prof = (profiles ?? []).find((pr: any) => String(pr?.user_code) === code);
-						if (prof) name = prof.user_name ?? "";
-						else {
-							const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-							name = scoreEntry?.user_name ?? "";
-						}
-					}
-
-					// resolve score: prefer player.cumulative_score then scoreboard lookup; accept legacy spelling
-					let scoreVal = 0;
-					if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else if (typeof p?.cumulative_score === "number") scoreVal = p.cumulative_score;
-					else {
-						const scoreEntry = (scoreboard ?? []).find((s: any) => String(s?.user_code) === code);
-						if (scoreEntry) scoreVal = scoreEntry?.cumulative_score ?? scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? scoreEntry?.score ?? 0;
-					}
-
-					return {
-						playerCode: code,
-						playerName: name,
-						playerScore: scoreVal,
-						playerLastAnswer: undefined,
-						playerTimestamp: undefined,
-						playerHasBuzzed: undefined,
-					};
-				});
-
-				setPlayers(finalPlayers);
+			case "send_players_info":
+				applyPlayersInfo(msg);
 				break;
-			}
 
 			case "send_question": {
 				const code: string = msg.question_code ?? "";
@@ -237,7 +111,7 @@ const PGiaiMaPage = () => {
 						})
 					);
 				}
-				// New clue means a fresh question text/media on the board — show it again.
+
 				setHideQuestionContent(false);
 				break;
 			}
@@ -247,7 +121,7 @@ const PGiaiMaPage = () => {
 				if (isKeywordTimer) {
 					setIsKeywordLocked(false);
 				}
-				startSynced(Number(msg.time_limit ?? 0), msg.started_at);
+				startSynced(Number(msg.time_limit ?? 0), Number(msg.started_at ?? Date.now()));
 				setTimerHasStarted(true);
 				if (!isKeywordTimer) {
 					setQuestionAnswer("");
@@ -294,37 +168,40 @@ const PGiaiMaPage = () => {
 			case "show_hint": {
 				const hintContent = msg.hint_content ?? "";
 				const hintMediaSource = msg.hint_media_source ?? "";
-				// If hint content itself is a media filename, swap roles
+				const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players.map(String) : [];
+				const canSeeHint = targets.length === 0 || targets.includes(String(playerCode));
+
 				const contentIsMedia = isMediaFilename(hintContent);
-				const displayText = contentIsMedia ? hintMediaSource : hintContent;
-				const displayMedia = contentIsMedia ? hintContent : hintMediaSource;
+				const displayText = canSeeHint ? (contentIsMedia ? hintMediaSource : hintContent) : "";
+				const displayMedia = canSeeHint ? (contentIsMedia ? hintContent : hintMediaSource) : "";
 				setHideQuestionContent(true);
 				const explicitIdx = Number(msg.clue_index);
+				const questionCodeMatch = String(msg.question_code ?? "").match(/(\d+)\s*$/);
+				const questionCodeIdx = questionCodeMatch ? Number(questionCodeMatch[1]) - 1 : null;
+				const hasQuestionCodeIdx = Number.isInteger(questionCodeIdx) && questionCodeIdx !== null && questionCodeIdx >= 0 && questionCodeIdx < CLUE_COUNT;
 				const hasExplicitIdx = Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT;
+				const resolvedIdx = hasExplicitIdx ? explicitIdx : hasQuestionCodeIdx ? questionCodeIdx : null;
 
-				if (hasExplicitIdx) {
-					const idx = explicitIdx;
+				if (resolvedIdx !== null) {
+					const idx = resolvedIdx;
 					activeClueIdxRef.current = idx;
 					setClueStates((prev) => {
 						if (prev[idx] === "used") return prev;
 						return prev.map((s, i) => (i === idx ? "used" : s));
 					});
-					setRevealedHints((prev) => ({
-						...prev,
-						[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
-					}));
+					setRevealedHints((prev) => {
+						const next = { ...prev };
+						if (displayText || displayMedia) next[idx] = { text: displayText || undefined, mediaUrl: displayMedia || undefined };
+						else delete next[idx];
+						return next;
+					});
 				} else {
 					const idx = activeClueIdxRef.current;
-					if (idx !== null) {
-						const targets: string[] = Array.isArray(msg.target_players) ? msg.target_players : [];
-						// Chỉ thí sinh được admin chọn mới thấy gợi ý
-						const isTargeted = targets.length > 0 && targets.includes(playerCode);
-						if (isTargeted) {
-							setRevealedHints((prev) => ({
-								...prev,
-								[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
-							}));
-						}
+					if (idx !== null && canSeeHint) {
+						setRevealedHints((prev) => ({
+							...prev,
+							[idx]: { text: displayText || undefined, mediaUrl: displayMedia || undefined },
+						}));
 					}
 				}
 				break;
@@ -332,13 +209,7 @@ const PGiaiMaPage = () => {
 
 			case "hide_hint": {
 				setHideQuestionContent(true);
-				// Prefer the explicit ``clue_index`` from the event when
-				// present — that is the authoritative target the admin
-				// chose to hide. Fall back to ``activeClueIdxRef`` for
-				// the legacy shape (no ``clue_index``). If neither is
-				// available (e.g. a refreshed player receives a hide
-				// hint before any show_hint replay has rebuilt the
-				// ref), fall through with no-op rather than throwing.
+
 				let idx: number | null = null;
 				const explicitIdx = Number(msg.clue_index);
 				if (Number.isInteger(explicitIdx) && explicitIdx >= 0 && explicitIdx < CLUE_COUNT) {
@@ -358,16 +229,9 @@ const PGiaiMaPage = () => {
 				break;
 			}
 
-			case "player_score_updated": {
-				if (msg.user_code && typeof msg.new_total_score === "number") {
-					setPlayers((prev) =>
-						prev.map((p) =>
-							p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p,
-						),
-					);
-				}
+			case "player_score_updated":
+				applyScoreUpdate(msg);
 				break;
-			}
 
 			case "clear_answers": {
 				setPlayers((prev) =>
@@ -386,7 +250,7 @@ const PGiaiMaPage = () => {
 			}
 
 			case "buzz": {
-				// Buzz notification from another player
+
 				const { user_code } = msg;
 				if (user_code && user_code !== playerCode) {
 					setPlayers((prev) =>
@@ -405,8 +269,7 @@ const PGiaiMaPage = () => {
 			}
 
 			case "keyword_clues_locked": {
-				// Admin pressed "ĐẾM GIỜ TỪ KHOÁ" — every keyword submission from
-				// this point on is treated as having used all 8 clues.
+
 				console.info("[KEYWORD CLUES LOCKED] All subsequent submissions will be N=8");
 				setIsKeywordCluesLocked(true);
 				break;
@@ -426,8 +289,7 @@ const PGiaiMaPage = () => {
 			}
 
 			case "send_keyword_info": {
-				// Admin broadcast — sync keyword-length banner from admin so player view matches
-				// even if the local /questions/ fetch returned a different/empty payload.
+
 				const banner = msg.banner;
 				if (typeof banner === "string" && banner) {
 					console.info("[KEYWORD INFO] Received banner from admin:", banner);
@@ -440,8 +302,7 @@ const PGiaiMaPage = () => {
 				const { user_code, keyword_text, clues_opened } = msg;
 				if (user_code) {
 					setKeywordSubmittedCodes((prev) => new Set([...prev, user_code as string]));
-					// Update player list to show key icon AND the "Sau N gợi ý" badge immediately
-					// (don't wait for admin's "HIỆN TỪ KHOÁ" — the clue count is known at submit time)
+
 					setPlayers((prev) =>
 						prev.map((p) =>
 							p.playerCode === user_code
@@ -454,15 +315,7 @@ const PGiaiMaPage = () => {
 								: p,
 						),
 					);
-					// Self-submit: lock the textbox. This is the case the
-					// refresh-replay path relies on — when the backend
-					// re-broadcasts the player's own ``keyword_submit``
-					// on reconnect (see
-					// ``handle_player_reconnect`` in
-					// ``ws_message_processor.py``), the ``user_code``
-					// matches our own ``playerCode`` and the textbox
-					// stays disabled after a refresh. We also restore the
-					// submitted text so the player sees what they typed.
+
 					if (user_code === playerCode) {
 						setHasSubmittedKeyword(true);
 						if (typeof keyword_text === "string" && keyword_text) {
@@ -475,19 +328,16 @@ const PGiaiMaPage = () => {
 			}
 
 			case "send_keyword_answers": {
-				const answers: { user_code: string; content: string; timestamp?: number; clues_opened?: number }[] = msg.answers ?? [];
+				const answers = msg.answers ?? [];
 				console.info("[KEYWORD ANSWERS] Received answers:", answers.length, "submissions");
 				setPlayers((prev) =>
 					prev.map((p) => {
-						const a = answers.find((x: any) => x.user_code === p.playerCode);
+						const a = answers.find((x) => String(x.user_code) === p.playerCode);
 						if (!a) return p;
 						return {
 							...p,
 							playerLastAnswer: a.content,
-							// Admin sets timestamp: undefined for keyword answers so the
-							// player card omits the timestamp next to the keyword text.
-							// Only overwrite when the broadcast provides a numeric timestamp.
-							playerTimestamp: typeof a.timestamp === "number" ? a.timestamp : p.playerTimestamp,
+							playerTimestamp: undefined,
 							playerKeywordCluesOpened:
 								typeof a.clues_opened === "number" ? a.clues_opened : p.playerKeywordCluesOpened,
 						};
@@ -501,7 +351,7 @@ const PGiaiMaPage = () => {
 				const answers = msg.answers ?? [];
 				setPlayers((prev) =>
 					prev.map((p) => {
-						const ans = answers.find((a: any) => a.user_code === p.playerCode);
+						const ans = answers.find((a) => String(a.user_code) === p.playerCode);
 						if (!ans) return p;
 						return { ...p, playerLastAnswer: ans.content, playerTimestamp: ans.timestamp || p.playerTimestamp };
 					}),
@@ -513,7 +363,8 @@ const PGiaiMaPage = () => {
 			default:
 				break;
 		}
-	}, [applyWsMessage, lastMessage, startSynced, playerCode]);
+		});
+	}, [applyPlayersInfo, applyScoreUpdate, applyWsMessage, lastMessage, playerCode, setPlayers, startSynced]);
 
 	const handleSubmitQuestionAnswer = useCallback(async () => {
 		const trimmed = questionAnswer.trim();
@@ -525,31 +376,18 @@ const PGiaiMaPage = () => {
 		const ts = Math.max(0, Math.min(timeLimit, elapsed));
 
 		try {
-			// Persist question answer via REST
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					answer_text: trimmed,
-					has_buzzed: false,
-					timestamp: ts,
-				}),
-			});
-			if (!res.ok) {
-				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST question answer:", res.status, body);
-			}
-		} catch (err) {
-			console.warn("Failed to POST question answer:", err);
+			await submitAnswer({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				answer_text: trimmed,
+				has_buzzed: false,
+				timestamp: ts,
+			}, token);
+		} catch (error) {
+			console.warn("Failed to submit question answer:", error);
 		}
 
-		// Send real-time frame
 		await sendMessage({
 			type: "player_answer",
 			user_code: playerCode,
@@ -565,9 +403,8 @@ const PGiaiMaPage = () => {
 			),
 		);
 		setQuestionAnswer("");
-	}, [questionAnswer, currentQuestion.questionCode, getElapsedSeconds, isConnected, playerCode, sendMessage, timeLimit, token, matchCode]);
+	}, [currentQuestion.questionCode, getElapsedSeconds, isConnected, matchCode, playerCode, questionAnswer, sendMessage, setPlayers, timeLimit, token]);
 
-	// Opens confirmation popup; actual submission happens in handleConfirmKeyword
 	const handleSubmitKeyword = useCallback(() => {
 		if (!keyword.trim()) return;
 		if (hasSubmittedKeyword || isKeywordLocked) return;
@@ -586,36 +423,19 @@ const PGiaiMaPage = () => {
 		}
 
 		try {
-			const res = await fetch(`${API_BASE_URL}/answers/`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
-				},
-				body: JSON.stringify({
-					user_code: playerCode,
-					match_code: matchCode,
-					question_code: currentQuestion.questionCode,
-					answer_text: trimmed,
-					has_buzzed: false,
-					timestamp: 0,
-				}),
-			});
-			if (!res.ok) {
-				const body = await res.text().catch(() => "");
-				console.warn("Failed to POST keyword:", res.status, body);
-			} else {
-				console.info("[KEYWORD SUBMIT] POST success");
-			}
-		} catch (err) {
-			console.warn("Failed to POST keyword:", err);
+			await submitAnswer({
+				user_code: playerCode,
+				match_code: matchCode,
+				question_code: currentQuestion.questionCode,
+				answer_text: trimmed,
+				has_buzzed: false,
+			}, token);
+		} catch (error) {
+			console.warn("Failed to submit keyword:", error);
 		}
 
 		console.info("[KEYWORD SUBMIT] Sending WebSocket message...");
-		// Snapshot how many clue cards count toward this submission:
-		// - If the admin has already pressed "ĐẾM GIỜ TỪ KHOÁ" (`isKeywordCluesLocked`),
-		//   every submission from this point is treated as N = CLUE_COUNT.
-		// - Otherwise N = how many cards are non-idle in this player's local state.
+
 		const cluesOpened = isKeywordCluesLocked
 			? CLUE_COUNT
 			: clueStates.filter((s) => s !== "idle").length;
@@ -623,15 +443,13 @@ const PGiaiMaPage = () => {
 			type: "keyword_submit",
 			user_code: playerCode,
 			keyword_text: trimmed,
-			timestamp: 0,
 			clues_opened: cluesOpened,
 		});
 		console.info("[KEYWORD SUBMIT] WebSocket message sent");
 
-		// Mark self as submitted and show key icon immediately
 		setHasSubmittedKeyword(true);
 		setKeywordSubmittedCodes((prev) => new Set([...prev, playerCode]));
-		// Cache own clues count so we can render "Sau N gợi ý" right after admin reveals.
+
 		setPlayers((prev) =>
 			prev.map((p) =>
 				p.playerCode === playerCode ? { ...p, playerKeywordCluesOpened: cluesOpened } : p,
@@ -639,26 +457,19 @@ const PGiaiMaPage = () => {
 		);
 		console.info("[KEYWORD SUBMIT] State updated, keyword cleared");
 		setKeyword("");
-	}, [keywordToConfirm, currentQuestion.questionCode, playerCode, sendMessage, token, matchCode, clueStates, isKeywordCluesLocked]);
+	}, [clueStates, currentQuestion.questionCode, isKeywordCluesLocked, keywordToConfirm, matchCode, playerCode, sendMessage, setPlayers, token]);
 
 	const isTimerExpired = timeLimit > 0 && timer === 0;
 	const isQuestionAnswerDisabled = !isConnected || hasSubmittedKeyword || !currentQuestion.questionCode || !timerHasStarted || isTimerExpired || isKeywordPhase;
-	// Keyword box: additionally locked by isKeywordLocked (broadcast when all clues open or all players submitted)
-	// Auto-lock keyword when the keyword-phase QuestionBoard timer expires
-	const isKeywordTimerExpired = isKeywordPhase && timeLimit > 0 && timer === 0;
-	useEffect(() => {
-		if (isKeywordTimerExpired) {
-			setIsKeywordLocked(true);
-		}
-	}, [isKeywordTimerExpired]);
 
-	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || !currentQuestion.questionCode;
+	const isKeywordTimerExpired = isKeywordPhase && timeLimit > 0 && timer === 0;
+	const isKeywordInputDisabled = !isConnected || hasSubmittedKeyword || isKeywordLocked || isKeywordTimerExpired || !currentQuestion.questionCode;
 
 	const displayPlayers = players.map((p) => {
 		const withKeyword = keywordSubmittedCodes.has(p.playerCode)
 			? { ...p, playerHasSubmittedKeyword: true }
 			: p;
-		// Hide other players' answers until this player has submitted their own
+
 		if (p.playerCode !== playerCode && !showAnswers) {
 			return { ...withKeyword, playerLastAnswer: undefined, playerTimestamp: undefined };
 		}
@@ -695,7 +506,7 @@ const PGiaiMaPage = () => {
 					title="GIẢI MÃ"
 					question={isKeywordPhase ? { ...currentQuestion, questionText: keywordBanner, questionMediaURL: undefined } : currentQuestion}
 					timerDuration={timer}
-					boardHeightClass="h-[18vh] sm:h-[20vh] lg:h-[26vh]"
+					boardHeightClass="h-[35vh] sm:h-[40vh] lg:h-[45vh]"
 					controls={{ variant: 'numbers', count: 0 }}
 					hideContent={hideQuestionContent || isKeywordPhase}
 					/>
