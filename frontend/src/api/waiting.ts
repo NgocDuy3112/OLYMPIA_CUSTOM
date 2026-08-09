@@ -27,12 +27,12 @@ export interface WaitingSnapshot {
   profiles: RawProfile[];
 }
 
-export async function loadWaitingSnapshot(matchCode: string, token: string): Promise<WaitingSnapshot> {
+export async function loadWaitingSnapshot(matchCode: string): Promise<WaitingSnapshot> {
   const encodedCode = encodeURIComponent(matchCode);
   const [matchResponse, playersResponse, scoreboardResponse] = await Promise.all([
-    requestJson<ApiResponse<MatchData>>(`/matches/?match_code=${encodedCode}`, {}, token),
-    requestJson<ApiResponse<PlayersData>>(`/matches/${encodedCode}/players`, {}, token),
-    requestJson<ApiResponse<ScoreboardData>>(`/scoreboard/${encodedCode}`, {}, token),
+    requestJson<ApiResponse<MatchData>>(`/matches/?match_code=${encodedCode}`),
+    requestJson<ApiResponse<PlayersData>>(`/matches/${encodedCode}/players`),
+    requestJson<ApiResponse<ScoreboardData>>(`/scoreboard/${encodedCode}`),
   ]);
   const players = playersResponse.data?.players ?? [];
   return {
@@ -62,10 +62,9 @@ export function buildWaitingBroadcastPlayers(snapshot: WaitingSnapshot): RawPlay
   });
 }
 
-export async function finishMatch(matchCode: string, token: string): Promise<void> {
+export async function finishMatch(matchCode: string): Promise<void> {
   await requestJson<ApiResponse<unknown>>(
     `/matches/${encodeURIComponent(matchCode)}/finish`,
     { method: "PATCH" },
-    token,
   );
 }

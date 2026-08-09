@@ -1,13 +1,13 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "@/pages/auth/LoginPage";
-import SignupPage from "@/pages/auth/SignupPage";
-import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
+import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 
 const PlayerRoutes = lazy(() => import("@/routes/PlayerRoutes"));
 const AdminRoutes = lazy(() => import("@/routes/AdminRoutes"));
 const MCRoutes = lazy(() => import("@/routes/MCRoutes"));
-const GuestRoutes = lazy(() => import("@/routes/GuestRoutes"));
+const SpectatorRoutes = lazy(() => import("@/routes/SpectatorRoutes"));
+const OverlayRoutes = lazy(() => import("@/routes/OverlayRoutes"));
 
 function App() {
   return (
@@ -19,15 +19,13 @@ function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/signup" element={<SignupPage password />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/player/signup" element={<SignupPage />} />
-            <Route path="/admin/signup" element={<SignupPage mode="admin" />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/player/*" element={<PlayerRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
             <Route path="/mc/*" element={<MCRoutes />} />
-            <Route path="/guest/*" element={<GuestRoutes />} />
+            <Route path="/spectator/*" element={<SpectatorRoutes />} />
+            <Route path="/overlay/*" element={<OverlayRoutes />} />
           </Routes>
         </Suspense>
       </div>

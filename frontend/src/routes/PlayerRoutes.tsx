@@ -1,35 +1,20 @@
 import { useEffect } from "react";
 import { useMatchCode } from "@/hooks/useMatchCode";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
+import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
-import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
-import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
-import PButPhaPage from "@/pages/player/PButPhaPage";
-import PVeDichChungPage from "@/pages/player/PVeDichChungPage";
-import PVeDichRiengPage from "@/pages/player/PVeDichRiengPage";
-import PVeDichPickPage from "@/pages/player/PVeDichPickPage";
-import PGiaiMaPage from "@/pages/player/PGiaiMaPage";
-import PQualifierPage from "@/pages/player/PQualifierPage";
+import ButPhaPage from "@/pages/game/ButPhaPage";
+import KhoiDongChungPage from "@/pages/game/KhoiDongChungPage";
+import KhoiDongRiengPage from "@/pages/game/KhoiDongRiengPage";
+import GiaiMaPage from "@/pages/game/GiaiMaPage";
+import VeDichChungPage from "@/pages/game/VeDichChungPage";
+import VeDichRiengPage from "@/pages/game/VeDichRiengPage";
+import WaitingPage from "@/pages/game/WaitingPage";
+import VeDichPickPage from "@/pages/game/VeDichPickPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
-import PWaitingPage from "@/pages/player/PWaitingPage";
 import { VeDichRound } from "@/types/veDich";
-
-interface PProtectedRouteProps {
-    children: React.ReactNode;
-}
-
-export const ProtectedPlayerRoute: React.FC<PProtectedRouteProps> = ({ children }) => {
-    const token = sessionStorage.getItem("jwtToken_player");
-    const storedPlayer = sessionStorage.getItem("playerCode");
-
-    if (!token || !storedPlayer) {
-        return <Navigate to="/login" replace />;
-    }
-
-    return <>{children}</>;
-};
 
 const PlayerAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
@@ -43,12 +28,9 @@ const PlayerAutoNavigator: React.FC = () => {
         const msg = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
         const msgType = msg?.type ?? "";
 
-        console.info("[PlayerAutoNavigator] Received message:", msgType, msg);
-
         if (msgType === "match_state") {
             const target = `/player/waiting/${matchCode}`;
             if (location.pathname !== target) {
-                console.info("[PlayerAutoNavigator] Navigating to waiting:", target);
                 navigate(target, { replace: true });
             }
             return;
@@ -57,43 +39,25 @@ const PlayerAutoNavigator: React.FC = () => {
         if (msgType !== "navigate") return;
 
         const basePath: unknown = msg?.path;
-        if (typeof basePath !== "string") {
-            console.warn("[PlayerAutoNavigator] No path in navigate message");
-            return;
-        }
-
-        console.info("[PlayerAutoNavigator] Processing navigate message:", { basePath, matchCode, playerCode });
+        if (typeof basePath !== "string") return;
 
         const senderRole = (msg?.role ?? "") as string;
         const senderCode = (msg?.user_code ?? "") as string;
-        if (senderRole !== "admin" && senderCode && senderCode !== playerCode) {
-            console.warn("[PlayerAutoNavigator] Ignoring message from non-admin:", senderRole, senderCode);
-            return;
-        }
+        if (senderRole !== "admin" && senderCode && senderCode !== playerCode) return;
 
-        if (!matchCode) {
-            console.warn("[PlayerAutoNavigator] No matchCode, skipping navigation");
-            return;
-        }
+        if (!matchCode) return;
 
         const normalized = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 
-        if (!normalized.startsWith("/player/")) {
-            console.warn("[PlayerAutoNavigator] Ignoring non-player path:", normalized);
-            return;
-        }
+        if (!normalized.startsWith("/player/")) return;
 
-        const isQualifier = normalized.startsWith("/player/vl");
         const alreadyHasMatchCode = matchCode && normalized.endsWith(`/${matchCode}`);
-        const target = isQualifier
-            ? (normalized.endsWith("/OC3_M_VL") ? normalized : `${normalized}/OC3_M_VL`)
-            : alreadyHasMatchCode
-                ? normalized
-                : `${normalized}/${matchCode}`;
+        const target = alreadyHasMatchCode
+            ? normalized
+            : `${normalized}/${matchCode}`;
 
         const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
 
-        console.info("[PlayerAutoNavigator] Navigating:", { currentPath, target });
         if (currentPath !== target) {
             navigate(target, { replace: true });
         }
@@ -104,121 +68,46 @@ const PlayerAutoNavigator: React.FC = () => {
 };
 
 const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const matchCode = useMatchCode({ defaultPath: "/player/vl", defaultCode: "OC3_M_VL" });
+    const matchCode = useMatchCode({ defaultPath: "/player/waiting", defaultCode: "" });
 
     if (!matchCode) return <>{children}</>;
 
     return (
-        <PlayerWebSocketProvider matchCode={matchCode}>
+        <GameWebSocketProvider
+            config={{
+                role: "player",
+                matchCode,
+                userCode: sessionStorage.getItem("playerCode") || undefined,
+            }}
+        >
             <PlayerAutoNavigator />
             {children}
-        </PlayerWebSocketProvider>
+        </GameWebSocketProvider>
     );
 };
 
 const PlayerRoutes = () => {
     return (
-        <PlayerWebSocketWrapper>
-            <Routes>
-                <Route path="/" element={<Navigate to="/player/access" replace />} />
-                <Route path="/access" element={<PGameAccessPage />} />
-                <Route path="/waiting/:matchCode" element={<PWaitingPage />} />
-                <Route
-                    path="/kdc/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PKhoiDongChungPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/kdr/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PKhoiDongRiengPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/bp/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PButPhaPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vdc/pick/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PVeDichPickPage round={VeDichRound.CHUNG} />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vdc/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PVeDichChungPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vdr/pick/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PVeDichPickPage round={VeDichRound.RIENG} />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vdr/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PVeDichRiengPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vl"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PQualifierPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vl/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PQualifierPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/gm/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PGiaiMaPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                {
-
-}
-                {
-
-}
-                {
-
-}
-                {
-
-}
-                {}
-                <Route path="*" element={<Navigate to="/player/access" replace />} />
-            </Routes>
-        </PlayerWebSocketWrapper>
+        <AuthGuard requiredRole="player">
+            <PlayerWebSocketWrapper>
+                <Routes>
+                    <Route path="/" element={<Navigate to="/player/access" replace />} />
+                    <Route path="/access" element={<PGameAccessPage />} />
+                    <Route path="/waiting/:matchCode" element={<WaitingPage />} />
+                    <Route path="/kdc/:matchCode" element={<KhoiDongChungPage />} />
+                    <Route path="/kdr/:matchCode" element={<KhoiDongRiengPage />} />
+                    <Route path="/bp/:matchCode" element={<ButPhaPage />} />
+                    <Route path="/vdc/pick/:matchCode" element={<VeDichPickPage round={VeDichRound.CHUNG} />} />
+                    <Route path="/vdc/:matchCode" element={<VeDichChungPage />} />
+                    <Route path="/vdr/pick/:matchCode" element={<VeDichPickPage round={VeDichRound.RIENG} />} />
+                    <Route path="/vdr/:matchCode" element={<VeDichRiengPage />} />
+                    <Route path="/vl" element={<Navigate to="/player/access" replace />} />
+                    <Route path="/vl/:matchCode" element={<Navigate to="/player/access" replace />} />
+                    <Route path="/gm/:matchCode" element={<GiaiMaPage />} />
+                    <Route path="*" element={<Navigate to="/player/access" replace />} />
+                </Routes>
+            </PlayerWebSocketWrapper>
+        </AuthGuard>
     );
 };
 

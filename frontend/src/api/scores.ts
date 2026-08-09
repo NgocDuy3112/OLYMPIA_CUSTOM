@@ -2,7 +2,6 @@ import { requestJson } from "@/api/client";
 import { validateScoreEvent } from "@/utils/validation";
 
 export const calculateScore = async (
-    token: string,
     matchCode: string,
     questionCode: string,
     action: string,
@@ -15,6 +14,5 @@ export const calculateScore = async (
             method: "POST",
             body: JSON.stringify({ match_code: matchCode, question_code: questionCode, action, user_codes: userCodes }),
         },
-        token,
     );
 };

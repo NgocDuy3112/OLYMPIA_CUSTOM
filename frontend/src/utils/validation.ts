@@ -1,7 +1,7 @@
 const MATCH_PATTERN = /^OC3_M/;
 const QUESTION_PATTERN = /^OC3_Q/;
 const USER_PATTERN = /^OC_U/;
-const ROLES = ["guest", "player", "mc", "admin"] as const;
+const ROLES = ["player", "mc", "admin"] as const;
 const QUALIFIER_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
 
 export type Role = typeof ROLES[number];

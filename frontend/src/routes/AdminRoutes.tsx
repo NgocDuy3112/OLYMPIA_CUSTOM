@@ -1,35 +1,22 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 
-import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
-import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
-import AButPhaPage from "@/pages/admin/AButPhaPage";
-import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestionPage";
-import AVeDichChungPage from "@/pages/admin/AVeDichChungPage";
-import AVeDichRiengPage from "@/pages/admin/AVeDichRiengPage";
-import AGiaiMaPage from "@/pages/admin/AGiaiMaPage";
-import AQualifierPage from "@/pages/admin/AQualifierPage";
+import ButPhaPage from "@/pages/game/ButPhaPage";
+import KhoiDongChungPage from "@/pages/game/KhoiDongChungPage";
+import KhoiDongRiengPage from "@/pages/game/KhoiDongRiengPage";
+import GiaiMaPage from "@/pages/game/GiaiMaPage";
+import VeDichChungPage from "@/pages/game/VeDichChungPage";
+import VeDichRiengPage from "@/pages/game/VeDichRiengPage";
+import WaitingPage from "@/pages/game/WaitingPage";
+import VeDichPickPage from "@/pages/game/VeDichPickPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
-import AWaitingPage from "@/pages/admin/AWaitingPage";
-import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
+import TournamentListPage from "@/pages/admin/tournament/TournamentListPage";
+import TournamentFormPage from "@/pages/admin/tournament/TournamentFormPage";
+import TournamentDetailPage from "@/pages/admin/tournament/TournamentDetailPage";
+import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
-
-interface AProtectedRouteProps {
-    children: React.ReactNode;
-}
-
-export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }) => {
-    const token = localStorage.getItem("jwtToken_admin");
-    const role = localStorage.getItem("role");
-
-    if (!token || role !== "admin") {
-        return <Navigate to="/login" replace />;
-    }
-
-    return <>{children}</>;
-}
-
-const QUALIFIER_MATCH_CODE = "OC3_M_VL";
+import { AuthGuard } from "@/components/auth/AuthGuard";
+import { VeDichRound } from "@/types/veDich";
 
 const AdminAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
@@ -60,11 +47,7 @@ const AdminAutoNavigator: React.FC = () => {
 };
 
 const AdminRoutes = () => {
-
     const location = useLocation();
-
-    const isQualifierRoute = location.pathname === "/admin/vl";
-
     const stored = localStorage.getItem("matchCode") || "";
     const fromPath = (() => {
         try {
@@ -74,109 +57,39 @@ const AdminRoutes = () => {
             return "";
         }
     })();
-    const matchCode = isQualifierRoute ? QUALIFIER_MATCH_CODE : (stored || fromPath);
+    const matchCode = stored || fromPath;
 
     return (
-        <AdminWebSocketProvider matchCode={matchCode}>
-            <AdminAutoNavigator />
-            <Routes>
-            <Route path="/" element={
-                <Navigate to={stored ? `/admin/waiting/${stored}` : "/admin/manage"} replace />
-            } />
-            <Route
-                path="/waiting/:matchCode"
-                element={
-                    <ProtectedAdminRoute>
-                        <AWaitingPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            {}
-            <Route
-                path="/kdc/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AKhoiDongChungPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/kdr/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AKhoiDongRiengPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            {}
-            <Route
-                path="/bp/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AButPhaPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            {}
-            <Route
-                path="/vdc/pick/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AVeDichPickQuestion />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/vdr/pick/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AVeDichPickQuestion />
-                    </ProtectedAdminRoute>
-                }
-            />
-            {}
-            <Route
-                path="/vdc/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AVeDichChungPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/vdr/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AVeDichRiengPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/vl"
-                element={
-                    <ProtectedAdminRoute>
-                        <AQualifierPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/gm/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AGiaiMaPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/game-managing"
-                element={
-                    <ProtectedAdminRoute>
-                        <AGameManagingPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            </Routes>
-        </AdminWebSocketProvider>
+        <AuthGuard requiredRole="admin">
+            <GameWebSocketProvider
+                config={{
+                    role: "admin",
+                    matchCode,
+                }}
+            >
+                <AdminAutoNavigator />
+                <Routes>
+                    <Route path="/" element={
+                        <Navigate to={stored ? `/admin/waiting/${stored}` : "/admin/manage"} replace />
+                    } />
+                    <Route path="/waiting/:matchCode" element={<WaitingPage />} />
+                    <Route path="/kdc/:matchCode?" element={<KhoiDongChungPage />} />
+                    <Route path="/kdr/:matchCode?" element={<KhoiDongRiengPage />} />
+                    <Route path="/bp/:matchCode?" element={<ButPhaPage />} />
+                    <Route path="/vdc/pick/:matchCode?" element={<VeDichPickPage round={VeDichRound.CHUNG} />} />
+                    <Route path="/vdr/pick/:matchCode?" element={<VeDichPickPage round={VeDichRound.RIENG} />} />
+                    <Route path="/vdc/:matchCode?" element={<VeDichChungPage />} />
+                    <Route path="/vdr/:matchCode?" element={<VeDichRiengPage />} />
+                    <Route path="/gm/:matchCode?" element={<GiaiMaPage />} />
+                    <Route path="/game-managing" element={<AGameManagingPage />} />
+                    {/* Tournament management routes */}
+                    <Route path="/tournaments" element={<TournamentListPage />} />
+                    <Route path="/tournaments/create" element={<TournamentFormPage />} />
+                    <Route path="/tournaments/:code" element={<TournamentDetailPage />} />
+                    <Route path="/tournaments/:code/edit" element={<TournamentFormPage />} />
+                </Routes>
+            </GameWebSocketProvider>
+        </AuthGuard>
     );
 }
 

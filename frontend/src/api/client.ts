@@ -30,13 +30,11 @@ export class ApiError extends Error {
 export async function requestJson<T>(
   path: string,
   options: RequestInit = {},
-  token?: string,
 ): Promise<T> {
   const headers = new Headers(options.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
+  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include" });
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = getResponseError(data) ?? `HTTP ${response.status}`;

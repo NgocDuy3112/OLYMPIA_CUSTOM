@@ -48,14 +48,17 @@ export interface WebSocketMessage extends WebSocketPayload {
   used_powers?: Record<string, "star" | "shield" | null>;
   round?: string;
   status?: "online" | "heartbeat";
-  role?: "player" | "mc" | "guest" | "admin";
+  role?: "player" | "mc" | "admin";
   selected_player_code?: string;
 }
+
+export type UserRole = "admin" | "mc" | "player";
 
 export interface WebSocketContextValue {
   isConnected: boolean;
   lastMessage: WebSocketMessage | null;
   sendMessage: (payload: WebSocketPayload) => Promise<boolean>;
+  role: UserRole;
 }
 
 export function isWebSocketMessage(value: unknown): value is WebSocketMessage {

@@ -86,3 +86,125 @@
 .accent-dot {
 	background-color: var(--oc-primary);
 }
+
+/* Overlay pages - transparent background for OBS Browser Source */
+.overlay-mode {
+	background: transparent !important;
+}
+.overlay-mode body,
+.overlay-mode #root {
+	background: transparent !important;
+}
+
+/* Responsive utilities */
+@media (max-width: 767px) {
+	.hide-mobile {
+		display: none !important;
+	}
+	.show-mobile {
+		display: block !important;
+	}
+	.flex-mobile-col {
+		flex-direction: column !important;
+	}
+}
+@media (min-width: 768px) and (max-width: 1024px) {
+	.hide-tablet {
+		display: none !important;
+	}
+	.show-tablet {
+		display: block !important;
+	}
+}
+@media (min-width: 1025px) {
+	.hide-desktop {
+		display: none !important;
+	}
+	.show-desktop {
+		display: block !important;
+	}
+}
+
+/* Touch-friendly targets for tablet/mobile */
+@media (max-width: 1024px) {
+	.touch-target {
+		min-height: 44px;
+		min-width: 44px;
+	}
+	.touch-target-sm {
+		min-height: 36px;
+		min-width: 36px;
+	}
+}
+
+/* Bottom navigation for tablet */
+@media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+	.bottom-nav {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		background: rgba(0, 0, 0, 0.9);
+		padding: 0.5rem;
+		display: flex;
+		justify-content: space-around;
+		z-index: 50;
+	}
+}
+
+/* Score animation */
+@keyframes scorePulse {
+	0% { transform: scale(1); }
+	50% { transform: scale(1.1); }
+	100% { transform: scale(1); }
+}
+.score-pulse {
+	animation: scorePulse 0.3s ease-in-out;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+::-webkit-scrollbar-track {
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 3px;
+}
+::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(255, 255, 255, 0.3);
+}
+
+/* Smooth transitions for responsive layouts */
+@media (min-width: 1024px) {
+	.lg\:grid-cols-2 {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+/* Buzz highlight */
+@keyframes buzzGlow {
+	0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+	70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
+	100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+}
+.buzz-glow {
+	animation: buzzGlow 0.5s ease-out;
+}
+
+/* Timer warning colors */
+.timer-warning {
+	color: #fbbf24;
+}
+.timer-danger {
+	color: #ef4444;
+	animation: pulse 1s infinite;
+}
+@keyframes pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
+}

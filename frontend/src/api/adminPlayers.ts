@@ -9,17 +9,17 @@ type CacheEntry = { promise: Promise<Snapshot>; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 1500;
 
-export async function loadAdminPlayersSnapshot(matchCode: string, token: string, force = false): Promise<Snapshot> {
-    const key = `${matchCode}:${token}`;
+export async function loadAdminPlayersSnapshot(matchCode: string, force = false): Promise<Snapshot> {
+    const key = matchCode;
     const existing = cache.get(key);
     if (!force && existing && existing.expiresAt > Date.now()) return existing.promise;
 
     const promise = Promise.all([
         fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/players`, {
-            headers: { Authorization: `Bearer ${token}` },
+            credentials: "include",
         }),
         fetch(`${API_BASE_URL}/scoreboard/${encodeURIComponent(matchCode)}`, {
-            headers: { Authorization: `Bearer ${token}` },
+            credentials: "include",
         }),
     ]).then(async ([playersResponse, scoreboardResponse]) => {
         const playersJson = await playersResponse.json();

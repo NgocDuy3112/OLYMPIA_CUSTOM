@@ -1,0 +1,21 @@
+{
+  "name": "olympia-v4",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "db:generate": "pnpm --filter @olympia/db generate",
+    "db:migrate": "pnpm --filter @olympia/db migrate",
+    "db:push": "pnpm --filter @olympia/db push",
+    "db:studio": "pnpm --filter @olympia/db studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

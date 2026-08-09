@@ -10,18 +10,17 @@ interface SubmitAnswerInput {
   timestamp?: number;
 }
 
-export async function submitAnswer(input: SubmitAnswerInput, token: string): Promise<void> {
+export async function submitAnswer(input: SubmitAnswerInput): Promise<void> {
   validateAnswerInput(input);
   await requestJson<unknown>(
     "/answers/",
     { method: "POST", body: JSON.stringify(input) },
-    token,
   );
 }
 
-export async function submitBuzz(input: SubmitAnswerInput, token: string): Promise<boolean> {
+export async function submitBuzz(input: SubmitAnswerInput): Promise<boolean> {
   try {
-    await submitAnswer(input, token);
+    await submitAnswer(input);
     return true;
   } catch (error) {
     if (error instanceof ApiError && error.status === 409) return false;

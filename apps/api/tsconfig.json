@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "@olympia/db": ["../../packages/db/src"],
+      "@olympia/db/*": ["../../packages/db/src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "../../packages/db/src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

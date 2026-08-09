@@ -1,29 +1,20 @@
 import { useEffect } from "react";
 import { useMatchCode } from "@/hooks/useMatchCode";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { MCWebSocketProvider } from "@/contexts/MCWebSocketContext";
+import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { AuthGuard } from "@/components/auth/AuthGuard";
 
+import ButPhaPage from "@/pages/game/ButPhaPage";
+import KhoiDongChungPage from "@/pages/game/KhoiDongChungPage";
+import KhoiDongRiengPage from "@/pages/game/KhoiDongRiengPage";
+import GiaiMaPage from "@/pages/game/GiaiMaPage";
+import VeDichChungPage from "@/pages/game/VeDichChungPage";
+import VeDichRiengPage from "@/pages/game/VeDichRiengPage";
+import WaitingPage from "@/pages/game/WaitingPage";
+import VeDichPickPage from "@/pages/game/VeDichPickPage";
 import MGameAccessPage from "@/pages/mc/MGameAccessPage";
-import MWaitingPage from "@/pages/mc/MWaitingPage";
-import MKhoiDongChungPage from "@/pages/mc/MKhoiDongChungPage";
-import MKhoiDongRiengPage from "@/pages/mc/MKhoiDongRiengPage";
-import MButPhaPage from "@/pages/mc/MButPhaPage";
-import MGiaiMaPage from "@/pages/mc/MGiaiMaPage";
-import MQualifierPage from "@/pages/mc/MQualifierPage";
-import MVeDichChungPage from "@/pages/mc/MVeDichChungPage";
-import MVeDichRiengPage from "@/pages/mc/MVeDichRiengPage";
-import MVeDichPickPage from "@/pages/mc/MVeDichPickPage";
 import { VeDichRound } from "@/types/veDich";
-
-const ProtectedMcRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const token = sessionStorage.getItem("jwtToken_mc");
-    const role = sessionStorage.getItem("role");
-    if (!token || role !== "mc") {
-        return <Navigate to="/login" replace />;
-    }
-    return <>{children}</>;
-};
 
 const MCAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
@@ -59,14 +50,11 @@ const MCAutoNavigator: React.FC = () => {
         }
         if (!mcPath) return;
 
-        const isQualifier = mcPath.startsWith("/mc/vl");
         const noParamsPaths = ["/mc/waiting"];
         const alreadyHasMatchCode = matchCode && mcPath.endsWith(`/${matchCode}`);
         const target = noParamsPaths.includes(mcPath) || alreadyHasMatchCode
             ? mcPath
-            : isQualifier
-                ? `${mcPath}/OC3_M_VL`
-                : `${mcPath}/${matchCode}`;
+            : `${mcPath}/${matchCode}`;
 
         const currentPath = location.pathname.endsWith("/")
             ? location.pathname.slice(0, -1)
@@ -81,69 +69,44 @@ const MCAutoNavigator: React.FC = () => {
 };
 
 const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const matchCode = useMatchCode({ defaultPath: "/mc/vl", defaultCode: "OC3_M_VL" });
+    const matchCode = useMatchCode({ defaultPath: "/mc/waiting", defaultCode: "" });
 
     if (!matchCode) return <>{children}</>;
 
     return (
-        <MCWebSocketProvider matchCode={matchCode}>
+        <GameWebSocketProvider
+            config={{
+                role: "mc",
+                matchCode,
+            }}
+        >
             <MCAutoNavigator />
             {children}
-        </MCWebSocketProvider>
+        </GameWebSocketProvider>
     );
 };
 
 const MCRoutes = () => {
     return (
-        <MCWebSocketWrapper>
-            <Routes>
-                <Route path="/" element={<Navigate to="/mc/access" replace />} />
-                <Route path="/access" element={<MGameAccessPage />} />
-                <Route path="/waiting" element={<MWaitingPage />} />
-                <Route path="/waiting/:matchCode" element={<MWaitingPage />} />
-                <Route
-                    path="/kdc/:matchCode"
-                    element={<ProtectedMcRoute><MKhoiDongChungPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/kdr/:matchCode"
-                    element={<ProtectedMcRoute><MKhoiDongRiengPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/bp/:matchCode"
-                    element={<ProtectedMcRoute><MButPhaPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/gm/:matchCode"
-                    element={<ProtectedMcRoute><MGiaiMaPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vl/:matchCode"
-                    element={<ProtectedMcRoute><MQualifierPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vl"
-                    element={<ProtectedMcRoute><MQualifierPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vdc/pick/:matchCode"
-                    element={<ProtectedMcRoute><MVeDichPickPage round={VeDichRound.CHUNG} /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vdc/:matchCode"
-                    element={<ProtectedMcRoute><MVeDichChungPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vdr/pick/:matchCode"
-                    element={<ProtectedMcRoute><MVeDichPickPage round={VeDichRound.RIENG} /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vdr/:matchCode"
-                    element={<ProtectedMcRoute><MVeDichRiengPage /></ProtectedMcRoute>}
-                />
-                <Route path="*" element={<Navigate to="/mc/access" replace />} />
-            </Routes>
-        </MCWebSocketWrapper>
+        <AuthGuard requiredRole="mc">
+            <MCWebSocketWrapper>
+                <Routes>
+                    <Route path="/" element={<Navigate to="/mc/access" replace />} />
+                    <Route path="/access" element={<MGameAccessPage />} />
+                    <Route path="/waiting" element={<WaitingPage />} />
+                    <Route path="/waiting/:matchCode" element={<WaitingPage />} />
+                    <Route path="/kdc/:matchCode" element={<KhoiDongChungPage />} />
+                    <Route path="/kdr/:matchCode" element={<KhoiDongRiengPage />} />
+                    <Route path="/bp/:matchCode" element={<ButPhaPage />} />
+                    <Route path="/gm/:matchCode" element={<GiaiMaPage />} />
+                    <Route path="/vdc/pick/:matchCode" element={<VeDichPickPage round={VeDichRound.CHUNG} />} />
+                    <Route path="/vdc/:matchCode" element={<VeDichChungPage />} />
+                    <Route path="/vdr/pick/:matchCode" element={<VeDichPickPage round={VeDichRound.RIENG} />} />
+                    <Route path="/vdr/:matchCode" element={<VeDichRiengPage />} />
+                    <Route path="*" element={<Navigate to="/mc/access" replace />} />
+                </Routes>
+            </MCWebSocketWrapper>
+        </AuthGuard>
     );
 };
 

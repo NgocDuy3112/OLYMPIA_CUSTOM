@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, ChevronDown } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, ChevronDown, Paperclip } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 const logger = createLogger("AGameManaging");
@@ -39,7 +38,7 @@ interface UserData {
     user_code: string;
     user_name: string;
     email: string | null;
-    role: "guest" | "player" | "mc" | "admin";
+    role: "player" | "mc" | "admin";
     created_at: string;
     updated_at: string;
 }
@@ -65,10 +64,8 @@ interface ApiResponse {
 }
 
 const AGameManagingPage = () => {
-    const token = localStorage.getItem("jwtToken_admin") ?? "";
     const { sendMessage } = useGameWebSocket();
 
-    const [showChangePassword, setShowChangePassword] = useState(false);
 
     const [users, setUsers] = useState<UserData[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
@@ -109,7 +106,7 @@ const AGameManagingPage = () => {
     const [newPlayerName, setNewPlayerName] = useState("");
     const [newPlayerCode, setNewPlayerCode] = useState("");
     const [newPlayerEmail, setNewPlayerEmail] = useState("");
-    const [newUserRole, setNewUserRole] = useState<"guest" | "player" | "mc" | "admin">("player");
+    const [newUserRole, setNewUserRole] = useState<"player" | "mc" | "admin">("player");
     const [addingPlayer, setAddingPlayer] = useState(false);
 
     const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
@@ -132,9 +129,8 @@ const AGameManagingPage = () => {
     const authHeaders = useCallback(
         (): HeadersInit => ({
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
         }),
-        [token],
+        [],
     );
 
     useEffect(() => {
@@ -371,7 +367,7 @@ const AGameManagingPage = () => {
                     `${API_BASE_URL}/media/upload/?match_code=${encodeURIComponent(code)}`,
                     {
                         method: 'POST',
-                        headers: { Authorization: `Bearer ${token}` },
+                        headers: authHeaders(),
                         body: formData,
                     }
                 );
@@ -410,7 +406,7 @@ const AGameManagingPage = () => {
         } finally {
             setSavingQuestionEdit(false);
         }
-    }, [authHeaders, editingQuestion, editQContent, editQAnswer, editQExplanation, editQMediaUrl, editQMediaFile, questionsMatchCode, matchCode, token, fetchQuestions]);
+    }, [authHeaders, editingQuestion, editQContent, editQAnswer, editQExplanation, editQMediaUrl, editQMediaFile, questionsMatchCode, matchCode, fetchQuestions]);
 
     const uploadExcel = useCallback(async (file: File, isQualifier: boolean) => {
         const code = questionsMatchCode || matchCode;
@@ -428,7 +424,7 @@ const AGameManagingPage = () => {
                 : `${API_BASE_URL}/questions/excel/?match_code=${encodeURIComponent(code)}`;
             const res = await fetch(url, {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
+                headers: authHeaders(),
                 body: formData,
             });
             const json: ApiResponse = await res.json();
@@ -444,7 +440,7 @@ const AGameManagingPage = () => {
         } finally {
             setter(false);
         }
-    }, [token, questionsMatchCode, matchCode, fetchQuestions]);
+    }, [authHeaders, questionsMatchCode, matchCode, fetchQuestions]);
 
     const uploadZip = useCallback(async (file: File) => {
         if (!confirm("Upload ZIP sẽ XÓA câu hỏi cũ và thay bằng nội dung mới (cả media trên S3). Tiếp tục?")) {
@@ -456,7 +452,7 @@ const AGameManagingPage = () => {
             formData.append("file", file);
             const res = await fetch(`${API_BASE_URL}/questions/zip/`, {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
+                headers: authHeaders(),
                 body: formData,
             });
             const json: ApiResponse = await res.json();
@@ -472,7 +468,7 @@ const AGameManagingPage = () => {
         } finally {
             setUploadingZip(false);
         }
-    }, [token, fetchQuestions]);
+    }, [authHeaders, fetchQuestions]);
 
     const patchUser = useCallback(async () => {
         if (!editingUser) return;
@@ -671,22 +667,10 @@ const AGameManagingPage = () => {
     };
 
     return (
-        <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-4 p-6 h-screen text-white overflow-hidden">
-            { }
-            <button
-                onClick={() => setShowChangePassword(true)}
-                className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 hover:bg-blue-600 shadow-lg transition-colors text-sm font-semibold"
-                title="Đổi mật khẩu"
-            >
-                <KeyRound size={16} /> Đổi mật khẩu
-            </button>
+        <div className="grid grid-cols-1 lg:grid-cols-2 grid-rows-[auto_1fr] lg:grid-rows-[1fr_2fr] gap-3 sm:gap-4 p-3 sm:p-4 lg:p-6 min-h-screen lg:h-screen text-white overflow-auto lg:overflow-hidden">
 
-            {showChangePassword && (
-                <ChangePasswordModal
-                    token={token}
-                    onClose={() => setShowChangePassword(false)}
-                />
-            )}
+
+
 
             {revealedPassword && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -900,7 +884,6 @@ const AGameManagingPage = () => {
                             <option value="player">Thí sinh</option>
                             <option value="mc">MC</option>
                             <option value="admin">Admin</option>
-                            <option value="guest">Guest</option>
                         </select>
                     </div>
                     <div className="flex gap-2">
@@ -949,13 +932,12 @@ const AGameManagingPage = () => {
                         />
                         <select
                             value={newUserRole}
-                            onChange={(e) => setNewUserRole(e.target.value as "guest" | "player" | "mc" | "admin")}
+                            onChange={(e) => setNewUserRole(e.target.value as "player" | "mc" | "admin")}
                             className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
                         >
                             <option value="player">Thí sinh (player)</option>
                             <option value="mc">MC</option>
                             <option value="admin">Admin</option>
-                            <option value="guest">Guest</option>
                         </select>
                         <button
                             onClick={createUser}
@@ -1367,19 +1349,11 @@ const AGameManagingPage = () => {
                                             {q.explanation ?? "—"}
                                         </td>
                                         <td className="py-2 px-2 text-xs">
-                                            {q.media_url
-                                                ? q.media_url.split(',').map((url, i) => (
-                                                    <a
-                                                        key={i}
-                                                        href={url.trim()}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="text-blue-400 hover:underline block truncate max-w-40"
-                                                    >
-                                                        {url.trim()}
-                                                    </a>
-                                                ))
-                                                : "—"}
+                                            {q.media_url ? (
+                                                <span className="inline-flex items-center gap-1 text-blue-400" title={q.media_url}>
+                                                    <Paperclip size={14} /> <span className="text-gray-400">✓</span>
+                                                </span>
+                                            ) : "—"}
                                         </td>
                                     </tr>
                                 ))}
