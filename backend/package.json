@@ -1,9 +1,10 @@
 {
-  "name": "olympia-v4",
+  "name": "olympia-backend",
   "private": true,
   "scripts": {
     "dev": "turbo dev",
-    "build": "turbo build"
+    "build": "turbo build",
+    "lint": "turbo lint"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

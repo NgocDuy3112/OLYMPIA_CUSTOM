@@ -31,19 +31,18 @@ services:
       - olympia-network
     restart: unless-stopped
 
-  # ── FastAPI backend ───────────────────────────────────────
+  # ── Fastify backend ──────────────────────────────────────
   app:
     container_name: olympia-app
     build:
-      context: ./backend/app
-      dockerfile: Dockerfile
-    command: ["sh", "-c", "fastapi run main.py --host 0.0.0.0 --port 8000 > /var/log/olympia/app.log 2>&1"]
+      context: ./backend
+      dockerfile: apps/api/Dockerfile
     env_file:
       - ./configs/.env
     environment:
       APP_HOST: 0.0.0.0
+      APP_PORT: 8000
       FRONTEND_URL: https://olympia-custom.io.vn
-      DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
       POSTGRES_DB_HOST: postgresql
       POSTGRES_DB_PORT: 5432
       VALKEY_HOST: valkey
@@ -74,49 +73,14 @@ services:
       - olympia-network
     restart: unless-stopped
 
-  # ── Discord / BGM bot ─────────────────────────────────────
-  bgm-bot:
-    container_name: olympia-bgm-bot
+  # ── Discord bot ──────────────────────────────────────────
+  discord-bot:
+    container_name: olympia-discord-bot
     build:
-      context: .
-      dockerfile: backend/discord/Dockerfile
-    command: ["sh", "-c", "python bgm_bot.py > /var/log/olympia/bgm.log 2>&1"]
+      context: ./backend
+      dockerfile: apps/discord-bot/Dockerfile
     env_file:
       - ./configs/.env
-    volumes:
-      - ./logs:/var/log/olympia
-    depends_on:
-      - valkey
-    networks:
-      - olympia-network
-    restart: unless-stopped
-
-  sfx-bot:
-    container_name: olympia-sfx-bot
-    build:
-      context: .
-      dockerfile: backend/discord/Dockerfile
-    command: ["sh", "-c", "python sfx_bot.py > /var/log/olympia/sfx.log 2>&1"]
-    env_file:
-      - ./configs/.env
-    volumes:
-      - ./logs:/var/log/olympia
-    depends_on:
-      - valkey
-    networks:
-      - olympia-network
-    restart: unless-stopped
-  
-  ping-bot:
-    container_name: olympia-ping-bot
-    build:
-      context: .
-      dockerfile: backend/discord/Dockerfile
-    command: ["sh", "-c", "python ping_bot.py > /var/log/olympia/ping.log 2>&1"]
-    env_file:
-      - ./configs/.env
-    volumes:
-      - ./logs:/var/log/olympia
     depends_on:
       - valkey
     networks:
