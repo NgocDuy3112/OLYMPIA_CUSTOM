@@ -7,7 +7,6 @@ import ResetPasswordPage from "@/pages/auth/ResetPasswordPage";
 const PlayerRoutes = lazy(() => import("@/routes/PlayerRoutes"));
 const AdminRoutes = lazy(() => import("@/routes/AdminRoutes"));
 const MCRoutes = lazy(() => import("@/routes/MCRoutes"));
-const GuestRoutes = lazy(() => import("@/routes/GuestRoutes"));
 
 function App() {
   return (
@@ -27,7 +26,6 @@ function App() {
             <Route path="/player/*" element={<PlayerRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
             <Route path="/mc/*" element={<MCRoutes />} />
-            <Route path="/guest/*" element={<GuestRoutes />} />
           </Routes>
         </Suspense>
       </div>

@@ -13,7 +13,6 @@ from routes import (
     question,
     record,
     scoreboard,
-    qualifier,
     media,
     gm,
 )
@@ -51,7 +50,7 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.execute(text(
             "DO $$ BEGIN "
-            "CREATE TYPE roleenum AS ENUM ('guest', 'player', 'mc', 'admin'); "
+            "CREATE TYPE roleenum AS ENUM ('player', 'mc', 'admin'); "
             "EXCEPTION WHEN duplicate_object THEN NULL; "
             "END $$"
         ))
@@ -126,7 +125,6 @@ app.include_router(answer.router)
 app.include_router(question.router)
 app.include_router(record.router)
 app.include_router(scoreboard.router)
-app.include_router(qualifier.router)
 app.include_router(media.router)
 app.include_router(gm.router)
 

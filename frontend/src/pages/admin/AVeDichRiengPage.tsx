@@ -774,7 +774,6 @@ const AVeDichRiengPage = () => {
 				break;
 			}
 			case "mc_reconnected":
-			case "guest_online":
 			case "player_reconnected":
 			case "user_online": {
 				if (msg.user_code) {

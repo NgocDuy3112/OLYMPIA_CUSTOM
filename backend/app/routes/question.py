@@ -44,24 +44,6 @@ async def post_questions_from_excel(
 
 
 @router.post(
-    "/excel/qualifier/",
-    dependencies=[Depends(require_roles(['admin']))],
-    response_model=BaseResponse,
-    status_code=201
-)
-async def post_qualifier_questions_from_excel(
-    file: UploadFile = File(...),
-    session: AsyncSession = Depends(get_db),
-) -> BaseResponse:
-    try:
-        return await post_qualifier_questions_from_excel_to_db(file, session)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-
-@router.post(
     "/zip/",
     dependencies=[Depends(require_roles(['admin']))],
     response_model=BaseResponse,

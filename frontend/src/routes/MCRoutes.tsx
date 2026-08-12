@@ -10,7 +10,6 @@ import MKhoiDongChungPage from "@/pages/mc/MKhoiDongChungPage";
 import MKhoiDongRiengPage from "@/pages/mc/MKhoiDongRiengPage";
 import MButPhaPage from "@/pages/mc/MButPhaPage";
 import MGiaiMaPage from "@/pages/mc/MGiaiMaPage";
-import MQualifierPage from "@/pages/mc/MQualifierPage";
 import MVeDichChungPage from "@/pages/mc/MVeDichChungPage";
 import MVeDichRiengPage from "@/pages/mc/MVeDichRiengPage";
 import MVeDichPickPage from "@/pages/mc/MVeDichPickPage";
@@ -59,14 +58,11 @@ const MCAutoNavigator: React.FC = () => {
         }
         if (!mcPath) return;
 
-        const isQualifier = mcPath.startsWith("/mc/vl");
         const noParamsPaths = ["/mc/waiting"];
         const alreadyHasMatchCode = matchCode && mcPath.endsWith(`/${matchCode}`);
         const target = noParamsPaths.includes(mcPath) || alreadyHasMatchCode
             ? mcPath
-            : isQualifier
-                ? `${mcPath}/OC3_M_VL`
-                : `${mcPath}/${matchCode}`;
+            : `${mcPath}/${matchCode}`;
 
         const currentPath = location.pathname.endsWith("/")
             ? location.pathname.slice(0, -1)
@@ -81,7 +77,7 @@ const MCAutoNavigator: React.FC = () => {
 };
 
 const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const matchCode = useMatchCode({ defaultPath: "/mc/vl", defaultCode: "OC3_M_VL" });
+    const matchCode = useMatchCode({ defaultPath: "/mc" });
 
     if (!matchCode) return <>{children}</>;
 
@@ -116,14 +112,6 @@ const MCRoutes = () => {
                 <Route
                     path="/gm/:matchCode"
                     element={<ProtectedMcRoute><MGiaiMaPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vl/:matchCode"
-                    element={<ProtectedMcRoute><MQualifierPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vl"
-                    element={<ProtectedMcRoute><MQualifierPage /></ProtectedMcRoute>}
                 />
                 <Route
                     path="/vdc/pick/:matchCode"

@@ -22,12 +22,9 @@ SIMPLE_FIELDS = {
     "keyword_clues_locked": "keyword_clues_locked",
     "reveal_keyword_answer": "keyword_answer",
     "media_control": "video",
-    "sync_qualifier_round": "qualifier_round",
-    "qualifier_round_result": "qualifier_round_result",
 }
 
 REPLAY_ORDER = [
-    "qualifier_round",
     "vd_selected_chung",
     "vd_selected_rieng",
     "vdc_meta",
@@ -43,7 +40,6 @@ REPLAY_ORDER = [
     "keyword_clues_locked",
     "keyword_answers",
     "keyword_answer",
-    "qualifier_round_result",
 ]
 
 CLEAR_FIELDS = [
@@ -56,7 +52,6 @@ CLEAR_FIELDS = [
     "keyword_info",
     "keyword_clues_locked",
     "keyword_answer",
-    "qualifier_round_result",
 ]
 
 

@@ -9,7 +9,6 @@ from models import *
 
 
 class RoleEnum(str, enum.Enum):
-    guest = "guest"
     player = "player"
     mc = "mc"
     admin = "admin"

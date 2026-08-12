@@ -445,7 +445,6 @@ const AButPhaPage = () => {
 				break;
 			}
 			case "mc_reconnected":
-			case "guest_online":
 			case "user_online": {
 				if (msg.user_code) {
 					startTransition(() => {

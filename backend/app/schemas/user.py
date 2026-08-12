@@ -4,7 +4,7 @@ from typing import Literal
 from schemas.base import *
 
 
-Role = Literal["guest", "player", "mc", "admin"]
+Role = Literal["player", "mc", "admin"]
 
 
 class UserCreate(BaseModel):
