@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from logger import global_logger
+from configs import ValkeySettings
 
 if TYPE_CHECKING:
 
@@ -21,7 +22,7 @@ POWER_KEY_PREFIX = "vd:powers:"
 OLD_POWER_KEY_PREFIX = "vedich:powers:"
 
 
-POWER_HASH_TTL_SECONDS = 24 * 60 * 60
+POWER_HASH_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
 
 VALID_POWERS = ("star", "shield")
 

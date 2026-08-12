@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from logger import global_logger
+from configs import ValkeySettings
 
 if TYPE_CHECKING:
     from valkey.asyncio import Valkey
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
 BUZZER_WINNER_KEY_PREFIX = "buzzer_winner:"
 
 
-BUZZER_WINNER_TTL_SECONDS = 30
+BUZZER_WINNER_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
 
 
 def buzzer_winner_key(match_code: str) -> str:

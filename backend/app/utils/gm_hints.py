@@ -5,6 +5,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
+from configs import ValkeySettings
 
 if TYPE_CHECKING:
     from valkey.asyncio import Valkey
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 GM_HINTS_KEY_PREFIX = "gm:hints:"
 
 
-GM_HINTS_TTL_SECONDS = 10800
+GM_HINTS_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
 
 
 def gm_hints_key(match_code: str) -> str:

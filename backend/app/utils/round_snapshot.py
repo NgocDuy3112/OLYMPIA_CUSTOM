@@ -4,13 +4,14 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
+from configs import ValkeySettings
 
 if TYPE_CHECKING:
     from valkey.asyncio import Valkey
 
 
 ROUND_SNAPSHOT_KEY_PREFIX = "round:snapshot:"
-ROUND_SNAPSHOT_TTL_SECONDS = 10800
+ROUND_SNAPSHOT_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
 
 SIMPLE_FIELDS = {
     "send_question": "current_question",
