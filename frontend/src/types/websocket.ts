@@ -48,7 +48,7 @@ export interface WebSocketMessage extends WebSocketPayload {
   used_powers?: Record<string, "star" | "shield" | null>;
   round?: string;
   status?: "online" | "heartbeat";
-  role?: "player" | "mc" | "guest" | "admin";
+  role?: "player" | "mc" | "admin";
   selected_player_code?: string;
 }
 

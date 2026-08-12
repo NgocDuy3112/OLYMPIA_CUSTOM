@@ -51,9 +51,6 @@ async def signup(
             prefix = "OC_U_P03"
         elif user_data.role == "mc":
             prefix = "OC_U_MC"
-        elif user_data.role == "guest":
-            prefix = "OC_U_G"
-
         user_code = f"{prefix}{uuid.uuid4().hex[:8].upper()}"
 
     result = await session.execute(
@@ -210,27 +207,6 @@ async def change_password(user_code: str, old_password: str, new_password: str, 
     await session.commit()
     global_logger.info(f"Password changed for user_code={user_code}.")
     return BaseResponse(status="success", message="Đổi mật khẩu thành công.")
-
-
-async def guest_token() -> TokenResponse:
-    guest_code = f"OC_U_G{uuid.uuid4().hex[:8].upper()}"
-    guest_name = f"Guest_{uuid.uuid4().hex[:4].upper()}"
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = create_access_token(
-        data={
-            "sub": guest_code + guest_name,
-            "user_name": guest_name,
-            "user_code": guest_code,
-            "role": "guest",
-        },
-        expires_delta=access_token_expires,
-    )
-    return TokenResponse(
-        access_token=token,
-        role="guest",
-        user_code=guest_code,
-        user_name=guest_name,
-    )
 
 
 async def login(form_data: OAuth2PasswordRequestForm, session: AsyncSession) -> TokenResponse:

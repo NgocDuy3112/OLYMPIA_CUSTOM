@@ -17,6 +17,7 @@ from utils.buzzer_lock import (
 )
 from utils.buzzer_winners import set_buzzer_winner
 from utils.id_cache import resolve_buzz_ids
+from configs import ValkeySettings
 
 
 async def get_first_buzzer(
@@ -185,7 +186,7 @@ async def post_answer_to_db(
                 "type": "answer",
             }
             try:
-                await valkey.set(cache_key, json.dumps(cache_payload))
+                await valkey.set(cache_key, json.dumps(cache_payload), ex=ValkeySettings().VALKEY_STATE_TTL_SECONDS)
                 await valkey.publish(channel=f"events:{request.match_code}", message=json.dumps(cache_payload))
                 global_logger.debug(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
             except Exception as e:

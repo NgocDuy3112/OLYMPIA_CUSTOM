@@ -5,6 +5,7 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
+from configs import ValkeySettings
 
 if TYPE_CHECKING:
     from valkey.asyncio import Valkey
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
 GM_PLAYER_STATE_KEY_PREFIX = "gm:player_state:"
 
 
-GM_PLAYER_STATE_TTL_SECONDS = 10800
+GM_PLAYER_STATE_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
 
 
 def gm_player_state_key(match_code: str, user_code: str) -> str:

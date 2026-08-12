@@ -11,7 +11,6 @@ import PVeDichChungPage from "@/pages/player/PVeDichChungPage";
 import PVeDichRiengPage from "@/pages/player/PVeDichRiengPage";
 import PVeDichPickPage from "@/pages/player/PVeDichPickPage";
 import PGiaiMaPage from "@/pages/player/PGiaiMaPage";
-import PQualifierPage from "@/pages/player/PQualifierPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
 import PWaitingPage from "@/pages/player/PWaitingPage";
 import { VeDichRound } from "@/types/veDich";
@@ -83,13 +82,8 @@ const PlayerAutoNavigator: React.FC = () => {
             return;
         }
 
-        const isQualifier = normalized.startsWith("/player/vl");
         const alreadyHasMatchCode = matchCode && normalized.endsWith(`/${matchCode}`);
-        const target = isQualifier
-            ? (normalized.endsWith("/OC3_M_VL") ? normalized : `${normalized}/OC3_M_VL`)
-            : alreadyHasMatchCode
-                ? normalized
-                : `${normalized}/${matchCode}`;
+        const target = alreadyHasMatchCode ? normalized : `${normalized}/${matchCode}`;
 
         const currentPath = location.pathname.endsWith("/") ? location.pathname.slice(0, -1) : location.pathname;
 
@@ -104,7 +98,7 @@ const PlayerAutoNavigator: React.FC = () => {
 };
 
 const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const matchCode = useMatchCode({ defaultPath: "/player/vl", defaultCode: "OC3_M_VL" });
+    const matchCode = useMatchCode({ defaultPath: "/player" });
 
     if (!matchCode) return <>{children}</>;
 
@@ -176,22 +170,6 @@ const PlayerRoutes = () => {
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichRiengPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vl"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PQualifierPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vl/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PQualifierPage />
                         </ProtectedPlayerRoute>
                     }
                 />

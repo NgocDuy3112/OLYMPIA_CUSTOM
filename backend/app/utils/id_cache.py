@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from logger import global_logger
+from configs import ValkeySettings
 from models.match import Match
 from models.question import Question
 from models.user import User, RoleEnum
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
     from valkey.asyncio import Valkey
 
 
-_ID_CACHE_TTL_SECONDS = 3600
+_ID_CACHE_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
 
 _MATCH_KEY = "id:match:{match_code}"
 _USER_KEY = "id:user:{user_code}"
