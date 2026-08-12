@@ -1,5 +1,5 @@
 {
-  "name": "olympia-backend",
+  "name": "oc-backend",
   "private": true,
   "scripts": {
     "dev": "turbo dev",

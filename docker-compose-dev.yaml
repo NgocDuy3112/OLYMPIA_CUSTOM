@@ -1,0 +1,104 @@
+services:
+  # ── Database ──────────────────────────────────────────────
+  postgresql:
+    container_name: oc-postgresql
+    image: docker.io/library/postgres:17.5-bullseye
+    environment:
+      POSTGRES_USER: ${POSTGRES_DB_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_DB_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgresql:/var/lib/postgresql/data
+    networks:
+      - oc-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_DB_USER} -d ${POSTGRES_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Cache + WebSocket pub/sub ─────────────────────────────
+  valkey:
+    container_name: oc-valkey
+    image: docker.io/valkey/valkey:9-alpine
+    command: valkey-server /etc/valkey/valkey.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./configs/valkey.conf:/etc/valkey/valkey.conf:ro
+      - ./data/valkey:/data
+    networks:
+      - oc-network
+    restart: unless-stopped
+
+  # ── Backend API (dev — hot reload) ───────────────────────
+  app:
+    container_name: oc-app
+    build:
+      context: ./backend
+      dockerfile: app/api/Dockerfile
+    env_file:
+      - ./configs/.env
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      FRONTEND_URL: http://localhost:5173
+      POSTGRES_DB_HOST: postgresql
+      POSTGRES_DB_PORT: 5432
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app/api/src:/app/app/api/src:ro
+      - ./backend/app/db/src:/app/app/db/src:ro
+      - ./configs:/app/configs:ro
+      - ./logs:/var/log/olympia
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      valkey:
+        condition: service_started
+    networks:
+      - oc-network
+
+  # ── Frontend (Vite dev server) ───────────────────────────
+  frontend:
+    container_name: oc-frontend
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_APP_ENV: dev
+      VITE_API_BASE_URL: http://localhost:8000
+      VITE_WS_BASE_URL: ws://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - oc-network
+
+  # ── Discord bot (dev — hot reload) ───────────────────────
+  discord-bot:
+    container_name: oc-discord-bot
+    build:
+      context: ./backend
+      dockerfile: app/discord-bot/Dockerfile
+    env_file:
+      - ./configs/.env
+    volumes:
+      - ./backend/app/discord-bot/src:/app/src:ro
+    depends_on:
+      - valkey
+    networks:
+      - oc-network
+
+networks:
+  oc-network:
+    driver: bridge

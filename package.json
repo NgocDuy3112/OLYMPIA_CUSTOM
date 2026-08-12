@@ -1,5 +1,5 @@
 {
-  "name": "olympia-v4",
+  "name": "oc-v4",
   "private": true,
   "scripts": {
     "dev": "turbo dev",

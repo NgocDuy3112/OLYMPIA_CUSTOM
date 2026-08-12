@@ -13,10 +13,6 @@ export function kdcCorrect(userCode: string): ScoreDelta {
   return { userCode, points: 10, reason: 'kdc_correct' }
 }
 
-/**
- * Khởi Động Cá Nhân — points depend on attempt number:
- *   1st try: 10, 2nd try: 5, 3rd+: 0
- */
 export function kdrCorrect(userCode: string, attemptNumber: number): ScoreDelta {
   const points = attemptNumber === 1 ? 10 : attemptNumber === 2 ? 5 : 0
   return { userCode, points, reason: 'kdr_correct' }

@@ -1,12 +1,12 @@
 /**
- * OC3 — Olympia Custom 3 configuration.
+ * OC3 — OC 3 configuration.
  *
  * All scoring values, time limits, and phase rules.
  */
 
 export const OC3_CONFIG = {
   id: 'oc3',
-  name: 'Olympia Custom 3',
+  name: 'OC 3',
 
   // ── Scoring ──
   scoring: {

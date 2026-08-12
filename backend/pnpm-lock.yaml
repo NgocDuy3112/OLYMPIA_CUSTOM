@@ -15,7 +15,7 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  apps/api:
+  app/api:
     dependencies:
       '@aws-sdk/client-s3':
         specifier: ^3.812.0
@@ -29,13 +29,10 @@ importers:
       '@fastify/cors':
         specifier: ^11.0.0
         version: 11.3.0
-      '@fastify/type-provider-zod':
-        specifier: ^1.0.0
-        version: 1.0.0(@fastify/swagger@9.8.1)(fastify@5.11.2)(openapi-types@12.1.3)(zod@3.25.76)
       '@fastify/websocket':
         specifier: ^11.0.0
         version: 11.3.0
-      '@olympia/db':
+      '@oc/db':
         specifier: workspace:*
         version: link:../db
       '@types/ws':
@@ -50,6 +47,9 @@ importers:
       fastify-plugin:
         specifier: ^4.0.1
         version: 4.5.1
+      fastify-type-provider-zod:
+        specifier: ^4.0.2
+        version: 4.0.2(fastify@5.11.2)(zod@3.25.76)
       ioredis:
         specifier: ^5.6.1
         version: 5.11.1
@@ -85,7 +85,26 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
-  apps/discord-bot:
+  app/db:
+    dependencies:
+      drizzle-orm:
+        specifier: ^0.44.0
+        version: 0.44.7(postgres@3.4.9)
+      postgres:
+        specifier: ^3.4.5
+        version: 3.4.9
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.3
+        version: 22.20.1
+      drizzle-kit:
+        specifier: ^0.31.0
+        version: 0.31.10
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+
+  app/discord-bot:
     dependencies:
       discord.js:
         specifier: ^14.18.0
@@ -109,25 +128,6 @@ importers:
 
   engine:
     devDependencies:
-      typescript:
-        specifier: ^5.8.3
-        version: 5.9.3
-
-  apps/db:
-    dependencies:
-      drizzle-orm:
-        specifier: ^0.44.0
-        version: 0.44.7(postgres@3.4.9)
-      postgres:
-        specifier: ^3.4.5
-        version: 3.4.9
-    devDependencies:
-      '@types/node':
-        specifier: ^22.15.3
-        version: 22.20.1
-      drizzle-kit:
-        specifier: ^0.31.0
-        version: 0.31.10
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -717,17 +717,6 @@ packages:
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
 
-  '@fastify/swagger@9.8.1':
-    resolution: {integrity: sha512-VpHMnqZTY8iBZYJE8WWkbKPrXIYWy2rDfIf5qLr6DzZSpQYZ+KxQVcJFiq/AMlvNwI4gCBd66++iUlxXXGT0IQ==}
-
-  '@fastify/type-provider-zod@1.0.0':
-    resolution: {integrity: sha512-X4QIFR0ZMiULemfXItp/FIMSfD0V8qeZ9HkUGyL7HEysuHoMsHyM69OIFhmIICSaZ+l1/V0D3FLNmaKwxQtsMw==}
-    peerDependencies:
-      '@fastify/swagger': '>=9.5.1'
-      fastify: ^5.5.0
-      openapi-types: ^12.1.3
-      zod: '>=4.2.0'
-
   '@fastify/websocket@11.3.0':
     resolution: {integrity: sha512-g89ag4BCcD9YP5wBZXixzoLnuf5j89p/sXFcfpCiv2pdEkYYukBEoK3heVzqsp0EAtszVDc2BBZG0KZqeAShIA==}
 
@@ -1041,6 +1030,12 @@ packages:
   fastify-plugin@6.0.0:
     resolution: {integrity: sha512-fZOty7z3O7vOliF6d8bHE3wiEh1KcNnKEQensSgTk9C1DvN6nRLS++XVd86v33Hw/8u9Un8A1zDrQ8ujcQDHEg==}
 
+  fastify-type-provider-zod@4.0.2:
+    resolution: {integrity: sha512-FDRzSL3ZuoZ+4YDevR1YOinmDKkxOdy3QB9dDR845sK+bQvDroPKhHAXLEAOObDxL7SMA0OZN/A4osrNBTdDTQ==}
+    peerDependencies:
+      fastify: ^5.0.0
+      zod: ^3.14.2
+
   fastify@5.11.2:
     resolution: {integrity: sha512-i/eJG7nXR9OkbFgoX4jFiPOHoRq0rXqDACVAXELh5Fdg6BFBErIVZ8MyibGCwup9Go1pYrxZJ0ogIub8vVdEcQ==}
 
@@ -1079,10 +1074,6 @@ packages:
 
   json-schema-ref-resolver@3.0.0:
     resolution: {integrity: sha512-hOrZIVL5jyYFjzk7+y7n5JDzGlU8rfWDuYyHwGa2WA8/pcmMHezp2xsVwxrebD/Q9t8Nc5DboieySDpCp4WG4A==}
-
-  json-schema-resolver@3.0.0:
-    resolution: {integrity: sha512-HqMnbz0tz2DaEJ3ntsqtx3ezzZyDE7G56A/pPY/NGmrPu76UzsWquOpHFRAf5beTNXoH2LU5cQePVvRli1nchA==}
-    engines: {node: '>=20'}
 
   json-schema-traverse@1.0.0:
     resolution: {integrity: sha512-NM8/P9n3XjXhIZn1lLhkFaACTOURQXjWhV4BA/RnOv8xvgqtqpAX9IO4mRQxSx1Rlo4tqzeqb0sOlruaOy3dug==}
@@ -1142,9 +1133,6 @@ packages:
 
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
-
-  openapi-types@12.1.3:
-    resolution: {integrity: sha512-N4YtSYJqghVu4iek2ZUvcN/0aqH1kRDuNqzcycDxhOUpg7GdvLa2F3DgS6yBNhInhv2r/6I0Flkn7CqL8+nIcw==}
 
   pino-abstract-transport@2.0.0:
     resolution: {integrity: sha512-F63x5tizV6WCh4R6RHyi2Ml+M70DNRXt/+HANowMflpgGFMAym/VKm6G7ZOQRjqN7XbGxK1Lg9t6ZrtzOaivMw==}
@@ -1314,10 +1302,10 @@ packages:
       utf-8-validate:
         optional: true
 
-  yaml@2.9.0:
-    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
-    engines: {node: '>= 14.6'}
-    hasBin: true
+  zod-to-json-schema@3.25.2:
+    resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
+    peerDependencies:
+      zod: ^3.25.28 || ^4
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
@@ -1814,24 +1802,6 @@ snapshots:
       '@fastify/forwarded': 3.0.2
       ipaddr.js: 2.5.0
 
-  '@fastify/swagger@9.8.1':
-    dependencies:
-      fastify-plugin: 6.0.0
-      json-schema-resolver: 3.0.0
-      openapi-types: 12.1.3
-      rfdc: 1.4.1
-      yaml: 2.9.0
-    transitivePeerDependencies:
-      - supports-color
-
-  '@fastify/type-provider-zod@1.0.0(@fastify/swagger@9.8.1)(fastify@5.11.2)(openapi-types@12.1.3)(zod@3.25.76)':
-    dependencies:
-      '@fastify/error': 4.2.0
-      '@fastify/swagger': 9.8.1
-      fastify: 5.11.2
-      openapi-types: 12.1.3
-      zod: 3.25.76
-
   '@fastify/websocket@11.3.0':
     dependencies:
       duplexify: 4.1.3
@@ -2125,6 +2095,13 @@ snapshots:
 
   fastify-plugin@6.0.0: {}
 
+  fastify-type-provider-zod@4.0.2(fastify@5.11.2)(zod@3.25.76):
+    dependencies:
+      '@fastify/error': 4.2.0
+      fastify: 5.11.2
+      zod: 3.25.76
+      zod-to-json-schema: 3.25.2(zod@3.25.76)
+
   fastify@5.11.2:
     dependencies:
       '@fastify/ajv-compiler': 4.0.5
@@ -2183,14 +2160,6 @@ snapshots:
   json-schema-ref-resolver@3.0.0:
     dependencies:
       dequal: 2.0.3
-
-  json-schema-resolver@3.0.0:
-    dependencies:
-      debug: 4.4.3
-      fast-uri: 3.1.5
-      rfdc: 1.4.1
-    transitivePeerDependencies:
-      - supports-color
 
   json-schema-traverse@1.0.0: {}
 
@@ -2253,8 +2222,6 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
-
-  openapi-types@12.1.3: {}
 
   pino-abstract-transport@2.0.0:
     dependencies:
@@ -2407,6 +2374,8 @@ snapshots:
 
   ws@8.21.3: {}
 
-  yaml@2.9.0: {}
+  zod-to-json-schema@3.25.2(zod@3.25.76):
+    dependencies:
+      zod: 3.25.76
 
   zod@3.25.76: {}

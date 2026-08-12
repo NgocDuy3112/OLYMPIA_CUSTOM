@@ -1,5 +1,5 @@
 /**
- * OC3 Engine — Olympia Custom 3.
+ * OC3 Engine — OC 3.
  *
  * Pure game logic — no WebSocket, no DB, no Valkey.
  * Backward compatible with existing OC3 data.

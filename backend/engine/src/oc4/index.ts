@@ -1,5 +1,5 @@
 /**
- * OC4 Engine — Olympia Custom 4.
+ * OC4 Engine — OC 4.
  *
  * Currently identical to OC3. Override methods here as OC4 diverges.
  */
