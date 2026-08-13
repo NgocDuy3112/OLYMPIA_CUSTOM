@@ -11,7 +11,6 @@ class AppSettings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-
     SEASON: int = 3
 
     @computed_field
@@ -54,6 +53,8 @@ class ValkeySettings(BaseSettings):
     VALKEY_PORT: int
     VALKEY_TIMEOUT: float = 5.0
     VALKEY_HEALTH_CHECK_INTERVAL: int = 30
+    VALKEY_STATE_TTL_SECONDS: int = 900
+
 
     @computed_field
     @property

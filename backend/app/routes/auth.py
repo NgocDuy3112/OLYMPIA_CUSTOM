@@ -14,15 +14,6 @@ router = APIRouter(prefix="/auth", tags=["Uỷ Quyền"])
 
 
 @router.post(
-    "/guest-token",
-    response_model=TokenResponse,
-    status_code=200,
-)
-async def guest_token_api() -> TokenResponse:
-    return await guest_token()
-
-
-@router.post(
     "/signup",
     response_model=TokenResponse,
     status_code=201

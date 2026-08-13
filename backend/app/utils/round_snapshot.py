@@ -4,13 +4,14 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
+from configs import ValkeySettings
 
 if TYPE_CHECKING:
     from valkey.asyncio import Valkey
 
 
 ROUND_SNAPSHOT_KEY_PREFIX = "round:snapshot:"
-ROUND_SNAPSHOT_TTL_SECONDS = 10800
+ROUND_SNAPSHOT_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
 
 SIMPLE_FIELDS = {
     "send_question": "current_question",
@@ -22,12 +23,9 @@ SIMPLE_FIELDS = {
     "keyword_clues_locked": "keyword_clues_locked",
     "reveal_keyword_answer": "keyword_answer",
     "media_control": "video",
-    "sync_qualifier_round": "qualifier_round",
-    "qualifier_round_result": "qualifier_round_result",
 }
 
 REPLAY_ORDER = [
-    "qualifier_round",
     "vd_selected_chung",
     "vd_selected_rieng",
     "vdc_meta",
@@ -43,7 +41,6 @@ REPLAY_ORDER = [
     "keyword_clues_locked",
     "keyword_answers",
     "keyword_answer",
-    "qualifier_round_result",
 ]
 
 CLEAR_FIELDS = [
@@ -56,7 +53,6 @@ CLEAR_FIELDS = [
     "keyword_info",
     "keyword_clues_locked",
     "keyword_answer",
-    "qualifier_round_result",
 ]
 
 

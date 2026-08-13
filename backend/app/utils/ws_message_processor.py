@@ -53,7 +53,6 @@ PLAYER_ALLOWED_TYPES: frozenset[str] = frozenset({
     "vd_power_window_closed",
     "vd_questions_meta_request",
     "pong_latency",
-    "qualifier_standings",
     "send_room_info",
     "request_snapshot",
 })
@@ -97,7 +96,6 @@ MC_ALLOWED_TYPES: frozenset[str] = frozenset({
     "buzzer_winner",
     "blocked_buzz",
     "vd_power_window_open",
-    "qualifier_standings",
     "send_room_info",
     "request_snapshot",
 })
@@ -108,8 +106,6 @@ def is_allowed_by_role(user_role: str, msg_type: str) -> bool:
         return msg_type in PLAYER_ALLOWED_TYPES
     if user_role == "mc":
         return msg_type in MC_ALLOWED_TYPES
-    if user_role == "guest":
-        return msg_type in {"user_online", "request_snapshot"}
     return True
 
 
@@ -127,7 +123,6 @@ async def send_initial_snapshot(
     from core.match import get_match_by_match_code_from_db
     from core.scoreboard import get_scoreboard_for_a_match_from_db
     from core.record import get_records_from_db
-    from core.qualifier import get_qualifier_standings
     from core.question import get_question_from_request_from_db
 
     try:
@@ -219,18 +214,6 @@ async def send_initial_snapshot(
             except Exception as e:
                 global_logger.warning(f"[SNAPSHOT] send_players_info failed: {e}")
 
-            if match_code.startswith("OC3_VL"):
-                try:
-                    standings_resp = await get_qualifier_standings(match_code, 1, session, ws_manager.valkey)
-                    standings = (standings_resp.data or {}).get("standings", []) if isinstance(standings_resp.data, dict) else []
-                    if user_role == "player":
-                        standings = [s for s in standings if s.get("user_code") == user_code]
-                    await websocket.send_json({
-                        "type": "qualifier_standings",
-                        "standings": standings,
-                    })
-                except Exception as e:
-                    global_logger.warning(f"[SNAPSHOT] standings fetch failed for {match_code!r}: {e}")
 
             try:
                 kw_resp = await get_question_from_request_from_db(match_code, KEYWORD_QUESTION_CODE, session)
@@ -317,20 +300,6 @@ async def handle_mc_reconnect(
         log_prefix="mc",
     )
 
-
-async def handle_guest_reconnect(
-    ws_manager: ConnectionManager,
-    match_code: str,
-    user_code: str,
-) -> None:
-    await _replay_role_state(
-        ws_manager=ws_manager,
-        match_code=match_code,
-        user_code=user_code,
-        event_name="guest_online",
-        include_powers=False,
-        log_prefix="guest",
-    )
 
 
 async def _replay_role_state(

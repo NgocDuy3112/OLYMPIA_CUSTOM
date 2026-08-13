@@ -8,12 +8,12 @@ from dependencies.ws_manager import get_ws_manager
 from logger import global_logger
 from utils.ws_connection import ConnectionManager
 from utils.ws_message_processor import (
-    handle_guest_reconnect,
     handle_mc_reconnect,
     handle_player_reconnect,
     is_allowed_by_role,
     send_initial_snapshot,
 )
+from utils.buzzer_winners import get_buzzer_winners
 from utils.ws_round_handlers import persist_round_state, prepare_round_ui_payload
 
 LOUD_MESSAGE_TYPES = {"buzz", "vd_player_power", "answer", "player_answer"}
@@ -55,7 +55,7 @@ async def websocket_endpoint_handler(
     ws_manager: ConnectionManager = await get_ws_manager()
     await ws_manager.connect(websocket, match_code, user_code=user_code, role=user_role)
 
-    if user_role in ("admin", "player", "mc", "guest"):
+    if user_role in ("admin", "player", "mc"):
         await send_initial_snapshot(ws_manager, websocket, match_code, user_code, user_role)
 
     await handle_role_reconnect(ws_manager, match_code, user_code, user_role)
@@ -92,8 +92,6 @@ async def handle_role_reconnect(
         await handle_player_reconnect(ws_manager, match_code, user_code)
     elif user_role == "mc":
         await handle_mc_reconnect(ws_manager, match_code, user_code)
-    elif user_role == "guest":
-        await handle_guest_reconnect(ws_manager, match_code, user_code)
 
 
 async def handle_ws_message(
@@ -157,7 +155,7 @@ async def send_reveal_answer_if_needed(
             q_data = q_result.data if isinstance(q_result.data, dict) else {}
             answer = q_data.get("answer", "") if q_data else ""
             explanation = q_data.get("explanation", "") if q_data else ""
-            await ws_manager.send_to_roles_local(match_code, ["mc", "guest", "admin"], {
+            await ws_manager.send_to_roles_local(match_code, ["mc", "admin"], {
                 "type": "reveal_answer",
                 "question_code": question_code,
                 "answer": answer,

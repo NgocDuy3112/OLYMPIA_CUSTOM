@@ -17,6 +17,8 @@ from utils.buzzer_lock import (
 )
 from utils.buzzer_winners import set_buzzer_winner
 from utils.id_cache import resolve_buzz_ids
+from configs import ValkeySettings
+from utils.ws_connection import manager as ws_manager
 
 
 async def get_first_buzzer(
@@ -152,6 +154,13 @@ async def post_answer_to_db(
                 "match_code": request.match_code,
             }
             try:
+                await set_buzzer_winner(
+                    valkey,
+                    request.match_code,
+                    request.question_code,
+                    request.user_code,
+                )
+                await ws_manager.send_to_room_local(request.match_code, winner_payload)
                 await valkey.publish(
                     channel=f"events:{request.match_code}",
                     message=json.dumps(winner_payload),
@@ -163,13 +172,6 @@ async def post_answer_to_db(
                 global_logger.info(
                     f"[BUZZ WINNER] Player {request.user_code!r} won the buzzer "
                     f"for question {request.question_code!r} in match {request.match_code!r}"
-                )
-
-                await set_buzzer_winner(
-                    valkey,
-                    request.match_code,
-                    request.question_code,
-                    request.user_code,
                 )
             except Exception as e:
                 global_logger.error(f"Failed to publish buzz winner: {e}", exc_info=True)
@@ -185,7 +187,7 @@ async def post_answer_to_db(
                 "type": "answer",
             }
             try:
-                await valkey.set(cache_key, json.dumps(cache_payload))
+                await valkey.set(cache_key, json.dumps(cache_payload), ex=ValkeySettings().VALKEY_STATE_TTL_SECONDS)
                 await valkey.publish(channel=f"events:{request.match_code}", message=json.dumps(cache_payload))
                 global_logger.debug(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
             except Exception as e:

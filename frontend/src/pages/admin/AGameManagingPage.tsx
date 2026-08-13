@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, ChevronDown } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, ChevronDown } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 const logger = createLogger("AGameManaging");
@@ -39,7 +38,7 @@ interface UserData {
     user_code: string;
     user_name: string;
     email: string | null;
-    role: "guest" | "player" | "mc" | "admin";
+    role: "player" | "mc" | "admin";
     created_at: string;
     updated_at: string;
 }
@@ -68,7 +67,6 @@ const AGameManagingPage = () => {
     const token = localStorage.getItem("jwtToken_admin") ?? "";
     const { sendMessage } = useGameWebSocket();
 
-    const [showChangePassword, setShowChangePassword] = useState(false);
 
     const [users, setUsers] = useState<UserData[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
@@ -99,17 +97,15 @@ const AGameManagingPage = () => {
     const [savingQuestionEdit, setSavingQuestionEdit] = useState(false);
     const editMediaInputRef = useRef<HTMLInputElement>(null);
     const [uploadingExcel, setUploadingExcel] = useState(false);
-    const [uploadingExcelQl, setUploadingExcelQl] = useState(false);
     const [uploadingZip, setUploadingZip] = useState(false);
     const excelInputRef = useRef<HTMLInputElement>(null);
-    const excelQlInputRef = useRef<HTMLInputElement>(null);
     const zipInputRef = useRef<HTMLInputElement>(null);
 
     const [showAddPlayer, setShowAddPlayer] = useState(false);
     const [newPlayerName, setNewPlayerName] = useState("");
     const [newPlayerCode, setNewPlayerCode] = useState("");
     const [newPlayerEmail, setNewPlayerEmail] = useState("");
-    const [newUserRole, setNewUserRole] = useState<"guest" | "player" | "mc" | "admin">("player");
+    const [newUserRole, setNewUserRole] = useState<"player" | "mc" | "admin">("player");
     const [addingPlayer, setAddingPlayer] = useState(false);
 
     const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
@@ -412,21 +408,17 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders, editingQuestion, editQContent, editQAnswer, editQExplanation, editQMediaUrl, editQMediaFile, questionsMatchCode, matchCode, token, fetchQuestions]);
 
-    const uploadExcel = useCallback(async (file: File, isQualifier: boolean) => {
+    const uploadExcel = useCallback(async (file: File) => {
         const code = questionsMatchCode || matchCode;
-        if (!isQualifier && !code) {
+        if (!code) {
             alert("Vui lòng nhập mã trận đấu trước khi nhập Excel");
             return;
         }
-        const setter = isQualifier ? setUploadingExcelQl : setUploadingExcel;
-        setter(true);
+        setUploadingExcel(true);
         try {
             const formData = new FormData();
             formData.append("file", file);
-            const url = isQualifier
-                ? `${API_BASE_URL}/questions/excel/qualifier/`
-                : `${API_BASE_URL}/questions/excel/?match_code=${encodeURIComponent(code)}`;
-            const res = await fetch(url, {
+            const res = await fetch(`${API_BASE_URL}/questions/excel/?match_code=${encodeURIComponent(code)}`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
                 body: formData,
@@ -442,7 +434,7 @@ const AGameManagingPage = () => {
             logger.error("Error uploading Excel:", err);
             alert("Lỗi khi nhập file Excel");
         } finally {
-            setter(false);
+            setUploadingExcel(false);
         }
     }, [token, questionsMatchCode, matchCode, fetchQuestions]);
 
@@ -673,20 +665,6 @@ const AGameManagingPage = () => {
     return (
         <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-4 p-6 h-screen text-white overflow-hidden">
             { }
-            <button
-                onClick={() => setShowChangePassword(true)}
-                className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 hover:bg-blue-600 shadow-lg transition-colors text-sm font-semibold"
-                title="Đổi mật khẩu"
-            >
-                <KeyRound size={16} /> Đổi mật khẩu
-            </button>
-
-            {showChangePassword && (
-                <ChangePasswordModal
-                    token={token}
-                    onClose={() => setShowChangePassword(false)}
-                />
-            )}
 
             {revealedPassword && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -900,8 +878,7 @@ const AGameManagingPage = () => {
                             <option value="player">Thí sinh</option>
                             <option value="mc">MC</option>
                             <option value="admin">Admin</option>
-                            <option value="guest">Guest</option>
-                        </select>
+                                                    </select>
                     </div>
                     <div className="flex gap-2">
                         <button
@@ -949,14 +926,13 @@ const AGameManagingPage = () => {
                         />
                         <select
                             value={newUserRole}
-                            onChange={(e) => setNewUserRole(e.target.value as "guest" | "player" | "mc" | "admin")}
+                            onChange={(e) => setNewUserRole(e.target.value as "player" | "mc" | "admin")}
                             className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white text-sm"
                         >
                             <option value="player">Thí sinh (player)</option>
                             <option value="mc">MC</option>
                             <option value="admin">Admin</option>
-                            <option value="guest">Guest</option>
-                        </select>
+                                                    </select>
                         <button
                             onClick={createUser}
                             disabled={addingPlayer || !newPlayerName.trim() || !newPlayerCode.trim()}
@@ -1241,18 +1217,7 @@ const AGameManagingPage = () => {
                             className="hidden"
                             onChange={(e) => {
                                 const file = e.target.files?.[0];
-                                if (file) void uploadExcel(file, false);
-                                e.target.value = "";
-                            }}
-                        />
-                        <input
-                            ref={excelQlInputRef}
-                            type="file"
-                            accept=".xlsx,.xls"
-                            className="hidden"
-                            onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) void uploadExcel(file, true);
+                                if (file) void uploadExcel(file);
                                 e.target.value = "";
                             }}
                         />
@@ -1297,13 +1262,6 @@ const AGameManagingPage = () => {
                                         className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
                                     >
                                         <FileSpreadsheet size={14} /> Excel thường
-                                    </button>
-                                    <button
-                                        onClick={() => { excelQlInputRef.current?.click(); setShowImportMenu(false); }}
-                                        disabled={uploadingExcelQl}
-                                        className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
-                                    >
-                                        <FileSpreadsheet size={14} /> Excel VL
                                     </button>
                                     <button
                                         onClick={() => { zipInputRef.current?.click(); setShowImportMenu(false); }}

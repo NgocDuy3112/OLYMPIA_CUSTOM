@@ -111,7 +111,6 @@ const AWaitingPage = () => {
 				const pathByRole = {
 					player: "/player/waiting",
 					mc: "/mc/waiting",
-					guest: "/guest/waiting",
 				};
 				const path = pathByRole[msg.role as keyof typeof pathByRole];
 				if (!path) break;

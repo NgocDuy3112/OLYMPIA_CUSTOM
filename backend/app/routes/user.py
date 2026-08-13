@@ -19,7 +19,7 @@ router = APIRouter(prefix='/users', tags=['Người dùng'])
 )
 async def get_user_from_request(
     user_code: Annotated[str | None, Query(description="The unique code of the user to fetch.")] = None,
-    user_role: Annotated[Role | None, Query(description="Filter users by role: guest|player|admin")] = None,
+    user_role: Annotated[Role | None, Query(description="Filter users by role: player|mc|admin")] = None,
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:
     try:

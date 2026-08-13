@@ -8,7 +8,6 @@ import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestionPage";
 import AVeDichChungPage from "@/pages/admin/AVeDichChungPage";
 import AVeDichRiengPage from "@/pages/admin/AVeDichRiengPage";
 import AGiaiMaPage from "@/pages/admin/AGiaiMaPage";
-import AQualifierPage from "@/pages/admin/AQualifierPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 import AWaitingPage from "@/pages/admin/AWaitingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
@@ -29,8 +28,6 @@ export const ProtectedAdminRoute: React.FC<AProtectedRouteProps> = ({ children }
     return <>{children}</>;
 }
 
-const QUALIFIER_MATCH_CODE = "OC3_M_VL";
-
 const AdminAutoNavigator: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -48,8 +45,6 @@ const AdminAutoNavigator: React.FC = () => {
                 : null;
         if (!adminPath) return;
 
-        if (adminPath.startsWith("/admin/vl")) return;
-
         const target = adminPath.endsWith(`/${matchCode}`) ? adminPath : `${adminPath}/${matchCode}`;
         if (location.pathname === target) return;
 
@@ -63,8 +58,6 @@ const AdminRoutes = () => {
 
     const location = useLocation();
 
-    const isQualifierRoute = location.pathname === "/admin/vl";
-
     const stored = localStorage.getItem("matchCode") || "";
     const fromPath = (() => {
         try {
@@ -74,7 +67,7 @@ const AdminRoutes = () => {
             return "";
         }
     })();
-    const matchCode = isQualifierRoute ? QUALIFIER_MATCH_CODE : (stored || fromPath);
+    const matchCode = stored || fromPath;
 
     return (
         <AdminWebSocketProvider matchCode={matchCode}>
@@ -148,14 +141,6 @@ const AdminRoutes = () => {
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichRiengPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/vl"
-                element={
-                    <ProtectedAdminRoute>
-                        <AQualifierPage />
                     </ProtectedAdminRoute>
                 }
             />
