@@ -254,14 +254,8 @@ const PVeDichRiengPage = () => {
 			console.warn("Failed to submit buzz:", error);
 		}
 
-		await sendMessage({
-			type: "buzz",
-			user_code: playerCode,
-			question_code: currentQuestion.questionCode,
-			has_buzzed: true
-		});
 
-	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, sendMessage, token, matchCode, blockedPlayerCode, currentTurnPlayerCode, answeringWindowTimer]);
+	}, [buzzerWinnerCode, currentQuestion.questionCode, hasPinged, isConnected, playerCode, token, matchCode, blockedPlayerCode, currentTurnPlayerCode, answeringWindowTimer]);
 
 	const isPingDisabled =
 		hasPinged ||
