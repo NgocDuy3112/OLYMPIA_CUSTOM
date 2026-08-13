@@ -299,10 +299,16 @@ async def _handle_message(message: dict) -> None:
     # Track phase from round_start events (set phase before navigate completes)
     if msg_type == "round_start":
         round_phase = message.get("round", "")
-        if round_phase and round_phase != _current_phase:
-            logger.info(f"Round started: '{round_phase}' — updating phase from '{_current_phase}'")
-            _current_phase = round_phase
-            # Clear debounce tracking when round starts
+        if round_phase:
+            if round_phase != _current_phase:
+                logger.info(f"Round started: '{round_phase}' — updating phase from '{_current_phase}'")
+                _current_phase = round_phase
+            while not _sfx_queue.empty():
+                try:
+                    _sfx_queue.get_nowait()
+                    _sfx_queue.task_done()
+                except asyncio.QueueEmpty:
+                    break
             _recent_events.clear()
 
     # Track phase from round_end events
