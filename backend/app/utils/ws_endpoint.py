@@ -13,6 +13,7 @@ from utils.ws_message_processor import (
     is_allowed_by_role,
     send_initial_snapshot,
 )
+from utils.buzzer_winners import get_buzzer_winners
 from utils.ws_round_handlers import persist_round_state, prepare_round_ui_payload
 
 LOUD_MESSAGE_TYPES = {"buzz", "vd_player_power", "answer", "player_answer"}

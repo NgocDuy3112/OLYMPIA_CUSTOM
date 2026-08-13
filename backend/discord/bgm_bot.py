@@ -42,9 +42,6 @@ PHASE_MUSIC_MAP: dict[str, str] = {
 _TIMER_PHASE_MAP = {
     "vdc": "vd",
     "vdr": "vd",
-    # The Giải Mã keyword timer ships as `gm_15s.ogg` (not `gm_keyword_15s.*`),
-    # so map the `phase: "gm_keyword"` flag sent by the admin to the literal
-    # `gm` prefix.
     "gm_keyword": "gm",
 }
 
@@ -77,15 +74,6 @@ def _find_phase_file(phase: str) -> str | None:
 # ── Playback ──────────────────────────────────────────────────────────────────
 
 async def _get_voice_client(guild: discord.Guild) -> discord.VoiceClient | None:
-    """Return a usable voice client on `guild`, connecting if needed.
-
-    Discord's gateway can hold an orphan voice session for 30-60s after
-    the bot disconnects (or after a restart). During that window
-    guild.voice_client reports None locally while Discord still rejects
-    any new connect() with "Already connected". Retry with long backoff
-    AND re-scan every guild's voice client — the session eventually
-    shows up somewhere, even if not on the guild we expected.
-    """
     # Fast path: live client already exists on our guild.
     vc = guild.voice_client
     if vc is not None and vc.is_connected():
@@ -174,11 +162,6 @@ async def _play(guild: discord.Guild, file_path: str) -> None:
             pass
 
 
-# ── Background player (queue + lock) ──────────────────────────────────────────
-# All play requests go through this queue so the bot serialises voice
-# connect / cleanup / play. This matches the pattern in sfx_bot.py and
-# ping_bot.py and prevents the "Already connected" race when multiple
-# events arrive close together (e.g. back-to-back start_the_timer).
 _bgm_queue: asyncio.Queue[tuple[discord.Guild, str]] = asyncio.Queue()
 
 

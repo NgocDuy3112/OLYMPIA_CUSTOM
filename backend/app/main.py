@@ -1,3 +1,5 @@
+import asyncio
+import json
 import os
 
 from fastapi import FastAPI, Request, WebSocket, Query, HTTPException
@@ -31,12 +33,45 @@ async def lifespan(app: FastAPI):
     global_logger.info("Application startup: Database engine initialized")
 
     valkey = None
+    valkey_listener_task = None
     manager = await get_ws_manager()
 
     try:
         valkey = await get_valkey()
         manager.set_valkey(valkey)
         global_logger.info("WebSocket Connection Manager initialized with Valkey.")
+
+        async def relay_buzzer_events():
+            pubsub = valkey.pubsub()
+            try:
+                await pubsub.psubscribe("events:*")
+                global_logger.info("[BUZZ RELAY] Valkey subscriber started")
+                async for message in pubsub.listen():
+                    if message.get("type") != "pmessage":
+                        continue
+                    try:
+                        payload = json.loads(message.get("data", ""))
+                    except (TypeError, ValueError):
+                        continue
+                    if payload.get("type") not in {"buzzer_winner", "blocked_buzz"}:
+                        continue
+                    channel = str(message.get("channel", ""))
+                    match = channel.removeprefix("events:")
+                    if not match:
+                        continue
+                    global_logger.info(
+                        f"[BUZZ RELAY] {payload.get('type')!r} match={match!r} "
+                        f"user={payload.get('user_code')!r}"
+                    )
+                    await manager.send_to_room_local(match, payload)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                global_logger.error("[BUZZ RELAY] Subscriber stopped", exc_info=True)
+            finally:
+                await pubsub.close()
+
+        valkey_listener_task = asyncio.create_task(relay_buzzer_events())
     except Exception as e:
         global_logger.error(
             f"Failed to initialize Valkey connection: {str(e)}. "
@@ -62,6 +97,13 @@ async def lifespan(app: FastAPI):
 
     global_logger.info("Application Shutdown: Disposing of database engine.")
 
+
+    if valkey_listener_task is not None:
+        valkey_listener_task.cancel()
+        try:
+            await valkey_listener_task
+        except asyncio.CancelledError:
+            pass
 
     try:
         await manager.shutdown()

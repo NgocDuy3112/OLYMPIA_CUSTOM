@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, KeyRound, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, ChevronDown } from "lucide-react";
+import { Search, Plus, RefreshCw, Users, Gamepad2, HelpCircle, Pencil, X, FileSpreadsheet, FileArchive, Trophy, Trash2, ChevronDown } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import ChangePasswordModal from "@/components/shared/ChangePasswordModal";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 const logger = createLogger("AGameManaging");
@@ -68,7 +67,6 @@ const AGameManagingPage = () => {
     const token = localStorage.getItem("jwtToken_admin") ?? "";
     const { sendMessage } = useGameWebSocket();
 
-    const [showChangePassword, setShowChangePassword] = useState(false);
 
     const [users, setUsers] = useState<UserData[]>([]);
     const [usersLoading, setUsersLoading] = useState(false);
@@ -667,20 +665,6 @@ const AGameManagingPage = () => {
     return (
         <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-4 p-6 h-screen text-white overflow-hidden">
             { }
-            <button
-                onClick={() => setShowChangePassword(true)}
-                className="fixed bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 hover:bg-blue-600 shadow-lg transition-colors text-sm font-semibold"
-                title="Đổi mật khẩu"
-            >
-                <KeyRound size={16} /> Đổi mật khẩu
-            </button>
-
-            {showChangePassword && (
-                <ChangePasswordModal
-                    token={token}
-                    onClose={() => setShowChangePassword(false)}
-                />
-            )}
 
             {revealedPassword && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
