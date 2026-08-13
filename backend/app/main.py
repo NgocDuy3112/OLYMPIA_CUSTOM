@@ -43,8 +43,9 @@ async def lifespan(app: FastAPI):
 
         async def relay_buzzer_events():
             pubsub = valkey.pubsub()
-            await pubsub.psubscribe("events:*")
             try:
+                await pubsub.psubscribe("events:*")
+                global_logger.info("[BUZZ RELAY] Valkey subscriber started")
                 async for message in pubsub.listen():
                     if message.get("type") != "pmessage":
                         continue
@@ -52,15 +53,22 @@ async def lifespan(app: FastAPI):
                         payload = json.loads(message.get("data", ""))
                     except (TypeError, ValueError):
                         continue
-                    if payload.get("type") in {"buzzer_winner", "blocked_buzz"}:
-                        channel = str(message.get("channel", ""))
-                        match = channel.removeprefix("events:")
-                        if match:
-                            await manager.send_to_room_local(match, payload)
+                    if payload.get("type") not in {"buzzer_winner", "blocked_buzz"}:
+                        continue
+                    channel = str(message.get("channel", ""))
+                    match = channel.removeprefix("events:")
+                    if not match:
+                        continue
+                    global_logger.info(
+                        f"[BUZZ RELAY] {payload.get('type')!r} match={match!r} "
+                        f"user={payload.get('user_code')!r}"
+                    )
+                    await manager.send_to_room_local(match, payload)
             except asyncio.CancelledError:
                 raise
+            except Exception:
+                global_logger.error("[BUZZ RELAY] Subscriber stopped", exc_info=True)
             finally:
-                await pubsub.punsubscribe("events:*")
                 await pubsub.close()
 
         valkey_listener_task = asyncio.create_task(relay_buzzer_events())
