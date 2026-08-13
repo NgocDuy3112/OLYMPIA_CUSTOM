@@ -1,3 +1,5 @@
+import asyncio
+import json
 import os
 
 from fastapi import FastAPI, Request, WebSocket, Query, HTTPException
@@ -31,12 +33,37 @@ async def lifespan(app: FastAPI):
     global_logger.info("Application startup: Database engine initialized")
 
     valkey = None
+    valkey_listener_task = None
     manager = await get_ws_manager()
 
     try:
         valkey = await get_valkey()
         manager.set_valkey(valkey)
         global_logger.info("WebSocket Connection Manager initialized with Valkey.")
+
+        async def relay_buzzer_events():
+            pubsub = valkey.pubsub()
+            await pubsub.psubscribe("events:*")
+            try:
+                async for message in pubsub.listen():
+                    if message.get("type") != "pmessage":
+                        continue
+                    try:
+                        payload = json.loads(message.get("data", ""))
+                    except (TypeError, ValueError):
+                        continue
+                    if payload.get("type") in {"buzzer_winner", "blocked_buzz"}:
+                        channel = str(message.get("channel", ""))
+                        match = channel.removeprefix("events:")
+                        if match:
+                            await manager.send_to_room_local(match, payload)
+            except asyncio.CancelledError:
+                raise
+            finally:
+                await pubsub.punsubscribe("events:*")
+                await pubsub.close()
+
+        valkey_listener_task = asyncio.create_task(relay_buzzer_events())
     except Exception as e:
         global_logger.error(
             f"Failed to initialize Valkey connection: {str(e)}. "
@@ -62,6 +89,13 @@ async def lifespan(app: FastAPI):
 
     global_logger.info("Application Shutdown: Disposing of database engine.")
 
+
+    if valkey_listener_task is not None:
+        valkey_listener_task.cancel()
+        try:
+            await valkey_listener_task
+        except asyncio.CancelledError:
+            pass
 
     try:
         await manager.shutdown()

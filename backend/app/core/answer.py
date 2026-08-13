@@ -18,7 +18,6 @@ from utils.buzzer_lock import (
 from utils.buzzer_winners import set_buzzer_winner
 from utils.id_cache import resolve_buzz_ids
 from configs import ValkeySettings
-from utils.ws_connection import manager as ws_manager
 
 
 async def get_first_buzzer(
@@ -162,8 +161,6 @@ async def post_answer_to_db(
                     channel=f"events:{request.match_code}",
                     message=json.dumps(block_payload),
                 )
-                await ws_manager.send_to_room_local(request.match_code, winner_payload)
-                await ws_manager.send_to_room_local(request.match_code, block_payload)
                 global_logger.info(
                     f"[BUZZ WINNER] Player {request.user_code!r} won the buzzer "
                     f"for question {request.question_code!r} in match {request.match_code!r}"
