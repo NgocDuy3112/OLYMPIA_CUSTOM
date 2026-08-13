@@ -1,6 +1,6 @@
 
 
-import { startTransition, useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CheckCircle, RotateCcw, RefreshCw } from "lucide-react";
 import AVeDichPickLayout from "@/pages/admin/AVeDichPickLayout";
@@ -46,6 +46,7 @@ const AVeDichPickQuestion = () => {
 	const [successMessage, setSuccessMessage] = useState<string>("");
 
 	const [placeholderQuestions, setPlaceholderQuestions] = useState<Question[]>([]);
+	const initialSelectionPublishedRef = useRef(false);
 
 	const requiredCount = isChung ? players.length : round;
 
@@ -76,6 +77,8 @@ const AVeDichPickQuestion = () => {
 	useEffect(() => {
 		if (!currentMatchCode) return;
 		const allCodes = questions.map((q) => q.questionCode);
+		const silent = !initialSelectionPublishedRef.current;
+		initialSelectionPublishedRef.current = true;
 		sendMessage({
 			type: "vd_selection_update",
 			match_code: currentMatchCode,
@@ -83,6 +86,7 @@ const AVeDichPickQuestion = () => {
 			selected_question_codes: selectedQuestionCodes,
 			all_question_codes: allCodes,
 			used_question_codes: usedQuestionCodes,
+			silent,
 		});
 
 		if (allCodes.length > 0) {
