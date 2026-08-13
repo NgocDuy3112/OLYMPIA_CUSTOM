@@ -102,6 +102,7 @@ PHASE_EVENT_SFX_MAP: dict[str, dict[str, str]] = {
 }
 
 _current_phase: str = ""
+_round_start_phase: str | None = None
 
 # Queue serialises voice connect/cleanup/play so back-to-back events
 # never race on the Discord voice client. Each item stops the current
@@ -272,7 +273,7 @@ def _extract_phase(path: str) -> str | None:
 
 async def _handle_message(message: dict) -> None:
     """Dispatch a single Valkey message to the SFX queue (runs on the event loop)."""
-    global _current_phase
+    global _current_phase, _round_start_phase
     msg_type = message.get("type", "")
     if msg_type == "match_state":
         msg_type = {
@@ -284,7 +285,7 @@ async def _handle_message(message: dict) -> None:
     # Track current game phase from navigate events and clear queue on phase change
     if msg_type == "navigate":
         phase = _extract_phase(message.get("path", ""))
-        if phase and phase != _current_phase:
+        if phase and phase != _current_phase and phase != _round_start_phase:
             _current_phase = phase
             # Clear the queue when transitioning to a new phase to prevent audio carryover
             while not _sfx_queue.empty():
@@ -295,11 +296,14 @@ async def _handle_message(message: dict) -> None:
                     break
             _recent_events.clear()  # Clear debounce tracking on phase change
             logger.info(f"Navigated to phase '{phase}' — queue cleared and debounce reset")
+        if phase == _round_start_phase:
+            _round_start_phase = None
 
     # Track phase from round_start events (set phase before navigate completes)
     if msg_type == "round_start":
         round_phase = message.get("round", "")
         if round_phase:
+            _round_start_phase = round_phase
             if round_phase != _current_phase:
                 logger.info(f"Round started: '{round_phase}' — updating phase from '{_current_phase}'")
                 _current_phase = round_phase
