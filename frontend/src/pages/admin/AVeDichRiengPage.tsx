@@ -867,17 +867,17 @@ const AVeDichRiengPage = () => {
 			}
 
 			case "buzzer_winner": {
-				const { user_code, question_code } = msg;
-				const winner = user_code ?? "";
+				const winner = String(msg.user_code ?? msg.userCode ?? "").trim();
+				const questionCode = String(msg.question_code ?? "");
 				setBuzzerWinnerCode(winner || null);
 				startTransition(() => {
 					setPlayers((prev) =>
-						prev.map((p) => ({ ...p, playerHasBuzzed: winner ? p.playerCode === winner : false })),
+						prev.map((p) => ({ ...p, playerHasBuzzed: winner ? String(p.playerCode).trim() === winner : false })),
 					);
 				});
 
-				if (winner && question_code !== lastBuzzerQuestionRef.current) {
-					lastBuzzerQuestionRef.current = question_code;
+				if (winner && questionCode !== lastBuzzerQuestionRef.current) {
+					lastBuzzerQuestionRef.current = questionCode;
 					void sendMessage({ type: "blocked_buzz", user_code: null });
 				}
 				break;
