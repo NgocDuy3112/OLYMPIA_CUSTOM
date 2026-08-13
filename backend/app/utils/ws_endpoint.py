@@ -13,6 +13,7 @@ from utils.ws_message_processor import (
     is_allowed_by_role,
     send_initial_snapshot,
 )
+from utils.buzzer_winners import get_buzzer_winners
 from utils.ws_round_handlers import persist_round_state, prepare_round_ui_payload
 
 LOUD_MESSAGE_TYPES = {"buzz", "vd_player_power", "answer", "player_answer"}
@@ -123,6 +124,17 @@ async def handle_ws_message(
     log_received_message(user_code, user_role, match_code, msg_type, data)
     broadcast_data = await prepare_round_ui_payload(ws_manager, match_code, user_code, msg_type, data)
     await send_ui_payload(ws_manager, match_code, msg_type, broadcast_data)
+    if msg_type == "buzz":
+        question_code = str(data.get("question_code") or "")
+        winners = await get_buzzer_winners(ws_manager.valkey, match_code)
+        winner_user_code = winners.get(question_code)
+        if winner_user_code:
+            await ws_manager.send_to_room_local(match_code, {
+                "type": "buzzer_winner",
+                "user_code": winner_user_code,
+                "match_code": match_code,
+                "question_code": question_code,
+            })
     await persist_round_state(ws_manager, match_code, user_code, msg_type, broadcast_data)
     await send_reveal_answer_if_needed(ws_manager, match_code, msg_type, broadcast_data)
     log_broadcast_message(match_code, msg_type)
