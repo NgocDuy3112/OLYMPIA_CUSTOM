@@ -18,6 +18,7 @@ from utils.buzzer_lock import (
 from utils.buzzer_winners import set_buzzer_winner
 from utils.id_cache import resolve_buzz_ids
 from configs import ValkeySettings
+from utils.ws_connection import manager as ws_manager
 
 
 async def get_first_buzzer(
@@ -172,6 +173,7 @@ async def post_answer_to_db(
                     request.question_code,
                     request.user_code,
                 )
+                await ws_manager.send_to_room_local(request.match_code, winner_payload)
             except Exception as e:
                 global_logger.error(f"Failed to publish buzz winner: {e}", exc_info=True)
 
