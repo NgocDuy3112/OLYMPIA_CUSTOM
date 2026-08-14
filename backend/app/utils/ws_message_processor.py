@@ -470,6 +470,7 @@ async def apply_vedich_power_gating(
             try:
                 used_powers, changed = await set_used_power(
                     ws_manager.valkey, match_code, user_code, chosen_power,
+                    data.get("question_code"),
                 )
             except Exception as exc:
                 global_logger.warning(
