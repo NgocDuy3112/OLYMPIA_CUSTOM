@@ -15,7 +15,7 @@ from models.record import Record
 from models.question import Question
 from models.answer import Answer
 from utils.ws_connection import manager
-from utils.ve_dich_powers import get_used_powers
+from utils.ve_dich_powers import get_used_power_records
 
 
 def _safe_convert_score(value) -> int:
@@ -91,10 +91,29 @@ async def get_scoreboard_for_a_match_from_db(
             ]
             global_logger.info(f"No leaderboard cache found; returning zeroed scoreboard for match_code={match_code}.")
 
+        record_rows = await session.execute(
+            select(Record, User.user_code).join(User, Record.player_id == User.id).where(
+                Record.match_id == match.id,
+                Record.is_deleted == False,
+                User.is_deleted == False,
+            ).order_by(Record.created_at.asc())
+        )
+        chart_data: dict[str, list[dict[str, object]]] = {}
+        chart_totals: dict[str, int] = {}
+        for record, user_code in record_rows.all():
+            if record.question_code == "OC3_Q_ADMIN_ADJUST":
+                continue
+            chart_totals[user_code] = chart_totals.get(user_code, 0) + record.points
+            chart_data.setdefault(user_code, []).append({
+                "question_code": record.question_code,
+                "points": record.points,
+                "cumulative_score": chart_totals[user_code],
+            })
+
         return BaseResponse(
             status="success",
             message=log_message,
-            data={"scoreboard": scoreboard_list},
+            data={"scoreboard": scoreboard_list, "chart_data": chart_data},
         )
         
     except HTTPException:
@@ -125,7 +144,8 @@ async def update_player_question_score(
 
     raw_points = request.points
     if request.question_code.startswith("OC3_Q_VD"):
-        power = (await get_used_powers(valkey, request.match_code)).get(request.user_code)
+        power_record = (await get_used_power_records(valkey, request.match_code)).get(request.user_code)
+        power = power_record["power"] if power_record and power_record.get("question_code") == request.question_code else None
         if raw_points < 0 and power not in ("star", "shield"):
             raw_points = round(raw_points * 0.5)
         raw_points = _apply_vedich_power(raw_points, power)
@@ -283,10 +303,15 @@ async def calculate_score_event(
             timestamp = float(answer.timestamp) if answer and answer.timestamp is not None else 30
             answers.append((code, timestamp))
         answers.sort(key=lambda item: item[1])
-        multipliers = (2, 1.5, 1, 0.5)
-        for index, (code, elapsed) in enumerate(answers):
-            base = 30 if elapsed < 10 else 20 if elapsed < 20 else 10
-            points_by_player[code] = round(base * multipliers[min(index, len(multipliers) - 1)])
+        multipliers = (4, 3, 2, 1)
+        rank = -1
+        previous_elapsed = None
+        for code, elapsed in answers:
+            if previous_elapsed is None or elapsed != previous_elapsed:
+                rank += 1
+                previous_elapsed = elapsed
+            base = 15 if elapsed < 5 else 10 if elapsed < 15 else 5
+            points_by_player[code] = base * multipliers[min(rank, len(multipliers) - 1)]
     else:
         raise HTTPException(status_code=422, detail="Unsupported score action")
 

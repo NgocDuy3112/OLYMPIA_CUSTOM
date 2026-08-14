@@ -56,7 +56,7 @@ export function useCountdownTimer(): CountdownTimerState {
 
         setTimeLimit(finalTimeLimit);
         setTimer(normalized);
-        startTimeMsRef.current = Date.now();
+        startTimeMsRef.current = ref;
         runningRef.current = true;
         setSessionId((s) => s + 1);
     }, []);
