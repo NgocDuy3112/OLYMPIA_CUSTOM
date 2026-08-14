@@ -4,7 +4,7 @@ import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
-import ScoreEditModal from "./ScoreEditModal";
+import AScoreEditModal from "./AScoreEditModal";
 
 interface APlayerBarProps {
     player: PlayerStatus;
@@ -204,7 +204,7 @@ const APlayerBar: React.FC<APlayerBarProps> = ({ player, isActive, isCurrent, is
                 </div>
             </div>
 
-            <ScoreEditModal
+            <AScoreEditModal
                 open={showQuestionScoreModal}
                 playerCode={player.playerCode}
                 playerName={player.playerName}

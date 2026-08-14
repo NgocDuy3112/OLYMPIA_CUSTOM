@@ -10,7 +10,7 @@ import { VeDichRound, getVeDichRoundLabel } from "@/types/veDich";
 import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 
 const CATEGORIES = [
-	"TOÁN - TIN - THỐNG KÊ",
+	"TOÁN HỌC - TIN HỌC",
 	"TỰ NHIÊN - SỰ SỐNG",
 	"KINH TẾ - XÃ HỘI",
 	"VĂN HỌC - NGHỆ THUẬT",

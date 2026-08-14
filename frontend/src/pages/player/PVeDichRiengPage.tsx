@@ -305,11 +305,12 @@ const PVeDichRiengPage = () => {
 				type: "vd_player_power",
 				user_code: playerCode,
 				power,
+				question_code: currentQuestion.questionCode,
 			});
 		} catch (err) {
 			console.warn("Failed to send power selection:", err);
 		}
-	}, [powerWindowOpen, usedPowers, playerCode, sendMessage]);
+	}, [currentQuestion.questionCode, powerWindowOpen, usedPowers, playerCode, sendMessage]);
 
 	useEffect(() => {
 		return () => {

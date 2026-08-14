@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 from logger import global_logger
@@ -43,7 +44,7 @@ async def migrate_powers_key(valkey: Valkey, match_code: str) -> None:
     await valkey.rename(old_key, new_key)
 
 
-async def get_used_powers(valkey: Valkey, match_code: str) -> dict[str, str]:
+async def get_used_power_records(valkey: Valkey, match_code: str) -> dict[str, dict[str, str | None]]:
     if not valkey or not match_code:
         return {}
     try:
@@ -56,11 +57,23 @@ async def get_used_powers(valkey: Valkey, match_code: str) -> dict[str, str]:
         )
         return {}
 
-    cleaned: dict[str, str] = {}
-    for user_code, power in raw.items():
-        if power in VALID_POWERS:
-            cleaned[user_code] = power
+    cleaned: dict[str, dict[str, str | None]] = {}
+    for user_code, value in raw.items():
+        try:
+            record = json.loads(value) if isinstance(value, str) else value
+        except (TypeError, json.JSONDecodeError):
+            record = {"power": value, "question_code": None}
+        if isinstance(record, dict) and record.get("power") in VALID_POWERS:
+            cleaned[user_code] = {
+                "power": record["power"],
+                "question_code": record.get("question_code"),
+            }
     return cleaned
+
+
+async def get_used_powers(valkey: Valkey, match_code: str) -> dict[str, str]:
+    records = await get_used_power_records(valkey, match_code)
+    return {user_code: record["power"] for user_code, record in records.items() if record["power"]}
 
 
 async def set_used_power(
@@ -68,6 +81,7 @@ async def set_used_power(
     match_code: str,
     user_code: str,
     power: str,
+    question_code: str | None = None,
 ) -> tuple[dict[str, str], bool]:
     if not valkey or not match_code or not user_code:
         return await get_used_powers(valkey, match_code), False
@@ -96,7 +110,8 @@ async def set_used_power(
         try:
 
 
-            changed = await valkey.hsetnx(key, user_code, power)
+            value = json.dumps({"power": power, "question_code": question_code}, separators=(",", ":"))
+            changed = await valkey.hsetnx(key, user_code, value)
             if changed:
 
 

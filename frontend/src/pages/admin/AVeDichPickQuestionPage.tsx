@@ -370,8 +370,9 @@ const AVeDichPickQuestion = () => {
 			setErrorMessage("Vui lòng chọn thí sinh tham gia lượt thi trước");
 			return;
 		}
-		if (selectedQuestionCodes.length !== requiredCount) {
-			setErrorMessage(`Vui lòng chọn đủ ${requiredCount} câu hỏi`);
+		const minimumRequired = isChung ? 2 : requiredCount;
+		if (selectedQuestionCodes.length < minimumRequired || (!isChung && selectedQuestionCodes.length !== requiredCount)) {
+			setErrorMessage(isChung ? "Vui lòng chọn ít nhất 2 câu hỏi" : `Vui lòng chọn đủ ${requiredCount} câu hỏi`);
 			return;
 		}
 
@@ -484,7 +485,7 @@ const AVeDichPickQuestion = () => {
 		<>
 			<AControlButton
 				onClick={handleConfirmSelection}
-				disabled={selectedQuestionCodes.length !== requiredCount || requiredCount === 0 || isLoading}
+				disabled={selectedQuestionCodes.length < (isChung ? 2 : requiredCount) || requiredCount === 0 || isLoading}
 			>
 				<CheckCircle size={20} />
 				<span className="ml-2 font-bold">XÁC NHẬN</span>
