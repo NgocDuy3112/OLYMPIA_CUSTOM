@@ -23,13 +23,14 @@ interface ScoreEditModalProps {
     onSaved: (score: number) => void;
 }
 
-export default function ScoreEditModal({ open, playerCode, playerName, matchCode, token, currentScore, onClose, onSaved }: ScoreEditModalProps) {
+export default function AScoreEditModal({ open, playerCode, playerName, matchCode, token, currentScore, onClose, onSaved }: ScoreEditModalProps) {
     const [questions, setQuestions] = useState<QuestionOption[]>([]);
     const [questionCode, setQuestionCode] = useState("");
     const [points, setPoints] = useState("0");
     const [search, setSearch] = useState("");
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [recordedScores, setRecordedScores] = useState<Record<string, number>>({});
 
     useEffect(() => {
         if (!open) return;
@@ -43,7 +44,9 @@ export default function ScoreEditModal({ open, playerCode, playerName, matchCode
                 const list = Array.isArray(json.data) ? json.data : [];
                 setQuestions(list);
                 setQuestionCode(list[0]?.question_code ?? "");
-                setPoints("0");
+                const chartData = json.data?.chart_data?.[playerCode] ?? [];
+                setRecordedScores(Object.fromEntries(chartData.map((record: { question_code: string; points: number }) => [record.question_code, record.points])));
+                setPoints(String(chartData.find((record: { question_code: string }) => record.question_code === list[0]?.question_code)?.points ?? 0));
             })
             .finally(() => {
                 if (!cancelled) setLoading(false);
@@ -113,7 +116,7 @@ export default function ScoreEditModal({ open, playerCode, playerName, matchCode
                                     <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-blue-400">{group}</h4>
                                     <div className="space-y-2">
                                         {groupQuestions.sort((a, b) => a.parsed.sortOrder - b.parsed.sortOrder).map((question) => (
-                                            <button key={question.question_code} onClick={() => { setQuestionCode(question.question_code); setPoints("0"); }} className={`w-full rounded-lg border p-3 text-left transition ${questionCode === question.question_code ? "border-blue-400 bg-blue-800" : "border-blue-800 bg-blue-900/60 hover:border-blue-600"}`}>
+                                            <button key={question.question_code} onClick={() => { setQuestionCode(question.question_code); setPoints(String(recordedScores[question.question_code] ?? 0)); }} className={`w-full rounded-lg border p-3 text-left transition ${questionCode === question.question_code ? "border-blue-400 bg-blue-800" : "border-blue-800 bg-blue-900/60 hover:border-blue-600"}`}>
                                                 <div className="text-sm font-semibold text-blue-100">{question.parsed.questionLabel}</div>
                                                 <div className="mt-1 line-clamp-2 text-xs text-blue-300">{question.content || "Chưa có nội dung câu hỏi"}</div>
                                             </button>

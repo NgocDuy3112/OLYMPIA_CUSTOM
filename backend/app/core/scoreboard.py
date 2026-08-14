@@ -91,10 +91,29 @@ async def get_scoreboard_for_a_match_from_db(
             ]
             global_logger.info(f"No leaderboard cache found; returning zeroed scoreboard for match_code={match_code}.")
 
+        record_rows = await session.execute(
+            select(Record, User.user_code).join(User, Record.player_id == User.id).where(
+                Record.match_id == match.id,
+                Record.is_deleted == False,
+                User.is_deleted == False,
+            ).order_by(Record.created_at.asc())
+        )
+        chart_data: dict[str, list[dict[str, object]]] = {}
+        chart_totals: dict[str, int] = {}
+        for record, user_code in record_rows.all():
+            if record.question_code == "OC3_Q_ADMIN_ADJUST":
+                continue
+            chart_totals[user_code] = chart_totals.get(user_code, 0) + record.points
+            chart_data.setdefault(user_code, []).append({
+                "question_code": record.question_code,
+                "points": record.points,
+                "cumulative_score": chart_totals[user_code],
+            })
+
         return BaseResponse(
             status="success",
             message=log_message,
-            data={"scoreboard": scoreboard_list},
+            data={"scoreboard": scoreboard_list, "chart_data": chart_data},
         )
         
     except HTTPException:
