@@ -34,7 +34,7 @@ olympia-v4/
 │   ├── transport/              # Adapter: WS ↔ engine
 │   ├── oc3/                    # OC3 — backward compatible
 │   ├── oc4/                    # OC4 — new version
-│   └── ohcmc/                  # OHCMC — separate format
+│   └── ochcmc/                  # OHCMC — separate format
 ├── packages/
 │   ├── shared/                 # Types, constants, utils shared giữa các app
 │   │   ├── src/
@@ -449,7 +449,7 @@ export const matchState = {
 
 ### 2.7 Game engine — per tournament
 
-Mỗi tournament là 1 engine独立 — pure game logic, không biết WebSocket hay DB.
+Mỗi tournament là 1 engine độc lập — pure game logic, không biết WebSocket hay DB. Không giả định mọi tournament dùng cùng phase hoặc cùng số vòng: OC3/OC4 dùng nhóm phase riêng; OHCMC có lifecycle, state, action và scoring riêng.
 
 #### Tournaments
 
@@ -457,7 +457,7 @@ Mỗi tournament là 1 engine独立 — pure game logic, không biết WebSocket
 |---|---|---|
 | `oc3` | Olympia Custom 3 | Giữ rules cũ, backward compatible, lưu data cũ |
 | `oc4` | Olympia Custom 4 | Rules mới, development chính |
-| `ohcmc` | OHCMC | Tournament format riêng |
+| `ochcmc` | OHCMC | Tournament format riêng, gameplay và lifecycle hoàn toàn khác OC3/OC4 |
 
 #### Cấu trúc
 
@@ -482,7 +482,7 @@ engine/
 │   ├── index.ts
 │   ├── phases/
 │   └── config.ts
-└── ohcmc/                   # OHCMC — separate format
+└── ochcmc/                   # OHCMC — separate format
     ├── index.ts
     ├── phases/
     └── config.ts
@@ -495,6 +495,7 @@ engine/
 export interface TournamentEngine {
   readonly id: string
   readonly name: string
+  readonly phases: readonly string[]
 
   initMatch(matchCode: string): Promise<GameState>
   startPhase(matchCode: string, phase: Phase): Promise<PhaseStartResult>
@@ -525,7 +526,7 @@ export interface TournamentEngine {
 const engines = new Map<string, TournamentEngine>([
   ['oc3', new OC3Engine()],
   ['oc4', new OC4Engine()],
-  ['ohcmc', new OHCMCEngine()],
+  ['ochcmc', new OHCMCEngine()],
 ])
 ```
 
@@ -546,9 +547,10 @@ tournamentFormat: varchar('tournament_format', { length: 50 })
 
 #### OC4 — new version
 
-- Rules mới (đang develop)
-- Tách riêng, không affect OC3
-- frontend OC4 pages riêng hoặc shared pages với config
+- KDR: mỗi câu chỉ có **một lần trả lời**; đúng +10, sai 0 điểm; không có lần trả lời thứ hai.
+- Giải mã: mở gợi ý **không được cộng điểm**; đoán đúng từ khóa được 80 điểm cơ bản, giảm 5 điểm cho mỗi gợi ý đã mở.
+- Tách riêng, không affect OC3.
+- Frontend OC4 pages riêng hoặc shared pages với config.
 
 #### OHCMC — separate format
 
@@ -1800,7 +1802,7 @@ rules:
 - [x] CRUD modules (user, match, question, answer, record, scoreboard)
 - [x] WebSocket gateway (Valkey pub/sub)
 - [x] Unified Valkey state (`snapshot:{matchCode}`)
-- [x] Game engine — OC3 + OC4 (shared gameplay, same config)
+- [x] Game engine — OC3 + OC4 (OC4 có scoring rules riêng cho KDR và Giải mã)
 - [x] Media module (S3 upload/download)
 - [ ] ~~Qualifier module~~ — bỏ, thêm sau
 - [ ] OBS overlay endpoints

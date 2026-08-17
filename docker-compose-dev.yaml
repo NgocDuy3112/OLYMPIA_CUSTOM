@@ -39,8 +39,8 @@ services:
   app:
     container_name: oc-app
     build:
-      context: ./backend
-      dockerfile: app/api/Dockerfile
+      context: .
+      dockerfile: apps/api/Dockerfile
     env_file:
       - ./configs/.env
     environment:
@@ -54,8 +54,8 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/app/api/src:/app/app/api/src:ro
-      - ./backend/app/db/src:/app/app/db/src:ro
+      - ./apps/api/src:/app/apps/api/src:ro
+      - ./packages/db/src:/app/packages/db/src:ro
       - ./configs:/app/configs:ro
       - ./logs:/var/log/olympia
     depends_on:
@@ -79,7 +79,7 @@ services:
     ports:
       - "5173:5173"
     volumes:
-      - ./frontend:/app
+      - ./apps/web:/app
       - /app/node_modules
     networks:
       - oc-network
@@ -88,12 +88,12 @@ services:
   discord-bot:
     container_name: oc-discord-bot
     build:
-      context: ./backend
-      dockerfile: app/discord-bot/Dockerfile
+      context: .
+      dockerfile: apps/discord-bot/Dockerfile
     env_file:
       - ./configs/.env
     volumes:
-      - ./backend/app/discord-bot/src:/app/src:ro
+      - ./apps/discord-bot/src:/app/src:ro
     depends_on:
       - valkey
     networks:

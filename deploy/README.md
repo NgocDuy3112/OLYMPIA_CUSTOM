@@ -60,12 +60,11 @@ nano configs/.env
 Required variables:
 
 ```env
-# App
+# Fastify API
 APP_HOST=0.0.0.0
 APP_PORT=8000
-SECRET_KEY=<generate-a-strong-random-key>
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+NODE_ENV=production
+FRONTEND_URL=https://olympia.yourdomain.com
 
 # PostgreSQL
 POSTGRES_DB_USER=olympia
@@ -80,27 +79,17 @@ VALKEY_PASSWORD=<strong-password>
 VALKEY_HOST=valkey
 VALKEY_PORT=6379
 
-# Google Drive
-GOOGLE_DRIVE_SCOPE=https://www.googleapis.com/auth/drive
-DRIVE_CREDENTIALS_FILE=/app/credentials.json
+# Google OAuth
+GOOGLE_CLIENT_ID=<google-client-id>
+GOOGLE_CLIENT_SECRET=<google-client-secret>
+GOOGLE_CALLBACK_URL=https://olympia.yourdomain.com/api/auth/google/callback
 
-# Email (password reset)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-EMAIL_FROM_NAME=Olympia Custom
-
-# Deployment (used by docker-compose.prod.yaml)
+# Deployment (used by docker-compose-dev.yaml)
 DOMAIN=olympia.yourdomain.com
 CERTBOT_EMAIL=admin@yourdomain.com
 ```
 
-Upload Google Drive credentials:
-
-```bash
-scp credentials.json user@vps:/opt/olympia/backend/app/credentials.json
-```
+Google OAuth uses environment variables; no credentials file upload needed.
 
 ---
 
@@ -121,7 +110,7 @@ npm run build
 Copy the build output to the VPS:
 
 ```bash
-scp -r frontend/dist/ user@vps:/opt/olympia/frontend/dist/
+scp -r apps/web/dist/ user@vps:/opt/olympia/apps/web/dist/
 ```
 
 ---
@@ -130,16 +119,16 @@ scp -r frontend/dist/ user@vps:/opt/olympia/frontend/dist/
 
 ```bash
 cd /opt/olympia
-podman compose -f docker-compose.prod.yaml up -d --build
+podman compose -f docker-compose-dev.yaml up -d --build
 ```
 
-This starts **5 containers**:
+This starts **5 development services**:
 
 | Container | Purpose |
 |-----------|---------|
 | `olympia-postgresql` | Database |
 | `olympia-valkey` | Cache + WebSocket pub/sub |
-| `olympia-app` | FastAPI backend |
+| `oc-app` | Fastify TypeScript API |
 | `olympia-nginx` | Reverse proxy + static files |
 | `olympia-certbot` | Let's Encrypt TLS certificates |
 
@@ -153,8 +142,8 @@ podman ps
 Check logs:
 
 ```bash
-podman compose -f docker-compose.prod.yaml logs -f app
-podman compose -f docker-compose.prod.yaml logs -f certbot
+podman compose -f docker-compose-dev.yaml logs -f app
+podman compose -f docker-compose-dev.yaml logs -f frontend
 ```
 
 ---
@@ -201,11 +190,11 @@ Certbot container requests a certificate on first start.
 To renew before expiry (Let's Encrypt certs last 90 days):
 
 ```bash
-podman compose -f docker-compose.prod.yaml exec certbot \
+podman compose -f docker-compose-dev.yaml exec certbot \
   certbot renew --webroot --webroot-path=/var/www/certbot
 
 # Then reload Nginx to pick up the new cert
-podman compose -f docker-compose.prod.yaml exec nginx nginx -s reload
+podman compose -f docker-compose-dev.yaml exec nginx nginx -s reload
 ```
 
 ---
@@ -215,7 +204,7 @@ podman compose -f docker-compose.prod.yaml exec nginx nginx -s reload
 ### View logs
 
 ```bash
-podman compose -f docker-compose.prod.yaml logs -f app
+podman compose -f docker-compose-dev.yaml logs -f app
 journalctl -u olympia -f
 ```
 
@@ -231,10 +220,10 @@ VITE_API_BASE_URL=https://olympia.yourdomain.com \
 VITE_WS_BASE_URL=wss://olympia.yourdomain.com \
 npm run build
 cd ..
-scp -r frontend/dist/ user@vps:/opt/olympia/frontend/dist/
+scp -r apps/web/dist/ user@vps:/opt/olympia/apps/web/dist/
 
 # Rebuild and restart containers
-podman compose -f docker-compose.prod.yaml up -d --build
+podman compose -f docker-compose-dev.yaml up -d --build
 ```
 
 ### Backup database
