@@ -24,7 +24,7 @@ const OverlayPlayerBar: React.FC = () => {
           userCode: p.user_code || p.userCode || "",
           userName: p.user_name || p.userName || "Unknown",
           status: p.status || "online",
-        }))
+        })),
       );
     } else if (msg?.type === "buzzer_winner") {
       const winnerCode = msg.user_code || "";
@@ -32,14 +32,14 @@ const OverlayPlayerBar: React.FC = () => {
         prev.map((p) => ({
           ...p,
           status: p.userCode === winnerCode ? "buzzed" : "online",
-        }))
+        })),
       );
     } else if (msg?.type === "clear_answers") {
       setPlayers((prev) =>
         prev.map((p) => ({
           ...p,
           status: "online",
-        }))
+        })),
       );
     }
   }, [lastMessage]);
@@ -61,11 +61,12 @@ const OverlayPlayerBar: React.FC = () => {
             key={player.userCode}
             className={`
               px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg font-bold text-sm sm:text-base md:text-lg"
-              ${player.status === "buzzed"
-                ? "bg-yellow-500 text-black"
-                : player.status === "online"
-                  ? "bg-white/20 text-white"
-                  : "bg-white/10 text-white/50"
+              ${
+                player.status === "buzzed"
+                  ? "bg-yellow-500 text-black"
+                  : player.status === "online"
+                    ? "bg-white/20 text-white"
+                    : "bg-white/10 text-white/50"
               }
             `}
             style={{

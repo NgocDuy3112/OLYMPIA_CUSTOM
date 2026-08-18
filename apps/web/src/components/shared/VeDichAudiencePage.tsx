@@ -9,7 +9,11 @@ interface VeDichAudiencePageProps {
   matchCode?: string;
 }
 
-export function VeDichAudiencePage({ variant, Layout, matchCode }: VeDichAudiencePageProps) {
+export function VeDichAudiencePage({
+  variant,
+  Layout,
+  matchCode,
+}: VeDichAudiencePageProps) {
   if (variant === "chung") {
     return <VeDichChungAudiencePage Layout={Layout} matchCode={matchCode} />;
   }

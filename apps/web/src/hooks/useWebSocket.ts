@@ -22,14 +22,18 @@ export const useWebSocket = (matchCode: string, token?: string) => {
   const isDrainingMessagesRef = useRef(false);
   const lastEventTimeRef = useRef<Record<string, number>>({});
   const [rawIsConnected, setRawIsConnected] = useState(false);
-  const [rawLastMessage, setRawLastMessage] = useState<WebSocketMessage | null>(null);
+  const [rawLastMessage, setRawLastMessage] = useState<WebSocketMessage | null>(
+    null,
+  );
 
   const isConnected = Boolean(matchCode) && rawIsConnected;
   const lastMessage = matchCode ? rawLastMessage : null;
 
   useEffect(() => {
-    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
-    if (messageDrainTimerRef.current !== null) window.clearTimeout(messageDrainTimerRef.current);
+    if (reconnectTimerRef.current !== null)
+      window.clearTimeout(reconnectTimerRef.current);
+    if (messageDrainTimerRef.current !== null)
+      window.clearTimeout(messageDrainTimerRef.current);
     reconnectTimerRef.current = null;
     messageDrainTimerRef.current = null;
     reconnectAttemptsRef.current = 0;
@@ -104,7 +108,8 @@ export const useWebSocket = (matchCode: string, token?: string) => {
           RECONNECT_BASE_MS * 2 ** reconnectAttemptsRef.current,
           RECONNECT_MAX_MS,
         );
-        if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+        if (reconnectTimerRef.current !== null)
+          window.clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current += 1;
           connect();
@@ -116,8 +121,10 @@ export const useWebSocket = (matchCode: string, token?: string) => {
 
     return () => {
       closedByCleanup = true;
-      if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
-      if (messageDrainTimerRef.current !== null) window.clearTimeout(messageDrainTimerRef.current);
+      if (reconnectTimerRef.current !== null)
+        window.clearTimeout(reconnectTimerRef.current);
+      if (messageDrainTimerRef.current !== null)
+        window.clearTimeout(messageDrainTimerRef.current);
       reconnectTimerRef.current = null;
       messageDrainTimerRef.current = null;
       reconnectAttemptsRef.current = 0;
@@ -135,18 +142,22 @@ export const useWebSocket = (matchCode: string, token?: string) => {
     };
   }, [matchCode, token]);
 
-  const sendMessage = useCallback(async (payload: WebSocketPayload): Promise<boolean> => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return false;
-    const eventType = typeof payload.type === "string" ? payload.type : "";
-    if (DEBOUNCED_EVENTS.has(eventType)) {
-      const now = Date.now();
-      const lastTime = lastEventTimeRef.current[eventType] ?? 0;
-      if (now - lastTime < DEBOUNCE_MS) return true;
-      lastEventTimeRef.current[eventType] = now;
-    }
-    wsRef.current.send(JSON.stringify(payload));
-    return true;
-  }, []);
+  const sendMessage = useCallback(
+    async (payload: WebSocketPayload): Promise<boolean> => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN)
+        return false;
+      const eventType = typeof payload.type === "string" ? payload.type : "";
+      if (DEBOUNCED_EVENTS.has(eventType)) {
+        const now = Date.now();
+        const lastTime = lastEventTimeRef.current[eventType] ?? 0;
+        if (now - lastTime < DEBOUNCE_MS) return true;
+        lastEventTimeRef.current[eventType] = now;
+      }
+      wsRef.current.send(JSON.stringify(payload));
+      return true;
+    },
+    [],
+  );
 
   return { isConnected, lastMessage, sendMessage };
 };

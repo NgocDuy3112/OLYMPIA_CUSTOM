@@ -7,7 +7,10 @@ interface AuthGuardProps {
   requiredRole?: "admin" | "mc" | "player";
 }
 
-export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requiredRole }) => {
+export const AuthGuard: React.FC<AuthGuardProps> = ({
+  children,
+  requiredRole,
+}) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
 

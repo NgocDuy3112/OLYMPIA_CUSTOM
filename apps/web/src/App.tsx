@@ -30,7 +30,7 @@ function App() {
         </Suspense>
       </div>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

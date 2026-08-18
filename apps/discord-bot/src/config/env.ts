@@ -1,23 +1,25 @@
-import { z } from 'zod'
+import { z } from "zod";
 
 const envSchema = z.object({
   BOT_TOKEN: z.string().min(1),
   NOTIFICATION_CHANNEL_ID: z.string().min(1),
-  MATCH_CODE: z.string().default('OC3_M_VL'),
+  MATCH_CODE: z.string().default("OC3_M_VL"),
+  DISCORD_GUILD_ID: z.string().min(1),
+  DISCORD_PLAYER_MAP: z.string().default("{}"),
 
-  VALKEY_HOST: z.string().default('localhost'),
+  VALKEY_HOST: z.string().default("localhost"),
   VALKEY_PORT: z.coerce.number().default(6379),
   VALKEY_PASSWORD: z.string().optional(),
-  VALKEY_USER: z.string().default('default'),
-})
+  VALKEY_USER: z.string().default("default"),
+});
 
-export type Env = z.infer<typeof envSchema>
+export type Env = z.infer<typeof envSchema>;
 
-let _env: Env | null = null
+let _env: Env | null = null;
 
 export function getEnv(): Env {
   if (!_env) {
-    _env = envSchema.parse(process.env)
+    _env = envSchema.parse(process.env);
   }
-  return _env
+  return _env;
 }

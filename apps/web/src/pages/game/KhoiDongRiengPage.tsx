@@ -31,12 +31,31 @@ const AdminKhoiDongRiengView = () => {
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
 
   const {
-    players, currentQuestion, currentQuestionIndex, setCurrentQuestionIndex,
-    timer, isTimerRunning, selectedPlayerCodes, hasAddedScore, matchCode,
-    hasQuestionSelected, toggleSelectedPlayer, loadQuestion, clearQuestion,
-    sendQuestionToPlayers, startTimer, showAnswers, calculateAndBroadcastScore,
-    handleEditScore, endRound,
-  } = useGameRound({ round: "kdr", questionPrefix: QUESTION_PREFIX, timeLimit: TIME_LIMIT, timerPhase: "kdr" });
+    players,
+    currentQuestion,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    timer,
+    isTimerRunning,
+    selectedPlayerCodes,
+    hasAddedScore,
+    matchCode,
+    hasQuestionSelected,
+    toggleSelectedPlayer,
+    loadQuestion,
+    clearQuestion,
+    sendQuestionToPlayers,
+    startTimer,
+    showAnswers,
+    calculateAndBroadcastScore,
+    handleEditScore,
+    endRound,
+  } = useGameRound({
+    round: "kdr",
+    questionPrefix: QUESTION_PREFIX,
+    timeLimit: TIME_LIMIT,
+    timerPhase: "kdr",
+  });
 
   useEffect(() => {
     if (urlMatchCode && urlMatchCode !== localStorage.getItem("matchCode")) {
@@ -48,33 +67,53 @@ const AdminKhoiDongRiengView = () => {
     if (!matchCode) navigate("/admin/manage");
   }, [matchCode, navigate]);
 
-  const handleSelectQuestion = useCallback(async (index: number) => {
-    if (isTimerRunning) return;
-    if (currentQuestionIndex === index) {
-      if (selectedPlayerCodes.length > 0 && !hasAddedScore) {
-        await calculateAndBroadcastScore("kdr_correct");
+  const handleSelectQuestion = useCallback(
+    async (index: number) => {
+      if (isTimerRunning) return;
+      if (currentQuestionIndex === index) {
+        if (selectedPlayerCodes.length > 0 && !hasAddedScore) {
+          await calculateAndBroadcastScore("kdr_correct");
+        } else {
+          setCurrentQuestionIndex(0);
+          await clearQuestion();
+        }
       } else {
-        setCurrentQuestionIndex(0);
-        await clearQuestion();
+        setCurrentQuestionIndex(index);
+        const q = await loadQuestion(index);
+        await sendQuestionToPlayers(index, q);
       }
-    } else {
-      setCurrentQuestionIndex(index);
-      const q = await loadQuestion(index);
-      await sendQuestionToPlayers(index, q);
-    }
-  }, [isTimerRunning, currentQuestionIndex, selectedPlayerCodes, hasAddedScore, calculateAndBroadcastScore, setCurrentQuestionIndex, loadQuestion, sendQuestionToPlayers, clearQuestion]);
+    },
+    [
+      isTimerRunning,
+      currentQuestionIndex,
+      selectedPlayerCodes,
+      hasAddedScore,
+      calculateAndBroadcastScore,
+      setCurrentQuestionIndex,
+      loadQuestion,
+      sendQuestionToPlayers,
+      clearQuestion,
+    ],
+  );
 
   const questionControls = (
     <div className="flex gap-2">
       {Array.from({ length: MAX_QUESTION_INDEX }).map((_, idx) => {
         const isActive = currentQuestionIndex === idx + 1;
         return (
-          <button key={idx} type="button" disabled={isTimerRunning}
+          <button
+            key={idx}
+            type="button"
+            disabled={isTimerRunning}
             onClick={() => handleSelectQuestion(idx + 1)}
             className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors ${
-              isActive ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"
+              isActive
+                ? "bg-blue-300 text-blue-900 border border-blue-200"
+                : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"
             } disabled:opacity-50`}
-          >{idx + 1}</button>
+          >
+            {idx + 1}
+          </button>
         );
       })}
     </div>
@@ -82,26 +121,59 @@ const AdminKhoiDongRiengView = () => {
 
   return (
     <ANewBaseLayout
-      title="KHỞI ĐỘNG - LƯỢT RIÊNG" players={players} selectedPlayerCodes={selectedPlayerCodes}
-      onTogglePlayer={toggleSelectedPlayer} playersSelectable playersDisabled={isTimerRunning}
+      title="KHỞI ĐỘNG - LƯỢT RIÊNG"
+      players={players}
+      selectedPlayerCodes={selectedPlayerCodes}
+      onTogglePlayer={toggleSelectedPlayer}
+      playersSelectable
+      playersDisabled={isTimerRunning}
       onEditScore={handleEditScore}
-      actions={<AControlButton onClick={endRound} disabled={isTimerRunning}><Power size={18} /><span className="ml-2 font-bold">KẾT THÚC</span></AControlButton>}
+      actions={
+        <AControlButton onClick={endRound} disabled={isTimerRunning}>
+          <Power size={18} />
+          <span className="ml-2 font-bold">KẾT THÚC</span>
+        </AControlButton>
+      }
       playerActions={
         <>
-          <AControlButton onClick={() => startTimer()} disabled={!hasQuestionSelected || isTimerRunning}>
-            <AlarmClockCheck size={18} /><span className="ml-2 font-bold">ĐẾM GIỜ</span>
+          <AControlButton
+            onClick={() => startTimer()}
+            disabled={!hasQuestionSelected || isTimerRunning}
+          >
+            <AlarmClockCheck size={18} />
+            <span className="ml-2 font-bold">ĐẾM GIỜ</span>
           </AControlButton>
-          <AControlButton onClick={() => calculateAndBroadcastScore("kdr_correct")} disabled={selectedPlayerCodes.length === 0 || hasAddedScore || isTimerRunning}>
-            <Calculator size={18} /><span className="ml-2 font-bold">TÍNH ĐIỂM</span>
+          <AControlButton
+            onClick={() => calculateAndBroadcastScore("kdr_correct")}
+            disabled={
+              selectedPlayerCodes.length === 0 ||
+              hasAddedScore ||
+              isTimerRunning
+            }
+          >
+            <Calculator size={18} />
+            <span className="ml-2 font-bold">TÍNH ĐIỂM</span>
           </AControlButton>
-          <AControlButton onClick={showAnswers} disabled={!hasQuestionSelected || isTimerRunning}>
-            <Eye size={18} /><span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
+          <AControlButton
+            onClick={showAnswers}
+            disabled={!hasQuestionSelected || isTimerRunning}
+          >
+            <Eye size={18} />
+            <span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
           </AControlButton>
         </>
       }
     >
-      <AQuestionBoard title="KHỞI ĐỘNG - LƯỢT RIÊNG" question={currentQuestion} timerDuration={timer}
-        controls={{ variant: "numbers", count: MAX_QUESTION_INDEX, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+      <AQuestionBoard
+        title="KHỞI ĐỘNG - LƯỢT RIÊNG"
+        question={currentQuestion}
+        timerDuration={timer}
+        controls={{
+          variant: "numbers",
+          count: MAX_QUESTION_INDEX,
+          activeIndices:
+            currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
+        }}
         children={() => questionControls}
       />
     </ANewBaseLayout>
@@ -111,21 +183,36 @@ const AdminKhoiDongRiengView = () => {
 // ─── Player View ────────────────────────────────────────────────────────────
 const PlayerKhoiDongRiengView = () => {
   const { playerCode } = useRoleSession("player");
-  const { players, setPlayers, currentQuestion, currentQuestionIndex, timer } = usePlayerRound({ audioSrc: '/audios/bgm/kd_60s.mp3' });
+  const { players, setPlayers, currentQuestion, currentQuestionIndex, timer } =
+    usePlayerRound({ audioSrc: "/audios/bgm/kd_60s.mp3" });
 
   useEffect(() => {
-    setPlayers(prev => prev.map(p => ({ ...p, playerWrongAttempts: undefined })));
+    setPlayers((prev) =>
+      prev.map((p) => ({ ...p, playerWrongAttempts: undefined })),
+    );
   }, [currentQuestionIndex, setPlayers]);
 
-  const hasPlayerWithSecondAttempt = players.some(p => p.playerWrongAttempts === 1);
+  const hasPlayerWithSecondAttempt = players.some(
+    (p) => p.playerWrongAttempts === 1,
+  );
 
   return (
     <PBasePageLayout players={players} currentPlayerCode={playerCode}>
-      <PQuestionBoard title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN" question={currentQuestion} timerDuration={timer}
-        controls={{ variant: 'numbers', count: 6, activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [] }}
+      <PQuestionBoard
+        title="KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
+        question={currentQuestion}
+        timerDuration={timer}
+        controls={{
+          variant: "numbers",
+          count: 6,
+          activeIndices:
+            currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
+        }}
       >
         {hasPlayerWithSecondAttempt && (
-          <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">Trả lời lần 2</div>
+          <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+            Trả lời lần 2
+          </div>
         )}
       </PQuestionBoard>
     </PBasePageLayout>
@@ -135,7 +222,13 @@ const PlayerKhoiDongRiengView = () => {
 // ─── MC View ────────────────────────────────────────────────────────────────
 const MCKhoiDongRiengView = () => {
   const { matchCode } = useRoleSession("mc");
-  return <KhoiDongAudiencePage variant="rieng" Layout={PBasePageLayout} matchCode={matchCode} />;
+  return (
+    <KhoiDongAudiencePage
+      variant="rieng"
+      Layout={PBasePageLayout}
+      matchCode={matchCode}
+    />
+  );
 };
 
 // ─── Main Page ──────────────────────────────────────────────────────────────

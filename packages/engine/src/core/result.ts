@@ -1,18 +1,18 @@
-import type { ScoreDelta } from '../types.js'
+import type { ScoreDelta } from "../types.js";
 
 export type Result<T> =
   | { ok: true; value: T; events: DomainEvent[]; scoreDeltas: ScoreDelta[] }
-  | { ok: false; error: DomainError }
+  | { ok: false; error: DomainError };
 
 export interface DomainError {
-  code: string
-  message: string
-  details?: Record<string, unknown>
+  code: string;
+  message: string;
+  details?: Record<string, unknown>;
 }
 
 export interface DomainEvent {
-  type: string
-  [key: string]: unknown
+  type: string;
+  [key: string]: unknown;
 }
 
 export const success = <T>(
@@ -24,9 +24,13 @@ export const success = <T>(
   value,
   events,
   scoreDeltas,
-})
+});
 
-export const failure = (code: string, message: string, details?: Record<string, unknown>): Result<never> => ({
+export const failure = (
+  code: string,
+  message: string,
+  details?: Record<string, unknown>,
+): Result<never> => ({
   ok: false,
   error: { code, message, details },
-})
+});

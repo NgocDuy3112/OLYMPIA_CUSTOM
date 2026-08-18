@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { WebSocketContext } from "@/contexts/WebSocketContext";
 import type { WebSocketContextValue, UserRole } from "@/types/websocket";
+import { useGameAudio } from "@/hooks/useGameAudio";
 
 export type { UserRole };
 
@@ -37,6 +38,7 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
 
   const ws = useWebSocket(matchCode, token);
   const { isConnected, lastMessage, sendMessage } = ws;
+  const { unlocked, unlock } = useGameAudio(lastMessage, matchCode);
 
   const value = useMemo<WebSocketContextValue>(
     () => ({ isConnected, lastMessage, sendMessage, role }),
@@ -123,6 +125,15 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
 
   return (
     <WebSocketContext.Provider value={value}>
+      {!unlocked && isConnected && (
+        <button
+          type="button"
+          onClick={unlock}
+          className="fixed bottom-3 left-3 z-50 rounded-lg bg-blue-700 px-3 py-2 text-sm font-bold text-white shadow-lg"
+        >
+          Bật âm thanh
+        </button>
+      )}
       {children}
     </WebSocketContext.Provider>
   );

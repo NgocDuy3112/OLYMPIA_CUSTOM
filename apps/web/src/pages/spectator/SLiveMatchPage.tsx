@@ -37,7 +37,9 @@ const SLiveMatchPage: React.FC = () => {
   const [currentPhase, setCurrentPhase] = useState<string>("");
   const [question, setQuestion] = useState<string>("");
   const [timer, setTimer] = useState<number | null>(null);
-  const [actions, setActions] = useState<Array<{ text: string; timestamp: number }>>([]);
+  const [actions, setActions] = useState<
+    Array<{ text: string; timestamp: number }>
+  >([]);
 
   // Fetch match info
   useEffect(() => {
@@ -87,12 +89,14 @@ const SLiveMatchPage: React.FC = () => {
         break;
       }
       case "start_the_timer": {
-        const timeLimit = typeof msg.time_limit === "number" ? msg.time_limit : 30;
+        const timeLimit =
+          typeof msg.time_limit === "number" ? msg.time_limit : 30;
         setTimer(timeLimit);
         break;
       }
       case "timer_update": {
-        const countdown = typeof msg.countdown === "number" ? msg.countdown : null;
+        const countdown =
+          typeof msg.countdown === "number" ? msg.countdown : null;
         if (countdown !== null) {
           setTimer(countdown);
         }
@@ -183,7 +187,9 @@ const SLiveMatchPage: React.FC = () => {
             </div>
           ) : (
             <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
-              <p className="text-gray-500 text-sm sm:text-base">Không có video stream</p>
+              <p className="text-gray-500 text-sm sm:text-base">
+                Không có video stream
+              </p>
             </div>
           )}
 
@@ -191,9 +197,13 @@ const SLiveMatchPage: React.FC = () => {
           {question && (
             <div className="bg-blue-900 border-2 border-blue-600 rounded-lg p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-blue-300 font-bold text-xs sm:text-sm">Câu hỏi hiện tại</span>
+                <span className="text-blue-300 font-bold text-xs sm:text-sm">
+                  Câu hỏi hiện tại
+                </span>
                 {timer !== null && (
-                  <span className={`text-xl sm:text-2xl font-bold font-mono ${timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : "text-white"}`}>
+                  <span
+                    className={`text-xl sm:text-2xl font-bold font-mono ${timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : "text-white"}`}
+                  >
                     {timer}
                   </span>
                 )}
@@ -205,7 +215,9 @@ const SLiveMatchPage: React.FC = () => {
           {/* Action feed */}
           {actions.length > 0 && (
             <div className="bg-black/30 rounded-lg p-3">
-              <h3 className="text-xs sm:text-sm text-gray-400 mb-2">Diễn biến mới nhất</h3>
+              <h3 className="text-xs sm:text-sm text-gray-400 mb-2">
+                Diễn biến mới nhất
+              </h3>
               <div className="space-y-1">
                 {actions.map((action, i) => (
                   <div
@@ -227,7 +239,9 @@ const SLiveMatchPage: React.FC = () => {
           </h2>
 
           {scores.length === 0 ? (
-            <p className="text-gray-400 text-xs sm:text-sm">Chưa có dữ liệu điểm</p>
+            <p className="text-gray-400 text-xs sm:text-sm">
+              Chưa có dữ liệu điểm
+            </p>
           ) : (
             <div className="space-y-1.5 sm:space-y-2">
               {scores.map((player, index) => (
@@ -237,7 +251,13 @@ const SLiveMatchPage: React.FC = () => {
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm sm:text-lg">
-                      {index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `${index + 1}.`}
+                      {index === 0
+                        ? "🥇"
+                        : index === 1
+                          ? "🥈"
+                          : index === 2
+                            ? "🥉"
+                            : `${index + 1}.`}
                     </span>
                     <span className="text-white font-medium text-xs sm:text-sm truncate">
                       {player.userName}

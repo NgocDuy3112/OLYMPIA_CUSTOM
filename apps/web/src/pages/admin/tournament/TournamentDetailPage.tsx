@@ -2,8 +2,16 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
 import {
-  ArrowLeft, Edit, Users, Plus, Trash2, Calendar, MapPin, Trophy,
-  Loader2, UserPlus
+  ArrowLeft,
+  Edit,
+  Users,
+  Plus,
+  Trash2,
+  Calendar,
+  MapPin,
+  Trophy,
+  Loader2,
+  UserPlus,
 } from "lucide-react";
 
 interface Tournament {
@@ -79,7 +87,9 @@ const TournamentDetailPage: React.FC = () => {
           setPlayers(data.data.players || []);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load tournament");
+        setError(
+          err instanceof Error ? err.message : "Failed to load tournament",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -100,17 +110,20 @@ const TournamentDetailPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/tournaments/${code}/players`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `${API_BASE_URL}/tournaments/${code}/players`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            userCode: playerUserCode.trim(),
+            groupNumber: playerGroup.trim() || undefined,
+          }),
         },
-        credentials: "include",
-        body: JSON.stringify({
-          userCode: playerUserCode.trim(),
-          groupNumber: playerGroup.trim() || undefined,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const data = await response.json();
@@ -118,9 +131,12 @@ const TournamentDetailPage: React.FC = () => {
       }
 
       // Refresh tournament data
-      const refreshResponse = await fetch(`${API_BASE_URL}/tournaments/${code}`, {
-        credentials: "include",
-      });
+      const refreshResponse = await fetch(
+        `${API_BASE_URL}/tournaments/${code}`,
+        {
+          credentials: "include",
+        },
+      );
       const refreshData = await refreshResponse.json();
       if (refreshData.status === "success" && refreshData.data) {
         setPlayers(refreshData.data.players || []);
@@ -137,7 +153,9 @@ const TournamentDetailPage: React.FC = () => {
   };
 
   const handleRemovePlayer = async (userCode: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa thí sinh ${userCode} khỏi giải đấu?`)) {
+    if (
+      !confirm(`Bạn có chắc chắn muốn xóa thí sinh ${userCode} khỏi giải đấu?`)
+    ) {
       return;
     }
 
@@ -147,7 +165,7 @@ const TournamentDetailPage: React.FC = () => {
         {
           method: "DELETE",
           credentials: "include",
-        }
+        },
       );
 
       if (response.ok) {
@@ -195,7 +213,9 @@ const TournamentDetailPage: React.FC = () => {
               {STATUS_LABELS[tournament.status] || tournament.status}
             </span>
           </div>
-          <p className="text-gray-400 text-sm mt-1">{tournament.tournamentCode}</p>
+          <p className="text-gray-400 text-sm mt-1">
+            {tournament.tournamentCode}
+          </p>
         </div>
         <button
           onClick={() => navigate(`/admin/tournaments/${code}/edit`)}
@@ -218,7 +238,9 @@ const TournamentDetailPage: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Info card */}
           <div className="card !p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Thông tin giải đấu</h2>
+            <h2 className="text-lg font-bold text-white mb-4">
+              Thông tin giải đấu
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div className="flex items-center gap-2 text-gray-300">
                 <Trophy size={16} className="text-blue-400" />
@@ -227,7 +249,8 @@ const TournamentDetailPage: React.FC = () => {
               <div className="flex items-center gap-2 text-gray-300">
                 <Calendar size={16} className="text-blue-400" />
                 <span>
-                  {tournament.startDate || "Chưa đặt"} - {tournament.endDate || "Chưa đặt"}
+                  {tournament.startDate || "Chưa đặt"} -{" "}
+                  {tournament.endDate || "Chưa đặt"}
                 </span>
               </div>
               {tournament.venue && (
@@ -246,13 +269,17 @@ const TournamentDetailPage: React.FC = () => {
 
             {tournament.description && (
               <div className="mt-4 pt-4 border-t border-white/10">
-                <p className="text-gray-300 text-sm">{tournament.description}</p>
+                <p className="text-gray-300 text-sm">
+                  {tournament.description}
+                </p>
               </div>
             )}
 
             {tournament.notes && (
               <div className="mt-4 pt-4 border-t border-white/10">
-                <p className="text-gray-400 text-xs">Ghi chú: {tournament.notes}</p>
+                <p className="text-gray-400 text-xs">
+                  Ghi chú: {tournament.notes}
+                </p>
               </div>
             )}
           </div>
@@ -274,7 +301,10 @@ const TournamentDetailPage: React.FC = () => {
 
             {/* Add player form */}
             {showAddPlayer && (
-              <form onSubmit={handleAddPlayer} className="mb-4 p-4 bg-white/5 rounded-lg">
+              <form
+                onSubmit={handleAddPlayer}
+                className="mb-4 p-4 bg-white/5 rounded-lg"
+              >
                 <div className="flex flex-col sm:flex-row gap-3">
                   <input
                     type="text"
@@ -331,22 +361,45 @@ const TournamentDetailPage: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-white/10">
-                      <th className="text-left py-2 px-3 text-gray-400 font-medium">#</th>
-                      <th className="text-left py-2 px-3 text-gray-400 font-medium">Mã</th>
-                      <th className="text-left py-2 px-3 text-gray-400 font-medium">Tên</th>
-                      <th className="text-left py-2 px-3 text-gray-400 font-medium hidden sm:table-cell">Email</th>
-                      <th className="text-left py-2 px-3 text-gray-400 font-medium">Nhóm</th>
-                      <th className="text-right py-2 px-3 text-gray-400 font-medium">Thao tác</th>
+                      <th className="text-left py-2 px-3 text-gray-400 font-medium">
+                        #
+                      </th>
+                      <th className="text-left py-2 px-3 text-gray-400 font-medium">
+                        Mã
+                      </th>
+                      <th className="text-left py-2 px-3 text-gray-400 font-medium">
+                        Tên
+                      </th>
+                      <th className="text-left py-2 px-3 text-gray-400 font-medium hidden sm:table-cell">
+                        Email
+                      </th>
+                      <th className="text-left py-2 px-3 text-gray-400 font-medium">
+                        Nhóm
+                      </th>
+                      <th className="text-right py-2 px-3 text-gray-400 font-medium">
+                        Thao tác
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {players.map((player, index) => (
-                      <tr key={player.id} className="border-b border-white/5 hover:bg-white/5">
+                      <tr
+                        key={player.id}
+                        className="border-b border-white/5 hover:bg-white/5"
+                      >
                         <td className="py-2 px-3 text-gray-400">{index + 1}</td>
-                        <td className="py-2 px-3 text-white font-mono">{player.userCode}</td>
-                        <td className="py-2 px-3 text-white">{player.userName}</td>
-                        <td className="py-2 px-3 text-gray-400 hidden sm:table-cell">{player.email || "-"}</td>
-                        <td className="py-2 px-3 text-gray-300">{player.groupNumber || "-"}</td>
+                        <td className="py-2 px-3 text-white font-mono">
+                          {player.userCode}
+                        </td>
+                        <td className="py-2 px-3 text-white">
+                          {player.userName}
+                        </td>
+                        <td className="py-2 px-3 text-gray-400 hidden sm:table-cell">
+                          {player.email || "-"}
+                        </td>
+                        <td className="py-2 px-3 text-gray-300">
+                          {player.groupNumber || "-"}
+                        </td>
                         <td className="py-2 px-3 text-right">
                           <button
                             onClick={() => handleRemovePlayer(player.userCode)}
@@ -369,7 +422,9 @@ const TournamentDetailPage: React.FC = () => {
         <div className="space-y-6">
           {/* Quick actions */}
           <div className="card !p-6">
-            <h2 className="text-lg font-bold text-white mb-4">Thao tác nhanh</h2>
+            <h2 className="text-lg font-bold text-white mb-4">
+              Thao tác nhanh
+            </h2>
             <div className="space-y-3">
               <button
                 onClick={() => navigate(`/admin/tournaments/${code}/edit`)}
@@ -399,7 +454,13 @@ const TournamentDetailPage: React.FC = () => {
               <div className="flex justify-between text-gray-300">
                 <span>Số nhóm:</span>
                 <span className="font-bold text-white">
-                  {new Set(players.filter((p) => p.groupNumber).map((p) => p.groupNumber)).size}
+                  {
+                    new Set(
+                      players
+                        .filter((p) => p.groupNumber)
+                        .map((p) => p.groupNumber),
+                    ).size
+                  }
                 </span>
               </div>
             </div>

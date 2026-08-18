@@ -13,10 +13,12 @@ const OverlayTimer: React.FC = () => {
     const msg = lastMessage.message ?? lastMessage;
 
     if (msg?.type === "start_the_timer") {
-      const timeLimit = typeof msg.time_limit === "number" ? msg.time_limit : 30;
+      const timeLimit =
+        typeof msg.time_limit === "number" ? msg.time_limit : 30;
       setTimer(timeLimit);
     } else if (msg?.type === "timer_update") {
-      const countdown = typeof msg.countdown === "number" ? msg.countdown : null;
+      const countdown =
+        typeof msg.countdown === "number" ? msg.countdown : null;
       setTimer(countdown);
     } else if (msg?.type === "clear_question") {
       setTimer(null);

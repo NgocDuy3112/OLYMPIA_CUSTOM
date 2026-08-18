@@ -47,7 +47,8 @@ export interface WebSocketMessage extends WebSocketPayload {
   question_metadata?: Array<{ code: string; category: string; points: number }>;
   used_powers?: Record<string, "star" | "shield" | null>;
   round?: string;
-  status?: "online" | "heartbeat";
+  status?: "online" | "heartbeat" | "afk" | "active";
+  afk?: boolean;
   role?: "player" | "mc" | "admin";
   selected_player_code?: string;
 }
@@ -70,6 +71,8 @@ export function parseWebSocketMessage(value: string): WebSocketMessage | null {
   return isWebSocketMessage(parsed) ? parsed : null;
 }
 
-export function unwrapWebSocketMessage(message: WebSocketMessage | null): WebSocketMessage | null {
+export function unwrapWebSocketMessage(
+  message: WebSocketMessage | null,
+): WebSocketMessage | null {
   return message?.message ?? message;
 }

@@ -6,8 +6,10 @@
  */
 import React, { type ReactNode } from "react";
 import AdminGameplayNavBar from "@/navigation/ANavBar";
-import APlayerBar from "@/components/admin/APlayerBar";
+import { PlayerPanel } from "@/components/shared/PlayerPanel";
 import type { PlayerStatus } from "@/types/player";
+import { VoicePublisher } from "@/components/shared/VoicePublisher";
+import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 interface ANewBaseLayoutProps {
   /** Round title displayed above question board */
@@ -47,8 +49,11 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
   onEditScore,
   playerHeader,
 }) => {
+  const { sendMessage } = useGameWebSocket();
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
+      <VoicePublisher userCode="mc" />
       <AdminGameplayNavBar />
 
       <div className="flex flex-col lg:flex-row flex-1 p-2 sm:p-3 lg:p-4 gap-3 lg:gap-4 overflow-hidden">
@@ -75,15 +80,22 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
           {playerHeader}
 
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            {players.map(player => (
+            {players.map((player) => (
               <div key={player.playerCode} className="flex flex-col">
-                <APlayerBar
+                <PlayerPanel
                   player={player}
-                  isActive={playersSelectable && selectedPlayerCodes.includes(player.playerCode)}
-                  isCurrent={playersSelectable && selectedPlayerCodes.includes(player.playerCode)}
+                  isActive={
+                    playersSelectable &&
+                    selectedPlayerCodes.includes(player.playerCode)
+                  }
+                  isCurrent={
+                    playersSelectable &&
+                    selectedPlayerCodes.includes(player.playerCode)
+                  }
                   onClick={onTogglePlayer}
                   disabled={playersDisabled}
                   onEditScore={onEditScore}
+                  sendMessage={sendMessage}
                   matchCode={localStorage.getItem("matchCode") || ""}
                 />
               </div>

@@ -12,10 +12,15 @@ interface McSession extends SessionBase {
 
 export function useRoleSession(role: "player"): PlayerSession;
 export function useRoleSession(role: "mc"): McSession;
-export function useRoleSession(role: "player" | "mc"): PlayerSession | McSession {
+export function useRoleSession(
+  role: "player" | "mc",
+): PlayerSession | McSession {
   const matchCode = localStorage.getItem("matchCode") ?? "";
   if (role === "player") {
-    return { matchCode, playerCode: sessionStorage.getItem("playerCode") ?? "" };
+    return {
+      matchCode,
+      playerCode: sessionStorage.getItem("playerCode") ?? "",
+    };
   }
   return { matchCode, mcCode: sessionStorage.getItem("mcCode") ?? "" };
 }

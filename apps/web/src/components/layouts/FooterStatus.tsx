@@ -36,7 +36,11 @@ export const FooterStatus: React.FC<FooterStatusProps> = ({
       {timer !== undefined && (
         <div className="flex items-center gap-1.5 font-mono">
           <Clock size={12} />
-          <span className={timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : ""}>
+          <span
+            className={
+              timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : ""
+            }
+          >
             {formatTime(timer)}
           </span>
         </div>

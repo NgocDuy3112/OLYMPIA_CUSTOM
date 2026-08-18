@@ -27,13 +27,18 @@ export interface WaitingSnapshot {
   profiles: RawProfile[];
 }
 
-export async function loadWaitingSnapshot(matchCode: string): Promise<WaitingSnapshot> {
+export async function loadWaitingSnapshot(
+  matchCode: string,
+): Promise<WaitingSnapshot> {
   const encodedCode = encodeURIComponent(matchCode);
-  const [matchResponse, playersResponse, scoreboardResponse] = await Promise.all([
-    requestJson<ApiResponse<MatchData>>(`/matches/?match_code=${encodedCode}`),
-    requestJson<ApiResponse<PlayersData>>(`/matches/${encodedCode}/players`),
-    requestJson<ApiResponse<ScoreboardData>>(`/scoreboard/${encodedCode}`),
-  ]);
+  const [matchResponse, playersResponse, scoreboardResponse] =
+    await Promise.all([
+      requestJson<ApiResponse<MatchData>>(
+        `/matches/?match_code=${encodedCode}`,
+      ),
+      requestJson<ApiResponse<PlayersData>>(`/matches/${encodedCode}/players`),
+      requestJson<ApiResponse<ScoreboardData>>(`/scoreboard/${encodedCode}`),
+    ]);
   const players = playersResponse.data?.players ?? [];
   return {
     matchFinished: matchResponse.data?.match_status === "finished",
@@ -46,18 +51,29 @@ export async function loadWaitingSnapshot(matchCode: string): Promise<WaitingSna
   };
 }
 
-export function buildWaitingBroadcastPlayers(snapshot: WaitingSnapshot): RawPlayer[] {
-  const scores = new Map(snapshot.scoreboard.map((score) => [String(score.user_code ?? ""), score]));
-  const profiles = new Map(snapshot.profiles.map((profile) => [String(profile.user_code ?? ""), profile]));
+export function buildWaitingBroadcastPlayers(
+  snapshot: WaitingSnapshot,
+): RawPlayer[] {
+  const scores = new Map(
+    snapshot.scoreboard.map((score) => [String(score.user_code ?? ""), score]),
+  );
+  const profiles = new Map(
+    snapshot.profiles.map((profile) => [
+      String(profile.user_code ?? ""),
+      profile,
+    ]),
+  );
   return snapshot.players.map((player) => {
     const code = String(player.user_code ?? "");
     const score = scores.get(code);
     const profile = profiles.get(code);
     return {
       user_code: code,
-      user_name: profile?.user_name ?? player.user_name ?? score?.user_name ?? "",
+      user_name:
+        profile?.user_name ?? player.user_name ?? score?.user_name ?? "",
       position: player.position,
-      cumulative_score: score?.cumulative_score ?? score?.total_score ?? score?.score ?? 0,
+      cumulative_score:
+        score?.cumulative_score ?? score?.total_score ?? score?.score ?? 0,
     };
   });
 }

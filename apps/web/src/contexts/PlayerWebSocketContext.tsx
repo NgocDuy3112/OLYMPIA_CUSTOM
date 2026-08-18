@@ -6,10 +6,10 @@ import type { WebSocketContextValue } from "@/types/websocket";
 import { useRoleSession } from "@/hooks/useRoleSession";
 import { unwrapWebSocketMessage } from "@/types/websocket";
 
-export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
-  matchCode,
-  children,
-}) => {
+export const PlayerWebSocketProvider: React.FC<{
+  matchCode: string;
+  children: ReactNode;
+}> = ({ matchCode, children }) => {
   const ws = useWebSocket(matchCode);
   const { isConnected, lastMessage, sendMessage } = ws;
 
@@ -23,7 +23,11 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     if (!isConnected) return;
     if (!playerCode) return;
 
-    void sendMessage({ type: "user_online", user_code: playerCode, status: "online" });
+    void sendMessage({
+      type: "user_online",
+      user_code: playerCode,
+      status: "online",
+    });
   }, [isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
@@ -32,7 +36,11 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     if (last.type !== "request_presence") return;
     if (!isConnected) return;
     if (!playerCode) return;
-    void sendMessage({ type: "user_online", user_code: playerCode, status: "heartbeat" });
+    void sendMessage({
+      type: "user_online",
+      user_code: playerCode,
+      status: "heartbeat",
+    });
   }, [lastMessage, isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
@@ -50,17 +58,26 @@ export const PlayerWebSocketProvider: React.FC<{ matchCode: string; children: Re
     void sendMessage({
       type: "pong_latency",
       user_code: playerCode,
-      client_ts: typeof last.client_ts === "number" ? last.client_ts : Date.now(),
+      client_ts:
+        typeof last.client_ts === "number" ? last.client_ts : Date.now(),
     });
   }, [lastMessage, isConnected, playerCode, sendMessage]);
 
   useEffect(() => {
     if (!isConnected || !playerCode) return;
     const intervalId = window.setInterval(() => {
-      void sendMessage({ type: "user_online", user_code: playerCode, status: "heartbeat" });
+      void sendMessage({
+        type: "user_online",
+        user_code: playerCode,
+        status: "heartbeat",
+      });
     }, 10_000);
     return () => window.clearInterval(intervalId);
   }, [isConnected, playerCode, sendMessage]);
 
-  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
+  return (
+    <WebSocketContext.Provider value={value}>
+      {children}
+    </WebSocketContext.Provider>
+  );
 };

@@ -60,7 +60,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </span>
         )}
         {rightContent}
-        <div className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-green-400" : "text-red-400"}`}>
+        <div
+          className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-green-400" : "text-red-400"}`}
+        >
           {isConnected ? (
             <>
               <Wifi size={14} />

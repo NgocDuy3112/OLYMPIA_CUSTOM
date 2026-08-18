@@ -1,4 +1,3 @@
-
 export type ControlVariant = "numbers" | "subjects";
 
 export interface BaseQuestionBoardControls {

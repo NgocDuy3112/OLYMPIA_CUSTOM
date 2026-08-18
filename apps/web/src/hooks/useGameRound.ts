@@ -89,7 +89,9 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
 
   // ── Question ──
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState<Question>({ ...DEFAULT_QUESTION });
+  const [currentQuestion, setCurrentQuestion] = useState<Question>({
+    ...DEFAULT_QUESTION,
+  });
 
   // ── Timer ──
   const [timer, setTimer] = useState(0);
@@ -102,24 +104,35 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   const [hasAddedScore, setHasAddedScore] = useState(false);
 
   // ── Timer lock ──
-  const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(currentQuestion.questionCode);
+  const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(
+    currentQuestion.questionCode,
+  );
 
   // ── Derived ──
   const hasQuestionSelected = currentQuestionIndex > 0;
 
   // ── Sync timerRef ──
-  useEffect(() => { timerRef.current = timer; }, [timer]);
+  useEffect(() => {
+    timerRef.current = timer;
+  }, [timer]);
 
   // ── Reset hasAddedScore on question change ──
-  useEffect(() => { setHasAddedScore(false); }, [currentQuestionIndex]);
+  useEffect(() => {
+    setHasAddedScore(false);
+  }, [currentQuestionIndex]);
 
   // ── Helpers ──
-  const resolveQuestionCode = useCallback((index: number) => {
-    return `${questionPrefix}_${String(index)}`;
-  }, [questionPrefix]);
+  const resolveQuestionCode = useCallback(
+    (index: number) => {
+      return `${questionPrefix}_${String(index)}`;
+    },
+    [questionPrefix],
+  );
 
   const toggleSelectedPlayer = useCallback((code: string) => {
-    setSelectedPlayerCodes(prev => prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]);
+    setSelectedPlayerCodes((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code],
+    );
   }, []);
 
   // ── Players snapshot ──
@@ -127,7 +140,14 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     if (!matchCode) return undefined;
     try {
       const snapshot = await loadAdminPlayersSnapshot(matchCode);
-      setPlayers(prev => buildPlayersSnapshot(snapshot.players, snapshot.scoreboard, snapshot.profiles, prev));
+      setPlayers((prev) =>
+        buildPlayersSnapshot(
+          snapshot.players,
+          snapshot.scoreboard,
+          snapshot.profiles,
+          prev,
+        ),
+      );
       return snapshot;
     } catch (error) {
       logger.error("Failed to load players:", error);
@@ -135,12 +155,23 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     }
   }, [matchCode]);
 
-  const applyPlayersSnapshot = useCallback((payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
-    const playersList = Array.isArray(payload?.players) ? payload.players : [];
-    const scoreboardList = Array.isArray(payload?.scoreboard) ? payload.scoreboard : [];
-    const profileList = Array.isArray(payload?.profiles) ? payload.profiles : [];
-    setPlayers(prev => buildPlayersSnapshot(playersList, scoreboardList, profileList, prev));
-  }, []);
+  const applyPlayersSnapshot = useCallback(
+    (payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
+      const playersList = Array.isArray(payload?.players)
+        ? payload.players
+        : [];
+      const scoreboardList = Array.isArray(payload?.scoreboard)
+        ? payload.scoreboard
+        : [];
+      const profileList = Array.isArray(payload?.profiles)
+        ? payload.profiles
+        : [];
+      setPlayers((prev) =>
+        buildPlayersSnapshot(playersList, scoreboardList, profileList, prev),
+      );
+    },
+    [],
+  );
 
   const sendPlayersSnapshot = useCallback(async () => {
     if (!matchCode) return;
@@ -150,13 +181,21 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
 
       const mergedPlayers = (snapshot.players ?? []).map((p: any) => {
         const userCode = String(p?.user_code ?? p?.playerCode ?? "");
-        const profile = (snapshot.profiles ?? []).find((pr: any) => String(pr?.user_code) === userCode) ?? {};
-        const scoreEntry = (snapshot.scoreboard ?? []).find((s: any) => String(s?.user_code) === userCode) ?? {};
-        const cumulativeScore = scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? 0;
+        const profile =
+          (snapshot.profiles ?? []).find(
+            (pr: any) => String(pr?.user_code) === userCode,
+          ) ?? {};
+        const scoreEntry =
+          (snapshot.scoreboard ?? []).find(
+            (s: any) => String(s?.user_code) === userCode,
+          ) ?? {};
+        const cumulativeScore =
+          scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? 0;
 
         return {
           user_code: userCode,
-          user_name: profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
+          user_name:
+            profile?.user_name ?? p?.user_name ?? scoreEntry?.user_name ?? "",
           position: p?.position ?? undefined,
           cumulative_score: cumulativeScore,
         };
@@ -169,64 +208,75 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   }, [matchCode, loadPlayersState, sendMessage]);
 
   // ── Question loading ──
-  const loadQuestion = useCallback(async (index: number): Promise<Question | undefined> => {
-    if (!matchCode || index <= 0) {
-      setCurrentQuestion({ ...DEFAULT_QUESTION });
-      return { ...DEFAULT_QUESTION };
-    }
+  const loadQuestion = useCallback(
+    async (index: number): Promise<Question | undefined> => {
+      if (!matchCode || index <= 0) {
+        setCurrentQuestion({ ...DEFAULT_QUESTION });
+        return { ...DEFAULT_QUESTION };
+      }
 
-    const questionCode = resolveQuestionCode(index);
+      const questionCode = resolveQuestionCode(index);
 
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}&question_code=${encodeURIComponent(questionCode)}`,
-        { credentials: "include" }
-      );
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}&question_code=${encodeURIComponent(questionCode)}`,
+          { credentials: "include" },
+        );
 
-      if (!res.ok) {
+        if (!res.ok) {
+          const mapped = mapQuestionApiPayload(null, questionCode);
+          setCurrentQuestion(mapped);
+          return mapped;
+        }
+
+        const data = await res.json();
+        let payload: any = null;
+
+        if (Array.isArray(data.data)) {
+          payload =
+            data.data.find(
+              (q: any) => String(q?.question_code) === questionCode,
+            ) ??
+            data.data[0] ??
+            null;
+        } else {
+          payload = data.data ?? null;
+        }
+
+        const mapped = mapQuestionApiPayload(payload, questionCode);
+        setCurrentQuestion(mapped);
+        return mapped;
+      } catch (error) {
+        logger.error("Failed to load question:", error);
         const mapped = mapQuestionApiPayload(null, questionCode);
         setCurrentQuestion(mapped);
         return mapped;
       }
+    },
+    [matchCode, resolveQuestionCode],
+  );
 
-      const data = await res.json();
-      let payload: any = null;
+  const sendQuestionToPlayers = useCallback(
+    async (index: number, question?: Question) => {
+      if (!matchCode || index <= 0) return;
 
-      if (Array.isArray(data.data)) {
-        payload = data.data.find((q: any) => String(q?.question_code) === questionCode) ?? data.data[0] ?? null;
-      } else {
-        payload = data.data ?? null;
+      const questionCode = resolveQuestionCode(index);
+      const q = question ?? currentQuestion;
+
+      try {
+        await sendMessage({
+          type: "send_question",
+          user_code: "",
+          question_code: questionCode,
+          content: q.questionText ?? "",
+          media_source: q.questionMediaURL ?? undefined,
+        });
+      } catch (error) {
+        logger.error("Failed to broadcast question:", error);
       }
-
-      const mapped = mapQuestionApiPayload(payload, questionCode);
-      setCurrentQuestion(mapped);
-      return mapped;
-    } catch (error) {
-      logger.error("Failed to load question:", error);
-      const mapped = mapQuestionApiPayload(null, questionCode);
-      setCurrentQuestion(mapped);
-      return mapped;
-    }
-  }, [matchCode, resolveQuestionCode]);
-
-  const sendQuestionToPlayers = useCallback(async (index: number, question?: Question) => {
-    if (!matchCode || index <= 0) return;
-
-    const questionCode = resolveQuestionCode(index);
-    const q = question ?? currentQuestion;
-
-    try {
-      await sendMessage({
-        type: "send_question",
-        user_code: "",
-        question_code: questionCode,
-        content: q.questionText ?? "",
-        media_source: q.questionMediaURL ?? undefined,
-      });
-    } catch (error) {
-      logger.error("Failed to broadcast question:", error);
-    }
-  }, [matchCode, resolveQuestionCode, sendMessage, currentQuestion]);
+    },
+    [matchCode, resolveQuestionCode, sendMessage, currentQuestion],
+  );
 
   const clearQuestion = useCallback(async () => {
     if (!matchCode) return;
@@ -239,33 +289,52 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   }, [matchCode, sendMessage]);
 
   // ── Timer ──
-  const startTimer = useCallback(async (index?: number) => {
-    if (isTimerLocked) return;
-    lockTimer();
+  const startTimer = useCallback(
+    async (index?: number) => {
+      if (isTimerLocked) return;
+      lockTimer();
 
-    const targetIndex = index ?? currentQuestionIndex;
-    if (targetIndex <= 0) return;
+      const targetIndex = index ?? currentQuestionIndex;
+      if (targetIndex <= 0) return;
 
-    const questionCode = resolveQuestionCode(targetIndex);
-    const startedAt = Date.now();
-    timerStartedAtRef.current = startedAt;
-    setTimer(timeLimit);
-    setIsTimerRunning(true);
+      const questionCode = resolveQuestionCode(targetIndex);
+      const startedAt = Date.now();
+      timerStartedAtRef.current = startedAt;
+      setTimer(timeLimit);
+      setIsTimerRunning(true);
 
-    // Clear player answers
-    setPlayers(prev => prev.map(p => ({
-      ...p,
-      playerLastAnswer: undefined,
-      playerTimestamp: undefined,
-      playerHasBuzzed: undefined,
-    })));
+      // Clear player answers
+      setPlayers((prev) =>
+        prev.map((p) => ({
+          ...p,
+          playerLastAnswer: undefined,
+          playerTimestamp: undefined,
+          playerHasBuzzed: undefined,
+        })),
+      );
 
-    try {
-      await sendStartTimer({ sendMessage, phase: timerPhase, timeLimit, questionCode, startedAt });
-    } catch (error) {
-      logger.error("Failed to start timer:", error);
-    }
-  }, [currentQuestionIndex, isTimerLocked, lockTimer, resolveQuestionCode, sendMessage, timeLimit, timerPhase]);
+      try {
+        await sendStartTimer({
+          sendMessage,
+          phase: timerPhase,
+          timeLimit,
+          questionCode,
+          startedAt,
+        });
+      } catch (error) {
+        logger.error("Failed to start timer:", error);
+      }
+    },
+    [
+      currentQuestionIndex,
+      isTimerLocked,
+      lockTimer,
+      resolveQuestionCode,
+      sendMessage,
+      timeLimit,
+      timerPhase,
+    ],
+  );
 
   // Timer countdown
   useEffect(() => {
@@ -275,7 +344,7 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     }
 
     const intervalId = window.setInterval(() => {
-      setTimer(prev => {
+      setTimer((prev) => {
         if (prev <= 1) {
           window.clearInterval(intervalId);
           return 0;
@@ -292,24 +361,37 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     if (!matchCode) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, { credentials: "include" });
+      const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
+        credentials: "include",
+      });
       const json = await res.json();
 
       let scoreboardArr: any[] = [];
       if (Array.isArray(json.data)) scoreboardArr = json.data;
-      else if (Array.isArray(json.data?.scoreboard)) scoreboardArr = json.data.scoreboard;
+      else if (Array.isArray(json.data?.scoreboard))
+        scoreboardArr = json.data.scoreboard;
 
-      setPlayers(prev => prev.map(player => {
-        const entry = scoreboardArr.find((item: any) => item.user_code === player.playerCode);
-        const updatedScore = entry?.cumulative_score ?? entry?.total_score;
-        return typeof updatedScore === "number" ? { ...player, playerScore: updatedScore } : player;
-      }));
+      setPlayers((prev) =>
+        prev.map((player) => {
+          const entry = scoreboardArr.find(
+            (item: any) => item.user_code === player.playerCode,
+          );
+          const updatedScore = entry?.cumulative_score ?? entry?.total_score;
+          return typeof updatedScore === "number"
+            ? { ...player, playerScore: updatedScore }
+            : player;
+        }),
+      );
 
       for (const entry of scoreboardArr) {
         const userCode = String(entry?.user_code ?? "");
         const totalScore = entry?.cumulative_score ?? entry?.total_score;
         if (userCode && typeof totalScore === "number") {
-          void sendMessage({ type: "player_score_updated", user_code: userCode, new_total_score: totalScore });
+          void sendMessage({
+            type: "player_score_updated",
+            user_code: userCode,
+            new_total_score: totalScore,
+          });
         }
       }
 
@@ -319,37 +401,66 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     }
   }, [matchCode, sendMessage, sendPlayersSnapshot]);
 
-  const calculateAndBroadcastScore = useCallback(async (action: string) => {
-    if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode || !matchCode) return;
-    setHasAddedScore(true);
+  const calculateAndBroadcastScore = useCallback(
+    async (action: string) => {
+      if (
+        selectedPlayerCodes.length === 0 ||
+        !currentQuestion.questionCode ||
+        !matchCode
+      )
+        return;
+      setHasAddedScore(true);
 
-    try {
-      await calculateScore(matchCode, currentQuestion.questionCode, action, selectedPlayerCodes);
-      await syncAndBroadcastScores();
-      setSelectedPlayerCodes([]);
-    } catch (err) {
-      logger.error("Failed to calculate score:", err);
-      setHasAddedScore(false);
-    }
-  }, [selectedPlayerCodes, currentQuestion.questionCode, matchCode, syncAndBroadcastScores]);
+      try {
+        await calculateScore(
+          matchCode,
+          currentQuestion.questionCode,
+          action,
+          selectedPlayerCodes,
+        );
+        await syncAndBroadcastScores();
+        setSelectedPlayerCodes([]);
+      } catch (err) {
+        logger.error("Failed to calculate score:", err);
+        setHasAddedScore(false);
+      }
+    },
+    [
+      selectedPlayerCodes,
+      currentQuestion.questionCode,
+      matchCode,
+      syncAndBroadcastScores,
+    ],
+  );
 
-  const handleEditScore = useCallback((playerCode: string, newScore: number) => {
-    setPlayers(prev => prev.map(p => p.playerCode === playerCode ? { ...p, playerScore: newScore } : p));
-    void sendPlayersSnapshot();
-  }, [sendPlayersSnapshot]);
+  const handleEditScore = useCallback(
+    (playerCode: string, newScore: number) => {
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.playerCode === playerCode ? { ...p, playerScore: newScore } : p,
+        ),
+      );
+      void sendPlayersSnapshot();
+    },
+    [sendPlayersSnapshot],
+  );
 
   // ── Show answers ──
   const showAnswers = useCallback(async () => {
     if (!currentQuestion.questionCode || !matchCode) return;
 
     const questionCode = currentQuestion.questionCode;
-    const answersPayload: Array<{ user_code: string; content: string; timestamp: number }> = [];
+    const answersPayload: Array<{
+      user_code: string;
+      content: string;
+      timestamp: number;
+    }> = [];
 
     for (const player of players) {
       try {
         const res = await fetch(
           `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(matchCode)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`,
-          { credentials: "include" }
+          { credentials: "include" },
         );
         if (!res.ok) continue;
 
@@ -358,7 +469,10 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
         if (!data) continue;
 
         const answerObj = Array.isArray(data)
-          ? data.reduce((a: any, b: any) => (b.timestamp > a.timestamp ? b : a), data[0])
+          ? data.reduce(
+              (a: any, b: any) => (b.timestamp > a.timestamp ? b : a),
+              data[0],
+            )
           : data;
 
         if (answerObj?.answer_text) {
@@ -374,7 +488,10 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     }
 
     try {
-      await sendMessage({ type: "send_answers_to_players", answers: answersPayload });
+      await sendMessage({
+        type: "send_answers_to_players",
+        answers: answersPayload,
+      });
     } catch (err) {
       logger.error("Failed to broadcast answers:", err);
     }
@@ -391,7 +508,12 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
 
     if (!matchCode) return;
     try {
-      await endRoundAndReturnToWaiting({ currentMatchCode: matchCode, navigate, round, sendMessage });
+      await endRoundAndReturnToWaiting({
+        currentMatchCode: matchCode,
+        navigate,
+        round,
+        sendMessage,
+      });
     } catch (error) {
       logger.error("Failed to end round:", error);
     }
@@ -402,7 +524,12 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     if (currentQuestionIndex > 0 && currentQuestion.questionCode) {
       await sendQuestionToPlayers(currentQuestionIndex);
     }
-  }, [sendPlayersSnapshot, sendQuestionToPlayers, currentQuestionIndex, currentQuestion]);
+  }, [
+    sendPlayersSnapshot,
+    sendQuestionToPlayers,
+    currentQuestionIndex,
+    currentQuestion,
+  ]);
 
   // ── Load players on mount ──
   useEffect(() => {
@@ -421,7 +548,13 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
       }
       case "player_offline": {
         if (msg.user_code) {
-          setPlayers(prev => prev.map(p => p.playerCode === msg.user_code ? { ...p, playerConnected: false } : p));
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.playerCode === msg.user_code
+                ? { ...p, playerConnected: false }
+                : p,
+            ),
+          );
         }
         break;
       }
@@ -429,44 +562,71 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
         applyPlayersSnapshot(msg);
         break;
       }
+      case "player_afk_updated": {
+        if (msg.user_code)
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.playerCode === msg.user_code
+                ? { ...p, playerAfk: msg.status === "afk" || msg.afk === true }
+                : p,
+            ),
+          );
+        break;
+      }
       case "player_score_updated": {
         if (msg.user_code && typeof msg.new_total_score === "number") {
-          setPlayers(prev => prev.map(p =>
-            p.playerCode === msg.user_code ? { ...p, playerScore: msg.new_total_score } : p
-          ));
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.playerCode === msg.user_code
+                ? { ...p, playerScore: msg.new_total_score }
+                : p,
+            ),
+          );
         }
         break;
       }
       case "clear_answers": {
-        setPlayers(prev => prev.map(p => ({
-          ...p,
-          playerLastAnswer: undefined,
-          playerTimestamp: undefined,
-        })));
+        setPlayers((prev) =>
+          prev.map((p) => ({
+            ...p,
+            playerLastAnswer: undefined,
+            playerTimestamp: undefined,
+          })),
+        );
         break;
       }
       case "send_answers_to_players": {
         const answers = Array.isArray(msg.answers) ? msg.answers : [];
-        setPlayers(prev => prev.map(player => {
-          const answer = answers.find((item: any) => item.user_code === player.playerCode);
-          if (!answer) return player;
-          return {
-            ...player,
-            playerLastAnswer: answer.content ?? answer.answer_text ?? player.playerLastAnswer,
-            playerTimestamp: answer.timestamp ?? player.playerTimestamp,
-          };
-        }));
+        setPlayers((prev) =>
+          prev.map((player) => {
+            const answer = answers.find(
+              (item: any) => item.user_code === player.playerCode,
+            );
+            if (!answer) return player;
+            return {
+              ...player,
+              playerLastAnswer:
+                answer.content ?? answer.answer_text ?? player.playerLastAnswer,
+              playerTimestamp: answer.timestamp ?? player.playerTimestamp,
+            };
+          }),
+        );
         break;
       }
-      case "player_answer":
-      case "answer": {
+      case "player_answer": {
         const { user_code, answer_text, timestamp } = msg;
         if (user_code && answer_text) {
-          setPlayers(prev => prev.map(p =>
-            p.playerCode === user_code
-              ? { ...p, playerLastAnswer: answer_text, playerTimestamp: timestamp ?? p.playerTimestamp }
-              : p
-          ));
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.playerCode === user_code
+                ? {
+                    ...p,
+                    playerLastAnswer: answer_text,
+                    playerTimestamp: timestamp ?? p.playerTimestamp,
+                  }
+                : p,
+            ),
+          );
         }
         break;
       }

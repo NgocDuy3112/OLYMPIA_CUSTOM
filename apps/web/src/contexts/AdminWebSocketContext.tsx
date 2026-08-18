@@ -4,10 +4,10 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { WebSocketContext } from "@/contexts/WebSocketContext";
 import type { WebSocketContextValue } from "@/types/websocket";
 
-export const AdminWebSocketProvider: React.FC<{ matchCode: string; children: ReactNode }> = ({
-  matchCode,
-  children,
-}) => {
+export const AdminWebSocketProvider: React.FC<{
+  matchCode: string;
+  children: ReactNode;
+}> = ({ matchCode, children }) => {
   const ws = useWebSocket(matchCode);
 
   const { isConnected, lastMessage, sendMessage } = ws;
@@ -32,7 +32,11 @@ export const AdminWebSocketProvider: React.FC<{ matchCode: string; children: Rea
     };
   }, [isConnected, sendMessage]);
 
-  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
+  return (
+    <WebSocketContext.Provider value={value}>
+      {children}
+    </WebSocketContext.Provider>
+  );
 };
 
 export default AdminWebSocketProvider;

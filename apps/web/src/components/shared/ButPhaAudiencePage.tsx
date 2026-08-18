@@ -14,11 +14,14 @@ interface ButPhaAudiencePageProps {
 }
 
 export function ButPhaAudiencePage({ Layout }: ButPhaAudiencePageProps) {
-  const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+  const [videoPlayState, setVideoPlayState] = useState<
+    "playing" | "paused" | null
+  >(null);
   const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
   const { lastMessage } = useGameWebSocket();
   const { timer, startSynced } = useCountdownTimer();
-  const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
+  const { currentQuestion, currentQuestionIndex, applyWsMessage } =
+    useQuestionState();
   const {
     players,
     applyPlayersInfo,
@@ -52,7 +55,10 @@ export function ButPhaAudiencePage({ Layout }: ButPhaAudiencePageProps) {
           setBuzzerWinnerCode(null);
           break;
         case "start_the_timer":
-          startSynced(Number(message.time_limit ?? 0), Number(message.started_at ?? Date.now()));
+          startSynced(
+            Number(message.time_limit ?? 0),
+            Number(message.started_at ?? Date.now()),
+          );
           clearAnswers();
           setVideoPlayState("playing");
           setBuzzerWinnerCode(null);
@@ -98,7 +104,11 @@ export function ButPhaAudiencePage({ Layout }: ButPhaAudiencePageProps) {
   };
 
   return (
-    <Layout players={players} currentPlayerCode="" buzzerWinnerCode={buzzerWinnerCode}>
+    <Layout
+      players={players}
+      currentPlayerCode=""
+      buzzerWinnerCode={buzzerWinnerCode}
+    >
       <AQuestionBoard
         title="BỨT PHÁ"
         question={question}
@@ -106,7 +116,8 @@ export function ButPhaAudiencePage({ Layout }: ButPhaAudiencePageProps) {
         controls={{
           variant: "numbers",
           count: 5,
-          activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
+          activeIndices:
+            currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
         }}
         videoPlayState={videoPlayState}
         hideMediaUntilPlayed

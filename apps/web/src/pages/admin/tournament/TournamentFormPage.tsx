@@ -45,7 +45,8 @@ const TournamentFormPage: React.FC = () => {
   const { code } = useParams<{ code: string }>();
   const isEditing = !!code;
 
-  const [formData, setFormData] = useState<TournamentFormData>(INITIAL_FORM_DATA);
+  const [formData, setFormData] =
+    useState<TournamentFormData>(INITIAL_FORM_DATA);
   const [isLoading, setIsLoading] = useState(isEditing);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,7 +81,9 @@ const TournamentFormPage: React.FC = () => {
           });
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load tournament");
+        setError(
+          err instanceof Error ? err.message : "Failed to load tournament",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -90,7 +93,9 @@ const TournamentFormPage: React.FC = () => {
   }, [code]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -130,7 +135,9 @@ const TournamentFormPage: React.FC = () => {
 
       navigate("/admin/tournaments");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save tournament");
+      setError(
+        err instanceof Error ? err.message : "Failed to save tournament",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -159,7 +166,9 @@ const TournamentFormPage: React.FC = () => {
             {isEditing ? "Chỉnh sửa giải đấu" : "Tạo giải đấu mới"}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            {isEditing ? "Cập nhật thông tin giải đấu" : "Điền thông tin để tạo giải đấu mới"}
+            {isEditing
+              ? "Cập nhật thông tin giải đấu"
+              : "Điền thông tin để tạo giải đấu mới"}
           </p>
         </div>
       </div>
@@ -236,7 +245,11 @@ const TournamentFormPage: React.FC = () => {
               className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-500 touch-target"
             >
               {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value} className="bg-gray-800">
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  className="bg-gray-800"
+                >
                   {opt.label}
                 </option>
               ))}

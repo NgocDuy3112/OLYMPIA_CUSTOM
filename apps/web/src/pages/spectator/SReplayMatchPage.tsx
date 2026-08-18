@@ -93,13 +93,17 @@ const SReplayMatchPage: React.FC = () => {
           </div>
         ) : (
           <div className="w-full max-w-5xl aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500 text-sm sm:text-base">Không có video replay</p>
+            <p className="text-gray-500 text-sm sm:text-base">
+              Không có video replay
+            </p>
           </div>
         )}
 
         {/* Info */}
         <div className="w-full max-w-5xl bg-black/30 rounded-lg p-3 sm:p-4">
-          <h2 className="text-base sm:text-lg font-bold text-white mb-2">Thông tin trận đấu</h2>
+          <h2 className="text-base sm:text-lg font-bold text-white mb-2">
+            Thông tin trận đấu
+          </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
             <div>
               <span className="text-gray-400">Mã trận:</span>

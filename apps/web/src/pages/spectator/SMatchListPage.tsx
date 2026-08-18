@@ -94,8 +94,12 @@ const SMatchListPage: React.FC = () => {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">OLYMPIA CUSTOM</h1>
-          <p className="text-blue-300 text-sm sm:text-base mb-4">Xem trận đấu</p>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
+            OLYMPIA CUSTOM
+          </h1>
+          <p className="text-blue-300 text-sm sm:text-base mb-4">
+            Xem trận đấu
+          </p>
           <a
             href="/login"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
@@ -152,7 +156,8 @@ const SMatchListPage: React.FC = () => {
                       <span>Xem trực tiếp</span>
                     </button>
                   )}
-                  {(match.matchStatus === "ended" || match.matchStatus === "finished") && (
+                  {(match.matchStatus === "ended" ||
+                    match.matchStatus === "finished") && (
                     <button
                       onClick={() => handleWatchReplay(match.matchCode)}
                       className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors touch-target"

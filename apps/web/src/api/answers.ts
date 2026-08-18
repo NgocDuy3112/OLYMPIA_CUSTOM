@@ -12,10 +12,10 @@ interface SubmitAnswerInput {
 
 export async function submitAnswer(input: SubmitAnswerInput): Promise<void> {
   validateAnswerInput(input);
-  await requestJson<unknown>(
-    "/answers/",
-    { method: "POST", body: JSON.stringify(input) },
-  );
+  await requestJson<unknown>("/answers/", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export async function submitBuzz(input: SubmitAnswerInput): Promise<boolean> {

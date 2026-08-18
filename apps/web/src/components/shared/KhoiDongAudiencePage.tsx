@@ -15,12 +15,16 @@ interface KhoiDongAudiencePageProps {
   matchCode?: string;
 }
 
-export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePageProps) {
+export function KhoiDongAudiencePage({
+  variant,
+  Layout,
+}: KhoiDongAudiencePageProps) {
   const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
   const [currentPlayerCode, setCurrentPlayerCode] = useState("");
   const { lastMessage } = useGameWebSocket();
   const { timer, startSynced } = useCountdownTimer();
-  const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
+  const { currentQuestion, currentQuestionIndex, applyWsMessage } =
+    useQuestionState();
   const {
     players,
     setPlayers,
@@ -41,10 +45,12 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
   useEffect(() => {
     if (variant !== "rieng") return;
     queueMicrotask(() => {
-      setPlayers((previous) => previous.map((player) => ({
-        ...player,
-        playerWrongAttempts: undefined,
-      })));
+      setPlayers((previous) =>
+        previous.map((player) => ({
+          ...player,
+          playerWrongAttempts: undefined,
+        })),
+      );
     });
   }, [currentQuestionIndex, setPlayers, variant]);
 
@@ -59,14 +65,19 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
         case "send_players_info": {
           applyPlayersInfo(message);
           if (variant === "rieng") {
-            const rawPlayers = Array.isArray(message.players) ? message.players as RawPlayer[] : [];
+            const rawPlayers = Array.isArray(message.players)
+              ? (message.players as RawPlayer[])
+              : [];
             const current = rawPlayers.find((player) => player.is_current);
             setCurrentPlayerCode(String(current?.user_code ?? ""));
           }
           break;
         }
         case "start_the_timer":
-          startSynced(Number(message.time_limit ?? (variant === "chung" ? 60 : 0)), Number(message.started_at ?? Date.now()));
+          startSynced(
+            Number(message.time_limit ?? (variant === "chung" ? 60 : 0)),
+            Number(message.started_at ?? Date.now()),
+          );
           clearAnswers();
           setBuzzerWinnerCode(null);
           break;
@@ -89,10 +100,12 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
           const winner = String(message.user_code ?? "");
           setBuzzerWinnerCode(winner || null);
           if (variant === "rieng") {
-            setPlayers((previous) => previous.map((player) => ({
-              ...player,
-              playerHasBuzzed: winner ? player.playerCode === winner : false,
-            })));
+            setPlayers((previous) =>
+              previous.map((player) => ({
+                ...player,
+                playerHasBuzzed: winner ? player.playerCode === winner : false,
+              })),
+            );
           }
           break;
         }
@@ -120,9 +133,12 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
   const question = {
     ...currentQuestion,
     questionAnswer: questionAnswer || currentQuestion.questionAnswer,
-    questionExplanation: questionExplanation || currentQuestion.questionExplanation,
+    questionExplanation:
+      questionExplanation || currentQuestion.questionExplanation,
   };
-  const hasSecondAttempt = variant === "rieng" && players.some((player) => player.playerWrongAttempts === 1);
+  const hasSecondAttempt =
+    variant === "rieng" &&
+    players.some((player) => player.playerWrongAttempts === 1);
 
   return (
     <Layout
@@ -131,22 +147,41 @@ export function KhoiDongAudiencePage({ variant, Layout }: KhoiDongAudiencePagePr
       buzzerWinnerCode={buzzerWinnerCode}
     >
       <AQuestionBoard
-        title={variant === "rieng" ? "KHỞI ĐỘNG - LƯỢT CÁ NHÂN" : "KHỞI ĐỘNG - LƯỢT CHUNG"}
+        title={
+          variant === "rieng"
+            ? "KHỞI ĐỘNG - LƯỢT CÁ NHÂN"
+            : "KHỞI ĐỘNG - LƯỢT CHUNG"
+        }
         question={question}
         timerDuration={timer}
         controls={{
           variant: "numbers",
           count: 6,
-          activeIndices: currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
+          activeIndices:
+            currentQuestionIndex > 0 ? [currentQuestionIndex - 1] : [],
         }}
         boardHeightClass="h-[40vh] sm:h-[50vh] lg:h-[60vh]"
       >
         {(api) => (
           <div className="flex gap-2 items-center">
-            {hasSecondAttempt && <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">Trả lời lần 2</div>}
+            {hasSecondAttempt && (
+              <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+                Trả lời lần 2
+              </div>
+            )}
             {api.boxStates.map((_, index) => {
               const active = api.activeIndices.includes(index);
-              return <button key={index} type="button" aria-pressed={active} onClick={() => api.toggle(index)} className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}>{index + 1}</button>;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => api.toggle(index)}
+                  className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}
+                >
+                  {index + 1}
+                </button>
+              );
             })}
           </div>
         )}

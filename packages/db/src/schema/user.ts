@@ -1,6 +1,13 @@
-import { pgTable, uuid, varchar, boolean, timestamp, check } from 'drizzle-orm/pg-core'
-import { sql } from 'drizzle-orm'
-import { roleEnum } from './enums'
+import {
+  pgTable,
+  uuid,
+  varchar,
+  boolean,
+  timestamp,
+  check,
+} from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { roleEnum } from "./enums";
 
 /**
  * Users table — v4 schema.
@@ -14,20 +21,23 @@ import { roleEnum } from './enums'
  * but will not be assigned to new users.
  */
 export const users = pgTable(
-  'users',
+  "users",
   {
-    id: uuid('id').defaultRandom().primaryKey(),
-    googleId: varchar('google_id', { length: 255 }).unique(),
-    email: varchar('email', { length: 255 }).notNull().unique(),
-    userCode: varchar('user_code', { length: 50 }).notNull().unique(),
-    userName: varchar('user_name', { length: 100 }).notNull(),
-    avatarUrl: varchar('avatar_url', { length: 500 }),
-    role: roleEnum('role').notNull().default('player'),
-    isDeleted: boolean('is_deleted').default(false),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    googleId: varchar("google_id", { length: 255 }).unique(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    userCode: varchar("user_code", { length: 50 }).notNull().unique(),
+    userName: varchar("user_name", { length: 100 }).notNull(),
+    avatarUrl: varchar("avatar_url", { length: 500 }),
+    role: roleEnum("role").notNull().default("player"),
+    isDeleted: boolean("is_deleted").default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (t) => [
-    check('check_user_code_starts_with_OC_U', sql`position('OC_U' in ${t.userCode}) = 1`),
+    check(
+      "check_user_code_starts_with_OC_U",
+      sql`position('OC_U' in ${t.userCode}) = 1`,
+    ),
   ],
-)
+);

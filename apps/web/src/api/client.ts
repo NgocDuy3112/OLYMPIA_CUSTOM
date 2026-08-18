@@ -6,7 +6,10 @@ export interface ApiResponse<T> {
   data: T | null;
 }
 
-export function getApiErrorMessage(error: unknown, fallback = "Request failed"): string {
+export function getApiErrorMessage(
+  error: unknown,
+  fallback = "Request failed",
+): string {
   if (error instanceof ApiError) return error.message || fallback;
   if (error instanceof Error) return error.message || fallback;
   return fallback;
@@ -32,9 +35,14 @@ export async function requestJson<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  if (options.body && !headers.has("Content-Type"))
+    headers.set("Content-Type", "application/json");
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, credentials: "include" });
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = getResponseError(data) ?? `HTTP ${response.status}`;
@@ -48,7 +56,11 @@ function getResponseError(data: unknown): string | null {
   const body = data as { detail?: unknown; message?: unknown };
   if (Array.isArray(body.detail)) {
     const messages = body.detail
-      .map((item) => typeof item === "object" && item !== null && "msg" in item ? String(item.msg) : String(item))
+      .map((item) =>
+        typeof item === "object" && item !== null && "msg" in item
+          ? String(item.msg)
+          : String(item),
+      )
       .filter(Boolean);
     return messages.join("; ") || null;
   }

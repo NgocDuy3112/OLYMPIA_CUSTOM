@@ -50,21 +50,38 @@ export interface UsePlayerRoundReturn {
   setTimerHasStarted: (v: boolean) => void;
 }
 
-export function usePlayerRound(options: UsePlayerRoundOptions = {}): UsePlayerRoundReturn {
+export function usePlayerRound(
+  options: UsePlayerRoundOptions = {},
+): UsePlayerRoundReturn {
   const { audioSrc } = options;
   const { isConnected, lastMessage, sendMessage } = useGameWebSocket();
-  const { timer, timeLimit, startSynced, getElapsedSeconds } = useCountdownTimer();
-  const { currentQuestion, currentQuestionIndex, applyWsMessage } = useQuestionState();
-  const { players, setPlayers, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyWrongAttempt, clearAnswers } = useAudiencePlayers();
+  const { timer, timeLimit, startSynced, getElapsedSeconds } =
+    useCountdownTimer();
+  const { currentQuestion, currentQuestionIndex, applyWsMessage } =
+    useQuestionState();
+  const {
+    players,
+    setPlayers,
+    applyPlayersInfo,
+    applyScoreUpdate,
+    applyAnswers,
+    applyWrongAttempt,
+    applyAfkUpdate,
+    clearAnswers,
+  } = useAudiencePlayers();
 
   const [showAnswers, setShowAnswers] = useState(false);
-  const [videoPlayState, setVideoPlayState] = useState<"playing" | "paused" | null>(null);
+  const [videoPlayState, setVideoPlayState] = useState<
+    "playing" | "paused" | null
+  >(null);
   const [timerHasStarted, setTimerHasStarted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Cleanup audio on unmount
   useEffect(() => {
-    return () => { audioRef.current?.pause(); };
+    return () => {
+      audioRef.current?.pause();
+    };
   }, []);
 
   // Base WebSocket message handling
@@ -86,7 +103,10 @@ export function usePlayerRound(options: UsePlayerRoundOptions = {}): UsePlayerRo
 
         case "start_the_timer": {
           const tl = Number(msg.time_limit ?? 0);
-          const sa = typeof msg.started_at === 'string' ? parseInt(msg.started_at, 10) : Number(msg.started_at ?? Date.now());
+          const sa =
+            typeof msg.started_at === "string"
+              ? parseInt(msg.started_at, 10)
+              : Number(msg.started_at ?? Date.now());
           startSynced(tl, sa);
           setTimerHasStarted(true);
           setShowAnswers(false);
@@ -124,9 +144,24 @@ export function usePlayerRound(options: UsePlayerRoundOptions = {}): UsePlayerRo
         case "player_wrong_attempt":
           applyWrongAttempt(msg);
           break;
+
+        case "player_afk_updated":
+          applyAfkUpdate(msg);
+          break;
       }
     });
-  }, [lastMessage, applyWsMessage, applyPlayersInfo, applyScoreUpdate, applyAnswers, applyWrongAttempt, clearAnswers, startSynced, audioSrc]);
+  }, [
+    lastMessage,
+    applyWsMessage,
+    applyPlayersInfo,
+    applyScoreUpdate,
+    applyAnswers,
+    applyWrongAttempt,
+    applyAfkUpdate,
+    clearAnswers,
+    startSynced,
+    audioSrc,
+  ]);
 
   return {
     isConnected,

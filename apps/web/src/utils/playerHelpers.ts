@@ -39,9 +39,15 @@ export function normalizePlayerSnapshot(payload: PlayerSnapshotPayload): {
   profiles: RawProfile[];
 } {
   return {
-    players: Array.isArray(payload.players) ? payload.players as RawPlayer[] : [],
-    scoreboard: Array.isArray(payload.scoreboard) ? payload.scoreboard as RawScore[] : [],
-    profiles: Array.isArray(payload.profiles) ? payload.profiles as RawProfile[] : [],
+    players: Array.isArray(payload.players)
+      ? (payload.players as RawPlayer[])
+      : [],
+    scoreboard: Array.isArray(payload.scoreboard)
+      ? (payload.scoreboard as RawScore[])
+      : [],
+    profiles: Array.isArray(payload.profiles)
+      ? (payload.profiles as RawProfile[])
+      : [],
   };
 }
 
@@ -53,8 +59,12 @@ export function buildPlayersSnapshot(
 ): PlayerStatus[] {
   if (!playersList?.length) return previousPlayers;
 
-  const scoreMap = new Map(scoreboard.map((s) => [String(s.user_code ?? ""), s]));
-  const profileMap = new Map(profiles.map((p) => [String(p.user_code ?? ""), p]));
+  const scoreMap = new Map(
+    scoreboard.map((s) => [String(s.user_code ?? ""), s]),
+  );
+  const profileMap = new Map(
+    profiles.map((p) => [String(p.user_code ?? ""), p]),
+  );
 
   return playersList
     .map((entry) => {
@@ -64,17 +74,28 @@ export function buildPlayersSnapshot(
       const previous = previousPlayers.find((p) => p.playerCode === code);
       const profile = profileMap.get(code);
       const scoreInfo = scoreMap.get(code);
-      const playerScore = getScoreValue(scoreInfo) ?? getScoreValue(entry) ?? previous?.playerScore ?? 0;
+      const playerScore =
+        getScoreValue(scoreInfo) ??
+        getScoreValue(entry) ??
+        previous?.playerScore ??
+        0;
 
       return {
         playerCode: code,
-        playerName: profile?.user_name ?? entry.user_name ?? previous?.playerName ?? "",
+        playerName:
+          profile?.user_name ?? entry.user_name ?? previous?.playerName ?? "",
         playerScore,
         playerLastAnswer: previous?.playerLastAnswer,
         playerTimestamp: previous?.playerTimestamp,
         playerHasBuzzed: previous?.playerHasBuzzed ?? false,
         playerConnected: previous?.playerConnected ?? false,
-        playerIsTurn: entry.is_current ?? entry.isCurrent ?? entry.is_selected ?? entry.selected ?? previous?.playerIsTurn ?? false,
+        playerIsTurn:
+          entry.is_current ??
+          entry.isCurrent ??
+          entry.is_selected ??
+          entry.selected ??
+          previous?.playerIsTurn ??
+          false,
       } as PlayerStatus;
     })
     .filter((p): p is PlayerStatus => p !== null);

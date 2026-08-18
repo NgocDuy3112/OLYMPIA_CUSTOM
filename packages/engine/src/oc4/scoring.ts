@@ -1,14 +1,34 @@
-/** OC4-only scoring rules. */
+/** OC4 scoring adapters. Values come from OC4_CONFIG. */
 
-import type { ScoreDelta } from '../types.js'
+import { bpResolve, gmKeywordCorrect } from "../base/scoring.js";
+import type { ScoreDelta } from "../types.js";
+import { OC4_CONFIG } from "./config.js";
 
-/** KDR: one attempt only; correct answer earns 10, wrong answer earns 0. */
 export function kdrCorrectOnce(userCode: string): ScoreDelta {
-  return { userCode, points: 10, reason: 'kdr_correct' }
+  return {
+    userCode,
+    points: OC4_CONFIG.scoring.kdr.oneAttempt,
+    reason: "kdr_correct",
+  };
 }
 
-/** Giải mã keyword: 80 points base, minus 5 per opened clue. */
-export function gmKeywordCorrectOc4(userCode: string, cluesOpened: number): ScoreDelta {
-  const points = Math.max(0, 80 - 5 * Math.max(0, cluesOpened))
-  return { userCode, points, reason: 'gm_keyword_correct' }
+export function kdrWrongOnce(userCode: string): ScoreDelta {
+  return {
+    userCode,
+    points: OC4_CONFIG.scoring.kdr.wrong,
+    reason: "kdr_wrong",
+  };
+}
+
+export function gmKeywordCorrectOc4(
+  userCode: string,
+  cluesOpened: number,
+): ScoreDelta {
+  return gmKeywordCorrect(userCode, cluesOpened, OC4_CONFIG.scoring.gm);
+}
+
+export function bpResolveOc4(
+  buzzOrder: Array<{ userCode: string; timestamp: number }>,
+): ScoreDelta[] {
+  return bpResolve(buzzOrder, OC4_CONFIG.scoring.bp);
 }

@@ -1,210 +1,233 @@
 :root {
-	--oc-primary: #0609cd; /* primary blue */
-	--oc-primary-dark: #1E4EDD; /* primary hover */
-	--oc-bg: #061226;
-	--oc-border: #0c0eff;
-	--oc-card-border: var(--oc-border);
-	--oc-card-bg: #060c71; /* stronger, more opaque card color for contrast */
-	--oc-surface: rgba(255,255,255,0.12);
-	--oc-text: #E6EEF5;
+  --oc-primary: #0609cd; /* primary blue */
+  --oc-primary-dark: #1e4edd; /* primary hover */
+  --oc-bg: #061226;
+  --oc-border: #0c0eff;
+  --oc-card-border: var(--oc-border);
+  --oc-card-bg: #060c71; /* stronger, more opaque card color for contrast */
+  --oc-surface: rgba(255, 255, 255, 0.12);
+  --oc-text: #e6eef5;
 }
 
 @import "tailwindcss";
 
 @font-face {
-	font-family: 'SVN-Gratelos Display';
-	src: url('/fonts/SVN-Gratelos-Display.woff2') format('woff2');
-	font-weight: normal;
-	font-style: normal;
-	font-display: swap;
+  font-family: "SVN-Gratelos Display";
+  src: url("/fonts/SVN-Gratelos-Display.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
 }
 
 /* Global base styles and semantic helpers */
 @layer base {
-	html, body, #root {
-		height: 100%;
-	}
-	body {
-		background-color: var(--oc-bg);
-		color: var(--oc-text);
-		-webkit-font-smoothing: antialiased;
-		-moz-osx-font-smoothing: grayscale;
-	}
-	a { color: var(--oc-primary); }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background-color: var(--oc-bg);
+    color: var(--oc-text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  a {
+    color: var(--oc-primary);
+  }
 }
 
 /* Component utilities (pure CSS to avoid @apply issues in some setups) */
 
 .card,
 .panel {
-	background: linear-gradient(
-		135deg,
-		color-mix(in srgb, var(--oc-card-bg) 65%, #030834 35%),
-		color-mix(in srgb, var(--oc-card-bg) 40%, #010214 60%)
-	);
-	color: var(--oc-text);
-	border: 2px solid color-mix(in srgb, var(--oc-card-border) 70%, #020222 30%);
-	box-shadow:
-		0 25px 60px rgba(6, 9, 205, 0.35),
-		inset 0 1px 0 rgba(255, 255, 255, 0.25);
-	backdrop-filter: blur(6px);
-	-webkit-backdrop-filter: blur(6px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--oc-card-bg) 65%, #030834 35%),
+    color-mix(in srgb, var(--oc-card-bg) 40%, #010214 60%)
+  );
+  color: var(--oc-text);
+  border: 2px solid color-mix(in srgb, var(--oc-card-border) 70%, #020222 30%);
+  box-shadow:
+    0 25px 60px rgba(6, 9, 205, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .card {
-	padding: 2.5rem; /* p-10 */
-	border-radius: 0.75rem; /* rounded-xl */
-	box-shadow: 0 25px 50px rgba(2,6,23,0.6); /* stronger shadow for separation */
-	width: 100%;
-	max-width: 28rem; /* max-w-md */
-	position: relative;
-	z-index: 10;
+  padding: 2.5rem; /* p-10 */
+  border-radius: 0.75rem; /* rounded-xl */
+  box-shadow: 0 25px 50px rgba(2, 6, 23, 0.6); /* stronger shadow for separation */
+  width: 100%;
+  max-width: 28rem; /* max-w-md */
+  position: relative;
+  z-index: 10;
 }
 
 .panel {
-	border-radius: 1rem;
-	box-shadow: 0 25px 60px rgba(2,6,23,0.6);
-	overflow: hidden;
+  border-radius: 1rem;
+  box-shadow: 0 25px 60px rgba(2, 6, 23, 0.6);
+  overflow: hidden;
 }
 
 /* small helper for full-width primary buttons */
 
 .btn-primary-full {
-	display: inline-block;
-	background-color: var(--oc-primary);
-	color: #fff;
-	width: 100%;
-	padding: 0.5rem 1rem; /* py-2 */
-	border-radius: 0.375rem;
-	font-weight: 600;
-	transition: background-color 0.15s ease-in-out;
-	text-align: center;
+  display: inline-block;
+  background-color: var(--oc-primary);
+  color: #fff;
+  width: 100%;
+  padding: 0.5rem 1rem; /* py-2 */
+  border-radius: 0.375rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease-in-out;
+  text-align: center;
 }
-.btn-primary-full:hover { background-color: var(--oc-primary-dark); }
+.btn-primary-full:hover {
+  background-color: var(--oc-primary-dark);
+}
 
 /* Panel used for wider admin pages to match project color scheme */
 .accent-dot {
-	background-color: var(--oc-primary);
+  background-color: var(--oc-primary);
 }
 
 /* Overlay pages - transparent background for OBS Browser Source */
 .overlay-mode {
-	background: transparent !important;
+  background: transparent !important;
 }
 .overlay-mode body,
 .overlay-mode #root {
-	background: transparent !important;
+  background: transparent !important;
 }
 
 /* Responsive utilities */
 @media (max-width: 767px) {
-	.hide-mobile {
-		display: none !important;
-	}
-	.show-mobile {
-		display: block !important;
-	}
-	.flex-mobile-col {
-		flex-direction: column !important;
-	}
+  .hide-mobile {
+    display: none !important;
+  }
+  .show-mobile {
+    display: block !important;
+  }
+  .flex-mobile-col {
+    flex-direction: column !important;
+  }
 }
 @media (min-width: 768px) and (max-width: 1024px) {
-	.hide-tablet {
-		display: none !important;
-	}
-	.show-tablet {
-		display: block !important;
-	}
+  .hide-tablet {
+    display: none !important;
+  }
+  .show-tablet {
+    display: block !important;
+  }
 }
 @media (min-width: 1025px) {
-	.hide-desktop {
-		display: none !important;
-	}
-	.show-desktop {
-		display: block !important;
-	}
+  .hide-desktop {
+    display: none !important;
+  }
+  .show-desktop {
+    display: block !important;
+  }
 }
 
 /* Touch-friendly targets for tablet/mobile */
 @media (max-width: 1024px) {
-	.touch-target {
-		min-height: 44px;
-		min-width: 44px;
-	}
-	.touch-target-sm {
-		min-height: 36px;
-		min-width: 36px;
-	}
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .touch-target-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
 }
 
 /* Bottom navigation for tablet */
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
-	.bottom-nav {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		background: rgba(0, 0, 0, 0.9);
-		padding: 0.5rem;
-		display: flex;
-		justify-content: space-around;
-		z-index: 50;
-	}
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.9);
+    padding: 0.5rem;
+    display: flex;
+    justify-content: space-around;
+    z-index: 50;
+  }
 }
 
 /* Score animation */
 @keyframes scorePulse {
-	0% { transform: scale(1); }
-	50% { transform: scale(1.1); }
-	100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 .score-pulse {
-	animation: scorePulse 0.3s ease-in-out;
+  animation: scorePulse 0.3s ease-in-out;
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-	width: 6px;
-	height: 6px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-	background: rgba(255, 255, 255, 0.05);
-	border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb {
-	background: rgba(255, 255, 255, 0.2);
-	border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-	background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Smooth transitions for responsive layouts */
 @media (min-width: 1024px) {
-	.lg\:grid-cols-2 {
-		grid-template-columns: repeat(2, 1fr);
-	}
+  .lg\:grid-cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 /* Buzz highlight */
 @keyframes buzzGlow {
-	0% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
-	70% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
-	100% { box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 215, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+  }
 }
 .buzz-glow {
-	animation: buzzGlow 0.5s ease-out;
+  animation: buzzGlow 0.5s ease-out;
 }
 
 /* Timer warning colors */
 .timer-warning {
-	color: #fbbf24;
+  color: #fbbf24;
 }
 .timer-danger {
-	color: #ef4444;
-	animation: pulse 1s infinite;
+  color: #ef4444;
+  animation: pulse 1s infinite;
 }
 @keyframes pulse {
-	0%, 100% { opacity: 1; }
-	50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }

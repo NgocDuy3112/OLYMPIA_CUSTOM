@@ -1,7 +1,10 @@
 import { useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { PlayerStatus } from "@/types/player";
-import type { WebSocketContextValue, WebSocketMessage } from "@/types/websocket";
+import type {
+  WebSocketContextValue,
+  WebSocketMessage,
+} from "@/types/websocket";
 import { unwrapWebSocketMessage } from "@/types/websocket";
 
 interface PlayerTelemetryOptions {
@@ -59,15 +62,20 @@ export function usePlayerTelemetry({
           setPlayers((previous) => {
             if (previous.some((player) => player.playerCode === code)) {
               return previous.map((player) =>
-                player.playerCode === code ? { ...player, playerConnected: true } : player,
+                player.playerCode === code
+                  ? { ...player, playerConnected: true }
+                  : player,
               );
             }
-            return [...previous, {
-              playerCode: code,
-              playerName: "",
-              playerScore: 0,
-              playerConnected: true,
-            }];
+            return [
+              ...previous,
+              {
+                playerCode: code,
+                playerName: "",
+                playerScore: 0,
+                playerConnected: true,
+              },
+            ];
           });
         });
       }
@@ -84,21 +92,29 @@ export function usePlayerTelemetry({
     pendingRef.current.delete(code);
     const latency = Date.now() - pending.sentAt;
     queueMicrotask(() => {
-      setPlayers((previous) => previous.map((player) =>
-        player.playerCode === code ? { ...player, playerLatencyMs: latency } : player,
-      ));
+      setPlayers((previous) =>
+        previous.map((player) =>
+          player.playerCode === code
+            ? { ...player, playerLatencyMs: latency }
+            : player,
+        ),
+      );
     });
   }, [lastMessage, setPlayers]);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       const now = Date.now();
-      setPlayers((previous) => previous.map((player) => {
-        const lastSeen = lastSeenRef.current[player.playerCode];
-        if (lastSeen === undefined) return player;
-        const connected = now - lastSeen < HEARTBEAT_TIMEOUT_MS;
-        return player.playerConnected === connected ? player : { ...player, playerConnected: connected };
-      }));
+      setPlayers((previous) =>
+        previous.map((player) => {
+          const lastSeen = lastSeenRef.current[player.playerCode];
+          if (lastSeen === undefined) return player;
+          const connected = now - lastSeen < HEARTBEAT_TIMEOUT_MS;
+          return player.playerConnected === connected
+            ? player
+            : { ...player, playerConnected: connected };
+        }),
+      );
     }, OFFLINE_CHECK_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
   }, [setPlayers]);
@@ -113,18 +129,24 @@ export function usePlayerTelemetry({
       if (targets.length === 0) return;
 
       const sentAt = Date.now();
-      void sendMessageRef.current({ type: "ping_latency", targets, client_ts: sentAt });
+      void sendMessageRef.current({
+        type: "ping_latency",
+        targets,
+        client_ts: sentAt,
+      });
 
       for (const code of targets) {
         const previous = pendingRef.current.get(code);
         if (previous) window.clearTimeout(previous.timeoutId);
         const timeoutId = window.setTimeout(() => {
           pendingRef.current.delete(code);
-          setPlayers((current) => current.map((player) =>
-            player.playerCode === code && player.playerLatencyMs !== null
-              ? { ...player, playerLatencyMs: null }
-              : player,
-          ));
+          setPlayers((current) =>
+            current.map((player) =>
+              player.playerCode === code && player.playerLatencyMs !== null
+                ? { ...player, playerLatencyMs: null }
+                : player,
+            ),
+          );
         }, PONG_TIMEOUT_MS);
         pendingRef.current.set(code, { sentAt, timeoutId });
       }
@@ -137,14 +159,18 @@ export function usePlayerTelemetry({
 
     return () => {
       window.clearInterval(intervalId);
-      for (const pending of pendingAtTeardown.values()) window.clearTimeout(pending.timeoutId);
+      for (const pending of pendingAtTeardown.values())
+        window.clearTimeout(pending.timeoutId);
       pendingAtTeardown.clear();
     };
   }, [enabled, intervalMs, setPlayers]);
 
   useEffect(() => {
     if (!enabled) return;
-    const debounceId = window.setTimeout(() => tickRef.current(), PLAYER_CHANGE_DEBOUNCE_MS);
+    const debounceId = window.setTimeout(
+      () => tickRef.current(),
+      PLAYER_CHANGE_DEBOUNCE_MS,
+    );
     return () => window.clearTimeout(debounceId);
   }, [enabled, players]);
 }

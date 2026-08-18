@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
-import { Plus, Calendar, MapPin, Users, Trophy, Trash2, Edit } from "lucide-react";
+import {
+  Plus,
+  Calendar,
+  MapPin,
+  Users,
+  Trophy,
+  Trash2,
+  Edit,
+} from "lucide-react";
 
 interface Tournament {
   id: string;
@@ -52,7 +60,9 @@ const TournamentListPage: React.FC = () => {
         setTournaments(data.data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load tournaments");
+      setError(
+        err instanceof Error ? err.message : "Failed to load tournaments",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -68,13 +78,18 @@ const TournamentListPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/tournaments/${tournamentCode}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/tournaments/${tournamentCode}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        },
+      );
 
       if (response.ok) {
-        setTournaments((prev) => prev.filter((t) => t.tournamentCode !== tournamentCode));
+        setTournaments((prev) =>
+          prev.filter((t) => t.tournamentCode !== tournamentCode),
+        );
       }
     } catch (err) {
       console.error("Failed to delete tournament:", err);
@@ -94,7 +109,9 @@ const TournamentListPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">Giải Đấu</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+            Giải Đấu
+          </h1>
           <p className="text-gray-400 text-sm mt-1">Quản lý các giải đấu</p>
         </div>
         <button
@@ -136,7 +153,9 @@ const TournamentListPage: React.FC = () => {
                 {/* Tournament info */}
                 <div
                   className="flex-1 cursor-pointer min-w-0"
-                  onClick={() => navigate(`/admin/tournaments/${tournament.tournamentCode}`)}
+                  onClick={() =>
+                    navigate(`/admin/tournaments/${tournament.tournamentCode}`)
+                  }
                 >
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
                     <h3 className="text-lg sm:text-xl font-bold text-white truncate">
@@ -156,7 +175,8 @@ const TournamentListPage: React.FC = () => {
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar size={14} />
-                      {tournament.startDate || "Chưa đặt"} - {tournament.endDate || "Chưa đặt"}
+                      {tournament.startDate || "Chưa đặt"} -{" "}
+                      {tournament.endDate || "Chưa đặt"}
                     </span>
                     {tournament.venue && (
                       <span className="flex items-center gap-1">
@@ -180,7 +200,11 @@ const TournamentListPage: React.FC = () => {
                 {/* Actions */}
                 <div className="flex gap-2 w-full sm:w-auto">
                   <button
-                    onClick={() => navigate(`/admin/tournaments/${tournament.tournamentCode}/edit`)}
+                    onClick={() =>
+                      navigate(
+                        `/admin/tournaments/${tournament.tournamentCode}/edit`,
+                      )
+                    }
                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors text-sm touch-target"
                   >
                     <Edit size={16} />

@@ -1,9 +1,9 @@
 export interface Question {
-    questionCode: string;
-    questionText: string;
-    questionAnswer: string;
-    questionExplanation?: string;
-    questionMediaURL?: string;
+  questionCode: string;
+  questionText: string;
+  questionAnswer: string;
+  questionExplanation?: string;
+  questionMediaURL?: string;
 
-    questionOptions?: string;
+  questionOptions?: string;
 }
