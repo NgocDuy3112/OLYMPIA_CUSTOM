@@ -3,10 +3,12 @@ import OverlayScoreboard from "@/pages/overlay/OverlayScoreboard";
 import OverlayTimer from "@/pages/overlay/OverlayTimer";
 import OverlayQuestion from "@/pages/overlay/OverlayQuestion";
 import OverlayPlayerBar from "@/pages/overlay/OverlayPlayerBar";
+import OverlayPreviewPage from "@/pages/overlay/OverlayPreviewPage";
 
 const OverlayRoutes = () => {
   return (
     <Routes>
+      <Route path="/:matchCode" element={<OverlayPreviewPage />} />
       <Route path="/:matchCode/scoreboard" element={<OverlayScoreboard />} />
       <Route path="/:matchCode/timer" element={<OverlayTimer />} />
       <Route path="/:matchCode/question" element={<OverlayQuestion />} />

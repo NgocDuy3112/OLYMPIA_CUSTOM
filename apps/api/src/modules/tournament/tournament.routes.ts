@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and, desc } from "drizzle-orm";
-import { db, tournaments, tournamentPlayers, users } from "@oc/db";
-import { requireRole } from "../auth/auth.service.js";
+import { eq, and, desc, sql } from "drizzle-orm";
+import { db, tournaments, tournamentPlayers, users, matches, records } from "@oc/db";
+import { requireRole, requireAuth } from "../auth/auth.service.js";
 
 export async function tournamentRoutes(app: FastifyInstance) {
   // GET /tournaments — List all tournaments
@@ -69,13 +69,13 @@ export async function tournamentRoutes(app: FastifyInstance) {
 
   // GET /tournaments/:code — Get tournament details
   app.get("/tournaments/:code", async (request, reply) => {
-    const { code } = request.params as { code: string };
+    const { slug } = request.params as { slug: string };
     const rows = await db
       .select()
       .from(tournaments)
       .where(
         and(
-          eq(tournaments.tournamentCode, code),
+          eq(tournaments.tournamentCode, slug),
           eq(tournaments.isDeleted, false),
         ),
       )
@@ -91,6 +91,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
     const players = await db
       .select({
         id: tournamentPlayers.id,
+        role: tournamentPlayers.role,
         groupNumber: tournamentPlayers.groupNumber,
         notes: tournamentPlayers.notes,
         userCode: users.userCode,
@@ -102,10 +103,31 @@ export async function tournamentRoutes(app: FastifyInstance) {
       .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
       .where(eq(tournamentPlayers.tournamentId, rows[0].id));
 
+    // Get matches linked to this tournament
+    const linkedMatches = await db
+      .select({
+        id: matches.id,
+        matchSlug: matches.matchSlug,
+        matchPin: matches.matchPin,
+        matchName: matches.matchName,
+        matchStatus: matches.matchStatus,
+        tournamentFormat: matches.tournamentFormat,
+        videoUrl: matches.videoUrl,
+        createdAt: matches.createdAt,
+      })
+      .from(matches)
+      .where(
+        and(
+          eq(matches.tournamentId, rows[0].id),
+          eq(matches.isDeleted, false),
+        ),
+      )
+      .orderBy(desc(matches.createdAt));
+
     return reply.send({
       status: "success",
       message: "OK",
-      data: { ...rows[0], players },
+      data: { ...rows[0], players, matches: linkedMatches },
     });
   });
 
@@ -114,7 +136,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
     "/tournaments/:code",
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
-      const { code } = request.params as { code: string };
+      const { slug } = request.params as { slug: string };
       const body = request.body as {
         tournamentName?: string;
         description?: string;
@@ -145,7 +167,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
         .set(updates)
         .where(
           and(
-            eq(tournaments.tournamentCode, code),
+            eq(tournaments.tournamentCode, slug),
             eq(tournaments.isDeleted, false),
           ),
         )
@@ -174,13 +196,13 @@ export async function tournamentRoutes(app: FastifyInstance) {
     "/tournaments/:code",
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
-      const { code } = request.params as { code: string };
+      const { slug } = request.params as { slug: string };
       const result = await db
         .update(tournaments)
         .set({ isDeleted: true, updatedAt: new Date() })
         .where(
           and(
-            eq(tournaments.tournamentCode, code),
+            eq(tournaments.tournamentCode, slug),
             eq(tournaments.isDeleted, false),
           ),
         )
@@ -209,9 +231,10 @@ export async function tournamentRoutes(app: FastifyInstance) {
     "/tournaments/:code/players",
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
-      const { code } = request.params as { code: string };
+      const { slug } = request.params as { slug: string };
       const body = request.body as {
         userCode: string;
+        role?: string;
         groupNumber?: string;
         notes?: string;
       };
@@ -226,13 +249,17 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
+      const validRoles = ["controller", "mc", "player", "spectator"];
+      const playerRole =
+        body.role && validRoles.includes(body.role) ? body.role : "player";
+
       // Find tournament
       const tournamentRows = await db
         .select({ id: tournaments.id })
         .from(tournaments)
         .where(
           and(
-            eq(tournaments.tournamentCode, code),
+            eq(tournaments.tournamentCode, slug),
             eq(tournaments.isDeleted, false),
           ),
         )
@@ -289,6 +316,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
       await db.insert(tournamentPlayers).values({
         tournamentId: tournamentRows[0].id,
         playerId: userRows[0].id,
+        role: playerRole,
         groupNumber: body.groupNumber,
         notes: body.notes,
       });
@@ -308,8 +336,8 @@ export async function tournamentRoutes(app: FastifyInstance) {
     "/tournaments/:code/players/:userCode",
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
-      const { code, userCode } = request.params as {
-        code: string;
+      const { slug, userCode } = request.params as {
+        slug: string;
         userCode: string;
       };
 
@@ -319,7 +347,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
         .from(tournaments)
         .where(
           and(
-            eq(tournaments.tournamentCode, code),
+            eq(tournaments.tournamentCode, slug),
             eq(tournaments.isDeleted, false),
           ),
         )
@@ -365,4 +393,380 @@ export async function tournamentRoutes(app: FastifyInstance) {
       });
     },
   );
+
+  // GET /tournaments/:code/me — Get current user's role in this tournament
+  app.get(
+    "/tournaments/:code/me",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { slug } = request.params as { slug: string };
+      const session = (request as any).session;
+
+      // Find tournament
+      const tournamentRows = await db
+        .select({ id: tournaments.id })
+        .from(tournaments)
+        .where(
+          and(
+            eq(tournaments.tournamentCode, slug),
+            eq(tournaments.isDeleted, false),
+          ),
+        )
+        .limit(1);
+
+      if (tournamentRows.length === 0) {
+        return reply
+          .code(404)
+          .send({
+            status: "error",
+            message: "Tournament not found",
+            data: null,
+          });
+      }
+
+      // Check user's membership
+      const membership = await db
+        .select({
+          role: tournamentPlayers.role,
+          groupNumber: tournamentPlayers.groupNumber,
+        })
+        .from(tournamentPlayers)
+        .where(
+          and(
+            eq(tournamentPlayers.tournamentId, tournamentRows[0].id),
+            eq(tournamentPlayers.playerId, session.userId),
+          ),
+        )
+        .limit(1);
+
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: membership.length > 0 ? membership[0] : null,
+      });
+    },
+  );
+
+  // POST /tournaments/:code/register — Register as player in tournament
+  app.post(
+    "/tournaments/:code/register",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { slug } = request.params as { slug: string };
+      const session = (request as any).session;
+
+      // Find tournament
+      const tournamentRows = await db
+        .select({ id: tournaments.id, maxPlayers: tournaments.maxPlayers })
+        .from(tournaments)
+        .where(
+          and(
+            eq(tournaments.tournamentCode, slug),
+            eq(tournaments.isDeleted, false),
+          ),
+        )
+        .limit(1);
+
+      if (tournamentRows.length === 0) {
+        return reply
+          .code(404)
+          .send({
+            status: "error",
+            message: "Tournament not found",
+            data: null,
+          });
+      }
+
+      const tournament = tournamentRows[0];
+
+      // Check if already registered
+      const existing = await db
+        .select({ id: tournamentPlayers.id })
+        .from(tournamentPlayers)
+        .where(
+          and(
+            eq(tournamentPlayers.tournamentId, tournament.id),
+            eq(tournamentPlayers.playerId, session.userId),
+          ),
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        return reply
+          .code(409)
+          .send({
+            status: "error",
+            message: "Already registered for this tournament",
+            data: null,
+          });
+      }
+
+      // Check max players limit
+      if (tournament.maxPlayers) {
+        const countResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(tournamentPlayers)
+          .where(eq(tournamentPlayers.tournamentId, tournament.id));
+
+        const currentCount = Number(countResult[0]?.count ?? 0);
+        const maxCount = Number(tournament.maxPlayers);
+
+        if (currentCount >= maxCount) {
+          return reply
+            .code(400)
+            .send({
+              status: "error",
+              message: "Tournament is full",
+              data: null,
+            });
+        }
+      }
+
+      // Register as player
+      await db.insert(tournamentPlayers).values({
+        tournamentId: tournament.id,
+        playerId: session.userId,
+        role: "player",
+      });
+
+      return reply.code(201).send({
+        status: "success",
+        message: "Registered successfully",
+        data: null,
+      });
+    },
+  );
+
+  // PUT /tournaments/:code/players/:userId/role — Assign role to player
+  app.put(
+    "/tournaments/:code/players/:userId/role",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { slug, userId } = request.params as {
+        slug: string;
+        userId: string;
+      };
+      const body = request.body as { role: string };
+      const session = (request as any).session;
+
+      const validRoles = ["controller", "mc", "player", "spectator"];
+      if (!body.role || !validRoles.includes(body.role)) {
+        return reply
+          .code(400)
+          .send({
+            status: "error",
+            message: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
+            data: null,
+          });
+      }
+
+      // Find tournament
+      const tournamentRows = await db
+        .select({ id: tournaments.id })
+        .from(tournaments)
+        .where(
+          and(
+            eq(tournaments.tournamentCode, slug),
+            eq(tournaments.isDeleted, false),
+          ),
+        )
+        .limit(1);
+
+      if (tournamentRows.length === 0) {
+        return reply
+          .code(404)
+          .send({
+            status: "error",
+            message: "Tournament not found",
+            data: null,
+          });
+      }
+
+      const tournamentId = tournamentRows[0].id;
+
+      // Check if request user is controller or admin
+      const requestUserMembership = await db
+        .select({ role: tournamentPlayers.role })
+        .from(tournamentPlayers)
+        .where(
+          and(
+            eq(tournamentPlayers.tournamentId, tournamentId),
+            eq(tournamentPlayers.playerId, session.userId),
+          ),
+        )
+        .limit(1);
+
+      const isAdmin = session.role === "admin";
+      const isController =
+        requestUserMembership.length > 0 &&
+        requestUserMembership[0].role === "controller";
+
+      if (!isAdmin && !isController) {
+        return reply
+          .code(403)
+          .send({
+            status: "error",
+            message: "Only admin or controller can assign roles",
+            data: null,
+          });
+      }
+
+      // Check if target user is registered
+      const targetMembership = await db
+        .select({ id: tournamentPlayers.id })
+        .from(tournamentPlayers)
+        .where(
+          and(
+            eq(tournamentPlayers.tournamentId, tournamentId),
+            eq(tournamentPlayers.playerId, userId),
+          ),
+        )
+        .limit(1);
+
+      if (targetMembership.length === 0) {
+        return reply
+          .code(404)
+          .send({
+            status: "error",
+            message: "User is not registered in this tournament",
+            data: null,
+          });
+      }
+
+      // Update role
+      await db
+        .update(tournamentPlayers)
+        .set({ role: body.role })
+        .where(eq(tournamentPlayers.id, targetMembership[0].id));
+
+      return reply.send({
+        status: "success",
+        message: "Role updated",
+        data: null,
+      });
+    },
+  );
+
+  // GET /tournaments/:code/standings — Get tournament standings
+  app.get("/tournaments/:code/standings", async (request, reply) => {
+    const { code } = request.params as { code: string };
+
+    // Find tournament
+    const tournamentRows = await db
+      .select({ id: tournaments.id })
+      .from(tournaments)
+      .where(
+        and(
+          eq(tournaments.tournamentCode, code),
+          eq(tournaments.isDeleted, false),
+        ),
+      )
+      .limit(1);
+
+    if (tournamentRows.length === 0) {
+      return reply.code(404).send({
+        status: "error",
+        message: "Tournament not found",
+        data: null,
+      });
+    }
+
+    const tournamentId = tournamentRows[0].id;
+
+    // Get all matches in this tournament
+    const matchRows = await db
+      .select({ id: matches.id })
+      .from(matches)
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          eq(matches.isDeleted, false),
+        ),
+      );
+
+    const matchIds = matchRows.map((m) => m.id);
+
+    if (matchIds.length === 0) {
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: { standings: [] },
+      });
+    }
+
+    // Get all registered players
+    const playerRows = await db
+      .select({
+        playerId: tournamentPlayers.playerId,
+        groupNumber: tournamentPlayers.groupNumber,
+        userName: users.userName,
+        userCode: users.userCode,
+      })
+      .from(tournamentPlayers)
+      .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
+      .where(eq(tournamentPlayers.tournamentId, tournamentId));
+
+    // Get all player scores in this tournament (via matches join)
+    const allRecords = await db
+      .select({
+        playerId: records.playerId,
+        matchId: records.matchId,
+        points: records.points,
+      })
+      .from(records)
+      .innerJoin(matches, eq(records.matchId, matches.id))
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          eq(records.isDeleted, false),
+          eq(matches.isDeleted, false),
+        ),
+      );
+
+    // Aggregate scores per player
+    const scoreMap = new Map<string, { totalPoints: number; matchesPlayed: number }>();
+    const matchPerPlayer = new Map<string, Set<string>>();
+
+    for (const row of allRecords) {
+      const prev = scoreMap.get(row.playerId);
+      scoreMap.set(row.playerId, {
+        totalPoints: (prev?.totalPoints || 0) + row.points,
+        matchesPlayed: 0,
+      });
+      const set = matchPerPlayer.get(row.playerId) ?? new Set<string>();
+      set.add(row.matchId);
+      matchPerPlayer.set(row.playerId, set);
+    }
+
+    for (const [playerId, set] of matchPerPlayer) {
+      const entry = scoreMap.get(playerId);
+      if (entry) entry.matchesPlayed = set.size;
+    }
+
+    // Build standings
+    const standings = playerRows
+      .map((player) => {
+        const scores = scoreMap.get(player.playerId);
+        return {
+          playerId: player.playerId,
+          userName: player.userName,
+          userCode: player.userCode,
+          groupNumber: player.groupNumber,
+          totalPoints: scores?.totalPoints || 0,
+          matchesPlayed: scores?.matchesPlayed || 0,
+          totalMatches: matchIds.length,
+        };
+      })
+      .sort((a, b) => b.totalPoints - a.totalPoints)
+      .map((player, index) => ({
+        ...player,
+        rank: index + 1,
+      }));
+
+    return reply.send({
+      status: "success",
+      message: "OK",
+      data: { standings },
+    });
+  });
 }

@@ -6,7 +6,7 @@ export interface WsConnection {
   matchCode: string;
   userId: string;
   userCode: string;
-  role: "admin" | "mc" | "player";
+  role: "controller" | "mc" | "player";
   sid: string;
   tournamentFormat: TournamentFormat;
 }
@@ -100,7 +100,7 @@ const MC_ALLOWED = new Set([
 ]);
 
 export function isAllowedByRole(role: string, msgType: string): boolean {
-  if (role === "admin") return true;
+  if (role === "controller") return true;
   if (role === "player") return PLAYER_ALLOWED.has(msgType);
   if (role === "mc") return MC_ALLOWED.has(msgType);
   return false;

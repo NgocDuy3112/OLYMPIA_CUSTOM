@@ -62,6 +62,7 @@ export const tournamentPlayers = pgTable(
     playerId: uuid("player_id")
       .notNull()
       .references(() => users.id),
+    role: varchar("role", { length: 20 }).notNull().default("player"),
     groupNumber: varchar("group_number", { length: 20 }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

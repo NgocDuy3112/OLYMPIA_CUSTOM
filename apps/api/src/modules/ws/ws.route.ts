@@ -8,7 +8,7 @@ import { manager } from "./ws.manager.js";
 import { handleWsMessage, handleReconnect } from "./ws.handler.js";
 import { getSession } from "../auth/auth.service.js";
 import { eq, and } from "drizzle-orm";
-import { db, matches } from "@oc/db";
+import { db, matches, tournaments, tournamentPlayers } from "@oc/db";
 import type { TournamentFormat } from "@oc/shared";
 
 const COOKIE_NAME = "sid";
@@ -56,20 +56,54 @@ export async function wsRoute(app: FastifyInstance) {
       }
 
       const userCode = session.userCode;
-      const role = session.role;
+      
+      // Determine per-tournament role for this match
+      let gameRole: "controller" | "mc" | "player" = "player";
+      
+      // Global admin gets controller role in any game
+      if (session.role === "admin") {
+        gameRole = "controller";
+      } else {
+        // Look up tournament for this match, then check per-tournament role
+        const matchWithTournament = await db
+          .select({ tournamentId: matches.tournamentId })
+          .from(matches)
+          .where(eq(matches.matchCode, matchCode))
+          .limit(1);
+        
+        if (matchWithTournament[0]?.tournamentId) {
+          const membership = await db
+            .select({ role: tournamentPlayers.role })
+            .from(tournamentPlayers)
+            .where(
+              and(
+                eq(tournamentPlayers.tournamentId, matchWithTournament[0].tournamentId),
+                eq(tournamentPlayers.playerId, session.userId),
+              ),
+            )
+            .limit(1);
+          
+          if (membership[0]) {
+            const tRole = membership[0].role;
+            if (tRole === "controller" || tRole === "mc") {
+              gameRole = tRole;
+            }
+          }
+        }
+      }
 
       const conn = {
         ws: socket,
         matchCode,
         userId: userCode,
         userCode,
-        role: role as "admin" | "mc" | "player",
+        role: gameRole,
         sid,
         tournamentFormat,
       };
 
       // Register connection
-      manager.connect(socket, matchCode, userCode, role, sid, tournamentFormat);
+      manager.connect(socket, matchCode, userCode, gameRole, sid, tournamentFormat);
 
       // Handle reconnect
       handleReconnect(conn);

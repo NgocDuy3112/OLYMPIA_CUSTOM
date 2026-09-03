@@ -112,7 +112,7 @@ const PlayerWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({
 
 const PlayerRoutes = () => {
   return (
-    <AuthGuard requiredRole="player">
+    <AuthGuard>
       <PlayerWebSocketWrapper>
         <Routes>
           <Route path="/" element={<Navigate to="/player/access" replace />} />

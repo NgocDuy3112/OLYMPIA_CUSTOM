@@ -24,12 +24,16 @@ export const users = pgTable(
   "users",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    userSlug: varchar("user_slug", { length: 50 })
+      .notNull()
+      .unique()
+      .$defaultFn(() => crypto.randomUUID()),
     googleId: varchar("google_id", { length: 255 }).unique(),
     email: varchar("email", { length: 255 }).notNull().unique(),
     userCode: varchar("user_code", { length: 50 }).notNull().unique(),
     userName: varchar("user_name", { length: 100 }).notNull(),
     avatarUrl: varchar("avatar_url", { length: 500 }),
-    role: roleEnum("role").notNull().default("player"),
+    role: roleEnum("role").notNull().default("member"),
     isDeleted: boolean("is_deleted").default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

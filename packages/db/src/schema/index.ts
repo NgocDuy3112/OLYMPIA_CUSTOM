@@ -11,3 +11,5 @@ export { qualifierRecords, qualifierAdvancements } from "./qualifier";
 export { auditLogs } from "./audit-log";
 export { matchCheckpoints } from "./checkpoint";
 export { tournaments, tournamentPlayers } from "./tournament";
+export { tournamentTemplates } from "./template";
+export { tournamentTeams, teamMembers } from "./team";

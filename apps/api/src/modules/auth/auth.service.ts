@@ -168,7 +168,7 @@ export function googleCallback(app: FastifyInstance) {
           userCode,
           userName: googleUser.name,
           avatarUrl: googleUser.picture,
-          role: "player",
+          role: "member",
         })
         .returning();
       user = inserted[0];

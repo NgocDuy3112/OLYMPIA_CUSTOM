@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX, Camera, CameraOff } from "lucide-react";
+import { motion } from "framer-motion";
 import type { ComponentProps } from "react";
 import type { PlayerStatus } from "@/types/player";
 import APlayerBar from "@/components/admin/APlayerBar";
@@ -21,6 +22,22 @@ export function PlayerPanel(
           muted={muted}
           volume={volume}
         />
+        {/* Camera status indicator */}
+        <div className="absolute left-2 top-2">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`
+              flex items-center justify-center w-6 h-6 rounded-full
+              ${stream ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}
+            `}
+            title={stream ? "Camera đang bật" : "Camera đã tắt"}
+          >
+            {stream ? <Camera size={12} /> : <CameraOff size={12} />}
+          </motion.div>
+        </div>
+
+        {/* Mute button */}
         <button
           type="button"
           onClick={() => setMuted((value) => !value)}

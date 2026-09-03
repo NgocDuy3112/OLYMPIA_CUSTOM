@@ -1583,7 +1583,7 @@ const MCVeDichRiengView = () => {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 const VeDichRiengPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "admin") return <AdminVeDichRiengView />;
+  if (role === "controller") return <AdminVeDichRiengView />;
   if (role === "mc") return <MCVeDichRiengView />;
   return <PlayerVeDichRiengView />;
 };

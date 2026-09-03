@@ -420,7 +420,7 @@ const PlayerWaitingView = () => {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 const WaitingPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "admin") return <AdminWaitingView />;
+  if (role === "controller") return <AdminWaitingView />;
   if (role === "mc") return <MCWaitingView />;
   return <PlayerWaitingView />;
 };

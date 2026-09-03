@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Routes,
   Route,
@@ -22,6 +22,7 @@ import TournamentDetailPage from "@/pages/admin/tournament/TournamentDetailPage"
 import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { AdminHeader, AdminSidebar } from "@/components/layout";
 import { VeDichRound } from "@/types/veDich";
 
 const AdminAutoNavigator: React.FC = () => {
@@ -58,6 +59,28 @@ const AdminAutoNavigator: React.FC = () => {
   return null;
 };
 
+// Admin Layout wrapper for management pages
+const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen flex flex-col bg-black/20">
+      <AdminHeader
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+      />
+      <div className="flex flex-1">
+        <AdminSidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+        <main className="flex-1 p-4 sm:p-6 overflow-auto">{children}</main>
+      </div>
+    </div>
+  );
+};
+
 const AdminRoutes = () => {
   const location = useLocation();
   const stored = localStorage.getItem("matchCode") || "";
@@ -71,15 +94,53 @@ const AdminRoutes = () => {
   })();
   const matchCode = stored || fromPath;
 
+  // Check if we're on a game control page (needs GameWebSocket)
+  const isGamePage =
+    location.pathname.includes("/waiting/") ||
+    location.pathname.includes("/kdc/") ||
+    location.pathname.includes("/kdr/") ||
+    location.pathname.includes("/bp/") ||
+    location.pathname.includes("/vdc/") ||
+    location.pathname.includes("/vdr/") ||
+    location.pathname.includes("/gm/");
+
+  // Game control pages
+  if (isGamePage) {
+    return (
+      <AuthGuard requiredRole="admin">
+        <GameWebSocketProvider
+          config={{
+            role: "controller",
+            matchCode,
+          }}
+        >
+          <AdminAutoNavigator />
+          <Routes>
+            <Route path="/waiting/:matchCode" element={<WaitingPage />} />
+            <Route path="/kdc/:matchCode?" element={<KhoiDongChungPage />} />
+            <Route path="/kdr/:matchCode?" element={<KhoiDongRiengPage />} />
+            <Route path="/bp/:matchCode?" element={<ButPhaPage />} />
+            <Route
+              path="/vdc/pick/:matchCode?"
+              element={<VeDichPickPage round={VeDichRound.CHUNG} />}
+            />
+            <Route
+              path="/vdr/pick/:matchCode?"
+              element={<VeDichPickPage round={VeDichRound.RIENG} />}
+            />
+            <Route path="/vdc/:matchCode?" element={<VeDichChungPage />} />
+            <Route path="/vdr/:matchCode?" element={<VeDichRiengPage />} />
+            <Route path="/gm/:matchCode?" element={<GiaiMaPage />} />
+          </Routes>
+        </GameWebSocketProvider>
+      </AuthGuard>
+    );
+  }
+
+  // Management pages with AdminLayout
   return (
     <AuthGuard requiredRole="admin">
-      <GameWebSocketProvider
-        config={{
-          role: "admin",
-          matchCode,
-        }}
-      >
-        <AdminAutoNavigator />
+      <AdminLayout>
         <Routes>
           <Route
             path="/"
@@ -90,21 +151,7 @@ const AdminRoutes = () => {
               />
             }
           />
-          <Route path="/waiting/:matchCode" element={<WaitingPage />} />
-          <Route path="/kdc/:matchCode?" element={<KhoiDongChungPage />} />
-          <Route path="/kdr/:matchCode?" element={<KhoiDongRiengPage />} />
-          <Route path="/bp/:matchCode?" element={<ButPhaPage />} />
-          <Route
-            path="/vdc/pick/:matchCode?"
-            element={<VeDichPickPage round={VeDichRound.CHUNG} />}
-          />
-          <Route
-            path="/vdr/pick/:matchCode?"
-            element={<VeDichPickPage round={VeDichRound.RIENG} />}
-          />
-          <Route path="/vdc/:matchCode?" element={<VeDichChungPage />} />
-          <Route path="/vdr/:matchCode?" element={<VeDichRiengPage />} />
-          <Route path="/gm/:matchCode?" element={<GiaiMaPage />} />
+          <Route path="/manage" element={<AGameManagingPage />} />
           <Route path="/game-managing" element={<AGameManagingPage />} />
           {/* Tournament management routes */}
           <Route path="/tournaments" element={<TournamentListPage />} />
@@ -115,7 +162,7 @@ const AdminRoutes = () => {
             element={<TournamentFormPage />}
           />
         </Routes>
-      </GameWebSocketProvider>
+      </AdminLayout>
     </AuthGuard>
   );
 };

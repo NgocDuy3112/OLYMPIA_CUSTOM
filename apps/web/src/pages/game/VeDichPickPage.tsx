@@ -822,7 +822,7 @@ interface VeDichPickPageProps {
 }
 const VeDichPickPage = ({ round }: VeDichPickPageProps) => {
   const { role } = useGameWebSocket();
-  if (role === "admin") return <AdminVeDichPickView />;
+  if (role === "controller") return <AdminVeDichPickView />;
   if (role === "mc") return <MCVeDichPickView round={round} />;
   return <PlayerVeDichPickView round={round} />;
 };

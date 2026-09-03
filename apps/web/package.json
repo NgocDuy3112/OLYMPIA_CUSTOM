@@ -11,10 +11,11 @@
     "log-server": "node ./scripts/log-server.js"
   },
   "dependencies": {
-    "cookie": "^1.0.2",
     "@tailwindcss/postcss": "^4.1.18",
     "@tailwindcss/vite": "^4.1.18",
     "autoprefixer": "^10.4.23",
+    "cookie": "^1.0.2",
+    "framer-motion": "^13.1.1",
     "lucide-react": "^0.563.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

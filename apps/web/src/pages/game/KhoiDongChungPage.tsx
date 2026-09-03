@@ -416,7 +416,7 @@ const MCKhoiDongChungView = () => {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 const KhoiDongChungPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "admin") return <AdminKhoiDongChungView />;
+  if (role === "controller") return <AdminKhoiDongChungView />;
   if (role === "mc") return <MCKhoiDongChungView />;
   return <PlayerKhoiDongChungView />;
 };

@@ -13,7 +13,7 @@ export const AdminWebSocketProvider: React.FC<{
   const { isConnected, lastMessage, sendMessage } = ws;
 
   const value = useMemo<WebSocketContextValue>(
-    () => ({ isConnected, lastMessage, sendMessage, role: "admin" as const }),
+    () => ({ isConnected, lastMessage, sendMessage, role: "controller" as const }),
     [isConnected, lastMessage, sendMessage],
   );
 

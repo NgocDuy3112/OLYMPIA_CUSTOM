@@ -18,6 +18,8 @@ export function useWebRTCCameraPublisher(userCode: string) {
   const peer = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [micEnabled, setMicEnabled] = useState(false);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -36,6 +38,8 @@ export function useWebRTCCameraPublisher(userCode: string) {
           return media.getTracks().forEach((track) => track.stop());
         streamRef.current = media;
         setStream(media);
+        setCameraEnabled(true);
+        setMicEnabled(true);
         await sendMessage({ type: "camera_ready", user_code: userCode });
       })
       .catch(() => setStream(null));
@@ -83,7 +87,23 @@ export function useWebRTCCameraPublisher(userCode: string) {
     });
   }, [lastMessage, sendMessage, userCode]);
 
-  return { stream, cameraEnabled: !!stream };
+  const toggleCamera = useCallback(() => {
+    const videoTrack = streamRef.current?.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setCameraEnabled(videoTrack.enabled);
+    }
+  }, []);
+
+  const toggleMic = useCallback(() => {
+    const audioTrack = streamRef.current?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setMicEnabled(audioTrack.enabled);
+    }
+  }, []);
+
+  return { stream, cameraEnabled, micEnabled, toggleCamera, toggleMic };
 }
 
 export function useWebRTCVoicePublisher(userCode: string) {

@@ -1360,7 +1360,7 @@ const MCVeDichChungView = () => {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 const VeDichChungPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "admin") return <AdminVeDichChungView />;
+  if (role === "controller") return <AdminVeDichChungView />;
   if (role === "mc") return <MCVeDichChungView />;
   return <PlayerVeDichChungView />;
 };

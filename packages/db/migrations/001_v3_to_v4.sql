@@ -55,23 +55,3 @@ CREATE INDEX IF NOT EXISTS idx_checkpoint_match_time
 -- ─────────────────────────────────────────────
 
 COMMIT;
-
--- ============================================================
--- Verification queries (run after migration):
---
--- -- Check new columns exist:
--- SELECT column_name FROM information_schema.columns
--- WHERE table_name = 'users' AND column_name IN ('google_id', 'avatar_url');
---
--- SELECT column_name FROM information_schema.columns
--- WHERE table_name = 'matches' AND column_name IN ('tournament_format', 'video_url');
---
--- -- Check new table exists:
--- SELECT EXISTS (
---   SELECT FROM information_schema.tables WHERE table_name = 'match_checkpoints'
--- );
---
--- -- Check existing data intact:
--- SELECT COUNT(*) FROM users;
--- SELECT COUNT(*) FROM matches;
--- ============================================================

@@ -105,9 +105,9 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
     return () => window.clearInterval(intervalId);
   }, [enableHeartbeat, isConnected, userCode, sendMessage, heartbeatInterval]);
 
-  // Admin: periodic request_presence
+  // Controller: periodic request_presence
   useEffect(() => {
-    if (role !== "admin" || !isConnected) return;
+    if (role !== "controller" || !isConnected) return;
 
     const initialTimer = window.setTimeout(() => {
       void sendMessage({ type: "request_presence" });

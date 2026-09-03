@@ -19,6 +19,8 @@ import { recordRoutes } from "./modules/record/record.routes.js";
 import { scoreboardRoutes } from "./modules/scoreboard/scoreboard.routes.js";
 import { mediaRoutes } from "./modules/media/media.routes.js";
 import { tournamentRoutes } from "./modules/tournament/tournament.routes.js";
+import { templateRoutes } from "./modules/template/template.routes.js";
+import { teamRoutes } from "./modules/team/team.routes.js";
 import { wsRoute } from "./modules/ws/ws.route.js";
 
 export async function createApp() {
@@ -58,6 +60,8 @@ export async function createApp() {
   await app.register(scoreboardRoutes, { prefix: "/api" });
   await app.register(mediaRoutes, { prefix: "/api" });
   await app.register(tournamentRoutes, { prefix: "/api" });
+  await app.register(templateRoutes, { prefix: "/api" });
+  await app.register(teamRoutes, { prefix: "/api" });
 
   // WebSocket route
   await app.register(wsRoute);

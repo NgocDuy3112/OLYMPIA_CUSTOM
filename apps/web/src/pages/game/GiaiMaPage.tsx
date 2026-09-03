@@ -1782,7 +1782,7 @@ const MCGiaiMaView = () => {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 const GiaiMaPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "admin") return <AdminGiaiMaView />;
+  if (role === "controller") return <AdminGiaiMaView />;
   if (role === "mc") return <MCGiaiMaView />;
   return <PlayerGiaiMaView />;
 };

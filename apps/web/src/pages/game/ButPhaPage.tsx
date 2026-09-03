@@ -351,7 +351,7 @@ const MCButPhaView = () => {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 const ButPhaPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "admin") return <AdminButPhaView />;
+  if (role === "controller") return <AdminButPhaView />;
   if (role === "mc") return <MCButPhaView />;
   return <PlayerButPhaView />;
 };

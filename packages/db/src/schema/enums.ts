@@ -1,9 +1,9 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-// ── Role enum ──
-// v3 had 'guest' in the DB enum. We keep it for backward compatibility
-// but v4 backend/frontend will not create new guest users.
-export const roleEnum = pgEnum("roleenum", ["guest", "player", "mc", "admin"]);
+// ── Role enum (global) ──
+// Global roles determine platform-level access.
+// Per-tournament roles (controller, mc, player) are in tournament_players table.
+export const roleEnum = pgEnum("roleenum", ["admin", "member", "spectator"]);
 
 // ── Match status enum ──
 export const matchStatusEnum = pgEnum("matchstatusenum", [

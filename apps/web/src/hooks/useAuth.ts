@@ -4,7 +4,7 @@ import { API_BASE_URL } from "@/configs";
 export interface AuthUser {
   userId: string;
   userCode: string;
-  role: "admin" | "mc" | "player";
+  role: "admin" | "member" | "spectator";
   email: string;
   userName: string;
 }

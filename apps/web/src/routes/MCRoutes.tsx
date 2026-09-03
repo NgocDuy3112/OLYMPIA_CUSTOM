@@ -103,7 +103,7 @@ const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({
 
 const MCRoutes = () => {
   return (
-    <AuthGuard requiredRole="mc">
+    <AuthGuard>
       <MCWebSocketWrapper>
         <Routes>
           <Route path="/" element={<Navigate to="/mc/access" replace />} />

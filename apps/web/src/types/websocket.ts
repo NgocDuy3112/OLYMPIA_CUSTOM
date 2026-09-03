@@ -49,11 +49,11 @@ export interface WebSocketMessage extends WebSocketPayload {
   round?: string;
   status?: "online" | "heartbeat" | "afk" | "active";
   afk?: boolean;
-  role?: "player" | "mc" | "admin";
+  role?: "player" | "mc" | "controller";
   selected_player_code?: string;
 }
 
-export type UserRole = "admin" | "mc" | "player";
+export type UserRole = "controller" | "mc" | "player";
 
 export interface WebSocketContextValue {
   isConnected: boolean;
