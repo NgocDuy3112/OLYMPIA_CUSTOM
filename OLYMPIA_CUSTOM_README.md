@@ -141,7 +141,3 @@ curl -X POST http://localhost:8000/auth/signup \
 - [ ] Support multiple tournaments running concurrently with proper match-state namespacing
 - [ ] Migrate backend from FastAPI to Fastify (Node.js/TypeScript)
 - [ ] Automated test coverage for match state transitions
-
-## License
-
-[Add license here — e.g. MIT]
