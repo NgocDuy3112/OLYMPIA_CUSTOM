@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { API_BASE_URL } from "@/configs";
-import { UserCog, Loader2, Check, X } from "lucide-react";
-import { TournamentRoleBadge } from "../shared/ui/Badge";
+import { UserCog, Loader2 } from "lucide-react";
 
 interface Player {
   id: string;

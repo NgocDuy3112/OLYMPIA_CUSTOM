@@ -14,10 +14,7 @@ const OverlayRoutes = lazy(() => import("@/routes/OverlayRoutes"));
 function App() {
   return (
     <BrowserRouter>
-      <div
-        className="min-h-screen bg-oc bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url('/background/OC3_background.png')` }}
-      >
+      <div className="min-h-screen bg-oc bg-cover bg-center bg-no-repeat">
         <Suspense fallback={null}>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />

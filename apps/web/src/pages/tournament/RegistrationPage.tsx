@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Trophy,
   Calendar,
@@ -61,7 +61,7 @@ const containerVariants = {
   },
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
@@ -73,7 +73,7 @@ const itemVariants = {
   },
 };
 
-const slideInFromRight = {
+const slideInFromRight: Variants = {
   hidden: { opacity: 0, x: 100 },
   visible: {
     opacity: 1,
@@ -92,7 +92,7 @@ const slideInFromRight = {
   },
 };
 
-const scaleUp = {
+const scaleUp: Variants = {
   hidden: { opacity: 0, scale: 0.8 },
   visible: {
     opacity: 1,

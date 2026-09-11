@@ -1,30 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { API_BASE_URL } from "@/configs";
 import {
-  PublicHeader,
-  PublicFooter,
-  TabNavigation,
-} from "@/components/layout";
-import { PlayerGrid, MatchCard, StandingsTable } from "@/components/tournament";
-import {
-  Button,
-  Card,
-  TournamentStatusBadge,
-  PageLoading,
   CheckCircle,
-  Loader2,
   UserPlus,
   BookOpen,
   Calendar,
   MapPin,
   Trophy,
   Users,
+} from "lucide-react";
+import { API_BASE_URL } from "@/configs";
+import {
+  PublicHeader,
+  PublicFooter,
+  TabNavigation,
+} from "@/components/layout";
+import { PlayerGrid, MatchCard, StandingsTable, RoleManager } from "@/components/tournament";
+import {
+  Button,
+  Card,
+  TournamentStatusBadge,
+  PageLoading,
 } from "@/components/shared/ui";
 
 interface Tournament {
   id: string;
-  tournamentCode: string;
   tournamentCode: string;
   tournamentName: string;
   description?: string;
@@ -74,7 +74,7 @@ const TOURNAMENT_TABS = [
 
 const TournamentDetailPage: React.FC = () => {
   const navigate = useNavigate();
-  const { code } = useParams<{ slug: string }>();
+  const { code } = useParams<{ code: string }>();
   const [searchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") || "";
 
@@ -85,11 +85,10 @@ const TournamentDetailPage: React.FC = () => {
   const [myMembership, setMyMembership] = useState<MyMembership | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!code) return;
 
     const fetchData = async () => {
       try {
@@ -154,56 +153,6 @@ const TournamentDetailPage: React.FC = () => {
 
     fetchData();
   }, [code]);
-
-  const handleRegister = async () => {
-    if (!slug) return;
-
-    setIsRegistering(true);
-    setError(null);
-
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/tournaments/${code}/register`,
-        {
-          method: "POST",
-          credentials: "include",
-        },
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to register");
-      }
-
-      // Refresh membership
-      const meResponse = await fetch(
-        `${API_BASE_URL}/tournaments/${code}/me`,
-        { credentials: "include" },
-      );
-      if (meResponse.ok) {
-        const meData = await meResponse.json();
-        if (meData.status === "success") {
-          setMyMembership(meData.data);
-        }
-      }
-
-      // Refresh players list
-      const tournamentResponse = await fetch(
-        `${API_BASE_URL}/tournaments/${code}`,
-        { credentials: "include" },
-      );
-      if (tournamentResponse.ok) {
-        const tournamentData = await tournamentResponse.json();
-        if (tournamentData.status === "success" && tournamentData.data) {
-          setPlayers(tournamentData.data.players || []);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to register");
-    } finally {
-      setIsRegistering(false);
-    }
-  };
 
   if (isLoading) {
     return <PageLoading />;
@@ -347,7 +296,7 @@ const TournamentDetailPage: React.FC = () => {
                           {...match}
                           onWatch={() =>
                             navigate(
-                              `/tournament/${slug}/match/${match.matchSlug}`,
+                              `/tournament/${code}/match/${match.matchSlug}`,
                             )
                           }
                         />
@@ -370,7 +319,7 @@ const TournamentDetailPage: React.FC = () => {
                         tournamentCode={tournament.tournamentCode}
                         players={players}
                         isController={true}
-                        onRoleUpdated={(userId, newRole) => {
+                        onRoleUpdated={(userId: string, newRole: string) => {
                           setPlayers(prev =>
                             prev.map(p =>
                               p.userId === userId ? { ...p, role: newRole } : p

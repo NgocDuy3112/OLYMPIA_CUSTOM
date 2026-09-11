@@ -1,7 +1,8 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
-import { HeaderBar } from "@/components/layouts/HeaderBar";
+import { HeaderBar } from "@/components/layout";
+import { getPhaseFromPath } from "@/utils/phase";
 
 interface AdminGameplayNavBarProps {
   onNavigateToWaiting?: () => void;
@@ -30,22 +31,7 @@ const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({
   };
 
   const matchCode = localStorage.getItem("matchCode") || "";
-
-  // Extract current phase from URL
-  const extractPhase = () => {
-    const path = location.pathname;
-    if (path.includes("/kdc")) return "kdc";
-    if (path.includes("/kdr")) return "kdr";
-    if (path.includes("/bp")) return "bp";
-    if (path.includes("/vdc")) return "vdc";
-    if (path.includes("/vdr")) return "vdr";
-    if (path.includes("/gm")) return "gm";
-    if (path.includes("/vl")) return "vl";
-    if (path.includes("/waiting")) return "waiting";
-    return "";
-  };
-
-  const currentPhase = extractPhase();
+  const currentPhase = getPhaseFromPath(location.pathname);
 
   const handleWaitingClick = () => {
     if (!matchCode) return;

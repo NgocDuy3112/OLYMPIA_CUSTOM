@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
 import {
   ArrowLeft,
@@ -7,7 +6,6 @@ import {
   Check,
   Trophy,
   Users,
-  Target,
   Loader2,
 } from "lucide-react";
 import { Card, Button } from "../shared/ui";
@@ -43,7 +41,6 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
   tournamentCode,
   onComplete,
 }) => {
-  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(

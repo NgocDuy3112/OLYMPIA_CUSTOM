@@ -12,7 +12,6 @@ interface PublicHeaderProps {
 export const PublicHeader: React.FC<PublicHeaderProps> = ({
   isAuthenticated = false,
   userName,
-  userRole,
   onLogout,
 }) => {
   const navigate = useNavigate();

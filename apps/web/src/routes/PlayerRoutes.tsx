@@ -8,7 +8,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
-import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useWsMessage } from "@/hooks/useWsMessage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
 import ButPhaPage from "@/pages/game/ButPhaPage";
@@ -27,13 +27,11 @@ const PlayerAutoNavigator: React.FC = () => {
   const location = useLocation();
   const playerCode = sessionStorage.getItem("playerCode") || "";
   const matchCode = localStorage.getItem("matchCode") || "";
-  const { lastMessage, sendMessage } = useGameWebSocket();
+  const message = useWsMessage("match_state", "navigate");
   useEffect(() => {
-    if (!lastMessage) return;
+    if (!message) return;
 
-    const msg =
-      typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
-    const msgType = msg?.type ?? "";
+    const msgType = message.type;
 
     if (msgType === "match_state") {
       const target = `/player/waiting/${matchCode}`;
@@ -43,13 +41,11 @@ const PlayerAutoNavigator: React.FC = () => {
       return;
     }
 
-    if (msgType !== "navigate") return;
-
-    const basePath: unknown = msg?.path;
+    const basePath: unknown = message.path;
     if (typeof basePath !== "string") return;
 
-    const senderRole = (msg?.role ?? "") as string;
-    const senderCode = (msg?.user_code ?? "") as string;
+    const senderRole = (message.role ?? "") as string;
+    const senderCode = (message.user_code ?? "") as string;
     if (senderRole !== "admin" && senderCode && senderCode !== playerCode)
       return;
 
@@ -75,12 +71,11 @@ const PlayerAutoNavigator: React.FC = () => {
       navigate(target, { replace: true });
     }
   }, [
-    lastMessage,
+    message,
     matchCode,
     playerCode,
     navigate,
     location.pathname,
-    sendMessage,
   ]);
 
   return null;

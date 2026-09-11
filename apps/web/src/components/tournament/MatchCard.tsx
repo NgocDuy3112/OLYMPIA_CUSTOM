@@ -4,16 +4,17 @@ import { MatchStatusBadge } from "../shared/ui/Badge";
 
 interface MatchCardProps {
   id: string;
-  matchCode: string;
+  matchSlug: string;
+  matchPin?: string;
   matchName: string;
   matchStatus: string;
+  tournamentFormat?: string;
+  videoUrl?: string;
   createdAt: string;
   onWatch?: () => void;
 }
 
 export const MatchCard: React.FC<MatchCardProps> = ({
-  id,
-  matchCode,
   matchName,
   matchStatus,
   createdAt,

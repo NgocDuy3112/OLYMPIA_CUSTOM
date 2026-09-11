@@ -8,7 +8,13 @@ import { useGameWebSocket } from "./useGameWebSocket";
 import { useCountdownTimer } from "./useCountdownTimer";
 import { useQuestionState } from "./useQuestionState";
 import { useAudiencePlayers } from "./useAudiencePlayers";
+import type {
+  WebSocketContextValue,
+  WebSocketMessage,
+} from "@/types/websocket";
+import { unwrapWebSocketMessage } from "@/types/websocket";
 import type { PlayerStatus } from "@/types/player";
+import type { Question } from "@/types/question";
 
 export interface UsePlayerRoundOptions {
   /** Whether to play audio on timer start */
@@ -18,8 +24,8 @@ export interface UsePlayerRoundOptions {
 export interface UsePlayerRoundReturn {
   // WebSocket
   isConnected: boolean;
-  lastMessage: any;
-  sendMessage: (payload: any) => Promise<boolean>;
+  lastMessage: WebSocketMessage | null;
+  sendMessage: WebSocketContextValue["sendMessage"];
 
   // Timer
   timer: number;
@@ -28,17 +34,17 @@ export interface UsePlayerRoundReturn {
   getElapsedSeconds: () => number;
 
   // Question
-  currentQuestion: any;
+  currentQuestion: Question;
   currentQuestionIndex: number;
-  applyWsMessage: (msg: any) => void;
+  applyWsMessage: (msg: unknown) => void;
 
   // Players
   players: PlayerStatus[];
   setPlayers: React.Dispatch<React.SetStateAction<PlayerStatus[]>>;
-  applyPlayersInfo: (msg: any) => void;
-  applyScoreUpdate: (msg: any) => void;
-  applyAnswers: (msg: any) => void;
-  applyWrongAttempt: (msg: any) => void;
+  applyPlayersInfo: (msg: WebSocketMessage) => void;
+  applyScoreUpdate: (msg: WebSocketMessage) => void;
+  applyAnswers: (msg: WebSocketMessage) => void;
+  applyWrongAttempt: (msg: WebSocketMessage) => void;
   clearAnswers: () => void;
 
   // Extra states
@@ -86,8 +92,8 @@ export function usePlayerRound(
 
   // Base WebSocket message handling
   useEffect(() => {
-    if (!lastMessage) return;
-    const msg = lastMessage.message ?? lastMessage;
+    const msg = unwrapWebSocketMessage(lastMessage);
+    if (!msg) return;
 
     queueMicrotask(() => {
       applyWsMessage(msg);

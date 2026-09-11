@@ -1,4 +1,5 @@
 import type { PlayerStatus } from "@/types/player";
+import type { WebSocketMessage } from "@/types/websocket";
 import { getScoreValue } from "@/utils/scoreHelpers";
 
 export interface RawPlayer {
@@ -33,7 +34,9 @@ export interface PlayerSnapshotPayload {
   profiles?: unknown;
 }
 
-export function normalizePlayerSnapshot(payload: PlayerSnapshotPayload): {
+export function normalizePlayerSnapshot(
+  payload: PlayerSnapshotPayload | WebSocketMessage,
+): {
   players: RawPlayer[];
   scoreboard: RawScore[];
   profiles: RawProfile[];

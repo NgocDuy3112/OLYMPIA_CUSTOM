@@ -11,9 +11,8 @@
     "log-server": "node ./scripts/log-server.js"
   },
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.18",
+    "@oc/shared": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
-    "autoprefixer": "^10.4.23",
     "cookie": "^1.0.2",
     "framer-motion": "^13.1.1",
     "lucide-react": "^0.563.0",

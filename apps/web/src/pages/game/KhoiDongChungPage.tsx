@@ -229,7 +229,6 @@ const PlayerKhoiDongChungView = () => {
     timeLimit,
     getElapsedSeconds,
     currentQuestion,
-    currentQuestionIndex,
     players,
     setPlayers,
     showAnswers,

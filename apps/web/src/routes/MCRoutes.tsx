@@ -8,7 +8,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
-import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useWsMessage } from "@/hooks/useWsMessage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
 import ButPhaPage from "@/pages/game/ButPhaPage";
@@ -25,15 +25,12 @@ import { VeDichRound } from "@/types/veDich";
 const MCAutoNavigator: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { lastMessage, sendMessage } = useGameWebSocket();
   const matchCode = localStorage.getItem("matchCode") || "";
+  const message = useWsMessage("match_state", "navigate");
   useEffect(() => {
-    if (!lastMessage) return;
-    const raw =
-      typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
-    const msg = (raw as any)?.message ?? raw;
+    if (!message) return;
 
-    const msgType = msg?.type ?? "";
+    const msgType = message.type;
 
     if (msgType === "match_state") {
       const target = matchCode ? `/mc/waiting/${matchCode}` : "/mc/waiting";
@@ -43,8 +40,7 @@ const MCAutoNavigator: React.FC = () => {
       return;
     }
 
-    if (msgType !== "navigate") return;
-    const basePath: unknown = msg?.path;
+    const basePath: unknown = message.path;
     if (typeof basePath !== "string") return;
 
     const normalized = basePath.endsWith("/")
@@ -73,7 +69,7 @@ const MCAutoNavigator: React.FC = () => {
     if (currentPath !== target) {
       navigate(target, { replace: true });
     }
-  }, [lastMessage, matchCode, navigate, location.pathname, sendMessage]);
+  }, [message, matchCode, navigate, location.pathname]);
 
   return null;
 };

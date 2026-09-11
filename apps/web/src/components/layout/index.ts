@@ -4,3 +4,4 @@ export { GameHeader } from "./GameHeader";
 export { AdminHeader } from "./AdminHeader";
 export { AdminSidebar } from "./AdminSidebar";
 export { TabNavigation } from "./TabNavigation";
+export { HeaderBar } from "./HeaderBar";

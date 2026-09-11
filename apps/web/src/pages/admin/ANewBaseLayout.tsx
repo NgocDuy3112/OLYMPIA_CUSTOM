@@ -5,10 +5,9 @@
  * Responsive: stacks vertically on tablet, sidebar collapses on mobile.
  */
 import React, { type ReactNode } from "react";
-import AdminGameplayNavBar from "@/navigation/ANavBar";
+import AGameShell from "@/pages/admin/AGameShell";
 import { PlayerPanel } from "@/components/shared/PlayerPanel";
 import type { PlayerStatus } from "@/types/player";
-import { VoicePublisher } from "@/components/shared/VoicePublisher";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
 interface ANewBaseLayoutProps {
@@ -52,10 +51,7 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
   const { sendMessage } = useGameWebSocket();
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      <VoicePublisher userCode="mc" />
-      <AdminGameplayNavBar />
-
+    <AGameShell voiceUser="mc">
       <div className="flex flex-col lg:flex-row flex-1 p-2 sm:p-3 lg:p-4 gap-3 lg:gap-4 overflow-hidden">
         {/* Main content */}
         <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-y-auto min-w-0">
@@ -109,7 +105,7 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </AGameShell>
   );
 };
 

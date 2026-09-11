@@ -1,5 +1,5 @@
 import React, { type ReactNode } from "react";
-import AdminGameplayNavBar from "@/navigation/ANavBar";
+import AGameShell from "@/pages/admin/AGameShell";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import type {
   AdminQuestionBoardControls,
@@ -59,8 +59,7 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
   hideMediaUntilPlayed,
 }: ABasePageLayoutProps) => {
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
-      <AdminGameplayNavBar />
+    <AGameShell>
       <div className="flex flex-row w-full flex-1 p-2 tablet:p-3 xl:p-6 gap-3 tablet:gap-4 xl:gap-8 overflow-hidden">
         {}
         <div className="flex flex-col flex-3 gap-3 tablet:gap-4 xl:gap-6 overflow-y-auto min-w-0">
@@ -101,7 +100,7 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </AGameShell>
   );
 };
 

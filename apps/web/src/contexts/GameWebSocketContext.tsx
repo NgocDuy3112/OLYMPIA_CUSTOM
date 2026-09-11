@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { WebSocketContext } from "@/contexts/WebSocketContext";
 import type { WebSocketContextValue, UserRole } from "@/types/websocket";
+import { unwrapWebSocketMessage } from "@/types/websocket";
 import { useGameAudio } from "@/hooks/useGameAudio";
 
 export type { UserRole };
@@ -60,7 +61,7 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
   useEffect(() => {
     if (!enablePresence || !isConnected || !userCode) return;
 
-    const msg = lastMessage?.message ?? lastMessage;
+    const msg = unwrapWebSocketMessage(lastMessage);
     if (msg?.type !== "request_presence") return;
 
     void sendMessage({
@@ -74,7 +75,7 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
   useEffect(() => {
     if (!enablePresence || !isConnected || !userCode) return;
 
-    const msg = lastMessage?.message ?? lastMessage;
+    const msg = unwrapWebSocketMessage(lastMessage);
     if (msg?.type !== "ping_latency") return;
 
     const targets = msg.targets;

@@ -17,6 +17,7 @@ export async function sendStartTimer({
   timeLimit,
   questionCode,
   startedAt = Date.now(),
+  selectedPlayerCode,
 }: TimerPayload) {
   return sendMessage({
     type: "start_the_timer",

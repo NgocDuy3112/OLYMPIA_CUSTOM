@@ -2,7 +2,8 @@ import React from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
 import { usePlayerProtection } from "@/hooks/usePlayerProtection";
-import { HeaderBar } from "@/components/layouts/HeaderBar";
+import { HeaderBar } from "@/components/layout";
+import { getPhaseFromPath } from "@/utils/phase";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useLocation } from "react-router-dom";
 import { PlayerCameraPublisher } from "@/components/player/PlayerCameraPublisher";
@@ -36,21 +37,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
 
   const effectiveCurrentCode = currentTurnPlayerCode ?? currentPlayerCode;
 
-  // Extract current phase from URL
-  const extractPhase = () => {
-    const path = location.pathname;
-    if (path.includes("/kdc")) return "kdc";
-    if (path.includes("/kdr")) return "kdr";
-    if (path.includes("/bp")) return "bp";
-    if (path.includes("/vdc")) return "vdc";
-    if (path.includes("/vdr")) return "vdr";
-    if (path.includes("/gm")) return "gm";
-    if (path.includes("/vl")) return "vl";
-    if (path.includes("/waiting")) return "waiting";
-    return "";
-  };
-
-  const currentPhase = extractPhase();
+  const currentPhase = getPhaseFromPath(location.pathname);
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">

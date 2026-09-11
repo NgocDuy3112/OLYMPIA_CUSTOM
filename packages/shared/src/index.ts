@@ -5,3 +5,5 @@ export interface GameEvent {
   matchCode: string;
   [key: string]: unknown;
 }
+
+export * from "./ws";

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import AdminGameplayNavBar from "@/navigation/ANavBar";
+import AGameShell from "@/pages/admin/AGameShell";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import type { Question } from "@/types/question";
 interface AVeDichPickLayoutProps {
@@ -70,9 +70,8 @@ const AVeDichPickLayout = ({
   };
 
   return (
-    <>
-      <AdminGameplayNavBar />
-      <div className="flex flex-row w-full h-screen p-3 xl:p-6 gap-4 xl:gap-8 overflow-hidden">
+    <AGameShell>
+      <div className="flex flex-row w-full flex-1 p-3 xl:p-6 gap-4 xl:gap-8 overflow-hidden">
         {}
         <div className="flex flex-col flex-3 gap-4 xl:gap-6">
           {}
@@ -218,7 +217,7 @@ const AVeDichPickLayout = ({
           {renderPlayerList()}
         </div>
       </div>
-    </>
+    </AGameShell>
   );
 };
 

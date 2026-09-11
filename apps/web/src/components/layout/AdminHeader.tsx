@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, X, LogOut, User, Shield } from "lucide-react";
+import { Menu, LogOut, User, Shield } from "lucide-react";
 
 interface AdminHeaderProps {
   userName?: string;

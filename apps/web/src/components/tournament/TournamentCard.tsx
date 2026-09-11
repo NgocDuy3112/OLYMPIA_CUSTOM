@@ -18,7 +18,6 @@ interface TournamentCardProps {
 }
 
 export const TournamentCard: React.FC<TournamentCardProps> = ({
-  id,
   tournamentCode,
   tournamentName,
   description,

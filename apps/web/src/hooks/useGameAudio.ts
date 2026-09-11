@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { WebSocketMessage } from "@/types/websocket";
+import { unwrapWebSocketMessage } from "@/types/websocket";
 import { resolveS3Media } from "@/hooks/useS3Media";
 
 type AudioMap = Record<string, string>;
@@ -23,7 +23,7 @@ const BGM: AudioMap = {
 };
 
 export function useGameAudio(
-  lastMessage: WebSocketMessage | null,
+  lastMessage: ReturnType<typeof unwrapWebSocketMessage>,
   matchCode: string,
 ) {
   const bgmRef = useRef<HTMLAudioElement | null>(null);
@@ -52,8 +52,7 @@ export function useGameAudio(
 
   useEffect(() => {
     const handleMessage = async () => {
-      const message = (lastMessage?.message ??
-        lastMessage) as WebSocketMessage | null;
+      const message = unwrapWebSocketMessage(lastMessage);
       if (!message?.type) return;
 
       const phase =
