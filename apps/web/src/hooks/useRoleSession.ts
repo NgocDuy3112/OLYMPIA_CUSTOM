@@ -1,3 +1,5 @@
+import { getMatchCode, getMcCode, getPlayerCode } from "@/utils/storage";
+
 interface SessionBase {
   matchCode: string;
 }
@@ -15,12 +17,9 @@ export function useRoleSession(role: "mc"): McSession;
 export function useRoleSession(
   role: "player" | "mc",
 ): PlayerSession | McSession {
-  const matchCode = localStorage.getItem("matchCode") ?? "";
+  const matchCode = getMatchCode();
   if (role === "player") {
-    return {
-      matchCode,
-      playerCode: sessionStorage.getItem("playerCode") ?? "",
-    };
+    return { matchCode, playerCode: getPlayerCode() };
   }
-  return { matchCode, mcCode: sessionStorage.getItem("mcCode") ?? "" };
+  return { matchCode, mcCode: getMcCode() };
 }

@@ -12,6 +12,17 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  getMatchCode,
+  localStore,
+  matchStoragePrefixes,
+  readMatchJson,
+  readMatchString,
+  removeMatchKey,
+  setMatchCode,
+  writeMatchJson,
+  writeMatchString,
+} from "@/utils/storage";
 import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -80,14 +91,12 @@ const getTimeLimitForPoints = (points: number): number => {
 const AdminVeDichRiengView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-  const storedMatchCode = localStorage.getItem("matchCode");
+  const storedMatchCode = getMatchCode();
   const currentMatchCode = urlMatchCode || storedMatchCode || "";
 
   useEffect(() => {
     if (urlMatchCode && urlMatchCode !== storedMatchCode) {
-      try {
-        localStorage.setItem("matchCode", urlMatchCode);
-      } catch {}
+      setMatchCode(urlMatchCode);
     }
   }, [urlMatchCode, storedMatchCode]);
   useEffect(() => {
@@ -114,9 +123,7 @@ const AdminVeDichRiengView = () => {
   >(() => {
     if (!currentMatchCode) return {};
     try {
-      const stored = localStorage.getItem(
-        `vd_rieng_states_${currentMatchCode}`,
-      );
+      const stored = localStore.get(`vd_rieng_states_${currentMatchCode}`);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -156,33 +163,32 @@ const AdminVeDichRiengView = () => {
 
   const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
     if (!currentMatchCode) return [];
-    try {
-      const stored = localStorage.getItem(`vd_rieng_codes_${currentMatchCode}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
+    return readMatchJson<string[]>(
+      matchStoragePrefixes.riengCodes,
+      currentMatchCode,
+      [],
+    );
   });
   const [currentTurnPlayerCode, setCurrentTurnPlayerCode] = useState<
     string | null
   >(() => {
     if (!currentMatchCode) return null;
-    try {
-      return (
-        localStorage.getItem(`vd_rieng_selected_player_${currentMatchCode}`) ||
-        null
-      );
-    } catch {
-      return null;
-    }
+    return (
+      readMatchString(
+        matchStoragePrefixes.riengSelectedPlayer,
+        currentMatchCode,
+      ) || null
+    );
   });
   const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(
     () => {
       if (!currentMatchCode) return {};
       try {
-        const stored = localStorage.getItem(`vd_powers_${currentMatchCode}`);
-        if (!stored) return {};
-        const parsed = JSON.parse(stored);
+        const parsed = readMatchJson<Record<string, unknown>>(
+          matchStoragePrefixes.powers,
+          currentMatchCode,
+          {},
+        );
         const migrated: Record<string, string | null> = {};
         for (const [code, val] of Object.entries(parsed)) {
           if (typeof val === "string" || val === null) migrated[code] = val;
@@ -228,7 +234,7 @@ const AdminVeDichRiengView = () => {
 
   useEffect(() => {
     if (!currentMatchCode) return;
-    localStorage.setItem(
+    localStore.set(
       `vd_rieng_states_${currentMatchCode}`,
       JSON.stringify(questionStates),
     );
@@ -236,23 +242,19 @@ const AdminVeDichRiengView = () => {
       .filter(([, v]) => v === "answered")
       .map(([k]) => k);
     if (answeredCodes.length > 0) {
-      try {
-        const existing = JSON.parse(
-          localStorage.getItem(`vd_used_codes_${currentMatchCode}`) ?? "[]",
-        ) as string[];
-        localStorage.setItem(
-          `vd_used_codes_${currentMatchCode}`,
-          JSON.stringify([...new Set([...existing, ...answeredCodes])]),
-        );
-      } catch {}
+      const existing = readMatchJson<string[]>(
+        matchStoragePrefixes.usedCodes,
+        currentMatchCode,
+        [],
+      );
+      writeMatchJson(matchStoragePrefixes.usedCodes, currentMatchCode, [
+        ...new Set([...existing, ...answeredCodes]),
+      ]);
     }
   }, [questionStates, currentMatchCode]);
   useEffect(() => {
     if (!currentMatchCode) return;
-    localStorage.setItem(
-      `vd_powers_${currentMatchCode}`,
-      JSON.stringify(usedPowers),
-    );
+    writeMatchJson(matchStoragePrefixes.powers, currentMatchCode, usedPowers);
   }, [usedPowers, currentMatchCode]);
   useEffect(() => {
     setActivePower(null);
@@ -480,7 +482,7 @@ const AdminVeDichRiengView = () => {
     } catch (err) {
       logger.error("Failed to clear question:", err);
     }
-  }, [sendMessage, clearPendingBroadcastTimer]);
+  }, [setVideoPlayState, sendMessage, clearPendingBroadcastTimer]);
 
   const handleQuestionActivate = useCallback(
     async (questionCode: string) => {
@@ -555,6 +557,8 @@ const AdminVeDichRiengView = () => {
       sendMessage,
       clearPendingBroadcastTimer,
       broadcastPendingVeDichQuestion,
+      setVideoPlayState,
+      setPlayers,
     ],
   );
 
@@ -583,6 +587,7 @@ const AdminVeDichRiengView = () => {
     lockTimer,
     currentPoints,
     currentMatchCode,
+    currentTurnPlayerCode,
     sendMessage,
   ]);
   useEffect(() => {
@@ -628,7 +633,7 @@ const AdminVeDichRiengView = () => {
   useEffect(() => {
     if (answeringWindowTimer !== 5 || !currentMatchCode) return;
     void sendMessage({ type: "buzzer_activated", question_code: currentQuestion.questionCode, countdown: 5 });
-  }, [answeringWindowTimer, currentMatchCode, sendMessage]);
+  }, [answeringWindowTimer, currentMatchCode, currentQuestion.questionCode, sendMessage]);
 
   const handleAddPoints = useCallback(async () => {
     if (selectedPlayerCodes.length === 0 || !currentQuestion.questionCode)
@@ -720,7 +725,7 @@ const AdminVeDichRiengView = () => {
       void sendMessage({ type: "clear_buzz", question_code: currentQuestion.questionCode });
       void sendMessage({ type: "buzzer_activated", question_code: currentQuestion.questionCode, countdown: 5 });
     }
-  }, [timer, currentMatchCode, sendMessage]);
+  }, [timer, currentMatchCode, currentQuestion.questionCode, sendMessage]);
 
   const handleEndTurn = useCallback(async () => {
     setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -732,7 +737,10 @@ const AdminVeDichRiengView = () => {
     setBuzzerWinnerCode(null);
     lastBuzzerQuestionRef.current = null;
     if (currentMatchCode)
-      localStorage.removeItem(`vd_rieng_selected_player_${currentMatchCode}`);
+      removeMatchKey(
+        matchStoragePrefixes.riengSelectedPlayer,
+        currentMatchCode,
+      );
     await Promise.all([
       clearQuestion(),
       sendMessage({ type: "vdr_turn_end" }),
@@ -775,9 +783,10 @@ const AdminVeDichRiengView = () => {
           msg.round === "rieng"
         ) {
           if (currentMatchCode)
-            localStorage.setItem(
-              `vd_rieng_codes_${currentMatchCode}`,
-              JSON.stringify(msg.selected_question_codes),
+            writeMatchJson(
+              matchStoragePrefixes.riengCodes,
+              currentMatchCode,
+              msg.selected_question_codes,
             );
           startTransition(() => {
             setRoundQuestionCodes(msg.selected_question_codes);
@@ -794,8 +803,9 @@ const AdminVeDichRiengView = () => {
               setCurrentTurnPlayerCode(msg.selected_player_code),
             );
             if (currentMatchCode)
-              localStorage.setItem(
-                `vd_rieng_selected_player_${currentMatchCode}`,
+              writeMatchString(
+                matchStoragePrefixes.riengSelectedPlayer,
+                currentMatchCode,
                 msg.selected_player_code,
               );
           }
@@ -926,12 +936,11 @@ const AdminVeDichRiengView = () => {
               ),
             );
           });
-          try {
-            localStorage.setItem(
-              `vd_powers_${currentMatchCode}`,
-              JSON.stringify(nextUsedPowers),
-            );
-          } catch {}
+          writeMatchJson(
+            matchStoragePrefixes.powers,
+            currentMatchCode,
+            nextUsedPowers,
+          );
           void sendMessage({
             type: "vd_powers_used",
             used_powers: nextUsedPowers,
@@ -958,12 +967,11 @@ const AdminVeDichRiengView = () => {
               }),
             );
           });
-          try {
-            localStorage.setItem(
-              `vd_powers_${currentMatchCode}`,
-              JSON.stringify(msg.used_powers),
-            );
-          } catch {}
+          writeMatchJson(
+            matchStoragePrefixes.powers,
+            currentMatchCode,
+            msg.used_powers,
+          );
         }
         break;
       }
@@ -977,6 +985,9 @@ const AdminVeDichRiengView = () => {
     sendMessage,
     sendRoundSnapshot,
     broadcastPendingVeDichQuestion,
+    currentMatchCode,
+    currentTurnPlayerCode,
+    usedPowers,
   ]);
 
   const getQuestionMeta = (questionCode: string) => {
@@ -1204,13 +1215,11 @@ const PlayerVeDichRiengView = () => {
   const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(
     () => {
       if (!matchCode) return {};
-      try {
-        return JSON.parse(
-          localStorage.getItem(`vd_powers_${matchCode}`) ?? "{}",
-        );
-      } catch {
-        return {};
-      }
+      return readMatchJson<Record<string, string | null>>(
+        matchStoragePrefixes.powers,
+        matchCode,
+        {},
+      );
     },
   );
   const [powerWindowOpen, setPowerWindowOpen] = useState(false);
@@ -1269,12 +1278,7 @@ const PlayerVeDichRiengView = () => {
           if (user_code && (power === "star" || power === "shield")) {
             setUsedPowers((prev) => {
               const next = { ...prev, [user_code]: power };
-              try {
-                localStorage.setItem(
-                  `vd_powers_${matchCode}`,
-                  JSON.stringify(next),
-                );
-              } catch {}
+              writeMatchJson(matchStoragePrefixes.powers, matchCode, next);
               return next;
             });
             setPlayers((prev) =>
@@ -1288,12 +1292,11 @@ const PlayerVeDichRiengView = () => {
         case "vd_powers_used": {
           if (msg.used_powers) {
             setUsedPowers(msg.used_powers);
-            try {
-              localStorage.setItem(
-                `vd_powers_${matchCode}`,
-                JSON.stringify(msg.used_powers),
-              );
-            } catch {}
+            writeMatchJson(
+              matchStoragePrefixes.powers,
+              matchCode,
+              msg.used_powers,
+            );
             setPlayers((prev) =>
               prev.map((p) => {
                 const power = msg.used_powers[p.playerCode];
@@ -1360,7 +1363,17 @@ const PlayerVeDichRiengView = () => {
           break;
       }
     });
-  }, [matchCode, playerCode, setPlayers, applyWsMessage]);
+  }, [
+    lastMessage,
+    matchCode,
+    playerCode,
+    setPlayers,
+    applyWsMessage,
+    applyPlayersInfo,
+    applyScoreUpdate,
+    setVideoPlayState,
+    startSynced,
+  ]);
 
   useEffect(() => {
     if (answeringWindowTimer <= 0) return;

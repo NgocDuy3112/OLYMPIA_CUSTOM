@@ -12,6 +12,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -75,14 +76,12 @@ const isMediaFilename = (v: string): boolean =>
 const AdminGiaiMaView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-  const storedMatchCode = localStorage.getItem("matchCode");
+  const storedMatchCode = getMatchCode();
   const currentMatchCode = urlMatchCode || storedMatchCode || "";
 
   useEffect(() => {
     if (urlMatchCode && urlMatchCode !== storedMatchCode) {
-      try {
-        localStorage.setItem("matchCode", urlMatchCode);
-      } catch {}
+      setMatchCode(urlMatchCode);
     }
   }, [urlMatchCode, storedMatchCode]);
   useEffect(() => {

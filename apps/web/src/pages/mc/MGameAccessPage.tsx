@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { setMatchCode as persistMatchCode } from "@/utils/storage";
 
 const MGameAccessPage: React.FC = () => {
   const [matchCode, setMatchCode] = useState("");
@@ -8,7 +9,7 @@ const MGameAccessPage: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!matchCode) return;
-    localStorage.setItem("matchCode", matchCode);
+    persistMatchCode(matchCode);
     try {
       window.dispatchEvent(new Event("oc3_matchCode_set"));
     } catch {}

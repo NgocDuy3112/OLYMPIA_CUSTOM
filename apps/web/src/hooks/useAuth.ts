@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { API_BASE_URL } from "@/configs";
+import { clearAuthSession } from "@/utils/storage";
 
 export interface AuthUser {
   userId: string;
@@ -59,11 +60,7 @@ export function useAuth(): UseAuthReturn {
       });
     } finally {
       setUser(null);
-      // Clear any legacy storage
-      sessionStorage.removeItem("user_role");
-      sessionStorage.removeItem("user_code");
-      sessionStorage.removeItem("user_name");
-      localStorage.removeItem("matchCode");
+      clearAuthSession();
     }
   }, []);
 

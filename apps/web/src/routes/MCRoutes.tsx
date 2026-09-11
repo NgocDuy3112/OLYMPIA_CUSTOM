@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useWsMessage } from "@/hooks/useWsMessage";
+import { getMatchCode } from "@/utils/storage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
 import ButPhaPage from "@/pages/game/ButPhaPage";
@@ -25,7 +26,7 @@ import { VeDichRound } from "@/types/veDich";
 const MCAutoNavigator: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const matchCode = localStorage.getItem("matchCode") || "";
+  const matchCode = getMatchCode();
   const message = useWsMessage("match_state", "navigate");
   useEffect(() => {
     if (!message) return;

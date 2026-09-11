@@ -5,13 +5,22 @@
  * MC: read-only audience view of selected questions.
  * Player: display of selected questions grid.
  */
-import { startTransition, useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CheckCircle, RotateCcw, RefreshCw } from "lucide-react";
 
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useRoleSession } from "@/hooks/useRoleSession";
 import { createLogger } from "@/utils/logger";
+import {
+  getMatchCode,
+  matchStoragePrefixes,
+  readMatchJson,
+  readMatchString,
+  removeMatchKey,
+  writeMatchJson,
+  writeMatchString,
+} from "@/utils/storage";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import {
   compareVeDichCodes,
@@ -44,8 +53,7 @@ const CATEGORIES = [
 // ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminVeDichPickView = () => {
   const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
-  const currentMatchCode =
-    localStorage.getItem("matchCode") || paramMatchCode || "";
+  const currentMatchCode = getMatchCode() || paramMatchCode || "";
   const { lastMessage, sendMessage } = useGameWebSocket();
   const navigate = useNavigate();
 
@@ -66,6 +74,10 @@ const AdminVeDichPickView = () => {
   );
   const [questions, setQuestions] = useState<Question[]>([]);
   const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>([]);
+  const usedQuestionCodesRef = useRef<string[]>([]);
+  useEffect(() => {
+    usedQuestionCodesRef.current = usedQuestionCodes;
+  }, [usedQuestionCodes]);
   const [selectedQuestionCodes, setSelectedQuestionCodes] = useState<string[]>(
     [],
   );
@@ -112,22 +124,25 @@ const AdminVeDichPickView = () => {
       used_question_codes: usedQuestionCodes,
     });
     if (allCodes.length > 0)
-      localStorage.setItem(
-        `vd_pick_all_codes_${currentMatchCode}`,
-        JSON.stringify(allCodes),
+      writeMatchJson(
+        matchStoragePrefixes.pickAllCodes,
+        currentMatchCode,
+        allCodes,
       );
     if (selectedQuestionCodes.length > 0)
-      localStorage.setItem(
-        `vd_pick_selected_${currentMatchCode}`,
-        JSON.stringify(selectedQuestionCodes),
+      writeMatchJson(
+        matchStoragePrefixes.pickSelected,
+        currentMatchCode,
+        selectedQuestionCodes,
       );
-    else localStorage.removeItem(`vd_pick_selected_${currentMatchCode}`);
+    else removeMatchKey(matchStoragePrefixes.pickSelected, currentMatchCode);
   }, [
     selectedQuestionCodes,
     questions,
     currentMatchCode,
     isChung,
     sendMessage,
+    usedQuestionCodes,
   ]);
 
   useEffect(() => {
@@ -137,12 +152,11 @@ const AdminVeDichPickView = () => {
       user_code: selectedPlayerCode ?? null,
       match_code: currentMatchCode,
     });
-    try {
-      localStorage.setItem(
-        `vd_rieng_selected_player_${currentMatchCode}`,
-        selectedPlayerCode ?? "",
-      );
-    } catch {}
+    writeMatchString(
+      matchStoragePrefixes.riengSelectedPlayer,
+      currentMatchCode,
+      selectedPlayerCode ?? "",
+    );
   }, [selectedPlayerCode, currentMatchCode, isChung, sendMessage]);
 
   const toggleSelectedPlayer = useCallback((playerCode: string) => {
@@ -266,12 +280,11 @@ const AdminVeDichPickView = () => {
 
   useEffect(() => {
     if (!currentMatchCode) return;
-    try {
-      const stored = localStorage.getItem(
-        `vd_rieng_selected_player_${currentMatchCode}`,
-      );
-      if (stored) setSelectedPlayerCode(stored || null);
-    } catch {}
+    const stored = readMatchString(
+      matchStoragePrefixes.riengSelectedPlayer,
+      currentMatchCode,
+    );
+    if (stored) setSelectedPlayerCode(stored || null);
   }, [currentMatchCode]);
 
   useEffect(() => {
@@ -293,12 +306,11 @@ const AdminVeDichPickView = () => {
         all_question_codes: allPlaceholderCodes,
         used_question_codes: [],
       });
-      try {
-        localStorage.setItem(
-          `vd_pick_all_codes_${currentMatchCode}`,
-          JSON.stringify(allPlaceholderCodes),
-        );
-      } catch {}
+      writeMatchJson(
+        matchStoragePrefixes.pickAllCodes,
+        currentMatchCode,
+        allPlaceholderCodes,
+      );
     }
   }, [currentMatchCode, isChung, sendMessage]);
 
@@ -336,17 +348,14 @@ const AdminVeDichPickView = () => {
         const used = veDichRaw
           .filter((q: any) => q.is_used === true)
           .map((q: any) => q.question_code);
-        try {
-          const storedUsed = localStorage.getItem(
-            `vd_used_codes_${currentMatchCode}`,
-          );
-          if (storedUsed) {
-            const usedCodes = JSON.parse(storedUsed) as string[];
-            setUsedQuestionCodes([...new Set([...used, ...usedCodes])]);
-          } else {
-            setUsedQuestionCodes(used);
-          }
-        } catch {
+        const storedUsed = readMatchJson<string[]>(
+          matchStoragePrefixes.usedCodes,
+          currentMatchCode,
+          [],
+        );
+        if (storedUsed.length > 0) {
+          setUsedQuestionCodes([...new Set([...used, ...storedUsed])]);
+        } else {
           setUsedQuestionCodes(used);
         }
         mapped.sort((a, b) =>
@@ -361,19 +370,18 @@ const AdminVeDichPickView = () => {
         setQuestions(deduped);
         const allCodes = deduped.map((q) => q.questionCode);
         if (currentMatchCode && allCodes.length > 0)
-          try {
-            localStorage.setItem(
-              `vd_pick_all_codes_${currentMatchCode}`,
-              JSON.stringify(allCodes),
-            );
-          } catch {}
+          writeMatchJson(
+            matchStoragePrefixes.pickAllCodes,
+            currentMatchCode,
+            allCodes,
+          );
         sendMessage({
           type: "vd_selection_update",
           match_code: currentMatchCode,
           round: isChung ? "chung" : "rieng",
           selected_question_codes: [],
           all_question_codes: allCodes,
-          used_question_codes: usedQuestionCodes,
+          used_question_codes: usedQuestionCodesRef.current,
         });
       } catch (err) {
         logger.error("Failed to fetch questions:", err);
@@ -383,7 +391,7 @@ const AdminVeDichPickView = () => {
       }
     };
     void fetchQuestions();
-  }, [currentMatchCode]);
+  }, [currentMatchCode, isChung, sendMessage]);
 
   useEffect(() => {
     if (!lastMessage) return;
@@ -415,17 +423,14 @@ const AdminVeDichPickView = () => {
         ...new Set([...prev, ...selectedQuestionCodes]),
       ]);
       if (currentMatchCode) {
-        try {
-          const existing = JSON.parse(
-            localStorage.getItem(`vd_used_codes_${currentMatchCode}`) ?? "[]",
-          ) as string[];
-          localStorage.setItem(
-            `vd_used_codes_${currentMatchCode}`,
-            JSON.stringify([
-              ...new Set([...existing, ...selectedQuestionCodes]),
-            ]),
-          );
-        } catch {}
+        const existing = readMatchJson<string[]>(
+          matchStoragePrefixes.usedCodes,
+          currentMatchCode,
+          [],
+        );
+        writeMatchJson(matchStoragePrefixes.usedCodes, currentMatchCode, [
+          ...new Set([...existing, ...selectedQuestionCodes]),
+        ]);
       }
       const allCodes = questions.map((q) => q.questionCode);
       const payload: any = {
@@ -450,13 +455,17 @@ const AdminVeDichPickView = () => {
       void sendRoundSnapshot();
       sendMessage({ type: "navigate", user_code: "", path: "/player/vdc" });
       if (currentMatchCode) {
-        const codesKey = isChung
-          ? `vd_chung_codes_${currentMatchCode}`
-          : `vd_rieng_codes_${currentMatchCode}`;
-        localStorage.setItem(codesKey, JSON.stringify(selectedQuestionCodes));
+        writeMatchJson(
+          isChung
+            ? matchStoragePrefixes.chungCodes
+            : matchStoragePrefixes.riengCodes,
+          currentMatchCode,
+          selectedQuestionCodes,
+        );
         if (!isChung)
-          localStorage.setItem(
-            `vd_rieng_selected_player_${currentMatchCode}`,
+          writeMatchString(
+            matchStoragePrefixes.riengSelectedPlayer,
+            currentMatchCode,
             selectedPlayerCode ?? "",
           );
       }
@@ -496,11 +505,9 @@ const AdminVeDichPickView = () => {
   const handleResetUsedQuestions = useCallback(() => {
     if (!currentMatchCode) return;
     setUsedQuestionCodes([]);
-    try {
-      localStorage.removeItem(`vd_used_codes_${currentMatchCode}`);
-      localStorage.removeItem(`vd_chung_codes_${currentMatchCode}`);
-      localStorage.removeItem(`vd_rieng_codes_${currentMatchCode}`);
-    } catch {}
+    removeMatchKey(matchStoragePrefixes.usedCodes, currentMatchCode);
+    removeMatchKey(matchStoragePrefixes.chungCodes, currentMatchCode);
+    removeMatchKey(matchStoragePrefixes.riengCodes, currentMatchCode);
     sendMessage({
       type: "vd_selection_update",
       match_code: currentMatchCode,
@@ -641,36 +648,29 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
 
   const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
     if (!paramMatchCode) return [];
-    try {
-      const stored = localStorage.getItem(
-        `vd_pick_all_codes_${paramMatchCode}`,
-      );
-      const codes = stored ? JSON.parse(stored) : [];
-      return codes.length > 0 ? codes : [];
-    } catch {
-      return [];
-    }
+    const codes = readMatchJson<string[]>(
+      matchStoragePrefixes.pickAllCodes,
+      paramMatchCode,
+      [],
+    );
+    return codes.length > 0 ? codes : [];
   });
   const [liveSelectedCodes, setLiveSelectedCodes] = useState<string[]>(() => {
     if (!paramMatchCode) return [];
-    try {
-      return JSON.parse(
-        localStorage.getItem(`vd_pick_selected_${paramMatchCode}`) ?? "[]",
-      );
-    } catch {
-      return [];
-    }
+    return readMatchJson<string[]>(
+      matchStoragePrefixes.pickSelected,
+      paramMatchCode,
+      [],
+    );
   });
   const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
   const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
     if (!paramMatchCode) return [];
-    try {
-      return JSON.parse(
-        localStorage.getItem(`vd_used_codes_${paramMatchCode}`) ?? "[]",
-      );
-    } catch {
-      return [];
-    }
+    return readMatchJson<string[]>(
+      matchStoragePrefixes.usedCodes,
+      paramMatchCode,
+      [],
+    );
   });
 
   useEffect(() => {
@@ -701,12 +701,11 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
             setAllQuestionCodes(allCodes2);
           setUsedQuestionCodes((prev) => {
             const updated = [...new Set([...prev, ...finalCodes])];
-            try {
-              localStorage.setItem(
-                `vd_used_codes_${paramMatchCode}`,
-                JSON.stringify(updated),
-              );
-            } catch {}
+            writeMatchJson(
+              matchStoragePrefixes.usedCodes,
+              paramMatchCode,
+              updated,
+            );
             return updated;
           });
           break;

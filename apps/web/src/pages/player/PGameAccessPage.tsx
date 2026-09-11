@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
+import { setMatchCode, setPlayerCode } from "@/utils/storage";
 import { ArrowLeft } from "lucide-react";
 
 const PIN_LENGTH = 6;
@@ -97,8 +98,8 @@ const PGameAccessPage: React.FC = () => {
 
       if (data.status === "success" && data.data) {
         // Store match info and redirect to game
-        localStorage.setItem("matchCode", data.data.matchSlug);
-        sessionStorage.setItem("playerCode", data.data.matchSlug);
+        setMatchCode(data.data.matchSlug);
+        setPlayerCode(data.data.matchSlug);
         navigate(`/player/waiting/${data.data.matchSlug}`);
       }
     } catch (err) {

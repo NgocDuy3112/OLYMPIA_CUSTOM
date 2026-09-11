@@ -6,6 +6,7 @@
  * Player: answer input for each question.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlarmClockCheck, Calculator, Eye, Power } from "lucide-react";
 
@@ -63,11 +64,11 @@ const AdminKhoiDongChungView = () => {
   });
 
   const lastAutoAdvancedIndexRef = useRef(0);
-  const hasStartedRoundTimerRef = useRef(false);
+  const [hasStartedRoundTimer, setHasStartedRoundTimer] = useState(false);
 
   useEffect(() => {
-    if (urlMatchCode && urlMatchCode !== localStorage.getItem("matchCode")) {
-      localStorage.setItem("matchCode", urlMatchCode);
+    if (urlMatchCode && urlMatchCode !== getMatchCode()) {
+      setMatchCode(urlMatchCode);
     }
   }, [urlMatchCode]);
 
@@ -108,19 +109,20 @@ const AdminKhoiDongChungView = () => {
   useEffect(() => {
     if (timer <= 0) {
       lastAutoAdvancedIndexRef.current = 0;
-      hasStartedRoundTimerRef.current = false;
+      setHasStartedRoundTimer(false);
     }
   }, [timer]);
 
   const handleStartRound = useCallback(async () => {
-    if (hasStartedRoundTimerRef.current || isTimerRunning) return;
-    hasStartedRoundTimerRef.current = true;
+    if (hasStartedRoundTimer || isTimerRunning) return;
+    setHasStartedRoundTimer(true);
     void sendPlayersSnapshot();
     await startTimer(1);
     loadQuestion(1).then((q) => {
       if (q) void sendQuestionToPlayers(1, q);
     });
   }, [
+    hasStartedRoundTimer,
     isTimerRunning,
     startTimer,
     loadQuestion,
@@ -177,7 +179,7 @@ const AdminKhoiDongChungView = () => {
         <>
           <AControlButton
             onClick={handleStartRound}
-            disabled={isTimerRunning || hasStartedRoundTimerRef.current}
+            disabled={isTimerRunning || hasStartedRoundTimer}
           >
             <AlarmClockCheck size={18} />
             <span className="ml-2 font-bold">ĐẾM GIỜ</span>

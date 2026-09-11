@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { HeaderBar } from "@/components/layout";
 import { getPhaseFromPath } from "@/utils/phase";
+import { getMatchCode, removeMatchCode } from "@/utils/storage";
 
 interface AdminGameplayNavBarProps {
   onNavigateToWaiting?: () => void;
@@ -26,11 +27,11 @@ const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({
       // Ignore error
     }
     // Clear local storage
-    localStorage.removeItem("matchCode");
+    removeMatchCode();
     navigate("/login");
   };
 
-  const matchCode = localStorage.getItem("matchCode") || "";
+  const matchCode = getMatchCode();
   const currentPhase = getPhaseFromPath(location.pathname);
 
   const handleWaitingClick = () => {

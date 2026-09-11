@@ -4,6 +4,7 @@ import type { PlayerStatus } from "@/types/player";
 import { usePlayerProtection } from "@/hooks/usePlayerProtection";
 import { HeaderBar } from "@/components/layout";
 import { getPhaseFromPath } from "@/utils/phase";
+import { getMatchCode } from "@/utils/storage";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useLocation } from "react-router-dom";
 import { PlayerCameraPublisher } from "@/components/player/PlayerCameraPublisher";
@@ -33,7 +34,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
   usePlayerProtection(true);
   const { isConnected, role } = useGameWebSocket();
   const location = useLocation();
-  const matchCode = propMatchCode || localStorage.getItem("matchCode") || "";
+  const matchCode = propMatchCode || getMatchCode();
 
   const effectiveCurrentCode = currentTurnPlayerCode ?? currentPlayerCode;
 

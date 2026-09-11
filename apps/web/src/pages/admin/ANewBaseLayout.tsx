@@ -9,6 +9,7 @@ import AGameShell from "@/pages/admin/AGameShell";
 import { PlayerPanel } from "@/components/shared/PlayerPanel";
 import type { PlayerStatus } from "@/types/player";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { getMatchCode } from "@/utils/storage";
 
 interface ANewBaseLayoutProps {
   /** Round title displayed above question board */
@@ -92,7 +93,7 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
                   disabled={playersDisabled}
                   onEditScore={onEditScore}
                   sendMessage={sendMessage}
-                  matchCode={localStorage.getItem("matchCode") || ""}
+                  matchCode={getMatchCode()}
                 />
               </div>
             ))}

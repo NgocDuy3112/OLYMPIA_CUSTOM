@@ -12,6 +12,7 @@ import { useQuestionTimerLock } from "./useQuestionTimerLock";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { getMatchCode } from "@/utils/storage";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
 import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
@@ -80,7 +81,7 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   const navigate = useNavigate();
   const { lastMessage, sendMessage } = useGameWebSocket();
 
-  const storedMatchCode = localStorage.getItem("matchCode") || "";
+  const storedMatchCode = getMatchCode();
   const matchCode = storedMatchCode;
 
   // ── Players ──

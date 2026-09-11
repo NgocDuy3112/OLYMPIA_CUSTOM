@@ -12,6 +12,14 @@ import {
   useRef,
   useState,
 } from "react";
+import {
+  getMatchCode,
+  localStore,
+  matchStoragePrefixes,
+  readMatchJson,
+  setMatchCode,
+  writeMatchJson,
+} from "@/utils/storage";
 import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -78,14 +86,12 @@ const getTimeLimitForPoints = (points: number): number => {
 const AdminVeDichChungView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-  const storedMatchCode = localStorage.getItem("matchCode");
+  const storedMatchCode = getMatchCode();
   const currentMatchCode = urlMatchCode || storedMatchCode || "";
 
   useEffect(() => {
     if (urlMatchCode && urlMatchCode !== storedMatchCode) {
-      try {
-        localStorage.setItem("matchCode", urlMatchCode);
-      } catch {}
+      setMatchCode(urlMatchCode);
     }
   }, [urlMatchCode, storedMatchCode]);
   useEffect(() => {
@@ -113,9 +119,7 @@ const AdminVeDichChungView = () => {
   >(() => {
     if (!currentMatchCode) return {};
     try {
-      const stored = localStorage.getItem(
-        `vd_chung_states_${currentMatchCode}`,
-      );
+      const stored = localStore.get(`vd_chung_states_${currentMatchCode}`);
       return stored ? JSON.parse(stored) : {};
     } catch {
       return {};
@@ -155,12 +159,11 @@ const AdminVeDichChungView = () => {
   }, [currentMatchCode, sendMessage, clearPendingBroadcastTimer]);
   const [roundQuestionCodes, setRoundQuestionCodes] = useState<string[]>(() => {
     if (!currentMatchCode) return [];
-    try {
-      const stored = localStorage.getItem(`vd_chung_codes_${currentMatchCode}`);
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
+    return readMatchJson<string[]>(
+      matchStoragePrefixes.chungCodes,
+      currentMatchCode,
+      [],
+    );
   });
   const [timer, setTimer] = useState<number>(0);
   const timerRef = useRef<number>(0);
@@ -175,9 +178,11 @@ const AdminVeDichChungView = () => {
     () => {
       if (!currentMatchCode) return {};
       try {
-        const stored = localStorage.getItem(`vd_powers_${currentMatchCode}`);
-        if (!stored) return {};
-        const parsed = JSON.parse(stored);
+        const parsed = readMatchJson<Record<string, unknown>>(
+          matchStoragePrefixes.powers,
+          currentMatchCode,
+          {},
+        );
         const migrated: Record<string, string | null> = {};
         for (const [code, val] of Object.entries(parsed)) {
           if (typeof val === "string" || val === null) migrated[code] = val;
@@ -201,10 +206,7 @@ const AdminVeDichChungView = () => {
 
   useEffect(() => {
     if (!currentMatchCode) return;
-    localStorage.setItem(
-      `vd_powers_${currentMatchCode}`,
-      JSON.stringify(usedPowers),
-    );
+    writeMatchJson(matchStoragePrefixes.powers, currentMatchCode, usedPowers);
   }, [usedPowers, currentMatchCode]);
   useEffect(() => {
     setPlayerPowers({});
@@ -228,7 +230,7 @@ const AdminVeDichChungView = () => {
 
   useEffect(() => {
     if (!currentMatchCode) return;
-    localStorage.setItem(
+    localStore.set(
       `vd_chung_states_${currentMatchCode}`,
       JSON.stringify(questionStates),
     );
@@ -236,15 +238,14 @@ const AdminVeDichChungView = () => {
       .filter(([, v]) => v === "answered")
       .map(([k]) => k);
     if (answeredCodes.length > 0) {
-      try {
-        const existing = JSON.parse(
-          localStorage.getItem(`vd_used_codes_${currentMatchCode}`) ?? "[]",
-        ) as string[];
-        localStorage.setItem(
-          `vd_used_codes_${currentMatchCode}`,
-          JSON.stringify([...new Set([...existing, ...answeredCodes])]),
-        );
-      } catch {}
+      const existing = readMatchJson<string[]>(
+        matchStoragePrefixes.usedCodes,
+        currentMatchCode,
+        [],
+      );
+      writeMatchJson(matchStoragePrefixes.usedCodes, currentMatchCode, [
+        ...new Set([...existing, ...answeredCodes]),
+      ]);
     }
   }, [questionStates, currentMatchCode]);
 
@@ -465,7 +466,7 @@ const AdminVeDichChungView = () => {
     } catch (err) {
       logger.error("Failed to clear question:", err);
     }
-  }, [sendMessage, clearPendingBroadcastTimer]);
+  }, [setVideoPlayState, sendMessage, clearPendingBroadcastTimer]);
 
   const handleQuestionActivate = useCallback(
     async (questionCode: string) => {
@@ -539,6 +540,8 @@ const AdminVeDichChungView = () => {
       sendMessage,
       clearPendingBroadcastTimer,
       broadcastPendingVeDichQuestion,
+      setVideoPlayState,
+      setPlayers,
     ],
   );
 
@@ -627,61 +630,6 @@ const AdminVeDichChungView = () => {
     }
   }, [canShowAnswers, currentMatchCode, currentQuestion, players, sendMessage]);
 
-  const handleAddScore = useCallback(
-    async (playerCode: string, delta: number, broadcast = true) => {
-      if (!playerCode) return;
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.playerCode === playerCode
-            ? { ...p, playerScore: (p.playerScore ?? 0) + delta }
-            : p,
-        ),
-      );
-      if (!currentMatchCode) return;
-      try {
-        if (currentQuestion.questionCode) {
-          await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({
-              user_code: playerCode,
-              match_code: currentMatchCode,
-              question_code: currentQuestion.questionCode,
-              points: delta,
-            }),
-          });
-        }
-        const recentRes = await fetch(
-          `${API_BASE_URL}/scoreboard/${currentMatchCode}`,
-          { credentials: "include" },
-        );
-        if (recentRes.ok) {
-          const json = await recentRes.json();
-          let arr: any[] = [];
-          if (Array.isArray(json.data)) arr = json.data;
-          else if (Array.isArray(json.data?.scoreboard))
-            arr = json.data.scoreboard;
-          setPlayers((prev) =>
-            prev.map((p) => {
-              const entry = arr.find(
-                (item: any) => item.user_code === p.playerCode,
-              );
-              const updated = entry?.cumulative_score ?? entry?.total_score;
-              return typeof updated === "number"
-                ? { ...p, playerScore: updated }
-                : p;
-            }),
-          );
-        }
-        if (broadcast) await sendPlayersSnapshot();
-      } catch (err) {
-        logger.error("handleAddScore failed:", err);
-      }
-    },
-    [currentMatchCode, currentQuestion.questionCode, sendPlayersSnapshot],
-  );
-
   const handleCalculateScore = useCallback(async () => {
     if (!currentQuestion.questionCode) return;
     setQuestionStates((prev) => ({
@@ -719,10 +667,8 @@ const AdminVeDichChungView = () => {
   }, [
     selectedPlayerCodes,
     currentQuestion.questionCode,
-    players,
     playerPowers,
     usedPowers,
-    handleAddScore,
     sendPlayersSnapshot,
     currentMatchCode,
     sendMessage,
@@ -752,9 +698,10 @@ const AdminVeDichChungView = () => {
       case "vd_questions_selected": {
         if (Array.isArray(msg.selected_question_codes)) {
           if (currentMatchCode)
-            localStorage.setItem(
-              `vd_chung_codes_${currentMatchCode}`,
-              JSON.stringify(msg.selected_question_codes),
+            writeMatchJson(
+              matchStoragePrefixes.chungCodes,
+              currentMatchCode,
+              msg.selected_question_codes,
             );
           startTransition(() => {
             setRoundQuestionCodes(msg.selected_question_codes);
@@ -867,7 +814,15 @@ const AdminVeDichChungView = () => {
         break;
       }
     }
-  }, [applyPlayersSnapshot, lastMessage, sendMessage, sendRoundSnapshot]);
+  }, [
+    applyPlayersSnapshot,
+    lastMessage,
+    sendMessage,
+    sendRoundSnapshot,
+    currentMatchCode,
+    playerPowers,
+    usedPowers,
+  ]);
 
   const getQuestionMeta = (questionCode: string) => {
     const idx = questions.findIndex((q) => q.questionCode === questionCode);
@@ -1035,12 +990,11 @@ const PlayerVeDichChungView = () => {
   const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(
     () => {
       if (!matchCode) return [];
-      try {
-        const stored = localStorage.getItem(`vd_chung_meta_${matchCode}`);
-        return stored ? JSON.parse(stored) : [];
-      } catch {
-        return [];
-      }
+      return readMatchJson<RoundQuestion[]>(
+        matchStoragePrefixes.chungMeta,
+        matchCode,
+        [],
+      );
     },
   );
   const [questionStates, setQuestionStates] = useState<
@@ -1049,13 +1003,11 @@ const PlayerVeDichChungView = () => {
   const [usedPowers, setUsedPowers] = useState<Record<string, string | null>>(
     () => {
       if (!matchCode) return {};
-      try {
-        return JSON.parse(
-          localStorage.getItem(`vd_powers_${matchCode}`) ?? "{}",
-        );
-      } catch {
-        return {};
-      }
+      return readMatchJson<Record<string, string | null>>(
+        matchStoragePrefixes.powers,
+        matchCode,
+        {},
+      );
     },
   );
   const [powerWindowOpen, setPowerWindowOpen] = useState(false);
@@ -1087,12 +1039,7 @@ const PlayerVeDichChungView = () => {
         const metadata: RoundQuestion[] = msg.question_metadata ?? [];
         if (metadata.length > 0) {
           setRoundQuestionsData(metadata);
-          try {
-            localStorage.setItem(
-              `vd_chung_meta_${matchCode}`,
-              JSON.stringify(metadata),
-            );
-          } catch {}
+          writeMatchJson(matchStoragePrefixes.chungMeta, matchCode, metadata);
         }
         break;
       }
@@ -1110,12 +1057,7 @@ const PlayerVeDichChungView = () => {
         if (user_code && (power === "star" || power === "shield")) {
           setUsedPowers((prev) => {
             const next = { ...prev, [user_code]: power };
-            try {
-              localStorage.setItem(
-                `vd_powers_${matchCode}`,
-                JSON.stringify(next),
-              );
-            } catch {}
+            writeMatchJson(matchStoragePrefixes.powers, matchCode, next);
             return next;
           });
           setPlayers((prev) =>
@@ -1129,12 +1071,11 @@ const PlayerVeDichChungView = () => {
       case "vd_powers_used": {
         if (msg.used_powers) {
           setUsedPowers(msg.used_powers);
-          try {
-            localStorage.setItem(
-              `vd_powers_${matchCode}`,
-              JSON.stringify(msg.used_powers),
-            );
-          } catch {}
+          writeMatchJson(
+            matchStoragePrefixes.powers,
+            matchCode,
+            msg.used_powers,
+          );
           setPlayers((prev) =>
             prev.map((p) => {
               const power = msg.used_powers[p.playerCode];
@@ -1145,7 +1086,7 @@ const PlayerVeDichChungView = () => {
         break;
       }
     }
-  }, [matchCode, playerCode, setPlayers]);
+  }, [lastMessage, matchCode, playerCode, setPlayers]);
 
   useEffect(() => {
     if (!powerWindowOpen || powerWindowCountdown <= 0) return;
@@ -1237,6 +1178,7 @@ const PlayerVeDichChungView = () => {
     setPlayers,
     timeLimit,
     timer,
+    setAnswer,
   ]);
 
   const currentPoints =

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
+import { setUserCode, setUserName, setUserRole } from "@/utils/storage";
 
 type AuthState = "loading" | "success" | "error";
 
@@ -34,9 +35,9 @@ const AuthCallbackPage: React.FC = () => {
         if (data.status === "success" && data.data) {
           // Store minimal user info in sessionStorage for quick access
           // (actual auth is cookie-based)
-          sessionStorage.setItem("user_role", data.data.role);
-          sessionStorage.setItem("user_code", data.data.userCode);
-          sessionStorage.setItem("user_name", data.data.userName);
+          setUserRole(data.data.role);
+          setUserCode(data.data.userCode);
+          setUserName(data.data.userName);
 
           setState("success");
 

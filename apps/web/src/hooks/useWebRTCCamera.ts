@@ -175,6 +175,10 @@ export function useWebRTCVoiceViewer(publisherCode: string) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const peer = useRef<RTCPeerConnection | null>(null);
   const [muted, setMuted] = useState(false);
+  const mutedRef = useRef(false);
+  useEffect(() => {
+    mutedRef.current = muted;
+  }, [muted]);
   useEffect(() => {
     if (!isConnected) return;
     const connection = new RTCPeerConnection(ICE_SERVERS);
@@ -184,7 +188,7 @@ export function useWebRTCVoiceViewer(publisherCode: string) {
       audioRef.current = audio;
       audio.autoplay = true;
       audio.srcObject = event.streams[0] ?? null;
-      audio.muted = muted;
+      audio.muted = mutedRef.current;
       void audio.play().catch(() => undefined);
     };
     connection.onicecandidate = (event) => {

@@ -8,6 +8,11 @@ import { useQuestionState } from "@/hooks/useQuestionState";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
+import {
+  matchStoragePrefixes,
+  readMatchJson,
+  writeMatchJson,
+} from "@/utils/storage";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
@@ -44,12 +49,11 @@ export function VeDichChungAudiencePage({
   const [roundQuestionsData, setRoundQuestionsData] = useState<RoundQuestion[]>(
     () => {
       if (!matchCode) return [];
-      try {
-        const stored = localStorage.getItem(`vd_chung_meta_${matchCode}`);
-        return stored ? (JSON.parse(stored) as RoundQuestion[]) : [];
-      } catch {
-        return [];
-      }
+      return readMatchJson<RoundQuestion[]>(
+        matchStoragePrefixes.chungMeta,
+        matchCode,
+        [],
+      );
     },
   );
   const [questionStates, setQuestionStates] = useState<
@@ -114,14 +118,7 @@ export function VeDichChungAudiencePage({
           const metadata: RoundQuestion[] = msg.question_metadata ?? [];
           if (metadata.length > 0) {
             setRoundQuestionsData(metadata);
-            try {
-              localStorage.setItem(
-                `vd_chung_meta_${matchCode}`,
-                JSON.stringify(metadata),
-              );
-            } catch (error) {
-              console.error("Storage update failed", error);
-            }
+            writeMatchJson(matchStoragePrefixes.chungMeta, matchCode, metadata);
           }
           break;
         }

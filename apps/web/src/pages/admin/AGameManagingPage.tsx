@@ -19,6 +19,10 @@ import {
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import {
+  getMatchCode as readStoredMatchCode,
+  setMatchCode as persistMatchCode,
+} from "@/utils/storage";
 
 const logger = createLogger("AGameManaging");
 
@@ -31,18 +35,12 @@ const VaoPhongButton = ({
 }) => {
   const navigate = useNavigate();
   const handleClick = () => {
-    const codeToUse =
-      matchCode ||
-      (typeof window !== "undefined"
-        ? localStorage.getItem("matchCode") || ""
-        : "");
+    const codeToUse = matchCode || readStoredMatchCode();
     if (!codeToUse) {
       alert("Vui lòng nhập Mã trận đấu trước khi Vào trận đấu.");
       return;
     }
-    try {
-      localStorage.setItem("matchCode", codeToUse);
-    } catch {}
+    persistMatchCode(codeToUse);
     navigate(`/admin/waiting/${codeToUse}`);
   };
 
@@ -95,9 +93,7 @@ const AGameManagingPage = () => {
   const [allMatches, setAllMatches] = useState<MatchData[]>([]);
   const [allMatchesLoading, setAllMatchesLoading] = useState(false);
 
-  const [matchCode, setMatchCode] = useState(
-    localStorage.getItem("matchCode") || "",
-  );
+  const [matchCode, setMatchCode] = useState(readStoredMatchCode());
   const [matchName, setMatchName] = useState("");
   const [userCodes, setUserCodes] = useState<string[]>(["", "", "", ""]);
 
@@ -108,7 +104,7 @@ const AGameManagingPage = () => {
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsMatchCode, setQuestionsMatchCode] = useState(
-    localStorage.getItem("matchCode") || "",
+    readStoredMatchCode(),
   );
   const [showImportMenu, setShowImportMenu] = useState(false);
   const importMenuRef = useRef<HTMLDivElement>(null);
@@ -327,7 +323,7 @@ const AGameManagingPage = () => {
       if (res.ok) {
         logger.info("Match saved:", matchCode);
         setMatchExists(true);
-        localStorage.setItem("matchCode", matchCode);
+        persistMatchCode(matchCode);
         await fetchAllMatches();
         alert(
           matchExists
@@ -1034,7 +1030,7 @@ const AGameManagingPage = () => {
               setMatchCode(val);
               setQuestionsMatchCode(val);
               setMatchExists(false);
-              localStorage.setItem("matchCode", val);
+              persistMatchCode(val);
             }}
             className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
@@ -1130,7 +1126,7 @@ const AGameManagingPage = () => {
                       onClick={() => {
                         setMatchCode(m.match_code);
                         setQuestionsMatchCode(m.match_code);
-                        localStorage.setItem("matchCode", m.match_code);
+                        persistMatchCode(m.match_code);
                         setMatchExists(false);
                         void lookupMatchByCode(m.match_code);
                       }}

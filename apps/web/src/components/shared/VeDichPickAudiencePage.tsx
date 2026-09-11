@@ -5,6 +5,7 @@ import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
 import { VeDichRound, getVeDichRoundLabel } from "@/types/veDich";
+import { matchStoragePrefixes, readMatchJson } from "@/utils/storage";
 
 const CATEGORIES = [
   "TOÁN - TIN - THỐNG KÊ",
@@ -31,35 +32,32 @@ export function VeDichPickAudiencePage({
 
   const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
     if (!matchCode) return [];
-    try {
-      const stored = localStorage.getItem(`vd_pick_all_codes_${matchCode}`);
-      const codes = stored ? (JSON.parse(stored) as string[]) : [];
-      return codes.length > 0 ? codes : [];
-    } catch {
-      return [];
-    }
+    const codes = readMatchJson<string[]>(
+      matchStoragePrefixes.pickAllCodes,
+      matchCode,
+      [],
+    );
+    return codes.length > 0 ? codes : [];
   });
 
   const [liveSelectedCodes, setLiveSelectedCodes] = useState<string[]>(() => {
     if (!matchCode) return [];
-    try {
-      const stored = localStorage.getItem(`vd_pick_selected_${matchCode}`);
-      return stored ? (JSON.parse(stored) as string[]) : [];
-    } catch {
-      return [];
-    }
+    return readMatchJson<string[]>(
+      matchStoragePrefixes.pickSelected,
+      matchCode,
+      [],
+    );
   });
 
   const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
 
   const [usedQuestionCodes, setUsedQuestionCodes] = useState<string[]>(() => {
     if (!matchCode) return [];
-    try {
-      const stored = localStorage.getItem(`vd_used_codes_${matchCode}`);
-      return stored ? (JSON.parse(stored) as string[]) : [];
-    } catch {
-      return [];
-    }
+    return readMatchJson<string[]>(
+      matchStoragePrefixes.usedCodes,
+      matchCode,
+      [],
+    );
   });
 
   useEffect(() => {

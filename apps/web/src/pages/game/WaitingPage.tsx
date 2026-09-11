@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
+import { getMatchCode, getPlayerCode, setMatchCode } from "@/utils/storage";
 
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { usePlayerProtection } from "@/hooks/usePlayerProtection";
@@ -41,7 +42,7 @@ const PLAYER_COLORS = [
 const AdminWaitingView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
-  const storedMatchCode = localStorage.getItem("matchCode");
+  const storedMatchCode = getMatchCode();
   const currentMatchCode = urlMatchCode || storedMatchCode || "";
 
   const { lastMessage, sendMessage } = useGameWebSocket();
@@ -51,9 +52,7 @@ const AdminWaitingView = () => {
 
   useEffect(() => {
     if (urlMatchCode && urlMatchCode !== storedMatchCode) {
-      try {
-        localStorage.setItem("matchCode", urlMatchCode);
-      } catch {}
+      setMatchCode(urlMatchCode);
     }
   }, [urlMatchCode, storedMatchCode]);
   useEffect(() => {
@@ -404,7 +403,7 @@ const MCWaitingView = () => {
 const PlayerWaitingView = () => {
   usePlayerProtection(true);
   const { matchCode: routeMatchCode } = useParams<{ matchCode: string }>();
-  const playerCode = sessionStorage.getItem("playerCode") ?? "";
+  const playerCode = getPlayerCode();
   const { lastMessage } = useGameWebSocket();
   const state = useWaitingState(lastMessage);
   return (

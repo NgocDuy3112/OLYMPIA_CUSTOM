@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from "react";
 import { Mic, KeyRound, Pencil } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";

@@ -6,6 +6,7 @@
  * Player: answer input with timer.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlarmClockCheck, Calculator, Eye, Power } from "lucide-react";
 
@@ -60,8 +61,8 @@ const AdminButPhaView = () => {
   });
 
   useEffect(() => {
-    if (urlMatchCode && urlMatchCode !== localStorage.getItem("matchCode")) {
-      localStorage.setItem("matchCode", urlMatchCode);
+    if (urlMatchCode && urlMatchCode !== getMatchCode()) {
+      setMatchCode(urlMatchCode);
     }
   }, [urlMatchCode]);
 

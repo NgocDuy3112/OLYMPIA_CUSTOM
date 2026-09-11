@@ -6,6 +6,7 @@
  * Player: answer input for each question.
  */
 import { useCallback, useEffect } from "react";
+import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlarmClockCheck, Calculator, Eye, Power } from "lucide-react";
 
@@ -58,8 +59,8 @@ const AdminKhoiDongRiengView = () => {
   });
 
   useEffect(() => {
-    if (urlMatchCode && urlMatchCode !== localStorage.getItem("matchCode")) {
-      localStorage.setItem("matchCode", urlMatchCode);
+    if (urlMatchCode && urlMatchCode !== getMatchCode()) {
+      setMatchCode(urlMatchCode);
     }
   }, [urlMatchCode]);
 

@@ -23,13 +23,14 @@ import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminHeader, AdminSidebar } from "@/components/layout";
+import { getMatchCode } from "@/utils/storage";
 import { VeDichRound } from "@/types/veDich";
 
 const AdminAutoNavigator: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { lastMessage, sendMessage } = useGameWebSocket();
-  const matchCode = localStorage.getItem("matchCode") || "";
+  const matchCode = getMatchCode();
   useEffect(() => {
     const msg = (lastMessage?.message ?? lastMessage) as {
       type?: string;
@@ -83,7 +84,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
 
 const AdminRoutes = () => {
   const location = useLocation();
-  const stored = localStorage.getItem("matchCode") || "";
+  const stored = getMatchCode();
   const fromPath = (() => {
     try {
       const m = location.pathname.match(/OC3_[A-Za-z0-9_-]+/);
