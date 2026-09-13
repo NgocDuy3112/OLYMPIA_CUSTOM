@@ -88,6 +88,23 @@ services:
     networks:
       - oc-network
 
+  # ── AI Agent (MVP 2 — Q&A, internal only) ────────────────
+  ai-agent:
+    container_name: oc-ai-agent
+    build:
+      context: .
+      dockerfile: apps/ai-agent/Dockerfile
+    environment:
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      API_INTERNAL_URL: http://app:8000/api
+      LLM_PROVIDER: stub
+    depends_on:
+      - valkey
+      - app
+    networks:
+      - oc-network
+
   # ── Discord bot (dev — hot reload) ───────────────────────
   discord-bot:
     container_name: oc-discord-bot

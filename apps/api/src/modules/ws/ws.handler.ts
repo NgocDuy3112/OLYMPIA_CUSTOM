@@ -17,6 +17,10 @@ import {
 } from "../../state/locks.js";
 import { getEngine } from "@oc/engine";
 import { persistScoreDeltas } from "../scoreboard/score.service.js";
+import {
+  forwardAgentAsk,
+  AgentRateLimitError,
+} from "../agent/agent.gateway.js";
 
 export async function handleWsMessage(
   _ws: WebSocket,
@@ -80,8 +84,45 @@ export async function handleWsMessage(
     return;
   }
 
+  if (msgType === "agent_ask") {
+    await handleAgentAsk(conn, data);
+    return;
+  }
+
   await handleEngineAction(conn, data);
   await manager.broadcast(conn.matchCode, data as Record<string, unknown>);
+}
+
+async function handleAgentAsk(
+  conn: WsConnection,
+  data: WsMessage,
+): Promise<void> {
+  const question = typeof data.question === "string" ? data.question : "";
+  if (!question.trim() || !conn.matchCode || !manager.valkey) return;
+
+  try {
+    const result = await forwardAgentAsk(
+      manager.valkey,
+      { userCode: conn.userCode, role: conn.role },
+      conn.matchCode,
+      question,
+    );
+    await manager.sendToUser(conn.matchCode, conn.userCode, {
+      type: "agent_answer",
+      question,
+      answer: result.answer,
+      tools_used: result.tools_used,
+    });
+  } catch (error) {
+    const message =
+      error instanceof AgentRateLimitError
+        ? "Bạn hỏi quá nhanh, thử lại sau một phút."
+        : "Trợ lý đang bận, thử lại sau.";
+    await manager.sendToUser(conn.matchCode, conn.userCode, {
+      type: "agent_error",
+      message,
+    });
+  }
 }
 
 async function handleEngineAction(

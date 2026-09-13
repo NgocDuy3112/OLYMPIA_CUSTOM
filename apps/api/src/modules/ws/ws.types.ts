@@ -97,6 +97,7 @@ const MC_ALLOWED = new Set([
   "voice_ice_candidate",
   "voice_request",
   "request_snapshot",
+  "agent_ask",
 ]);
 
 export function isAllowedByRole(role: string, msgType: string): boolean {
