@@ -2,13 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "rootDir": "./src",
     "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "paths": {
-      "@oc/db": ["../../packages/db/src"],
-      "@oc/db/*": ["../../packages/db/src/*"]
-    }
+    "noUnusedParameters": false
   },
-  "include": ["src/**/*.ts", "../../packages/db/src/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -6,8 +6,8 @@ import {
   index,
   unique,
 } from "drizzle-orm/pg-core";
-import { tournaments } from "./tournament";
-import { users } from "./user";
+import { tournaments } from "./tournament.js";
+import { users } from "./user.js";
 
 /**
  * Tournament teams — for team-based tournaments (e.g., OC HCMC 2v2).

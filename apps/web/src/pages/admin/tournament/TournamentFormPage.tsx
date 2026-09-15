@@ -30,7 +30,6 @@ const INITIAL_FORM_DATA: TournamentFormData = {
 const TOURNAMENT_FORMATS = [
   { value: "oc3", label: "Olympia Custom 3 (OC3)" },
   { value: "oc4", label: "Olympia Custom 4 (OC4)" },
-  { value: "ochcmc", label: "OHCMC" },
 ];
 
 const STATUS_OPTIONS = [
@@ -181,7 +180,7 @@ const TournamentFormPage: React.FC = () => {
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="card !p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="card p-6! space-y-6">
         {/* Tournament Name */}
         <div>
           <label className="block text-sm font-medium text-white mb-2">

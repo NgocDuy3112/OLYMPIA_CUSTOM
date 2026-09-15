@@ -127,7 +127,7 @@ export async function wsRoute(app: FastifyInstance) {
 }
 
 function toTournamentFormat(value: string): TournamentFormat | null {
-  if (value === "oc3" || value === "oc4" || value === "ochcmc") return value;
+  if (value === "oc3" || value === "oc4") return value;
   return null;
 }
 

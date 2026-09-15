@@ -10,7 +10,10 @@
  * `agent_ask` handle ở ws.handler — module này chỉ export handler dùng chung.
  */
 
-const AGENT_URL = process.env.AGENT_URL || "http://localhost:8100";
+import { getEnv } from "../../config/env.js";
+
+const env = getEnv();
+const AGENT_URL = env.AGENT_URL;
 const AGENT_TIMEOUT_MS = 15_000;
 const RATE_LIMIT_PER_MINUTE = 10;
 

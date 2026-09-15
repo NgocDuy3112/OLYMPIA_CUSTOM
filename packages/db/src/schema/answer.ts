@@ -7,9 +7,9 @@ import {
   numeric,
   index,
 } from "drizzle-orm/pg-core";
-import { users } from "./user";
-import { matches } from "./match";
-import { questions } from "./question";
+import { users } from "./user.js";
+import { matches } from "./match.js";
+import { questions } from "./question.js";
 
 /**
  * Answers table — v4 schema (unchanged from v3).

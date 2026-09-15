@@ -1,15 +1,15 @@
 // ── Enums ──
-export { roleEnum, matchStatusEnum, auditActionTypeEnum } from "./enums";
+export { roleEnum, matchStatusEnum, auditActionTypeEnum } from "./enums.js";
 
 // ── Tables ──
-export { users } from "./user";
-export { matches, matchPlayerPositions } from "./match";
-export { questions } from "./question";
-export { answers } from "./answer";
-export { records } from "./record";
-export { qualifierRecords, qualifierAdvancements } from "./qualifier";
-export { auditLogs } from "./audit-log";
-export { matchCheckpoints } from "./checkpoint";
-export { tournaments, tournamentPlayers } from "./tournament";
-export { tournamentTemplates } from "./template";
-export { tournamentTeams, teamMembers } from "./team";
+export { users } from "./user.js";
+export { matches, matchPlayerPositions } from "./match.js";
+export { questions } from "./question.js";
+export { answers } from "./answer.js";
+export { records } from "./record.js";
+export { qualifierRecords, qualifierAdvancements } from "./qualifier.js";
+export { auditLogs } from "./audit-log.js";
+export { matchCheckpoints } from "./checkpoint.js";
+export { tournaments, tournamentPlayers } from "./tournament.js";
+export { tournamentTemplates } from "./template.js";
+export { tournamentTeams, teamMembers } from "./team.js";

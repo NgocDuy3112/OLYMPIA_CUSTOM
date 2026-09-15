@@ -48,13 +48,7 @@ services:
     env_file:
       - ./configs/.env
     environment:
-      APP_HOST: 0.0.0.0
-      APP_PORT: 8000
-      FRONTEND_URL: http://localhost:5173
-      POSTGRES_DB_HOST: postgresql
-      POSTGRES_DB_PORT: 5432
-      VALKEY_HOST: valkey
-      VALKEY_PORT: 6379
+      DATABASE_URL: postgresql://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@${POSTGRES_DB_HOST}:${POSTGRES_DB_PORT}/${POSTGRES_DB_NAME}
     ports:
       - "8000:8000"
     volumes:
@@ -73,18 +67,11 @@ services:
   # ── Frontend (Vite dev server) ───────────────────────────
   frontend:
     container_name: oc-frontend
-    image: node:20-alpine
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    environment:
-      VITE_APP_ENV: dev
-      VITE_API_BASE_URL: http://localhost:8000
-      VITE_WS_BASE_URL: ws://localhost:8000
-    ports:
-      - "5173:5173"
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
     volumes:
-      - ./apps/web:/app
-      - /app/node_modules
+      - ./apps/web/src:/app/apps/web/src:ro
     networks:
       - oc-network
 
@@ -95,8 +82,8 @@ services:
       context: .
       dockerfile: apps/ai-agent/Dockerfile
     environment:
-      VALKEY_HOST: valkey
-      VALKEY_PORT: 6379
+      VALKEY_HOST: ${VALKEY_HOST}
+      VALKEY_PORT: ${VALKEY_PORT}
       API_INTERNAL_URL: http://app:8000/api
       LLM_PROVIDER: stub
     depends_on:
@@ -105,20 +92,19 @@ services:
     networks:
       - oc-network
 
-  # ── Discord bot (dev — hot reload) ───────────────────────
-  discord-bot:
-    container_name: oc-discord-bot
-    build:
-      context: .
-      dockerfile: apps/discord-bot/Dockerfile
-    env_file:
-      - ./configs/.env
-    volumes:
-      - ./apps/discord-bot/src:/app/src:ro
-    depends_on:
-      - valkey
-    networks:
-      - oc-network
+  # discord-bot:
+  #   container_name: oc-discord-bot
+  #   build:
+  #     context: .
+  #     dockerfile: apps/discord-bot/Dockerfile
+  #   env_file:
+  #     - ./configs/.env
+  #   volumes:
+  #     - ./apps/discord-bot/src:/app/src:ro
+  #   depends_on:
+  #     - valkey
+  #   networks:
+  #     - oc-network
 
 networks:
   oc-network:

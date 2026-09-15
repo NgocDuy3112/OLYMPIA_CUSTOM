@@ -34,7 +34,6 @@ olympia-v4/
 │   ├── transport/              # Adapter: WS ↔ engine
 │   ├── oc3/                    # OC3 — backward compatible
 │   ├── oc4/                    # OC4 — new version
-│   └── ochcmc/                  # OHCMC — separate format
 ├── packages/
 │   ├── shared/                 # Types, constants, utils shared giữa các app
 │   │   ├── src/
@@ -457,7 +456,6 @@ Mỗi tournament là 1 engine độc lập — pure game logic, không biết We
 |---|---|---|
 | `oc3` | Olympia Custom 3 | Giữ rules cũ, backward compatible, lưu data cũ |
 | `oc4` | Olympia Custom 4 | Rules mới, development chính |
-| `ochcmc` | OHCMC | Tournament format riêng, gameplay và lifecycle hoàn toàn khác OC3/OC4 |
 
 #### Cấu trúc
 
@@ -482,10 +480,6 @@ engine/
 │   ├── index.ts
 │   ├── phases/
 │   └── config.ts
-└── ochcmc/                   # OHCMC — separate format
-    ├── index.ts
-    ├── phases/
-    └── config.ts
 ```
 
 #### Interface
@@ -526,7 +520,6 @@ export interface TournamentEngine {
 const engines = new Map<string, TournamentEngine>([
   ['oc3', new OC3Engine()],
   ['oc4', new OC4Engine()],
-  ['ochcmc', new OHCMCEngine()],
 ])
 ```
 
@@ -556,7 +549,7 @@ tournamentFormat: varchar('tournament_format', { length: 50 })
 
 - Tournament format riêng cho OHCMC
 - Có thể có phases khác (không phải kdc/kdr/bp/vdc/vdr/gm/vl)
-- Engine独立, implement TournamentEngine interface
+- Engine, implement TournamentEngine interface
 
 ---
 

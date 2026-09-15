@@ -6,7 +6,7 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { matches } from "./match";
+import { matches } from "./match.js";
 
 /**
  * Questions table — v4 schema (unchanged from v3).

@@ -10,6 +10,7 @@ import { registerWebSocket } from "./plugins/websocket.js";
 import valkeyPlugin from "./plugins/valkey.js";
 import s3Plugin from "./plugins/s3.js";
 import { errorHandler } from "./utils/errors.js";
+import { getEnv } from "./config/env.js";
 import { authRoutes } from "./modules/auth/auth.routes.js";
 import { userRoutes } from "./modules/user/user.routes.js";
 import { matchRoutes } from "./modules/match/match.routes.js";
@@ -24,11 +25,12 @@ import { teamRoutes } from "./modules/team/team.routes.js";
 import { wsRoute } from "./modules/ws/ws.route.js";
 
 export async function createApp() {
+  const env = getEnv();
   const app = Fastify({
     logger: {
-      level: process.env.LOG_LEVEL || "info",
+      level: env.LOG_LEVEL,
       transport:
-        process.env.NODE_ENV !== "production"
+        env.NODE_ENV !== "production"
           ? { target: "pino-pretty", options: { colorize: true } }
           : undefined,
     },

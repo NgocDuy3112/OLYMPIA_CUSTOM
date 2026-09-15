@@ -107,25 +107,3 @@ VALUES (
   }'::jsonb,
   true
 );
-
--- OC HCMC 2v2
-INSERT INTO tournament_templates (template_name, template_type, description, config, is_system)
-VALUES (
-  'OC HCMC 2v2',
-  'ochcmc',
-  'Team vs Team - 2 người mỗi team',
-  '{
-    "type": "team",
-    "playersPerTeam": 2,
-    "teamsPerMatch": 2,
-    "phases": [
-      { "name": "Group Stage", "type": "group_stage", "rounds": 2 },
-      { "name": "Semi Finals", "type": "playoffs", "matches": 2 },
-      { "name": "Grand Finale", "type": "finale", "matches": 1 }
-    ],
-    "hasLeaderboard": true
-  }'::jsonb,
-  true
-);
-
-COMMIT;

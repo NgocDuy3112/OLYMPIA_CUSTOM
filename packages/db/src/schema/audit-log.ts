@@ -6,7 +6,7 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { auditActionTypeEnum } from "./enums";
+import { auditActionTypeEnum } from "./enums.js";
 
 /**
  * Audit logs — v4 schema (unchanged from v3).

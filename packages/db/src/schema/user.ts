@@ -7,7 +7,7 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { roleEnum } from "./enums";
+import { roleEnum } from "./enums.js";
 
 /**
  * Users table — v4 schema.

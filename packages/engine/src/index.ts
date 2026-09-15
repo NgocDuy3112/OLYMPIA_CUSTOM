@@ -20,7 +20,6 @@ export type {
 } from "./types.js";
 
 export type { OC3State, OC3Action, OC3Phase } from "./oc3/types.js";
-export type { OHCMCState, OHCMCAction, OHCMCPhase } from "./ochcmc/types.js";
 
 // ── Base utilities ──
 export {
@@ -46,7 +45,6 @@ export { STATUS_TRANSITIONS, canTransitionStatus } from "./base/lifecycle.js";
 // ── Engines ──
 export { OC3Engine } from "./oc3/index.js";
 export { OC4Engine } from "./oc4/index.js";
-export { OHCMCEngine } from "./ochcmc/index.js";
 
 // ── Transport ──
 export {

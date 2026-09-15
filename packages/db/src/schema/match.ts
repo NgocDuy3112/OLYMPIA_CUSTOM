@@ -10,10 +10,10 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { matchStatusEnum } from "./enums";
-import { users } from "./user";
-import { tournaments } from "./tournament";
-import { tournamentTeams } from "./team";
+import { matchStatusEnum } from "./enums.js";
+import { users } from "./user.js";
+import { tournaments } from "./tournament.js";
+import { tournamentTeams } from "./team.js";
 
 /**
  * Matches table — v4 schema.

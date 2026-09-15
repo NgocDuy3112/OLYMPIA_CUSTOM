@@ -7,7 +7,7 @@ import {
   jsonb,
   index,
 } from "drizzle-orm/pg-core";
-import { users } from "./user";
+import { users } from "./user.js";
 
 /**
  * Tournament templates define reusable tournament structures.
