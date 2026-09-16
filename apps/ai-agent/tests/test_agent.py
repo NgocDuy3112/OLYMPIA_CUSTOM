@@ -71,9 +71,7 @@ class _EchoLLM:
         tools: list[dict],
         max_tool_rounds: int = 3,
     ) -> tuple[str, list[str]]:
-        tool_results = [
-            m for m in messages if m.get("role") == "tool"
-        ]
+        tool_results = [m for m in messages if m.get("role") == "tool"]
         if tool_results:
             try:
                 payloads = [json.loads(m["content"]) for m in tool_results]
@@ -87,18 +85,12 @@ class _EchoLLM:
 async def test_scoreboard_question_returns_scores():
     gateway = FakeGateway(
         scoreboard=[
-            PlayerScore(
-                userCode="P1", userName="Minh", position=1, score=100
-            ),
-            PlayerScore(
-                userCode="P2", userName="An", position=2, score=80
-            ),
+            PlayerScore(userCode="P1", userName="Minh", position=1, score=100),
+            PlayerScore(userCode="P2", userName="An", position=2, score=80),
         ]
     )
     service = make_service(SNAPSHOT, gateway)
-    response = await service.ask(
-        "OC3_x", "Ai đang dẫn đầu?", "player", "P1"
-    )
+    response = await service.ask("OC3_x", "Ai đang dẫn đầu?", "player", "P1")
     assert "get_scoreboard" in response.tools_used
     scoreboard_rows = [
         p
@@ -149,9 +141,7 @@ async def test_snapshot_missing_returns_error_note():
     """Tool failure is captured as an error note; service must not 500."""
     gateway = FakeGateway()
     service = make_service(None, gateway)
-    response = await service.ask(
-        "OC3_missing", "câu hỏi hiện tại?", "player", "P1"
-    )
+    response = await service.ask("OC3_missing", "câu hỏi hiện tại?", "player", "P1")
     assert "error" in response.answer
 
 

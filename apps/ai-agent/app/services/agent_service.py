@@ -78,9 +78,7 @@ class AgentService:
                 tools_used.append(name)
             except AgentError as error:
                 # Tool failure → skip; LLM answers from remaining context.
-                messages.append(
-                    tool_result_message(name, {"error": error.message})
-                )
+                messages.append(tool_result_message(name, {"error": error.message}))
                 continue
 
         answer, llm_tools_used = await self._llm.chat_with_tools(

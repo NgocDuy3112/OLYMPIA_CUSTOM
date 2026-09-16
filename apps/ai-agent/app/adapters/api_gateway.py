@@ -27,9 +27,7 @@ class ApiGatewayRepo:
         rows = data.get("scoreboard") or []
         return [PlayerScore.model_validate(row) for row in rows]
 
-    async def get_questions(
-        self, match_code: str, role: UserRole
-    ) -> list[dict]:
+    async def get_questions(self, match_code: str, role: UserRole) -> list[dict]:
         data = await self._get(f"/questions/{match_code}")
         questions = data if isinstance(data, list) else data.get("questions", [])
         from app.domain.ports import strip_answers_for_role
@@ -44,9 +42,9 @@ class ApiGatewayRepo:
         data = await self._get(f"/matches/{match_code}")
         if not data:
             return None
-        tournament_id = data.get("tournamentId") or (
-            data.get("data", {}) or {}
-        ).get("tournamentId")
+        tournament_id = data.get("tournamentId") or (data.get("data", {}) or {}).get(
+            "tournamentId"
+        )
         return str(tournament_id) if tournament_id else None
 
     # ── DiscordRepo ──
@@ -56,16 +54,12 @@ class ApiGatewayRepo:
         rows = data.get("list") or data.get("players") or []
         return rows if isinstance(rows, list) else []
 
-    async def assign_role(
-        self, tournament_code: str, user_code: str
-    ) -> dict:
+    async def assign_role(self, tournament_code: str, user_code: str) -> dict:
         return await self._post(
             f"/discord/{tournament_code}/assign", {"userCode": user_code}
         )
 
-    async def sync_nicknames(
-        self, tournament_code: str, mapping: list[dict]
-    ) -> dict:
+    async def sync_nicknames(self, tournament_code: str, mapping: list[dict]) -> dict:
         return await self._post(
             f"/discord/{tournament_code}/sync-nicknames",
             {"mapping": mapping},

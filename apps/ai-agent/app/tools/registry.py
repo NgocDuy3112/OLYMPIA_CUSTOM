@@ -60,8 +60,7 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "get_match_info",
         "description": (
-            "Trạng thái trận: phase hiện tại, danh sách thí sinh, "
-            "tiến độ câu hỏi."
+            "Trạng thái trận: phase hiện tại, danh sách thí sinh, tiến độ câu hỏi."
         ),
         "parameters": {"type": "object", "properties": {}, "required": []},
     },
@@ -111,9 +110,7 @@ TOOL_SCHEMAS: list[dict] = [
     },
     {
         "name": "sync_discord_nicknames",
-        "description": (
-            "Đồng bộ nickname Discord về DB. Chỉ controller/mc được gọi."
-        ),
+        "description": ("Đồng bộ nickname Discord về DB. Chỉ controller/mc được gọi."),
         "parameters": {
             "type": "object",
             "properties": {
@@ -192,16 +189,10 @@ async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
         return questions
 
     if name == "get_tournament_standings":
-        tournament_code = await ctx.match_lookup.find_tournament_code(
-            match_code
-        )
+        tournament_code = await ctx.match_lookup.find_tournament_code(match_code)
         if not tournament_code:
             return {"standings": None, "note": "Trận không thuộc giải đấu"}
-        return {
-            "standings": await ctx.tournament_repo.get_standings(
-                tournament_code
-            )
-        }
+        return {"standings": await ctx.tournament_repo.get_standings(tournament_code)}
 
     if name == "lookup_player_by_discord":
         if ctx.discord_repo is None:
@@ -214,9 +205,7 @@ async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
         for p in players:
             if want_id and p.get("discordUserId") == want_id:
                 return p
-            nick = str(
-                p.get("discordNickname") or p.get("userName") or ""
-            ).lower()
+            nick = str(p.get("discordNickname") or p.get("userName") or "").lower()
             if want_nick and want_nick in nick:
                 return p
         return {"found": False, "note": "Không tìm thấy thí sinh"}
@@ -272,9 +261,7 @@ async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
 
 def _require_staff(role: UserRole) -> None:
     if role not in ("controller", "mc"):
-        raise AgentError(
-            "Forbidden: controller/mc role required", status_code=403
-        )
+        raise AgentError("Forbidden: controller/mc role required", status_code=403)
 
 
 def tool_result_message(name: str, result: Any) -> dict:

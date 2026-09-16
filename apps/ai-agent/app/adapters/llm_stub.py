@@ -26,20 +26,12 @@ class StubLLMClient(LLMClient):
         max_tool_rounds: int = 3,
     ) -> tuple[str, list[str]]:
         user_question = next(
-            (
-                m["content"]
-                for m in reversed(messages)
-                if m.get("role") == "user"
-            ),
+            (m["content"] for m in reversed(messages) if m.get("role") == "user"),
             "",
         ).lower()
 
         tool_results = next(
-            (
-                m["content"]
-                for m in reversed(messages)
-                if m.get("role") == "tool"
-            ),
+            (m["content"] for m in reversed(messages) if m.get("role") == "tool"),
             None,
         )
         tools_used: list[str] = []

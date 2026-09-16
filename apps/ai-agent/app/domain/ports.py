@@ -20,9 +20,7 @@ class ScoreRepo(Protocol):
 
 
 class QuestionRepo(Protocol):
-    async def get_questions(
-        self, match_code: str, role: UserRole
-    ) -> list[dict]: ...
+    async def get_questions(self, match_code: str, role: UserRole) -> list[dict]: ...
 
 
 class TournamentRepo(Protocol):
@@ -38,9 +36,7 @@ class DiscordRepo(Protocol):
 
     async def lookup_players(self, tournament_code: str) -> list[dict]: ...
 
-    async def assign_role(
-        self, tournament_code: str, user_code: str
-    ) -> dict: ...
+    async def assign_role(self, tournament_code: str, user_code: str) -> dict: ...
 
     async def sync_nicknames(
         self, tournament_code: str, mapping: list[dict]
