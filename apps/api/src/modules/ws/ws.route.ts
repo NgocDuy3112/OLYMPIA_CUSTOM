@@ -60,8 +60,8 @@ export async function wsRoute(app: FastifyInstance) {
       // Determine per-tournament role for this match
       let gameRole: "controller" | "mc" | "player" = "player";
       
-      // Global admin gets controller role in any game
-      if (session.role === "admin") {
+      // Global admin OR global controller gets controller role in any game
+      if (session.role === "admin" || session.role === "controller") {
         gameRole = "controller";
       } else {
         // Look up tournament for this match, then check per-tournament role

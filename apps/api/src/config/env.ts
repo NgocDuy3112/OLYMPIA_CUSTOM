@@ -11,7 +11,12 @@ const envSchema = z.object({
   AGENT_URL: z.string().default("http://localhost:8100"),
 
   // ── Database ──
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.string().url().optional(),
+  POSTGRES_DB_USER: z.string().optional(),
+  POSTGRES_DB_PASSWORD: z.string().optional(),
+  POSTGRES_DB_HOST: z.string().optional(),
+  POSTGRES_DB_PORT: z.coerce.number().optional(),
+  POSTGRES_DB_NAME: z.string().optional(),
 
   // ── Valkey ──
   VALKEY_HOST: z.string().default("localhost"),

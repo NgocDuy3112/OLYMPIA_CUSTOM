@@ -1,11 +1,9 @@
-import { db, matches, tournaments } from "@oc/db";
-import { eq, and, sql } from "drizzle-orm";
+import { db, matches, tournaments, tournamentPhases, bracketEdges } from "@oc/db";
+import { eq, and } from "drizzle-orm";
 
 interface TemplateConfig {
-  type: "individual" | "team";
+  type: "individual";
   playersPerMatch?: number;
-  playersPerTeam?: number;
-  teamsPerMatch?: number;
   phases: Array<{
     name: string;
     type: "group_stage" | "playoffs" | "finale";
@@ -38,6 +36,9 @@ interface MatchData {
   matchLabel: string;
   matchFormat: string;
   tournamentId: string;
+  phaseId?: string;
+  scheduledAt?: string;
+  venue?: string;
   createdBy?: string;
 }
 
@@ -89,18 +90,30 @@ export async function applyTemplate(
   const tournamentId = tournamentRows[0].id;
   const createdMatches: MatchData[] = [];
   const createdPhases: PhaseData[] = [];
+  // label -> match id, used to resolve advancementRules into bracket_edges
+  const labelToId = new Map<string, string>();
 
-  // Process each phase
+  // Process each phase — persist phase row FIRST so matches link via phase_id
   for (let phaseIndex = 0; phaseIndex < templateConfig.phases.length; phaseIndex++) {
     const phase = templateConfig.phases[phaseIndex];
+
+    const phaseRows = await db
+      .insert(tournamentPhases)
+      .values({
+        tournamentId,
+        phaseNumber: phaseIndex + 1,
+        phaseName: phase.name,
+        phaseType: phase.type,
+        matchCount: 0,
+      })
+      .returning();
+    const phaseId = phaseRows[0].id;
 
     let matchCount = 0;
 
     if (phase.type === "group_stage" && phase.rounds) {
       // Group stage: create matches for each round
       // Assume 4 players per match by default
-      const playersPerMatch = templateConfig.playersPerMatch || 4;
-
       // We'll create placeholder matches - actual players assigned later
       // For now, create matches based on expected player count
       matchCount = phase.rounds * 4; // Assume 4 matches per round (16 players)
@@ -108,11 +121,13 @@ export async function applyTemplate(
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
         const roundNumber = Math.floor(matchIndex / 4) + 1;
         const matchInRound = (matchIndex % 4) + 1;
+        const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
 
         const matchData = await createMatch({
           tournamentId,
+          phaseId,
           matchName: `${phase.name} - Round ${roundNumber} - Match ${matchInRound}`,
-          matchLabel: generateMatchLabel(phaseIndex, matchIndex),
+          matchLabel,
           matchFormat: templateConfig.type,
           createdBy,
         });
@@ -124,10 +139,12 @@ export async function applyTemplate(
       matchCount = phase.matches;
 
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
+        const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
         const matchData = await createMatch({
           tournamentId,
+          phaseId,
           matchName: `${phase.name} - Match ${matchIndex + 1}`,
-          matchLabel: generateMatchLabel(phaseIndex, matchIndex),
+          matchLabel,
           matchFormat: templateConfig.type,
           createdBy,
         });
@@ -139,10 +156,12 @@ export async function applyTemplate(
       matchCount = phase.matches;
 
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
+        const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
         const matchData = await createMatch({
           tournamentId,
+          phaseId,
           matchName: `${phase.name}${matchCount > 1 ? ` - Match ${matchIndex + 1}` : ""}`,
-          matchLabel: generateMatchLabel(phaseIndex, matchIndex),
+          matchLabel,
           matchFormat: templateConfig.type,
           createdBy,
         });
@@ -151,13 +170,40 @@ export async function applyTemplate(
       }
     }
 
+    await db
+      .update(tournamentPhases)
+      .set({ matchCount })
+      .where(eq(tournamentPhases.id, phaseId));
+
     createdPhases.push({
-      id: `phase_${phaseIndex + 1}`,
+      id: phaseId,
       phaseNumber: phaseIndex + 1,
       phaseName: phase.name,
       phaseType: phase.type,
       matchCount,
     });
+  }
+
+  // Persist advancement rules as bracket edges (label -> id resolution)
+  if (templateConfig.advancementRules?.length) {
+    for (const m of createdMatches) {
+      const idRows = await db
+        .select({ id: matches.id })
+        .from(matches)
+        .where(eq(matches.matchCode, m.matchCode))
+        .limit(1);
+      if (idRows.length > 0) labelToId.set(m.matchLabel, idRows[0].id);
+    }
+
+    for (const rule of templateConfig.advancementRules) {
+      const fromId = labelToId.get(rule.from);
+      const toId = labelToId.get(rule.to);
+      if (!fromId || !toId) continue;
+      await db
+        .insert(bracketEdges)
+        .values({ fromMatchId: fromId, rank: rule.rank, toMatchId: toId })
+        .onConflictDoNothing();
+    }
   }
 
   return {
@@ -172,9 +218,12 @@ export async function applyTemplate(
  */
 async function createMatch(params: {
   tournamentId: string;
+  phaseId?: string;
   matchName: string;
   matchLabel: string;
   matchFormat: string;
+  scheduledAt?: Date;
+  venue?: string;
   createdBy?: string;
 }): Promise<MatchData> {
   const matchCode = generateMatchCode(Math.random() * 10000);
@@ -188,6 +237,9 @@ async function createMatch(params: {
       matchName: params.matchName,
       matchLabel: params.matchLabel,
       matchFormat: params.matchFormat,
+      phaseId: params.phaseId,
+      scheduledAt: params.scheduledAt,
+      venue: params.venue,
       tournamentId: params.tournamentId,
       createdBy: params.createdBy,
     })
@@ -201,6 +253,7 @@ async function createMatch(params: {
     matchLabel: result[0].matchLabel || params.matchLabel,
     matchFormat: result[0].matchFormat,
     tournamentId: params.tournamentId,
+    phaseId: result[0].phaseId ?? params.phaseId,
     createdBy: params.createdBy,
   };
 }
@@ -249,11 +302,24 @@ export async function generateNextRound(
   const nextPhaseNumber = currentPhaseNumber + 1;
   const nextPhaseMatchCount = Math.ceil(currentMatches.length / 2);
 
+  const phaseRows = await db
+    .insert(tournamentPhases)
+    .values({
+      tournamentId,
+      phaseNumber: nextPhaseNumber,
+      phaseName: `Phase ${nextPhaseNumber}`,
+      phaseType: "playoffs",
+      matchCount: nextPhaseMatchCount,
+    })
+    .returning();
+  const nextPhaseId = phaseRows[0].id;
+
   const createdMatches: MatchData[] = [];
 
   for (let i = 0; i < nextPhaseMatchCount; i++) {
     const matchData = await createMatch({
       tournamentId,
+      phaseId: nextPhaseId,
       matchName: `Phase ${nextPhaseNumber} - Match ${i + 1}`,
       matchLabel: generateMatchLabel(nextPhaseNumber - 1, i),
       matchFormat: "individual",
@@ -264,7 +330,7 @@ export async function generateNextRound(
 
   return {
     phase: {
-      id: `phase_${nextPhaseNumber}`,
+      id: nextPhaseId,
       phaseNumber: nextPhaseNumber,
       phaseName: `Phase ${nextPhaseNumber}`,
       phaseType: "playoffs",
