@@ -7,9 +7,6 @@
 --
 -- Usage:
 --   psql -U <user> -d <database> -f packages/db/migrations/005_add_slugs_and_match_pin.sql
---
--- Rollback:
---   psql -U <user> -d <database> -f packages/db/migrations/005_add_slugs_and_match_pin_rollback.sql
 -- ============================================================
 
 BEGIN;

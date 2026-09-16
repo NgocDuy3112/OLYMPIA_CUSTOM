@@ -18,9 +18,6 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "generate": "drizzle-kit generate",
-    "migrate": "drizzle-kit migrate",
-    "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit"
   },

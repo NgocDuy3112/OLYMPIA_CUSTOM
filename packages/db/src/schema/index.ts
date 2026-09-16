@@ -11,5 +11,5 @@ export { qualifierRecords, qualifierAdvancements } from "./qualifier.js";
 export { auditLogs } from "./audit-log.js";
 export { matchCheckpoints } from "./checkpoint.js";
 export { tournaments, tournamentPlayers } from "./tournament.js";
+export { tournamentPhases, bracketEdges } from "./phase.js";
 export { tournamentTemplates } from "./template.js";
-export { tournamentTeams, teamMembers } from "./team.js";

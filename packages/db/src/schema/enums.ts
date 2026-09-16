@@ -3,8 +3,12 @@ import { pgEnum } from "drizzle-orm/pg-core";
 // ── Role enum (global) ──
 // Global roles determine platform-level access.
 // Per-tournament roles (controller, mc, player) are in tournament_players table.
-export const roleEnum = pgEnum("roleenum", ["admin", "member", "spectator"]);
-
+export const roleEnum = pgEnum("roleenum", [
+  "admin",
+  "controller",
+  "member",
+  "spectator",
+]);
 // ── Match status enum ──
 export const matchStatusEnum = pgEnum("matchstatusenum", [
   "setup",

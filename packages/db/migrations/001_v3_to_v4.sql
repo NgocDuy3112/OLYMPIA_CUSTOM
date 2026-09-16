@@ -6,9 +6,6 @@
 --
 -- Usage:
 --   psql -U <user> -d <database> -f packages/db/migrations/001_v3_to_v4.sql
---
--- Rollback:
---   psql -U <user> -d <database> -f packages/db/migrations/001_v3_to_v4_rollback.sql
 -- ============================================================
 
 BEGIN;

@@ -6,9 +6,6 @@
 --
 -- Usage:
 --   psql -U <user> -d <database> -f packages/db/migrations/004_update_role_enum.sql
---
--- Rollback:
---   psql -U <user> -d <database> -f packages/db/migrations/004_update_role_enum_rollback.sql
 -- ============================================================
 
 BEGIN;

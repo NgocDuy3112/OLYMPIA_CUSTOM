@@ -13,7 +13,7 @@ import { sql } from "drizzle-orm";
 import { matchStatusEnum } from "./enums.js";
 import { users } from "./user.js";
 import { tournaments } from "./tournament.js";
-import { tournamentTeams } from "./team.js";
+import { tournamentPhases } from "./phase.js";
 
 /**
  * Matches table — v4 schema.
@@ -40,9 +40,9 @@ export const matches = pgTable(
     videoUrl: varchar("video_url", { length: 500 }),
     matchFormat: varchar("match_format", { length: 20 }).notNull().default("individual"),
     matchLabel: varchar("match_label", { length: 20 }),
-    phaseId: uuid("phase_id"),
-    team1Id: uuid("team_1_id").references(() => tournamentTeams.id),
-    team2Id: uuid("team_2_id").references(() => tournamentTeams.id),
+    phaseId: uuid("phase_id").references(() => tournamentPhases.id, { onDelete: "set null" }),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    venue: varchar("venue", { length: 200 }),
     tournamentId: uuid("tournament_id").references(() => tournaments.id),
     createdBy: uuid("created_by").references(() => users.id),
     isDeleted: boolean("is_deleted").default(false),
@@ -53,6 +53,7 @@ export const matches = pgTable(
     index("idx_matches_created_by").on(t.createdBy),
     index("idx_matches_tournament_id").on(t.tournamentId),
     index("idx_matches_phase_id").on(t.phaseId),
+    index("idx_matches_scheduled_at").on(t.scheduledAt),
   ],
 );
 

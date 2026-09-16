@@ -6,9 +6,6 @@
 --
 -- Usage:
 --   psql -U <user> -d <database> -f packages/db/migrations/002_add_tournament_id_to_matches.sql
---
--- Rollback:
---   psql -U <user> -d <database> -f packages/db/migrations/002_add_tournament_id_to_matches_rollback.sql
 -- ============================================================
 
 BEGIN;

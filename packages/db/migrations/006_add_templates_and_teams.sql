@@ -51,11 +51,11 @@ ALTER TABLE matches
 
 CREATE INDEX IF NOT EXISTS idx_matches_phase_id ON matches (phase_id);
 
--- ── Seed Templates ──
+-- ── Seed Templates (idempotent: skip if system templates exist) ──
 
 -- OC3 Classic
 INSERT INTO tournament_templates (template_name, template_type, description, config, is_system)
-VALUES (
+SELECT
   'OC3 Classic',
   'oc3',
   'Format clásico: 2 rounds individual + Leaderboard',
@@ -69,11 +69,13 @@ VALUES (
     "tiers": ["S", "A", "B", "C"]
   }'::jsonb,
   true
+WHERE NOT EXISTS (
+  SELECT 1 FROM tournament_templates WHERE template_name = 'OC3 Classic' AND is_system = true
 );
 
 -- OC4 Full
 INSERT INTO tournament_templates (template_name, template_type, description, config, is_system)
-VALUES (
+SELECT
   'OC4 Full',
   'oc4',
   'Group Stage + Playoffs + Grand Finale',
@@ -106,4 +108,6 @@ VALUES (
     ]
   }'::jsonb,
   true
+WHERE NOT EXISTS (
+  SELECT 1 FROM tournament_templates WHERE template_name = 'OC4 Full' AND is_system = true
 );
