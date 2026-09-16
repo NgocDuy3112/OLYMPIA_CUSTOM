@@ -4,9 +4,9 @@ set -e
 source "$(dirname "$0")/.env.scripts"
 
 
-BACKUP_DIR="${BACKUP_DIR:-/opt/olympia/backups}"
+BACKUP_DIR="${BACKUP_DIR}"
 KEEP_DAYS="${KEEP_DAYS:-30}"
-CONTAINER="${DB_CONTAINER:-olympia-postgresql}"
+CONTAINER="${DB_CONTAINER}"
 DB_USER="${DB_USER:-olympia}"
 DB_NAME="${DB_NAME:-olympia_custom}"
 

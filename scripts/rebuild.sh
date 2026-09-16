@@ -1,22 +1,30 @@
 #!/bin/bash
 set -e
 
-source "$(dirname "$0")/.env.scripts"
 
-# Stop and remove all containers, networks, and volumes for olympia-custom
-podman-compose -p ${PROJECT} \
-  -f ${COMPOSE_FILE} \
-  --env-file ${ENV_FILE} \
-  down
+cd "$(dirname "$0")/.."
 
-# Remove any remaining containers with the olympia-custom label
-podman ps -a --filter "${LABEL}" --format "{{.ID}}" | xargs -r podman rm -f
+# Load DB credentials from configs/.env (fall back to compose defaults)
+if [ -f configs/.env ]; then
+  set -a
+  source configs/.env
+  set +a
+fi
+DB_USER="${POSTGRES_DB_USER}"
+DB_NAME="${POSTGRES_DB_NAME}"
 
-# Remove images built for olympia-custom services
-podman image prune --all --external --filter "${LABEL}" -f 2>/dev/null || true
+podman compose -f docker-compose-dev.yaml up -d --build --force-recreate
 
-# Build and start all services
-podman-compose -p ${PROJECT} \
-  -f ${COMPOSE_FILE} \
-  --env-file ${ENV_FILE} \
-  up -d --build --no-cache
+podman image prune -f
+
+until podman exec oc-postgresql pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/null 2>&1; do
+  echo "Waiting for postgres..."
+  sleep 2
+done
+
+for f in packages/db/migrations/*.sql; do
+  echo "Applying migration $f..."
+  podman exec -i oc-postgresql psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$f"
+done
+
+echo "Migrations completed."
