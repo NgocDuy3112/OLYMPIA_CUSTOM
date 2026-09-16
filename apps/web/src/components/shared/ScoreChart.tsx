@@ -388,7 +388,7 @@ export default function ScoreChart({
                             : "2.5"
                         }
                         fill={colorForPlayer(code, playerIndex)}
-                        stroke="#061226"
+                        stroke="#12102e"
                         strokeWidth="1.5"
                       />
                     </g>
@@ -481,7 +481,7 @@ export default function ScoreChart({
                     height="104"
                     pointerEvents="none"
                   >
-                    <div className="rounded-lg border border-blue-300/60 bg-[#061226]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl">
+                    <div className="rounded-lg border border-blue-300/60 bg-[#12102e]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl">
                       <div className="mb-1 font-bold text-blue-100">
                         {tooltipLabelFor(titleCode, titlePoints)}
                       </div>

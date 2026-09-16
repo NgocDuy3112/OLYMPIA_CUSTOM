@@ -108,7 +108,7 @@ const AdminRoutes = () => {
   // Game control pages
   if (isGamePage) {
     return (
-      <AuthGuard requiredRole="admin">
+      <AuthGuard requiredRole="controller">
         <GameWebSocketProvider
           config={{
             role: "controller",

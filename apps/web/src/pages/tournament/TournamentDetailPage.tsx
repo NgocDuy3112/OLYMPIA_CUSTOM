@@ -11,8 +11,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import {
-  PublicHeader,
-  PublicFooter,
+  PublicLayout,
   TabNavigation,
 } from "@/components/layout";
 import { PlayerGrid, MatchCard, StandingsTable, RoleManager } from "@/components/tournament";
@@ -160,24 +159,19 @@ const TournamentDetailPage: React.FC = () => {
 
   if (!tournament) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <PublicHeader />
-        <div className="flex-1 flex justify-center items-center p-4">
+      <PublicLayout>
+        <div className="flex justify-center items-center p-4">
           <div className="card text-center w-full max-w-md">
             <p className="text-gray-400 mb-4">Không tìm thấy giải đấu</p>
             <Button onClick={() => navigate("/")}>Về trang chủ</Button>
           </div>
         </div>
-        <PublicFooter />
-      </div>
+      </PublicLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <PublicHeader isAuthenticated={isAuthenticated} />
-
-      <main className="flex-1 p-4 sm:p-6">
+    <PublicLayout>
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-6">
@@ -420,10 +414,7 @@ const TournamentDetailPage: React.FC = () => {
           )}
           </div>
         </div>
-      </main>
-
-      <PublicFooter />
-    </div>
+    </PublicLayout>
   );
 };
 

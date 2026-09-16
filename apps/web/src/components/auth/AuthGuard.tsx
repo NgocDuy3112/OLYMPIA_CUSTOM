@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 interface AuthGuardProps {
   children?: React.ReactNode;
-  requiredRole?: "admin" | "member" | "spectator";
+  requiredRole?: "admin" | "controller" | "member" | "spectator";
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({

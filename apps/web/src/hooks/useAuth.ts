@@ -5,7 +5,7 @@ import { clearAuthSession } from "@/utils/storage";
 export interface AuthUser {
   userId: string;
   userCode: string;
-  role: "admin" | "member" | "spectator";
+  role: "admin" | "controller" | "member" | "spectator";
   email: string;
   userName: string;
 }

@@ -56,7 +56,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
                 className="fixed inset-0 z-40"
                 onClick={() => setIsMenuOpen(false)}
               />
-              <div className="absolute right-0 top-full mt-2 w-48 bg-[#0a1628] border border-white/10 rounded-lg shadow-xl z-50">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-[#12102e] border border-white/10 rounded-lg shadow-xl z-50">
                 <div className="px-3 py-2 border-b border-white/10">
                   <p className="text-sm text-white">{userName}</p>
                   <p className="text-xs text-gray-400">Admin</p>

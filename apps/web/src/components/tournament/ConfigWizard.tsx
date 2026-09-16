@@ -18,8 +18,6 @@ interface Template {
   config: {
     type: string;
     playersPerMatch?: number;
-    playersPerTeam?: number;
-    teamsPerMatch?: number;
     phases: Array<{
       name: string;
       type: string;
@@ -106,8 +104,6 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
     switch (type) {
       case "individual":
         return <Users size={24} className="text-blue-400" />;
-      case "team":
-        return <Users size={24} className="text-purple-400" />;
       default:
         return <Trophy size={24} className="text-yellow-400" />;
     }
@@ -149,11 +145,6 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                           <h4 className="font-bold text-white">
                             {template.templateName}
                           </h4>
-                          {template.config.type === "team" && (
-                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded">
-                              2v2
-                            </span>
-                          )}
                         </div>
                         <p className="text-sm text-gray-400">
                           {template.description}
@@ -239,31 +230,6 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                     </div>
                   )}
 
-                  {selectedTemplate.config.type === "team" && (
-                    <div className="border-t border-white/10 pt-4">
-                      <h5 className="text-sm font-medium text-gray-400 mb-3">
-                        Team Config
-                      </h5>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 bg-white/5 rounded">
-                          <div className="text-2xl font-bold text-white">
-                            {selectedTemplate.config.playersPerTeam}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            Players per team
-                          </div>
-                        </div>
-                        <div className="p-3 bg-white/5 rounded">
-                          <div className="text-2xl font-bold text-white">
-                            {selectedTemplate.config.teamsPerMatch}
-                          </div>
-                          <div className="text-sm text-gray-400">
-                            Teams per match
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </Card>
             )}

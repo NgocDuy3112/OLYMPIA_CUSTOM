@@ -8,6 +8,7 @@ import {
   ChevronRight,
   X,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -20,27 +21,33 @@ interface SidebarItem {
   icon: React.ReactNode;
 }
 
-const SIDEBAR_ITEMS: SidebarItem[] = [
-  { label: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} /> },
-  {
-    label: "Giải đấu",
-    path: "/admin/tournaments",
-    icon: <Trophy size={18} />,
-  },
-  {
-    label: "Trận đấu",
-    path: "/admin/game-managing",
-    icon: <Gamepad2 size={18} />,
-  },
-  { label: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
-];
-
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   isOpen = true,
   onClose,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const SIDEBAR_ITEMS = [
+    { label: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} /> },
+    ...(isAdmin
+      ? [
+          {
+            label: "Giải đấu",
+            path: "/admin/tournaments",
+            icon: <Trophy size={18} />,
+          },
+          {
+            label: "Trận đấu",
+            path: "/admin/game-managing",
+            icon: <Gamepad2 size={18} />,
+          },
+          { label: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
+        ]
+      : []),
+  ];
 
   const isActive = (path: string) => {
     if (path === "/admin") return location.pathname === "/admin";
@@ -60,7 +67,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-50 h-full w-64 bg-[#0a1628] border-r border-white/10
+          fixed top-0 left-0 z-50 h-full w-64 bg-[#12102e] border-r border-white/10
           transform transition-transform duration-200 ease-in-out
           lg:static lg:translate-x-0
           ${isOpen ? "translate-x-0" : "-translate-x-full"}

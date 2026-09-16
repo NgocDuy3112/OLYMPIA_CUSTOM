@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
-import { PublicHeader, PublicFooter } from "@/components/layout";
+import { PublicLayout } from "@/components/layout";
 import { TournamentCard } from "@/components/tournament";
 import { PageLoading } from "@/components/shared/ui";
 
@@ -57,9 +57,8 @@ const SMatchListPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col">
-        <PublicHeader />
-        <div className="flex-1 flex justify-center items-center p-4">
+      <PublicLayout>
+        <div className="flex justify-center items-center p-4">
           <div className="card text-center w-full max-w-md">
             <p className="text-red-500 mb-4">{error}</p>
             <button
@@ -70,16 +69,12 @@ const SMatchListPage: React.FC = () => {
             </button>
           </div>
         </div>
-        <PublicFooter />
-      </div>
+      </PublicLayout>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <PublicHeader />
-
-      <main className="flex-1 p-4 sm:p-6">
+      <PublicLayout>
         <div className="max-w-4xl mx-auto">
           {/* Hero */}
           <div className="text-center mb-8">
@@ -110,10 +105,7 @@ const SMatchListPage: React.FC = () => {
             )}
           </div>
         </div>
-      </main>
-
-      <PublicFooter />
-    </div>
+      </PublicLayout>
   );
 };
 

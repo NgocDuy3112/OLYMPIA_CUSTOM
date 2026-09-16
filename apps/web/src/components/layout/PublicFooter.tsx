@@ -5,7 +5,7 @@ export const PublicFooter: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <footer className="border-t border-white/10 bg-black/20">
+    <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#0d0a22]/90 backdrop-blur-sm lg:left-64">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left">

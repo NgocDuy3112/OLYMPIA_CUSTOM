@@ -17,7 +17,7 @@ function App() {
       <div className="min-h-screen bg-oc bg-cover bg-center bg-no-repeat">
         <Suspense fallback={null}>
           <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/" element={<Navigate to="/tournament/*" replace />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/player/*" element={<PlayerRoutes />} />

@@ -55,7 +55,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className={`
           relative w-full ${SIZE_STYLES[size]}
-          bg-[#0a1628] border border-blue-600/30 rounded-xl
+          bg-[#12102e] border border-blue-600/30 rounded-xl
           shadow-2xl
           animate-in fade-in zoom-in-95 duration-200
         `}

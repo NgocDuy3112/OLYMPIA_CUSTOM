@@ -1,5 +1,7 @@
 export { PublicHeader } from "./PublicHeader";
 export { PublicFooter } from "./PublicFooter";
+export { PublicSidebar } from "./PublicSidebar";
+export { PublicLayout } from "./PublicLayout";
 export { GameHeader } from "./GameHeader";
 export { AdminHeader } from "./AdminHeader";
 export { AdminSidebar } from "./AdminSidebar";

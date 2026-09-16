@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -9,7 +9,83 @@ import {
   Lock,
   Timer,
   Star,
+  ChevronRight,
 } from "lucide-react";
+import { PublicLayout } from "@/components/layout";
+
+/* ────────────────────────── Score table primitive ────────────────────────── */
+
+type Tone = "great" | "good" | "mid" | "low" | "neutral";
+
+const TONE_CLASS: Record<Tone, string> = {
+  great: "text-green-400",
+  good: "text-yellow-300",
+  mid: "text-orange-400",
+  low: "text-slate-400",
+  neutral: "text-blue-200",
+};
+
+const ScoreTable: React.FC<{
+  headers: string[];
+  rows: { label: string; cells: { text: string; tone?: Tone }[] }[];
+}> = ({ headers, rows }) => (
+  <div className="mt-4 overflow-x-auto rounded-xl border border-white/10 bg-[#171243]/60">
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-white/10 bg-blue-700/20">
+          {headers.map((h) => (
+            <th
+              key={h}
+              className="whitespace-nowrap text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-blue-300"
+            >
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr
+            key={row.label}
+            className="border-b border-white/5 last:border-0 transition-colors hover:bg-white/5"
+          >
+            <td className="py-2.5 px-4 font-medium text-white whitespace-nowrap">
+              {row.label}
+            </td>
+            {row.cells.map((cell, i) => (
+              <td
+                key={i}
+                className={`py-2.5 px-4 font-mono font-bold ${
+                  TONE_CLASS[cell.tone ?? "neutral"]
+                }`}
+              >
+                {cell.text}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
+
+/* ────────────────────────────── Rule primitives ──────────────────────────── */
+
+const Rule: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <li className="flex gap-2.5">
+    <ChevronRight size={14} className="mt-1 shrink-0 text-blue-400" aria-hidden />
+    <span>{children}</span>
+  </li>
+);
+
+const SubHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h4 className="mt-5 mb-2.5 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-300">
+    <span className="h-px w-4 bg-blue-400/60" aria-hidden />
+    {children}
+  </h4>
+);
+
+/* ────────────────────────────────── Sections ─────────────────────────────── */
 
 const SECTIONS = [
   {
@@ -19,13 +95,13 @@ const SECTIONS = [
     content: (
       <>
         <p>
-          <strong>Olympia Custom</strong> là nền tảng thi đấu trực tuyến dựa trên
-          format Olympia, nơi các thí sinh tham gia tranh tài qua các vòng thi
-          với luật chơi gần gũi nhưng được hiện đại hoá.
+          <strong>Olympia Custom</strong> là nền tảng thi đấu trực tuyến dựa
+          trên format Olympia, nơi các thí sinh tham gia tranh tài qua các vòng
+          thi với luật chơi gần gũi nhưng được hiện đại hoá.
         </p>
         <p>
-          Mỗi trận đấu gồm <strong>4 thí sinh</strong>, thi đấu qua 5 vòng
-          theo thứ tự: Khởi Động → Giải Mã → Bứt Phá → Về Đích.
+          Mỗi trận đấu gồm <strong>4 thí sinh</strong>, thi đấu qua 5 vòng theo
+          thứ tự: Khởi Động → Giải Mã → Bứt Phá → Về Đích.
         </p>
       </>
     ),
@@ -36,39 +112,34 @@ const SECTIONS = [
     icon: Zap,
     content: (
       <>
-        <p>
-          Vòng thi mở màn, kiểm tra kiến thức nhanh. Gồm hai phần:
-        </p>
+        <p>Vòng thi mở màn, kiểm tra kiến thức nhanh. Gồm hai phần:</p>
 
-        <h4 className="text-blue-300 mt-4 mb-2">
-          1. Khởi Động Chung (KĐC)
-        </h4>
-        <ul>
-          <li>
+        <SubHeading>1. Khởi Động Chung (KĐC)</SubHeading>
+        <ul className="space-y-1.5">
+          <Rule>
             Tất cả thí sinh cùng trả lời <strong>1 câu hỏi</strong>.
-          </li>
-          <li>Thời gian: <strong>60 giây</strong>.</li>
-          <li>
+          </Rule>
+          <Rule>
+            Thời gian: <strong>60 giây</strong>.
+          </Rule>
+          <Rule>
             Trả lời đúng: <strong>+10 điểm</strong>. Sai: 0 điểm.
-          </li>
-          <li>Mọi thí sinh đều độc lập trả lời.</li>
+          </Rule>
+          <Rule>Mọi thí sinh đều độc lập trả lời.</Rule>
         </ul>
 
-        <h4 className="text-blue-300 mt-4 mb-2">
-          2. Khởi Động Cá Nhân (KĐC riêng)
-        </h4>
-        <ul>
-          <li>
+        <SubHeading>2. Khởi Động Cá Nhân (KĐC riêng)</SubHeading>
+        <ul className="space-y-1.5">
+          <Rule>
             Mỗi thí sinh trả lời <strong>1 câu hỏi riêng</strong>.
-          </li>
-          <li>Thời gian: <strong>30 giây</strong>.</li>
-          <li>
-            Lần 1 đúng: <strong>+10 điểm</strong>.
-          </li>
-          <li>
-            Lần 2 đúng: <strong>+5 điểm</strong>.
-          </li>
-          <li>Lần 3 trở đi: 0 điểm.</li>
+          </Rule>
+          <Rule>
+            Thời gian: <strong>30 giây</strong>.
+          </Rule>
+          <Rule>
+            Lần 1 đúng: <strong>+10 điểm</strong>. Lần 2 đúng:{" "}
+            <strong>+5 điểm</strong>. Lần 3 trở đi: 0 điểm.
+          </Rule>
         </ul>
       </>
     ),
@@ -83,17 +154,19 @@ const SECTIONS = [
           Thử thách tư duy logic. MC hiển thị <strong>8 gợi ý</strong> liên
           tiếp, thí sinh phải tìm ra <strong>từ khoá</strong> bí mật.
         </p>
-        <ul>
-          <li>
+        <ul className="mt-3 space-y-1.5">
+          <Rule>
             Mỗi gợi ý đúng: <strong>+10 điểm</strong>.
-          </li>
-          <li>
+          </Rule>
+          <Rule>
             Tìm được từ khoá: <strong>+100 điểm</strong>, trừ đi{" "}
             <strong>10 điểm</strong> cho mỗi gợi ý đã mở.
-          </li>
-          <li>Ví dụ: mở 3 gợi ý rồi tìm đúng → 100 - 30 = 70 điểm.</li>
-          <li>Thời gian mỗi gợi ý: <strong>15 giây</strong>.</li>
-          <li>Tất cả thí sinh cùng chơi, ai nhanh hơn được nhiều hơn.</li>
+          </Rule>
+          <Rule>Ví dụ: mở 3 gợi ý rồi tìm đúng → 100 − 30 = 70 điểm.</Rule>
+          <Rule>
+            Thời gian mỗi gợi ý: <strong>15 giây</strong>.
+          </Rule>
+          <Rule>Tất cả thí sinh cùng chơi, ai nhanh hơn được nhiều hơn.</Rule>
         </ul>
       </>
     ),
@@ -105,87 +178,55 @@ const SECTIONS = [
     content: (
       <>
         <p>
-          Vòng thi <strong>đua tốc</strong>. MC đặt câu hỏi, thí sinh bấm
-          chuông trả lời.
+          Vòng thi <strong>đua tốc</strong>. MC đặt câu hỏi, thí sinh bấm chuông
+          trả lời.
         </p>
-        <ul>
-          <li>Thời gian: <strong>30 giây</strong> mỗi câu.</li>
-          <li>
+        <ul className="mt-3 space-y-1.5">
+          <Rule>
+            Thời gian: <strong>30 giây</strong> mỗi câu.
+          </Rule>
+          <Rule>
             Điểm dựa vào <strong>thứ tự bấm chuông</strong> và{" "}
             <strong>thời gian trả lời</strong>:
-          </li>
+          </Rule>
         </ul>
-
-        <div className="overflow-x-auto mt-3">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/20">
-                <th className="text-left py-2 px-3 text-blue-300">
-                  Thứ tự bấm
-                </th>
-                <th className="text-left py-2 px-3 text-blue-300">
-                  ≤ 10 giây
-                </th>
-                <th className="text-left py-2 px-3 text-blue-300">
-                  ≤ 20 giây
-                </th>
-                <th className="text-left py-2 px-3 text-blue-300">
-                  &gt; 20 giây
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-white/10">
-                <td className="py-2 px-3">🥇 Thứ 1</td>
-                <td className="py-2 px-3 font-bold text-green-400">
-                  30 × 2 = 60
-                </td>
-                <td className="py-2 px-3 font-bold text-green-400">
-                  20 × 2 = 40
-                </td>
-                <td className="py-2 px-3 font-bold text-green-400">
-                  10 × 2 = 20
-                </td>
-              </tr>
-              <tr className="border-b border-white/10">
-                <td className="py-2 px-3">🥈 Thứ 2</td>
-                <td className="py-2 px-3 font-bold text-yellow-400">
-                  30 × 1.5 = 45
-                </td>
-                <td className="py-2 px-3 font-bold text-yellow-400">
-                  20 × 1.5 = 30
-                </td>
-                <td className="py-2 px-3 font-bold text-yellow-400">
-                  10 × 1.5 = 15
-                </td>
-              </tr>
-              <tr className="border-b border-white/10">
-                <td className="py-2 px-3">🥉 Thứ 3</td>
-                <td className="py-2 px-3 font-bold text-orange-400">
-                  30 × 1 = 30
-                </td>
-                <td className="py-2 px-3 font-bold text-orange-400">
-                  20 × 1 = 20
-                </td>
-                <td className="py-2 px-3 font-bold text-orange-400">
-                  10 × 1 = 10
-                </td>
-              </tr>
-              <tr>
-                <td className="py-2 px-3">4️⃣ Thứ 4</td>
-                <td className="py-2 px-3 font-bold text-gray-400">
-                  30 × 0.5 = 15
-                </td>
-                <td className="py-2 px-3 font-bold text-gray-400">
-                  20 × 0.5 = 10
-                </td>
-                <td className="py-2 px-3 font-bold text-gray-400">
-                  10 × 0.5 = 5
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ScoreTable
+          headers={["Thứ tự bấm", "≤ 10 giây", "≤ 20 giây", "> 20 giây"]}
+          rows={[
+            {
+              label: "Thứ 1",
+              cells: [
+                { text: "60", tone: "great" },
+                { text: "40", tone: "great" },
+                { text: "20", tone: "great" },
+              ],
+            },
+            {
+              label: "Thứ 2",
+              cells: [
+                { text: "45", tone: "good" },
+                { text: "30", tone: "good" },
+                { text: "15", tone: "good" },
+              ],
+            },
+            {
+              label: "Thứ 3",
+              cells: [
+                { text: "30", tone: "mid" },
+                { text: "20", tone: "mid" },
+                { text: "10", tone: "mid" },
+              ],
+            },
+            {
+              label: "Thứ 4",
+              cells: [
+                { text: "15", tone: "low" },
+                { text: "10", tone: "low" },
+                { text: "5", tone: "low" },
+              ],
+            },
+          ]}
+        />
       </>
     ),
   },
@@ -195,36 +236,36 @@ const SECTIONS = [
     icon: Target,
     content: (
       <>
-        <p>
-          Vòng thi cuối cùng, quyết định thứ hạng. Gồm hai phần:
-        </p>
+        <p>Vòng thi cuối cùng, quyết định thứ hạng. Gồm hai phần:</p>
 
-        <h4 className="text-blue-300 mt-4 mb-2">1. Về Đích Chung (VĐC)</h4>
-        <ul>
-          <li>
+        <SubHeading>1. Về Đích Chung (VĐC)</SubHeading>
+        <ul className="space-y-1.5">
+          <Rule>
             <strong>4 câu hỏi</strong>, tất cả thí sinh cùng trả lời.
-          </li>
-          <li>Thời gian: <strong>45 giây</strong> mỗi câu.</li>
-          <li>
+          </Rule>
+          <Rule>
+            Thời gian: <strong>45 giây</strong> mỗi câu.
+          </Rule>
+          <Rule>
             Đúng: <strong>+10 điểm</strong>. Sai: <strong>-10 điểm</strong>.
-          </li>
+          </Rule>
         </ul>
 
-        <h4 className="text-blue-300 mt-4 mb-2">
-          2. Về Đích Cá Nhân (VĐR)
-        </h4>
-        <ul>
-          <li>
+        <SubHeading>2. Về Đích Cá Nhân (VĐR)</SubHeading>
+        <ul className="space-y-1.5">
+          <Rule>
             Mỗi thí sinh <strong>chọn chủ đề</strong> và trả lời{" "}
             <strong>3 câu hỏi</strong>.
-          </li>
-          <li>Thời gian: <strong>45 giây</strong> mỗi câu.</li>
-          <li>
+          </Rule>
+          <Rule>
+            Thời gian: <strong>45 giây</strong> mỗi câu.
+          </Rule>
+          <Rule>
             Điểm tuỳ chủ đề: <strong>20, 30, 40 hoặc 50 điểm</strong>.
-          </li>
-          <li>
+          </Rule>
+          <Rule>
             Đúng: cộng điểm. Sai: <strong>trừ điểm tương đương</strong>.
-          </li>
+          </Rule>
         </ul>
       </>
     ),
@@ -234,146 +275,222 @@ const SECTIONS = [
     title: "Thời Gian",
     icon: Timer,
     content: (
-      <>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/20">
-                <th className="text-left py-2 px-3 text-blue-300">Vòng</th>
-                <th className="text-left py-2 px-3 text-blue-300">Thời gian</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ["Khởi Động Chung", "60 giây"],
-                ["Khởi Động Cá Nhân", "30 giây"],
-                ["Giải Mã", "15 giây / gợi ý"],
-                ["Bứt Phá", "30 giây"],
-                ["Về Đích Chung", "45 giây"],
-                ["Về Đích Cá Nhân", "45 giây"],
-              ].map(([phase, time]) => (
-                <tr key={phase} className="border-b border-white/10">
-                  <td className="py-2 px-3">{phase}</td>
-                  <td className="py-2 px-3 font-mono text-blue-200">{time}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </>
+      <ScoreTable
+        headers={["Vòng", "Thời gian"]}
+        rows={[
+          { label: "Khởi Động Chung", cells: [{ text: "60 giây" }] },
+          { label: "Khởi Động Cá Nhân", cells: [{ text: "30 giây" }] },
+          { label: "Giải Mã", cells: [{ text: "15 giây / gợi ý" }] },
+          { label: "Bứt Phá", cells: [{ text: "30 giây" }] },
+          { label: "Về Đích Chung", cells: [{ text: "45 giây" }] },
+          { label: "Về Đích Cá Nhân", cells: [{ text: "45 giây" }] },
+        ]}
+      />
     ),
   },
   {
-    id: "luat-choi",
+    id: "luat-chung",
     title: "Luật Chung",
     icon: Lock,
     content: (
-      <>
-        <ul>
-          <li>
-            Mỗi trận đấu có <strong>4 thí sinh</strong>.
-          </li>
-          <li>
-            Thứ tự ngồi: được xác định trước khi trận đấu bắt đầu.
-          </li>
-          <li>
-            Thí sinh không được phép sử dụng tài nguyên bên ngoài.
-          </li>
-          <li>
-            Trong vòng Bứt Phá, nếu trả lời sai, câu hỏi được chuyển cho
-            thí sinh tiếp theo (nếu còn thời gian).
-          </li>
-          <li>
-            Điểm âm có thể xảy ra ở vòng Về Đích.
-          </li>
-          <li>
-            Trong trường hợp bằng điểm, hệ thống sẽ so sánh thời gian phản
-            hồi để xếp hạng.
-          </li>
-          <li>
-            Quyết định của MC là quyết định cuối cùng.
-          </li>
-        </ul>
-      </>
+      <ul className="space-y-1.5">
+        <Rule>
+          Mỗi trận đấu có <strong>4 thí sinh</strong>.
+        </Rule>
+        <Rule>Thứ tự ngồi: được xác định trước khi trận đấu bắt đầu.</Rule>
+        <Rule>Thí sinh không được phép sử dụng tài nguyên bên ngoài.</Rule>
+        <Rule>
+          Trong vòng Bứt Phá, nếu trả lời sai, câu hỏi được chuyển cho thí sinh
+          tiếp theo (nếu còn thời gian).
+        </Rule>
+        <Rule>Điểm âm có thể xảy ra ở vòng Về Đích.</Rule>
+        <Rule>
+          Trong trường hợp bằng điểm, hệ thống sẽ so sánh thời gian phản hồi để
+          xếp hạng.
+        </Rule>
+        <Rule>Quyết định của MC là quyết định cuối cùng.</Rule>
+      </ul>
     ),
   },
 ];
 
+/* ─────────────────────────────────── Page ────────────────────────────────── */
+
 const RulesPage: React.FC = () => {
   const navigate = useNavigate();
+  const [activeId, setActiveId] = useState<string>(SECTIONS[0].id);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setActiveId(entry.target.id);
+          }
+        }
+      },
+      { rootMargin: "-20% 0px -70% 0px" },
+    );
+    SECTIONS.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  const scrollTo = (id: string) => {
+    document
+      .getElementById(id)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
-    <div className="min-h-screen p-4 sm:p-6">
-      <div className="max-w-3xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
+    <PublicLayout>
+      <div className="max-w-5xl mx-auto">
+        {/* Hero */}
+        <div className="mb-8 sm:mb-10">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors mb-4"
+            className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={16} aria-hidden />
             <span>Quay lại</span>
           </button>
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
-            Luật Chơi
-          </h1>
-          <p className="text-blue-300 text-sm sm:text-base">
-            Olympia Custom — Format OC3
-          </p>
-        </div>
 
-        {/* Table of contents */}
-        <nav className="card !p-4 mb-6 sm:mb-8">
-          <h2 className="text-sm font-semibold text-blue-300 uppercase tracking-wider mb-3">
-            Mục lục
-          </h2>
-          <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {SECTIONS.map((section) => (
-              <li key={section.id}>
-                <a
-                  href={`#${section.id}`}
-                  className="flex items-center gap-2 text-sm text-gray-300 hover:text-white transition-colors py-1"
+          <div className="card card-wide relative overflow-hidden p-6! sm:p-8!">
+            <div
+              className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl"
+              aria-hidden
+            />
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-blue-300">
+              <Star size={11} aria-hidden /> Format OC3
+            </span>
+            <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">
+              Luật Chơi
+            </h1>
+            <p className="mt-2 max-w-xl text-sm text-gray-300 sm:text-base">
+              Toàn bộ thể lệ các vòng thi của{" "}
+              <span className="text-blue-300">Olympia Custom</span> — điểm số,
+              thời gian và luật chung.
+            </p>
+
+            {/* Quick stats */}
+            <div className="mt-5 grid max-w-md grid-cols-3 gap-3">
+              {[
+                ["4", "Thí sinh"],
+                ["5", "Vòng thi"],
+                ["7", "Mục luật"],
+              ].map(([n, label]) => (
+                <div
+                  key={label}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center"
                 >
-                  <section.icon size={14} className="text-blue-400 shrink-0" />
-                  <span>{section.title}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-
-        {/* Sections */}
-        <div className="space-y-6">
-          {SECTIONS.map((section) => (
-            <section
-              key={section.id}
-              id={section.id}
-              className="card !p-5 sm:!p-6"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-600/20 rounded-lg">
-                  <section.icon size={20} className="text-blue-400" />
+                  <div className="font-display text-2xl font-bold text-blue-300">
+                    {n}
+                  </div>
+                  <div className="text-[11px] uppercase tracking-wider text-gray-400">
+                    {label}
+                  </div>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-white">
-                  {section.title}
-                </h2>
-              </div>
-              <div className="prose prose-invert prose-sm max-w-none text-gray-300 leading-relaxed space-y-3 [&_strong]:text-white [&_h4]:mb-2 [&_ul]:space-y-1.5 [&_li]:ml-4">
-                {section.content}
-              </div>
-            </section>
-          ))}
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8 mb-4">
-          <p className="text-xs text-gray-500">
-            Luật chơi có thể được cập nhật. Phiên bản hiện tại áp dụng cho
-            giải đấu Olympia Custom.
-          </p>
+        {/* Body: sticky TOC + sections */}
+        <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
+          {/* Desktop TOC */}
+          <aside className="hidden lg:block">
+            <nav className="card card-wide sticky top-8 p-4!" aria-label="Mục lục">
+              <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-widest text-blue-300">
+                Mục lục
+              </h2>
+              <ul className="space-y-1">
+                {SECTIONS.map((section) => {
+                  const active = activeId === section.id;
+                  return (
+                    <li key={section.id}>
+                      <button
+                        onClick={() => scrollTo(section.id)}
+                        className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                          active
+                            ? "bg-blue-600/25 font-medium text-white"
+                            : "text-gray-300 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        <section.icon
+                          size={15}
+                          className={active ? "text-blue-300" : "text-blue-400"}
+                          aria-hidden
+                        />
+                        <span>{section.title}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          </aside>
+
+          {/* Mobile TOC chips */}
+          <div className="mb-6 overflow-x-auto lg:hidden">
+            <div className="flex w-max gap-2 pb-1">
+              {SECTIONS.map((section) => {
+                const active = activeId === section.id;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => scrollTo(section.id)}
+                    className={`flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+                      active
+                        ? "border-blue-400/50 bg-blue-600/25 text-white"
+                        : "border-white/10 bg-white/5 text-gray-300 hover:text-white"
+                    }`}
+                  >
+                    <section.icon size={13} className="text-blue-400" aria-hidden />
+                    {section.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Sections */}
+          <div className="min-w-0">
+            <div className="space-y-6">
+              {SECTIONS.map((section, index) => (
+                <section
+                  key={section.id}
+                  id={section.id}
+                  className="card card-wide scroll-mt-6 p-5! sm:p-7!"
+                >
+                  <div className="mb-4 flex items-center gap-3.5">
+                    <div className="relative rounded-xl bg-blue-600/20 p-2.5">
+                      <section.icon size={20} className="text-blue-300" aria-hidden />
+                      <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                        {index + 1}
+                      </span>
+                    </div>
+                    <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">
+                      {section.title}
+                    </h2>
+                  </div>
+                  <div className="space-y-3 leading-relaxed text-gray-300 [&_strong]:text-white [&_p]:leading-relaxed">
+                    {section.content}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <p className="mb-4 mt-10 text-center text-xs text-gray-500">
+              Luật chơi có thể được cập nhật. Phiên bản hiện tại áp dụng cho giải
+              đấu Olympia Custom.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </PublicLayout>
   );
 };
 
