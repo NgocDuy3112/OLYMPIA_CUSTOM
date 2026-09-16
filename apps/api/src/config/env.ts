@@ -9,6 +9,7 @@ const envSchema = z.object({
     .default("development"),
   LOG_LEVEL: z.string().default("info"),
   AGENT_URL: z.string().default("http://localhost:8100"),
+  BOT_EXECUTOR_URL: z.string().default("http://localhost:8200"),
 
   // ── Database ──
   DATABASE_URL: z.string().url().optional(),

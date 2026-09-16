@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { eq, and } from "drizzle-orm";
-import { db, questions } from "@oc/db";
-import { requireRole } from "../auth/auth.service.js";
+import { db, questions, matches, tournamentPlayers } from "@oc/db";
+import { requireRole, requireAuth } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 
 export async function questionRoutes(app: FastifyInstance) {
@@ -54,7 +54,7 @@ export async function questionRoutes(app: FastifyInstance) {
 
   app.post(
     "/questions",
-    { preHandler: [requireRole(app, "admin")] },
+    { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const body = request.body as {
         matchCode: string;
@@ -65,6 +65,49 @@ export async function questionRoutes(app: FastifyInstance) {
         mediaUrl?: string;
         options?: string[];
       };
+      const session = (request as unknown as { session: { userId: string; role: string } }).session;
+
+      // Global admin always allowed
+      if (session.role !== "admin") {
+        const matchId = await resolveMatchId(app.valkey, body.matchCode);
+        if (!matchId) {
+          return reply
+            .code(404)
+            .send({ status: "error", message: "Match not found", data: null });
+        }
+        // question_author must belong to the match's tournament
+        const matchRows = await db
+          .select({ tournamentId: matches.tournamentId })
+          .from(matches)
+          .where(eq(matches.id, matchId))
+          .limit(1);
+        const tournamentId = matchRows[0]?.tournamentId;
+        if (!tournamentId) {
+          return reply.code(403).send({
+            status: "error",
+            message: "Match is not linked to a tournament",
+            data: null,
+          });
+        }
+        const membership = await db
+          .select({ role: tournamentPlayers.role })
+          .from(tournamentPlayers)
+          .where(
+            and(
+              eq(tournamentPlayers.tournamentId, tournamentId),
+              eq(tournamentPlayers.playerId, session.userId),
+            ),
+          )
+          .limit(1);
+        if (membership[0]?.role !== "question_author") {
+          return reply.code(403).send({
+            status: "error",
+            message: "Only admin or question_author can create questions",
+            data: null,
+          });
+        }
+      }
+
       const matchId = await resolveMatchId(app.valkey, body.matchCode);
       if (!matchId) {
         return reply

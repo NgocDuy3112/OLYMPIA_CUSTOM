@@ -16,6 +16,7 @@ import { getEnv } from "./config/env.js";
 import { pingCommand } from "./commands/ping.js";
 import { createStatusCommand } from "./commands/status.js";
 import { startValkeyListener } from "./events/valkey-listener.js";
+import { startExecutor } from "./executor.js";
 
 interface Command {
   data: SlashCommandBuilder;
@@ -119,8 +120,12 @@ export async function startBot() {
 
   await discordClient.login(env.BOT_TOKEN);
 
+  // Internal HTTP executor for direct API commands (assign/remove/sync)
+  const executor = startExecutor(discordClient);
+
   const shutdown = () => {
     console.log("Shutting down bot...");
+    executor.close();
     valkeySub.disconnect();
     valkey.disconnect();
     discordClient.destroy();

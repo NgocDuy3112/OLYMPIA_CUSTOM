@@ -40,6 +40,7 @@ export const tournaments = pgTable(
     notes: text("notes"),
     discordGuildId: varchar("discord_guild_id", { length: 32 }),
     discordRoleMap: text("discord_role_map"),
+    discordNotifyChannelId: varchar("discord_notify_channel_id", { length: 32 }),
     createdBy: uuid("created_by").references(() => users.id),
     isDeleted: boolean("is_deleted").default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),

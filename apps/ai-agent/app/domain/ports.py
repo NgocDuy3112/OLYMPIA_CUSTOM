@@ -33,6 +33,34 @@ class MatchLookupRepo(Protocol):
     async def find_tournament_code(self, match_code: str) -> str | None: ...
 
 
+class DiscordRepo(Protocol):
+    """Discord identity + commands, via Fastify /discord endpoints."""
+
+    async def lookup_players(self, tournament_code: str) -> list[dict]: ...
+
+    async def assign_role(
+        self, tournament_code: str, user_code: str
+    ) -> dict: ...
+
+    async def sync_nicknames(
+        self, tournament_code: str, mapping: list[dict]
+    ) -> dict: ...
+
+    async def notify_prematch(
+        self,
+        tournament_code: str,
+        match_code: str | None = None,
+        starts_at: str | None = None,
+    ) -> dict: ...
+
+    async def lock_player(
+        self,
+        tournament_code: str,
+        user_code: str,
+        match_code: str | None = None,
+    ) -> dict: ...
+
+
 class LLMClient(Protocol):
     """Tool-calling loop provider. Swap adapters freely."""
 
@@ -48,8 +76,8 @@ class LLMClient(Protocol):
 
 
 def strip_answers_for_role(questions: list[dict], role: UserRole) -> list[dict]:
-    """Role filter: controller/mc see answers; player/spectator never do."""
-    if role in ("controller", "mc"):
+    """Role filter: controller/mc/question_author see answers; others never do."""
+    if role in ("controller", "mc", "question_author"):
         return questions
     stripped = []
     for q in questions:

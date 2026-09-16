@@ -249,7 +249,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      const validRoles = ["controller", "mc", "player", "spectator"];
+      const validRoles = ["controller", "mc", "question_author", "player", "spectator"];
       const playerRole =
         body.role && validRoles.includes(body.role) ? body.role : "player";
 
@@ -549,7 +549,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
       const body = request.body as { role: string };
       const session = (request as any).session;
 
-      const validRoles = ["controller", "mc", "player", "spectator"];
+      const validRoles = ["controller", "mc", "question_author", "player", "spectator"];
       if (!body.role || !validRoles.includes(body.role)) {
         return reply
           .code(400)

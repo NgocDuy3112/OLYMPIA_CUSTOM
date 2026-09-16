@@ -7,6 +7,9 @@ interface LiveEvent {
   type: string;
   match_code?: string;
   match_name?: string;
+  tournament_code?: string;
+  channel_id?: string;
+  starts_at?: string;
   player_name?: string;
   player_code?: string;
   player_count?: number;
@@ -25,7 +28,7 @@ interface LiveEvent {
   round_name?: string;
   total_rounds?: number;
   match_status?: string;
-  players?: string[];
+  players?: Array<string | { discord_user_id?: string; nickname?: string }>;
   duration?: number;
 }
 
@@ -88,12 +91,37 @@ const playerLeft: EmbedHandler = (e) => {
 
 const playersReady: EmbedHandler = (e) => {
   if (!e.players || e.players.length === 0) return null;
-  const playerList = e.players.map((p) => `🟢 ${p}`).join("\n");
+  const playerList = e.players
+    .map((p) => (typeof p === "string" ? p : (p.nickname ?? p.discord_user_id ?? "?")))
+    .map((p) => `🟢 ${p}`)
+    .join("\n");
   return new EmbedBuilder()
     .setColor(0x2ecc71)
     .setTitle("✅ ĐỦ THÍ SINH")
     .setDescription(`**${e.players.length} thí sinh** đã sẵn sàng!`)
     .addFields({ name: "Thí sinh", value: playerList })
+    .setTimestamp();
+};
+
+// Prematch notify — fire-and-forget from API via Valkey.
+// channel_id is resolved per tournament (Discord IDs are global snowflakes).
+const prematchNotify: EmbedHandler = (e) => {
+  if (!e.players || e.players.length === 0) return null;
+  const mentions = e.players
+    .map((p) =>
+      typeof p === "string"
+        ? p
+        : p.discord_user_id
+          ? `<@${p.discord_user_id}>`
+          : (p.nickname ?? "?"),
+    )
+    .join(" ");
+  return new EmbedBuilder()
+    .setColor(0xf39c12)
+    .setTitle("⏰ CHUẨN BỊ VÀO TRẬN")
+    .setDescription(
+      `**${e.match_code ?? e.tournament_code ?? ""}**${e.starts_at ? ` — bắt đầu lúc ${e.starts_at}` : ""}\n${mentions}`,
+    )
     .setTimestamp();
 };
 
@@ -193,6 +221,9 @@ const handlers: Record<string, EmbedHandler> = {
   // Phase events
   phase_changed: phaseChanged,
   round_start: roundStarted,
+
+  // Prematch notify (fire-and-forget from API)
+  prematch_notify: prematchNotify,
 };
 
 // ── Event Processing ────────────────────────────────────────────────────────
@@ -203,10 +234,23 @@ function buildEmbed(event: LiveEvent): EmbedBuilder | null {
 }
 
 async function sendEmbed(
+  client: Client,
   getChannel: () => TextChannel | null,
   embed: EmbedBuilder,
+  channelId?: string,
 ) {
-  const channel = getChannel();
+  // Per-tournament channel first (Discord IDs are global snowflakes),
+  // fall back to the shared notification channel from env.
+  let channel: TextChannel | null = null;
+  if (channelId) {
+    try {
+      const fetched = await client.channels.fetch(channelId);
+      if (fetched?.isTextBased()) channel = fetched as TextChannel;
+    } catch {
+      channel = null;
+    }
+  }
+  channel ??= getChannel();
   if (!channel) return;
 
   try {
@@ -221,7 +265,7 @@ async function sendEmbed(
 export function startValkeyListener(
   subscriber: Redis,
   getChannel: () => TextChannel | null,
-  _client: Client,
+  client: Client,
 ) {
   void subscriber.subscribe(VALKEY_CHANNEL, (err) => {
     if (err) {
@@ -237,7 +281,7 @@ export function startValkeyListener(
       const embed = buildEmbed(event);
 
       if (embed) {
-        void sendEmbed(getChannel, embed);
+        void sendEmbed(client, getChannel, embed, event.channel_id);
       }
     } catch (error) {
       console.error("[Discord] Failed to process event:", error);

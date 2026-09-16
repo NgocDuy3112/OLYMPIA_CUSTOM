@@ -94,19 +94,21 @@ services:
     networks:
       - oc-network
 
-  # discord-bot:
-  #   container_name: oc-discord-bot
-  #   build:
-  #     context: .
-  #     dockerfile: apps/discord-bot/Dockerfile
-  #   env_file:
-  #     - ./configs/.env
-  #   volumes:
-  #     - ./apps/discord-bot/src:/app/src:ro
-  #   depends_on:
-  #     - valkey
-  #   networks:
-  #     - oc-network
+  discord-bot:
+    container_name: oc-discord-bot
+    build:
+      context: .
+      dockerfile: apps/discord-bot/Dockerfile
+    env_file:
+      - ./configs/.env
+    environment:
+      EXECUTOR_PORT: 8200
+    ports:
+      - "127.0.0.1:8200:8200"
+    depends_on:
+      - valkey
+    networks:
+      - oc-network
 
 networks:
   oc-network:

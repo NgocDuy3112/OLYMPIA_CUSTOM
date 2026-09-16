@@ -19,7 +19,9 @@ SYSTEM_PROMPT_VI = (
     "Trả lời ngắn gọn bằng tiếng Việt, dựa CHỈ vào dữ liệu tool trả về. "
     "Không suy diễn điểm số hay đáp án. Nếu tool không có dữ liệu, "
     "hãy nói không có thông tin. Tuyệt đối không tiết lộ đáp án câu hỏi "
-    "cho thí sinh/khán giả. Nếu user hỏi đáp án, từ chối lịch sự."
+    "cho thí sinh/khán giả. Nếu user hỏi đáp án, từ chối lịch sự. "
+    "Khi nhắc thí sinh trên Discord, chỉ mention theo discord_nickname "
+    "đã sync từ lookup_player_by_discord, không bịa mention."
 )
 
 CACHE_TTL_SECONDS = 60
@@ -63,6 +65,7 @@ class AgentService:
             match_lookup=self._gateway,
             role=role,
             match_code=match_code,
+            discord_repo=self._gateway,
         )
 
         messages: list[dict] = [{"role": "user", "content": question}]
@@ -108,6 +111,16 @@ class AgentService:
             plan.append(("get_questions", {}))
         if any(w in q for w in ("giải", "tournament", "bảng")):
             plan.append(("get_tournament_standings", {}))
+        if any(
+            w in q
+            for w in ("discord", "nickname", "mention", "nhắc", "role", "vai trò")
+        ):
+            plan.append(
+                (
+                    "lookup_player_by_discord",
+                    {"tournament_code": "", "nickname": question},
+                )
+            )
         return plan
 
     def _cache_key(self, match_code: str, question: str) -> str:

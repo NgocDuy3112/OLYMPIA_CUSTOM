@@ -12,6 +12,7 @@ from typing import Any
 
 from app.domain.models import AgentError, UserRole
 from app.domain.ports import (
+    DiscordRepo,
     MatchLookupRepo,
     MatchStateRepo,
     QuestionRepo,
@@ -34,6 +35,7 @@ class ToolContext:
         match_lookup: MatchLookupRepo,
         role: UserRole,
         match_code: str = "",
+        discord_repo: DiscordRepo | None = None,
     ) -> None:
         self.snapshot_repo = snapshot_repo
         self.score_repo = score_repo
@@ -42,6 +44,7 @@ class ToolContext:
         self.match_lookup = match_lookup
         self.role = role
         self.match_code = match_code
+        self.discord_repo = discord_repo
 
 
 TOOL_SCHEMAS: list[dict] = [
@@ -74,6 +77,92 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "get_tournament_standings",
         "description": "Bảng xếp hạng giải đấu của trận hiện tại.",
         "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+    {
+        "name": "lookup_player_by_discord",
+        "description": (
+            "Tra thí sinh trong giải theo Discord user ID hoặc nickname. "
+            "Dùng trước khi nhắc tên để mention đúng người."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tournament_code": {"type": "string"},
+                "discord_user_id": {"type": "string"},
+                "nickname": {"type": "string"},
+            },
+            "required": ["tournament_code"],
+        },
+    },
+    {
+        "name": "assign_tournament_role",
+        "description": (
+            "Gán Discord role + nickname cho thí sinh theo role trong giải. "
+            "Chỉ controller/mc được gọi."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tournament_code": {"type": "string"},
+                "user_code": {"type": "string"},
+            },
+            "required": ["tournament_code", "user_code"],
+        },
+    },
+    {
+        "name": "sync_discord_nicknames",
+        "description": (
+            "Đồng bộ nickname Discord về DB. Chỉ controller/mc được gọi."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tournament_code": {"type": "string"},
+                "mapping": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "discordUserId": {"type": "string"},
+                            "nickname": {"type": "string"},
+                        },
+                    },
+                },
+            },
+            "required": ["tournament_code", "mapping"],
+        },
+    },
+    {
+        "name": "notify_prematch",
+        "description": (
+            "Thông báo chuẩn bị vào trận qua Discord (fire-and-forget). "
+            "Chỉ controller/mc được gọi."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tournament_code": {"type": "string"},
+                "match_code": {"type": "string"},
+                "starts_at": {"type": "string"},
+            },
+            "required": ["tournament_code"],
+        },
+    },
+    {
+        "name": "lock_player_no_show",
+        "description": (
+            "Khóa thí sinh trễ giờ bằng cách tháo role trận khỏi member. "
+            "Chỉ controller/mc được gọi."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tournament_code": {"type": "string"},
+                "user_code": {"type": "string"},
+                "match_code": {"type": "string"},
+            },
+            "required": ["tournament_code", "user_code"],
+        },
     },
 ]
 
@@ -114,7 +203,78 @@ async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
             )
         }
 
+    if name == "lookup_player_by_discord":
+        if ctx.discord_repo is None:
+            raise AgentError("Discord repo not configured", status_code=500)
+        players = await ctx.discord_repo.lookup_players(
+            str(args.get("tournament_code", ""))
+        )
+        want_id = str(args.get("discord_user_id", "") or "")
+        want_nick = str(args.get("nickname", "") or "").lower()
+        for p in players:
+            if want_id and p.get("discordUserId") == want_id:
+                return p
+            nick = str(
+                p.get("discordNickname") or p.get("userName") or ""
+            ).lower()
+            if want_nick and want_nick in nick:
+                return p
+        return {"found": False, "note": "Không tìm thấy thí sinh"}
+
+    if name == "assign_tournament_role":
+        if ctx.discord_repo is None:
+            raise AgentError("Discord repo not configured", status_code=500)
+        _require_staff(ctx.role)
+        return await ctx.discord_repo.assign_role(
+            str(args.get("tournament_code", "")),
+            str(args.get("user_code", "")),
+        )
+
+    if name == "sync_discord_nicknames":
+        if ctx.discord_repo is None:
+            raise AgentError("Discord repo not configured", status_code=500)
+        _require_staff(ctx.role)
+        mapping = args.get("mapping", [])
+        if not isinstance(mapping, list):
+            raise AgentError("mapping must be a list", status_code=400)
+        return await ctx.discord_repo.sync_nicknames(
+            str(args.get("tournament_code", "")), mapping
+        )
+
+    if name == "notify_prematch":
+        if ctx.discord_repo is None:
+            raise AgentError("Discord repo not configured", status_code=500)
+        _require_staff(ctx.role)
+        return await ctx.discord_repo.notify_prematch(
+            str(args.get("tournament_code", "")),
+            str(args.get("match_code", "") or match_code or None)
+            if args.get("match_code", "") or match_code
+            else None,
+            str(args.get("starts_at", "") or None)
+            if args.get("starts_at", "")
+            else None,
+        )
+
+    if name == "lock_player_no_show":
+        if ctx.discord_repo is None:
+            raise AgentError("Discord repo not configured", status_code=500)
+        _require_staff(ctx.role)
+        return await ctx.discord_repo.lock_player(
+            str(args.get("tournament_code", "")),
+            str(args.get("user_code", "")),
+            str(args.get("match_code", "") or match_code or None)
+            if args.get("match_code", "") or match_code
+            else None,
+        )
+
     raise AgentError(f"Unknown tool: {name}", status_code=400)
+
+
+def _require_staff(role: UserRole) -> None:
+    if role not in ("controller", "mc"):
+        raise AgentError(
+            "Forbidden: controller/mc role required", status_code=403
+        )
 
 
 def tool_result_message(name: str, result: Any) -> dict:

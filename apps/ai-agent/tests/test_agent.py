@@ -140,6 +140,8 @@ async def test_role_filter_strips_answers():
     assert player_view[0]["explanation"] is None
     controller_view = strip_answers_for_role(questions, "controller")
     assert controller_view[0]["answer"] == "4"
+    author_view = strip_answers_for_role(questions, "question_author")
+    assert author_view[0]["answer"] == "4"
 
 
 @pytest.mark.asyncio
@@ -164,3 +166,27 @@ async def test_cache_roundtrip():
     assert not first.cached
     second = await service.ask("OC3_x", "điểm?", "player", "P1")
     assert second.cached
+
+
+@pytest.mark.asyncio
+async def test_discord_write_requires_staff():
+    from app.domain.models import AgentError
+    from app.tools.registry import ToolContext, execute_tool
+
+    gateway = FakeGateway()
+    ctx = ToolContext(
+        snapshot_repo=FakeSnapshotRepo(SNAPSHOT),
+        score_repo=gateway,
+        question_repo=gateway,
+        tournament_repo=gateway,
+        match_lookup=gateway,
+        role="player",
+        match_code="OC3_x",
+        discord_repo=gateway,
+    )
+    with pytest.raises(AgentError):
+        await execute_tool(
+            "assign_tournament_role",
+            {"tournament_code": "T1", "user_code": "P1"},
+            ctx,
+        )

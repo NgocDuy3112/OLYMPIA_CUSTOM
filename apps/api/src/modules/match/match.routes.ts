@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { eq, and, desc } from "drizzle-orm";
-import { db, matches, matchPlayerPositions, users, tournaments } from "@oc/db";
+import { db, matches, matchPlayerPositions, users, tournaments, tournamentPlayers } from "@oc/db";
 import { requireRole, requireAuth } from "../auth/auth.service.js";
 
 // Generate random 6-digit PIN
@@ -274,7 +274,7 @@ export async function matchRoutes(app: FastifyInstance) {
       const { slug } = request.params as { slug: string };
       const body = request.body as { userCode: string; position: number };
       const matchRows = await db
-        .select({ id: matches.id })
+        .select({ id: matches.id, tournamentId: matches.tournamentId })
         .from(matches)
         .where(and(eq(matches.matchSlug, slug), eq(matches.isDeleted, false)))
         .limit(1);
@@ -294,6 +294,31 @@ export async function matchRoutes(app: FastifyInstance) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
+      }
+      // Staff (controller/mc/question_author) can never sit as a player
+      if (matchRows[0].tournamentId) {
+        const membership = await db
+          .select({ role: tournamentPlayers.role })
+          .from(tournamentPlayers)
+          .where(
+            and(
+              eq(tournamentPlayers.tournamentId, matchRows[0].tournamentId),
+              eq(tournamentPlayers.playerId, userRows[0].id),
+            ),
+          )
+          .limit(1);
+        const tRole = membership[0]?.role;
+        if (
+          tRole === "controller" ||
+          tRole === "mc" ||
+          tRole === "question_author"
+        ) {
+          return reply.code(403).send({
+            status: "error",
+            message: `Role '${tRole}' cannot play in a match`,
+            data: null,
+          });
+        }
       }
       const existing = await db
         .select()
