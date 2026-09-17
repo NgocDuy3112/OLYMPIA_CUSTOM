@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { db, questions, matches, tournamentPlayers } from "@oc/db";
 import { requireRole, requireAuth } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
+import { writeAudit } from "../audit/audit.service.js";
 
 export async function questionRoutes(app: FastifyInstance) {
   app.get("/questions/:matchCode", async (request, reply) => {
@@ -126,6 +127,13 @@ export async function questionRoutes(app: FastifyInstance) {
           options: body.options ? JSON.stringify(body.options) : null,
         })
         .returning({ id: questions.id });
+      const session = (request as unknown as { session?: { userCode?: string } }).session;
+      void writeAudit({
+        actionType: "QUESTION_USED",
+        actorCode: session?.userCode ?? null,
+        matchCode: body.matchCode,
+        targetCode: body.questionCode,
+      });
       return reply
         .code(201)
         .send({

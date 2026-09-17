@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { db, users } from "@oc/db";
 import { getEnv } from "../../config/env.js";
 import { AppError } from "../../utils/errors.js";
+import { writeAudit } from "../audit/audit.service.js";
 
 // ── Session constants ──
 
@@ -131,6 +132,8 @@ async function createUserSession(
     userId: user.id,
     userCode: user.userCode,
     role: user.role,
+    operatorScopes: (user as { operatorScopes?: string | null })
+      .operatorScopes,
     email: user.email,
     userName: user.userName,
     createdAt: Date.now(),
@@ -185,6 +188,7 @@ interface SessionData {
   userId: string;
   userCode: string;
   role: string;
+  operatorScopes?: string | null;
   email: string;
   userName: string;
   matchCode?: string;
@@ -406,7 +410,13 @@ export function getMe(app: FastifyInstance) {  return async (request: FastifyReq
 export function logout(app: FastifyInstance) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const sid = request.cookies?.[COOKIE_NAME];
-    if (sid) await deleteSession(app.valkey, sid);
+    if (sid) {
+      const session = await getSession(app.valkey, sid);
+      if (session) {
+        void writeAudit({ actionType: "LOGOUT", actorCode: session.userCode });
+      }
+      await deleteSession(app.valkey, sid);
+    }
     return reply
       .clearCookie(COOKIE_NAME, { path: "/" })
       .send({ status: "success", message: "Logged out", data: null });
@@ -488,6 +498,7 @@ export function login(app: FastifyInstance) {
 
     await clearFailedLogins(app.valkey, rateKey);
     const sid = await createUserSession(app, user);
+    void writeAudit({ actionType: "LOGIN", actorCode: user.userCode });
     return issueSessionCookie(reply, sid);
   };
 }
@@ -514,6 +525,7 @@ export function staffLogin(app: FastifyInstance) {
     }
 
     await clearFailedLogins(app.valkey, rateKey);
+    void writeAudit({ actionType: "LOGIN", actorCode: cred.username.toUpperCase() });
     const sid = await createSession(app.valkey, {
       userId: `staff:${cred.username}`,
       userCode: cred.username.toUpperCase(),
@@ -563,6 +575,35 @@ export function requireRole(app: FastifyInstance, ...roles: string[]) {
       return reply.code(403).send({
         status: "error",
         message: `Role '${session.role}' is not allowed`,
+        data: null,
+      });
+    }
+  };
+}
+
+// requireScope — operator must hold a specific scope (controller/mc/question_creator/referee).
+// Admin bypasses. Reads scopes from session, falls back to staff:scopes Valkey key.
+export function requireScope(app: FastifyInstance, ...scopes: string[]) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    await requireAuth(app)(request, reply);
+    if (reply.sent) return;
+    const session = (request as any).session as SessionData;
+    if (session.role === "admin") return;
+    let scopeList: string[] = [];
+    if (session.operatorScopes) {
+      scopeList = session.operatorScopes.split(",").map((s) => s.trim());
+    } else if (session.userId.startsWith("staff:")) {
+      const sid = request.cookies?.[COOKIE_NAME];
+      if (sid && app.valkey) {
+        const raw = await app.valkey.get(`staff:scopes:${sid}`);
+        if (raw) scopeList = raw.split(",").map((s: string) => s.trim());
+      }
+    }
+    const ok = scopes.some((s) => scopeList.includes(s));
+    if (session.role !== "operator" || !ok) {
+      return reply.code(403).send({
+        status: "error",
+        message: `Missing required scope: ${scopes.join(" or ")}`,
         data: null,
       });
     }

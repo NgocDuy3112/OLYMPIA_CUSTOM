@@ -5,9 +5,9 @@ import {
   tournaments,
   tournamentPlayers,
   users,
-  auditLogs,
 } from "@oc/db";
 import { requireAuth } from "../auth/auth.service.js";
+import { writeAudit } from "../audit/audit.service.js";
 import { getEnv } from "../../config/env.js";
 
 /**
@@ -213,7 +213,7 @@ export async function discordRoutes(app: FastifyInstance) {
         nickname: target.discordNickname ?? target.userName,
       });
 
-      await db.insert(auditLogs).values({
+      await writeAudit({
         actionType: "PLAYER_JOIN",
         actorCode: session.userCode,
         targetCode: body.userCode,
@@ -411,7 +411,7 @@ export async function discordRoutes(app: FastifyInstance) {
         roleId,
       });
 
-      await db.insert(auditLogs).values({
+      await writeAudit({
         actionType: "PLAYER_LEAVE",
         actorCode: session.userCode,
         matchCode: body.matchCode,

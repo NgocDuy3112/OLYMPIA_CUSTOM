@@ -188,7 +188,7 @@ export async function userRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { userCode } = request.params as { userCode: string };
       const body = request.body as { scopes?: unknown };
-      const validScopes = ["question_creator", "controller", "mc"];
+      const validScopes = ["question_creator", "controller", "mc", "referee"];
       const scopes = Array.isArray(body.scopes)
         ? body.scopes.filter(
             (s): s is string => typeof s === "string" && validScopes.includes(s),

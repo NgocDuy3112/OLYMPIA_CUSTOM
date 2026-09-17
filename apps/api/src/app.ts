@@ -22,6 +22,9 @@ import { mediaRoutes } from "./modules/media/media.routes.js";
 import { tournamentRoutes } from "./modules/tournament/tournament.routes.js";
 import { templateRoutes } from "./modules/template/template.routes.js";
 import { discordRoutes } from "./modules/discord/discord.routes.js";
+import { checkpointRoutes } from "./modules/checkpoint/checkpoint.routes.js";
+import { auditRoutes } from "./modules/audit/audit.routes.js";
+import { startCheckpointJob } from "./state/checkpoint.service.js";
 import { wsRoute } from "./modules/ws/ws.route.js";
 
 export async function createApp() {
@@ -64,6 +67,14 @@ export async function createApp() {
   await app.register(tournamentRoutes, { prefix: "/api" });
   await app.register(templateRoutes, { prefix: "/api" });
   await app.register(discordRoutes, { prefix: "/api" });
+  await app.register(checkpointRoutes, { prefix: "/api" });
+  await app.register(auditRoutes, { prefix: "/api" });
+
+  // Background: snapshot Valkey match state every 30s
+  const checkpointJob = startCheckpointJob(app);
+  app.addHook("onClose", async () => {
+    checkpointJob.stop();
+  });
 
   // WebSocket route
   await app.register(wsRoute);

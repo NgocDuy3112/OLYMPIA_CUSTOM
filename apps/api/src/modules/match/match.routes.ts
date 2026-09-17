@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { eq, and, desc } from "drizzle-orm";
 import { db, matches, matchPlayerPositions, users, tournaments, tournamentPlayers } from "@oc/db";
-import { requireRole, requireAuth } from "../auth/auth.service.js";
+import { requireRole, requireAuth, requireScope } from "../auth/auth.service.js";
+import { writeAudit } from "../audit/audit.service.js";
 
 // Generate random 6-digit PIN
 function generatePin(): string {
@@ -45,7 +46,7 @@ export async function matchRoutes(app: FastifyInstance) {
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 
-  // POST /matches — Create a new match
+  // POST /matches — Create a new match (admin only; controller runs live)
   app.post(
     "/matches",
     { preHandler: [requireRole(app, "admin")] },
@@ -97,6 +98,14 @@ export async function matchRoutes(app: FastifyInstance) {
         })
         .returning();
 
+      const session = (request as any).session as { userCode?: string } | undefined;
+      void writeAudit({
+        actionType: "MATCH_CREATED",
+        actorCode: session?.userCode ?? null,
+        matchCode: result[0].matchCode,
+        details: result[0].matchName,
+      });
+
       return reply.code(201).send({
         status: "success",
         message: "Match created",
@@ -141,7 +150,7 @@ export async function matchRoutes(app: FastifyInstance) {
     });
   });
 
-  // PUT /matches/:slug — Update match
+  // PUT /matches/:slug — Update match (admin only; controller runs live)
   app.put(
     "/matches/:slug",
     { preHandler: [requireRole(app, "admin")] },
@@ -188,11 +197,20 @@ export async function matchRoutes(app: FastifyInstance) {
         .update(matches)
         .set(updates)
         .where(and(eq(matches.matchSlug, slug), eq(matches.isDeleted, false)))
-        .returning({ id: matches.id });
+        .returning({ id: matches.id, matchCode: matches.matchCode });
       if (result.length === 0) {
         return reply
           .code(404)
           .send({ status: "error", message: "Match not found", data: null });
+      }
+      if (body.matchStatus) {
+        const session = (request as any).session as { userCode?: string } | undefined;
+        void writeAudit({
+          actionType: "MATCH_STATE_CHANGE",
+          actorCode: session?.userCode ?? null,
+          matchCode: result[0].matchCode,
+          details: `status -> ${body.matchStatus}`,
+        });
       }
       return reply.send({
         status: "success",
@@ -266,7 +284,7 @@ export async function matchRoutes(app: FastifyInstance) {
     },
   );
 
-  // POST /matches/:slug/players — Add player to match
+  // POST /matches/:slug/players — Add player to match (admin only; controller runs live)
   app.post(
     "/matches/:slug/players",
     { preHandler: [requireRole(app, "admin")] },
@@ -295,30 +313,19 @@ export async function matchRoutes(app: FastifyInstance) {
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
       }
-      // Staff (controller/mc/question_author) can never sit as a player
-      if (matchRows[0].tournamentId) {
-        const membership = await db
-          .select({ role: tournamentPlayers.role })
-          .from(tournamentPlayers)
-          .where(
-            and(
-              eq(tournamentPlayers.tournamentId, matchRows[0].tournamentId),
-              eq(tournamentPlayers.playerId, userRows[0].id),
-            ),
-          )
-          .limit(1);
-        const tRole = membership[0]?.role;
-        if (
-          tRole === "controller" ||
-          tRole === "mc" ||
-          tRole === "question_author"
-        ) {
-          return reply.code(403).send({
-            status: "error",
-            message: `Role '${tRole}' cannot play in a match`,
-            data: null,
-          });
-        }
+      // Operator/question_creator can never sit as a player (global scope check)
+      const staffRows = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, userRows[0].id))
+        .limit(1);
+      const staffRole = staffRows[0]?.role;
+      if (staffRole === "admin" || staffRole === "operator") {
+        return reply.code(403).send({
+          status: "error",
+          message: `Role '${staffRole}' cannot play in a match`,
+          data: null,
+        });
       }
       const existing = await db
         .select()

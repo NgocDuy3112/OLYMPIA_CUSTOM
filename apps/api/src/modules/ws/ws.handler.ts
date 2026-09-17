@@ -43,6 +43,8 @@ export async function handleWsMessage(
   }
 
   if (msgType.startsWith("camera_") || msgType.startsWith("voice_")) {
+    // Only controller can remote-control player cameras
+    if (msgType === "camera_control" && conn.role !== "controller") return;
     const target =
       typeof data.target_user_code === "string"
         ? data.target_user_code
@@ -86,6 +88,19 @@ export async function handleWsMessage(
 
   if (msgType === "agent_ask") {
     await handleAgentAsk(conn, data);
+    return;
+  }
+
+  // Referee proposes, controller decides — forward proposal to controllers only
+  if (msgType === "referee_proposal") {
+    if (conn.role !== "referee") return;
+    await manager.sendToRoles(conn.matchCode, ["controller"], {
+      type: "referee_proposal",
+      user_code: conn.userCode,
+      question_code: data.question_code,
+      proposal: data.proposal,
+      note: data.note,
+    });
     return;
   }
 
