@@ -5,7 +5,9 @@ import {
   jsonb,
   timestamp,
   index,
+  foreignKey,
 } from "drizzle-orm/pg-core";
+import { matches } from "./match.js";
 
 /**
  * Match checkpoints — NEW in v4.
@@ -24,5 +26,12 @@ export const matchCheckpoints = pgTable(
     checkpoint: jsonb("checkpoint").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
-  (t) => [index("idx_checkpoint_match_time").on(t.matchCode, t.createdAt)],
+  (t) => [
+    index("idx_checkpoint_match_time").on(t.matchCode, t.createdAt),
+    foreignKey({
+      columns: [t.matchCode],
+      foreignColumns: [matches.matchCode],
+      name: "fk_checkpoint_match_code",
+    }).onDelete("cascade"),
+  ],
 );
