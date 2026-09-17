@@ -2,7 +2,7 @@
  * ButPhaPage — Unified page for Bứt Phá (buzzer sprint).
  *
  * Admin: full control panel with question selection, timer, scoring.
- * MC: read-only audience view (same as player).
+ * MC: read-only spectator view (same as player).
  * Player: answer input with timer.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,7 +22,7 @@ import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { ButPhaAudiencePage } from "@/components/shared/ButPhaAudiencePage";
+import { ButPhaSpectatorPage } from "@/components/shared/ButPhaSpectatorPage";
 
 const QUESTION_PREFIX = "OC3_Q_BP";
 const MAX_QUESTION_INDEX = 5;
@@ -346,7 +346,7 @@ const PlayerButPhaView = () => {
 // ─── MC View ────────────────────────────────────────────────────────────────
 const MCButPhaView = () => {
   const { matchCode } = useRoleSession("mc");
-  return <ButPhaAudiencePage Layout={PBasePageLayout} matchCode={matchCode} />;
+  return <ButPhaSpectatorPage Layout={PBasePageLayout} matchCode={matchCode} />;
 };
 
 // ─── Main Page ──────────────────────────────────────────────────────────────

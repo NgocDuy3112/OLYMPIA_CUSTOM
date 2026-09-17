@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGameWebSocket } from "./useGameWebSocket";
 import { useCountdownTimer } from "./useCountdownTimer";
 import { useQuestionState } from "./useQuestionState";
-import { useAudiencePlayers } from "./useAudiencePlayers";
+import { useSpectator } from "./useSpectator";
 import type {
   WebSocketContextValue,
   WebSocketMessage,
@@ -74,7 +74,7 @@ export function usePlayerRound(
     applyWrongAttempt,
     applyAfkUpdate,
     clearAnswers,
-  } = useAudiencePlayers();
+  } = useSpectator();
 
   const [showAnswers, setShowAnswers] = useState(false);
   const [videoPlayState, setVideoPlayState] = useState<

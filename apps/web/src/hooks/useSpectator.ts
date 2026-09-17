@@ -17,7 +17,7 @@ interface AnswerMessage {
 const getAnswers = (message: WebSocketMessage): AnswerMessage[] =>
   Array.isArray(message.answers) ? (message.answers as AnswerMessage[]) : [];
 
-export function useAudiencePlayers() {
+export function useSpectator() {
   const [players, setPlayers] = useState<PlayerStatus[]>([]);
 
   const applyPlayersInfo = useCallback((message: WebSocketMessage) => {

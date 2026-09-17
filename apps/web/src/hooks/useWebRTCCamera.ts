@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
-
-const ICE_SERVERS: RTCConfiguration = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-};
+import { ICE_SERVERS } from "@/configs";
 
 type CameraMessage = {
   type?: string;
@@ -11,6 +8,7 @@ type CameraMessage = {
   target_user_code?: string | number;
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
+  enabled?: boolean;
 };
 
 export function useWebRTCCameraPublisher(userCode: string) {
@@ -52,8 +50,18 @@ export function useWebRTCCameraPublisher(userCode: string) {
 
   useEffect(() => {
     const msg = (lastMessage?.message ?? lastMessage) as CameraMessage | null;
+    if (!msg || String(msg.target_user_code ?? msg.user_code) !== String(userCode))
+      return;
+    // Controller remote camera control
+    if (msg.type === "camera_control" && typeof msg.enabled === "boolean") {
+      const videoTrack = streamRef.current?.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = msg.enabled;
+        setCameraEnabled(msg.enabled);
+      }
+      return;
+    }
     if (
-      !msg ||
       msg.type !== "camera_offer" ||
       String(msg.target_user_code) !== String(userCode) ||
       !msg.sdp ||

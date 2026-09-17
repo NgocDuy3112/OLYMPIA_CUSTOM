@@ -1,4 +1,4 @@
-import type { AudienceLayoutProps } from "@/types/audience";
+import type { SpectatorLayoutProps } from "@/types/spectator";
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
@@ -6,7 +6,7 @@ import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
-import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { useSpectator } from "@/hooks/useSpectator";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import {
   matchStoragePrefixes,
@@ -16,15 +16,15 @@ import {
 
 type RoundQuestion = { code: string; category: string; points: number };
 
-interface VeDichAudiencePageProps {
-  Layout: ComponentType<AudienceLayoutProps>;
+interface VeDichChungSpectatorPageProps {
+  Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function VeDichChungAudiencePage({
+export function VeDichChungSpectatorPage({
   Layout,
   matchCode = "",
-}: VeDichAudiencePageProps) {
+}: VeDichChungSpectatorPageProps) {
   const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
   const { lastMessage } = useGameWebSocket();
   const { timer, startSynced } = useCountdownTimer();
@@ -39,7 +39,7 @@ export function VeDichChungAudiencePage({
     applyAnswers,
     applyPlayerPower,
     clearAnswers,
-  } = useAudiencePlayers();
+  } = useSpectator();
   const {
     answer: questionAnswer,
     applyReveal,

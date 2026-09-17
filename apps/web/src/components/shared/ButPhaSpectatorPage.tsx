@@ -1,19 +1,19 @@
-import type { AudienceLayoutProps } from "@/types/audience";
+import type { SpectatorLayoutProps } from "@/types/spectator";
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { useSpectator } from "@/hooks/useSpectator";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 
-interface ButPhaAudiencePageProps {
-  Layout: ComponentType<AudienceLayoutProps>;
+interface ButPhaSpectatorPageProps {
+  Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function ButPhaAudiencePage({ Layout }: ButPhaAudiencePageProps) {
+export function ButPhaSpectatorPage({ Layout }: ButPhaSpectatorPageProps) {
   const [videoPlayState, setVideoPlayState] = useState<
     "playing" | "paused" | null
   >(null);
@@ -29,7 +29,7 @@ export function ButPhaAudiencePage({ Layout }: ButPhaAudiencePageProps) {
     applyAnswers,
     applyBuzz,
     clearAnswers,
-  } = useAudiencePlayers();
+  } = useSpectator();
   const { answer, applyReveal, clear: clearAnswer } = useRevealAnswer();
 
   useEffect(() => {

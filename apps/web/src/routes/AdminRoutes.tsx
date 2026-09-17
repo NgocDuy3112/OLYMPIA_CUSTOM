@@ -16,6 +16,9 @@ import VeDichRiengPage from "@/pages/game/VeDichRiengPage";
 import WaitingPage from "@/pages/game/WaitingPage";
 import VeDichPickPage from "@/pages/game/VeDichPickPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
+import AUsersPage from "@/pages/admin/AUsersPage";
+import AAuditPage from "@/pages/admin/AAuditPage";
+import ACheckpointsPage from "@/pages/admin/ACheckpointsPage";
 import TournamentListPage from "@/pages/admin/tournament/TournamentListPage";
 import TournamentFormPage from "@/pages/admin/tournament/TournamentFormPage";
 import TournamentDetailPage from "@/pages/admin/tournament/TournamentDetailPage";
@@ -154,6 +157,9 @@ const AdminRoutes = () => {
           />
           <Route path="/manage" element={<AGameManagingPage />} />
           <Route path="/game-managing" element={<AGameManagingPage />} />
+          <Route path="/users" element={<AUsersPage />} />
+          <Route path="/audit" element={<AAuditPage />} />
+          <Route path="/checkpoints" element={<ACheckpointsPage />} />
           {/* Tournament management routes */}
           <Route path="/tournaments" element={<TournamentListPage />} />
           <Route path="/tournaments/create" element={<TournamentFormPage />} />

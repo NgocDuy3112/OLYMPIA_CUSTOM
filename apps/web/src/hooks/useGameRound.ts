@@ -11,7 +11,7 @@ import { usePlayerTelemetry } from "./usePlayerTelemetry";
 import { useQuestionTimerLock } from "./useQuestionTimerLock";
 import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
-import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { getMatchCode } from "@/utils/storage";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
@@ -140,7 +140,7 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   const loadPlayersState = useCallback(async () => {
     if (!matchCode) return undefined;
     try {
-      const snapshot = await loadAdminPlayersSnapshot(matchCode);
+      const snapshot = await loadControllerPlayersSnapshot(matchCode);
       setPlayers((prev) =>
         buildPlayersSnapshot(
           snapshot.players,

@@ -1,11 +1,11 @@
-import type { AudienceLayoutProps } from "@/types/audience";
+import type { SpectatorLayoutProps } from "@/types/spectator";
 import React, { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
-import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { useSpectator } from "@/hooks/useSpectator";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { buildKeywordBanner } from "@/utils/keywordBanner";
@@ -63,12 +63,12 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({
   );
 };
 
-interface GiaiMaAudiencePageProps {
-  Layout: ComponentType<AudienceLayoutProps>;
+interface GiaiMaSpectatorPageProps {
+  Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
+export function GiaiMaSpectatorPage({ Layout }: GiaiMaSpectatorPageProps) {
   const { lastMessage } = useGameWebSocket();
   const { timer, startSynced } = useCountdownTimer();
   const { currentQuestion, applyWsMessage } = useQuestionState();
@@ -79,7 +79,7 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
     applyAnswers,
     applyKeywordSubmit,
     clearAnswers,
-  } = useAudiencePlayers();
+  } = useSpectator();
   const {
     answer: questionAnswer,
     applyReveal,
@@ -198,9 +198,9 @@ export function GiaiMaAudiencePage({ Layout }: GiaiMaAudiencePageProps) {
           break;
         }
         case "show_hint": {
-          const audienceVisible = msg.audience_visible === true;
-          const hintContent = audienceVisible ? (msg.hint_content ?? "") : "";
-          const hintMediaSource = audienceVisible
+          const spectatorVisible = msg.spectator_visible === true;
+          const hintContent = spectatorVisible ? (msg.hint_content ?? "") : "";
+          const hintMediaSource = spectatorVisible
             ? (msg.hint_media_source ?? "")
             : "";
           const contentIsMedia = isMediaFilename(hintContent);

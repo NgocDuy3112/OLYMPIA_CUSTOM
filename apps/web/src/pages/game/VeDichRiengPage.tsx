@@ -2,7 +2,7 @@
  * VeDichRiengPage — Unified page for Về Đích Cá Nhân (individual final).
  *
  * Admin: question grid, power system, buzzer, turn-based scoring.
- * MC: read-only audience view.
+ * MC: read-only spectator view.
  * Player: buzzer, power selection, question display.
  */
 import {
@@ -46,7 +46,7 @@ import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import { submitBuzz } from "@/api/answers";
-import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
 import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
@@ -61,7 +61,7 @@ import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { VeDichAudiencePage } from "@/components/shared/VeDichAudiencePage";
+import { VeDichSpectatorPage } from "@/components/shared/VeDichSpectatorPage";
 
 const logger = createLogger("VeDichRiengPage");
 const DEFAULT_QUESTION: Question = {
@@ -282,7 +282,7 @@ const AdminVeDichRiengView = () => {
   const loadPlayersState = useCallback(async () => {
     if (!currentMatchCode) return undefined;
     try {
-      const snapshot = await loadAdminPlayersSnapshot(currentMatchCode);
+      const snapshot = await loadControllerPlayersSnapshot(currentMatchCode);
       setPlayers((prev) =>
         buildPlayersSnapshot(
           snapshot.players,
@@ -1589,7 +1589,7 @@ const PlayerVeDichRiengView = () => {
 const MCVeDichRiengView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <VeDichAudiencePage
+    <VeDichSpectatorPage
       variant="rieng"
       Layout={PBasePageLayout}
       matchCode={matchCode}

@@ -1,24 +1,24 @@
-import type { AudienceLayoutProps } from "@/types/audience";
+import type { SpectatorLayoutProps } from "@/types/spectator";
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
-import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { useSpectator } from "@/hooks/useSpectator";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import type { RawPlayer } from "@/utils/playerHelpers";
 
-interface KhoiDongAudiencePageProps {
+interface KhoiDongSpectatorPageProps {
   variant: "chung" | "rieng";
-  Layout: ComponentType<AudienceLayoutProps>;
+  Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function KhoiDongAudiencePage({
+export function KhoiDongSpectatorPage({
   variant,
   Layout,
-}: KhoiDongAudiencePageProps) {
+}: KhoiDongSpectatorPageProps) {
   const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
   const [currentPlayerCode, setCurrentPlayerCode] = useState("");
   const { lastMessage } = useGameWebSocket();
@@ -34,7 +34,7 @@ export function KhoiDongAudiencePage({
     applyBuzz,
     applyWrongAttempt,
     clearAnswers,
-  } = useAudiencePlayers();
+  } = useSpectator();
   const {
     answer: questionAnswer,
     explanation: questionExplanation,

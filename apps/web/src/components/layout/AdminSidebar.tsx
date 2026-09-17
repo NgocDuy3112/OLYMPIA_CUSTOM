@@ -5,6 +5,8 @@ import {
   Trophy,
   Gamepad2,
   Users,
+  ScrollText,
+  DatabaseBackup,
   ChevronRight,
   X,
 } from "lucide-react";
@@ -46,6 +48,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             icon: <Gamepad2 size={18} />,
           },
           { label: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
+          { label: "Nhật ký", path: "/admin/audit", icon: <ScrollText size={18} /> },
+          { label: "Checkpoints", path: "/admin/checkpoints", icon: <DatabaseBackup size={18} /> },
         ]
       : []),
   ];

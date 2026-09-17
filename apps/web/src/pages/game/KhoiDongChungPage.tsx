@@ -2,7 +2,7 @@
  * KhoiDongChungPage — Unified page for Khởi Động Chung (group warm-up).
  *
  * Admin: auto-advance through 6 questions (10s each), 60s total timer.
- * MC: read-only audience view.
+ * MC: read-only spectator view.
  * Player: answer input for each question.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -24,7 +24,7 @@ import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { KhoiDongAudiencePage } from "@/components/shared/KhoiDongAudiencePage";
+import { KhoiDongSpectatorPage } from "@/components/shared/KhoiDongSpectatorPage";
 
 const QUESTION_PREFIX = "OC3_Q_KD_C";
 const MAX_QUESTION_INDEX = 6;
@@ -406,7 +406,7 @@ const PlayerKhoiDongChungView = () => {
 const MCKhoiDongChungView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <KhoiDongAudiencePage
+    <KhoiDongSpectatorPage
       variant="chung"
       Layout={PBasePageLayout}
       matchCode={matchCode}

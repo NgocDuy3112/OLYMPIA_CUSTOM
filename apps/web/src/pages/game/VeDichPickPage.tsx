@@ -2,7 +2,7 @@
  * VeDichPickPage — Unified page for question selection in Về Đích rounds.
  *
  * Admin: full question selection interface with player management.
- * MC: read-only audience view of selected questions.
+ * MC: read-only spectator view of selected questions.
  * Player: display of selected questions grid.
  */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
@@ -37,8 +37,8 @@ import APlayerBar from "@/components/admin/APlayerBar";
 import AControlButton from "@/components/admin/AControlButton";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { VeDichPickAudiencePage } from "@/components/shared/VeDichPickAudiencePage";
-import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { VeDichPickSpectatorPage } from "@/components/shared/VeDichPickSpectatorPage";
+import { useSpectator } from "@/hooks/useSpectator";
 
 const logger = createLogger("VeDichPickPage");
 const CATEGORIES = [
@@ -627,7 +627,7 @@ const MCVeDichPickView = ({ round }: { round: VeDichRound }) => {
   const { matchCode: routeMatchCode } = useParams<{ matchCode: string }>();
   const { matchCode } = useRoleSession("mc");
   return (
-    <VeDichPickAudiencePage
+    <VeDichPickSpectatorPage
       round={round}
       matchCode={routeMatchCode || matchCode}
       Layout={PBasePageLayout}
@@ -644,7 +644,7 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
   const { playerCode: sessionPlayerCode } = useRoleSession("player");
   const playerCode = paramPlayerCode || sessionPlayerCode;
   const { lastMessage } = useGameWebSocket();
-  const { players, applyPlayersInfo } = useAudiencePlayers();
+  const { players, applyPlayersInfo } = useSpectator();
 
   const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
     if (!paramMatchCode) return [];

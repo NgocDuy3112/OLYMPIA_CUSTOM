@@ -2,7 +2,7 @@
  * KhoiDongRiengPage — Unified page for Khởi Động Cá Nhân (individual warm-up).
  *
  * Admin: full control panel with question selection, timer, scoring.
- * MC: read-only audience view.
+ * MC: read-only spectator view.
  * Player: answer input for each question.
  */
 import { useCallback, useEffect } from "react";
@@ -20,7 +20,7 @@ import AControlButton from "@/components/admin/AControlButton";
 import AQuestionBoard from "@/components/admin/AQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { KhoiDongAudiencePage } from "@/components/shared/KhoiDongAudiencePage";
+import { KhoiDongSpectatorPage } from "@/components/shared/KhoiDongSpectatorPage";
 
 const QUESTION_PREFIX = "OC3_Q_KD_R";
 const MAX_QUESTION_INDEX = 6;
@@ -224,7 +224,7 @@ const PlayerKhoiDongRiengView = () => {
 const MCKhoiDongRiengView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <KhoiDongAudiencePage
+    <KhoiDongSpectatorPage
       variant="rieng"
       Layout={PBasePageLayout}
       matchCode={matchCode}

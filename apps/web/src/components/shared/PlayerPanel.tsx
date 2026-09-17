@@ -8,11 +8,16 @@ import { CameraVideo } from "./CameraVideo";
 import { useWebRTCCameraViewer } from "@/hooks/useWebRTCCamera";
 
 export function PlayerPanel(
-  props: ComponentProps<typeof APlayerBar> & { player: PlayerStatus },
+  props: ComponentProps<typeof APlayerBar> & {
+    player: PlayerStatus;
+    showCameraControl?: boolean;
+    onCameraControl?: (playerCode: string, enabled: boolean) => void;
+  },
 ) {
   const { stream } = useWebRTCCameraViewer(props.player.playerCode);
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(1);
+  const [cameraRequested, setCameraRequested] = useState(true);
   return (
     <div className="overflow-hidden rounded-lg bg-blue-950 shadow-lg">
       <div className="relative" onClick={(event) => event.stopPropagation()}>
@@ -46,6 +51,22 @@ export function PlayerPanel(
         >
           {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
         </button>
+
+        {/* Controller camera control */}
+        {props.showCameraControl && (
+          <button
+            type="button"
+            onClick={() => {
+              const next = !cameraRequested;
+              setCameraRequested(next);
+              props.onCameraControl?.(props.player.playerCode, next);
+            }}
+            className={`absolute bottom-2 right-2 rounded p-1.5 text-white ${cameraRequested ? "bg-green-600/80 hover:bg-green-600" : "bg-red-600/80 hover:bg-red-600"}`}
+            title={cameraRequested ? "Yêu cầu tắt camera" : "Yêu cầu bật camera"}
+          >
+            {cameraRequested ? <Camera size={16} /> : <CameraOff size={16} />}
+          </button>
+        )}
       </div>
       <div
         className="flex items-center gap-2 bg-blue-950 px-2 py-1"

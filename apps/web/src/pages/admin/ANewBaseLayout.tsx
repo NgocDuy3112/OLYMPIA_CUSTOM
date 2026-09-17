@@ -94,6 +94,14 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
                   onEditScore={onEditScore}
                   sendMessage={sendMessage}
                   matchCode={getMatchCode()}
+                  showCameraControl
+                  onCameraControl={(playerCode, enabled) => {
+                    void sendMessage({
+                      type: "camera_control",
+                      target_user_code: playerCode,
+                      enabled,
+                    });
+                  }}
                 />
               </div>
             ))}

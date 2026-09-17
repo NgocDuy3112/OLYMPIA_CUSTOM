@@ -2,7 +2,7 @@
  * VeDichChungPage — Unified page for Về Đích Chung (group final).
  *
  * Admin: question grid, power system, scoring.
- * MC: read-only audience view.
+ * MC: read-only spectator view.
  * Player: question grid, answer input, power selection.
  */
 import {
@@ -42,7 +42,7 @@ import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import { submitAnswer } from "@/api/answers";
-import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
 import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
@@ -57,7 +57,7 @@ import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { VeDichAudiencePage } from "@/components/shared/VeDichAudiencePage";
+import { VeDichSpectatorPage } from "@/components/shared/VeDichSpectatorPage";
 
 const logger = createLogger("VeDichChungPage");
 const DEFAULT_QUESTION: Question = {
@@ -270,7 +270,7 @@ const AdminVeDichChungView = () => {
   const loadPlayersState = useCallback(async () => {
     if (!currentMatchCode) return undefined;
     try {
-      const snapshot = await loadAdminPlayersSnapshot(currentMatchCode);
+      const snapshot = await loadControllerPlayersSnapshot(currentMatchCode);
       setPlayers((prev) =>
         buildPlayersSnapshot(
           snapshot.players,
@@ -1294,7 +1294,7 @@ const PlayerVeDichChungView = () => {
 const MCVeDichChungView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <VeDichAudiencePage
+    <VeDichSpectatorPage
       variant="chung"
       Layout={PBasePageLayout}
       matchCode={matchCode}

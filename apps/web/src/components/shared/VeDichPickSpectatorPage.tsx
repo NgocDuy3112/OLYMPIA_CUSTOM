@@ -1,9 +1,9 @@
-import type { AudienceLayoutProps } from "@/types/audience";
+import type { SpectatorLayoutProps } from "@/types/spectator";
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
-import { useAudiencePlayers } from "@/hooks/useAudiencePlayers";
+import { useSpectator } from "@/hooks/useSpectator";
 import { VeDichRound, getVeDichRoundLabel } from "@/types/veDich";
 import { matchStoragePrefixes, readMatchJson } from "@/utils/storage";
 
@@ -16,19 +16,19 @@ const CATEGORIES = [
   "KIẾN THỨC TỔNG HỢP",
 ];
 
-interface VeDichPickAudiencePageProps {
+interface VeDichPickSpectatorPageProps {
   round: VeDichRound;
   matchCode?: string;
-  Layout: ComponentType<AudienceLayoutProps>;
+  Layout: ComponentType<SpectatorLayoutProps>;
 }
 
-export function VeDichPickAudiencePage({
+export function VeDichPickSpectatorPage({
   round,
   matchCode = "",
   Layout,
-}: VeDichPickAudiencePageProps) {
+}: VeDichPickSpectatorPageProps) {
   const { lastMessage } = useGameWebSocket();
-  const { players, applyPlayersInfo } = useAudiencePlayers();
+  const { players, applyPlayersInfo } = useSpectator();
 
   const [allQuestionCodes, setAllQuestionCodes] = useState<string[]>(() => {
     if (!matchCode) return [];

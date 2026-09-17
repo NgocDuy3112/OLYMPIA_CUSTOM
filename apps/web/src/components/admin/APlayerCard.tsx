@@ -76,7 +76,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
 
     setIsUpdating(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+      const res = await fetch(`${API_BASE_URL}/scoreboard/controller-adjust`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -86,7 +86,7 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
           match_code: matchCode,
           user_code: player.playerCode,
           new_score: newScore,
-          reason: "Admin manually adjusted score",
+          reason: "Controller manually adjusted score",
         }),
       });
 

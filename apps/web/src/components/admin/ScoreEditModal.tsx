@@ -65,7 +65,7 @@ export default function ScoreEditModal({
     if (!questionCode || !Number.isInteger(score) || score % 5 !== 0) return;
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/scoreboard/adjust`, {
+      const response = await fetch(`${API_BASE_URL}/scoreboard/controller-adjust`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -76,7 +76,7 @@ export default function ScoreEditModal({
           user_code: playerCode,
           question_code: questionCode,
           points: score,
-          reason: "admin_question_score_adjust",
+          reason: "controller_question_score_adjust",
         }),
       });
       const json = await response.json();

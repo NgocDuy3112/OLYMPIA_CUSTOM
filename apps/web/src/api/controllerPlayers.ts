@@ -13,7 +13,7 @@ type CacheEntry = { promise: Promise<Snapshot>; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 1500;
 
-export async function loadAdminPlayersSnapshot(
+export async function loadControllerPlayersSnapshot(
   matchCode: string,
   force = false,
 ): Promise<Snapshot> {
@@ -56,7 +56,7 @@ export async function loadAdminPlayersSnapshot(
   }
 }
 
-export function invalidateAdminPlayersSnapshot(matchCode?: string): void {
+export function invalidateControllerPlayersSnapshot(matchCode?: string): void {
   if (!matchCode) {
     cache.clear();
     return;

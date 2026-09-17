@@ -2,7 +2,7 @@
  * GiaiMaPage — Unified page for Giải Mã (decode game).
  *
  * Admin: clue grid management, hint reveal/hide, keyword phase, scoring.
- * MC: read-only audience view.
+ * MC: read-only spectator view.
  * Player: clue display, answer input, keyword submission.
  */
 import React, {
@@ -33,7 +33,7 @@ import { createLogger } from "@/utils/logger";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import { buildKeywordBanner } from "@/utils/keywordBanner";
 import { submitAnswer } from "@/api/answers";
-import { loadAdminPlayersSnapshot } from "@/api/adminPlayers";
+import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
 import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
@@ -48,7 +48,7 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { GiaiMaAudiencePage } from "@/components/shared/GiaiMaAudiencePage";
+import { GiaiMaSpectatorPage } from "@/components/shared/GiaiMaSpectatorPage";
 
 const logger = createLogger("GiaiMaPage");
 const TIME_LIMIT = 15;
@@ -367,7 +367,7 @@ const AdminGiaiMaView = () => {
   const loadPlayersState = useCallback(async () => {
     if (!currentMatchCode) return undefined;
     try {
-      const snapshot = await loadAdminPlayersSnapshot(currentMatchCode);
+      const snapshot = await loadControllerPlayersSnapshot(currentMatchCode);
       setPlayers((prev) =>
         buildPlayersSnapshot(
           snapshot.players,
@@ -784,7 +784,7 @@ const AdminGiaiMaView = () => {
         user_code: "",
         hint_content: hintText,
         target_players: selectedPlayerCodes,
-        audience_visible: selectedPlayerCodes.length > 0,
+        spectator_visible: selectedPlayerCodes.length > 0,
         ...(clueIndexForHint !== null
           ? {
               clue_index: clueIndexForHint,
@@ -877,7 +877,7 @@ const AdminGiaiMaView = () => {
             hint_content: text,
             hint_media_source: mediaUrl ?? undefined,
             target_players: [],
-            audience_visible: true,
+            spectator_visible: true,
             clue_index: i,
           });
         } catch {}
@@ -1775,7 +1775,7 @@ const PlayerGiaiMaView = () => {
 // ─── MC View ────────────────────────────────────────────────────────────────
 const MCGiaiMaView = () => {
   const { matchCode } = useRoleSession("mc");
-  return <GiaiMaAudiencePage Layout={PBasePageLayout} matchCode={matchCode} />;
+  return <GiaiMaSpectatorPage Layout={PBasePageLayout} matchCode={matchCode} />;
 };
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
