@@ -1,10 +1,12 @@
 #!/bin/bash
 set -e
 
+# Fresh DB install (single path — old DB is gone).
+#
+# Usage: ./scripts/rebuild.sh
 
 cd "$(dirname "$0")/.."
 
-# Load DB credentials from configs/.env (fall back to compose defaults)
 if [ -f configs/.env ]; then
   set -a
   source configs/.env
