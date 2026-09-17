@@ -219,13 +219,11 @@ const TournamentDetailPage: React.FC = () => {
               <span className="text-green-300">
                 Bạn là:{" "}
                 <span className="font-bold">
-                  {myMembership.role === "controller"
+                  {myMembership.role === "operator"
                     ? "Điều hành"
-                    : myMembership.role === "mc"
-                      ? "MC"
-                      : myMembership.role === "player"
-                        ? "Thí sinh"
-                        : "Khán giả"}
+                    : myMembership.role === "player"
+                      ? "Thí sinh"
+                      : "Khán giả"}
                 </span>
               </span>
               {myMembership.groupNumber && (
@@ -307,7 +305,8 @@ const TournamentDetailPage: React.FC = () => {
                   <PlayerGrid players={players} />
                   
                   {/* Role Manager - only visible to controllers */}
-                  {myMembership?.role === "controller" && (
+                  {(myMembership?.role === "operator" ||
+                    myMembership?.role === "controller") && (
                     <div className="mt-6 pt-6 border-t border-white/10">
                       <RoleManager
                         tournamentCode={tournament.tournamentCode}
@@ -350,8 +349,7 @@ const TournamentDetailPage: React.FC = () => {
                         <span>Bạn đã đăng ký</span>
                       </div>
                       {(myMembership.role === "player" ||
-                        myMembership.role === "controller" ||
-                        myMembership.role === "mc") && (
+                        myMembership.role === "operator") && (
                         <Button
                           fullWidth
                           variant="success"

@@ -21,6 +21,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
   const navLinks = [
     { label: "Giải đấu", path: "/" },
     { label: "Luật chơi", path: "/info/rules" },
+    { label: "Hồ sơ", path: "/profile" },
   ];
 
   const isActive = (path: string) => {
@@ -67,10 +68,13 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg">
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                >
                   <User size={16} className="text-gray-400" />
                   <span className="text-sm text-white">{userName}</span>
-                </div>
+                </button>
                 <button
                   onClick={onLogout}
                   className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"

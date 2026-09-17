@@ -4,10 +4,180 @@
 
 import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import { randomBytes } from "node:crypto";
+import { argon2id, argon2Verify } from "hash-wasm";
 import { eq } from "drizzle-orm";
 import { db, users } from "@oc/db";
 import { getEnv } from "../../config/env.js";
 import { AppError } from "../../utils/errors.js";
+
+// ── Session constants ──
+
+const SESSION_PREFIX = "session:";
+const SESSION_TTL = 86400;
+const COOKIE_NAME = "sid";
+
+// ── Password hashing (argon2id, 32MB / t=3 / p=1) ──
+
+const ARGON2_MEMORY_KIB = 32 * 1024;
+const ARGON2_ITERATIONS = 3;
+const ARGON2_PARALLELISM = 1;
+const ARGON2_HASH_LENGTH = 32;
+const MIN_PASSWORD_LENGTH = 8;
+
+function newSalt(): Uint8Array {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  return salt;
+}
+
+async function hashPassword(password: string): Promise<string> {
+  return argon2id({
+    password,
+    salt: newSalt(),
+    parallelism: ARGON2_PARALLELISM,
+    iterations: ARGON2_ITERATIONS,
+    memorySize: ARGON2_MEMORY_KIB,
+    hashLength: ARGON2_HASH_LENGTH,
+    outputType: "encoded",
+  });
+}
+
+async function verifyPassword(
+  password: string,
+  hash: string,
+): Promise<boolean> {
+  try {
+    return await argon2Verify({ password, hash });
+  } catch {
+    return false;
+  }
+}
+
+function validateEmailPassword(email: unknown, password: unknown): void {
+  if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new AppError(400, "Invalid email");
+  }
+  if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+    throw new AppError(
+      400,
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    );
+  }
+}
+
+function validateUsernamePassword(username: unknown, password: unknown): void {
+  if (typeof username !== "string" || !/^[a-z0-9_.-]{3,50}$/i.test(username)) {
+    throw new AppError(400, "Invalid username");
+  }
+  if (typeof password !== "string" || password.length < MIN_PASSWORD_LENGTH) {
+    throw new AppError(
+      400,
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+    );
+  }
+}
+
+// ── Seeded staff accounts (admin/operator via username+password) ──
+
+interface StaffCredential {
+  username: string;
+  hash: string;
+  role: string;
+  scopes: string;
+}
+
+function parseStaffCredentials(): StaffCredential[] {
+  const raw = getEnv().STAFF_CREDENTIALS.trim();
+  if (!raw) return [];
+  return raw
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [username, hash, role, scopes] = entry.split(":");
+      if (!username || !hash || !role) return null;
+      return {
+        username: username.toLowerCase(),
+        hash,
+        role,
+        scopes: scopes ?? "",
+      };
+    })
+    .filter((c): c is StaffCredential => c !== null);
+}
+
+function issueSessionCookie(
+  reply: FastifyReply,
+  sid: string,
+  redirectUrl?: string,
+) {
+  const env = getEnv();
+  reply.setCookie(COOKIE_NAME, sid, {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_TTL,
+  });
+  if (redirectUrl) return reply.redirect(redirectUrl);
+  return reply.send({ status: "success", message: "OK", data: null });
+}
+
+async function createUserSession(
+  app: FastifyInstance,
+  user: typeof users.$inferSelect,
+): Promise<string> {
+  return createSession(app.valkey, {
+    userId: user.id,
+    userCode: user.userCode,
+    role: user.role,
+    email: user.email,
+    userName: user.userName,
+    createdAt: Date.now(),
+    lastSeen: Date.now(),
+  });
+}
+
+// ── Login rate-limit (Valkey, per IP+email) ──
+
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_SEC = 15 * 60;
+const LOGIN_BLOCK_SEC = 15 * 60;
+
+function loginAttemptKey(id: string): string {
+  return `login:attempts:${id}`;
+}
+
+function loginBlockKey(id: string): string {
+  return `login:block:${id}`;
+}
+
+async function checkLoginRateLimit(
+  valkey: any,
+  id: string,
+): Promise<void> {
+  if (!valkey) return;
+  const blocked = await valkey.get(loginBlockKey(id));
+  if (blocked) {
+    throw new AppError(429, "Too many login attempts, try again later");
+  }
+}
+
+async function recordFailedLogin(valkey: any, id: string): Promise<void> {
+  if (!valkey) return;
+  const key = loginAttemptKey(id);
+  const count = await valkey.incr(key);
+  if (count === 1) await valkey.expire(key, LOGIN_WINDOW_SEC);
+  if (count >= LOGIN_MAX_ATTEMPTS) {
+    await valkey.set(loginBlockKey(id), "1", "EX", LOGIN_BLOCK_SEC);
+    await valkey.del(key);
+  }
+}
+
+async function clearFailedLogins(valkey: any, id: string): Promise<void> {
+  if (!valkey) return;
+  await valkey.del(loginAttemptKey(id));
+}
 
 // ── Types ──
 
@@ -23,10 +193,6 @@ interface SessionData {
 }
 
 // ── Session helpers ──
-
-const SESSION_PREFIX = "session:";
-const SESSION_TTL = 86400;
-const COOKIE_NAME = "sid";
 
 function generateSessionId(): string {
   return randomBytes(32).toString("base64url");
@@ -150,6 +316,13 @@ export function googleCallback(app: FastifyInstance) {
 
     if (existing.length > 0) {
       user = existing[0];
+      // Staff accounts (admin/operator) must use username login only
+      if (user.role === "admin" || user.role === "operator") {
+        throw new AppError(
+          403,
+          "Staff accounts must log in via username, not Google",
+        );
+      }
       await db
         .update(users)
         .set({
@@ -168,7 +341,7 @@ export function googleCallback(app: FastifyInstance) {
           userCode,
           userName: googleUser.name,
           avatarUrl: googleUser.picture,
-          role: "member",
+          role: "player",
         })
         .returning();
       user = inserted[0];
@@ -202,8 +375,7 @@ export function googleCallback(app: FastifyInstance) {
   };
 }
 
-export function getMe(app: FastifyInstance) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
+export function getMe(app: FastifyInstance) {  return async (request: FastifyRequest, reply: FastifyReply) => {
     const sid = request.cookies?.[COOKIE_NAME];
     if (!sid) {
       return reply
@@ -238,6 +410,127 @@ export function logout(app: FastifyInstance) {
     return reply
       .clearCookie(COOKIE_NAME, { path: "/" })
       .send({ status: "success", message: "Logged out", data: null });
+  };
+}
+
+// ── Email/password signup + login ──
+
+export function signup(app: FastifyInstance) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as {
+      email?: unknown;
+      password?: unknown;
+      userName?: unknown;
+      role?: unknown;
+    };
+    validateEmailPassword(body.email, body.password);
+    const email = (body.email as string).trim().toLowerCase();
+    const userName =
+      typeof body.userName === "string" && body.userName.trim()
+        ? body.userName.trim().slice(0, 100)
+        : email.split("@")[0];
+
+    // Lock signup: only player/spectator allowed. Admin grants operator later.
+    const requestedRole =
+      typeof body.role === "string" ? body.role : "player";
+    const role = requestedRole === "spectator" ? "spectator" : "player";
+
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    if (existing.length > 0) {
+      throw new AppError(409, "Email already registered");
+    }
+
+    const passwordHash = await hashPassword(body.password as string);
+    const userCode = `OC_U_${String(Date.now()).slice(-6)}`;
+    const inserted = await db
+      .insert(users)
+      .values({ email, userCode, userName, passwordHash, role })
+      .returning();
+    const sid = await createUserSession(app, inserted[0]);
+    return issueSessionCookie(reply, sid);
+  };
+}
+
+export function login(app: FastifyInstance) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { email?: unknown; password?: unknown };
+    validateEmailPassword(body.email, body.password);
+    const email = (body.email as string).trim().toLowerCase();
+    const ip =
+      (request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      request.ip;
+    const rateKey = `${ip}:${email}`;
+
+    await checkLoginRateLimit(app.valkey, rateKey);
+
+    const rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+    const user = rows[0];
+    // Staff accounts (admin/operator) use username login only — block email login
+    if (user && (user.role === "admin" || user.role === "operator")) {
+      await recordFailedLogin(app.valkey, rateKey);
+      throw new AppError(401, "Invalid email or password");
+    }
+    const ok =
+      user?.passwordHash &&
+      (await verifyPassword(body.password as string, user.passwordHash));
+    if (!user || !ok) {
+      await recordFailedLogin(app.valkey, rateKey);
+      throw new AppError(401, "Invalid email or password");
+    }
+
+    await clearFailedLogins(app.valkey, rateKey);
+    const sid = await createUserSession(app, user);
+    return issueSessionCookie(reply, sid);
+  };
+}
+
+// POST /auth/staff-login — username+password for pre-seeded admin/operator
+export function staffLogin(app: FastifyInstance) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const body = request.body as { username?: unknown; password?: unknown };
+    validateUsernamePassword(body.username, body.password);
+    const username = (body.username as string).trim().toLowerCase();
+    const ip =
+      (request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+      request.ip;
+    const rateKey = `${ip}:staff:${username}`;
+
+    await checkLoginRateLimit(app.valkey, rateKey);
+
+    const cred = parseStaffCredentials().find((c) => c.username === username);
+    const ok =
+      cred && (await verifyPassword(body.password as string, cred.hash));
+    if (!cred || !ok) {
+      await recordFailedLogin(app.valkey, rateKey);
+      throw new AppError(401, "Invalid username or password");
+    }
+
+    await clearFailedLogins(app.valkey, rateKey);
+    const sid = await createSession(app.valkey, {
+      userId: `staff:${cred.username}`,
+      userCode: cred.username.toUpperCase(),
+      role: cred.role,
+      email: "",
+      userName: cred.username,
+      createdAt: Date.now(),
+      lastSeen: Date.now(),
+    });
+    // Stash scopes in session via operatorScopes lookup at guard time
+    await app.valkey.set(
+      `staff:scopes:${sid}`,
+      cred.scopes,
+      "EX",
+      SESSION_TTL,
+    );
+    return issueSessionCookie(reply, sid);
   };
 }
 

@@ -27,6 +27,7 @@ interface SidebarItem {
 const SIDEBAR_ITEMS: SidebarItem[] = [
   { label: "Giải đấu", path: "/", icon: <Swords size={18} /> },
   { label: "Luật chơi", path: "/info/rules", icon: <BookOpen size={18} /> },
+  { label: "Hồ sơ", path: "/profile", icon: <User size={18} /> },
 ];
 
 export const PublicSidebar: React.FC<PublicSidebarProps> = ({
@@ -118,10 +119,13 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
         <div className="p-3 border-t border-white/10">
           {isAuthenticated ? (
             <div className="space-y-1">
-              <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg">
+              <button
+                onClick={() => go("/profile")}
+                className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+              >
                 <User size={16} className="text-gray-400 shrink-0" />
                 <span className="text-sm text-white truncate">{userName}</span>
-              </div>
+              </button>
               <button
                 onClick={() => {
                   onLogout?.();

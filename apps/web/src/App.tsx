@@ -10,6 +10,8 @@ const MCRoutes = lazy(() => import("@/routes/MCRoutes"));
 const SpectatorRoutes = lazy(() => import("@/routes/SpectatorRoutes"));
 const TournamentRoutes = lazy(() => import("@/routes/TournamentRoutes"));
 const OverlayRoutes = lazy(() => import("@/routes/OverlayRoutes"));
+const ProfileRoutes = lazy(() => import("@/routes/ProfileRoutes"));
+const PublicProfilePage = lazy(() => import("@/pages/profile/PublicProfilePage"));
 
 function App() {
   return (
@@ -25,6 +27,8 @@ function App() {
             <Route path="/mc/*" element={<MCRoutes />} />
             <Route path="/info/rules" element={<RulesPage />} />
             <Route path="/tournament/*" element={<TournamentRoutes />} />
+            <Route path="/profile" element={<ProfileRoutes />} />
+            <Route path="/u/:userCode" element={<PublicProfilePage />} />
             <Route path="/spectator/*" element={<SpectatorRoutes />} />
             <Route path="/overlay/*" element={<OverlayRoutes />} />
           </Routes>

@@ -18,6 +18,7 @@ declare module "fastify" {
       contentType?: string,
     ) => Promise<void>;
     s3PresignGet: (key: string) => Promise<string>;
+    s3PresignPut: (key: string, contentType?: string) => Promise<string>;
     s3Exists: (key: string) => Promise<boolean>;
   }
 }
@@ -32,6 +33,9 @@ async function s3Plugin(app: FastifyInstance) {
       throw new Error("S3 not configured");
     });
     app.decorate("s3PresignGet", async () => {
+      throw new Error("S3 not configured");
+    });
+    app.decorate("s3PresignPut", async () => {
       throw new Error("S3 not configured");
     });
     app.decorate("s3Exists", async () => false);
@@ -70,6 +74,18 @@ async function s3Plugin(app: FastifyInstance) {
     const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
     return getSignedUrl(s3, cmd, { expiresIn: env.S3_PRESIGNED_URL_EXPIRY });
   });
+
+  app.decorate(
+    "s3PresignPut",
+    async (key: string, contentType?: string) => {
+      const cmd = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: contentType,
+      });
+      return getSignedUrl(s3, cmd, { expiresIn: 600 });
+    },
+  );
 
   app.decorate("s3Exists", async (key: string) => {
     try {

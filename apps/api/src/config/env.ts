@@ -30,6 +30,11 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   GOOGLE_REDIRECT_URI: z.string().url(),
 
+  // ── Seeded staff accounts (admin/operator login via username+password) ──
+  // Format: "username:argon2id_hash:role:scopes" separated by ";".
+  // Example: "admin:$argon2id$...:admin:;mc1:$argon2id$...:operator:mc"
+  STAFF_CREDENTIALS: z.string().default(""),
+
   // ── S3 ──
   S3_ENDPOINT_URL: z.string().optional(),
   S3_REGION: z.string().default("vn-hcm-1"),

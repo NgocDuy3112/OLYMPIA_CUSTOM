@@ -55,14 +55,20 @@ const VaoPhongButton = ({
   );
 };
 
+type GlobalRole = "admin" | "operator" | "player" | "spectator";
+type OperatorScope = "question_creator" | "controller" | "mc";
+
 interface UserData {
   user_code: string;
   user_name: string;
   email: string | null;
-  role: "player" | "mc" | "admin";
+  role: GlobalRole;
+  operator_scopes?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+const OPERATOR_SCOPES: OperatorScope[] = ["question_creator", "controller", "mc"];
 
 interface MatchData {
   match_code: string;
@@ -585,6 +591,46 @@ const AGameManagingPage = () => {
     [authHeaders, fetchUsers],
   );
 
+  const grantOperator = useCallback(
+    async (userCode: string) => {
+      const input = window.prompt(
+        `Cấp operator cho ${userCode}.\nNhập scopes (phân cách dấu phẩy): question_creator, controller, mc`,
+        "controller,mc",
+      );
+      if (input === null) return;
+      const scopes = input
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => OPERATOR_SCOPES.includes(s as OperatorScope));
+      if (scopes.length === 0) {
+        alert("Scopes không hợp lệ");
+        return;
+      }
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/users/${encodeURIComponent(userCode)}/operator`,
+          {
+            method: "PUT",
+            headers: authHeaders(),
+            body: JSON.stringify({ scopes }),
+          },
+        );
+        const json = await res.json();
+        if (res.ok) {
+          await fetchUsers();
+        } else {
+          alert(
+            `Cấp quyền thất bại: ${json.detail ?? json.message ?? "Lỗi không xác định"}`,
+          );
+        }
+      } catch (err) {
+        logger.error("Error granting operator:", err);
+        alert("Lỗi kết nối khi cấp quyền");
+      }
+    },
+    [authHeaders, fetchUsers],
+  );
+
   const fetchScoreboard = useCallback(async () => {
     const code = matchCode;
     if (!code) return;
@@ -906,9 +952,10 @@ const AGameManagingPage = () => {
               className="px-2 py-1 rounded bg-blue-950 border border-blue-700 text-blue-200 text-xs"
             >
               <option value="all">Tất cả</option>
-              <option value="player">Thí sinh</option>
-              <option value="mc">MC</option>
               <option value="admin">Admin</option>
+              <option value="operator">Operator</option>
+              <option value="player">Thí sinh</option>
+              <option value="spectator">Khán giả</option>
             </select>
           </div>
           <div className="flex gap-2">
@@ -964,7 +1011,14 @@ const AGameManagingPage = () => {
                           <span className="text-gray-500 italic">—</span>
                         )}
                       </td>
-                      <td className="py-2 px-2 capitalize">{u.role}</td>
+                      <td className="py-2 px-2">
+                        <span className="capitalize">{u.role}</span>
+                        {u.role === "operator" && u.operator_scopes && (
+                          <span className="block text-[11px] text-blue-300 font-mono">
+                            {u.operator_scopes}
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2 px-2 text-right">
                         <div className="flex gap-1 justify-end">
                           <button
@@ -977,6 +1031,13 @@ const AGameManagingPage = () => {
                             title="Sửa thông tin"
                           >
                             <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => void grantOperator(u.user_code)}
+                            className="p-1.5 rounded bg-amber-600/70 hover:bg-amber-500 transition-colors"
+                            title="Cấp operator (question_creator, controller, mc)"
+                          >
+                            <Users size={13} />
                           </button>
                           <button
                             onClick={() => deleteUser(u.user_code, u.user_name)}

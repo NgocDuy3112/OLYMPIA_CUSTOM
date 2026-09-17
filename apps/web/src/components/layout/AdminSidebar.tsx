@@ -32,6 +32,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const SIDEBAR_ITEMS = [
     { label: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} /> },
+    { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
     ...(isAdmin
       ? [
           {

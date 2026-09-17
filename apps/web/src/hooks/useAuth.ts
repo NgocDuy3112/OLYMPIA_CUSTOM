@@ -2,10 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { API_BASE_URL } from "@/configs";
 import { clearAuthSession } from "@/utils/storage";
 
+export type GlobalRole = "admin" | "operator" | "player" | "spectator";
+
+export type OperatorScope = "question_creator" | "controller" | "mc";
+
 export interface AuthUser {
   userId: string;
   userCode: string;
-  role: "admin" | "controller" | "member" | "spectator";
+  role: GlobalRole;
+  operatorScopes?: string | null;
   email: string;
   userName: string;
 }

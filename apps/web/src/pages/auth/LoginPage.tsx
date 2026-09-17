@@ -1,15 +1,143 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
 import { API_BASE_URL } from "@/configs";
 
 const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<"player" | "staff">("player");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [staffPassword, setStaffPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
   const handleGoogleLogin = () => {
     window.location.href = `${API_BASE_URL}/auth/google`;
+  };
+
+  const handlePlayerLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        throw new Error(json.message ?? "Đăng nhập thất bại");
+      }
+      navigate("/profile");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStaffLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/auth/staff-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password: staffPassword }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.status !== "success") {
+        throw new Error(json.message ?? "Đăng nhập thất bại");
+      }
+      navigate("/admin");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <BaseAuthLayout title="OLYMPIA CUSTOM" subtitle="Đăng nhập">
       <div className="flex flex-col gap-4 items-center">
+        <div className="flex w-full rounded-lg overflow-hidden border border-gray-600">
+          <button
+            onClick={() => setTab("player")}
+            className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${tab === "player" ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
+          >
+            Thí sinh
+          </button>
+          <button
+            onClick={() => setTab("staff")}
+            className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${tab === "staff" ? "bg-blue-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
+          >
+            Admin / Vận hành
+          </button>
+        </div>
+
+        {tab === "player" ? (
+          <form onSubmit={(e) => void handlePlayerLogin(e)} className="flex flex-col gap-3 w-full">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              required
+              className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Mật khẩu"
+              required
+              minLength={8}
+              className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+            />
+            {error && <p className="text-xs text-red-400">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={(e) => void handleStaffLogin(e)} className="flex flex-col gap-3 w-full">
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Username (do admin cấp)"
+              required
+              className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+            />
+            <input
+              type="password"
+              value={staffPassword}
+              onChange={(e) => setStaffPassword(e.target.value)}
+              placeholder="Mật khẩu"
+              required
+              minLength={8}
+              className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+            />
+            {error && <p className="text-xs text-red-400">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {loading ? "Đang đăng nhập..." : "Đăng nhập vận hành"}
+            </button>
+          </form>
+        )}
+
         <button
           onClick={handleGoogleLogin}
           className="flex items-center gap-3 px-6 py-3 bg-white text-gray-800 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 w-full justify-center touch-target"

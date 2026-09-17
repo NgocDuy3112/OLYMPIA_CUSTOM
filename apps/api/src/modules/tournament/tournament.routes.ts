@@ -537,6 +537,37 @@ export async function tournamentRoutes(app: FastifyInstance) {
     },
   );
 
+  // GET /tournaments/me — tournaments current user joined
+  app.get(
+    "/tournaments/me",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const session = (request as any).session as { userId: string };
+      const rows = await db
+        .select({
+          tournamentCode: tournaments.tournamentCode,
+          tournamentName: tournaments.tournamentName,
+          tournamentFormat: tournaments.tournamentFormat,
+          status: tournaments.status,
+          role: tournamentPlayers.role,
+          groupNumber: tournamentPlayers.groupNumber,
+        })
+        .from(tournamentPlayers)
+        .innerJoin(
+          tournaments,
+          eq(tournamentPlayers.tournamentId, tournaments.id),
+        )
+        .where(
+          and(
+            eq(tournamentPlayers.playerId, session.userId),
+            eq(tournaments.isDeleted, false),
+          ),
+        )
+        .orderBy(desc(tournaments.createdAt));
+      return reply.send({ status: "success", message: "OK", data: rows });
+    },
+  );
+
   // PUT /tournaments/:code/players/:userId/role — Assign role to player
   app.put(
     "/tournaments/:code/players/:userId/role",

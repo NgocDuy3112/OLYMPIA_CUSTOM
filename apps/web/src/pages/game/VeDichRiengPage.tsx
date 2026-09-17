@@ -509,14 +509,6 @@ const AdminVeDichRiengView = () => {
       if (currentMatchCode) {
         void sendMessage({ type: "clear_buzz", question_code: currentQuestion.questionCode });
         void sendMessage({ type: "clear_answers", user_code: "" });
-        void sendMessage({
-          type: "send_question",
-          user_code: "",
-          question_code: questionCode,
-          content: "",
-          media_source: undefined,
-        });
-        void sendMessage({ type: "vd_power_window_open", duration: 5 });
       }
       try {
         const res = await fetch(
@@ -540,11 +532,7 @@ const AdminVeDichRiengView = () => {
         } else q = { ...DEFAULT_QUESTION, questionCode };
         setCurrentQuestion(q);
         pendingQuestionRef.current = { questionCode, question: q };
-        clearPendingBroadcastTimer();
-        pendingBroadcastTimerRef.current = window.setTimeout(() => {
-          pendingBroadcastTimerRef.current = null;
-          broadcastPendingVeDichQuestion();
-        }, 5500);
+        broadcastPendingVeDichQuestion();
       } catch (err) {
         logger.error("handleQuestionActivate failed:", err);
       }
@@ -561,6 +549,12 @@ const AdminVeDichRiengView = () => {
       setPlayers,
     ],
   );
+
+  const handleOpenPowerWindow = useCallback(() => {
+    if (!currentMatchCode || !currentQuestion.questionCode || isTimerRunning)
+      return;
+    void sendMessage({ type: "vd_power_window_open", duration: 5 });
+  }, [currentMatchCode, currentQuestion.questionCode, isTimerRunning, sendMessage]);
 
   const startTheClock = useCallback(() => {
     if (!currentQuestion.questionCode || isTimerRunning || isTimerLocked)
@@ -1044,6 +1038,16 @@ const AdminVeDichRiengView = () => {
       topControlButtons={null}
       playerSectionButtons={
         <>
+          <AControlButton
+            onClick={handleOpenPowerWindow}
+            disabled={
+              !currentQuestion.questionCode ||
+              isTimerRunning
+            }
+          >
+            <Star size={18} />
+            <span className="ml-2 font-bold">MỞ POWER</span>
+          </AControlButton>
           <AControlButton
             onClick={startTheClock}
             disabled={
