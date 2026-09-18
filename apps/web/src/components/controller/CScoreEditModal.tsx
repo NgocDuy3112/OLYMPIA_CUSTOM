@@ -1,32 +1,33 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
+import { createLogger } from "@/utils/logger";
+
+const logger = createLogger("CScoreEditModal");
 
 interface QuestionOption {
   question_code: string;
   content?: string;
 }
 
-interface ScoreEditModalProps {
+interface CScoreEditModalProps {
   open: boolean;
   playerCode: string;
   playerName: string;
   matchCode: string;
-  token: string;
   currentScore: number;
   onClose: () => void;
   onSaved: (score: number) => void;
 }
 
-export default function ScoreEditModal({
+export default function CScoreEditModal({
   open,
   playerCode,
   playerName,
   matchCode,
-  token,
   currentScore,
   onClose,
   onSaved,
-}: ScoreEditModalProps) {
+}: CScoreEditModalProps) {
   const [questions, setQuestions] = useState<QuestionOption[]>([]);
   const [questionCode, setQuestionCode] = useState("");
   const [points, setPoints] = useState("0");
@@ -40,7 +41,7 @@ export default function ScoreEditModal({
     fetch(
       `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}`,
       {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       },
     )
       .then((response) => response.json())
@@ -50,13 +51,16 @@ export default function ScoreEditModal({
         setQuestions(list);
         setQuestionCode((value) => value || list[0]?.question_code || "");
       })
+      .catch((err) => {
+        logger.error("Error fetching questions:", err);
+      })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [open, matchCode, token]);
+  }, [open, matchCode]);
 
   if (!open) return null;
 
@@ -69,8 +73,8 @@ export default function ScoreEditModal({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           match_code: matchCode,
           user_code: playerCode,
@@ -81,7 +85,7 @@ export default function ScoreEditModal({
       });
       const json = await response.json();
       if (!response.ok || json.status !== "success")
-        throw new Error(json.detail ?? "Không thể cập nhật điểm");
+        throw new Error(json.detail ?? json.message ?? "Không thể cập nhật điểm");
       const scoreboard = json.data?.scoreboard ?? [];
       const updated = scoreboard.find(
         (entry: { user_code: string; cumulative_score: number }) =>

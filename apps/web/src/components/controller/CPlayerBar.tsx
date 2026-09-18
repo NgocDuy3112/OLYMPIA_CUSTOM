@@ -5,7 +5,7 @@ import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
 import { requestScoreReview } from "@/api/scoreReviews";
-import ScoreEditModal from "@/components/admin/ScoreEditModal";
+import CScoreEditModal from "@/components/controller/CScoreEditModal";
 
 interface CPlayerBarProps {
   player: PlayerStatus;
@@ -102,7 +102,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
 
   const handleUpdateScore = async () => {
     const newScore = parseInt(editScoreValue, 10);
-    if (isNaN(newScore) || !token || !matchCode) return;
+    if (isNaN(newScore) || !matchCode) return;
     if (newScore % 5 !== 0) {
       alert("Điểm mới phải là bội số của 5.");
       return;
@@ -114,8 +114,8 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
+        credentials: "include",
         body: JSON.stringify({
           match_code: matchCode,
           user_code: player.playerCode,
@@ -283,12 +283,11 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
         </div>
       </div>
 
-      <ScoreEditModal
+      <CScoreEditModal
         open={showQuestionScoreModal}
         playerCode={player.playerCode}
         playerName={player.playerName}
         matchCode={matchCode ?? ""}
-        token={token ?? ""}
         currentScore={player.playerScore}
         onClose={() => setShowQuestionScoreModal(false)}
         onSaved={(score) => {
