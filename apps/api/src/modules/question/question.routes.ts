@@ -1,11 +1,14 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import { db, questions, matches, tournamentPlayers } from "@oc/db";
 import { requireAuth } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { writeAudit } from "../audit/audit.service.js";
+import { drizzleQuestionRepo, type QuestionRepo } from "./question.repo.js";
 
-export async function questionRoutes(app: FastifyInstance) {
+export async function questionRoutes(
+  app: FastifyInstance,
+  opts: { repo?: QuestionRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleQuestionRepo;
   function getScopes(session: { operatorScopes?: string | null }): string[] {
     return (session.operatorScopes ?? "")
       .split(",")
@@ -26,29 +29,13 @@ export async function questionRoutes(app: FastifyInstance) {
     userId: string,
     matchId: string,
   ): Promise<boolean> {
-    const matchRows = await db
-      .select({ tournamentId: matches.tournamentId })
-      .from(matches)
-      .where(eq(matches.id, matchId))
-      .limit(1);
-    const tournamentId = matchRows[0]?.tournamentId;
-    if (!tournamentId) return false;
-    const membership = await db
-      .select({ role: tournamentPlayers.role })
-      .from(tournamentPlayers)
-      .where(
-        and(
-          eq(tournamentPlayers.tournamentId, tournamentId),
-          eq(tournamentPlayers.playerId, userId),
-        ),
-      )
-      .limit(1);
+    const role = await repo.findTournamentRole(userId, matchId);
     // Accept both names: global scope is question_creator,
     // tournament role is qauthor (legacy rows may hold question_author).
     return (
-      membership[0]?.role === "qauthor" ||
-      membership[0]?.role === "question_author" ||
-      membership[0]?.role === "question_creator"
+      role === "qauthor" ||
+      role === "question_author" ||
+      role === "question_creator"
     );
   }
 
@@ -88,30 +75,15 @@ export async function questionRoutes(app: FastifyInstance) {
     }
     const qCode = question_code ?? questionCode;
     if (qCode) {
-      const rows = await db
-        .select()
-        .from(questions)
-        .where(
-          and(
-            eq(questions.matchId, matchId),
-            eq(questions.questionCode, qCode),
-            eq(questions.isDeleted, false),
-          ),
-        )
-        .limit(1);
-      if (rows.length === 0) {
+      const row = await repo.findByCode(matchId, qCode);
+      if (!row) {
         return reply
           .code(404)
           .send({ status: "error", message: "Question not found", data: null });
       }
-      return reply.send({ status: "success", message: "OK", data: rows[0] });
+      return reply.send({ status: "success", message: "OK", data: row });
     }
-    const rows = await db
-      .select()
-      .from(questions)
-      .where(
-        and(eq(questions.matchId, matchId), eq(questions.isDeleted, false)),
-      );
+    const rows = await repo.listByMatchId(matchId);
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 
@@ -123,12 +95,7 @@ export async function questionRoutes(app: FastifyInstance) {
         .code(404)
         .send({ status: "error", message: "Match not found", data: null });
     }
-    const rows = await db
-      .select()
-      .from(questions)
-      .where(
-        and(eq(questions.matchId, matchId), eq(questions.isDeleted, false)),
-      );
+    const rows = await repo.listByMatchId(matchId);
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 
@@ -143,23 +110,13 @@ export async function questionRoutes(app: FastifyInstance) {
         .code(404)
         .send({ status: "error", message: "Match not found", data: null });
     }
-    const rows = await db
-      .select()
-      .from(questions)
-      .where(
-        and(
-          eq(questions.matchId, matchId),
-          eq(questions.questionCode, questionCode),
-          eq(questions.isDeleted, false),
-        ),
-      )
-      .limit(1);
-    if (rows.length === 0) {
+    const row = await repo.findByCode(matchId, questionCode);
+    if (!row) {
       return reply
         .code(404)
         .send({ status: "error", message: "Question not found", data: null });
     }
-    return reply.send({ status: "success", message: "OK", data: rows[0] });
+    return reply.send({ status: "success", message: "OK", data: row });
   });
 
   app.post(
@@ -204,18 +161,15 @@ export async function questionRoutes(app: FastifyInstance) {
         : typeof raw.options === "string"
           ? raw.options
           : null;
-      const result = await db
-        .insert(questions)
-        .values({
-          matchId: check.matchId,
-          questionCode,
-          content: raw.content,
-          answer: raw.answer,
-          explanation: raw.explanation,
-          mediaUrl: raw.mediaUrl ?? raw.media_url,
-          options,
-        })
-        .returning({ id: questions.id });
+      const result = await repo.create({
+        matchId: check.matchId,
+        questionCode,
+        content: raw.content,
+        answer: raw.answer,
+        explanation: raw.explanation,
+        mediaUrl: raw.mediaUrl ?? raw.media_url,
+        options,
+      });
       void writeAudit({
         actionType: "QUESTION_USED",
         actorCode: session?.userCode ?? null,
@@ -225,7 +179,7 @@ export async function questionRoutes(app: FastifyInstance) {
       return reply.code(201).send({
         status: "success",
         message: "Question created",
-        data: { id: result[0].id },
+        data: { id: result.id },
       });
     },
   );
@@ -261,35 +215,22 @@ export async function questionRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const updates: Record<string, unknown> = { updatedAt: new Date() };
-      if (raw.content !== undefined) updates.content = raw.content;
-      if (raw.answer !== undefined) updates.answer = raw.answer;
-      if (raw.explanation !== undefined) updates.explanation = raw.explanation;
-      if (raw.mediaUrl !== undefined || raw.media_url !== undefined)
-        updates.mediaUrl = raw.mediaUrl ?? raw.media_url;
-      if (raw.options !== undefined)
-        updates.options = Array.isArray(raw.options)
-          ? JSON.stringify(raw.options)
-          : raw.options;
-      if (Object.keys(updates).length <= 1) {
+      const result = await repo.update(check.matchId, questionCode, {
+        content: raw.content,
+        answer: raw.answer,
+        explanation: raw.explanation,
+        mediaUrl: raw.mediaUrl ?? raw.media_url,
+        options: raw.options,
+      });
+      if (!result) {
         return reply.code(400).send({
           status: "error",
           message: "Nothing to update",
           data: null,
         });
       }
-      const result = await db
-        .update(questions)
-        .set(updates)
-        .where(
-          and(
-            eq(questions.matchId, check.matchId),
-            eq(questions.questionCode, questionCode),
-            eq(questions.isDeleted, false),
-          ),
-        )
-        .returning({ id: questions.id });
-      if (result.length === 0) {
+      const row = await repo.findByCode(check.matchId, questionCode);
+      if (!row) {
         return reply.code(404).send({
           status: "error",
           message: "Question not found",
@@ -306,7 +247,7 @@ export async function questionRoutes(app: FastifyInstance) {
       return reply.send({
         status: "success",
         message: "Question updated",
-        data: { id: result[0].id },
+        data: { id: result.id },
       });
     },
   );
@@ -328,12 +269,7 @@ export async function questionRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      await db
-        .update(questions)
-        .set({ isDeleted: true, updatedAt: new Date() })
-        .where(
-          and(eq(questions.matchId, check.matchId), eq(questions.isDeleted, false)),
-        );
+      await repo.softDeleteAll(check.matchId);
       void writeAudit({
         actionType: "QUESTION_USED",
         actorCode: session?.userCode ?? null,
@@ -369,18 +305,8 @@ export async function questionRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const result = await db
-        .update(questions)
-        .set({ isDeleted: true, updatedAt: new Date() })
-        .where(
-          and(
-            eq(questions.matchId, check.matchId),
-            eq(questions.questionCode, questionCode),
-            eq(questions.isDeleted, false),
-          ),
-        )
-        .returning({ id: questions.id });
-      if (result.length === 0) {
+      const deleted = await repo.softDeleteOne(check.matchId, questionCode);
+      if (!deleted) {
         return reply.code(404).send({
           status: "error",
           message: "Question not found",

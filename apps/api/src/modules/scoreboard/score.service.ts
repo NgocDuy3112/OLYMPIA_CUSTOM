@@ -1,6 +1,8 @@
-import { and, eq } from "drizzle-orm";
-import { db, matches, questions, records, users } from "@oc/db";
 import type { ScoreDelta } from "@oc/engine";
+import { drizzleScoreRepo, type ScoreRepo } from "./score.repo.js";
+import { drizzleMatchRepo, type MatchRepo } from "../match/match.repo.js";
+import { resolveUserId } from "../../state/id-cache.js";
+import type Redis from "ioredis";
 
 interface ScoreAction {
   userCode: string;
@@ -8,60 +10,61 @@ interface ScoreAction {
   payload: Record<string, unknown>;
 }
 
+interface ScoreServiceDeps {
+  scoreRepo?: ScoreRepo;
+  matchRepo?: MatchRepo;
+  valkey?: Pick<Redis, "get"> | null;
+}
+
 /** Persist engine score deltas as immutable per-question records. */
 export async function persistScoreDeltas(
   matchCode: string,
   action: ScoreAction,
   deltas: ScoreDelta[],
+  deps: ScoreServiceDeps = {},
+  valkey?: Pick<Redis, "get"> & {
+    get(key: string): Promise<string | null>;
+  } & Record<string, unknown>,
 ): Promise<void> {
   if (deltas.length === 0) return;
+  const scoreRepo = deps.scoreRepo ?? drizzleScoreRepo;
+  const matchRepo = deps.matchRepo ?? drizzleMatchRepo;
 
-  const matchRows = await db
-    .select({ id: matches.id })
-    .from(matches)
-    .where(and(eq(matches.matchCode, matchCode), eq(matches.isDeleted, false)))
-    .limit(1);
-  if (matchRows.length === 0) throw new Error(`Match not found: ${matchCode}`);
+  const matchRow = await matchRepo.findByCode(matchCode);
+  if (!matchRow) throw new Error(`Match not found: ${matchCode}`);
 
   const questionCode = String(action.payload.question_code ?? "");
   if (!questionCode) throw new Error("Score action is missing question_code");
 
-  const questionRows = await db
-    .select({ id: questions.id })
-    .from(questions)
-    .where(
-      and(
-        eq(questions.matchId, matchRows[0].id),
-        eq(questions.questionCode, questionCode),
-        eq(questions.isDeleted, false),
-      ),
-    )
-    .limit(1);
-  if (questionRows.length === 0)
-    throw new Error(`Question not found: ${questionCode}`);
+  const questionRow = await scoreRepo.findQuestion(matchRow.id, questionCode);
+  if (!questionRow) throw new Error(`Question not found: ${questionCode}`);
 
-  const userCodes = [...new Set(deltas.map((delta) => delta.userCode))];
-  const userRows = await db
-    .select({ id: users.id, userCode: users.userCode })
-    .from(users)
-    .where(eq(users.isDeleted, false));
-  const userIds = new Map(
-    userRows
-      .filter((user) => userCodes.includes(user.userCode))
-      .map((user) => [user.userCode, user.id]),
-  );
-
-  const rows = deltas.map((delta) => {
-    const playerId = userIds.get(delta.userCode);
+  const store = (deps.valkey ?? valkey ?? null) as Parameters<
+    typeof resolveUserId
+  >[0];
+  const rows: Array<{
+    points: number;
+    playerId: string;
+    matchId: string;
+    questionId: string;
+    questionCode: string;
+  }> = [];
+  for (const delta of [...new Set(deltas.map((d) => d.userCode))].map(
+    (userCode) => deltas.find((d) => d.userCode === userCode)!,
+  )) {
+    let playerId: string | null = null;
+    if (store) {
+      playerId = await resolveUserId(store, delta.userCode);
+    }
     if (!playerId) throw new Error(`User not found: ${delta.userCode}`);
-    return {
+    rows.push({
       points: delta.points,
       playerId,
-      matchId: matchRows[0].id,
-      questionId: questionRows[0].id,
+      matchId: matchRow.id,
+      questionId: questionRow.id,
       questionCode,
-    };
-  });
+    });
+  }
 
-  await db.insert(records).values(rows);
+  await scoreRepo.insertRecords(rows);
 }

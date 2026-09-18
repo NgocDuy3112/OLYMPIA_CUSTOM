@@ -1,16 +1,18 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and, desc, sql } from "drizzle-orm";
-import { db, tournaments, tournamentPlayers, users, matches, records } from "@oc/db";
 import { requireRole, requireAuth } from "../auth/auth.service.js";
+import {
+  drizzleTournamentRepo,
+  type TournamentRepo,
+} from "./tournament.repo.js";
 
-export async function tournamentRoutes(app: FastifyInstance) {
+export async function tournamentRoutes(
+  app: FastifyInstance,
+  opts: { repo?: TournamentRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleTournamentRepo;
   // GET /tournaments — List all tournaments
   app.get("/tournaments", async (_request, reply) => {
-    const rows = await db
-      .select()
-      .from(tournaments)
-      .where(eq(tournaments.isDeleted, false))
-      .orderBy(desc(tournaments.createdAt));
+    const rows = await repo.list();
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 
@@ -41,28 +43,23 @@ export async function tournamentRoutes(app: FastifyInstance) {
       }
 
       const session = (request as any).session;
-      const tournamentCode = `OC3_T_${Date.now().toString(36).toUpperCase()}`;
 
-      const result = await db
-        .insert(tournaments)
-        .values({
-          tournamentCode,
-          tournamentName: body.tournamentName,
-          description: body.description,
-          tournamentFormat: body.tournamentFormat || "oc3",
-          startDate: body.startDate,
-          endDate: body.endDate,
-          maxPlayers: body.maxPlayers,
-          venue: body.venue,
-          notes: body.notes,
-          createdBy: session.userId,
-        })
-        .returning();
+      const created = await repo.create({
+        tournamentName: body.tournamentName,
+        description: body.description,
+        tournamentFormat: body.tournamentFormat || "oc3",
+        startDate: body.startDate,
+        endDate: body.endDate,
+        maxPlayers: body.maxPlayers,
+        venue: body.venue,
+        notes: body.notes,
+        createdBy: session.userId,
+      });
 
       return reply.code(201).send({
         status: "success",
         message: "Tournament created",
-        data: result[0],
+        data: created,
       });
     },
   );
@@ -70,64 +67,21 @@ export async function tournamentRoutes(app: FastifyInstance) {
   // GET /tournaments/:code — Get tournament details
   app.get("/tournaments/:code", async (request, reply) => {
     const { slug } = request.params as { slug: string };
-    const rows = await db
-      .select()
-      .from(tournaments)
-      .where(
-        and(
-          eq(tournaments.tournamentCode, slug),
-          eq(tournaments.isDeleted, false),
-        ),
-      )
-      .limit(1);
+    const tournament = await repo.findByCode(slug);
 
-    if (rows.length === 0) {
+    if (!tournament) {
       return reply
         .code(404)
         .send({ status: "error", message: "Tournament not found", data: null });
     }
 
-    // Get players in this tournament
-    const players = await db
-      .select({
-        id: tournamentPlayers.id,
-        role: tournamentPlayers.role,
-        groupNumber: tournamentPlayers.groupNumber,
-        notes: tournamentPlayers.notes,
-        userCode: users.userCode,
-        userName: users.userName,
-        userId: users.id,
-        email: users.email,
-      })
-      .from(tournamentPlayers)
-      .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
-      .where(eq(tournamentPlayers.tournamentId, rows[0].id));
-
-    // Get matches linked to this tournament
-    const linkedMatches = await db
-      .select({
-        id: matches.id,
-        matchSlug: matches.matchSlug,
-        matchPin: matches.matchPin,
-        matchName: matches.matchName,
-        matchStatus: matches.matchStatus,
-        tournamentFormat: matches.tournamentFormat,
-        videoUrl: matches.videoUrl,
-        createdAt: matches.createdAt,
-      })
-      .from(matches)
-      .where(
-        and(
-          eq(matches.tournamentId, rows[0].id),
-          eq(matches.isDeleted, false),
-        ),
-      )
-      .orderBy(desc(matches.createdAt));
+    const players = await repo.listMembers(tournament.id);
+    const linkedMatches = await repo.listMatches(tournament.id);
 
     return reply.send({
       status: "success",
       message: "OK",
-      data: { ...rows[0], players, matches: linkedMatches },
+      data: { ...tournament, players, matches: linkedMatches },
     });
   });
 
@@ -149,7 +103,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
         notes?: string;
       };
 
-      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      const updates: Record<string, unknown> = {};
       if (body.tournamentName) updates.tournamentName = body.tournamentName;
       if (body.description !== undefined)
         updates.description = body.description;
@@ -162,18 +116,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
       if (body.venue !== undefined) updates.venue = body.venue;
       if (body.notes !== undefined) updates.notes = body.notes;
 
-      const result = await db
-        .update(tournaments)
-        .set(updates)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, slug),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .returning({ id: tournaments.id });
+      const result = await repo.update(slug, updates);
 
-      if (result.length === 0) {
+      if (!result) {
         return reply
           .code(404)
           .send({
@@ -197,18 +142,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
       const { slug } = request.params as { slug: string };
-      const result = await db
-        .update(tournaments)
-        .set({ isDeleted: true, updatedAt: new Date() })
-        .where(
-          and(
-            eq(tournaments.tournamentCode, slug),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .returning({ id: tournaments.id });
+      const deleted = await repo.softDelete(slug);
 
-      if (result.length === 0) {
+      if (!deleted) {
         return reply
           .code(404)
           .send({
@@ -253,19 +189,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
       const playerRole =
         body.role && validRoles.includes(body.role) ? body.role : "player";
 
-      // Find tournament
-      const tournamentRows = await db
-        .select({ id: tournaments.id })
-        .from(tournaments)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, slug),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .limit(1);
+      const tournament = await repo.findByCode(slug);
 
-      if (tournamentRows.length === 0) {
+      if (!tournament) {
         return reply
           .code(404)
           .send({
@@ -275,34 +201,17 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      // Find user
-      const userRows = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(
-          and(eq(users.userCode, body.userCode), eq(users.isDeleted, false)),
-        )
-        .limit(1);
+      const user = await repo.findUserByCode(body.userCode);
 
-      if (userRows.length === 0) {
+      if (!user) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
       }
 
-      // Check if already added
-      const existing = await db
-        .select()
-        .from(tournamentPlayers)
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournamentRows[0].id),
-            eq(tournamentPlayers.playerId, userRows[0].id),
-          ),
-        )
-        .limit(1);
+      const existing = await repo.findMember(tournament.id, user.id);
 
-      if (existing.length > 0) {
+      if (existing) {
         return reply
           .code(409)
           .send({
@@ -312,10 +221,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      // Add player
-      await db.insert(tournamentPlayers).values({
-        tournamentId: tournamentRows[0].id,
-        playerId: userRows[0].id,
+      await repo.addMember({
+        tournamentId: tournament.id,
+        playerId: user.id,
         role: playerRole,
         groupNumber: body.groupNumber,
         notes: body.notes,
@@ -341,19 +249,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
         userCode: string;
       };
 
-      // Find tournament
-      const tournamentRows = await db
-        .select({ id: tournaments.id })
-        .from(tournaments)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, slug),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .limit(1);
+      const tournament = await repo.findByCode(slug);
 
-      if (tournamentRows.length === 0) {
+      if (!tournament) {
         return reply
           .code(404)
           .send({
@@ -363,28 +261,15 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      // Find user
-      const userRows = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(and(eq(users.userCode, userCode), eq(users.isDeleted, false)))
-        .limit(1);
+      const user = await repo.findUserByCode(userCode);
 
-      if (userRows.length === 0) {
+      if (!user) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
       }
 
-      // Delete player from tournament
-      await db
-        .delete(tournamentPlayers)
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournamentRows[0].id),
-            eq(tournamentPlayers.playerId, userRows[0].id),
-          ),
-        );
+      await repo.removeMember(tournament.id, user.id);
 
       return reply.send({
         status: "success",
@@ -402,19 +287,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
       const { slug } = request.params as { slug: string };
       const session = (request as any).session;
 
-      // Find tournament
-      const tournamentRows = await db
-        .select({ id: tournaments.id })
-        .from(tournaments)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, slug),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .limit(1);
+      const tournament = await repo.findByCode(slug);
 
-      if (tournamentRows.length === 0) {
+      if (!tournament) {
         return reply
           .code(404)
           .send({
@@ -424,25 +299,14 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      // Check user's membership
-      const membership = await db
-        .select({
-          role: tournamentPlayers.role,
-          groupNumber: tournamentPlayers.groupNumber,
-        })
-        .from(tournamentPlayers)
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournamentRows[0].id),
-            eq(tournamentPlayers.playerId, session.userId),
-          ),
-        )
-        .limit(1);
+      const membership = await repo.findMember(tournament.id, session.userId);
 
       return reply.send({
         status: "success",
         message: "OK",
-        data: membership.length > 0 ? membership[0] : null,
+        data: membership
+          ? { role: membership.role, groupNumber: membership.groupNumber ?? null }
+          : null,
       });
     },
   );
@@ -455,19 +319,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
       const { slug } = request.params as { slug: string };
       const session = (request as any).session;
 
-      // Find tournament
-      const tournamentRows = await db
-        .select({ id: tournaments.id, maxPlayers: tournaments.maxPlayers })
-        .from(tournaments)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, slug),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .limit(1);
+      const tournament = await repo.findByCode(slug);
 
-      if (tournamentRows.length === 0) {
+      if (!tournament) {
         return reply
           .code(404)
           .send({
@@ -477,21 +331,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      const tournament = tournamentRows[0];
+      const existing = await repo.findMember(tournament.id, session.userId);
 
-      // Check if already registered
-      const existing = await db
-        .select({ id: tournamentPlayers.id })
-        .from(tournamentPlayers)
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournament.id),
-            eq(tournamentPlayers.playerId, session.userId),
-          ),
-        )
-        .limit(1);
-
-      if (existing.length > 0) {
+      if (existing) {
         return reply
           .code(409)
           .send({
@@ -503,12 +345,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
 
       // Check max players limit
       if (tournament.maxPlayers) {
-        const countResult = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(tournamentPlayers)
-          .where(eq(tournamentPlayers.tournamentId, tournament.id));
-
-        const currentCount = Number(countResult[0]?.count ?? 0);
+        const currentCount = await repo.countMembers(tournament.id);
         const maxCount = Number(tournament.maxPlayers);
 
         if (currentCount >= maxCount) {
@@ -522,8 +359,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
         }
       }
 
-      // Register as player
-      await db.insert(tournamentPlayers).values({
+      await repo.addMember({
         tournamentId: tournament.id,
         playerId: session.userId,
         role: "player",
@@ -543,27 +379,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const session = (request as any).session as { userId: string };
-      const rows = await db
-        .select({
-          tournamentCode: tournaments.tournamentCode,
-          tournamentName: tournaments.tournamentName,
-          tournamentFormat: tournaments.tournamentFormat,
-          status: tournaments.status,
-          role: tournamentPlayers.role,
-          groupNumber: tournamentPlayers.groupNumber,
-        })
-        .from(tournamentPlayers)
-        .innerJoin(
-          tournaments,
-          eq(tournamentPlayers.tournamentId, tournaments.id),
-        )
-        .where(
-          and(
-            eq(tournamentPlayers.playerId, session.userId),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .orderBy(desc(tournaments.createdAt));
+      const rows = await repo.listMyTournaments(session.userId);
       return reply.send({ status: "success", message: "OK", data: rows });
     },
   );
@@ -591,19 +407,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      // Find tournament
-      const tournamentRows = await db
-        .select({ id: tournaments.id })
-        .from(tournaments)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, slug),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .limit(1);
+      const tournament = await repo.findByCode(slug);
 
-      if (tournamentRows.length === 0) {
+      if (!tournament) {
         return reply
           .code(404)
           .send({
@@ -613,24 +419,18 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      const tournamentId = tournamentRows[0].id;
+      const tournamentId = tournament.id;
 
       // Check if request user is controller or admin
-      const requestUserMembership = await db
-        .select({ role: tournamentPlayers.role })
-        .from(tournamentPlayers)
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournamentId),
-            eq(tournamentPlayers.playerId, session.userId),
-          ),
-        )
-        .limit(1);
+      const requestUserMembership = await repo.findMember(
+        tournamentId,
+        session.userId,
+      );
 
       const isAdmin = session.role === "admin";
       const isController =
-        requestUserMembership.length > 0 &&
-        requestUserMembership[0].role === "controller";
+        requestUserMembership !== null &&
+        requestUserMembership.role === "controller";
 
       if (!isAdmin && !isController) {
         return reply
@@ -643,18 +443,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
       }
 
       // Check if target user is registered
-      const targetMembership = await db
-        .select({ id: tournamentPlayers.id })
-        .from(tournamentPlayers)
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournamentId),
-            eq(tournamentPlayers.playerId, userId),
-          ),
-        )
-        .limit(1);
+      const targetMembership = await repo.findMember(tournamentId, userId);
 
-      if (targetMembership.length === 0) {
+      if (!targetMembership) {
         return reply
           .code(404)
           .send({
@@ -664,11 +455,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
           });
       }
 
-      // Update role
-      await db
-        .update(tournamentPlayers)
-        .set({ role: body.role })
-        .where(eq(tournamentPlayers.id, targetMembership[0].id));
+      await repo.updateMemberRole(targetMembership.id, body.role);
 
       return reply.send({
         status: "success",
@@ -682,19 +469,9 @@ export async function tournamentRoutes(app: FastifyInstance) {
   app.get("/tournaments/:code/standings", async (request, reply) => {
     const { code } = request.params as { code: string };
 
-    // Find tournament
-    const tournamentRows = await db
-      .select({ id: tournaments.id })
-      .from(tournaments)
-      .where(
-        and(
-          eq(tournaments.tournamentCode, code),
-          eq(tournaments.isDeleted, false),
-        ),
-      )
-      .limit(1);
+    const tournament = await repo.findByCode(code);
 
-    if (tournamentRows.length === 0) {
+    if (!tournament) {
       return reply.code(404).send({
         status: "error",
         message: "Tournament not found",
@@ -702,97 +479,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
       });
     }
 
-    const tournamentId = tournamentRows[0].id;
-
-    // Get all matches in this tournament
-    const matchRows = await db
-      .select({ id: matches.id })
-      .from(matches)
-      .where(
-        and(
-          eq(matches.tournamentId, tournamentId),
-          eq(matches.isDeleted, false),
-        ),
-      );
-
-    const matchIds = matchRows.map((m) => m.id);
-
-    if (matchIds.length === 0) {
-      return reply.send({
-        status: "success",
-        message: "OK",
-        data: { standings: [] },
-      });
-    }
-
-    // Get all registered players
-    const playerRows = await db
-      .select({
-        playerId: tournamentPlayers.playerId,
-        groupNumber: tournamentPlayers.groupNumber,
-        userName: users.userName,
-        userCode: users.userCode,
-      })
-      .from(tournamentPlayers)
-      .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
-      .where(eq(tournamentPlayers.tournamentId, tournamentId));
-
-    // Get all player scores in this tournament (via matches join)
-    const allRecords = await db
-      .select({
-        playerId: records.playerId,
-        matchId: records.matchId,
-        points: records.points,
-      })
-      .from(records)
-      .innerJoin(matches, eq(records.matchId, matches.id))
-      .where(
-        and(
-          eq(matches.tournamentId, tournamentId),
-          eq(records.isDeleted, false),
-          eq(matches.isDeleted, false),
-        ),
-      );
-
-    // Aggregate scores per player
-    const scoreMap = new Map<string, { totalPoints: number; matchesPlayed: number }>();
-    const matchPerPlayer = new Map<string, Set<string>>();
-
-    for (const row of allRecords) {
-      const prev = scoreMap.get(row.playerId);
-      scoreMap.set(row.playerId, {
-        totalPoints: (prev?.totalPoints || 0) + row.points,
-        matchesPlayed: 0,
-      });
-      const set = matchPerPlayer.get(row.playerId) ?? new Set<string>();
-      set.add(row.matchId);
-      matchPerPlayer.set(row.playerId, set);
-    }
-
-    for (const [playerId, set] of matchPerPlayer) {
-      const entry = scoreMap.get(playerId);
-      if (entry) entry.matchesPlayed = set.size;
-    }
-
-    // Build standings
-    const standings = playerRows
-      .map((player) => {
-        const scores = scoreMap.get(player.playerId);
-        return {
-          playerId: player.playerId,
-          userName: player.userName,
-          userCode: player.userCode,
-          groupNumber: player.groupNumber,
-          totalPoints: scores?.totalPoints || 0,
-          matchesPlayed: scores?.matchesPlayed || 0,
-          totalMatches: matchIds.length,
-        };
-      })
-      .sort((a, b) => b.totalPoints - a.totalPoints)
-      .map((player, index) => ({
-        ...player,
-        rank: index + 1,
-      }));
+    const standings = await repo.standings(tournament.id);
 
     return reply.send({
       status: "success",

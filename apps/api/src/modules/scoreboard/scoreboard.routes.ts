@@ -1,13 +1,4 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and, sql } from "drizzle-orm";
-import {
-  db,
-  records,
-  users,
-  questions,
-  matchPlayerPositions,
-  matches,
-} from "@oc/db";
 import {
   kdcCorrect,
   kdrCorrect,
@@ -22,8 +13,13 @@ import { resolveMatchId, resolveUserId } from "../../state/id-cache.js";
 import { requireScope } from "../auth/auth.service.js";
 import { AppError } from "../../utils/errors.js";
 import { writeAudit } from "../audit/audit.service.js";
+import { drizzleScoreRepo, type ScoreRepo } from "./score.repo.js";
 
-export async function scoreboardRoutes(app: FastifyInstance) {
+export async function scoreboardRoutes(
+  app: FastifyInstance,
+  opts: { repo?: ScoreRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleScoreRepo;
   // GET /scoreboard/:matchCode — get scoreboard for a match
   app.get("/scoreboard/:matchCode", async (request, reply) => {
     const { matchCode } = request.params as { matchCode: string };
@@ -34,44 +30,7 @@ export async function scoreboardRoutes(app: FastifyInstance) {
         .send({ status: "error", message: "Match not found", data: null });
     }
 
-    // Get players with positions
-    const playerRows = await db
-      .select({
-        userCode: users.userCode,
-        userName: users.userName,
-        position: matchPlayerPositions.position,
-      })
-      .from(matchPlayerPositions)
-      .innerJoin(users, eq(matchPlayerPositions.playerId, users.id))
-      .where(eq(matchPlayerPositions.matchId, matchId))
-      .orderBy(matchPlayerPositions.position);
-
-    // Get scores
-    const scoreRows = await db
-      .select({
-        userCode: users.userCode,
-        totalPoints: sql<number>`COALESCE(SUM(${records.points}), 0)`.as(
-          "total_points",
-        ),
-      })
-      .from(records)
-      .innerJoin(users, eq(records.playerId, users.id))
-      .where(and(eq(records.matchId, matchId), eq(records.isDeleted, false)))
-      .groupBy(users.userCode);
-
-    const scoreMap = new Map(
-      scoreRows.map((r) => [r.userCode, Number(r.totalPoints)]),
-    );
-
-    const scoreboard = playerRows.map((p) => ({
-      userCode: p.userCode,
-      userName: p.userName,
-      position: p.position,
-      score: scoreMap.get(p.userCode) ?? 0,
-    }));
-
-    // Sort by score descending
-    scoreboard.sort((a, b) => b.score - a.score);
+    const scoreboard = await repo.scoreboard(matchId);
 
     return reply.send({
       status: "success",
@@ -106,20 +65,9 @@ export async function scoreboardRoutes(app: FastifyInstance) {
       const matchId = await resolveMatchId(app.valkey, matchCode);
       if (!matchId) throw new AppError(404, "Match not found");
 
-      const questionRows = await db
-        .select({ id: questions.id })
-        .from(questions)
-        .where(
-          and(
-            eq(questions.matchId, matchId),
-            eq(questions.questionCode, questionCode),
-            eq(questions.isDeleted, false),
-          ),
-        )
-        .limit(1);
-      if (questionRows.length === 0)
-        throw new AppError(404, "Question not found");
-      const questionId = questionRows[0].id;
+      const question = await repo.findQuestion(matchId, questionCode);
+      if (!question) throw new AppError(404, "Question not found");
+      const questionId = question.id;
 
       // Resolve player ids
       const playerIds = new Map<string, string>();
@@ -151,12 +99,7 @@ export async function scoreboardRoutes(app: FastifyInstance) {
           vdrScore(code, questionCode, action === "vdr_correct"),
         );
       } else if (action === "vdc_resolve") {
-        const positionRows = await db
-          .select({ userCode: users.userCode })
-          .from(matchPlayerPositions)
-          .innerJoin(users, eq(matchPlayerPositions.playerId, users.id))
-          .where(eq(matchPlayerPositions.matchId, matchId));
-        const allCodes = positionRows.map((r) => r.userCode);
+        const allCodes = await repo.listPositionCodes(matchId);
         deltas = vdcResolve(allCodes, userCodes, questionCode);
       } else if (action === "bp_resolve") {
         const buzzOrder = userCodes.map((code) => ({
@@ -177,7 +120,7 @@ export async function scoreboardRoutes(app: FastifyInstance) {
           questionId,
           questionCode,
         }));
-      if (rows.length > 0) await db.insert(records).values(rows);
+      if (rows.length > 0) await repo.insertRecords(rows);
       const session = (request as any).session as { userCode?: string } | undefined;
       void writeAudit({
         actionType: "SCORE_CHANGE",
@@ -224,75 +167,34 @@ export async function scoreboardRoutes(app: FastifyInstance) {
       if (typeof body.question_code === "string" && body.question_code) {
         if (typeof body.points !== "number" || body.points % 5 !== 0)
           throw new AppError(400, "points must be a multiple of 5");
-        const questionRows = await db
-          .select({ id: questions.id })
-          .from(questions)
-          .where(
-            and(
-              eq(questions.matchId, matchId),
-              eq(questions.questionCode, body.question_code),
-              eq(questions.isDeleted, false),
-            ),
-          )
-          .limit(1);
-        if (questionRows.length === 0)
-          throw new AppError(404, "Question not found");
-        await db.insert(records).values({
-          points: body.points,
-          playerId,
-          matchId,
-          questionId: questionRows[0].id,
-          questionCode: body.question_code,
-        });
+        const question = await repo.findQuestion(matchId, body.question_code);
+        if (!question) throw new AppError(404, "Question not found");
+        await repo.insertRecords([
+          {
+            points: body.points,
+            playerId,
+            matchId,
+            questionId: question.id,
+            questionCode: body.question_code,
+          },
+        ]);
       } else {
         // Total adjust: diff vs current total
         if (typeof body.new_score !== "number" || body.new_score % 5 !== 0)
           throw new AppError(400, "new_score must be a multiple of 5");
-        const totalRows = await db
-          .select({
-            total: sql<number>`COALESCE(SUM(${records.points}), 0)`.as("total"),
-          })
-          .from(records)
-          .where(
-            and(
-              eq(records.matchId, matchId),
-              eq(records.playerId, playerId),
-              eq(records.isDeleted, false),
-            ),
-          );
-        const current = Number(totalRows[0]?.total ?? 0);
+        const current = await repo.totalForPlayer(matchId, playerId);
         const delta = body.new_score - current;
         if (delta !== 0) {
-          // Ensure adjust question exists
-          let adjustRows = await db
-            .select({ id: questions.id })
-            .from(questions)
-            .where(
-              and(
-                eq(questions.matchId, matchId),
-                eq(questions.questionCode, "OC3_Q_ADMIN_ADJUST"),
-              ),
-            )
-            .limit(1);
-          if (adjustRows.length === 0) {
-            const inserted = await db
-              .insert(questions)
-              .values({
-                matchId,
-                questionCode: "OC3_Q_ADMIN_ADJUST",
-                content: "(Controller score adjustment)",
-                answer: "N/A",
-              })
-              .returning({ id: questions.id });
-            adjustRows = inserted;
-          }
-          await db.insert(records).values({
-            points: Math.round(delta / 5) * 5,
-            playerId,
-            matchId,
-            questionId: adjustRows[0].id,
-            questionCode: "OC3_Q_ADMIN_ADJUST",
-          });
+          const adjust = await repo.ensureAdjustQuestion(matchId);
+          await repo.insertRecords([
+            {
+              points: Math.round(delta / 5) * 5,
+              playerId,
+              matchId,
+              questionId: adjust.id,
+              questionCode: "OC3_Q_ADMIN_ADJUST",
+            },
+          ]);
         }
       }
 

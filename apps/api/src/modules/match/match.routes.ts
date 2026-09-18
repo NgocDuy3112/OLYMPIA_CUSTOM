@@ -1,48 +1,17 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and, desc } from "drizzle-orm";
-import { db, matches, matchPlayerPositions, users, tournaments, tournamentPlayers } from "@oc/db";
 import { requireRole, requireAuth, requireScope } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
+import { drizzleMatchRepo, type MatchRepo } from "./match.repo.js";
 
-// Generate random 6-digit PIN
-function generatePin(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-export async function matchRoutes(app: FastifyInstance) {
+export async function matchRoutes(
+  app: FastifyInstance,
+  opts: { repo?: MatchRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleMatchRepo;
   // GET /matches — List all matches
   app.get("/matches", async (request, reply) => {
     const { tournamentCode } = request.query as { tournamentCode?: string };
-
-    // If filtering by tournament, resolve tournament id first
-    let tournamentId: string | undefined;
-    if (tournamentCode) {
-      const tRows = await db
-        .select({ id: tournaments.id })
-        .from(tournaments)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, tournamentCode),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .limit(1);
-      if (tRows.length === 0) {
-        return reply.send({ status: "success", message: "OK", data: [] });
-      }
-      tournamentId = tRows[0].id;
-    }
-
-    const conditions = [eq(matches.isDeleted, false)];
-    if (tournamentId) {
-      conditions.push(eq(matches.tournamentId, tournamentId));
-    }
-
-    const rows = await db
-      .select()
-      .from(matches)
-      .where(and(...conditions))
-      .orderBy(desc(matches.createdAt));
+    const rows = await repo.list(tournamentCode);
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 
@@ -65,55 +34,29 @@ export async function matchRoutes(app: FastifyInstance) {
           });
       }
 
-      // Optional: link match to a tournament
-      let tournamentId: string | undefined;
-      if (body.tournamentCode) {
-        const tRows = await db
-          .select({ id: tournaments.id })
-          .from(tournaments)
-          .where(
-            and(
-              eq(tournaments.tournamentCode, body.tournamentCode),
-              eq(tournaments.isDeleted, false),
-            ),
-          )
-          .limit(1);
-        if (tRows.length > 0) {
-          tournamentId = tRows[0].id;
-        }
-      }
-
       const session = (request as any).session;
-      const matchCode = `OC3_M_${Date.now().toString(36).toUpperCase()}`;
-      const matchPin = generatePin();
-
-      const result = await db
-        .insert(matches)
-        .values({
-          matchCode,
-          matchPin,
-          matchName: body.matchName,
-          tournamentId: tournamentId ?? null,
-          createdBy: session.userId,
-        })
-        .returning();
+      const created = await repo.create({
+        matchName: body.matchName,
+        tournamentCode: body.tournamentCode,
+        createdBy: session.userId,
+      });
 
       const auditSession = session as { userCode?: string } | undefined;
       void writeAudit({
         actionType: "MATCH_CREATED",
         actorCode: auditSession?.userCode ?? null,
-        matchCode: result[0].matchCode,
-        details: result[0].matchName,
+        matchCode: created.matchCode,
+        details: created.matchName,
       });
 
       return reply.code(201).send({
         status: "success",
         message: "Match created",
         data: {
-          matchSlug: result[0].matchSlug,
-          matchCode: result[0].matchCode,
-          matchPin: result[0].matchPin,
-          matchName: result[0].matchName,
+          matchSlug: created.matchSlug,
+          matchCode: created.matchCode,
+          matchPin: created.matchPin,
+          matchName: created.matchName,
         },
       });
     },
@@ -122,31 +65,17 @@ export async function matchRoutes(app: FastifyInstance) {
   // GET /matches/:slug — Get match by slug
   app.get("/matches/:slug", async (request, reply) => {
     const { slug } = request.params as { slug: string };
-    const rows = await db
-      .select()
-      .from(matches)
-      .where(and(eq(matches.matchSlug, slug), eq(matches.isDeleted, false)))
-      .limit(1);
-    if (rows.length === 0) {
+    const row = await repo.findBySlug(slug);
+    if (!row) {
       return reply
         .code(404)
         .send({ status: "error", message: "Match not found", data: null });
     }
-    const players = await db
-      .select({
-        position: matchPlayerPositions.position,
-        userCode: users.userCode,
-        userName: users.userName,
-        userId: users.id,
-      })
-      .from(matchPlayerPositions)
-      .innerJoin(users, eq(matchPlayerPositions.playerId, users.id))
-      .where(eq(matchPlayerPositions.matchId, rows[0].id))
-      .orderBy(matchPlayerPositions.position);
+    const players = await repo.listPlayers(row.id);
     return reply.send({
       status: "success",
       message: "OK",
-      data: { ...rows[0], players },
+      data: { ...row, players },
     });
   });
 
@@ -164,41 +93,15 @@ export async function matchRoutes(app: FastifyInstance) {
         tournamentCode?: string | null;
         matchPin?: string;
       };
-      const updates: Record<string, unknown> = { updatedAt: new Date() };
-      if (body.matchName) updates.matchName = body.matchName;
-      if (body.matchStatus) updates.matchStatus = body.matchStatus;
-      if (body.videoUrl !== undefined) updates.videoUrl = body.videoUrl;
-      if (body.tournamentFormat)
-        updates.tournamentFormat = body.tournamentFormat;
-      if (body.matchPin) updates.matchPin = body.matchPin;
-
-      // Allow linking/unlinking tournament
-      if (body.tournamentCode !== undefined) {
-        if (body.tournamentCode === null) {
-          updates.tournamentId = null;
-        } else {
-          const tRows = await db
-            .select({ id: tournaments.id })
-            .from(tournaments)
-            .where(
-              and(
-                eq(tournaments.tournamentCode, body.tournamentCode),
-                eq(tournaments.isDeleted, false),
-              ),
-            )
-            .limit(1);
-          if (tRows.length > 0) {
-            updates.tournamentId = tRows[0].id;
-          }
-        }
-      }
-
-      const result = await db
-        .update(matches)
-        .set(updates)
-        .where(and(eq(matches.matchSlug, slug), eq(matches.isDeleted, false)))
-        .returning({ id: matches.id, matchCode: matches.matchCode });
-      if (result.length === 0) {
+      const updated = await repo.update(slug, {
+        matchName: body.matchName,
+        matchStatus: body.matchStatus,
+        videoUrl: body.videoUrl,
+        tournamentFormat: body.tournamentFormat,
+        tournamentCode: body.tournamentCode,
+        matchPin: body.matchPin,
+      });
+      if (!updated) {
         return reply
           .code(404)
           .send({ status: "error", message: "Match not found", data: null });
@@ -208,7 +111,7 @@ export async function matchRoutes(app: FastifyInstance) {
         void writeAudit({
           actionType: "MATCH_STATE_CHANGE",
           actorCode: session?.userCode ?? null,
-          matchCode: result[0].matchCode,
+          matchCode: updated.matchCode,
           details: `status -> ${body.matchStatus}`,
         });
       }
@@ -239,18 +142,9 @@ export async function matchRoutes(app: FastifyInstance) {
       }
 
       // Find match by PIN
-      const matchRows = await db
-        .select({
-          id: matches.id,
-          matchSlug: matches.matchSlug,
-          matchName: matches.matchName,
-          matchStatus: matches.matchStatus,
-        })
-        .from(matches)
-        .where(and(eq(matches.matchPin, body.pin), eq(matches.isDeleted, false)))
-        .limit(1);
+      const match = await repo.findByPin(body.pin);
 
-      if (matchRows.length === 0) {
+      if (!match) {
         return reply
           .code(404)
           .send({
@@ -259,8 +153,6 @@ export async function matchRoutes(app: FastifyInstance) {
             data: null,
           });
       }
-
-      const match = matchRows[0];
 
       // Check if match is joinable
       if (match.matchStatus === "finished" || match.matchStatus === "completed") {
@@ -291,62 +183,18 @@ export async function matchRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { slug } = request.params as { slug: string };
       const body = request.body as { userCode: string; position: number };
-      const matchRows = await db
-        .select({ id: matches.id, tournamentId: matches.tournamentId })
-        .from(matches)
-        .where(and(eq(matches.matchSlug, slug), eq(matches.isDeleted, false)))
-        .limit(1);
-      if (matchRows.length === 0) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Match not found", data: null });
-      }
-      const userRows = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(
-          and(eq(users.userCode, body.userCode), eq(users.isDeleted, false)),
-        )
-        .limit(1);
-      if (userRows.length === 0) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
-      }
-      // Operator/question_creator can never sit as a player (global scope check)
-      const staffRows = await db
-        .select({ role: users.role })
-        .from(users)
-        .where(eq(users.id, userRows[0].id))
-        .limit(1);
-      const staffRole = staffRows[0]?.role;
-      if (staffRole === "admin" || staffRole === "operator") {
-        return reply.code(403).send({
-          status: "error",
-          message: `Role '${staffRole}' cannot play in a match`,
-          data: null,
-        });
-      }
-      const existing = await db
-        .select()
-        .from(matchPlayerPositions)
-        .where(
-          and(
-            eq(matchPlayerPositions.matchId, matchRows[0].id),
-            eq(matchPlayerPositions.playerId, userRows[0].id),
-          ),
-        )
-        .limit(1);
-      if (existing.length > 0) {
-        await db
-          .update(matchPlayerPositions)
-          .set({ position: body.position })
-          .where(eq(matchPlayerPositions.id, existing[0].id));
-      } else {
-        await db.insert(matchPlayerPositions).values({
-          matchId: matchRows[0].id,
-          playerId: userRows[0].id,
+      try {
+        await repo.upsertPlayer(slug, {
+          userCode: body.userCode,
           position: body.position,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed";
+        const status = message.includes("not found") ? 404 : 403;
+        return reply.code(status).send({
+          status: "error",
+          message,
+          data: null,
         });
       }
       return reply.send({
