@@ -39,6 +39,8 @@ const QAuthorQuestionPage = () => {
   const [bankQuestions, setBankQuestions] = useState<QuestionData[]>([]);
   const [bankLoading, setBankLoading] = useState(false);
   const [bankQuery, setBankQuery] = useState("");
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<QuestionData | null>(null);
@@ -192,9 +194,10 @@ const QAuthorQuestionPage = () => {
     async (q: QuestionData) => {
       const code = matchCode.trim();
       if (!code) {
-        alert("Nhập mã trận đấu hiện tại trước khi reuse.");
+        alert("Nhập mã trận đấu hiện tại trước khi thêm vào trận.");
         return;
       }
+      setAddingId(q.question_code);
       try {
         const res = await fetch(`${API_BASE_URL}/questions`, {
           method: "POST",
@@ -212,13 +215,16 @@ const QAuthorQuestionPage = () => {
         });
         const json = await res.json();
         if (res.ok) {
+          setAddedCodes((prev) => new Set(prev).add(q.question_code));
           await fetchQuestions();
         } else {
-          alert(`Reuse thất bại: ${json.message ?? "Lỗi không xác định"}`);
+          alert(`Thêm thất bại: ${json.message ?? "Lỗi không xác định"}`);
         }
       } catch (err) {
-        logger.error("Error reusing question:", err);
-        alert("Lỗi kết nối khi reuse câu hỏi");
+        logger.error("Error adding to match:", err);
+        alert("Lỗi kết nối khi thêm vào trận");
+      } finally {
+        setAddingId(null);
       }
     },
     [fetchQuestions, matchCode],
@@ -250,7 +256,20 @@ const QAuthorQuestionPage = () => {
       </div>
       {tab === "bank" && (
         <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
-          <h2 className="text-lg font-bold text-green-300">Bank — tìm + reuse</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-green-300">Bank — tìm + thêm vào trận</h2>
+            <p className="text-xs text-gray-500">
+              Trận đích: <span className="font-mono text-green-300">{matchCode.trim() || "(chưa nhập)"}</span>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={matchCode}
+              onChange={(e) => setMatchCode(e.target.value)}
+              placeholder="Mã trận đích (VD: OC3_M_...)"
+              className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+            />
+          </div>
           <div className="flex gap-2">
             <input
               value={bankCode}
@@ -287,7 +306,10 @@ const QAuthorQuestionPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredBank.map((q) => (
+                {filteredBank.map((q) => {
+                  const added = addedCodes.has(q.question_code);
+                  const adding = addingId === q.question_code;
+                  return (
                   <tr key={q.question_code} className="border-b border-white/5 align-top">
                     <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">{q.question_code}</td>
                     <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
@@ -295,14 +317,16 @@ const QAuthorQuestionPage = () => {
                     <td className="py-2 px-2 text-right">
                       <button
                         onClick={() => void reuseFromBank(q)}
-                        className="flex items-center gap-1 px-2 py-1 rounded bg-green-700 hover:bg-green-600 text-xs text-white"
-                        title="Reuse vào trận hiện tại"
+                        disabled={adding || added}
+                        className={`flex items-center gap-1 px-2 py-1 rounded text-xs text-white ${added ? "bg-white/10 text-gray-500" : "bg-green-700 hover:bg-green-600 disabled:opacity-50"}`}
+                        title={added ? "Đã thêm vào trận" : "Thêm vào trận hiện tại"}
                       >
-                        <Plus size={13} /> Reuse
+                        <Plus size={13} /> {adding ? "Đang thêm…" : added ? "Đã thêm" : "Thêm vào trận"}
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
