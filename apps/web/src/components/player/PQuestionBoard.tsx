@@ -1,5 +1,6 @@
 import React from "react";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { MathText } from "@/components/shared/MathText";
 import type { Question } from "@/types/question";
 import type { PlayerQuestionBoardControls } from "@/types/questionBoardTypes";
 
@@ -129,7 +130,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
               {}
               <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
                 <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
-                  {question.questionText}
+                  <MathText text={question.questionText} />
                 </p>
               </div>
               {}
@@ -152,7 +153,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
           ) : (
             <div className="w-full overflow-y-auto min-h-0">
               <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
-                {question.questionText}
+                <MathText text={question.questionText} />
               </p>
             </div>
           )}

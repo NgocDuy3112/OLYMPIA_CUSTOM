@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { MathText } from "@/components/shared/MathText";
 import type { Question } from "@/types/question";
 import type {
   AdminQuestionBoardControls,
@@ -166,7 +167,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({
               {}
               <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
                 <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
-                  {question.questionText}
+                  <MathText text={question.questionText} />
                 </p>
               </div>
               {}
@@ -189,7 +190,7 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({
           ) : (
             <div className="w-full overflow-y-auto min-h-0">
               <p className="text-sm tablet:text-lg xl:text-[20px] font-bold text-white leading-relaxed text-left break-words">
-                {question.questionText}
+                <MathText text={question.questionText} />
               </p>
             </div>
           )}

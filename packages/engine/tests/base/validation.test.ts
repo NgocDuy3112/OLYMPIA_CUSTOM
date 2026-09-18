@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   answersMatch,
   isCorrectOption,
+  mathAnswersEqual,
   normalizeAnswer,
+  normalizeMathAnswer,
 } from "../../src/base/validation.js";
 
 describe("normalizeAnswer", () => {
@@ -42,5 +44,37 @@ describe("isCorrectOption", () => {
 
   it("rejects wrong option", () => {
     expect(isCorrectOption("A", "B")).toBe(false);
+  });
+});
+
+describe("normalizeMathAnswer", () => {
+  it("canonicalizes fractions to numbers", () => {
+    expect(normalizeMathAnswer("1/2")).toBe("num:0.5");
+  });
+
+  it("strips variable left side", () => {
+    expect(normalizeMathAnswer("x=2")).toBe("num:2");
+  });
+
+  it("handles percent and comma decimals", () => {
+    expect(normalizeMathAnswer("50%")).toBe("num:0.5");
+    expect(normalizeMathAnswer("3,5")).toBe("num:3.5");
+  });
+});
+
+describe("mathAnswersEqual", () => {
+  it("matches equivalent fractions and decimals", () => {
+    expect(mathAnswersEqual("1/2", "0.5")).toBe(true);
+    expect(mathAnswersEqual("x=2", "2")).toBe(true);
+    expect(mathAnswersEqual("50%", "0.5")).toBe(true);
+  });
+
+  it("matches text diacritics-insensitively", () => {
+    expect(mathAnswersEqual("Hà Nội", "ha noi")).toBe(true);
+  });
+
+  it("rejects different values", () => {
+    expect(mathAnswersEqual("1/3", "0.5")).toBe(false);
+    expect(mathAnswersEqual("2", "3")).toBe(false);
   });
 });

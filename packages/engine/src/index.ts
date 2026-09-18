@@ -36,6 +36,8 @@ export {
 
 export {
   normalizeAnswer,
+  normalizeMathAnswer,
+  mathAnswersEqual,
   answersMatch,
   isCorrectOption,
 } from "./base/validation.js";

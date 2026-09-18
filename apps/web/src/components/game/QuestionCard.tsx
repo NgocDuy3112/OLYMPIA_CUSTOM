@@ -1,5 +1,6 @@
 import React from "react";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { MathText } from "@/components/shared/MathText";
 import type { Question } from "@/types/question";
 
 export type QuestionCardMode = "admin" | "player" | "mc" | "overlay";
@@ -139,7 +140,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 }
               `}
               >
-                {question.questionText}
+                <MathText text={question.questionText} />
               </p>
             </div>
 
@@ -171,7 +172,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               }
             `}
             >
-              {question.questionText}
+              <MathText text={question.questionText} />
             </p>
           </div>
         )}
@@ -181,7 +182,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       {showAnswer && question.questionAnswer && mode !== "overlay" && (
         <div className="mt-2 sm:mt-4 p-2 sm:p-3 bg-green-600/20 border border-green-500 rounded-lg">
           <p className="text-green-400 font-bold text-xs sm:text-sm">
-            Đáp án: {question.questionAnswer}
+            Đáp án: <MathText text={question.questionAnswer} />
           </p>
         </div>
       )}

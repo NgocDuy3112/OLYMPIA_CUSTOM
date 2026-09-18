@@ -1,29 +1,32 @@
-/**
- * Answer normalization and validation.
- *
- * Math equivalence: "1/2" == "0.5", "x=2" == "2", "50%" == "0.5".
- * Diacritics-insensitive for text answers.
- */
-
-/** Normalize answer text: trim, lowercase, collapse whitespace */
-export function normalizeAnswer(answer: string): string {
-  return answer.trim().toLowerCase().replace(/\s+/g, " ");
-}
+// Chuẩn hoá đáp án toán để so sánh tương đương.
+// Không thay engine chấm — chỉ dùng gợi ý + review.
 
 function stripDiacritics(s: string): string {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+function normalizeSpaces(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+// "x=2" -> "2", "S = 1/2" -> "1/2"
 function stripLeftSide(s: string): string {
   const idx = s.indexOf("=");
   if (idx > 0 && idx < s.length - 1) {
     const left = s.slice(0, idx).trim();
+    // Chỉ bỏ vế trái nếu ngắn (tên biến), giữ nguyên nếu cả 2 vế dài.
     if (/^[a-zA-Z][a-zA-Z0-9_]{0,3}$/.test(left)) return s.slice(idx + 1).trim();
   }
   return s;
 }
 
+function normalizeFraction(s: string): string {
+  // "1/2" giữ nguyên; "0.5" cũng giữ — so sánh số ở bước sau.
+  return s;
+}
+
 function toNumberOrNull(s: string): number | null {
+  // Hỗ trợ "1/2", "3,5", "-2", "0.5", "50%"
   let t = s.replace(",", ".").trim();
   let isPercent = false;
   if (t.endsWith("%")) {
@@ -44,15 +47,16 @@ function toNumberOrNull(s: string): number | null {
   return null;
 }
 
-/** Canonical form: "num:<value>" for numbers, "txt:<lower>" for text */
 export function normalizeMathAnswer(raw: string): string {
-  const s = stripLeftSide(raw.trim().replace(/\s+/g, " "));
+  let s = normalizeSpaces(raw);
+  s = stripLeftSide(s);
+  s = normalizeFraction(s);
+  // Lowercase + bỏ dấu cho đáp án chữ, giữ số nguyên.
   const num = toNumberOrNull(s);
   if (num !== null) return `num:${num}`;
   return `txt:${stripDiacritics(s).toLowerCase()}`;
 }
 
-/** Math-aware equivalence: numbers by value, text diacritics-insensitive */
 export function mathAnswersEqual(a: string, b: string): boolean {
   const na = normalizeMathAnswer(a);
   const nb = normalizeMathAnswer(b);
@@ -60,18 +64,4 @@ export function mathAnswersEqual(a: string, b: string): boolean {
     return Math.abs(Number(na.slice(4)) - Number(nb.slice(4))) < 1e-9;
   }
   return na === nb;
-}
-
-/** Check if two answers match (math-aware: 1/2 == 0.5, x=2 == 2) */
-export function answersMatch(submitted: string, expected: string): boolean {
-  if (mathAnswersEqual(submitted, expected)) return true;
-  return normalizeAnswer(submitted) === normalizeAnswer(expected);
-}
-
-/** Check if answer is correct for MCQ */
-export function isCorrectOption(
-  submitted: string,
-  correctOption: string,
-): boolean {
-  return submitted.trim().toUpperCase() === correctOption.trim().toUpperCase();
 }
