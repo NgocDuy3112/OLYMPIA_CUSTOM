@@ -3,6 +3,7 @@ import { HelpCircle, Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-r
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
+import { normalizeQuestionRow } from "@/utils/questionMapper";
 
 const logger = createLogger("QAuthorQuestionPage");
 
@@ -13,7 +14,26 @@ interface QuestionData {
   explanation: string | null;
   media_url: string | null;
   options?: string | null;
+  is_used?: boolean | null;
+  isUsed?: boolean | null;
 }
+
+const toQuestionData = (row: Record<string, unknown>): QuestionData => {
+  const n = normalizeQuestionRow(row);
+  return {
+    question_code: n.questionCode,
+    content: n.content,
+    answer: n.answer,
+    explanation: n.explanation,
+    media_url: n.mediaUrl,
+    options: n.options,
+    is_used: n.isUsed,
+    isUsed: n.isUsed,
+  };
+};
+
+const isQuestionUsed = (q: QuestionData): boolean =>
+  Boolean(q.is_used ?? q.isUsed ?? false);
 
 interface ApiResponse {
   status: "success" | "error";
@@ -61,7 +81,9 @@ const QAuthorQuestionPage = () => {
       );
       const json: ApiResponse = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {
-        setQuestions(json.data as unknown as QuestionData[]);
+        setQuestions(
+          (json.data as Record<string, unknown>[]).map(toQuestionData),
+        );
       } else {
         setQuestions([]);
         logger.warn("Fetch questions failed:", json.message);
@@ -178,7 +200,9 @@ const QAuthorQuestionPage = () => {
       );
       const json: ApiResponse = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {
-        setBankQuestions(json.data as unknown as QuestionData[]);
+        setBankQuestions(
+          (json.data as Record<string, unknown>[]).map(toQuestionData),
+        );
       } else {
         setBankQuestions([]);
       }
@@ -302,6 +326,7 @@ const QAuthorQuestionPage = () => {
                   <th className="py-2 px-2">Mã</th>
                   <th className="py-2 px-2">Nội dung</th>
                   <th className="py-2 px-2">Đáp án</th>
+                  <th className="py-2 px-2">Trạng thái</th>
                   <th className="py-2 px-2"></th>
                 </tr>
               </thead>
@@ -309,17 +334,34 @@ const QAuthorQuestionPage = () => {
                 {filteredBank.map((q) => {
                   const added = addedCodes.has(q.question_code);
                   const adding = addingId === q.question_code;
+                  const used = isQuestionUsed(q);
+                  const usedElsewhere = used && !added;
                   return (
                   <tr key={q.question_code} className="border-b border-white/5 align-top">
                     <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">{q.question_code}</td>
                     <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
                     <td className="py-2 px-2 font-semibold">{q.answer}</td>
+                    <td className="py-2 px-2 whitespace-nowrap">
+                      {added ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-green-600/20 text-green-300">
+                          Đã thêm vào {matchCode.trim() || "trận này"}
+                        </span>
+                      ) : used ? (
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300" title={`Đã dùng ở ${bankCode.trim()}`}>
+                          Đã dùng ở {bankCode.trim() || "trận nguồn"}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-gray-400">
+                          Chưa dùng
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2 px-2 text-right">
                       <button
                         onClick={() => void reuseFromBank(q)}
                         disabled={adding || added}
                         className={`flex items-center gap-1 px-2 py-1 rounded text-xs text-white ${added ? "bg-white/10 text-gray-500" : "bg-green-700 hover:bg-green-600 disabled:opacity-50"}`}
-                        title={added ? "Đã thêm vào trận" : "Thêm vào trận hiện tại"}
+                        title={added ? "Đã thêm vào trận" : usedElsewhere ? "Đã dùng ở trận nguồn — vẫn thêm được" : "Thêm vào trận hiện tại"}
                       >
                         <Plus size={13} /> {adding ? "Đang thêm…" : added ? "Đã thêm" : "Thêm vào trận"}
                       </button>
