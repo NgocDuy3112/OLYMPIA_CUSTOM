@@ -132,7 +132,7 @@ async def test_role_filter_strips_answers():
     assert player_view[0]["explanation"] is None
     controller_view = strip_answers_for_role(questions, "controller")
     assert controller_view[0]["answer"] == "4"
-    author_view = strip_answers_for_role(questions, "question_author")
+    author_view = strip_answers_for_role(questions, "qauthor")
     assert author_view[0]["answer"] == "4"
 
 

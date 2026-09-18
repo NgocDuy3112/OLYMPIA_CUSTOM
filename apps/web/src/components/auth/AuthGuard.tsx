@@ -5,11 +5,13 @@ import { useAuth } from "@/hooks/useAuth";
 interface AuthGuardProps {
   children?: React.ReactNode;
   requiredRole?: "admin" | "operator" | "player" | "spectator";
+  requiredScope?: "question_creator" | "controller" | "mc";
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({
   children,
   requiredRole,
+  requiredScope,
 }) => {
   const { user, isLoading } = useAuth();
   const location = useLocation();
@@ -29,6 +31,13 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   if (requiredRole && user.role !== requiredRole && user.role !== "admin") {
     // Admin can access everything, others are restricted
     return <Navigate to="/login" replace />;
+  }
+
+  if (requiredScope && user.role !== "admin") {
+    const scopes = (user.operatorScopes ?? "").split(",").map((s) => s.trim());
+    if (user.role !== "operator" || !scopes.includes(requiredScope)) {
+      return <Navigate to="/login" replace />;
+    }
   }
 
   return children ? <>{children}</> : <Outlet />;

@@ -80,7 +80,7 @@ export async function scoreboardRoutes(app: FastifyInstance) {
     });
   });
 
-  // POST /scoreboard/calculate — controller only; referee reviews and proposes
+  // POST /scoreboard/calculate — controller only
   app.post(
     "/scoreboard/calculate",
     { preHandler: [requireScope(app, "controller")] },
@@ -195,7 +195,7 @@ export async function scoreboardRoutes(app: FastifyInstance) {
     },
   );
 
-  // PATCH /scoreboard/controller-adjust — controller only; referee reviews and proposes
+  // PATCH /scoreboard/controller-adjust — controller only
   app.patch(
     "/scoreboard/controller-adjust",
     { preHandler: [requireScope(app, "controller")] },

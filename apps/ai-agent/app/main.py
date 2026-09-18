@@ -18,7 +18,7 @@ ROLE_HEADER_ALIASES: dict[str, UserRole] = {
     "controller": "controller",
     "admin": "controller",
     "mc": "mc",
-    "question_author": "question_author",
+    "qauthor": "qauthor",
     "player": "player",
     "spectator": "spectator",
 }

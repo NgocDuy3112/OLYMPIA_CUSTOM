@@ -7,8 +7,7 @@ export type GlobalRole = "admin" | "operator" | "player" | "spectator";
 export type OperatorScope =
   | "question_creator"
   | "controller"
-  | "mc"
-  | "referee";
+  | "mc";
 
 export interface AuthUser {
   userId: string;

@@ -169,6 +169,8 @@ const AdminKhoiDongChungView = () => {
       playersSelectable
       playersDisabled={isTimerRunning}
       onEditScore={handleEditScore}
+      questionCode={currentQuestion.questionCode || undefined}
+      onReviewRequested={() => {}}
       actions={
         <AControlButton onClick={endRound} disabled={isTimerRunning}>
           <Power size={18} />

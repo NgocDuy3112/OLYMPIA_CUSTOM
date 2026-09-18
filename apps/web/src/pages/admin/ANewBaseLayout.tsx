@@ -32,6 +32,10 @@ interface ANewBaseLayoutProps {
   playersDisabled?: boolean;
   /** Edit score callback */
   onEditScore?: (playerCode: string, newScore: number) => void;
+  /** Current question code — enables per-player Gui duyet review */
+  questionCode?: string;
+  /** Fired after a score review is created */
+  onReviewRequested?: (reviewId: string) => void;
   /** Additional content above player list */
   playerHeader?: ReactNode;
 }
@@ -47,6 +51,8 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
   playersSelectable = false,
   playersDisabled = false,
   onEditScore,
+  questionCode,
+  onReviewRequested,
   playerHeader,
 }) => {
   const { sendMessage } = useGameWebSocket();
@@ -94,6 +100,8 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
                   onEditScore={onEditScore}
                   sendMessage={sendMessage}
                   matchCode={getMatchCode()}
+                  questionCode={questionCode}
+                  onReviewRequested={onReviewRequested}
                   showCameraControl
                   onCameraControl={(playerCode, enabled) => {
                     void sendMessage({

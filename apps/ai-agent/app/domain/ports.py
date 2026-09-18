@@ -72,8 +72,8 @@ class LLMClient(Protocol):
 
 
 def strip_answers_for_role(questions: list[dict], role: UserRole) -> list[dict]:
-    """Role filter: controller/mc/question_author see answers; others never do."""
-    if role in ("controller", "mc", "question_author"):
+    """Role filter: controller/mc/qauthor see answers; others never do."""
+    if role in ("controller", "mc", "qauthor"):
         return questions
     stripped = []
     for q in questions:

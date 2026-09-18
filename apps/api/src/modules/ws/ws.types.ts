@@ -6,7 +6,7 @@ export interface WsConnection {
   matchCode: string;
   userId: string;
   userCode: string;
-  role: "controller" | "mc" | "player" | "referee";
+  role: "controller" | "mc" | "player";
   sid: string;
   tournamentFormat: TournamentFormat;
 }
@@ -101,22 +101,9 @@ const MC_ALLOWED = new Set([
   "agent_ask",
 ]);
 
-const REFEREE_ALLOWED = new Set([
-  "send_answers_to_players",
-  "show_scoreboard",
-  "show_hint",
-  "match_state",
-  "request_snapshot",
-  "send_room_info",
-  "user_online",
-  "request_presence",
-  "referee_proposal",
-]);
-
 export function isAllowedByRole(role: string, msgType: string): boolean {
   if (role === "controller") return true;
   if (role === "player") return PLAYER_ALLOWED.has(msgType);
   if (role === "mc") return MC_ALLOWED.has(msgType);
-  if (role === "referee") return REFEREE_ALLOWED.has(msgType);
   return false;
 }

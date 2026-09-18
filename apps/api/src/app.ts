@@ -18,6 +18,7 @@ import { questionRoutes } from "./modules/question/question.routes.js";
 import { answerRoutes } from "./modules/answer/answer.routes.js";
 import { recordRoutes } from "./modules/record/record.routes.js";
 import { scoreboardRoutes } from "./modules/scoreboard/scoreboard.routes.js";
+import { scoreReviewRoutes } from "./modules/score-review/score-review.routes.js";
 import { mediaRoutes } from "./modules/media/media.routes.js";
 import { tournamentRoutes } from "./modules/tournament/tournament.routes.js";
 import { templateRoutes } from "./modules/template/template.routes.js";
@@ -63,6 +64,7 @@ export async function createApp() {
   await app.register(answerRoutes, { prefix: "/api" });
   await app.register(recordRoutes, { prefix: "/api" });
   await app.register(scoreboardRoutes, { prefix: "/api" });
+  await app.register(scoreReviewRoutes, { prefix: "/api" });
   await app.register(mediaRoutes, { prefix: "/api" });
   await app.register(tournamentRoutes, { prefix: "/api" });
   await app.register(templateRoutes, { prefix: "/api" });

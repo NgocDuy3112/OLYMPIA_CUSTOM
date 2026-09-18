@@ -1,5 +1,6 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import type Redis from "ioredis";
+import { postScoreReview } from "./score-review.js";
 
 const VALKEY_CHANNEL = "oc:live-events";
 
@@ -277,7 +278,31 @@ export function startValkeyListener(
 
   subscriber.on("message", (_channel: string, message: string) => {
     try {
-      const event: LiveEvent = JSON.parse(message);
+      const event = JSON.parse(message) as LiveEvent & {
+        review_id?: string;
+        question_content?: string;
+        question_answer?: string;
+        candidates?: Array<{ user_code: string; label: string; answer_text: string }>;
+      };
+      if (event.type === "score_review_request" && event.review_id) {
+        void postScoreReview(
+          client,
+          getChannel,
+          {
+            review_id: event.review_id,
+            match_code: event.match_code,
+            question_code: event.question_code,
+            question_content: event.question_content,
+            question_answer: event.question_answer,
+            candidates: event.candidates ?? [],
+          },
+          event.channel_id,
+        );
+        return;
+      }
+      // score_review_decided / score_review_ocee are informational;
+      // the interactive message already updates via button handlers.
+      if (event.type === "score_review_decided" || event.type === "score_review_ocee") return;
       const embed = buildEmbed(event);
 
       if (embed) {

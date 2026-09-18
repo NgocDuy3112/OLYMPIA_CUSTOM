@@ -355,6 +355,7 @@ export function googleCallback(app: FastifyInstance) {
       userId: user.id,
       userCode: user.userCode,
       role: user.role,
+      operatorScopes: (user as { operatorScopes?: string | null }).operatorScopes ?? null,
       email: user.email,
       userName: user.userName,
       createdAt: Date.now(),
@@ -393,6 +394,11 @@ export function getMe(app: FastifyInstance) {  return async (request: FastifyReq
         .send({ status: "error", message: "Session expired", data: null });
     }
     await touchSession(app.valkey, sid);
+    let operatorScopes = session.operatorScopes ?? null;
+    if (!operatorScopes && session.userId.startsWith("staff:")) {
+      const raw = await app.valkey.get(`staff:scopes:${sid}`);
+      if (raw) operatorScopes = raw;
+    }
     return reply.send({
       status: "success",
       message: "OK",
@@ -400,6 +406,7 @@ export function getMe(app: FastifyInstance) {  return async (request: FastifyReq
         userId: session.userId,
         userCode: session.userCode,
         role: session.role,
+        operatorScopes,
         email: session.email,
         userName: session.userName,
       },
@@ -581,7 +588,7 @@ export function requireRole(app: FastifyInstance, ...roles: string[]) {
   };
 }
 
-// requireScope — operator must hold a specific scope (controller/mc/question_creator/referee).
+// requireScope — operator must hold a specific scope (controller/mc/question_creator).
 // Admin bypasses. Reads scopes from session, falls back to staff:scopes Valkey key.
 export function requireScope(app: FastifyInstance, ...scopes: string[]) {
   return async (request: FastifyRequest, reply: FastifyReply) => {

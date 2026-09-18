@@ -6,7 +6,7 @@ import { createLogger } from "@/utils/logger";
 const logger = createLogger("AUsersPage");
 
 type GlobalRole = "admin" | "operator" | "player" | "spectator";
-type OperatorScope = "question_creator" | "controller" | "mc" | "referee";
+type OperatorScope = "question_creator" | "controller" | "mc";
 
 interface UserData {
   user_code: string;
@@ -28,7 +28,6 @@ const OPERATOR_SCOPES: OperatorScope[] = [
   "question_creator",
   "controller",
   "mc",
-  "referee",
 ];
 
 const AUsersPage = () => {
@@ -126,7 +125,7 @@ const AUsersPage = () => {
   const grantOperator = useCallback(
     async (userCode: string) => {
       const input = window.prompt(
-        `Cấp operator cho ${userCode}.\nNhập scopes (phân cách dấu phẩy): question_creator, controller, mc, referee`,
+        `Cấp operator cho ${userCode}.\nNhập scopes (phân cách dấu phẩy): question_creator, controller, mc`,
         "controller,mc",
       );
       if (input === null) return;
@@ -319,7 +318,7 @@ const AUsersPage = () => {
                           <button
                             onClick={() => void grantOperator(u.user_code)}
                             className="p-1.5 rounded bg-amber-600/70 hover:bg-amber-500 transition-colors"
-                            title="Cấp operator (question_creator, controller, mc, referee)"
+                            title="Cấp operator (question_creator, controller, mc)"
                           >
                             <Users size={13} />
                           </button>

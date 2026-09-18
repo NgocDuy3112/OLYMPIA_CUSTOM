@@ -8,8 +8,7 @@ export type UserRole =
   | "mc"
   | "player"
   | "spectator"
-  | "operator"
-  | "referee";
+  | "operator";
 
 /** Parsed inbound WebSocket message. Payload fields stay loose but typed-safe. */
 export interface WebSocketMessage {

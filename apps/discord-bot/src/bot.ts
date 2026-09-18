@@ -16,6 +16,7 @@ import { getEnv } from "./config/env.js";
 import { pingCommand } from "./commands/ping.js";
 import { createStatusCommand } from "./commands/status.js";
 import { startValkeyListener } from "./events/valkey-listener.js";
+import { handleReviewButton } from "./events/score-review.js";
 import { startExecutor } from "./executor.js";
 
 interface Command {
@@ -101,6 +102,17 @@ export async function startBot() {
   });
 
   discordClient.on(Events.InteractionCreate, async (interaction) => {
+    if (interaction.isButton()) {
+      try {
+        const handled = await handleReviewButton(interaction);
+        if (!handled) {
+          await interaction.reply({ content: "Nút không còn hiệu lực.", ephemeral: true });
+        }
+      } catch (err) {
+        console.error("Review button failed:", err);
+      }
+      return;
+    }
     if (!interaction.isChatInputCommand()) return;
     const command = commands.get(interaction.commandName);
     if (!command) return;

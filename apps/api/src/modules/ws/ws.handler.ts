@@ -91,19 +91,6 @@ export async function handleWsMessage(
     return;
   }
 
-  // Referee proposes, controller decides — forward proposal to controllers only
-  if (msgType === "referee_proposal") {
-    if (conn.role !== "referee") return;
-    await manager.sendToRoles(conn.matchCode, ["controller"], {
-      type: "referee_proposal",
-      user_code: conn.userCode,
-      question_code: data.question_code,
-      proposal: data.proposal,
-      note: data.note,
-    });
-    return;
-  }
-
   await handleEngineAction(conn, data);
   await manager.broadcast(conn.matchCode, data as Record<string, unknown>);
 }

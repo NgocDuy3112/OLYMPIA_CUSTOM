@@ -58,9 +58,8 @@ export async function wsRoute(app: FastifyInstance) {
       const userCode = session.userCode;
 
       // Determine game role: admin/controller-scope -> controller,
-      // referee-scope -> referee (scoring + discipline, no timer/nav),
       // mc-scope -> mc, else per-tournament membership, else player.
-      let gameRole: "controller" | "mc" | "player" | "referee" = "player";
+      let gameRole: "controller" | "mc" | "player" = "player";
 
       const sessionScopes = (
         (session as { operatorScopes?: string | null }).operatorScopes ?? ""
@@ -71,8 +70,6 @@ export async function wsRoute(app: FastifyInstance) {
 
       if (session.role === "admin" || sessionScopes.includes("controller")) {
         gameRole = "controller";
-      } else if (sessionScopes.includes("referee")) {
-        gameRole = "referee";
       } else if (sessionScopes.includes("mc")) {
         gameRole = "mc";
       } else if (session.role === "operator") {

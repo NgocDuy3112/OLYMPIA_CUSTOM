@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Mic, KeyRound, Pencil, Star, Shield } from "lucide-react";
+import { Mic, KeyRound, Pencil, Star, Shield, Send } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
+import { requestScoreReview } from "@/api/scoreReviews";
 import ScoreEditModal from "./ScoreEditModal";
 
 interface APlayerBarProps {
@@ -22,6 +23,8 @@ interface APlayerBarProps {
   token?: string;
   matchCode?: string;
   sendMessage?: (msg: any) => void;
+  questionCode?: string;
+  onReviewRequested?: (reviewId: string) => void;
 
   cluesOpened?: number;
 
@@ -43,6 +46,8 @@ const APlayerBar: React.FC<APlayerBarProps> = ({
   token,
   matchCode,
   sendMessage,
+  questionCode,
+  onReviewRequested,
   cluesOpened,
   showClueCount,
 }) => {
@@ -65,6 +70,23 @@ const APlayerBar: React.FC<APlayerBarProps> = ({
   };
 
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isRequestingReview, setIsRequestingReview] = useState(false);
+
+  const handleRequestReview = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (disabled || !matchCode || !questionCode || isRequestingReview) return;
+    setIsRequestingReview(true);
+    try {
+      const data = await requestScoreReview(matchCode, questionCode, [
+        { userCode: player.playerCode, answerText: player.playerLastAnswer ?? "" },
+      ]);
+      onReviewRequested?.(data.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Không gửi duyệt được.");
+    } finally {
+      setIsRequestingReview(false);
+    }
+  };
   const [editScoreValue, setEditScoreValue] = useState(
     player.playerScore.toString(),
   );
@@ -245,6 +267,17 @@ const APlayerBar: React.FC<APlayerBarProps> = ({
               type="button"
             >
               <Pencil size={18} />
+            </button>
+          )}
+          {questionCode && matchCode && !disabled && (
+            <button
+              onClick={(e) => void handleRequestReview(e)}
+              disabled={isRequestingReview}
+              className="p-1 rounded hover:bg-amber-600 transition-colors text-amber-300 hover:text-white disabled:opacity-50"
+              title="Gửi duyệt đáp án qua Discord"
+              type="button"
+            >
+              <Send size={18} />
             </button>
           )}
         </div>

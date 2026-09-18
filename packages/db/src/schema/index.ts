@@ -11,3 +11,4 @@ export { qualifierRecords, qualifierAdvancements } from "./qualifier.js";
 export { matchCheckpoints } from "./checkpoint.js";
 export { tournaments, tournamentPlayers } from "./tournament.js";
 export { tournamentPhases, bracketEdges } from "./phase.js";
+export { scoreReviews } from "./score-review.js";
