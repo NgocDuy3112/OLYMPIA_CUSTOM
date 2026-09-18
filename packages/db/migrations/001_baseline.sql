@@ -4,7 +4,7 @@
 -- Single path (old DB is gone).
 -- Includes final state:
 --   users.role: admin/operator/player/spectator + operator_scopes
---   players (renamed from tournament_players, no role column)
+--   tournament_players (membership + role + discord identity)
 --   matches + scheduling, phases, bracket, templates (no teams)
 --   questions/answers/records/qualifier/audit/checkpoints
 --
@@ -76,21 +76,21 @@ CREATE INDEX IF NOT EXISTS idx_tournaments_created_by ON tournaments (created_by
 CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments (status);
 CREATE INDEX IF NOT EXISTS idx_tournaments_guild ON tournaments (discord_guild_id);
 
--- ── Players (renamed from tournament_players, membership only, no role) ──
-CREATE TABLE IF NOT EXISTS players (
+-- ── Tournament players (membership + role + discord identity) ──
+CREATE TABLE IF NOT EXISTS tournament_players (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tournament_id UUID NOT NULL REFERENCES tournaments(id) ON DELETE CASCADE,
   player_id UUID NOT NULL REFERENCES users(id),
+  role VARCHAR(20) NOT NULL DEFAULT 'player',
   group_number VARCHAR(20),
   discord_user_id VARCHAR(32),
   discord_nickname VARCHAR(100),
   notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT uq_players_tournament_player UNIQUE (tournament_id, player_id)
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_players_tournament ON players (tournament_id);
-CREATE INDEX IF NOT EXISTS idx_players_player ON players (player_id);
-CREATE INDEX IF NOT EXISTS idx_players_discord ON players (tournament_id, discord_user_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_players_tournament ON tournament_players (tournament_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_players_player ON tournament_players (player_id);
+CREATE INDEX IF NOT EXISTS idx_tournament_players_discord ON tournament_players (tournament_id, discord_user_id);
 
 -- ── Tournament phases ──
 CREATE TABLE IF NOT EXISTS tournament_phases (

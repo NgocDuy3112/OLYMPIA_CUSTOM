@@ -98,10 +98,10 @@ export async function matchRoutes(app: FastifyInstance) {
         })
         .returning();
 
-      const session = (request as any).session as { userCode?: string } | undefined;
+      const auditSession = session as { userCode?: string } | undefined;
       void writeAudit({
         actionType: "MATCH_CREATED",
-        actorCode: session?.userCode ?? null,
+        actorCode: auditSession?.userCode ?? null,
         matchCode: result[0].matchCode,
         details: result[0].matchName,
       });
