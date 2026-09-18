@@ -11,7 +11,6 @@ export type { UserRole };
 interface GameWebSocketConfig {
   role: UserRole;
   matchCode: string;
-  token?: string;
   userCode?: string;
   heartbeatInterval?: number; // ms, default 15000
   enablePresence?: boolean; // default true for player
@@ -30,14 +29,13 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
   const {
     role,
     matchCode,
-    token,
     userCode,
     heartbeatInterval = 15000,
     enablePresence = role === "player",
     enableHeartbeat = role === "player",
   } = config;
 
-  const ws = useWebSocket(matchCode, token);
+  const ws = useWebSocket(matchCode);
   const { isConnected, lastMessage, sendMessage } = ws;
   const { unlocked, unlock } = useGameAudio(lastMessage, matchCode);
 

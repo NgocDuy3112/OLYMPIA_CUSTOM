@@ -81,7 +81,6 @@ async function flushBatch(): Promise<void> {
 
 export async function prefetchS3Media(
   keys: string[],
-  _token?: string,
 ): Promise<void> {
   const s3Keys = keys.filter((k) => isS3Key(k) && !presignCache.has(k));
   s3Keys.forEach((k) => pendingKeys.add(k));
@@ -105,7 +104,6 @@ export interface S3MediaState {
 
 export function useS3Media(
   mediaUrl: string | undefined,
-  _token?: string,
 ): S3MediaState {
   const [state, setState] = useState<S3MediaState>({
     src: null,

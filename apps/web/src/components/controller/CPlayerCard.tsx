@@ -17,7 +17,6 @@ interface CPlayerCardProps {
   onClick?: (playerCode: string) => void;
   disabled?: boolean;
   onEditScore?: (playerCode: string, newScore: number) => void;
-  token?: string;
   matchCode?: string;
   sendMessage?: (msg: any) => void;
   isHovered?: boolean;
@@ -38,7 +37,6 @@ const CPlayerCard: React.FC<CPlayerCardProps> = ({
   onClick,
   disabled,
   onEditScore,
-  token,
   matchCode,
   sendMessage,
   isHovered,

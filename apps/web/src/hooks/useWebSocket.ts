@@ -10,10 +10,9 @@ const RECONNECT_MAX_MS = 16_000;
 const DEBOUNCE_MS = 500;
 const DEBOUNCED_EVENTS = new Set(["play_bgm"]);
 
-const createWsUrl = (matchCode: string, token?: string) =>
-  `${WS_BASE_URL}/ws/${matchCode}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+const createWsUrl = (matchCode: string) => `${WS_BASE_URL}/ws/${matchCode}`;
 
-export const useWebSocket = (matchCode: string, token?: string) => {
+export const useWebSocket = (matchCode: string) => {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -46,7 +45,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
       return;
     }
 
-    const url = createWsUrl(matchCode, token);
+    const url = createWsUrl(matchCode);
     let closedByCleanup = false;
 
     const drainNextMessage = () => {
@@ -140,7 +139,7 @@ export const useWebSocket = (matchCode: string, token?: string) => {
       }
       wsRef.current = null;
     };
-  }, [matchCode, token]);
+  }, [matchCode]);
 
   const sendMessage = useCallback(
     async (payload: WebSocketPayload): Promise<boolean> => {

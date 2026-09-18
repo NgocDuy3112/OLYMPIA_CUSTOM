@@ -13,6 +13,6 @@ export async function registerCors(app: FastifyInstance) {
     origin: origins,
     credentials: false,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "X-Requested-With"],
   });
 }

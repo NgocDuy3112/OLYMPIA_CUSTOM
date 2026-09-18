@@ -20,7 +20,6 @@ interface CPlayerBarProps {
 
   disableReason?: string;
   onEditScore?: (playerCode: string, newScore: number) => void;
-  token?: string;
   matchCode?: string;
   sendMessage?: (msg: any) => void;
   questionCode?: string;
@@ -43,7 +42,6 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
   disabled,
   disableReason,
   onEditScore,
-  token,
   matchCode,
   sendMessage,
   questionCode,
