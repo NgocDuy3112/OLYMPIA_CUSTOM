@@ -37,7 +37,7 @@ import CPlayerBar from "@/components/controller/CPlayerBar";
 import CControlButton from "@/components/controller/CControlButton";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { VeDichPickSpectatorPage } from "@/components/shared/VeDichPickSpectatorPage";
+import { SVeDichPickPage } from "@/components/shared/SVeDichPickPage";
 import { useSpectator } from "@/hooks/useSpectator";
 
 const logger = createLogger("VeDichPickPage");
@@ -627,7 +627,7 @@ const MCVeDichPickView = ({ round }: { round: VeDichRound }) => {
   const { matchCode: routeMatchCode } = useParams<{ matchCode: string }>();
   const { matchCode } = useRoleSession("mc");
   return (
-    <VeDichPickSpectatorPage
+    <SVeDichPickPage
       round={round}
       matchCode={routeMatchCode || matchCode}
       Layout={PBasePageLayout}

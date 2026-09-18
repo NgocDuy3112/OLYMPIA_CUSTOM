@@ -20,7 +20,7 @@ import CControlButton from "@/components/controller/CControlButton";
 import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { KhoiDongSpectatorPage } from "@/components/shared/KhoiDongSpectatorPage";
+import { SKhoiDongPage } from "@/components/shared/SKhoiDongPage";
 
 const QUESTION_PREFIX = "OC3_Q_KD_R";
 const MAX_QUESTION_INDEX = 6;
@@ -224,7 +224,7 @@ const PlayerKhoiDongRiengView = () => {
 const MCKhoiDongRiengView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <KhoiDongSpectatorPage
+    <SKhoiDongPage
       variant="rieng"
       Layout={PBasePageLayout}
       matchCode={matchCode}

@@ -22,7 +22,7 @@ import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { ButPhaSpectatorPage } from "@/components/shared/ButPhaSpectatorPage";
+import { SButPhaPage } from "@/components/shared/SButPhaPage";
 
 const QUESTION_PREFIX = "OC3_Q_BP";
 const MAX_QUESTION_INDEX = 5;
@@ -346,7 +346,7 @@ const PlayerButPhaView = () => {
 // ─── MC View ────────────────────────────────────────────────────────────────
 const MCButPhaView = () => {
   const { matchCode } = useRoleSession("mc");
-  return <ButPhaSpectatorPage Layout={PBasePageLayout} matchCode={matchCode} />;
+  return <SButPhaPage Layout={PBasePageLayout} matchCode={matchCode} />;
 };
 
 // ─── Main Page ──────────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@ import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { KhoiDongSpectatorPage } from "@/components/shared/KhoiDongSpectatorPage";
+import { SKhoiDongPage } from "@/components/shared/SKhoiDongPage";
 
 const QUESTION_PREFIX = "OC3_Q_KD_C";
 const MAX_QUESTION_INDEX = 6;
@@ -408,7 +408,7 @@ const PlayerKhoiDongChungView = () => {
 const MCKhoiDongChungView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <KhoiDongSpectatorPage
+    <SKhoiDongPage
       variant="chung"
       Layout={PBasePageLayout}
       matchCode={matchCode}

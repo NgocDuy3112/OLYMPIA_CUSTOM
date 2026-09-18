@@ -48,7 +48,7 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { GiaiMaSpectatorPage } from "@/components/shared/GiaiMaSpectatorPage";
+import { SGiaiMaPage } from "@/components/shared/SGiaiMaPage";
 
 const logger = createLogger("GiaiMaPage");
 const TIME_LIMIT = 15;
@@ -1775,7 +1775,7 @@ const PlayerGiaiMaView = () => {
 // ─── MC View ────────────────────────────────────────────────────────────────
 const MCGiaiMaView = () => {
   const { matchCode } = useRoleSession("mc");
-  return <GiaiMaSpectatorPage Layout={PBasePageLayout} matchCode={matchCode} />;
+  return <SGiaiMaPage Layout={PBasePageLayout} matchCode={matchCode} />;
 };
 
 // ─── Main Page ──────────────────────────────────────────────────────────────

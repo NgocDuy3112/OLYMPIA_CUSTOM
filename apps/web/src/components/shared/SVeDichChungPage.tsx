@@ -16,15 +16,15 @@ import {
 
 type RoundQuestion = { code: string; category: string; points: number };
 
-interface VeDichChungSpectatorPageProps {
+interface SVeDichChungPageProps {
   Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function VeDichChungSpectatorPage({
+export function SVeDichChungPage({
   Layout,
   matchCode = "",
-}: VeDichChungSpectatorPageProps) {
+}: SVeDichChungPageProps) {
   const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
   const { lastMessage } = useGameWebSocket();
   const { timer, startSynced } = useCountdownTimer();

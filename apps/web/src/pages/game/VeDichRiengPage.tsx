@@ -61,7 +61,7 @@ import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { VeDichSpectatorPage } from "@/components/shared/VeDichSpectatorPage";
+import { SVeDichPage } from "@/components/shared/SVeDichPage";
 
 const logger = createLogger("VeDichRiengPage");
 const DEFAULT_QUESTION: Question = {
@@ -1589,7 +1589,7 @@ const PlayerVeDichRiengView = () => {
 const MCVeDichRiengView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <VeDichSpectatorPage
+    <SVeDichPage
       variant="rieng"
       Layout={PBasePageLayout}
       matchCode={matchCode}

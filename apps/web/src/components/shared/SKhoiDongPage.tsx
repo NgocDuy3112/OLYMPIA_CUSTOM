@@ -9,16 +9,16 @@ import { useQuestionState } from "@/hooks/useQuestionState";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import type { RawPlayer } from "@/utils/playerHelpers";
 
-interface KhoiDongSpectatorPageProps {
+interface SKhoiDongPageProps {
   variant: "chung" | "rieng";
   Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function KhoiDongSpectatorPage({
+export function SKhoiDongPage({
   variant,
   Layout,
-}: KhoiDongSpectatorPageProps) {
+}: SKhoiDongPageProps) {
   const [buzzerWinnerCode, setBuzzerWinnerCode] = useState<string | null>(null);
   const [currentPlayerCode, setCurrentPlayerCode] = useState("");
   const { lastMessage } = useGameWebSocket();

@@ -57,7 +57,7 @@ import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
-import { VeDichSpectatorPage } from "@/components/shared/VeDichSpectatorPage";
+import { SVeDichPage } from "@/components/shared/SVeDichPage";
 
 const logger = createLogger("VeDichChungPage");
 const DEFAULT_QUESTION: Question = {
@@ -1294,7 +1294,7 @@ const PlayerVeDichChungView = () => {
 const MCVeDichChungView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
-    <VeDichSpectatorPage
+    <SVeDichPage
       variant="chung"
       Layout={PBasePageLayout}
       matchCode={matchCode}

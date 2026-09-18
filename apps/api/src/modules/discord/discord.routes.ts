@@ -10,20 +10,6 @@ import { requireAuth } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { getEnv } from "../../config/env.js";
 
-/**
- * Discord module — internal endpoints for the AI agent.
- *
- * Transport (hybrid, per plan):
- * - Commands needing ack (assign role, nickname, lock) go direct HTTP
- *   from API to the discord-bot executor (BOT_EXECUTOR_URL).
- * - Fire-and-forget notifications (prematch) go via Valkey pub/sub
- *   on oc:live-events — the bot already subscribes there.
- *
- * Permission: write endpoints require the CALLER's tournament role to be
- * controller or mc (or global admin). The agent passes X-User-Role through
- * and never gets its own role.
- */
-
 const DISCORD_COMMAND_TIMEOUT_MS = 10_000;
 
 function botExecutorUrl(): string {
@@ -129,7 +115,6 @@ export async function discordRoutes(app: FastifyInstance) {
     },
   );
 
-  // POST /discord/:code/assign — assign Discord role + nickname (staff only)
   app.post(
     "/discord/:code/assign",
     { preHandler: [requireAuth(app)] },

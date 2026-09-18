@@ -12,12 +12,12 @@ import type { RawPlayer } from "@/utils/playerHelpers";
 
 type RoundQuestion = { code: string; category: string; points: number };
 
-interface VeDichRiengSpectatorPageProps {
+interface SVeDichRiengPageProps {
   Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function VeDichRiengSpectatorPage({ Layout }: VeDichRiengSpectatorPageProps) {
+export function SVeDichRiengPage({ Layout }: SVeDichRiengPageProps) {
   const { lastMessage } = useGameWebSocket();
   const { timer, startSynced } = useCountdownTimer();
   const { currentQuestion, applyWsMessage } = useQuestionState();

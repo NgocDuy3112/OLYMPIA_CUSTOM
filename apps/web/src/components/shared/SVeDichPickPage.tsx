@@ -16,17 +16,17 @@ const CATEGORIES = [
   "KIẾN THỨC TỔNG HỢP",
 ];
 
-interface VeDichPickSpectatorPageProps {
+interface SVeDichPickPageProps {
   round: VeDichRound;
   matchCode?: string;
   Layout: ComponentType<SpectatorLayoutProps>;
 }
 
-export function VeDichPickSpectatorPage({
+export function SVeDichPickPage({
   round,
   matchCode = "",
   Layout,
-}: VeDichPickSpectatorPageProps) {
+}: SVeDichPickPageProps) {
   const { lastMessage } = useGameWebSocket();
   const { players, applyPlayersInfo } = useSpectator();
 

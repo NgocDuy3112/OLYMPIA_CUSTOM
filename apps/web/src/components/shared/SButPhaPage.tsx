@@ -8,12 +8,12 @@ import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 
-interface ButPhaSpectatorPageProps {
+interface SButPhaPageProps {
   Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function ButPhaSpectatorPage({ Layout }: ButPhaSpectatorPageProps) {
+export function SButPhaPage({ Layout }: SButPhaPageProps) {
   const [videoPlayState, setVideoPlayState] = useState<
     "playing" | "paused" | null
   >(null);

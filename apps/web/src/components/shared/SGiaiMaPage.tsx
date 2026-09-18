@@ -63,12 +63,12 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({
   );
 };
 
-interface GiaiMaSpectatorPageProps {
+interface SGiaiMaPageProps {
   Layout: ComponentType<SpectatorLayoutProps>;
   matchCode?: string;
 }
 
-export function GiaiMaSpectatorPage({ Layout }: GiaiMaSpectatorPageProps) {
+export function SGiaiMaPage({ Layout }: SGiaiMaPageProps) {
   const { lastMessage } = useGameWebSocket();
   const { timer, startSynced } = useCountdownTimer();
   const { currentQuestion, applyWsMessage } = useQuestionState();
