@@ -7,13 +7,19 @@
 
 import type { FastifyInstance } from "fastify";
 import type Redis from "ioredis";
-import { desc, eq, sql } from "drizzle-orm";
-import { db, matches, matchCheckpoints } from "@oc/db";
+import {
+  drizzleCheckpointRepo,
+  type CheckpointRepo,
+} from "../modules/checkpoint/checkpoint.repo.js";
 
 const CHECKPOINT_INTERVAL_MS = 30_000;
 const KEEP_PER_MATCH = 10;
 
-async function snapshotActiveMatches(valkey: Redis): Promise<number> {
+async function snapshotActiveMatches(
+  valkey: Redis,
+  opts: { repo?: CheckpointRepo } = {},
+): Promise<number> {
+  const repo = opts.repo ?? drizzleCheckpointRepo;
   let cursor = "0";
   let saved = 0;
   do {
@@ -38,20 +44,10 @@ async function snapshotActiveMatches(valkey: Redis): Promise<number> {
           checkpoint[k] = v;
         }
       }
-      await db.insert(matchCheckpoints).values({ matchCode, checkpoint });
+      await repo.insert(matchCode, checkpoint);
       saved++;
       // Prune: keep latest KEEP_PER_MATCH
-      const rows = await db
-        .select({ id: matchCheckpoints.id })
-        .from(matchCheckpoints)
-        .where(eq(matchCheckpoints.matchCode, matchCode))
-        .orderBy(desc(matchCheckpoints.createdAt))
-        .offset(KEEP_PER_MATCH);
-      for (const row of rows) {
-        await db
-          .delete(matchCheckpoints)
-          .where(eq(matchCheckpoints.id, row.id));
-      }
+      await repo.pruneKeepLatest(matchCode, KEEP_PER_MATCH);
     }
   } while (cursor !== "0");
   return saved;
@@ -59,15 +55,17 @@ async function snapshotActiveMatches(valkey: Redis): Promise<number> {
 
 export function startCheckpointJob(
   app: FastifyInstance,
+  opts: { repo?: CheckpointRepo } = {},
 ): { stop: () => void } {
   const valkey = app.valkey as Redis;
+  const repo = opts.repo ?? drizzleCheckpointRepo;
   let stopped = false;
   let timer: ReturnType<typeof setInterval> | null = null;
 
   const tick = async () => {
     if (stopped) return;
     try {
-      const saved = await snapshotActiveMatches(valkey);
+      const saved = await snapshotActiveMatches(valkey, { repo });
       if (saved > 0) app.log.info({ saved }, "Checkpoints saved");
     } catch (err) {
       app.log.error({ err }, "Checkpoint job failed");
@@ -90,15 +88,11 @@ export function startCheckpointJob(
 export async function restoreFromCheckpoint(
   valkey: Redis,
   matchCode: string,
+  opts: { repo?: CheckpointRepo } = {},
 ): Promise<boolean> {
-  const rows = await db
-    .select({ checkpoint: matchCheckpoints.checkpoint })
-    .from(matchCheckpoints)
-    .where(eq(matchCheckpoints.matchCode, matchCode))
-    .orderBy(desc(matchCheckpoints.createdAt))
-    .limit(1);
-  if (rows.length === 0) return false;
-  const checkpoint = rows[0].checkpoint as Record<string, unknown>;
+  const repo = opts.repo ?? drizzleCheckpointRepo;
+  const checkpoint = await repo.latest(matchCode);
+  if (!checkpoint) return false;
   const key = `snapshot:${matchCode}`;
   const pipeline = valkey.pipeline();
   for (const [field, value] of Object.entries(checkpoint)) {
@@ -114,19 +108,18 @@ export async function restoreFromCheckpoint(
 }
 
 /** Verify match_code exists (FK-style guard since checkpoints use code, not id). */
-export async function matchCodeExists(matchCode: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: matches.id })
-    .from(matches)
-    .where(eq(matches.matchCode, matchCode))
-    .limit(1);
-  return rows.length > 0;
+export async function matchCodeExists(
+  matchCode: string,
+  opts: { repo?: CheckpointRepo } = {},
+): Promise<boolean> {
+  const repo = opts.repo ?? drizzleCheckpointRepo;
+  return repo.matchCodeExists(matchCode);
 }
 
-export async function checkpointCount(matchCode: string): Promise<number> {
-  const rows = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(matchCheckpoints)
-    .where(eq(matchCheckpoints.matchCode, matchCode));
-  return Number(rows[0]?.count ?? 0);
+export async function checkpointCount(
+  matchCode: string,
+  opts: { repo?: CheckpointRepo } = {},
+): Promise<number> {
+  const repo = opts.repo ?? drizzleCheckpointRepo;
+  return repo.count(matchCode);
 }

@@ -1,30 +1,23 @@
 import type { FastifyInstance } from "fastify";
-import { desc, eq } from "drizzle-orm";
-import { db, matchCheckpoints } from "@oc/db";
 import { requireRole, requireAuth } from "../auth/auth.service.js";
+import { restoreFromCheckpoint } from "../../state/checkpoint.service.js";
 import {
-  restoreFromCheckpoint,
-  matchCodeExists,
-  checkpointCount,
-} from "../../state/checkpoint.service.js";
+  drizzleCheckpointRepo,
+  type CheckpointRepo,
+} from "./checkpoint.repo.js";
 
-export async function checkpointRoutes(app: FastifyInstance) {
+export async function checkpointRoutes(
+  app: FastifyInstance,
+  opts: { repo?: CheckpointRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleCheckpointRepo;
   // GET /checkpoints/:matchCode — list checkpoints (latest first)
   app.get(
     "/checkpoints/:matchCode",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const { matchCode } = request.params as { matchCode: string };
-      const rows = await db
-        .select({
-          id: matchCheckpoints.id,
-          matchCode: matchCheckpoints.matchCode,
-          createdAt: matchCheckpoints.createdAt,
-        })
-        .from(matchCheckpoints)
-        .where(eq(matchCheckpoints.matchCode, matchCode))
-        .orderBy(desc(matchCheckpoints.createdAt))
-        .limit(10);
+      const rows = await repo.listByMatch(matchCode, 10);
       return reply.send({ status: "success", message: "OK", data: rows });
     },
   );
@@ -35,12 +28,12 @@ export async function checkpointRoutes(app: FastifyInstance) {
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
       const { matchCode } = request.params as { matchCode: string };
-      if (!(await matchCodeExists(matchCode))) {
+      if (!(await repo.matchCodeExists(matchCode))) {
         return reply
           .code(404)
           .send({ status: "error", message: "Match not found", data: null });
       }
-      const ok = await restoreFromCheckpoint(app.valkey, matchCode);
+      const ok = await restoreFromCheckpoint(app.valkey, matchCode, { repo });
       if (!ok) {
         return reply.code(404).send({
           status: "error",
@@ -48,7 +41,7 @@ export async function checkpointRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const count = await checkpointCount(matchCode);
+      const count = await repo.count(matchCode);
       return reply.send({
         status: "success",
         message: "Snapshot restored",

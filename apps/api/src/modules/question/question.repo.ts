@@ -37,6 +37,7 @@ export interface QuestionRepo {
     ): Promise<{ id: string } | null>;
     softDeleteAll(matchId: string): Promise<void>;
     softDeleteOne(matchId: string, questionCode: string): Promise<boolean>;
+    findByCodeGlobal(questionCode: string): Promise<{ id: string } | null>;
     findTournamentRole(
         userId: string,
         matchId: string,
@@ -159,6 +160,22 @@ export const drizzleQuestionRepo: QuestionRepo = {
         return result.length > 0;
     },
 
+    async findByCodeGlobal(
+        questionCode: string,
+    ): Promise<{ id: string } | null> {
+        const rows = await db
+            .select({ id: questions.id })
+            .from(questions)
+            .where(
+                and(
+                    eq(questions.questionCode, questionCode),
+                    eq(questions.isDeleted, false),
+                ),
+            )
+            .limit(1);
+        return rows[0] ?? null;
+    },
+
     async findTournamentRole(
         userId: string,
         matchId: string,
@@ -237,6 +254,10 @@ export function createInMemoryQuestionRepo(
             if (idx < 0) return false;
             rows.splice(idx, 1);
             return true;
+        },
+        async findByCodeGlobal(questionCode) {
+            const row = rows.find((r) => r.questionCode === questionCode);
+            return row ? { id: row.id } : null;
         },
         async findTournamentRole() {
             return "qauthor";

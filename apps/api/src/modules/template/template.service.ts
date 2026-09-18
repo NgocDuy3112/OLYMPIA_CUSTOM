@@ -1,5 +1,4 @@
-import { db, matches, tournaments, tournamentPhases, bracketEdges } from "@oc/db";
-import { eq, and } from "drizzle-orm";
+import { drizzleTemplateRepo, type TemplateRepo } from "./template.repo.js";
 
 interface TemplateConfig {
   type: "individual";
@@ -42,6 +41,10 @@ interface MatchData {
   createdBy?: string;
 }
 
+interface TemplateServiceDeps {
+  repo?: TemplateRepo;
+}
+
 // Generate random 6-digit PIN
 function generatePin(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
@@ -66,28 +69,21 @@ export async function applyTemplate(
   tournamentCode: string,
   templateConfig: TemplateConfig,
   createdBy?: string,
+  deps: { repo?: TemplateRepo } = {},
 ): Promise<{
   phases: PhaseData[];
   matches: MatchData[];
   totalMatches: number;
 }> {
+  const repo = deps.repo ?? drizzleTemplateRepo;
   // Get tournament
-  const tournamentRows = await db
-    .select({ id: tournaments.id })
-    .from(tournaments)
-    .where(
-      and(
-        eq(tournaments.tournamentCode, tournamentCode),
-        eq(tournaments.isDeleted, false),
-      ),
-    )
-    .limit(1);
+  const tournament = await repo.findTournamentByCode(tournamentCode);
 
-  if (tournamentRows.length === 0) {
+  if (!tournament) {
     throw new Error("Tournament not found");
   }
 
-  const tournamentId = tournamentRows[0].id;
+  const tournamentId = tournament.id;
   const createdMatches: MatchData[] = [];
   const createdPhases: PhaseData[] = [];
   // label -> match id, used to resolve advancementRules into bracket_edges
@@ -97,17 +93,14 @@ export async function applyTemplate(
   for (let phaseIndex = 0; phaseIndex < templateConfig.phases.length; phaseIndex++) {
     const phase = templateConfig.phases[phaseIndex];
 
-    const phaseRows = await db
-      .insert(tournamentPhases)
-      .values({
-        tournamentId,
-        phaseNumber: phaseIndex + 1,
-        phaseName: phase.name,
-        phaseType: phase.type,
-        matchCount: 0,
-      })
-      .returning();
-    const phaseId = phaseRows[0].id;
+    const phaseRow = await repo.insertPhase({
+      tournamentId,
+      phaseNumber: phaseIndex + 1,
+      phaseName: phase.name,
+      phaseType: phase.type,
+      matchCount: 0,
+    });
+    const phaseId = phaseRow.id;
 
     let matchCount = 0;
 
@@ -123,7 +116,7 @@ export async function applyTemplate(
         const matchInRound = (matchIndex % 4) + 1;
         const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
 
-        const matchData = await createMatch({
+        const matchData = await createMatch(repo, {
           tournamentId,
           phaseId,
           matchName: `${phase.name} - Round ${roundNumber} - Match ${matchInRound}`,
@@ -140,7 +133,7 @@ export async function applyTemplate(
 
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
         const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
-        const matchData = await createMatch({
+        const matchData = await createMatch(repo, {
           tournamentId,
           phaseId,
           matchName: `${phase.name} - Match ${matchIndex + 1}`,
@@ -157,7 +150,7 @@ export async function applyTemplate(
 
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
         const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
-        const matchData = await createMatch({
+        const matchData = await createMatch(repo, {
           tournamentId,
           phaseId,
           matchName: `${phase.name}${matchCount > 1 ? ` - Match ${matchIndex + 1}` : ""}`,
@@ -170,10 +163,7 @@ export async function applyTemplate(
       }
     }
 
-    await db
-      .update(tournamentPhases)
-      .set({ matchCount })
-      .where(eq(tournamentPhases.id, phaseId));
+    await repo.updatePhaseMatchCount(phaseId, matchCount);
 
     createdPhases.push({
       id: phaseId,
@@ -187,22 +177,19 @@ export async function applyTemplate(
   // Persist advancement rules as bracket edges (label -> id resolution)
   if (templateConfig.advancementRules?.length) {
     for (const m of createdMatches) {
-      const idRows = await db
-        .select({ id: matches.id })
-        .from(matches)
-        .where(eq(matches.matchCode, m.matchCode))
-        .limit(1);
-      if (idRows.length > 0) labelToId.set(m.matchLabel, idRows[0].id);
+      const found = await repo.findMatchByCode(m.matchCode);
+      if (found) labelToId.set(m.matchLabel, found.id);
     }
 
     for (const rule of templateConfig.advancementRules) {
       const fromId = labelToId.get(rule.from);
       const toId = labelToId.get(rule.to);
       if (!fromId || !toId) continue;
-      await db
-        .insert(bracketEdges)
-        .values({ fromMatchId: fromId, rank: rule.rank, toMatchId: toId })
-        .onConflictDoNothing();
+      await repo.insertBracketEdge({
+        fromMatchId: fromId,
+        rank: rule.rank,
+        toMatchId: toId,
+      });
     }
   }
 
@@ -216,44 +203,44 @@ export async function applyTemplate(
 /**
  * Create a single match with generated codes.
  */
-async function createMatch(params: {
-  tournamentId: string;
-  phaseId?: string;
-  matchName: string;
-  matchLabel: string;
-  matchFormat: string;
-  scheduledAt?: Date;
-  venue?: string;
-  createdBy?: string;
-}): Promise<MatchData> {
+async function createMatch(
+  repo: TemplateRepo,
+  params: {
+    tournamentId: string;
+    phaseId?: string;
+    matchName: string;
+    matchLabel: string;
+    matchFormat: string;
+    scheduledAt?: Date;
+    venue?: string;
+    createdBy?: string;
+  },
+): Promise<MatchData> {
   const matchCode = generateMatchCode(Math.random() * 10000);
   const matchPin = generatePin();
 
-  const result = await db
-    .insert(matches)
-    .values({
-      matchCode,
-      matchPin,
-      matchName: params.matchName,
-      matchLabel: params.matchLabel,
-      matchFormat: params.matchFormat,
-      phaseId: params.phaseId,
-      scheduledAt: params.scheduledAt,
-      venue: params.venue,
-      tournamentId: params.tournamentId,
-      createdBy: params.createdBy,
-    })
-    .returning();
+  const result = await repo.insertMatch({
+    matchCode,
+    matchPin,
+    matchName: params.matchName,
+    matchLabel: params.matchLabel,
+    matchFormat: params.matchFormat,
+    phaseId: params.phaseId,
+    scheduledAt: params.scheduledAt,
+    venue: params.venue,
+    tournamentId: params.tournamentId,
+    createdBy: params.createdBy,
+  });
 
   return {
-    matchCode: result[0].matchCode,
-    matchSlug: result[0].matchSlug,
-    matchPin: result[0].matchPin,
-    matchName: result[0].matchName,
-    matchLabel: result[0].matchLabel || params.matchLabel,
-    matchFormat: result[0].matchFormat,
+    matchCode: result.matchCode,
+    matchSlug: result.matchSlug,
+    matchPin: result.matchPin,
+    matchName: result.matchName,
+    matchLabel: result.matchLabel || params.matchLabel,
+    matchFormat: result.matchFormat,
     tournamentId: params.tournamentId,
-    phaseId: result[0].phaseId ?? params.phaseId,
+    phaseId: result.phaseId ?? params.phaseId,
     createdBy: params.createdBy,
   };
 }
@@ -265,59 +252,41 @@ async function createMatch(params: {
 export async function generateNextRound(
   tournamentCode: string,
   currentPhaseNumber: number,
+  deps: TemplateServiceDeps = {},
 ): Promise<{
   phase: PhaseData;
   matches: MatchData[];
 }> {
+  const repo = deps.repo ?? drizzleTemplateRepo;
   // Get tournament
-  const tournamentRows = await db
-    .select({ id: tournaments.id })
-    .from(tournaments)
-    .where(
-      and(
-        eq(tournaments.tournamentCode, tournamentCode),
-        eq(tournaments.isDeleted, false),
-      ),
-    )
-    .limit(1);
+  const tournament = await repo.findTournamentByCode(tournamentCode);
 
-  if (tournamentRows.length === 0) {
+  if (!tournament) {
     throw new Error("Tournament not found");
   }
 
-  const tournamentId = tournamentRows[0].id;
+  const tournamentId = tournament.id;
 
   // Get current matches in this phase
-  const currentMatches = await db
-    .select({ id: matches.id, matchLabel: matches.matchLabel })
-    .from(matches)
-    .where(
-      and(
-        eq(matches.tournamentId, tournamentId),
-        eq(matches.isDeleted, false),
-      ),
-    );
+  const currentMatches = await repo.listMatchesByTournament(tournamentId);
 
   // Calculate next phase
   const nextPhaseNumber = currentPhaseNumber + 1;
   const nextPhaseMatchCount = Math.ceil(currentMatches.length / 2);
 
-  const phaseRows = await db
-    .insert(tournamentPhases)
-    .values({
-      tournamentId,
-      phaseNumber: nextPhaseNumber,
-      phaseName: `Phase ${nextPhaseNumber}`,
-      phaseType: "playoffs",
-      matchCount: nextPhaseMatchCount,
-    })
-    .returning();
-  const nextPhaseId = phaseRows[0].id;
+  const phaseRow = await repo.insertPhase({
+    tournamentId,
+    phaseNumber: nextPhaseNumber,
+    phaseName: `Phase ${nextPhaseNumber}`,
+    phaseType: "playoffs",
+    matchCount: nextPhaseMatchCount,
+  });
+  const nextPhaseId = phaseRow.id;
 
   const createdMatches: MatchData[] = [];
 
   for (let i = 0; i < nextPhaseMatchCount; i++) {
-    const matchData = await createMatch({
+    const matchData = await createMatch(repo, {
       tournamentId,
       phaseId: nextPhaseId,
       matchName: `Phase ${nextPhaseNumber} - Match ${i + 1}`,

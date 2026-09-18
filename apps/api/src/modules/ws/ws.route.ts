@@ -7,8 +7,8 @@ import type { WebSocket } from "ws";
 import { manager } from "./ws.manager.js";
 import { handleWsMessage, handleReconnect } from "./ws.handler.js";
 import { getSession } from "../auth/auth.service.js";
-import { eq, and } from "drizzle-orm";
-import { db, matches, tournaments, tournamentPlayers } from "@oc/db";
+import { drizzleMatchRepo } from "../match/match.repo.js";
+import { drizzleTournamentRepo } from "../tournament/tournament.repo.js";
 import type { TournamentFormat } from "@oc/shared";
 
 const COOKIE_NAME = "sid";
@@ -35,20 +35,14 @@ export async function wsRoute(app: FastifyInstance) {
         return;
       }
 
-      const matchRows = await db
-        .select({ tournamentFormat: matches.tournamentFormat })
-        .from(matches)
-        .where(
-          and(eq(matches.matchCode, matchCode), eq(matches.isDeleted, false)),
-        )
-        .limit(1);
-      if (matchRows.length === 0) {
+      const matchRow = await drizzleMatchRepo.findByCode(matchCode);
+      if (!matchRow) {
         socket.close(4004, "Match not found");
         return;
       }
 
       const tournamentFormat = toTournamentFormat(
-        matchRows[0].tournamentFormat,
+        (matchRow as { tournamentFormat?: string }).tournamentFormat ?? "oc3",
       );
       if (!tournamentFormat) {
         socket.close(4002, "Unsupported tournament format");
@@ -77,26 +71,15 @@ export async function wsRoute(app: FastifyInstance) {
         gameRole = "player";
       } else {
         // Look up tournament for this match, then check per-tournament role
-        const matchWithTournament = await db
-          .select({ tournamentId: matches.tournamentId })
-          .from(matches)
-          .where(eq(matches.matchCode, matchCode))
-          .limit(1);
-        
-        if (matchWithTournament[0]?.tournamentId) {
-          const membership = await db
-            .select({ role: tournamentPlayers.role })
-            .from(tournamentPlayers)
-            .where(
-              and(
-                eq(tournamentPlayers.tournamentId, matchWithTournament[0].tournamentId),
-                eq(tournamentPlayers.playerId, session.userId),
-              ),
-            )
-            .limit(1);
-          
-          if (membership[0]) {
-            const tRole = membership[0].role;
+        const tournamentId = (matchRow as { tournamentId?: string | null })
+          .tournamentId;
+        if (tournamentId) {
+          const membership = await drizzleTournamentRepo.findMember(
+            tournamentId,
+            session.userId,
+          );
+          if (membership) {
+            const tRole = membership.role;
             if (tRole === "controller" || tRole === "mc") {
               gameRole = tRole;
             }

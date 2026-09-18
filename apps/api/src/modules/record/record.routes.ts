@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import { db, records } from "@oc/db";
 import { resolveMatchId } from "../../state/id-cache.js";
+import { drizzleRecordRepo, type RecordRepo } from "./record.repo.js";
 
-export async function recordRoutes(app: FastifyInstance) {
+export async function recordRoutes(
+  app: FastifyInstance,
+  opts: { repo?: RecordRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleRecordRepo;
   // GET /records/:matchCode — list score records for a match
   app.get("/records/:matchCode", async (request, reply) => {
     const { matchCode } = request.params as { matchCode: string };
@@ -16,12 +19,7 @@ export async function recordRoutes(app: FastifyInstance) {
         .send({ status: "error", message: "Match not found", data: null });
     }
 
-    let query = db
-      .select()
-      .from(records)
-      .where(and(eq(records.matchId, matchId), eq(records.isDeleted, false)));
-
-    const rows = await query;
+    const rows = await repo.listByMatch(matchId, questionCode);
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 }

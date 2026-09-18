@@ -1,91 +1,29 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import {
-  db,
-  scoreReviews,
-  answers,
-  questions,
-  matches,
-  users,
-  matchPlayerPositions,
-} from "@oc/db";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { requireScope } from "../auth/auth.service.js";
 import { AppError } from "../../utils/errors.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { manager } from "../ws/ws.manager.js";
+import {
+  drizzleScoreReviewRepo,
+  type CandidateInput,
+  type ScoreReviewCandidate,
+  type ScoreReviewRepo,
+} from "./score-review.repo.js";
+import { drizzleQuestionRepo } from "../question/question.repo.js";
 
 const REVIEW_TTL_SECONDS = 10 * 60;
-
-interface CandidateInput {
-  userCode: string;
-  answerText?: string;
-}
-
-interface Candidate {
-  userCode: string;
-  userName: string;
-  position: number | null;
-  answerText: string;
-}
 
 function label(position: number | null, userName: string): string {
   return `[${position ?? "?"}] ${userName}`;
 }
 
-async function loadCandidates(
-  matchId: string,
-  questionId: string,
-  inputs: CandidateInput[],
-): Promise<Candidate[]> {
-  const out: Candidate[] = [];
-  for (const input of inputs) {
-    const userRows = await db
-      .select({ id: users.id, userName: users.userName })
-      .from(users)
-      .where(
-        and(eq(users.userCode, input.userCode), eq(users.isDeleted, false)),
-      )
-      .limit(1);
-    if (userRows.length === 0) throw new AppError(404, `Player not found: ${input.userCode}`);
-    let answerText = input.answerText ?? "";
-    if (!answerText) {
-      const answerRows = await db
-        .select({ answerText: answers.answerText })
-        .from(answers)
-        .where(
-          and(
-            eq(answers.matchId, matchId),
-            eq(answers.playerId, userRows[0].id),
-            eq(answers.questionId, questionId),
-            eq(answers.isDeleted, false),
-          ),
-        )
-        .limit(1);
-      answerText = answerRows[0]?.answerText ?? "";
-    }
-    const posRows = await db
-      .select({ position: matchPlayerPositions.position })
-      .from(matchPlayerPositions)
-      .where(
-        and(
-          eq(matchPlayerPositions.matchId, matchId),
-          eq(matchPlayerPositions.playerId, userRows[0].id),
-        ),
-      )
-      .limit(1);
-    out.push({
-      userCode: input.userCode,
-      userName: userRows[0].userName,
-      position: posRows[0]?.position ?? null,
-      answerText,
-    });
-  }
-  out.sort((a, b) => (a.position ?? 99) - (b.position ?? 99));
-  return out;
-}
-
-export async function scoreReviewRoutes(app: FastifyInstance) {
+export async function scoreReviewRoutes(
+  app: FastifyInstance,
+  opts: { repo?: ScoreReviewRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleScoreReviewRepo;
+  const questionRepo = drizzleQuestionRepo;
   // POST /score-reviews — controller marks [position] name, bot pings qauthor.
   app.post(
     "/score-reviews",
@@ -96,56 +34,66 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
         question_code?: unknown;
         candidates?: unknown;
       };
-      const matchCode = typeof body.match_code === "string" ? body.match_code : "";
-      const questionCode = typeof body.question_code === "string" ? body.question_code : "";
-      const rawCandidates = Array.isArray(body.candidates) ? body.candidates : [];
+      const matchCode =
+        typeof body.match_code === "string" ? body.match_code : "";
+      const questionCode =
+        typeof body.question_code === "string" ? body.question_code : "";
+      const rawCandidates = Array.isArray(body.candidates)
+        ? body.candidates
+        : [];
       if (!matchCode || !questionCode || rawCandidates.length === 0) {
-        throw new AppError(400, "match_code, question_code, candidates required");
+        throw new AppError(
+          400,
+          "match_code, question_code, candidates required",
+        );
       }
       if (rawCandidates.length > 4) {
         throw new AppError(400, "At most 4 candidates per review");
       }
       const inputs: CandidateInput[] = rawCandidates.map((c) => {
         const obj = c as Record<string, unknown>;
-        const userCode = typeof obj.userCode === "string" ? obj.userCode : typeof obj.user_code === "string" ? obj.user_code : "";
-        const answerText = typeof obj.answerText === "string" ? obj.answerText : typeof obj.answer_text === "string" ? obj.answer_text : "";
-        if (!userCode) throw new AppError(400, "Each candidate needs userCode");
+        const userCode =
+          typeof obj.userCode === "string"
+            ? obj.userCode
+            : typeof obj.user_code === "string"
+              ? obj.user_code
+              : "";
+        const answerText =
+          typeof obj.answerText === "string"
+            ? obj.answerText
+            : typeof obj.answer_text === "string"
+              ? obj.answer_text
+              : "";
+        if (!userCode)
+          throw new AppError(400, "Each candidate needs userCode");
         return { userCode, answerText };
       });
 
       const matchId = await resolveMatchId(app.valkey, matchCode);
       if (!matchId) throw new AppError(404, "Match not found");
-      const questionRows = await db
-        .select({ id: questions.id, content: questions.content, answer: questions.answer })
-        .from(questions)
-        .where(
-          and(
-            eq(questions.matchId, matchId),
-            eq(questions.questionCode, questionCode),
-            eq(questions.isDeleted, false),
-          ),
-        )
-        .limit(1);
-      if (questionRows.length === 0) throw new AppError(404, "Question not found");
+      const question = await questionRepo.findByCode(matchId, questionCode);
+      if (!question) throw new AppError(404, "Question not found");
 
-      const candidates = await loadCandidates(matchId, questionRows[0].id, inputs);
-      const session = (request as { session?: { userCode?: string } }).session;
+      const candidates = await repo.buildCandidates(
+        matchId,
+        question.id,
+        inputs,
+      );
+      const session = request as unknown as {
+        session?: { userCode?: string };
+      };
+      const createdBy = session.session?.userCode;
       const expiresAt = new Date(Date.now() + REVIEW_TTL_SECONDS * 1000);
-      const inserted = await db
-        .insert(scoreReviews)
-        .values({
-          matchId,
-          questionId: questionRows[0].id,
-          matchCode,
-          questionCode,
-          candidates,
-          decisions: {},
-          status: "pending",
-          createdBy: session?.userCode,
-          expiresAt,
-        })
-        .returning({ id: scoreReviews.id });
-      const reviewId = inserted[0].id;
+      const inserted = await repo.create({
+        matchId,
+        questionId: question.id,
+        matchCode,
+        questionCode,
+        candidates,
+        createdBy,
+        expiresAt,
+      });
+      const reviewId = inserted.id;
 
       // Fire-and-forget Discord ping via Valkey — bot posts embed + buttons.
       try {
@@ -156,8 +104,8 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
             review_id: reviewId,
             match_code: matchCode,
             question_code: questionCode,
-            question_content: questionRows[0].content,
-            question_answer: questionRows[0].answer,
+            question_content: question.content,
+            question_answer: question.answer,
             candidates: candidates.map((c) => ({
               user_code: c.userCode,
               label: label(c.position, c.userName),
@@ -172,7 +120,7 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
 
       void writeAudit({
         actionType: "SCORE_CHANGE",
-        actorCode: session?.userCode ?? null,
+        actorCode: createdBy ?? null,
         matchCode,
         targetCode: questionCode,
         details: `score-review ${reviewId}: ${candidates.map((c) => label(c.position, c.userName)).join(", ")}`,
@@ -189,11 +137,13 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
   // GET /score-reviews/:id — controller/qauthor poll state.
   app.get("/score-reviews/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const rows = await db.select().from(scoreReviews).where(eq(scoreReviews.id, id)).limit(1);
-    if (rows.length === 0) {
-      return reply.code(404).send({ status: "error", message: "Review not found", data: null });
+    const review = await repo.findById(id);
+    if (!review) {
+      return reply
+        .code(404)
+        .send({ status: "error", message: "Review not found", data: null });
     }
-    return reply.send({ status: "success", message: "OK", data: rows[0] });
+    return reply.send({ status: "success", message: "OK", data: review });
   });
 
   // POST /score-reviews/:id/decision — bot callback (qauthor verdict).
@@ -205,20 +155,27 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
       decidedBy?: unknown;
       oceeSuggestion?: unknown;
     };
-    const rows = await db.select().from(scoreReviews).where(eq(scoreReviews.id, id)).limit(1);
-    if (rows.length === 0) {
-      return reply.code(404).send({ status: "error", message: "Review not found", data: null });
+    const review = await repo.findById(id);
+    if (!review) {
+      return reply
+        .code(404)
+        .send({ status: "error", message: "Review not found", data: null });
     }
-    const review = rows[0];
     if (review.status !== "pending") {
-      return reply.code(409).send({ status: "error", message: `Review already ${review.status}`, data: null });
+      return reply.code(409).send({
+        status: "error",
+        message: `Review already ${review.status}`,
+        data: null,
+      });
     }
     if (review.expiresAt && new Date(review.expiresAt) < new Date()) {
-      await db.update(scoreReviews).set({ status: "expired", updatedAt: new Date() }).where(eq(scoreReviews.id, id));
-      return reply.code(410).send({ status: "error", message: "Review expired", data: null });
+      await repo.markExpired(id);
+      return reply
+        .code(410)
+        .send({ status: "error", message: "Review expired", data: null });
     }
     const decisions = (body.decisions ?? {}) as Record<string, string>;
-    const candidates = (review.candidates ?? []) as Candidate[];
+    const candidates = (review.candidates ?? []) as ScoreReviewCandidate[];
     for (const c of candidates) {
       const v = decisions[c.userCode];
       if (v !== "dung" && v !== "sai") {
@@ -229,23 +186,10 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
         });
       }
     }
-    const decidedBy = typeof body.decidedBy === "string" ? body.decidedBy : null;
-    await db
-      .update(scoreReviews)
-      .set({
-        decisions,
-        decidedBy,
-        oceeSuggestion: (body.oceeSuggestion ?? null) as never,
-        status: "decided",
-        updatedAt: new Date(),
-      })
-      .where(eq(scoreReviews.id, id));
+    const decidedBy =
+      typeof body.decidedBy === "string" ? body.decidedBy : null;
+    await repo.decide(id, decisions, decidedBy, body.oceeSuggestion ?? null);
 
-    const matchRow = await db
-      .select({ tournamentId: matches.tournamentId })
-      .from(matches)
-      .where(eq(matches.id, review.matchId))
-      .limit(1);
     void writeAudit({
       actionType: "SCORE_CHANGE",
       actorCode: decidedBy,
@@ -265,11 +209,13 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
     };
     await manager.sendToRoles(review.matchCode, ["controller"], payload);
     try {
-      await app.valkey.publish("oc:live-events", JSON.stringify({ ...payload, type: "score_review_decided" }));
+      await app.valkey.publish(
+        "oc:live-events",
+        JSON.stringify({ ...payload, type: "score_review_decided" }),
+      );
     } catch {
       /* ignore */
     }
-    void matchRow;
     return reply.send({ status: "success", message: "OK", data: payload });
   });
 
@@ -277,24 +223,27 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
   // Proxies to ai-agent; result stored + returned for embed reference only.
   app.post("/score-reviews/:id/ocee", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const rows = await db.select().from(scoreReviews).where(eq(scoreReviews.id, id)).limit(1);
-    if (rows.length === 0) {
-      return reply.code(404).send({ status: "error", message: "Review not found", data: null });
+    const review = await repo.findById(id);
+    if (!review) {
+      return reply
+        .code(404)
+        .send({ status: "error", message: "Review not found", data: null });
     }
-    const review = rows[0];
     if (review.status !== "pending") {
-      return reply.code(409).send({ status: "error", message: `Review already ${review.status}`, data: null });
+      return reply.code(409).send({
+        status: "error",
+        message: `Review already ${review.status}`,
+        data: null,
+      });
     }
-    const candidates = (review.candidates ?? []) as Candidate[];
-    const questionRows = await db
-      .select({ content: questions.content, answer: questions.answer })
-      .from(questions)
-      .where(eq(questions.id, review.questionId))
-      .limit(1);
+    const candidates = (review.candidates ?? []) as ScoreReviewCandidate[];
+    const questionContent = await repo.findQuestionContent(review.questionId);
     const prompt = [
-      `Câu hỏi: ${questionRows[0]?.content ?? review.questionCode}`,
-      `Đáp án gốc: ${questionRows[0]?.answer ?? ""}`,
-      ...candidates.map((c) => `${label(c.position, c.userName)} trả lời: ${c.answerText}`),
+      `Câu hỏi: ${questionContent?.content ?? review.questionCode}`,
+      `Đáp án gốc: ${questionContent?.answer ?? ""}`,
+      ...candidates.map(
+        (c) => `${label(c.position, c.userName)} trả lời: ${c.answerText}`,
+      ),
       "Cho biết từng thí sinh nên được chấp nhận hay không, kèm lý do ngắn.",
     ].join("\n");
 
@@ -303,25 +252,40 @@ export async function scoreReviewRoutes(app: FastifyInstance) {
       const resp = await fetch(`${agentUrl}/agent/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ match_code: review.matchCode, question: prompt }),
+        body: JSON.stringify({
+          match_code: review.matchCode,
+          question: prompt,
+        }),
         signal: AbortSignal.timeout(30_000),
       });
       if (!resp.ok) throw new Error(`Agent error ${resp.status}`);
-      const data = (await resp.json()) as { answer?: string; tools_used?: string[] };
-      const suggestion = { text: data.answer ?? "", tools_used: data.tools_used ?? [] };
-      await db
-        .update(scoreReviews)
-        .set({ oceeSuggestion: suggestion as never, updatedAt: new Date() })
-        .where(eq(scoreReviews.id, id));
+      const data = (await resp.json()) as {
+        answer?: string;
+        tools_used?: string[];
+      };
+      const suggestion = {
+        text: data.answer ?? "",
+        tools_used: data.tools_used ?? [],
+      };
+      await repo.saveOceeSuggestion(id, suggestion);
       try {
         await app.valkey.publish(
           "oc:live-events",
-          JSON.stringify({ type: "score_review_ocee", review_id: id, match_code: review.matchCode, suggestion }),
+          JSON.stringify({
+            type: "score_review_ocee",
+            review_id: id,
+            match_code: review.matchCode,
+            suggestion,
+          }),
         );
       } catch {
         /* ignore */
       }
-      return reply.send({ status: "success", message: "OK", data: suggestion });
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: suggestion,
+      });
     } catch (err) {
       return reply.code(502).send({
         status: "error",

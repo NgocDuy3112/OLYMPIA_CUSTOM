@@ -5,8 +5,11 @@
 import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import { randomBytes } from "node:crypto";
 import { argon2id, argon2Verify } from "hash-wasm";
-import { eq } from "drizzle-orm";
-import { db, users } from "@oc/db";
+import {
+  drizzleUserRepo,
+  type UserRepo,
+  type UserRow,
+} from "../user/user.repo.js";
 import { getEnv } from "../../config/env.js";
 import { AppError } from "../../utils/errors.js";
 import { writeAudit } from "../audit/audit.service.js";
@@ -126,14 +129,13 @@ function issueSessionCookie(
 
 async function createUserSession(
   app: FastifyInstance,
-  user: typeof users.$inferSelect,
+  user: UserRow,
 ): Promise<string> {
   return createSession(app.valkey, {
     userId: user.id,
     userCode: user.userCode,
     role: user.role,
-    operatorScopes: (user as { operatorScopes?: string | null })
-      .operatorScopes,
+    operatorScopes: user.operatorScopes,
     email: user.email,
     userName: user.userName,
     createdAt: Date.now(),
@@ -302,7 +304,10 @@ export function googleRedirect(_request: FastifyRequest, reply: FastifyReply) {
   return reply.redirect(getGoogleAuthUrl());
 }
 
-export function googleCallback(app: FastifyInstance) {
+export function googleCallback(
+  app: FastifyInstance,
+  repo: UserRepo = drizzleUserRepo,
+) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const { code } = request.query as { code?: string };
     if (!code) throw new AppError(400, "Missing authorization code");
@@ -310,16 +315,12 @@ export function googleCallback(app: FastifyInstance) {
     const tokens = await exchangeCode(code);
     const googleUser = await fetchGoogleUserInfo(tokens.access_token);
 
-    // Upsert user
-    const existing = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, googleUser.email))
-      .limit(1);
-    let user: typeof users.$inferSelect;
+    // Upsert user via UserRepo (shared with modules/user)
+    const found = await repo.findByEmail(googleUser.email);
+    let user: UserRow;
 
-    if (existing.length > 0) {
-      user = existing[0];
+    if (found) {
+      user = found;
       // Staff accounts (admin/operator) must use username login only
       if (user.role === "admin" || user.role === "operator") {
         throw new AppError(
@@ -327,35 +328,29 @@ export function googleCallback(app: FastifyInstance) {
           "Staff accounts must log in via username, not Google",
         );
       }
-      await db
-        .update(users)
-        .set({
-          googleId: googleUser.sub,
-          avatarUrl: googleUser.picture ?? user.avatarUrl,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, user.id));
+      const avatarUrl = googleUser.picture ?? user.avatarUrl;
+      await repo.updateGoogleInfo(user.id, {
+        googleId: googleUser.sub,
+        avatarUrl,
+      });
+      user = { ...user, googleId: googleUser.sub, avatarUrl };
     } else {
       const userCode = `OC_U_${String(Date.now()).slice(-6)}`;
-      const inserted = await db
-        .insert(users)
-        .values({
-          googleId: googleUser.sub,
-          email: googleUser.email,
-          userCode,
-          userName: googleUser.name,
-          avatarUrl: googleUser.picture,
-          role: "player",
-        })
-        .returning();
-      user = inserted[0];
+      user = await repo.create({
+        googleId: googleUser.sub,
+        email: googleUser.email,
+        userCode,
+        userName: googleUser.name,
+        avatarUrl: googleUser.picture,
+        role: "player",
+      });
     }
 
     const sid = await createSession(app.valkey, {
       userId: user.id,
       userCode: user.userCode,
       role: user.role,
-      operatorScopes: (user as { operatorScopes?: string | null }).operatorScopes ?? null,
+      operatorScopes: user.operatorScopes ?? null,
       email: user.email,
       userName: user.userName,
       createdAt: Date.now(),
@@ -432,7 +427,10 @@ export function logout(app: FastifyInstance) {
 
 // ── Email/password signup + login ──
 
-export function signup(app: FastifyInstance) {
+export function signup(
+  app: FastifyInstance,
+  repo: UserRepo = drizzleUserRepo,
+) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {
       email?: unknown;
@@ -452,27 +450,29 @@ export function signup(app: FastifyInstance) {
       typeof body.role === "string" ? body.role : "player";
     const role = requestedRole === "spectator" ? "spectator" : "player";
 
-    const existing = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-    if (existing.length > 0) {
+    const existing = await repo.findByEmail(email);
+    if (existing) {
       throw new AppError(409, "Email already registered");
     }
 
     const passwordHash = await hashPassword(body.password as string);
     const userCode = `OC_U_${String(Date.now()).slice(-6)}`;
-    const inserted = await db
-      .insert(users)
-      .values({ email, userCode, userName, passwordHash, role })
-      .returning();
-    const sid = await createUserSession(app, inserted[0]);
+    const created = await repo.create({
+      email,
+      userCode,
+      userName,
+      passwordHash,
+      role,
+    });
+    const sid = await createUserSession(app, created);
     return issueSessionCookie(reply, sid);
   };
 }
 
-export function login(app: FastifyInstance) {
+export function login(
+  app: FastifyInstance,
+  repo: UserRepo = drizzleUserRepo,
+) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as { email?: unknown; password?: unknown };
     validateEmailPassword(body.email, body.password);
@@ -484,12 +484,7 @@ export function login(app: FastifyInstance) {
 
     await checkLoginRateLimit(app.valkey, rateKey);
 
-    const rows = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
-    const user = rows[0];
+    const user = await repo.findByEmail(email);
     // Staff accounts (admin/operator) use username login only — block email login
     if (user && (user.role === "admin" || user.role === "operator")) {
       await recordFailedLogin(app.valkey, rateKey);

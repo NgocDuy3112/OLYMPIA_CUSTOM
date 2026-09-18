@@ -1,9 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import { db } from "@oc/db";
 import { requireRole } from "../auth/auth.service.js";
 import { applyTemplate, generateNextRound } from "./template.service.js";
 import { BUILTIN_TEMPLATES, getBuiltinTemplate } from "./templates.json.js";
+import { drizzleTemplateRepo } from "./template.repo.js";
 
 export async function templateRoutes(app: FastifyInstance) {
   // GET /templates — List builtin templates (JSON, no DB)
@@ -54,20 +53,10 @@ export async function templateRoutes(app: FastifyInstance) {
         });
       }
 
-      // Get tournament
-      const { tournaments } = await import("@oc/db");
-      const tournament = await db
-        .select({ id: tournaments.id })
-        .from(tournaments)
-        .where(
-          and(
-            eq(tournaments.tournamentCode, code),
-            eq(tournaments.isDeleted, false),
-          ),
-        )
-        .limit(1);
+      // Get tournament via repo
+      const tournament = await drizzleTemplateRepo.findTournamentByCode(code);
 
-      if (tournament.length === 0) {
+      if (!tournament) {
         return reply.code(404).send({
           status: "error",
           message: "Tournament not found",
@@ -80,16 +69,14 @@ export async function templateRoutes(app: FastifyInstance) {
         code,
         template.config as any,
         session.userId,
+        { repo: drizzleTemplateRepo },
       );
 
       // Update tournament format
-      await db
-        .update(tournaments)
-        .set({
-          tournamentFormat: template.templateType,
-          updatedAt: new Date(),
-        })
-        .where(eq(tournaments.id, tournament[0].id));
+      await drizzleTemplateRepo.updateTournamentFormat(
+        tournament.id,
+        template.templateType,
+      );
 
       return reply.send({
         status: "success",

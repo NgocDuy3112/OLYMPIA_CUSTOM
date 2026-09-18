@@ -1,35 +1,55 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import { db, users } from "@oc/db";
+import {
+  drizzleUserRepo,
+  type UserRepo,
+  type UserRow,
+} from "./user.repo.js";
 import { requireAuth, requireRole } from "../auth/auth.service.js";
 
-export async function userRoutes(app: FastifyInstance) {
+function toPublicProfile(row: UserRow) {
+  return {
+    userCode: row.userCode,
+    userName: row.userName,
+    role: row.role,
+    avatarUrl: row.avatarUrl,
+    createdAt: row.createdAt,
+  };
+}
+
+function toAdminView(row: UserRow) {
+  return {
+    id: row.id,
+    userCode: row.userCode,
+    userName: row.userName,
+    email: row.email,
+    role: row.role,
+    operatorScopes: row.operatorScopes,
+    avatarUrl: row.avatarUrl,
+  };
+}
+
+export async function userRoutes(
+  app: FastifyInstance,
+  opts: { repo?: UserRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleUserRepo;
   // GET /users/me — current user profile (private)
   app.get(
     "/users/me",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const session = (request as any).session as { userId: string };
-      const rows = await db
-        .select({
-          id: users.id,
-          userCode: users.userCode,
-          userName: users.userName,
-          email: users.email,
-          role: users.role,
-          operatorScopes: users.operatorScopes,
-          avatarUrl: users.avatarUrl,
-          createdAt: users.createdAt,
-        })
-        .from(users)
-        .where(and(eq(users.id, session.userId), eq(users.isDeleted, false)))
-        .limit(1);
-      if (rows.length === 0) {
+      const row = await repo.findById(session.userId);
+      if (!row) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
       }
-      return reply.send({ status: "success", message: "OK", data: rows[0] });
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: { ...toAdminView(row), createdAt: row.createdAt },
+      });
     },
   );
 
@@ -40,7 +60,7 @@ export async function userRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const session = (request as any).session as { userId: string };
       const body = request.body as { userName?: unknown; avatarUrl?: unknown };
-      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      const updates: { userName?: string; avatarUrl?: string | null } = {};
       if (typeof body.userName === "string" && body.userName.trim()) {
         updates.userName = body.userName.trim().slice(0, 100);
       }
@@ -49,17 +69,13 @@ export async function userRoutes(app: FastifyInstance) {
       } else if (typeof body.avatarUrl === "string" && body.avatarUrl.trim()) {
         updates.avatarUrl = body.avatarUrl.trim().slice(0, 500);
       }
-      if (Object.keys(updates).length <= 1) {
+      if (Object.keys(updates).length === 0) {
         return reply
           .code(400)
           .send({ status: "error", message: "Nothing to update", data: null });
       }
-      const result = await db
-        .update(users)
-        .set(updates)
-        .where(and(eq(users.id, session.userId), eq(users.isDeleted, false)))
-        .returning({ id: users.id });
-      if (result.length === 0) {
+      const result = await repo.updateById(session.userId, updates);
+      if (!result) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
@@ -75,43 +91,32 @@ export async function userRoutes(app: FastifyInstance) {
   // GET /users/by-code/:userCode — public profile (no email)
   app.get("/users/by-code/:userCode", async (request, reply) => {
     const { userCode } = request.params as { userCode: string };
-    const rows = await db
-      .select({
-        userCode: users.userCode,
-        userName: users.userName,
-        role: users.role,
-        avatarUrl: users.avatarUrl,
-        createdAt: users.createdAt,
-      })
-      .from(users)
-      .where(and(eq(users.userCode, userCode), eq(users.isDeleted, false)))
-      .limit(1);
-    if (rows.length === 0) {
+    const row = await repo.findByCode(userCode);
+    if (!row) {
       return reply
         .code(404)
         .send({ status: "error", message: "User not found", data: null });
     }
-    return reply.send({ status: "success", message: "OK", data: rows[0] });
+    return reply.send({
+      status: "success",
+      message: "OK",
+      data: toPublicProfile(row),
+    });
   });
   app.get(
     "/users",
     { preHandler: [requireRole(app, "admin")] },
     async (_request, reply) => {
-      const rows = await db
-        .select({
-          id: users.id,
-          userCode: users.userCode,
-          userName: users.userName,
-          email: users.email,
-          role: users.role,
-          operatorScopes: users.operatorScopes,
-          avatarUrl: users.avatarUrl,
-          isDeleted: users.isDeleted,
-          createdAt: users.createdAt,
-        })
-        .from(users)
-        .where(eq(users.isDeleted, false));
-      return reply.send({ status: "success", message: "OK", data: rows });
+      const rows = await repo.list();
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: rows.map((r) => ({
+          ...toAdminView(r),
+          isDeleted: r.isDeleted,
+          createdAt: r.createdAt,
+        })),
+      });
     },
   );
 
@@ -120,25 +125,17 @@ export async function userRoutes(app: FastifyInstance) {
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
       const { userCode } = request.params as { userCode: string };
-      const rows = await db
-        .select({
-          id: users.id,
-          userCode: users.userCode,
-          userName: users.userName,
-          email: users.email,
-          role: users.role,
-          operatorScopes: users.operatorScopes,
-          avatarUrl: users.avatarUrl,
-        })
-        .from(users)
-        .where(and(eq(users.userCode, userCode), eq(users.isDeleted, false)))
-        .limit(1);
-      if (rows.length === 0) {
+      const row = await repo.findByCode(userCode);
+      if (!row) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
       }
-      return reply.send({ status: "success", message: "OK", data: rows[0] });
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: toAdminView(row),
+      });
     },
   );
 
@@ -148,7 +145,11 @@ export async function userRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { userCode } = request.params as { userCode: string };
       const body = request.body as { userName?: string; role?: string };
-      const updates: Record<string, unknown> = { updatedAt: new Date() };
+      const updates: {
+        userName?: string;
+        role?: UserRow["role"];
+        operatorScopes?: string | null;
+      } = {};
       if (body.userName) updates.userName = body.userName;
       if (body.role) {
         const allowed = ["admin", "operator", "player", "spectator"];
@@ -159,16 +160,12 @@ export async function userRoutes(app: FastifyInstance) {
             data: null,
           });
         }
-        updates.role = body.role;
+        updates.role = body.role as UserRow["role"];
         // Clear scopes when leaving operator role
         if (body.role !== "operator") updates.operatorScopes = null;
       }
-      const result = await db
-        .update(users)
-        .set(updates)
-        .where(and(eq(users.userCode, userCode), eq(users.isDeleted, false)))
-        .returning({ id: users.id });
-      if (result.length === 0) {
+      const result = await repo.updateByCode(userCode, updates);
+      if (!result) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
@@ -176,7 +173,7 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.send({
         status: "success",
         message: "User updated",
-        data: { id: result[0].id },
+        data: { id: result.id },
       });
     },
   );
@@ -201,17 +198,8 @@ export async function userRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const unique = [...new Set(scopes)].sort();
-      const result = await db
-        .update(users)
-        .set({
-          role: "operator",
-          operatorScopes: unique.join(","),
-          updatedAt: new Date(),
-        })
-        .where(and(eq(users.userCode, userCode), eq(users.isDeleted, false)))
-        .returning({ id: users.id });
-      if (result.length === 0) {
+      const result = await repo.grantOperator(userCode, scopes);
+      if (!result) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });
@@ -219,7 +207,7 @@ export async function userRoutes(app: FastifyInstance) {
       return reply.send({
         status: "success",
         message: "Operator scopes granted",
-        data: { scopes: unique },
+        data: { scopes: result.scopes },
       });
     },
   );
@@ -229,12 +217,8 @@ export async function userRoutes(app: FastifyInstance) {
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
       const { userCode } = request.params as { userCode: string };
-      const result = await db
-        .update(users)
-        .set({ isDeleted: true, updatedAt: new Date() })
-        .where(and(eq(users.userCode, userCode), eq(users.isDeleted, false)))
-        .returning({ id: users.id });
-      if (result.length === 0) {
+      const result = await repo.softDeleteByCode(userCode);
+      if (!result) {
         return reply
           .code(404)
           .send({ status: "error", message: "User not found", data: null });

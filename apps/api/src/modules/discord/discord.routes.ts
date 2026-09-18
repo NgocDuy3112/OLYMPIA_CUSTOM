@@ -1,14 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import {
-  db,
-  tournaments,
-  tournamentPlayers,
-  users,
-} from "@oc/db";
 import { requireAuth } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { getEnv } from "../../config/env.js";
+import { drizzleDiscordRepo, type DiscordRepo } from "./discord.repo.js";
 
 const DISCORD_COMMAND_TIMEOUT_MS = 10_000;
 
@@ -34,37 +28,17 @@ async function callBot(path: string, body: Record<string, unknown>) {
   return (await response.json()) as Record<string, unknown>;
 }
 
-async function resolveTournament(code: string) {
-  const rows = await db
-    .select()
-    .from(tournaments)
-    .where(
-      and(
-        eq(tournaments.tournamentCode, code),
-        eq(tournaments.isDeleted, false),
-      ),
-    )
-    .limit(1);
-  return rows[0] ?? null;
-}
+type Session = { userId: string; role: string; userCode: string };
 
 /** Caller must be controller/mc of this tournament, or global admin. */
 async function requireTournamentStaff(
+  repo: DiscordRepo,
   tournamentId: string,
-  session: { userId: string; role: string; userCode: string },
+  session: Session,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
   if (session.role === "admin") return { ok: true };
-  const membership = await db
-    .select({ role: tournamentPlayers.role })
-    .from(tournamentPlayers)
-    .where(
-      and(
-        eq(tournamentPlayers.tournamentId, tournamentId),
-        eq(tournamentPlayers.playerId, session.userId),
-      ),
-    )
-    .limit(1);
-  const role = membership[0]?.role;
+  const membership = await repo.findMembership(tournamentId, session.userId);
+  const role = membership?.role;
   if (role === "controller" || role === "mc") return { ok: true };
   return {
     ok: false,
@@ -85,7 +59,14 @@ function parseRoleMap(raw: string | null): Record<string, string> {
   return {};
 }
 
-export async function discordRoutes(app: FastifyInstance) {
+export async function discordRoutes(
+  app: FastifyInstance,
+  opts: { repo?: DiscordRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleDiscordRepo;
+  const resolveTournament = (code: string) => repo.findTournamentByCode(code);
+  const gateFor = (tournamentId: string, session: Session) =>
+    requireTournamentStaff(repo, tournamentId, session);
   // GET /discord/:code/players — lookup Discord identity (read, any auth user)
   app.get(
     "/discord/:code/players",
@@ -100,17 +81,7 @@ export async function discordRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const rows = await db
-        .select({
-          userCode: users.userCode,
-          userName: users.userName,
-          role: tournamentPlayers.role,
-          discordUserId: tournamentPlayers.discordUserId,
-          discordNickname: tournamentPlayers.discordNickname,
-        })
-        .from(tournamentPlayers)
-        .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
-        .where(eq(tournamentPlayers.tournamentId, tournament.id));
+      const rows = await repo.listTournamentMembers(tournament.id);
       return reply.send({ status: "success", message: "OK", data: rows });
     },
   );
@@ -131,7 +102,7 @@ export async function discordRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const gate = await requireTournamentStaff(tournament.id, session);
+      const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
         return reply.code(403).send({
           status: "error",
@@ -148,31 +119,18 @@ export async function discordRoutes(app: FastifyInstance) {
       }
 
       // Resolve target member by userCode within this tournament
-      const targetRows = await db
-        .select({
-          role: tournamentPlayers.role,
-          discordUserId: tournamentPlayers.discordUserId,
-          discordNickname: tournamentPlayers.discordNickname,
-          userName: users.userName,
-        })
-        .from(tournamentPlayers)
-        .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournament.id),
-            eq(users.userCode, body.userCode),
-          ),
-        )
-        .limit(1);
+      const target = await repo.findMemberByUserCode(
+        tournament.id,
+        body.userCode,
+      );
 
-      if (targetRows.length === 0) {
+      if (!target) {
         return reply.code(404).send({
           status: "error",
           message: "User is not registered in this tournament",
           data: null,
         });
       }
-      const target = targetRows[0];
       if (!target.discordUserId) {
         return reply.code(400).send({
           status: "error",
@@ -228,7 +186,7 @@ export async function discordRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const gate = await requireTournamentStaff(tournament.id, session);
+      const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
         return reply.code(403).send({
           status: "error",
@@ -240,16 +198,11 @@ export async function discordRoutes(app: FastifyInstance) {
       let updated = 0;
       for (const entry of body.mapping ?? []) {
         if (!entry.discordUserId) continue;
-        const res = await db
-          .update(tournamentPlayers)
-          .set({ discordNickname: entry.nickname })
-          .where(
-            and(
-              eq(tournamentPlayers.tournamentId, tournament.id),
-              eq(tournamentPlayers.discordUserId, entry.discordUserId),
-            ),
-          );
-        void res;
+        await repo.updateNicknameByDiscordId(
+          tournament.id,
+          entry.discordUserId,
+          entry.nickname,
+        );
         updated += 1;
       }
       return reply.send({
@@ -277,7 +230,7 @@ export async function discordRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const gate = await requireTournamentStaff(tournament.id, session);
+      const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
         return reply.code(403).send({
           status: "error",
@@ -286,20 +239,7 @@ export async function discordRoutes(app: FastifyInstance) {
         });
       }
 
-      const playerRows = await db
-        .select({
-          discordUserId: tournamentPlayers.discordUserId,
-          discordNickname: tournamentPlayers.discordNickname,
-          userName: users.userName,
-        })
-        .from(tournamentPlayers)
-        .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournament.id),
-            eq(tournamentPlayers.role, "player"),
-          ),
-        );
+      const playerRows = await repo.listPlayerDiscord(tournament.id);
 
       await app.valkey.publish(
         "oc:live-events",
@@ -341,7 +281,7 @@ export async function discordRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      const gate = await requireTournamentStaff(tournament.id, session);
+      const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
         return reply.code(403).send({
           status: "error",
@@ -357,22 +297,12 @@ export async function discordRoutes(app: FastifyInstance) {
         });
       }
 
-      const targetRows = await db
-        .select({
-          role: tournamentPlayers.role,
-          discordUserId: tournamentPlayers.discordUserId,
-        })
-        .from(tournamentPlayers)
-        .innerJoin(users, eq(tournamentPlayers.playerId, users.id))
-        .where(
-          and(
-            eq(tournamentPlayers.tournamentId, tournament.id),
-            eq(users.userCode, body.userCode),
-          ),
-        )
-        .limit(1);
+      const target = await repo.findMemberByUserCode(
+        tournament.id,
+        body.userCode,
+      );
 
-      if (targetRows.length === 0 || !targetRows[0].discordUserId) {
+      if (!target || !target.discordUserId) {
         return reply.code(404).send({
           status: "error",
           message: "Member not found or has no discord_user_id",
@@ -381,18 +311,18 @@ export async function discordRoutes(app: FastifyInstance) {
       }
 
       const roleMap = parseRoleMap(tournament.discordRoleMap);
-      const roleId = roleMap[targetRows[0].role];
+      const roleId = roleMap[target.role];
       if (!roleId) {
         return reply.code(400).send({
           status: "error",
-          message: `No Discord role mapped for tournament role '${targetRows[0].role}'`,
+          message: `No Discord role mapped for tournament role '${target.role}'`,
           data: null,
         });
       }
 
       const result = await callBot("/discord/remove-role", {
         guildId: tournament.discordGuildId,
-        discordUserId: targetRows[0].discordUserId,
+        discordUserId: target.discordUserId,
         roleId,
       });
 

@@ -6,8 +6,9 @@
  */
 
 import type Redis from "ioredis";
-import { eq, and } from "drizzle-orm";
-import { db, users, matches, questions } from "@oc/db";
+import { drizzleMatchRepo } from "../modules/match/match.repo.js";
+import { drizzleUserRepo } from "../modules/user/user.repo.js";
+import { drizzleQuestionRepo } from "../modules/question/question.repo.js";
 
 const CACHE_TTL = 3600; // 1 hour
 
@@ -28,15 +29,10 @@ export async function resolveMatchId(
   const cached = await valkey.get(matchKey(matchCode));
   if (cached) return cached;
 
-  const row = await db
-    .select({ id: matches.id })
-    .from(matches)
-    .where(and(eq(matches.matchCode, matchCode), eq(matches.isDeleted, false)))
-    .limit(1);
+  const row = await drizzleMatchRepo.findByCode(matchCode);
+  if (!row) return null;
 
-  if (row.length === 0) return null;
-
-  const id = row[0].id;
+  const id = row.id;
   await valkey.set(matchKey(matchCode), id, "EX", CACHE_TTL);
   return id;
 }
@@ -48,15 +44,10 @@ export async function resolveUserId(
   const cached = await valkey.get(userKey(userCode));
   if (cached) return cached;
 
-  const row = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(and(eq(users.userCode, userCode), eq(users.isDeleted, false)))
-    .limit(1);
+  const row = await drizzleUserRepo.findByCode(userCode);
+  if (!row) return null;
 
-  if (row.length === 0) return null;
-
-  const id = row[0].id;
+  const id = row.id;
   await valkey.set(userKey(userCode), id, "EX", CACHE_TTL);
   return id;
 }
@@ -68,20 +59,10 @@ export async function resolveQuestionId(
   const cached = await valkey.get(questionKey(questionCode));
   if (cached) return cached;
 
-  const row = await db
-    .select({ id: questions.id })
-    .from(questions)
-    .where(
-      and(
-        eq(questions.questionCode, questionCode),
-        eq(questions.isDeleted, false),
-      ),
-    )
-    .limit(1);
+  const row = await drizzleQuestionRepo.findByCodeGlobal(questionCode);
+  if (!row) return null;
 
-  if (row.length === 0) return null;
-
-  const id = row[0].id;
+  const id = row.id;
   await valkey.set(questionKey(questionCode), id, "EX", CACHE_TTL);
   return id;
 }

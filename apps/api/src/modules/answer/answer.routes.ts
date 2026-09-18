@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
-import { eq, and } from "drizzle-orm";
-import { db, answers } from "@oc/db";
 import { resolveBuzzIds } from "../../state/id-cache.js";
+import { drizzleAnswerRepo, type AnswerRepo } from "./answer.repo.js";
 
-export async function answerRoutes(app: FastifyInstance) {
+export async function answerRoutes(
+  app: FastifyInstance,
+  opts: { repo?: AnswerRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleAnswerRepo;
   app.post("/answers/", async (request, reply) => {
     const body = request.body as {
       user_code: string;
@@ -26,39 +29,29 @@ export async function answerRoutes(app: FastifyInstance) {
           status: "error",
           message: "Match, player, or question not found",
         });
-    const existing = await db
-      .select({ id: answers.id })
-      .from(answers)
-      .where(
-        and(
-          eq(answers.matchId, ids.matchId),
-          eq(answers.playerId, ids.playerId),
-          eq(answers.questionId, ids.questionId),
-          eq(answers.isDeleted, false),
-        ),
-      )
-      .limit(1);
-    if (existing.length > 0)
+    const existing = await repo.findExisting(
+      ids.matchId,
+      ids.playerId,
+      ids.questionId,
+    );
+    if (existing)
       return reply
         .code(409)
         .send({
           status: "error",
           message: "Player already answered this question",
         });
-    const row = await db
-      .insert(answers)
-      .values({
-        matchId: ids.matchId,
-        playerId: ids.playerId,
-        questionId: ids.questionId,
-        answerText: body.answer_text ?? null,
-        hasBuzzed: body.has_buzzed ?? false,
-        timestamp: body.timestamp == null ? null : String(body.timestamp),
-      })
-      .returning({ id: answers.id });
+    const row = await repo.create({
+      matchId: ids.matchId,
+      playerId: ids.playerId,
+      questionId: ids.questionId,
+      answerText: body.answer_text ?? null,
+      hasBuzzed: body.has_buzzed ?? false,
+      timestamp: body.timestamp ?? null,
+    });
     return reply
       .code(201)
-      .send({ status: "success", message: "Answer submitted", data: row[0] });
+      .send({ status: "success", message: "Answer submitted", data: row });
   });
 
   // GET /answers/:matchCode — list answers for a match
@@ -74,10 +67,7 @@ export async function answerRoutes(app: FastifyInstance) {
         .send({ status: "error", message: "Match not found", data: null });
     }
 
-    const rows = await db
-      .select()
-      .from(answers)
-      .where(and(eq(answers.matchId, matchId), eq(answers.isDeleted, false)));
+    const rows = await repo.listByMatch(matchId);
 
     return reply.send({ status: "success", message: "OK", data: rows });
   });
