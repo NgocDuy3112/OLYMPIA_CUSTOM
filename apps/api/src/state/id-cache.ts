@@ -18,8 +18,8 @@ function matchKey(code: string) {
 function userKey(code: string) {
   return `id:user:${code}`;
 }
-function questionKey(code: string) {
-  return `id:question:${code}`;
+function questionKey(code: string, matchId?: string) {
+  return matchId ? `id:question:${matchId}:${code}` : `id:question:${code}`;
 }
 
 export async function resolveMatchId(
@@ -55,7 +55,20 @@ export async function resolveUserId(
 export async function resolveQuestionId(
   valkey: Redis,
   questionCode: string,
+  matchId?: string | null,
 ): Promise<string | null> {
+  if (!questionCode) return null;
+  // Scoped lookup first when matchId known (question_code repeats per match).
+  if (matchId) {
+    const scoped = await valkey.get(questionKey(questionCode, matchId));
+    if (scoped) return scoped;
+    const row = await drizzleQuestionRepo.findByCode(matchId, questionCode);
+    if (row) {
+      await valkey.set(questionKey(questionCode, matchId), row.id, "EX", CACHE_TTL);
+      return row.id;
+    }
+    return null;
+  }
   const cached = await valkey.get(questionKey(questionCode));
   if (cached) return cached;
 
@@ -77,10 +90,12 @@ export async function resolveBuzzIds(
   playerId: string | null;
   questionId: string | null;
 }> {
-  const [matchId, playerId, questionId] = await Promise.all([
-    resolveMatchId(valkey, matchCode),
-    resolveUserId(valkey, userCode),
-    resolveQuestionId(valkey, questionCode),
+  const matchId = await resolveMatchId(valkey, matchCode);
+  const [playerId, questionId] = await Promise.all([
+    userCode ? resolveUserId(valkey, userCode) : Promise.resolve(null),
+    questionCode
+      ? resolveQuestionId(valkey, questionCode, matchId)
+      : Promise.resolve(null),
   ]);
   return { matchId, playerId, questionId };
 }

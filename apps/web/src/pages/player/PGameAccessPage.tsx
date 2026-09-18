@@ -97,9 +97,19 @@ const PGameAccessPage: React.FC = () => {
       }
 
       if (data.status === "success" && data.data) {
-        // Store match info and redirect to game
+        // Store match info and redirect to game.
+        // playerCode must be the logged-in userCode (from session), NOT
+        // matchSlug — backend POST /answers/ derives player from session.
         setMatchCode(data.data.matchSlug);
-        setPlayerCode(data.data.matchSlug);
+        try {
+          const me = await fetch(`${API_BASE_URL}/auth/me`, {
+            credentials: "include",
+          }).then((r) => r.json());
+          const userCode = me?.data?.userCode as string | undefined;
+          if (userCode) setPlayerCode(userCode);
+        } catch {
+          /* useRoleSession falls back to stored userCode */
+        }
         navigate(`/player/waiting/${data.data.matchSlug}`);
       }
     } catch (err) {

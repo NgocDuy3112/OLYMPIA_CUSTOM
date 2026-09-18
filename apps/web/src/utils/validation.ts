@@ -42,13 +42,14 @@ export function assertUserCode(value: unknown): asserts value is string {
 
 export function validateAnswerInput(input: {
   match_code: unknown;
-  user_code: unknown;
+  user_code?: unknown;
   question_code: unknown;
   answer_text?: unknown;
   has_buzzed: unknown;
 }): void {
   assertMatchCode(input.match_code);
-  assertUserCode(input.user_code);
+  // user_code optional: backend derives player from session when absent.
+  if (input.user_code !== undefined) assertUserCode(input.user_code);
   assertQuestionCode(input.question_code);
   if (!input.answer_text && input.has_buzzed !== true)
     throw new Error("Must provide either answer_text or has_buzzed=true");

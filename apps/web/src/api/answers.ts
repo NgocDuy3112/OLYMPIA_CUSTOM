@@ -2,7 +2,7 @@ import { ApiError, requestJson } from "@/api/client";
 import { validateAnswerInput } from "@/utils/validation";
 
 interface SubmitAnswerInput {
-  user_code: string;
+  user_code?: string;
   match_code: string;
   question_code: string;
   answer_text?: string;

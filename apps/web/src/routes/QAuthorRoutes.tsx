@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import QAuthorQuestionPage from "@/pages/qauthor/QAuthorQuestionPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import { AdminHeader, AdminSidebar } from "@/components/layout";
+import { QAuthorHeader, QAuthorSidebar } from "@/components/layout";
 import { useState } from "react";
 
 const QAuthorLayout: React.FC<{ children: React.ReactNode }> = ({
@@ -11,9 +11,9 @@ const QAuthorLayout: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <div className="min-h-screen flex flex-col bg-black/20">
-      <AdminHeader onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <QAuthorHeader onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
       <div className="flex flex-1">
-        <AdminSidebar
+        <QAuthorSidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
         />

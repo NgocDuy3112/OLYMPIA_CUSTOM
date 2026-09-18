@@ -11,6 +11,9 @@ const envSchema = z.object({
   VALKEY_PORT: z.coerce.number().default(6379),
   VALKEY_PASSWORD: z.string().optional(),
   VALKEY_USER: z.string().default("default"),
+
+  BOT_SERVICE_TOKEN: z.string().default(""),
+  API_BASE_URL: z.string().default("http://localhost:8000/api"),
 });
 
 export type Env = z.infer<typeof envSchema>;

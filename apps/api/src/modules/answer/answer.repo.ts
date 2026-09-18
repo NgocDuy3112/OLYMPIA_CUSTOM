@@ -1,7 +1,11 @@
 import { and, eq } from "drizzle-orm";
-import { db, answers } from "@oc/db";
+import { db, answers, users } from "@oc/db";
 
 export type AnswerRow = typeof answers.$inferSelect;
+
+export interface AnswerWithUserCode extends AnswerRow {
+  userCode: string | null;
+}
 
 export interface AnswerCreateInput {
   matchId: string;
@@ -20,6 +24,10 @@ export interface AnswerRepo {
   ): Promise<{ id: string } | null>;
   create(input: AnswerCreateInput): Promise<{ id: string }>;
   listByMatch(matchId: string): Promise<AnswerRow[]>;
+  listByQuestion(
+    matchId: string,
+    questionId: string,
+  ): Promise<AnswerWithUserCode[]>;
 }
 
 export const drizzleAnswerRepo: AnswerRepo = {
@@ -62,6 +70,21 @@ export const drizzleAnswerRepo: AnswerRepo = {
       .where(and(eq(answers.matchId, matchId), eq(answers.isDeleted, false)));
     return rows;
   },
+
+  async listByQuestion(matchId, questionId) {
+    const rows = await db
+      .select({ answer: answers, userCode: users.userCode })
+      .from(answers)
+      .leftJoin(users, eq(answers.playerId, users.id))
+      .where(
+        and(
+          eq(answers.matchId, matchId),
+          eq(answers.questionId, questionId),
+          eq(answers.isDeleted, false),
+        ),
+      );
+    return rows.map((r) => ({ ...r.answer, userCode: r.userCode }));
+  },
 };
 
 export function createInMemoryAnswerRepo(
@@ -98,6 +121,16 @@ export function createInMemoryAnswerRepo(
     },
     async listByMatch(matchId) {
       return rows.filter((r) => r.matchId === matchId && !r.isDeleted);
+    },
+    async listByQuestion(matchId, questionId) {
+      return rows
+        .filter(
+          (r) =>
+            r.matchId === matchId &&
+            r.questionId === questionId &&
+            !r.isDeleted,
+        )
+        .map((r) => ({ ...r, userCode: null }));
     },
   };
 }

@@ -5,5 +5,7 @@ export { PublicLayout } from "./PublicLayout";
 export { GameHeader } from "./GameHeader";
 export { AdminHeader } from "./AdminHeader";
 export { AdminSidebar } from "./AdminSidebar";
+export { QAuthorHeader } from "./QAuthorHeader";
+export { QAuthorSidebar } from "./QAuthorSidebar";
 export { TabNavigation } from "./TabNavigation";
 export { HeaderBar } from "./HeaderBar";

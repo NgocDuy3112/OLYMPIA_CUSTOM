@@ -51,9 +51,37 @@ export async function questionRoutes(
     return { ok: false, matchId, message: "Only admin, question_creator or tournament qauthor can write questions" };
   }
 
+  async function canSeeAnswer(
+    session: { userId: string; role: string; operatorScopes?: string | null },
+    matchId: string,
+  ): Promise<boolean> {
+    if (isGlobalQuestionCreator(session)) return true;
+    if (getScopes(session).includes("controller")) return true;
+    const role = await repo.findTournamentRole(session.userId, matchId);
+    return (
+      role === "qauthor" ||
+      role === "question_author" ||
+      role === "question_creator" ||
+      role === "controller"
+    );
+  }
+
+  function stripQuestion<T extends { answer?: unknown; explanation?: unknown }>(
+    row: T,
+    canSee: boolean,
+  ): T {
+    if (canSee) return row;
+    return { ...row, answer: "", explanation: null };
+  }
+
   // GET /questions?match_code=...&question_code=... — query style used by web
   // (AGameManagingPage, useGameRound, game pages). Kept alongside param style.
-  app.get("/questions", async (request, reply) => {
+  // Requires auth; answer/explanation stripped unless privileged (admin,
+  // question_creator, controller, tournament qauthor/controller).
+  app.get(
+    "/questions",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
     const { match_code, matchCode, question_code, questionCode } =
       request.query as {
         match_code?: string;
@@ -74,6 +102,16 @@ export async function questionRoutes(
         .send({ status: "error", message: "Match not found", data: null });
     }
     const qCode = question_code ?? questionCode;
+    const session = (
+      request as unknown as {
+        session: {
+          userId: string;
+          role: string;
+          operatorScopes?: string | null;
+        };
+      }
+    ).session;
+    const canSee = await canSeeAnswer(session, matchId);
     if (qCode) {
       const row = await repo.findByCode(matchId, qCode);
       if (!row) {
@@ -81,43 +119,87 @@ export async function questionRoutes(
           .code(404)
           .send({ status: "error", message: "Question not found", data: null });
       }
-      return reply.send({ status: "success", message: "OK", data: row });
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: stripQuestion(row, canSee),
+      });
     }
     const rows = await repo.listByMatchId(matchId);
-    return reply.send({ status: "success", message: "OK", data: rows });
+    return reply.send({
+      status: "success",
+      message: "OK",
+      data: rows.map((r) => stripQuestion(r, canSee)),
+    });
   });
 
-  app.get("/questions/:matchCode", async (request, reply) => {
-    const { matchCode } = request.params as { matchCode: string };
-    const matchId = await resolveMatchId(app.valkey, matchCode);
-    if (!matchId) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Match not found", data: null });
-    }
-    const rows = await repo.listByMatchId(matchId);
-    return reply.send({ status: "success", message: "OK", data: rows });
-  });
+  app.get(
+    "/questions/:matchCode",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { matchCode } = request.params as { matchCode: string };
+      const matchId = await resolveMatchId(app.valkey, matchCode);
+      if (!matchId) {
+        return reply
+          .code(404)
+          .send({ status: "error", message: "Match not found", data: null });
+      }
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+          };
+        }
+      ).session;
+      const canSee = await canSeeAnswer(session, matchId);
+      const rows = await repo.listByMatchId(matchId);
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: rows.map((r) => stripQuestion(r, canSee)),
+      });
+    },
+  );
 
-  app.get("/questions/:matchCode/:questionCode", async (request, reply) => {
-    const { matchCode, questionCode } = request.params as {
-      matchCode: string;
-      questionCode: string;
-    };
-    const matchId = await resolveMatchId(app.valkey, matchCode);
-    if (!matchId) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Match not found", data: null });
-    }
-    const row = await repo.findByCode(matchId, questionCode);
-    if (!row) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Question not found", data: null });
-    }
-    return reply.send({ status: "success", message: "OK", data: row });
-  });
+  app.get(
+    "/questions/:matchCode/:questionCode",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { matchCode, questionCode } = request.params as {
+        matchCode: string;
+        questionCode: string;
+      };
+      const matchId = await resolveMatchId(app.valkey, matchCode);
+      if (!matchId) {
+        return reply
+          .code(404)
+          .send({ status: "error", message: "Match not found", data: null });
+      }
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+          };
+        }
+      ).session;
+      const canSee = await canSeeAnswer(session, matchId);
+      const row = await repo.findByCode(matchId, questionCode);
+      if (!row) {
+        return reply
+          .code(404)
+          .send({ status: "error", message: "Question not found", data: null });
+      }
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: stripQuestion(row, canSee),
+      });
+    },
+  );
 
   app.post(
     "/questions",

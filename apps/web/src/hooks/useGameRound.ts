@@ -447,48 +447,40 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   );
 
   // ── Show answers ──
+  // Controller-only: fetch all answers for this question in one call,
+  // then broadcast over WS. Requires controller/admin session.
   const showAnswers = useCallback(async () => {
     if (!currentQuestion.questionCode || !matchCode) return;
 
     const questionCode = currentQuestion.questionCode;
-    const answersPayload: Array<{
-      user_code: string;
-      content: string;
-      timestamp: number;
-    }> = [];
-
-    for (const player of players) {
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/answers/?match_code=${encodeURIComponent(matchCode)}&user_code=${encodeURIComponent(player.playerCode)}&question_code=${encodeURIComponent(questionCode)}`,
-          { credentials: "include" },
-        );
-        if (!res.ok) continue;
-
-        const json = await res.json();
-        const data = json.data;
-        if (!data) continue;
-
-        const answerObj = Array.isArray(data)
-          ? data.reduce(
-              (a: any, b: any) => (b.timestamp > a.timestamp ? b : a),
-              data[0],
-            )
-          : data;
-
-        if (answerObj?.answer_text) {
-          answersPayload.push({
-            user_code: player.playerCode,
-            content: answerObj.answer_text,
-            timestamp: answerObj.timestamp || 0,
-          });
-        }
-      } catch (err) {
-        logger.warn("Failed to fetch answer for", player.playerCode, err);
-      }
-    }
-
     try {
+      const res = await fetch(
+        `${API_BASE_URL}/answers/${encodeURIComponent(matchCode)}/${encodeURIComponent(questionCode)}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) return;
+      const json = await res.json();
+      const rows = Array.isArray(json.data) ? json.data : [];
+      const answersPayload = rows
+        .filter(
+          (row: { answer_text?: unknown; answerText?: unknown }) =>
+            (row?.answer_text ?? row?.answerText) != null &&
+            String(row?.answer_text ?? row?.answerText) !== "",
+        )
+        .map(
+          (row: {
+            user_code?: unknown;
+            userCode?: unknown;
+            answer_text?: unknown;
+            answerText?: unknown;
+            timestamp?: unknown;
+          }) => ({
+            user_code: String(row?.user_code ?? row?.userCode ?? ""),
+            content: String(row?.answer_text ?? row?.answerText ?? ""),
+            timestamp: Number(row?.timestamp ?? 0),
+          }),
+        )
+        .filter((a: { user_code: string }) => a.user_code !== "");
       await sendMessage({
         type: "send_answers_to_players",
         answers: answersPayload,
@@ -496,7 +488,7 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     } catch (err) {
       logger.error("Failed to broadcast answers:", err);
     }
-  }, [currentQuestion, matchCode, players, sendMessage]);
+  }, [currentQuestion, matchCode, sendMessage]);
 
   // ── End round ──
   const endRound = useCallback(async () => {
