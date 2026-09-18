@@ -7,7 +7,6 @@ import {
   Users,
   ScrollText,
   DatabaseBackup,
-  HelpCircle,
   ChevronRight,
   X,
 } from "lucide-react";
@@ -32,21 +31,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const location = useLocation();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const scopes = (user?.operatorScopes ?? "").split(",").map((s) => s.trim());
-  const isQuestionCreator = isAdmin || scopes.includes("question_creator");
 
+  // Admin tracks operations only (tournaments, matches, users, audit).
+  // Question content lives in the separate QAuthor shell.
   const SIDEBAR_ITEMS = [
     { label: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} /> },
     { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
-    ...(isQuestionCreator
-      ? [
-          {
-            label: "Câu hỏi",
-            path: "/operator/qauthor/questions",
-            icon: <HelpCircle size={18} />,
-          },
-        ]
-      : []),
     ...(isAdmin
       ? [
           {

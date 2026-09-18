@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import QAuthorOverviewPage from "@/pages/qauthor/QAuthorOverviewPage";
 import QAuthorQuestionPage from "@/pages/qauthor/QAuthorQuestionPage";
+import QAuthorReviewsPage from "@/pages/qauthor/QAuthorReviewsPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { QAuthorHeader, QAuthorSidebar } from "@/components/layout";
 import { useState } from "react";
@@ -28,9 +30,11 @@ const QAuthorRoutes = () => {
     <AuthGuard requiredRole="operator" requiredScope="question_creator">
       <QAuthorLayout>
         <Routes>
-          <Route path="/" element={<Navigate to="/operator/qauthor/questions" replace />} />
+          <Route path="/" element={<Navigate to="/operator/qauthor/overview" replace />} />
+          <Route path="/overview" element={<QAuthorOverviewPage />} />
           <Route path="/questions" element={<QAuthorQuestionPage />} />
-          <Route path="*" element={<Navigate to="/operator/qauthor/questions" replace />} />
+          <Route path="/reviews" element={<QAuthorReviewsPage />} />
+          <Route path="*" element={<Navigate to="/operator/qauthor/overview" replace />} />
         </Routes>
       </QAuthorLayout>
     </AuthGuard>

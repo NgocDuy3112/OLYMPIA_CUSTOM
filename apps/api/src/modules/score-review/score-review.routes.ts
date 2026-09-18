@@ -163,6 +163,38 @@ export async function scoreReviewRoutes(
     },
   );
 
+  // GET /score-reviews?match_code=...&status=pending — list reviews for a
+  // match. Requires auth. Used by qauthor reviews page + overview stats.
+  app.get(
+    "/score-reviews",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { match_code, matchCode, status } = request.query as {
+        match_code?: string;
+        matchCode?: string;
+        status?: string;
+      };
+      const code = match_code ?? matchCode;
+      if (!code) {
+        return reply.code(400).send({
+          status: "error",
+          message: "match_code is required",
+          data: null,
+        });
+      }
+      const matchId = await resolveMatchId(app.valkey, code);
+      if (!matchId) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Match not found",
+          data: null,
+        });
+      }
+      const rows = await repo.listByMatch(matchId, status);
+      return reply.send({ status: "success", message: "OK", data: rows });
+    },
+  );
+
   // POST /score-reviews/:id/decision — qauthor verdict.
   // Two callers: (1) discord-bot with X-Bot-Token service secret,
   // (2) web controller with cookie session (controller scope/admin).

@@ -1,6 +1,13 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { HelpCircle, Users, ChevronRight, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  HelpCircle,
+  ClipboardCheck,
+  Users,
+  ChevronRight,
+  X,
+} from "lucide-react";
 
 interface QAuthorSidebarProps {
   isOpen?: boolean;
@@ -15,9 +22,19 @@ interface SidebarItem {
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   {
+    label: "Tổng quan",
+    path: "/operator/qauthor/overview",
+    icon: <LayoutDashboard size={18} />,
+  },
+  {
     label: "Câu hỏi",
     path: "/operator/qauthor/questions",
     icon: <HelpCircle size={18} />,
+  },
+  {
+    label: "Duyệt điểm",
+    path: "/operator/qauthor/reviews",
+    icon: <ClipboardCheck size={18} />,
   },
   { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
 ];
