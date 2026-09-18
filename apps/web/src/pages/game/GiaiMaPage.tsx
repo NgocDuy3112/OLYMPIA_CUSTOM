@@ -41,9 +41,9 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
-import ABasePageLayout from "@/pages/admin/ABasePageLayout";
-import AControlButton from "@/components/admin/AControlButton";
-import APlayerBar from "@/components/admin/APlayerBar";
+import CBasePageLayout from "@/pages/controller/CBasePageLayout";
+import CControlButton from "@/components/controller/CControlButton";
+import CPlayerBar from "@/components/controller/CPlayerBar";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
@@ -1048,7 +1048,7 @@ const AdminGiaiMaView = () => {
     : currentQuestion;
 
   return (
-    <ABasePageLayout
+    <CBasePageLayout
       questionTitle="GIẢI MÃ"
       question={questionToShow}
       timerDuration={timer}
@@ -1059,7 +1059,7 @@ const AdminGiaiMaView = () => {
       topControlButtons={null}
       bottomActionButtons={
         <>
-          <AControlButton
+          <CControlButton
             onClick={() => {
               void handleEndRound();
             }}
@@ -1067,12 +1067,12 @@ const AdminGiaiMaView = () => {
           >
             <Power size={18} />
             <span className="ml-2 font-bold">KẾT THÚC</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
       playerSectionButtons={
         <>
-          <AControlButton
+          <CControlButton
             onClick={() => {
               void (keywordPhaseActive ? startKeywordTimer() : startTheClock());
             }}
@@ -1086,8 +1086,8 @@ const AdminGiaiMaView = () => {
           >
             <AlarmClockCheck size={18} />
             <span className="ml-2 font-bold">ĐẾM GIỜ</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void (keywordPhaseActive
                 ? handleShowKeywordAnswers()
@@ -1101,8 +1101,8 @@ const AdminGiaiMaView = () => {
           >
             <Eye size={18} />
             <span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleShowHint();
             }}
@@ -1116,8 +1116,8 @@ const AdminGiaiMaView = () => {
           >
             <Lightbulb size={18} />
             <span className="ml-2 font-bold">MỞ GỢI Ý</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleHideHint();
             }}
@@ -1130,8 +1130,8 @@ const AdminGiaiMaView = () => {
           >
             <EyeOff size={18} />
             <span className="ml-2 font-bold">KHOÁ GỢI Ý</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleAddKeywordScoreToSelected().catch((err) =>
                 logger.error("AddKeywordScore failed:", err),
@@ -1146,8 +1146,8 @@ const AdminGiaiMaView = () => {
           >
             <Calculator size={18} />
             <span className="ml-2 font-bold">TÍNH TỪ KHOÁ</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleRevealKeywordAnswer();
             }}
@@ -1160,7 +1160,7 @@ const AdminGiaiMaView = () => {
           >
             <KeyRound size={18} />
             <span className="ml-2 font-bold">HIỆN TỪ KHOÁ</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
       renderPlayerList={() => {
@@ -1172,7 +1172,7 @@ const AdminGiaiMaView = () => {
             !keywordRevealedCodes.has(player.playerCode);
           return (
             <div className="flex flex-col gap-3" key={player.playerCode}>
-              <APlayerBar
+              <CPlayerBar
                 player={player}
                 isActive={selectedPlayerCodes.includes(player.playerCode)}
                 isCurrent={selectedPlayerCodes.includes(player.playerCode)}

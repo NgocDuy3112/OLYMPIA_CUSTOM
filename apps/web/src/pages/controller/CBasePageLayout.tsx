@@ -1,13 +1,13 @@
 import React, { type ReactNode } from "react";
-import AGameShell from "@/pages/admin/AGameShell";
-import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import CGameShell from "@/pages/controller/CGameShell";
+import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import type {
-  AdminQuestionBoardControls,
+  ControllerQuestionBoardControls,
   ControlsRenderApi,
 } from "@/types/questionBoardTypes";
 import type { Question } from "@/types/question";
 
-interface ABasePageLayoutProps {
+interface CBasePageLayoutProps {
   questionTitle: string;
   question: Question;
   timerDuration: number;
@@ -24,7 +24,7 @@ interface ABasePageLayoutProps {
   videoPlayState?: "playing" | "paused" | null;
   hideMediaUntilPlayed?: boolean;
 
-  controls?: AdminQuestionBoardControls;
+  controls?: ControllerQuestionBoardControls;
 
   controlsChildren?: (api: ControlsRenderApi) => ReactNode;
 
@@ -39,7 +39,7 @@ interface ABasePageLayoutProps {
   playerSectionButtons?: ReactNode;
 }
 
-const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
+const CBasePageLayout: React.FC<CBasePageLayoutProps> = ({
   questionTitle,
   question,
   timerDuration,
@@ -57,15 +57,15 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
   playerSectionButtons,
   videoPlayState,
   hideMediaUntilPlayed,
-}: ABasePageLayoutProps) => {
+}: CBasePageLayoutProps) => {
   return (
-    <AGameShell>
+    <CGameShell>
       <div className="flex flex-row w-full flex-1 p-2 tablet:p-3 xl:p-6 gap-3 tablet:gap-4 xl:gap-8 overflow-hidden">
         {}
         <div className="flex flex-col flex-3 gap-3 tablet:gap-4 xl:gap-6 overflow-y-auto min-w-0">
           {" "}
           {aboveQuestionBoard}
-          <AQuestionBoard
+          <CQuestionBoard
             title={questionTitle}
             titleExtra={titleExtra}
             question={question}
@@ -77,7 +77,7 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
             hideMediaUntilPlayed={hideMediaUntilPlayed}
           >
             {controlsChildren}
-          </AQuestionBoard>
+          </CQuestionBoard>
           {}
           {underQuestionBoard}
           <div className="flex flex-wrap items-center justify-center gap-2 tablet:gap-3 xl:gap-4 max-w-220 mx-auto">
@@ -100,8 +100,8 @@ const ABasePageLayout: React.FC<ABasePageLayoutProps> = ({
           )}
         </div>
       </div>
-    </AGameShell>
+    </CGameShell>
   );
 };
 
-export default ABasePageLayout;
+export default CBasePageLayout;

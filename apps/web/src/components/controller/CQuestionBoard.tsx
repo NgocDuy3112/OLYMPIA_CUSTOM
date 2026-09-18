@@ -3,17 +3,17 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import { MathText } from "@/components/shared/MathText";
 import type { Question } from "@/types/question";
 import type {
-  AdminQuestionBoardControls,
+  ControllerQuestionBoardControls,
   ControlsRenderApi,
 } from "@/types/questionBoardTypes";
 
-interface AQuestionBoardProps {
+interface CQuestionBoardProps {
   title: string;
   question: Question;
   timerDuration: number;
 
   titleExtra?: React.ReactNode;
-  controls?: AdminQuestionBoardControls;
+  controls?: ControllerQuestionBoardControls;
 
   children?: (api: ControlsRenderApi) => React.ReactNode;
 
@@ -25,7 +25,7 @@ interface AQuestionBoardProps {
   hideMediaUntilPlayed?: boolean;
 }
 
-const AQuestionBoard: React.FC<AQuestionBoardProps> = ({
+const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
   title,
   question,
   timerDuration,
@@ -200,4 +200,4 @@ const AQuestionBoard: React.FC<AQuestionBoardProps> = ({
   );
 };
 
-export default AQuestionBoard;
+export default CQuestionBoard;

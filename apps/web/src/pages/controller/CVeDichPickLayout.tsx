@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import AGameShell from "@/pages/admin/AGameShell";
+import CGameShell from "@/pages/controller/CGameShell";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import type { Question } from "@/types/question";
-interface AVeDichPickLayoutProps {
+interface CVeDichPickLayoutProps {
   title: string;
   maxQuestions: number;
 
@@ -26,7 +26,7 @@ interface AVeDichPickLayoutProps {
   renderPlayerList: () => ReactNode;
 }
 
-const AVeDichPickLayout = ({
+const CVeDichPickLayout = ({
   title,
   maxQuestions,
   questions,
@@ -41,7 +41,7 @@ const AVeDichPickLayout = ({
   bottomActionButtons,
   statusMessages,
   renderPlayerList,
-}: AVeDichPickLayoutProps) => {
+}: CVeDichPickLayoutProps) => {
   const canSelectMore = selectedQuestionCodes.length < maxQuestions;
 
   const getQuestionState = (
@@ -70,7 +70,7 @@ const AVeDichPickLayout = ({
   };
 
   return (
-    <AGameShell>
+    <CGameShell>
       <div className="flex flex-row w-full flex-1 p-3 xl:p-6 gap-4 xl:gap-8 overflow-hidden">
         {}
         <div className="flex flex-col flex-3 gap-4 xl:gap-6">
@@ -217,8 +217,8 @@ const AVeDichPickLayout = ({
           {renderPlayerList()}
         </div>
       </div>
-    </AGameShell>
+    </CGameShell>
   );
 };
 
-export default AVeDichPickLayout;
+export default CVeDichPickLayout;

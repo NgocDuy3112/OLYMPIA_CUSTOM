@@ -1,7 +1,7 @@
 import type { SpectatorLayoutProps } from "@/types/spectator";
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
-import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useQuestionState } from "@/hooks/useQuestionState";
@@ -160,7 +160,7 @@ export function VeDichChungSpectatorPage({
       currentPlayerCode=""
       buzzerWinnerCode={buzzerWinnerCode}
     >
-      <AQuestionBoard
+      <CQuestionBoard
         title="VỀ ĐÍCH - LƯỢT CHUNG"
         question={questionWithAnswer}
         timerDuration={timer}
@@ -198,7 +198,7 @@ export function VeDichChungSpectatorPage({
                 ))}
           </div>
         )}
-      </AQuestionBoard>
+      </CQuestionBoard>
     </Layout>
   );
 }

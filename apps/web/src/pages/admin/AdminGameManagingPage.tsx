@@ -21,7 +21,7 @@ import {
   setMatchCode as persistMatchCode,
 } from "@/utils/storage";
 
-const logger = createLogger("AGameManaging");
+const logger = createLogger("AdminGameManaging");
 
 const VaoPhongButton = ({
   matchCode,
@@ -72,7 +72,7 @@ interface ApiResponse {
   data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
-const AGameManagingPage = () => {
+const AdminGameManagingPage = () => {
   const [allMatches, setAllMatches] = useState<MatchData[]>([]);
   const [allMatchesLoading, setAllMatchesLoading] = useState(false);
 
@@ -1018,4 +1018,4 @@ const AGameManagingPage = () => {
   );
 };
 
-export default AGameManagingPage;
+export default AdminGameManagingPage;

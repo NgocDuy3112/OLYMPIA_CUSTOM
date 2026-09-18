@@ -1,7 +1,7 @@
 import type { SpectatorLayoutProps } from "@/types/spectator";
 import { useEffect, useState } from "react";
 import type { ComponentType } from "react";
-import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import { useSpectator } from "@/hooks/useSpectator";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
@@ -109,7 +109,7 @@ export function ButPhaSpectatorPage({ Layout }: ButPhaSpectatorPageProps) {
       currentPlayerCode=""
       buzzerWinnerCode={buzzerWinnerCode}
     >
-      <AQuestionBoard
+      <CQuestionBoard
         title="BỨT PHÁ"
         question={question}
         timerDuration={timer}

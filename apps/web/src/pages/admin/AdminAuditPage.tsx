@@ -3,7 +3,7 @@ import { RefreshCw, ScrollText } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 
-const logger = createLogger("AAuditPage");
+const logger = createLogger("AdminAuditPage");
 
 interface AuditLog {
   id: string;
@@ -27,7 +27,7 @@ const ACTIONS = [
   "MATCH_DELETED",
 ];
 
-const AAuditPage = () => {
+const AdminAuditPage = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -160,4 +160,4 @@ const AAuditPage = () => {
   );
 };
 
-export default AAuditPage;
+export default AdminAuditPage;

@@ -18,9 +18,9 @@ import { submitAnswer } from "@/api/answers";
 import { API_BASE_URL } from "@/configs";
 import type { Question } from "@/types/question";
 
-import ANewBaseLayout from "@/pages/admin/ANewBaseLayout";
-import AControlButton from "@/components/admin/AControlButton";
-import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import CNewBaseLayout from "@/pages/controller/CNewBaseLayout";
+import CControlButton from "@/components/controller/CControlButton";
+import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -161,7 +161,7 @@ const AdminKhoiDongChungView = () => {
   );
 
   return (
-    <ANewBaseLayout
+    <CNewBaseLayout
       title="KHỞI ĐỘNG - LƯỢT CHUNG"
       players={players}
       selectedPlayerCodes={selectedPlayerCodes}
@@ -172,21 +172,21 @@ const AdminKhoiDongChungView = () => {
       questionCode={currentQuestion.questionCode || undefined}
       onReviewRequested={() => {}}
       actions={
-        <AControlButton onClick={endRound} disabled={isTimerRunning}>
+        <CControlButton onClick={endRound} disabled={isTimerRunning}>
           <Power size={18} />
           <span className="ml-2 font-bold">KẾT THÚC</span>
-        </AControlButton>
+        </CControlButton>
       }
       playerActions={
         <>
-          <AControlButton
+          <CControlButton
             onClick={handleStartRound}
             disabled={isTimerRunning || hasStartedRoundTimer}
           >
             <AlarmClockCheck size={18} />
             <span className="ml-2 font-bold">ĐẾM GIỜ</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => calculateAndBroadcastScore("kdc_correct")}
             disabled={
               selectedPlayerCodes.length === 0 ||
@@ -196,18 +196,18 @@ const AdminKhoiDongChungView = () => {
           >
             <Calculator size={18} />
             <span className="ml-2 font-bold">TÍNH ĐIỂM</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={showAnswers}
             disabled={!hasQuestionSelected || isTimerRunning}
           >
             <Eye size={18} />
             <span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
     >
-      <AQuestionBoard
+      <CQuestionBoard
         title="KHỞI ĐỘNG - LƯỢT CHUNG"
         question={currentQuestion}
         timerDuration={timer}
@@ -219,7 +219,7 @@ const AdminKhoiDongChungView = () => {
         }}
         children={() => questionControls}
       />
-    </ANewBaseLayout>
+    </CNewBaseLayout>
   );
 };
 

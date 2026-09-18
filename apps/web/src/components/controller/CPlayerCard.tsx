@@ -4,9 +4,9 @@ import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
-import ScoreEditModal from "./ScoreEditModal";
+import ScoreEditModal from "@/components/admin/ScoreEditModal";
 
-interface APlayerCardProps {
+interface CPlayerCardProps {
   player: PlayerStatus;
   isActive?: boolean;
   isCurrent?: boolean;
@@ -27,7 +27,7 @@ interface APlayerCardProps {
   accentColor?: string;
 }
 
-const APlayerCard: React.FC<APlayerCardProps> = ({
+const CPlayerCard: React.FC<CPlayerCardProps> = ({
   player,
   isActive,
   isCurrent,
@@ -272,4 +272,4 @@ const APlayerCard: React.FC<APlayerCardProps> = ({
   );
 };
 
-export default APlayerCard;
+export default CPlayerCard;

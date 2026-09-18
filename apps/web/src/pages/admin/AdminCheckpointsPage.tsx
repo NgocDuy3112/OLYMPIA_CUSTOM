@@ -3,7 +3,7 @@ import { DatabaseBackup, RefreshCw, RotateCcw } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 
-const logger = createLogger("ACheckpointsPage");
+const logger = createLogger("AdminCheckpointsPage");
 
 interface Checkpoint {
   id: string;
@@ -11,7 +11,7 @@ interface Checkpoint {
   createdAt?: string;
 }
 
-const ACheckpointsPage = () => {
+const AdminCheckpointsPage = () => {
   const [matchCode, setMatchCode] = useState("");
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [loading, setLoading] = useState(false);
@@ -145,4 +145,4 @@ const ACheckpointsPage = () => {
   );
 };
 
-export default ACheckpointsPage;
+export default AdminCheckpointsPage;

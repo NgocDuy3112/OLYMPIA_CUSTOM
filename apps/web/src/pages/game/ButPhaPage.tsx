@@ -16,9 +16,9 @@ import { usePlayerRound } from "@/hooks/usePlayerRound";
 import { useRoleSession } from "@/hooks/useRoleSession";
 import { submitAnswer } from "@/api/answers";
 
-import ANewBaseLayout from "@/pages/admin/ANewBaseLayout";
-import AControlButton from "@/components/admin/AControlButton";
-import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import CNewBaseLayout from "@/pages/controller/CNewBaseLayout";
+import CControlButton from "@/components/controller/CControlButton";
+import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -116,7 +116,7 @@ const AdminButPhaView = () => {
   );
 
   return (
-    <ANewBaseLayout
+    <CNewBaseLayout
       title="BỨT PHÁ"
       players={players}
       selectedPlayerCodes={selectedPlayerCodes}
@@ -125,21 +125,21 @@ const AdminButPhaView = () => {
       playersDisabled={isTimerRunning}
       onEditScore={handleEditScore}
       actions={
-        <AControlButton onClick={endRound} disabled={isTimerRunning}>
+        <CControlButton onClick={endRound} disabled={isTimerRunning}>
           <Power size={18} />
           <span className="ml-2 font-bold">KẾT THÚC</span>
-        </AControlButton>
+        </CControlButton>
       }
       playerActions={
         <>
-          <AControlButton
+          <CControlButton
             onClick={() => startTimer()}
             disabled={!hasQuestionSelected || isTimerRunning}
           >
             <AlarmClockCheck size={18} />
             <span className="ml-2 font-bold">ĐẾM GIỜ</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => calculateAndBroadcastScore("bp_resolve")}
             disabled={
               selectedPlayerCodes.length === 0 ||
@@ -149,18 +149,18 @@ const AdminButPhaView = () => {
           >
             <Calculator size={18} />
             <span className="ml-2 font-bold">TÍNH ĐIỂM</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={showAnswers}
             disabled={!hasQuestionSelected || isTimerRunning}
           >
             <Eye size={18} />
             <span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
     >
-      <AQuestionBoard
+      <CQuestionBoard
         title="BỨT PHÁ"
         question={currentQuestion}
         timerDuration={timer}
@@ -172,7 +172,7 @@ const AdminButPhaView = () => {
         }}
         children={() => questionControls}
       />
-    </ANewBaseLayout>
+    </CNewBaseLayout>
   );
 };
 

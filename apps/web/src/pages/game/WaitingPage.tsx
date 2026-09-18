@@ -23,9 +23,9 @@ import {
   loadWaitingSnapshot,
 } from "@/api/waiting";
 
-import AControlButton from "@/components/admin/AControlButton";
-import APlayerCard from "@/components/admin/APlayerCard";
-import AdminGameplayNavBar from "@/navigation/ANavBar";
+import CControlButton from "@/components/controller/CControlButton";
+import CPlayerCard from "@/components/controller/CPlayerCard";
+import ControllerGameplayNavBar from "@/navigation/CNavBar";
 import { WaitingView } from "@/components/shared/WaitingView";
 
 const logger = createLogger("WaitingPage");
@@ -249,7 +249,7 @@ const AdminWaitingView = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <AdminGameplayNavBar onNavigateToWaiting={handleNavigateToWaiting} />
+      <ControllerGameplayNavBar onNavigateToWaiting={handleNavigateToWaiting} />
       <div className="flex flex-col flex-1 items-center gap-6 p-6 overflow-y-auto">
         <h1 className="font-[SVN-Gratelos_Display] text-4xl xl:text-5xl font-bold text-white uppercase tracking-wide text-center">
           Sảnh Chờ
@@ -260,7 +260,7 @@ const AdminWaitingView = () => {
         {players.length > 0 && (
           <div className="flex gap-4 max-w-7xl w-full justify-center">
             {players.map((player, index) => (
-              <APlayerCard
+              <CPlayerCard
                 key={player.playerCode}
                 player={player}
                 onEditScore={handleEditScore}
@@ -279,15 +279,15 @@ const AdminWaitingView = () => {
         )}
         <div className="flex flex-col gap-4 w-full max-w-7xl">
           <div className="flex flex-wrap gap-4 items-center justify-center w-full">
-            <AControlButton
+            <CControlButton
               onClick={handleOpenMatch}
               disabled={isOpeningMatch || !currentMatchCode || matchFinished}
               className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
             >
               <Play size={18} />
               {isOpeningMatch ? "Đang gửi..." : "Mở đầu trận đấu"}
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleIntroducePlayers}
               disabled={
                 isIntroducingPlayers || !currentMatchCode || matchFinished
@@ -296,8 +296,8 @@ const AdminWaitingView = () => {
             >
               <UserCheck size={18} />
               {isIntroducingPlayers ? "Đang gửi..." : "Giới thiệu thí sinh"}
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleShowScoreboard}
               disabled={
                 isShowingScoreboard || !currentMatchCode || matchFinished
@@ -306,16 +306,16 @@ const AdminWaitingView = () => {
             >
               <Trophy size={18} />
               {isShowingScoreboard ? "Đang gửi..." : "Tổng kết điểm số"}
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleEndMatch}
               disabled={isEndingMatch || !currentMatchCode || matchFinished}
               className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center"
             >
               <Flag size={18} />
               {isEndingMatch ? "Đang gửi..." : "Kết thúc trận đấu"}
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleFinishMatch}
               disabled={isFinishingMatch || !currentMatchCode || matchFinished}
               className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:bg-green-800"
@@ -326,7 +326,7 @@ const AdminWaitingView = () => {
                 : matchFinished
                   ? "Đã hoàn thành"
                   : "Xác nhận hoàn thành"}
-            </AControlButton>
+            </CControlButton>
           </div>
         </div>
         <div className="flex flex-col gap-4 w-full max-w-7xl">
@@ -336,48 +336,48 @@ const AdminWaitingView = () => {
           <div
             className={`flex flex-wrap gap-4 items-center justify-center${matchFinished ? " pointer-events-none opacity-50" : ""}`}
           >
-            <AControlButton
+            <CControlButton
               onClick={handleNavigateToKDR}
               disabled={!currentMatchCode}
               className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
             >
               Khởi Động Riêng
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleNavigateToKDC}
               disabled={!currentMatchCode}
               className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
             >
               Khởi Động Chung
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleNavigateToGM}
               disabled={!currentMatchCode}
               className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
             >
               Giải Mã
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleNavigateToBP}
               disabled={!currentMatchCode}
               className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
             >
               Bứt Phá
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleNavigateToVDC}
               disabled={!currentMatchCode}
               className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
             >
               Về Đích Chung
-            </AControlButton>
-            <AControlButton
+            </CControlButton>
+            <CControlButton
               onClick={handleNavigateToVDR}
               disabled={!currentMatchCode}
               className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
             >
               Về Đích Riêng
-            </AControlButton>
+            </CControlButton>
           </div>
         </div>
       </div>

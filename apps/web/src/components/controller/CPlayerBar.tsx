@@ -5,9 +5,9 @@ import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { API_BASE_URL } from "@/configs";
 import { requestScoreReview } from "@/api/scoreReviews";
-import ScoreEditModal from "./ScoreEditModal";
+import ScoreEditModal from "@/components/admin/ScoreEditModal";
 
-interface APlayerBarProps {
+interface CPlayerBarProps {
   player: PlayerStatus;
   isActive: boolean;
   isCurrent?: boolean;
@@ -31,7 +31,7 @@ interface APlayerBarProps {
   showClueCount?: boolean;
 }
 
-const APlayerBar: React.FC<APlayerBarProps> = ({
+const CPlayerBar: React.FC<CPlayerBarProps> = ({
   player,
   isActive,
   isCurrent,
@@ -367,4 +367,4 @@ const APlayerBar: React.FC<APlayerBarProps> = ({
   );
 };
 
-export default APlayerBar;
+export default CPlayerBar;

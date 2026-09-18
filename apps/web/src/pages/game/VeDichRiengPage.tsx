@@ -54,9 +54,9 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
-import ABasePageLayout from "@/pages/admin/ABasePageLayout";
-import AControlButton from "@/components/admin/AControlButton";
-import APlayerBar from "@/components/admin/APlayerBar";
+import CBasePageLayout from "@/pages/controller/CBasePageLayout";
+import CControlButton from "@/components/controller/CControlButton";
+import CPlayerBar from "@/components/controller/CPlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
@@ -995,7 +995,7 @@ const AdminVeDichRiengView = () => {
   };
 
   return (
-    <ABasePageLayout
+    <CBasePageLayout
       questionTitle={questionTitle}
       question={currentQuestion}
       videoPlayState={videoPlayState}
@@ -1038,7 +1038,7 @@ const AdminVeDichRiengView = () => {
       topControlButtons={null}
       playerSectionButtons={
         <>
-          <AControlButton
+          <CControlButton
             onClick={handleOpenPowerWindow}
             disabled={
               !currentQuestion.questionCode ||
@@ -1047,8 +1047,8 @@ const AdminVeDichRiengView = () => {
           >
             <Star size={18} />
             <span className="ml-2 font-bold">MỞ POWER</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={startTheClock}
             disabled={
               !currentQuestion.questionCode ||
@@ -1064,8 +1064,8 @@ const AdminVeDichRiengView = () => {
           >
             <AlarmClockCheck size={18} />
             <span className="ml-2 font-bold">ĐẾM GIỜ</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={handleOpenBuzzer}
             disabled={
               timer > 0 || answeringWindowTimer > 0 || !currentTurnPlayerCode
@@ -1078,8 +1078,8 @@ const AdminVeDichRiengView = () => {
           >
             <Zap size={18} />
             <span className="ml-2 font-bold">MỞ CHUÔNG</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleAddPoints().catch((err) =>
                 logger.error("Cộng điểm failed:", err),
@@ -1099,8 +1099,8 @@ const AdminVeDichRiengView = () => {
           >
             <Plus size={18} />
             <span className="ml-2 font-bold">CỘNG ĐIỂM</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleSubtractPoints().catch((err) =>
                 logger.error("Trừ điểm failed:", err),
@@ -1120,12 +1120,12 @@ const AdminVeDichRiengView = () => {
           >
             <Minus size={18} />
             <span className="ml-2 font-bold">TRỪ ĐIỂM</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
       bottomActionButtons={
         <>
-          <AControlButton
+          <CControlButton
             onClick={() =>
               navigate(`/admin/vdr/pick/${currentMatchCode ?? ""}`)
             }
@@ -1133,8 +1133,8 @@ const AdminVeDichRiengView = () => {
           >
             <ListRestart size={18} />
             <span className="ml-2 font-bold">CHỌN LẠI</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleEndTurn();
             }}
@@ -1142,8 +1142,8 @@ const AdminVeDichRiengView = () => {
           >
             <SkipForward size={18} />
             <span className="ml-2 font-bold">HẾT LƯỢT</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleEndRound();
             }}
@@ -1151,12 +1151,12 @@ const AdminVeDichRiengView = () => {
           >
             <Power size={18} />
             <span className="ml-2 font-bold">KẾT THÚC</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
       renderPlayerList={() =>
         players.map((player) => (
-          <APlayerBar
+          <CPlayerBar
             key={player.playerCode}
             player={player}
             isActive={selectedPlayerCodes.includes(player.playerCode)}

@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import type { Question } from "@/types/question";
 
-interface AVuotDeoClueProps {
+interface CVuotDeoClueProps {
   question: Question;
   index?: number;
   onClick?: () => Promise<"correct" | "incorrect" | boolean>;
 }
 
-const AVuotDeoClue: React.FC<AVuotDeoClueProps> = ({
+const CVuotDeoClue: React.FC<CVuotDeoClueProps> = ({
   question,
   index = 1,
   onClick,
@@ -96,4 +96,4 @@ const AVuotDeoClue: React.FC<AVuotDeoClueProps> = ({
   );
 };
 
-export default AVuotDeoClue;
+export default CVuotDeoClue;

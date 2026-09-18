@@ -1,17 +1,17 @@
 /**
- * ANewBaseLayout — Simplified admin page layout.
+ * CNewBaseLayout — Simplified controller page layout.
  *
  * Two-column: main content (left) + player sidebar (right).
  * Responsive: stacks vertically on tablet, sidebar collapses on mobile.
  */
 import React, { type ReactNode } from "react";
-import AGameShell from "@/pages/admin/AGameShell";
+import CGameShell from "@/pages/controller/CGameShell";
 import { PlayerPanel } from "@/components/shared/PlayerPanel";
 import type { PlayerStatus } from "@/types/player";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { getMatchCode } from "@/utils/storage";
 
-interface ANewBaseLayoutProps {
+interface CNewBaseLayoutProps {
   /** Round title displayed above question board */
   title: string;
   /** Main content area */
@@ -40,7 +40,7 @@ interface ANewBaseLayoutProps {
   playerHeader?: ReactNode;
 }
 
-const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
+const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
   title,
   children,
   actions,
@@ -58,7 +58,7 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
   const { sendMessage } = useGameWebSocket();
 
   return (
-    <AGameShell voiceUser="mc">
+    <CGameShell voiceUser="mc">
       <div className="flex flex-col lg:flex-row flex-1 p-2 sm:p-3 lg:p-4 gap-3 lg:gap-4 overflow-hidden">
         {/* Main content */}
         <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-y-auto min-w-0">
@@ -122,8 +122,8 @@ const ANewBaseLayout: React.FC<ANewBaseLayoutProps> = ({
           )}
         </div>
       </div>
-    </AGameShell>
+    </CGameShell>
   );
 };
 
-export default ANewBaseLayout;
+export default CNewBaseLayout;

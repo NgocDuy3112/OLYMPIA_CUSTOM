@@ -1,7 +1,7 @@
 import type { SpectatorLayoutProps } from "@/types/spectator";
 import React, { useEffect, useRef, useState } from "react";
 import type { ComponentType } from "react";
-import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { useCountdownTimer } from "@/hooks/useCountdownTimer";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
@@ -347,7 +347,7 @@ export function GiaiMaSpectatorPage({ Layout }: GiaiMaSpectatorPageProps) {
     <Layout players={players} currentPlayerCode="">
       <>
         {clueGrid}
-        <AQuestionBoard
+        <CQuestionBoard
           title="GIẢI MÃ"
           question={questionToShow}
           timerDuration={timer}

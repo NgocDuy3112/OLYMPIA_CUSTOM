@@ -3,7 +3,7 @@ import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 
-const logger = createLogger("AUsersPage");
+const logger = createLogger("AdminUsersPage");
 
 type GlobalRole = "admin" | "operator" | "player" | "spectator";
 type OperatorScope = "question_creator" | "controller" | "mc";
@@ -30,7 +30,7 @@ const OPERATOR_SCOPES: OperatorScope[] = [
   "mc",
 ];
 
-const AUsersPage = () => {
+const AdminUsersPage = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
@@ -342,4 +342,4 @@ const AUsersPage = () => {
   );
 };
 
-export default AUsersPage;
+export default AdminUsersPage;

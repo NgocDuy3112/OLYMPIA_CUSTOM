@@ -5,11 +5,11 @@ import { HeaderBar } from "@/components/layout";
 import { getPhaseFromPath } from "@/utils/phase";
 import { getMatchCode, removeMatchCode } from "@/utils/storage";
 
-interface AdminGameplayNavBarProps {
+interface ControllerGameplayNavBarProps {
   onNavigateToWaiting?: () => void;
 }
 
-const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({
+const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
   onNavigateToWaiting,
 }) => {
   const navigate = useNavigate();
@@ -110,4 +110,4 @@ const AdminGameplayNavBar: React.FC<AdminGameplayNavBarProps> = ({
   );
 };
 
-export default AdminGameplayNavBar;
+export default ControllerGameplayNavBar;

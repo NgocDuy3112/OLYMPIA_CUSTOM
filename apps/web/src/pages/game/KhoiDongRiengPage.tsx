@@ -15,9 +15,9 @@ import { useGameRound } from "@/hooks/useGameRound";
 import { usePlayerRound } from "@/hooks/usePlayerRound";
 import { useRoleSession } from "@/hooks/useRoleSession";
 
-import ANewBaseLayout from "@/pages/admin/ANewBaseLayout";
-import AControlButton from "@/components/admin/AControlButton";
-import AQuestionBoard from "@/components/admin/AQuestionBoard";
+import CNewBaseLayout from "@/pages/controller/CNewBaseLayout";
+import CControlButton from "@/components/controller/CControlButton";
+import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { KhoiDongSpectatorPage } from "@/components/shared/KhoiDongSpectatorPage";
@@ -121,7 +121,7 @@ const AdminKhoiDongRiengView = () => {
   );
 
   return (
-    <ANewBaseLayout
+    <CNewBaseLayout
       title="KHỞI ĐỘNG - LƯỢT RIÊNG"
       players={players}
       selectedPlayerCodes={selectedPlayerCodes}
@@ -130,21 +130,21 @@ const AdminKhoiDongRiengView = () => {
       playersDisabled={isTimerRunning}
       onEditScore={handleEditScore}
       actions={
-        <AControlButton onClick={endRound} disabled={isTimerRunning}>
+        <CControlButton onClick={endRound} disabled={isTimerRunning}>
           <Power size={18} />
           <span className="ml-2 font-bold">KẾT THÚC</span>
-        </AControlButton>
+        </CControlButton>
       }
       playerActions={
         <>
-          <AControlButton
+          <CControlButton
             onClick={() => startTimer()}
             disabled={!hasQuestionSelected || isTimerRunning}
           >
             <AlarmClockCheck size={18} />
             <span className="ml-2 font-bold">ĐẾM GIỜ</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => calculateAndBroadcastScore("kdr_correct")}
             disabled={
               selectedPlayerCodes.length === 0 ||
@@ -154,18 +154,18 @@ const AdminKhoiDongRiengView = () => {
           >
             <Calculator size={18} />
             <span className="ml-2 font-bold">TÍNH ĐIỂM</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={showAnswers}
             disabled={!hasQuestionSelected || isTimerRunning}
           >
             <Eye size={18} />
             <span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
     >
-      <AQuestionBoard
+      <CQuestionBoard
         title="KHỞI ĐỘNG - LƯỢT RIÊNG"
         question={currentQuestion}
         timerDuration={timer}
@@ -177,7 +177,7 @@ const AdminKhoiDongRiengView = () => {
         }}
         children={() => questionControls}
       />
-    </ANewBaseLayout>
+    </CNewBaseLayout>
   );
 };
 

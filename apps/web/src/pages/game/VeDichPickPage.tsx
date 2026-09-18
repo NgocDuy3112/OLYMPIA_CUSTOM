@@ -32,9 +32,9 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
-import AVeDichPickLayout from "@/pages/admin/AVeDichPickLayout";
-import APlayerBar from "@/components/admin/APlayerBar";
-import AControlButton from "@/components/admin/AControlButton";
+import CVeDichPickLayout from "@/pages/controller/CVeDichPickLayout";
+import CPlayerBar from "@/components/controller/CPlayerBar";
+import CControlButton from "@/components/controller/CControlButton";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { VeDichPickSpectatorPage } from "@/components/shared/VeDichPickSpectatorPage";
@@ -528,7 +528,7 @@ const AdminVeDichPickView = () => {
   ]);
 
   return (
-    <AVeDichPickLayout
+    <CVeDichPickLayout
       title={roundTitle}
       maxQuestions={requiredCount}
       questions={questions.length > 0 ? questions : placeholderQuestions}
@@ -552,7 +552,7 @@ const AdminVeDichPickView = () => {
       canSelectQuestions={!isChung ? !!selectedPlayerCode : true}
       topControlButtons={
         <>
-          <AControlButton
+          <CControlButton
             onClick={handleConfirmSelection}
             disabled={
               selectedQuestionCodes.length !== requiredCount ||
@@ -562,15 +562,15 @@ const AdminVeDichPickView = () => {
           >
             <CheckCircle size={20} />
             <span className="ml-2 font-bold">XÁC NHẬN</span>
-          </AControlButton>
-          <AControlButton onClick={handleResetSelection}>
+          </CControlButton>
+          <CControlButton onClick={handleResetSelection}>
             <RotateCcw size={20} />
             <span className="ml-2 font-bold">CHỌN LẠI</span>
-          </AControlButton>
-          <AControlButton onClick={handleResetUsedQuestions}>
+          </CControlButton>
+          <CControlButton onClick={handleResetUsedQuestions}>
             <RefreshCw size={18} />
             <span className="ml-2 font-bold">RESET</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
       bottomActionButtons={
@@ -601,7 +601,7 @@ const AdminVeDichPickView = () => {
       }
       renderPlayerList={() =>
         activePlayers.map((player) => (
-          <APlayerBar
+          <CPlayerBar
             key={player.playerCode}
             player={player}
             isActive={selectedPlayerCode === player.playerCode}

@@ -3,12 +3,12 @@ import { Volume2, VolumeX, Camera, CameraOff } from "lucide-react";
 import { motion } from "framer-motion";
 import type { ComponentProps } from "react";
 import type { PlayerStatus } from "@/types/player";
-import APlayerBar from "@/components/admin/APlayerBar";
+import CPlayerBar from "@/components/controller/CPlayerBar";
 import { CameraVideo } from "./CameraVideo";
 import { useWebRTCCameraViewer } from "@/hooks/useWebRTCCamera";
 
 export function PlayerPanel(
-  props: ComponentProps<typeof APlayerBar> & {
+  props: ComponentProps<typeof CPlayerBar> & {
     player: PlayerStatus;
     showCameraControl?: boolean;
     onCameraControl?: (playerCode: string, enabled: boolean) => void;
@@ -88,7 +88,7 @@ export function PlayerPanel(
         />
         <Volume2 size={13} className="text-white/60" />
       </div>
-      <APlayerBar {...props} />
+      <CPlayerBar {...props} />
     </div>
   );
 }

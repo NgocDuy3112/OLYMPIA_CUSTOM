@@ -50,9 +50,9 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { API_BASE_URL } from "@/configs";
 
-import ABasePageLayout from "@/pages/admin/ABasePageLayout";
-import AControlButton from "@/components/admin/AControlButton";
-import APlayerBar from "@/components/admin/APlayerBar";
+import CBasePageLayout from "@/pages/controller/CBasePageLayout";
+import CControlButton from "@/components/controller/CControlButton";
+import CPlayerBar from "@/components/controller/CPlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
@@ -829,7 +829,7 @@ const AdminVeDichChungView = () => {
   };
 
   return (
-    <ABasePageLayout
+    <CBasePageLayout
       questionTitle={questionTitle}
       question={currentQuestion}
       videoPlayState={videoPlayState}
@@ -876,7 +876,7 @@ const AdminVeDichChungView = () => {
       )}
       playerSectionButtons={
         <>
-          <AControlButton
+          <CControlButton
             onClick={handleOpenPowerWindow}
             disabled={
               !currentQuestion.questionCode || isTimerRunning
@@ -884,8 +884,8 @@ const AdminVeDichChungView = () => {
           >
             <Star size={18} />
             <span className="ml-2 font-bold">MỞ POWER</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={startTheClock}
             disabled={
               !currentQuestion.questionCode || isTimerRunning || isTimerLocked
@@ -893,8 +893,8 @@ const AdminVeDichChungView = () => {
           >
             <AlarmClockCheck size={18} />
             <span className="ml-2 font-bold">ĐẾM GIỜ</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleCalculateScore().catch((err) =>
                 logger.error("TÍNH ĐIỂM failed:", err),
@@ -904,8 +904,8 @@ const AdminVeDichChungView = () => {
           >
             <Calculator size={18} />
             <span className="ml-2 font-bold">TÍNH ĐIỂM</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void showAnswers();
             }}
@@ -913,8 +913,8 @@ const AdminVeDichChungView = () => {
           >
             <Eye size={18} />
             <span className="ml-2 font-bold">HIỆN TRẢ LỜI</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void loadPlayersState();
             }}
@@ -922,12 +922,12 @@ const AdminVeDichChungView = () => {
           >
             <RefreshCw size={18} />
             <span className="ml-2 font-bold">CẬP NHẬT</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
       bottomActionButtons={
         <>
-          <AControlButton
+          <CControlButton
             onClick={() =>
               navigate(`/admin/vdc/pick/${currentMatchCode ?? ""}`)
             }
@@ -935,8 +935,8 @@ const AdminVeDichChungView = () => {
           >
             <ListRestart size={18} />
             <span className="ml-2 font-bold">CHỌN LẠI</span>
-          </AControlButton>
-          <AControlButton
+          </CControlButton>
+          <CControlButton
             onClick={() => {
               void handleEndRound();
             }}
@@ -944,13 +944,13 @@ const AdminVeDichChungView = () => {
           >
             <Power size={18} />
             <span className="ml-2 font-bold">KẾT THÚC</span>
-          </AControlButton>
+          </CControlButton>
         </>
       }
       topControlButtons={null}
       renderPlayerList={() =>
         activePlayers.map((player) => (
-          <APlayerBar
+          <CPlayerBar
             key={player.playerCode}
             player={player}
             isActive={selectedPlayerCodes.includes(player.playerCode)}
