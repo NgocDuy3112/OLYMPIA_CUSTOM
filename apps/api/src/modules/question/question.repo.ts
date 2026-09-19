@@ -10,6 +10,8 @@ export interface QuestionRow {
     mediaUrl: string | null;
     options: string | null;
     matchId: string;
+    isUsed: boolean;
+    sourceBankId: string | null;
 }
 
 export interface QuestionRepo {
@@ -23,6 +25,7 @@ export interface QuestionRepo {
         explanation?: string;
         mediaUrl?: string | null;
         options?: string | null;
+        sourceBankId?: string | null;
     }): Promise<{ id: string }>;
     update(
         matchId: string,
@@ -37,6 +40,7 @@ export interface QuestionRepo {
     ): Promise<{ id: string } | null>;
     softDeleteAll(matchId: string): Promise<void>;
     softDeleteOne(matchId: string, questionCode: string): Promise<boolean>;
+    markUsed(matchId: string, questionCode: string): Promise<boolean>;
     findByCodeGlobal(questionCode: string): Promise<{ id: string } | null>;
     findTournamentRole(
         userId: string,
@@ -81,6 +85,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
         explanation?: string;
         mediaUrl?: string | null;
         options?: string | null;
+        sourceBankId?: string | null;
     }): Promise<{ id: string }> {
         const result = await db
             .insert(questions)
@@ -92,6 +97,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
                 explanation: input.explanation,
                 mediaUrl: input.mediaUrl,
                 options: input.options,
+                sourceBankId: input.sourceBankId ?? null,
             })
             .returning({ id: questions.id });
         return result[0];
@@ -149,6 +155,21 @@ export const drizzleQuestionRepo: QuestionRepo = {
         const result = await db
             .update(questions)
             .set({ isDeleted: true, updatedAt: new Date() })
+            .where(
+                and(
+                    eq(questions.matchId, matchId),
+                    eq(questions.questionCode, questionCode),
+                    eq(questions.isDeleted, false),
+                ),
+            )
+            .returning({ id: questions.id });
+        return result.length > 0;
+    },
+
+    async markUsed(matchId: string, questionCode: string): Promise<boolean> {
+        const result = await db
+            .update(questions)
+            .set({ isUsed: true, updatedAt: new Date() })
             .where(
                 and(
                     eq(questions.matchId, matchId),
@@ -227,6 +248,8 @@ export function createInMemoryQuestionRepo(
                 explanation: input.explanation ?? null,
                 mediaUrl: input.mediaUrl ?? null,
                 options: input.options ?? null,
+                isUsed: false,
+                sourceBankId: null,
             };
             rows.push(row);
             return { id: row.id };
@@ -253,6 +276,14 @@ export function createInMemoryQuestionRepo(
             );
             if (idx < 0) return false;
             rows.splice(idx, 1);
+            return true;
+        },
+        async markUsed(matchId, questionCode) {
+            const row = rows.find(
+                (r) => r.matchId === matchId && r.questionCode === questionCode,
+            );
+            if (!row) return false;
+            row.isUsed = true;
             return true;
         },
         async findByCodeGlobal(questionCode) {

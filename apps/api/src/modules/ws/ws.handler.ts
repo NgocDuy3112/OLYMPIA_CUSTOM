@@ -17,6 +17,8 @@ import {
 } from "../../state/locks.js";
 import { getEngine } from "@oc/engine";
 import { persistScoreDeltas } from "../scoreboard/score.service.js";
+import { resolveMatchId } from "../../state/id-cache.js";
+import { drizzleQuestionRepo } from "../question/question.repo.js";
 import {
   forwardAgentAsk,
   AgentRateLimitError,
@@ -89,6 +91,27 @@ export async function handleWsMessage(
   if (msgType === "agent_ask") {
     await handleAgentAsk(conn, data);
     return;
+  }
+
+  // Live: controller broadcasts send_question -> mark is_used in DB
+  // (fire-and-forget so bank "used" filter stays correct).
+  if (
+    msgType === "send_question" &&
+    conn.role === "controller" &&
+    typeof data.question_code === "string" &&
+    data.question_code
+  ) {
+    void (async () => {
+      try {
+        const valkey = manager.valkey;
+        if (!valkey) return;
+        const matchId = await resolveMatchId(valkey, conn.matchCode);
+        if (!matchId) return;
+        await drizzleQuestionRepo.markUsed(matchId, data.question_code as string);
+      } catch {
+        /* non-fatal */
+      }
+    })();
   }
 
   await handleEngineAction(conn, data);

@@ -409,4 +409,70 @@ export async function questionRoutes(
       });
     },
   );
+
+  // POST /questions/:matchCode/:questionCode/use — mark question used live.
+  // Called when controller broadcasts send_question over WS.
+  // Allowed: admin, operator controller, tournament controller.
+  app.post(
+    "/questions/:matchCode/:questionCode/use",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { matchCode, questionCode } = request.params as {
+        matchCode: string;
+        questionCode: string;
+      };
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+            userCode?: string;
+          };
+        }
+      ).session;
+      const matchId = await resolveMatchId(app.valkey, matchCode);
+      if (!matchId) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Match not found",
+          data: null,
+        });
+      }
+      const scopes = getScopes(session);
+      const isController =
+        session.role === "admin" ||
+        (session.role === "operator" && scopes.includes("controller"));
+      if (!isController) {
+        const role = await repo.findTournamentRole(session.userId, matchId);
+        if (role !== "controller") {
+          return reply.code(403).send({
+            status: "error",
+            message: "Controller only",
+            data: null,
+          });
+        }
+      }
+      const ok = await repo.markUsed(matchId, questionCode);
+      if (!ok) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Question not found",
+          data: null,
+        });
+      }
+      void writeAudit({
+        actionType: "QUESTION_USED",
+        actorCode: session?.userCode ?? null,
+        matchCode,
+        targetCode: questionCode,
+        details: "question marked used live",
+      });
+      return reply.send({
+        status: "success",
+        message: "Question marked used",
+        data: null,
+      });
+    },
+  );
 }

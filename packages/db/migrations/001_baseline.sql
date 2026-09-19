@@ -1,12 +1,14 @@
 -- ============================================================
--- BASELINE v5 — fresh DB install
+-- BASELINE v6 — fresh DB install
 -- ============================================================
 -- Single path (old DB is gone).
 -- Includes final state:
---   users.role: admin/operator/player/spectator + operator_scopes
+--   users.role: admin/operator/player/spectator (+compat controller/member) + operator_scopes
 --   tournament_players (membership + role + discord identity)
 --   matches + scheduling, phases, bracket, templates (no teams)
---   questions/answers/records/qualifier/audit/checkpoints
+--   questions (+source_bank_id)/answers/records/checkpoints/score_reviews
+--   question_bank (QB_* codes, tags, round_hint)
+--   qualifier tables REMOVED (dead — see 007_drop_qualifier.sql)
 --
 -- Usage:
 --   psql -U <user> -d <database> -f packages/db/migrations/001_baseline.sql
@@ -17,9 +19,9 @@ BEGIN;
 -- ── Extensions ──
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- ── Enums ──
+-- ── Enums (sync with Drizzle roleEnum: 4 live + 2 compat) ──
 DO $$ BEGIN
-  CREATE TYPE roleenum AS ENUM ('admin', 'operator', 'player', 'spectator');
+  CREATE TYPE roleenum AS ENUM ('admin', 'operator', 'player', 'spectator', 'controller', 'member');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
@@ -155,7 +157,28 @@ CREATE TABLE IF NOT EXISTS bracket_edges (
 CREATE INDEX IF NOT EXISTS idx_bracket_from ON bracket_edges (from_match_id);
 CREATE INDEX IF NOT EXISTS idx_bracket_to ON bracket_edges (to_match_id);
 
--- ── Questions ──
+-- ── Question bank (stable QB_* codes) — before questions (FK target) ──
+CREATE TABLE IF NOT EXISTS question_bank (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bank_code VARCHAR(25) NOT NULL UNIQUE,
+  content VARCHAR NOT NULL,
+  answer VARCHAR NOT NULL,
+  media_url VARCHAR,
+  explanation VARCHAR,
+  options VARCHAR,
+  tags VARCHAR(200),
+  round_hint VARCHAR(20),
+  is_deleted BOOLEAN DEFAULT false,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT check_bank_code_starts_with_QB CHECK (position('QB_' in bank_code) = 1)
+);
+CREATE INDEX IF NOT EXISTS idx_bank_code ON question_bank (bank_code);
+CREATE INDEX IF NOT EXISTS idx_bank_round_hint ON question_bank (round_hint);
+CREATE INDEX IF NOT EXISTS idx_bank_tags ON question_bank (tags);
+
+-- ── Questions (match OC3_Q_* + link to bank) ──
 CREATE TABLE IF NOT EXISTS questions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   question_code VARCHAR(25) NOT NULL,
@@ -167,10 +190,13 @@ CREATE TABLE IF NOT EXISTS questions (
   is_used BOOLEAN DEFAULT false,
   is_deleted BOOLEAN DEFAULT false,
   match_id UUID NOT NULL REFERENCES matches(id),
+  source_bank_id UUID REFERENCES question_bank(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_questions_match_id ON questions (match_id);
+CREATE INDEX IF NOT EXISTS idx_questions_source_bank ON questions (source_bank_id);
+CREATE INDEX IF NOT EXISTS idx_questions_used ON questions (match_id, is_used);
 
 -- ── Answers ──
 CREATE TABLE IF NOT EXISTS answers (
@@ -207,39 +233,6 @@ CREATE INDEX IF NOT EXISTS idx_records_player_id ON records (player_id);
 CREATE INDEX IF NOT EXISTS idx_records_match_id ON records (match_id);
 CREATE INDEX IF NOT EXISTS idx_records_question_id ON records (question_id);
 
--- ── Qualifier records ──
-CREATE TABLE IF NOT EXISTS qualifier_records (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  points INTEGER NOT NULL,
-  response_time DOUBLE PRECISION,
-  is_correct BOOLEAN NOT NULL DEFAULT false,
-  round_number INTEGER NOT NULL DEFAULT 1,
-  chosen_option VARCHAR(1),
-  is_deleted BOOLEAN DEFAULT false,
-  player_id UUID NOT NULL REFERENCES users(id),
-  match_id UUID NOT NULL REFERENCES matches(id),
-  question_id UUID NOT NULL REFERENCES questions(id),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_qr_player_id ON qualifier_records (player_id);
-CREATE INDEX IF NOT EXISTS idx_qr_match_id ON qualifier_records (match_id);
-CREATE INDEX IF NOT EXISTS idx_qr_question_id ON qualifier_records (question_id);
-
--- ── Qualifier advancements ──
-CREATE TABLE IF NOT EXISTS qualifier_advancements (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  player_id UUID NOT NULL REFERENCES users(id),
-  match_id UUID NOT NULL REFERENCES matches(id),
-  round_number INTEGER NOT NULL,
-  status VARCHAR(16) NOT NULL,
-  is_deleted BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_qa_player_id ON qualifier_advancements (player_id);
-CREATE INDEX IF NOT EXISTS idx_qa_match_id ON qualifier_advancements (match_id);
-
 -- ── Match checkpoints ──
 CREATE TABLE IF NOT EXISTS match_checkpoints (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -248,5 +241,27 @@ CREATE TABLE IF NOT EXISTS match_checkpoints (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_checkpoint_match_time ON match_checkpoints (match_code, created_at DESC);
+
+-- ── Score reviews (controller -> qauthor) ──
+CREATE TABLE IF NOT EXISTS score_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id UUID NOT NULL REFERENCES matches (id) ON DELETE CASCADE,
+  question_id UUID NOT NULL REFERENCES questions (id) ON DELETE CASCADE,
+  match_code VARCHAR(50) NOT NULL,
+  question_code VARCHAR(25) NOT NULL,
+  candidates JSONB NOT NULL,
+  decisions JSONB NOT NULL DEFAULT '{}',
+  ocee_suggestion JSONB,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  created_by VARCHAR(50),
+  decided_by VARCHAR(50),
+  discord_message_id VARCHAR(32),
+  discord_channel_id VARCHAR(32),
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_score_reviews_match ON score_reviews (match_id, status);
+CREATE INDEX IF NOT EXISTS idx_score_reviews_question ON score_reviews (question_id, status);
 
 COMMIT;
