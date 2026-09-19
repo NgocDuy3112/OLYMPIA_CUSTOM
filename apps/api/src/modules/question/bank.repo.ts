@@ -1,5 +1,5 @@
-import { and, desc, eq, ilike, or, type SQL } from "drizzle-orm";
-import { db, questionBank } from "@oc/db";
+import { and, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { db, matches, questionBank, questions } from "@oc/db";
 
 export interface BankRow {
     id: string;
@@ -13,6 +13,18 @@ export interface BankRow {
     roundHint: string | null;
 }
 
+export interface BankUsage {
+    bankId: string;
+    matchCode: string;
+    questionCode: string;
+    isUsed: boolean;
+}
+
+export interface BankRowWithUsage extends BankRow {
+    usedCount: number;
+    usedIn: BankUsage[];
+}
+
 export interface BankSearchParams {
     q?: string;
     tags?: string;
@@ -22,6 +34,7 @@ export interface BankSearchParams {
 
 export interface BankRepo {
     search(params: BankSearchParams): Promise<BankRow[]>;
+    searchWithUsage(params: BankSearchParams): Promise<BankRowWithUsage[]>;
     findByCode(bankCode: string): Promise<BankRow | null>;
     findById(id: string): Promise<BankRow | null>;
     create(input: {
@@ -82,6 +95,43 @@ export const drizzleBankRepo: BankRepo = {
         return rows.map(toBankRow);
     },
 
+    async searchWithUsage(params): Promise<BankRowWithUsage[]> {
+        const rows = await drizzleBankRepo.search(params);
+        if (rows.length === 0) return [];
+        const ids = rows.map((r) => r.id);
+        const usage = await db
+            .select({
+                bankId: questions.sourceBankId,
+                matchCode: matches.matchCode,
+                questionCode: questions.questionCode,
+                isUsed: questions.isUsed,
+            })
+            .from(questions)
+            .innerJoin(matches, eq(questions.matchId, matches.id))
+            .where(
+                and(
+                    inArray(questions.sourceBankId, ids),
+                    eq(questions.isDeleted, false),
+                ),
+            );
+        const byBank = new Map<string, BankUsage[]>();
+        for (const u of usage) {
+            if (!u.bankId) continue;
+            const list = byBank.get(u.bankId) ?? [];
+            list.push({
+                bankId: u.bankId,
+                matchCode: u.matchCode,
+                questionCode: u.questionCode,
+                isUsed: u.isUsed ?? false,
+            });
+            byBank.set(u.bankId, list);
+        }
+        return rows.map((r) => {
+            const usedIn = byBank.get(r.id) ?? [];
+            return { ...r, usedCount: usedIn.length, usedIn };
+        });
+    },
+
     async findByCode(bankCode): Promise<BankRow | null> {
         const rows = await db
             .select()
@@ -128,27 +178,37 @@ export const drizzleBankRepo: BankRepo = {
 
 export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows: BankRow[] } {
     const rows = [...seed];
+    const searchRows = (params: BankSearchParams): BankRow[] => {
+        const q = params.q?.trim().toLowerCase() ?? "";
+        const tags = params.tags?.trim().toLowerCase() ?? "";
+        const roundHint = params.roundHint?.trim() ?? "";
+        let out = [...rows];
+        if (q) {
+            out = out.filter((r) =>
+                `${r.bankCode} ${r.content} ${r.answer} ${r.tags ?? ""}`
+                    .toLowerCase()
+                    .includes(q),
+            );
+        }
+        if (tags) {
+            out = out.filter((r) => (r.tags ?? "").toLowerCase().includes(tags));
+        }
+        if (roundHint) {
+            out = out.filter((r) => r.roundHint === roundHint);
+        }
+        return out.slice(0, Math.min(params.limit ?? 50, 100));
+    };
     return {
         rows,
         async search(params) {
-            const q = params.q?.trim().toLowerCase() ?? "";
-            const tags = params.tags?.trim().toLowerCase() ?? "";
-            const roundHint = params.roundHint?.trim() ?? "";
-            let out = [...rows];
-            if (q) {
-                out = out.filter((r) =>
-                    `${r.bankCode} ${r.content} ${r.answer} ${r.tags ?? ""}`
-                        .toLowerCase()
-                        .includes(q),
-                );
-            }
-            if (tags) {
-                out = out.filter((r) => (r.tags ?? "").toLowerCase().includes(tags));
-            }
-            if (roundHint) {
-                out = out.filter((r) => r.roundHint === roundHint);
-            }
-            return out.slice(0, Math.min(params.limit ?? 50, 100));
+            return searchRows(params);
+        },
+        async searchWithUsage(params) {
+            return searchRows(params).map((r) => ({
+                ...r,
+                usedCount: 0,
+                usedIn: [],
+            }));
         },
         async findByCode(bankCode) {
             return rows.find((r) => r.bankCode === bankCode) ?? null;

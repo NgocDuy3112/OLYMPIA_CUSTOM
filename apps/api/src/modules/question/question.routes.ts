@@ -471,19 +471,22 @@ export async function questionRoutes(
     },
   );
 
-  // GET /bank/search?q=...&tags=...&round_hint=...&limit=...
+  // GET /bank/search?q=...&tags=...&round_hint=...&limit=...&used=...
   // Stable QB_* bank, searchable. Requires auth; answer visible to
   // question writers (admin/qauthor), stripped otherwise.
+  // used=only|unused filters by used-where (source_bank_id links);
+  // response rows carry usedCount + usedIn [{matchCode, questionCode, isUsed}].
   app.get(
     "/bank/search",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const { q, tags, round_hint, roundHint, limit } = request.query as {
+      const { q, tags, round_hint, roundHint, limit, used } = request.query as {
         q?: string;
         tags?: string;
         round_hint?: string;
         roundHint?: string;
         limit?: string;
+        used?: string;
       };
       const session = (
         request as unknown as {
@@ -498,16 +501,23 @@ export async function questionRoutes(
         session.role === "admin" ||
         (session.role === "operator" &&
           getScopes(session).includes("qauthor"));
-      const rows = await bankRepo.search({
+      const rows = await bankRepo.searchWithUsage({
         q,
         tags,
         roundHint: roundHint ?? round_hint,
         limit: limit ? Number(limit) : undefined,
       });
+      const usedFilter = String(used ?? "").trim().toLowerCase();
+      const filtered =
+        usedFilter === "only"
+          ? rows.filter((r) => r.usedCount > 0)
+          : usedFilter === "unused"
+            ? rows.filter((r) => r.usedCount === 0)
+            : rows;
       return reply.send({
         status: "success",
         message: "OK",
-        data: rows.map((r) => (canSee ? r : { ...r, answer: "" })),
+        data: filtered.map((r) => (canSee ? r : { ...r, answer: "" })),
       });
     },
   );

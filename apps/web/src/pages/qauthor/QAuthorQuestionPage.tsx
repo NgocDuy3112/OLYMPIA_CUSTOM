@@ -35,6 +35,12 @@ const toQuestionData = (row: Record<string, unknown>): QuestionData => {
 const isQuestionUsed = (q: QuestionData): boolean =>
   Boolean(q.is_used ?? q.isUsed ?? false);
 
+interface BankUsage {
+  matchCode: string;
+  questionCode: string;
+  isUsed: boolean;
+}
+
 interface BankData {
   bank_id: string;
   bank_code: string;
@@ -45,20 +51,33 @@ interface BankData {
   options?: string | null;
   tags?: string | null;
   round_hint?: string | null;
+  usedCount: number;
+  usedIn: BankUsage[];
 }
 
-const toBankData = (row: Record<string, unknown>): BankData => ({
-  bank_id: String(row.id ?? row.bank_id ?? ""),
-  bank_code: String(row.bankCode ?? row.bank_code ?? ""),
-  content: String(row.content ?? ""),
-  answer: String(row.answer ?? ""),
-  explanation: (row.explanation as string | null) ?? null,
-  media_url:
-    (row.mediaUrl as string | null) ?? (row.media_url as string | null) ?? null,
-  options: (row.options as string | null) ?? null,
-  tags: (row.tags as string | null) ?? null,
-  round_hint: (row.roundHint as string | null) ?? (row.round_hint as string | null) ?? null,
-});
+const toBankData = (row: Record<string, unknown>): BankData => {
+  const rawUsed = Array.isArray(row.usedIn ?? row.used_in)
+    ? (row.usedIn ?? row.used_in) as Record<string, unknown>[]
+    : [];
+  return {
+    bank_id: String(row.id ?? row.bank_id ?? ""),
+    bank_code: String(row.bankCode ?? row.bank_code ?? ""),
+    content: String(row.content ?? ""),
+    answer: String(row.answer ?? ""),
+    explanation: (row.explanation as string | null) ?? null,
+    media_url:
+      (row.mediaUrl as string | null) ?? (row.media_url as string | null) ?? null,
+    options: (row.options as string | null) ?? null,
+    tags: (row.tags as string | null) ?? null,
+    round_hint: (row.roundHint as string | null) ?? (row.round_hint as string | null) ?? null,
+    usedCount: Number(row.usedCount ?? row.used_count ?? rawUsed.length ?? 0),
+    usedIn: rawUsed.map((u) => ({
+      matchCode: String(u.matchCode ?? u.match_code ?? ""),
+      questionCode: String(u.questionCode ?? u.question_code ?? ""),
+      isUsed: Boolean(u.isUsed ?? u.is_used ?? false),
+    })),
+  };
+};
 
 interface ApiResponse {
   status: "success" | "error";
@@ -84,6 +103,7 @@ const QAuthorQuestionPage = () => {
   const [bankLoading, setBankLoading] = useState(false);
   const [bankQuery, setBankQuery] = useState("");
   const [bankRound, setBankRound] = useState("KD_C");
+  const [bankUsed, setBankUsed] = useState<"all" | "only" | "unused">("all");
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
   const [form, setForm] = useState(emptyForm);
@@ -219,6 +239,7 @@ const QAuthorQuestionPage = () => {
     try {
       const params = new URLSearchParams();
       if (bankQuery.trim()) params.set("q", bankQuery.trim());
+      if (bankUsed !== "all") params.set("used", bankUsed);
       params.set("limit", "50");
       const res = await fetch(
         `${API_BASE_URL}/bank/search?${params.toString()}`,
@@ -238,7 +259,7 @@ const QAuthorQuestionPage = () => {
     } finally {
       setBankLoading(false);
     }
-  }, [bankQuery]);
+  }, [bankQuery, bankUsed]);
 
   const reuseFromBank = useCallback(
     async (q: BankData) => {
@@ -328,6 +349,15 @@ const QAuthorQuestionPage = () => {
               placeholder="Tìm theo mã / nội dung / đáp án…"
               className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
             />
+            <select
+              value={bankUsed}
+              onChange={(e) => setBankUsed(e.target.value as "all" | "only" | "unused")}
+              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+            >
+              <option value="all">Tất cả</option>
+              <option value="unused">Chưa dùng</option>
+              <option value="only">Đã dùng</option>
+            </select>
             <button
               onClick={() => void fetchBank()}
               disabled={bankLoading}
@@ -373,9 +403,16 @@ const QAuthorQuestionPage = () => {
                         <span className="px-2 py-0.5 rounded-full text-xs bg-green-600/20 text-green-300">
                           Đã thêm vào {matchCode.trim() || "trận này"}
                         </span>
+                      ) : q.usedCount > 0 ? (
+                        <span
+                          className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300"
+                          title={q.usedIn.map((u) => `${u.matchCode}:${u.questionCode}${u.isUsed ? " (live)" : ""}`).join(", ")}
+                        >
+                          Đã dùng ×{q.usedCount}
+                        </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-gray-400">
-                          Bank QB_*
+                          Chưa dùng
                         </span>
                       )}
                     </td>
