@@ -84,7 +84,7 @@ const ControllerRoutes = () => {
   const stored = getMatchCode();
   const fromPath = (() => {
     try {
-      const m = window.location.pathname.match(/OC3_[A-Za-z0-9_-]+/);
+      const m = window.location.pathname.match(/OC\d+_[A-Za-z0-9_-]+/);
       return m ? m[0] : "";
     } catch {
       return "";

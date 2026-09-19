@@ -20,12 +20,16 @@ const COLORS = [
   "#BAE6FD",
 ];
 
-function groupFor(code: string) {
-  if (
+function isAdjustCode(code: string): boolean {
+  return (
     code === "ADJUST" ||
-    code === "OC3_Q_ADMIN_ADJUST" ||
+    code.endsWith("_Q_ADMIN_ADJUST") ||
     code.startsWith("Điểm số đã chỉnh sửa")
-  )
+  );
+}
+
+function groupFor(code: string) {
+  if (isAdjustCode(code))
     return "ĐIỀU CHỈNH";
   if (code.startsWith("[Khởi động")) return "KĐ";
   if (code.startsWith("[Giải mã]")) return "GM";
@@ -35,7 +39,7 @@ function groupFor(code: string) {
   if (code.startsWith("GM")) return "GM";
   if (code.startsWith("BP")) return "BP";
   if (code.startsWith("VĐ")) return "VĐ";
-  const value = code.replace(/^OC3_Q_/, "");
+  const value = code.replace(/^OC\d+_Q_/, "");
   if (value.startsWith("KD")) return "KĐ";
   if (value.startsWith("GM")) return "GM";
   if (value.startsWith("BP")) return "BP";
@@ -57,10 +61,9 @@ function roundName(code: string) {
 }
 
 function labelFor(code: string) {
-  if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST")
-    return "Điểm số đã chỉnh sửa";
+  if (isAdjustCode(code)) return "Điểm số đã chỉnh sửa";
   if (/^(KĐ|GM|BP|VĐ)_/.test(code)) return code;
-  const value = code.replace(/^OC3_Q_/, "");
+  const value = code.replace(/^OC\d+_Q_/, "");
   const parts = value.split("_");
   if (parts[0] === "KD" && parts.length >= 2)
     return parts[1] === "C"
@@ -75,7 +78,7 @@ function labelFor(code: string) {
 
 function tooltipLabelFor(code: string, points?: number) {
   const value = code
-    .replace(/^OC3_Q_/, "")
+    .replace(/^OC\d+_Q_/, "")
     .replace(/^KĐ_/, "KD_")
     .replace(/^GM_/, "GM_")
     .replace(/^BP_/, "BP_")

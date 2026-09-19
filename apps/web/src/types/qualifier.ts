@@ -23,6 +23,11 @@ export const QUALIFIER_TIME_LIMIT = 10;
 
 export const QUALIFIER_QUESTION_PREFIX = "OC3_Q_VL";
 
+export function qualifierPrefixForMatch(matchCode?: string | null): string {
+  const m = String(matchCode ?? "").toUpperCase().match(/^OC(\d+)/);
+  return m ? `OC${m[1]}_Q_VL` : QUALIFIER_QUESTION_PREFIX;
+}
+
 export interface QualifierStandingEntry {
   user_code: string;
   user_name: string;

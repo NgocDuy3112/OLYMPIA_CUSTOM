@@ -544,7 +544,7 @@ const AdminGameManagingPage = () => {
                     type="text"
                     value={editQMediaUrl}
                     onChange={(e) => setEditQMediaUrl(e.target.value)}
-                    placeholder="OC3_M01T/OC3_Q_... (tuỳ chọn)"
+                    placeholder="OC3_M01T/OC3_Q_... (VD: OC<number>_M_*/OC<number>_Q_*)"
                     className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
                   />
                   <div className="flex items-center gap-2">

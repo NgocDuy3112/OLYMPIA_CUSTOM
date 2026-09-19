@@ -7,6 +7,7 @@ import {
   tournamentPlayers,
   users,
 } from "@oc/db";
+import { makeTournamentCode, ocNumberFromFormat } from "@oc/shared";
 
 export interface TournamentRow {
   id: string;
@@ -132,7 +133,11 @@ export const drizzleTournamentRepo: TournamentRepo = {
     notes?: string;
     createdBy: string;
   }): Promise<TournamentRow> {
-    const tournamentCode = `OC3_T_${Date.now().toString(36).toUpperCase()}`;
+    const ocNumber = ocNumberFromFormat(input.tournamentFormat);
+    const tournamentCode = makeTournamentCode(
+      ocNumber,
+      Date.now().toString(36).toUpperCase(),
+    );
     const result = await db
       .insert(tournaments)
       .values({
@@ -406,7 +411,10 @@ export function createInMemoryTournamentRepo(
     async create(input) {
       const row: TournamentRow = {
         id: `mem-${rows.length + 1}`,
-        tournamentCode: `OC3_T_MEM${rows.length + 1}`,
+        tournamentCode: makeTournamentCode(
+          ocNumberFromFormat(input.tournamentFormat),
+          `MEM${rows.length + 1}`,
+        ),
         tournamentName: input.tournamentName,
       };
       rows.push(row);

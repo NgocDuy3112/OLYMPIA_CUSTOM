@@ -48,7 +48,7 @@ export function gmKeywordCorrect(
 
 /**
  * Về Đích Cá Nhân — correct/wrong
- * Question code encodes points: OC3_Q_VD_R_15 → ±15
+ * Question code encodes points: OC<number>_Q_VD_R_15 → ±15
  */
 export function vdrScore(
   userCode: string,

@@ -26,7 +26,11 @@ const logger = createLogger("useGameRound");
 export interface GameRoundConfig {
   /** Round code for navigation, e.g. "kdc", "bp", "gm" */
   round: string;
-  /** Question code prefix, e.g. "OC3_Q_KD_C" */
+  /**
+   * Question code prefix, e.g. "OC3_Q_KD_C".
+   * The OC number is normalized to the current matchCode at runtime, so
+   * legacy OC3 constants keep working for OC4+ matches.
+   */
   questionPrefix: string;
   /** Timer duration in seconds */
   timeLimit: number;
@@ -123,11 +127,15 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   }, [currentQuestionIndex]);
 
   // ── Helpers ──
+  // Normalize OC number: legacy "OC3_Q_*" constants follow the current
+  // matchCode (OC4_M_* → OC4_Q_*), so one build works for every season.
   const resolveQuestionCode = useCallback(
     (index: number) => {
-      return `${questionPrefix}_${String(index)}`;
+      const oc = (matchCode.toUpperCase().match(/^OC(\d+)/)?.[1] ?? "3");
+      const normalized = questionPrefix.replace(/^OC\d+_Q_/, `OC${oc}_Q_`);
+      return `${normalized}_${String(index)}`;
     },
-    [questionPrefix],
+    [questionPrefix, matchCode],
   );
 
   const toggleSelectedPlayer = useCallback((code: string) => {

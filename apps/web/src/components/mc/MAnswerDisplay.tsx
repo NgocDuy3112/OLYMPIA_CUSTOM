@@ -13,7 +13,7 @@ const MAnswerDisplay: React.FC<MAnswerDisplayProps> = ({
   return (
     <div className="mx-3 mt-3 flex flex-col gap-2">
       <div className="p-4 bg-blue-700 border-2 border-blue-400 rounded-xl text-center font-bold text-white text-xl">
-        ĐÁP ÁN: {answer}
+        {answer}
       </div>
       {explanation && (
         <div className="p-3 bg-white-800 border border-white-500 rounded-xl text-center text-white-100 text-base">

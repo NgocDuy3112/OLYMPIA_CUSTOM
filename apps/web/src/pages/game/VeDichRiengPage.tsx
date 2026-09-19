@@ -345,10 +345,8 @@ const AdminVeDichRiengView = () => {
         const raw = Array.isArray(result.data)
           ? result.data
           : [result.data].filter(Boolean);
-        const veDichRaw = raw.filter(
-          (q: any) =>
-            q.question_code?.includes("_VD_") ||
-            q.question_code?.startsWith("OC3_Q_VD"),
+        const veDichRaw = raw.filter((q: any) =>
+          /^OC\d+_Q_VD/.test(String(q.question_code ?? "")),
         );
         const mapped: Question[] = veDichRaw.map((q: any) => ({
           questionCode: q.question_code,

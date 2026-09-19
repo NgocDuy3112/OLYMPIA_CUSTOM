@@ -288,7 +288,8 @@ const AdminVeDichPickView = () => {
   }, [currentMatchCode]);
 
   useEffect(() => {
-    const allPlaceholderCodes = generateVeDichPlaceholderCodes();
+    const oc = currentMatchCode.toUpperCase().match(/^OC(\d+)/)?.[0] ?? "OC3";
+    const allPlaceholderCodes = generateVeDichPlaceholderCodes(oc);
     const placeholders: Question[] = allPlaceholderCodes.map((code) => ({
       questionCode: code,
       questionText: "",
@@ -333,10 +334,8 @@ const AdminVeDichPickView = () => {
         const raw = Array.isArray(result.data)
           ? result.data
           : [result.data].filter(Boolean);
-        const veDichRaw = raw.filter(
-          (q: any) =>
-            q.question_code?.includes("_VD_") ||
-            q.question_code?.startsWith("OC3_Q_VD"),
+        const veDichRaw = raw.filter((q: any) =>
+          /^OC\d+_Q_VD/.test(String(q.question_code ?? "")),
         );
         const mapped: Question[] = veDichRaw.map((q: any) => ({
           questionCode: q.question_code,
@@ -789,7 +788,8 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
         >
           {Array.from({ length: 6 * 4 }).map((_, idx) => {
             const questionCode = allQuestionCodes[idx];
-            const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
+            const oc = currentMatchCode.toUpperCase().match(/^OC(\d+)/)?.[0] ?? "OC3";
+            const fallbackCode = `${oc}_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
             const displayCode = questionCode || fallbackCode;
             const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";
             const point = [20, 30, 40, 50][idx % 4] || 0;

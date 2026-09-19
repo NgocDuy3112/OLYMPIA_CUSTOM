@@ -45,7 +45,7 @@ export async function resolveS3Media(key: string): Promise<string | null> {
 }
 
 export function isS3Key(url: string): boolean {
-  return url.startsWith("OC3_M") && url.includes("/");
+  return /^OC\d+_M/.test(url) && url.includes("/");
 }
 
 const presignCache = new Map<string, string>();

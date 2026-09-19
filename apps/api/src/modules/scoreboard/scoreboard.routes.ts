@@ -192,7 +192,7 @@ export async function scoreboardRoutes(
               playerId,
               matchId,
               questionId: adjust.id,
-              questionCode: "OC3_Q_ADMIN_ADJUST",
+              questionCode: adjust.questionCode,
             },
           ]);
         }

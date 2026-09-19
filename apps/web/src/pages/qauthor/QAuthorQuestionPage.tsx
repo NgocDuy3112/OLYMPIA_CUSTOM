@@ -290,7 +290,7 @@ const QAuthorQuestionPage = () => {
             <input
               value={matchCode}
               onChange={(e) => setMatchCode(e.target.value)}
-              placeholder="Mã trận đích (VD: OC3_M_...)"
+              placeholder="Mã trận đích (VD: OC3_M_... / OC4_M_...)"
               className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
             />
           </div>
@@ -298,7 +298,7 @@ const QAuthorQuestionPage = () => {
             <input
               value={bankCode}
               onChange={(e) => setBankCode(e.target.value)}
-              placeholder="Mã trận nguồn (VD: OC3_M_...)"
+              placeholder="Mã trận nguồn (VD: OC3_M_... / OC4_M_...)"
               className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
             />
             <button
@@ -470,7 +470,7 @@ const QAuthorQuestionPage = () => {
           <input
             value={form.questionCode}
             onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value }))}
-            placeholder="Mã câu hỏi (VD: OC3_Q_KD_C_1)"
+            placeholder="Mã câu hỏi (VD: OC3_Q_KD_C_1 / OC4_Q_KD_C_1)"
             className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white font-mono text-sm"
           />
           <input

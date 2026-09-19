@@ -331,7 +331,7 @@ const AdminVeDichChungView = () => {
           ? result.data
           : [result.data].filter(Boolean);
         const veDichRaw = raw.filter((q: any) =>
-          q.question_code?.startsWith("OC3_Q_VD"),
+          /^OC\d+_Q_VD/.test(String(q.question_code ?? "")),
         );
         const mapped: Question[] = veDichRaw.map((q: any) => ({
           questionCode: q.question_code,

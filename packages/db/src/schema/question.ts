@@ -12,7 +12,7 @@ import { matches } from "./match.js";
 import { users } from "./user.js";
 
 /**
- * Questions table — match questions use OC3_Q_* codes for live WS/game.
+ * Questions table — match questions use OC<number>_Q_* codes for live WS/game.
  * Bank rows live in question_bank (QB_* codes) — see below.
  */
 export const questions = pgTable(
@@ -43,7 +43,7 @@ export const questions = pgTable(
 
 /**
  * Question bank — stable QB_* codes, searchable, no round prefix.
- * Pick flow copies bank -> match questions (generates OC3_Q_* code).
+ * Pick flow copies bank -> match questions (generates OC<number>_Q_* code).
  */
 export const questionBank = pgTable(
   "question_bank",

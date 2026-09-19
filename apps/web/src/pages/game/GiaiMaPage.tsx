@@ -53,8 +53,16 @@ import { SGiaiMaPage } from "@/components/shared/SGiaiMaPage";
 const logger = createLogger("GiaiMaPage");
 const TIME_LIMIT = 15;
 const CLUE_COUNT = 8;
-const CLUE_QUESTION_PREFIX = "OC3_Q_GM_";
-const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
+
+function ocPrefix(matchCode: string): string {
+  return matchCode.toUpperCase().match(/^OC(\d+)/)?.[0] ?? "OC3";
+}
+function cluePrefix(matchCode: string): string {
+  return `${ocPrefix(matchCode)}_Q_GM_`;
+}
+function keywordCode(matchCode: string): string {
+  return `${ocPrefix(matchCode)}_Q_GM_KEY`;
+}
 
 const DEFAULT_QUESTION: Question = {
   questionCode: "",
@@ -150,7 +158,7 @@ const AdminGiaiMaView = () => {
   const loadClueQuestion = useCallback(
     async (clueIndex: number): Promise<Question | undefined> => {
       if (!currentMatchCode) return undefined;
-      const questionCode = `${CLUE_QUESTION_PREFIX}${clueIndex + 1}`;
+      const questionCode = `${cluePrefix(currentMatchCode)}${clueIndex + 1}`;
       try {
         const res = await fetch(
           `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(questionCode)}`,
@@ -310,8 +318,9 @@ const AdminGiaiMaView = () => {
     const fetchKeywordQ = async () => {
       if (!currentMatchCode) return;
       try {
+        const kwCode = keywordCode(currentMatchCode);
         const res = await fetch(
-          `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(KEYWORD_QUESTION_CODE)}`,
+          `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(currentMatchCode)}&question_code=${encodeURIComponent(kwCode)}`,
           { credentials: "include" },
         );
         if (!res.ok) return;
@@ -320,13 +329,13 @@ const AdminGiaiMaView = () => {
         if (Array.isArray(data.data))
           payload =
             data.data.find(
-              (q: any) => String(q?.question_code) === KEYWORD_QUESTION_CODE,
+              (q: any) => String(q?.question_code) === kwCode,
             ) ??
             data.data[0] ??
             null;
         else payload = data.data ?? null;
         if (payload) {
-          const q = mapQuestionApiPayload(payload, KEYWORD_QUESTION_CODE);
+          const q = mapQuestionApiPayload(payload, kwCode);
           setKeywordQuestion(q);
           const answer: string = q.questionAnswer ?? "";
           if (answer) {
@@ -700,7 +709,7 @@ const AdminGiaiMaView = () => {
       sendMessage,
       phase: "gm_keyword",
       timeLimit: 15,
-      questionCode: KEYWORD_QUESTION_CODE,
+      questionCode: keywordCode(currentMatchCode),
     });
     await sendMessage({
       type: "keyword_clues_locked",
@@ -947,7 +956,7 @@ const AdminGiaiMaView = () => {
         if (!submission) continue;
         await calculateScore(
           currentMatchCode,
-          KEYWORD_QUESTION_CODE,
+          keywordCode(currentMatchCode),
           "gm_keyword_correct",
           [code],
         );

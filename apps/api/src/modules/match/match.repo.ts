@@ -6,6 +6,7 @@ import {
     tournaments,
     users,
 } from "@oc/db";
+import { makeMatchCode, ocNumberFromFormat } from "@oc/shared";
 
 export interface MatchRow {
     id: string;
@@ -56,11 +57,11 @@ function generatePin(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-async function resolveTournamentId(
+async function resolveTournament(
     tournamentCode: string,
-): Promise<string | null> {
+): Promise<{ id: string; tournamentFormat: string | null } | null> {
     const rows = await db
-        .select({ id: tournaments.id })
+        .select({ id: tournaments.id, tournamentFormat: tournaments.tournamentFormat })
         .from(tournaments)
         .where(
             and(
@@ -69,7 +70,14 @@ async function resolveTournamentId(
             ),
         )
         .limit(1);
-    return rows[0]?.id ?? null;
+    return (rows[0] as { id: string; tournamentFormat: string | null } | undefined) ?? null;
+}
+
+async function resolveTournamentId(
+    tournamentCode: string,
+): Promise<string | null> {
+    const row = await resolveTournament(tournamentCode);
+    return row?.id ?? null;
 }
 
 export const drizzleMatchRepo: MatchRepo = {
@@ -122,10 +130,17 @@ export const drizzleMatchRepo: MatchRepo = {
         createdBy: string;
     }): Promise<MatchRow> {
         let tournamentId: string | null = null;
+        let ocNumber = "3";
         if (input.tournamentCode) {
-            tournamentId = await resolveTournamentId(input.tournamentCode);
+            const t = await resolveTournament(input.tournamentCode);
+            tournamentId = t?.id ?? null;
+            if (t?.tournamentFormat) ocNumber = ocNumberFromFormat(t.tournamentFormat);
+            else {
+                const m = input.tournamentCode.toUpperCase().match(/^OC(\d+)_T/);
+                if (m) ocNumber = m[1];
+            }
         }
-        const matchCode = `OC3_M_${Date.now().toString(36).toUpperCase()}`;
+        const matchCode = makeMatchCode(ocNumber, Date.now().toString(36).toUpperCase());
         const result = await db
             .insert(matches)
             .values({
@@ -255,7 +270,7 @@ export function createInMemoryMatchRepo(
             const row: MatchRow = {
                 id: `mem-${rows.length + 1}`,
                 matchSlug: `slug-${rows.length + 1}`,
-                matchCode: `OC3_M_MEM${rows.length + 1}`,
+                matchCode: makeMatchCode(3, `MEM${rows.length + 1}`),
                 matchPin: "000000",
                 matchName: input.matchName,
                 matchStatus: "setup",

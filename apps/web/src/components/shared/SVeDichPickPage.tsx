@@ -165,7 +165,8 @@ export function SVeDichPickPage({
         >
           {Array.from({ length: 6 * 4 }).map((_, idx) => {
             const questionCode = allQuestionCodes[idx];
-            const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
+            const oc = String(matchCode ?? "").toUpperCase().match(/^OC(\d+)/)?.[0] ?? "OC3";
+            const fallbackCode = `${oc}_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
             const displayCode = questionCode || fallbackCode;
             const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";
             const point = [20, 30, 40, 50][idx % 4] || 0;

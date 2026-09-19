@@ -1,4 +1,5 @@
 import { drizzleTemplateRepo, type TemplateRepo } from "./template.repo.js";
+import { makeMatchCode } from "@oc/shared";
 
 interface TemplateConfig {
   type: "individual";
@@ -50,9 +51,15 @@ function generatePin(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Generate match code
-function generateMatchCode(index: number): string {
-  return `OC3_M_${Date.now().toString(36).toUpperCase()}_${index}`;
+// Generate match code — OC number derived from tournament code (OC<n>_T_*),
+// fallback to OC3 for legacy codes.
+function generateMatchCode(index: number, tournamentCode?: string): string {
+  let ocNumber = "3";
+  const m = String(tournamentCode ?? "")
+    .toUpperCase()
+    .match(/^OC(\d+)_T/);
+  if (m) ocNumber = m[1];
+  return makeMatchCode(ocNumber, `${Date.now().toString(36).toUpperCase()}_${index}`);
 }
 
 // Generate match label (M01, M02, ...)
@@ -118,6 +125,7 @@ export async function applyTemplate(
 
         const matchData = await createMatch(repo, {
           tournamentId,
+          tournamentCode,
           phaseId,
           matchName: `${phase.name} - Round ${roundNumber} - Match ${matchInRound}`,
           matchLabel,
@@ -135,6 +143,7 @@ export async function applyTemplate(
         const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
         const matchData = await createMatch(repo, {
           tournamentId,
+          tournamentCode,
           phaseId,
           matchName: `${phase.name} - Match ${matchIndex + 1}`,
           matchLabel,
@@ -152,6 +161,7 @@ export async function applyTemplate(
         const matchLabel = generateMatchLabel(phaseIndex, matchIndex);
         const matchData = await createMatch(repo, {
           tournamentId,
+          tournamentCode,
           phaseId,
           matchName: `${phase.name}${matchCount > 1 ? ` - Match ${matchIndex + 1}` : ""}`,
           matchLabel,
@@ -207,6 +217,7 @@ async function createMatch(
   repo: TemplateRepo,
   params: {
     tournamentId: string;
+    tournamentCode?: string;
     phaseId?: string;
     matchName: string;
     matchLabel: string;
@@ -216,7 +227,10 @@ async function createMatch(
     createdBy?: string;
   },
 ): Promise<MatchData> {
-  const matchCode = generateMatchCode(Math.random() * 10000);
+  const matchCode = generateMatchCode(
+    Math.random() * 10000,
+    params.tournamentCode,
+  );
   const matchPin = generatePin();
 
   const result = await repo.insertMatch({
@@ -288,6 +302,7 @@ export async function generateNextRound(
   for (let i = 0; i < nextPhaseMatchCount; i++) {
     const matchData = await createMatch(repo, {
       tournamentId,
+      tournamentCode,
       phaseId: nextPhaseId,
       matchName: `Phase ${nextPhaseNumber} - Match ${i + 1}`,
       matchLabel: generateMatchLabel(nextPhaseNumber - 1, i),

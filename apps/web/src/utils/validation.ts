@@ -1,5 +1,5 @@
-const MATCH_PATTERN = /^OC3_M/;
-const QUESTION_PATTERN = /^OC3_Q/;
+const MATCH_PATTERN = /^OC\d+_M/;
+const QUESTION_PATTERN = /^OC\d+_Q/;
 const USER_PATTERN = /^OC_U/;
 const ROLES = ["player", "mc", "admin"] as const;
 const QUALIFIER_OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
@@ -28,12 +28,12 @@ export const isMultipleOfFive = (value: unknown): value is number =>
 
 export function assertMatchCode(value: unknown): asserts value is string {
   if (!isMatchCode(value))
-    throw new Error("match_code must start with 'OC3_M'");
+    throw new Error("match_code must start with 'OC<number>_M'");
 }
 
 export function assertQuestionCode(value: unknown): asserts value is string {
   if (!isQuestionCode(value))
-    throw new Error("question_code must start with 'OC3_Q'");
+    throw new Error("question_code must start with 'OC<number>_Q'");
 }
 
 export function assertUserCode(value: unknown): asserts value is string {

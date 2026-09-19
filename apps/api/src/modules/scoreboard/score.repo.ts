@@ -7,6 +7,7 @@ import {
     records,
     users,
 } from "@oc/db";
+import { ocPrefixFromCode } from "@oc/shared";
 
 export interface ScoreboardEntry {
     userCode: string;
@@ -33,7 +34,9 @@ export interface ScoreRepo {
         }>,
     ): Promise<void>;
     totalForPlayer(matchId: string, playerId: string): Promise<number>;
-    ensureAdjustQuestion(matchId: string): Promise<{ id: string }>;
+    ensureAdjustQuestion(
+        matchId: string,
+    ): Promise<{ id: string; questionCode: string }>;
     listPositionCodes(matchId: string): Promise<string[]>;
 }
 
@@ -120,9 +123,31 @@ export const drizzleScoreRepo: ScoreRepo = {
         return Number(rows[0]?.total ?? 0);
     },
 
-    async ensureAdjustQuestion(matchId: string): Promise<{ id: string }> {
+    async ensureAdjustQuestion(
+        matchId: string,
+    ): Promise<{ id: string; questionCode: string }> {
+        // Legacy rows used OC3_Q_ADMIN_ADJUST; new rows use the match's OC prefix.
+        const matchRows = await db
+            .select({ matchCode: matches.matchCode })
+            .from(matches)
+            .where(eq(matches.id, matchId))
+            .limit(1);
+        const prefix = ocPrefixFromCode(matchRows[0]?.matchCode);
+        const adjustCode = `${prefix}_Q_ADMIN_ADJUST`;
         const rows = await db
-            .select({ id: questions.id })
+            .select({ id: questions.id, questionCode: questions.questionCode })
+            .from(questions)
+            .where(
+                and(
+                    eq(questions.matchId, matchId),
+                    eq(questions.questionCode, adjustCode),
+                ),
+            )
+            .limit(1);
+        if (rows.length > 0) return rows[0];
+        // Fallback: reuse legacy OC3 adjust row if present.
+        const legacy = await db
+            .select({ id: questions.id, questionCode: questions.questionCode })
             .from(questions)
             .where(
                 and(
@@ -131,16 +156,16 @@ export const drizzleScoreRepo: ScoreRepo = {
                 ),
             )
             .limit(1);
-        if (rows.length > 0) return rows[0];
+        if (legacy.length > 0) return legacy[0];
         const inserted = await db
             .insert(questions)
             .values({
                 matchId,
-                questionCode: "OC3_Q_ADMIN_ADJUST",
+                questionCode: adjustCode,
                 content: "(Controller score adjustment)",
                 answer: "N/A",
             })
-            .returning({ id: questions.id });
+            .returning({ id: questions.id, questionCode: questions.questionCode });
         return inserted[0];
     },
 
@@ -176,7 +201,7 @@ export function createInMemoryScoreRepo(
             return board.find((b) => b.userCode === playerId)?.score ?? 0;
         },
         async ensureAdjustQuestion() {
-            return { id: "mem-adjust" };
+            return { id: "mem-adjust", questionCode: "OC3_Q_ADMIN_ADJUST" };
         },
         async listPositionCodes() {
             return board.map((b) => b.userCode);

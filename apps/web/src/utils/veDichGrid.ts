@@ -26,7 +26,7 @@ export interface VeDichCodeInfo {
 }
 
 export function parseVeDichCode(code: string): VeDichCodeInfo | null {
-  const m = code.match(/OC3_Q_VD[A-Z]*_([A-Z]+)_(\d+)$/i);
+  const m = code.match(/OC\d+_Q_VD[A-Z]*_([A-Z]+)_(\d+)$/i);
   if (!m) return null;
   const abbrev = m[1].toUpperCase();
   const points = parseInt(m[2], 10);
@@ -66,7 +66,7 @@ export function getVeDichMeta(
   };
 }
 
-export function generateVeDichPlaceholderCodes(): string[] {
+export function generateVeDichPlaceholderCodes(ocPrefix = "OC3"): string[] {
   const codes: string[] = [];
   for (let catIdx = 0; catIdx < 6; catIdx++) {
     for (let tierIdx = 0; tierIdx < 4; tierIdx++) {
@@ -75,7 +75,7 @@ export function generateVeDichPlaceholderCodes(): string[] {
           (key) => ABBREV_TO_CAT_IDX[key] === catIdx,
         ) || "KTTH";
       const points = VEDICH_POINTS[tierIdx];
-      codes.push(`OC3_Q_VD_${abbrev}_${points}`);
+      codes.push(`${ocPrefix}_Q_VD_${abbrev}_${points}`);
     }
   }
   return codes;

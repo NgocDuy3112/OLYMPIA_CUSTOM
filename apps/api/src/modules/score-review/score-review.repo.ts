@@ -13,7 +13,7 @@ export interface ScoreReviewCandidate {
     userCode: string;
     userName: string;
     position: number | null;
-    answerText: string;
+    answerText: string; 
 }
 
 export interface CandidateInput {
