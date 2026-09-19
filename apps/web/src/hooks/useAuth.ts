@@ -4,10 +4,7 @@ import { clearAuthSession } from "@/utils/storage";
 
 export type GlobalRole = "admin" | "operator" | "player" | "spectator";
 
-export type OperatorScope =
-  | "question_creator"
-  | "controller"
-  | "mc";
+export type OperatorScope = "qauthor" | "controller" | "mc";
 
 export interface AuthUser {
   userId: string;

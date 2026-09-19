@@ -583,7 +583,7 @@ export function requireRole(app: FastifyInstance, ...roles: string[]) {
   };
 }
 
-// requireScope — operator must hold a specific scope (controller/mc/question_creator).
+// requireScope — operator must hold a specific scope (controller/mc/qauthor).
 // Admin bypasses. Reads scopes from session, falls back to staff:scopes Valkey key.
 export function requireScope(app: FastifyInstance, ...scopes: string[]) {
   return async (request: FastifyRequest, reply: FastifyReply) => {

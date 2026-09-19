@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface AuthGuardProps {
   children?: React.ReactNode;
   requiredRole?: "admin" | "operator" | "player" | "spectator";
-  requiredScope?: "question_creator" | "controller" | "mc";
+  requiredScope?: "qauthor" | "controller" | "mc";
 }
 
 export const AuthGuard: React.FC<AuthGuardProps> = ({
@@ -35,7 +35,11 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
 
   if (requiredScope && user.role !== "admin") {
     const scopes = (user.operatorScopes ?? "").split(",").map((s) => s.trim());
-    if (user.role !== "operator" || !scopes.includes(requiredScope)) {
+    // Legacy rows may hold question_creator instead of qauthor.
+    const ok =
+      scopes.includes(requiredScope) ||
+      (requiredScope === "qauthor" && scopes.includes("question_creator"));
+    if (user.role !== "operator" || !ok) {
       return <Navigate to="/login" replace />;
     }
   }

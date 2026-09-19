@@ -41,6 +41,7 @@ export async function answerRoutes(
         session.role === "admin" ||
         (session.role === "operator" &&
           (scopes.includes("controller") ||
+            scopes.includes("qauthor") ||
             scopes.includes("question_creator")));
       // Non-staff must submit as themselves; ignore spoofed user_code.
       const effectiveUserCode =
@@ -87,7 +88,7 @@ export async function answerRoutes(
   );
 
   // GET /answers/:matchCode — list answers for a match. Requires auth.
-  // Staff (admin/controller/question_creator) see all; players see own only.
+  // Staff (admin/controller/qauthor) see all; players see own only.
   app.get(
     "/answers/:matchCode",
     { preHandler: [requireAuth(app)] },
@@ -118,6 +119,7 @@ export async function answerRoutes(
         session.role === "admin" ||
         (session.role === "operator" &&
           (scopes.includes("controller") ||
+            scopes.includes("qauthor") ||
             scopes.includes("question_creator") ||
             scopes.includes("mc")));
       if (isStaff) {
@@ -132,7 +134,7 @@ export async function answerRoutes(
   );
 
   // GET /answers/:matchCode/:questionCode — answers for one question.
-  // Staff only (admin/controller/question_creator/mc). Used by controller
+  // Staff only (admin/controller/qauthor/mc). Used by controller
   // "HIỆN TRẢ LỜI" to broadcast answers over WS.
   app.get(
     "/answers/:matchCode/:questionCode",
@@ -159,6 +161,7 @@ export async function answerRoutes(
         session.role === "admin" ||
         (session.role === "operator" &&
           (scopes.includes("controller") ||
+            scopes.includes("qauthor") ||
             scopes.includes("question_creator") ||
             scopes.includes("mc")));
       if (!isStaff) {

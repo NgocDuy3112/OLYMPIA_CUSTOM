@@ -27,7 +27,7 @@ const QAuthorLayout: React.FC<{ children: React.ReactNode }> = ({
 
 const QAuthorRoutes = () => {
   return (
-    <AuthGuard requiredRole="operator" requiredScope="question_creator">
+    <AuthGuard requiredRole="operator" requiredScope="qauthor">
       <QAuthorLayout>
         <Routes>
           <Route path="/" element={<Navigate to="/operator/qauthor/overview" replace />} />

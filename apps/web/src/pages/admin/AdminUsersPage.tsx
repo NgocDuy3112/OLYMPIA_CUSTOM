@@ -6,7 +6,7 @@ import { createLogger } from "@/utils/logger";
 const logger = createLogger("AdminUsersPage");
 
 type GlobalRole = "admin" | "operator" | "player" | "spectator";
-type OperatorScope = "question_creator" | "controller" | "mc";
+type OperatorScope = "qauthor" | "controller" | "mc";
 
 interface UserData {
   user_code: string;
@@ -24,11 +24,7 @@ interface ApiResponse {
   data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
-const OPERATOR_SCOPES: OperatorScope[] = [
-  "question_creator",
-  "controller",
-  "mc",
-];
+const OPERATOR_SCOPES: OperatorScope[] = ["qauthor", "controller", "mc"];
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<UserData[]>([]);
@@ -125,7 +121,7 @@ const AdminUsersPage = () => {
   const grantOperator = useCallback(
     async (userCode: string) => {
       const input = window.prompt(
-        `Cấp operator cho ${userCode}.\nNhập scopes (phân cách dấu phẩy): question_creator, controller, mc`,
+        `Cấp operator cho ${userCode}.\nNhập scopes (phân cách dấu phẩy): qauthor, controller, mc`,
         "controller,mc",
       );
       if (input === null) return;
@@ -318,7 +314,7 @@ const AdminUsersPage = () => {
                           <button
                             onClick={() => void grantOperator(u.user_code)}
                             className="p-1.5 rounded bg-amber-600/70 hover:bg-amber-500 transition-colors"
-                            title="Cấp operator (question_creator, controller, mc)"
+                            title="Cấp operator (qauthor, controller, mc)"
                           >
                             <Users size={13} />
                           </button>

@@ -22,13 +22,15 @@ export async function questionRoutes(
       .filter(Boolean);
   }
 
-  function isGlobalQuestionCreator(session: {
+  function isGlobalQAuthor(session: {
     role: string;
     operatorScopes?: string | null;
   }): boolean {
     if (session.role === "admin") return true;
     if (session.role !== "operator") return false;
-    return getScopes(session).includes("question_creator");
+    const scopes = getScopes(session);
+    // Canonical scope is qauthor; accept legacy question_creator rows.
+    return scopes.includes("qauthor") || scopes.includes("question_creator");
   }
 
   async function isTournamentQuestionAuthor(
@@ -36,8 +38,8 @@ export async function questionRoutes(
     matchId: string,
   ): Promise<boolean> {
     const role = await repo.findTournamentRole(userId, matchId);
-    // Accept both names: global scope is question_creator,
-    // tournament role is qauthor (legacy rows may hold question_author).
+    // Canonical tournament role is qauthor
+    // (legacy rows may hold question_author/question_creator).
     return (
       role === "qauthor" ||
       role === "question_author" ||
@@ -51,17 +53,17 @@ export async function questionRoutes(
   ): Promise<{ ok: boolean; matchId?: string; message?: string }> {
     const matchId = await resolveMatchId(app.valkey, matchCode);
     if (!matchId) return { ok: false, message: "Match not found" };
-    if (isGlobalQuestionCreator(session)) return { ok: true, matchId };
+    if (isGlobalQAuthor(session)) return { ok: true, matchId };
     if (await isTournamentQuestionAuthor(session.userId, matchId))
       return { ok: true, matchId };
-    return { ok: false, matchId, message: "Only admin, question_creator or tournament qauthor can write questions" };
+    return { ok: false, matchId, message: "Only admin or qauthor can write questions" };
   }
 
   async function canSeeAnswer(
     session: { userId: string; role: string; operatorScopes?: string | null },
     matchId: string,
   ): Promise<boolean> {
-    if (isGlobalQuestionCreator(session)) return true;
+    if (isGlobalQAuthor(session)) return true;
     if (getScopes(session).includes("controller")) return true;
     const role = await repo.findTournamentRole(session.userId, matchId);
     return (
@@ -83,7 +85,7 @@ export async function questionRoutes(
   // GET /questions?match_code=...&question_code=... — query style used by web
   // (AGameManagingPage, useGameRound, game pages). Kept alongside param style.
   // Requires auth; answer/explanation stripped unless privileged (admin,
-  // question_creator, controller, tournament qauthor/controller).
+  // qauthor, controller, tournament qauthor/controller).
   app.get(
     "/questions",
     { preHandler: [requireAuth(app)] },
@@ -273,7 +275,7 @@ export async function questionRoutes(
   );
 
   // PATCH /questions/:matchCode/:questionCode — edit one question.
-  // Allowed: admin, operator question_creator, tournament qauthor.
+  // Allowed: admin, operator qauthor, tournament qauthor.
   // Matches AGameManagingPage patchQuestion() call shape.
   app.patch(
     "/questions/:matchCode/:questionCode",
@@ -484,7 +486,7 @@ export async function questionRoutes(
 
   // GET /bank/search?q=...&tags=...&round_hint=...&limit=...
   // Stable QB_* bank, searchable. Requires auth; answer visible to
-  // question writers (admin/question_creator/tournament qauthor), stripped otherwise.
+  // question writers (admin/qauthor), stripped otherwise.
   app.get(
     "/bank/search",
     { preHandler: [requireAuth(app)] },
@@ -508,7 +510,8 @@ export async function questionRoutes(
       const canSee =
         session.role === "admin" ||
         (session.role === "operator" &&
-          getScopes(session).includes("question_creator"));
+          (getScopes(session).includes("qauthor") ||
+            getScopes(session).includes("question_creator")));
       const rows = await bankRepo.search({
         q,
         tags,
@@ -525,7 +528,7 @@ export async function questionRoutes(
 
   // POST /questions/pick { bankId|bankCode, matchCode|match_code, round }
   // Copies bank -> match, auto-generates OC<number>_Q_<round>_* code.
-  // Allowed: admin, operator question_creator, tournament qauthor.
+  // Allowed: admin, operator qauthor, tournament qauthor.
   app.post(
     "/questions/pick",
     { preHandler: [requireAuth(app)] },
