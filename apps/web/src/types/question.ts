@@ -3,6 +3,7 @@ export interface Question {
   questionText: string;
   questionAnswer: string;
   questionExplanation?: string;
+  questionHintText?: string;
   questionMediaURL?: string;
 
   questionOptions?: string;

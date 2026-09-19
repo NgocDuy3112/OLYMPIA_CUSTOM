@@ -7,6 +7,7 @@ export interface BankRow {
     content: string;
     answer: string;
     explanation: string | null;
+    hintText: string | null;
     mediaUrl: string | null;
     options: string | null;
     tags: string | null;
@@ -53,6 +54,7 @@ export interface BankRepo {
         content: string;
         answer: string;
         explanation?: string | null;
+        hintText?: string | null;
         mediaUrl?: string | null;
         options?: string | null;
         tags?: string | null;
@@ -68,6 +70,7 @@ function toBankRow(r: typeof questionBank.$inferSelect): BankRow {
         content: r.content,
         answer: r.answer,
         explanation: r.explanation,
+        hintText: r.hintText,
         mediaUrl: r.mediaUrl,
         options: r.options,
         tags: r.tags,
@@ -218,6 +221,7 @@ export const drizzleBankRepo: BankRepo = {
                 content: input.content,
                 answer: input.answer,
                 explanation: input.explanation ?? null,
+                hintText: input.hintText ?? null,
                 mediaUrl: input.mediaUrl ?? null,
                 options: input.options ?? null,
                 tags: input.tags ?? null,
@@ -303,6 +307,7 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
                 content: input.content,
                 answer: input.answer,
                 explanation: input.explanation ?? null,
+                hintText: input.hintText ?? null,
                 mediaUrl: input.mediaUrl ?? null,
                 options: input.options ?? null,
                 tags: input.tags ?? null,

@@ -24,6 +24,7 @@ export const questions = pgTable(
     answer: varchar("answer").notNull(),
     mediaUrl: varchar("media_url"),
     explanation: varchar("explanation"),
+    hintText: varchar("hint_text"),
     options: varchar("options"), // JSON array stored as text: ["A","B","C"]
     isUsed: boolean("is_used").default(false),
     isDeleted: boolean("is_deleted").default(false),
@@ -54,6 +55,7 @@ export const questionBank = pgTable(
     answer: varchar("answer").notNull(),
     mediaUrl: varchar("media_url"),
     explanation: varchar("explanation"),
+    hintText: varchar("hint_text"),
     options: varchar("options"),
     tags: varchar("tags", { length: 200 }),
     roundHint: varchar("round_hint", { length: 20 }),

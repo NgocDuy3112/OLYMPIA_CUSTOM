@@ -759,8 +759,9 @@ const AdminGiaiMaView = () => {
   ]);
 
   const handleShowHint = useCallback(async () => {
-    const explanation = currentQuestion.questionExplanation ?? "";
-    const hintText = explanation;
+    // GIAI_MA hint: prefer dedicated hintText (sheet Goi y), fallback explanation.
+    const hintText =
+      currentQuestion.questionHintText ?? currentQuestion.questionExplanation ?? "";
     if (!hintText) return;
     const codeMatch = String(currentQuestion.questionCode ?? "").match(
       /(\d+)\s*$/,
@@ -849,8 +850,8 @@ const AdminGiaiMaView = () => {
     if (!answer) return;
     setKeywordAnswerRevealed(true);
     const buildHintFor = (q: Question) => {
-      const explanation = q.questionExplanation ?? "";
-      return { text: explanation, mediaUrl: undefined as string | undefined };
+      const text = q.questionHintText ?? q.questionExplanation ?? "";
+      return { text, mediaUrl: undefined as string | undefined };
     };
     const newHints: Record<number, RevealedHint> = {};
     for (let i = 0; i < CLUE_COUNT; i++) {

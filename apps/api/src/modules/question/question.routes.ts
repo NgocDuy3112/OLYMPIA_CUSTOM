@@ -208,6 +208,8 @@ export async function questionRoutes(
         content?: string;
         answer?: string;
         explanation?: string;
+        hintText?: string;
+        hint_text?: string;
         mediaUrl?: string;
         media_url?: string;
         options?: string[] | string;
@@ -244,6 +246,7 @@ export async function questionRoutes(
         content: raw.content,
         answer: raw.answer,
         explanation: raw.explanation,
+        hintText: raw.hintText ?? raw.hint_text ?? null,
         mediaUrl: raw.mediaUrl ?? raw.media_url,
         options,
       });
@@ -276,6 +279,8 @@ export async function questionRoutes(
         content?: string | null;
         answer?: string | null;
         explanation?: string | null;
+        hintText?: string | null;
+        hint_text?: string | null;
         mediaUrl?: string | null;
         media_url?: string | null;
         options?: string[] | string | null;
@@ -296,6 +301,7 @@ export async function questionRoutes(
         content: raw.content,
         answer: raw.answer,
         explanation: raw.explanation,
+        hintText: raw.hintText ?? raw.hint_text,
         mediaUrl: raw.mediaUrl ?? raw.media_url,
         options: raw.options,
       });
@@ -624,6 +630,7 @@ export async function questionRoutes(
         content: bankRow.content,
         answer: bankRow.answer,
         explanation: bankRow.explanation ?? undefined,
+        hintText: bankRow.hintText ?? undefined,
         mediaUrl: bankRow.mediaUrl ?? undefined,
         options: bankRow.options ?? undefined,
         sourceBankId: bankRow.id,

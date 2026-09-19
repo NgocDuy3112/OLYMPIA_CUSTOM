@@ -13,6 +13,8 @@ interface QuestionData {
   content: string;
   answer: string;
   explanation: string | null;
+  hint_text?: string | null;
+  hintText?: string | null;
   media_url: string | null;
   options?: string | null;
   is_used?: boolean | null;
@@ -26,6 +28,8 @@ const toQuestionData = (row: Record<string, unknown>): QuestionData => {
     content: n.content,
     answer: n.answer,
     explanation: n.explanation,
+    hint_text: n.hintText,
+    hintText: n.hintText,
     media_url: n.mediaUrl,
     options: n.options,
     is_used: n.isUsed,
@@ -105,6 +109,7 @@ const emptyForm = {
   content: "",
   answer: "",
   explanation: "",
+  hintText: "",
   mediaUrl: "",
   options: "",
 };
@@ -130,6 +135,7 @@ const QAuthorQuestionPage = () => {
   const [editContent, setEditContent] = useState("");
   const [editAnswer, setEditAnswer] = useState("");
   const [editExplanation, setEditExplanation] = useState("");
+  const [editHintText, setEditHintText] = useState("");
   const [editMediaUrl, setEditMediaUrl] = useState("");
   const [editOptions, setEditOptions] = useState("");
 
@@ -177,6 +183,7 @@ const QAuthorQuestionPage = () => {
           content: form.content.trim(),
           answer: form.answer.trim(),
           explanation: form.explanation.trim() || undefined,
+          hintText: form.hintText.trim() || undefined,
           mediaUrl: form.mediaUrl.trim() || undefined,
           options: form.options.trim() || undefined,
         }),
@@ -210,6 +217,7 @@ const QAuthorQuestionPage = () => {
             content: editContent.trim() || null,
             answer: editAnswer.trim() || null,
             explanation: editExplanation.trim() || null,
+            hint_text: editHintText.trim() || null,
             media_url: editMediaUrl.trim() || null,
             options: editOptions.trim() || null,
           }),
@@ -226,7 +234,7 @@ const QAuthorQuestionPage = () => {
       logger.error("Error patching question:", err);
       alert("Lỗi kết nối khi sửa câu hỏi");
     }
-  }, [editing, editAnswer, editContent, editExplanation, editMediaUrl, editOptions, fetchQuestions, matchCode]);
+  }, [editing, editAnswer, editContent, editExplanation, editHintText, editMediaUrl, editOptions, fetchQuestions, matchCode]);
 
   const deleteQuestion = useCallback(
     async (q: QuestionData) => {
@@ -526,6 +534,12 @@ const QAuthorQuestionPage = () => {
               onChange={(e) => setEditExplanation(e.target.value)}
               className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
             />
+            <label className="text-xs text-blue-300">Gợi ý GIAI_MA</label>
+            <input
+              value={editHintText}
+              onChange={(e) => setEditHintText(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
+            />
             <label className="text-xs text-blue-300">Media URL</label>
             <input
               value={editMediaUrl}
@@ -611,6 +625,12 @@ const QAuthorQuestionPage = () => {
             className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
           />
           <input
+            value={form.hintText}
+            onChange={(e) => setForm((p) => ({ ...p, hintText: e.target.value }))}
+            placeholder="Gợi ý GIAI_MA (tuỳ chọn)"
+            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
+          />
+          <input
             value={form.mediaUrl}
             onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
             placeholder="Media URL (tuỳ chọn)"
@@ -672,6 +692,7 @@ const QAuthorQuestionPage = () => {
                           setEditContent(q.content);
                           setEditAnswer(q.answer);
                           setEditExplanation(q.explanation ?? "");
+                          setEditHintText(q.hint_text ?? q.hintText ?? "");
                           setEditMediaUrl(q.media_url ?? "");
                           setEditOptions(typeof q.options === "string" ? q.options : "");
                         }}

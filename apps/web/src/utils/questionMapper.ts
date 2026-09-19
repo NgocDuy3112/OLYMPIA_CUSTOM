@@ -6,6 +6,8 @@ export interface QuestionApiPayload {
   content?: unknown;
   answer?: unknown;
   explanation?: unknown;
+  hint_text?: unknown;
+  hintText?: unknown;
   media_url?: unknown;
   mediaUrl?: unknown;
   options?: unknown;
@@ -35,6 +37,7 @@ export interface NormalizedQuestionRow {
   content: string;
   answer: string;
   explanation: string | null;
+  hintText: string | null;
   mediaUrl: string | null;
   options: string | null;
   isUsed: boolean;
@@ -51,6 +54,10 @@ export function normalizeQuestionRow(
     answer: stringValue(row.answer),
     explanation:
       row.explanation == null ? null : stringValue(row.explanation),
+    hintText:
+      (row.hint_text ?? row.hintText) == null
+        ? null
+        : stringValue(row.hint_text ?? row.hintText),
     mediaUrl:
       (row.media_url ?? row.mediaUrl) == null
         ? null
@@ -79,6 +86,8 @@ export function mapQuestionApiPayload(
     questionText: stringValue(payload?.content),
     questionAnswer: stringValue(payload?.answer),
     questionExplanation: stringValue(payload?.explanation),
+    questionHintText:
+      mediaValue(payload?.hint_text ?? payload?.hintText) ?? undefined,
     questionMediaURL: mediaValue(payload?.media_url ?? payload?.mediaUrl),
     questionOptions: Array.isArray(payload?.options)
       ? payload.options.map(String).join("|")

@@ -7,6 +7,7 @@ export interface QuestionRow {
     content: string;
     answer: string;
     explanation: string | null;
+    hintText: string | null;
     mediaUrl: string | null;
     options: string | null;
     matchId: string;
@@ -23,6 +24,7 @@ export interface QuestionRepo {
         content: string;
         answer: string;
         explanation?: string;
+        hintText?: string | null;
         mediaUrl?: string | null;
         options?: string | null;
         sourceBankId?: string | null;
@@ -34,6 +36,7 @@ export interface QuestionRepo {
             content?: string | null;
             answer?: string | null;
             explanation?: string | null;
+            hintText?: string | null;
             mediaUrl?: string | null;
             options?: string | string[] | null;
         },
@@ -83,6 +86,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
         content: string;
         answer: string;
         explanation?: string;
+        hintText?: string | null;
         mediaUrl?: string | null;
         options?: string | null;
         sourceBankId?: string | null;
@@ -95,6 +99,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
                 content: input.content,
                 answer: input.answer,
                 explanation: input.explanation,
+                hintText: input.hintText ?? null,
                 mediaUrl: input.mediaUrl,
                 options: input.options,
                 sourceBankId: input.sourceBankId ?? null,
@@ -110,6 +115,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
             content?: string | null;
             answer?: string | null;
             explanation?: string | null;
+            hintText?: string | null;
             mediaUrl?: string | null;
             options?: string | string[] | null;
         },
@@ -119,6 +125,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
         if (updates.answer !== undefined) values.answer = updates.answer;
         if (updates.explanation !== undefined)
             values.explanation = updates.explanation;
+        if (updates.hintText !== undefined) values.hintText = updates.hintText;
         if (updates.mediaUrl !== undefined) values.mediaUrl = updates.mediaUrl;
         if (updates.options !== undefined)
             values.options = Array.isArray(updates.options)
@@ -246,10 +253,11 @@ export function createInMemoryQuestionRepo(
                 content: input.content,
                 answer: input.answer,
                 explanation: input.explanation ?? null,
+                hintText: input.hintText ?? null,
                 mediaUrl: input.mediaUrl ?? null,
                 options: input.options ?? null,
                 isUsed: false,
-                sourceBankId: null,
+                sourceBankId: input.sourceBankId ?? null,
             };
             rows.push(row);
             return { id: row.id };
@@ -263,6 +271,10 @@ export function createInMemoryQuestionRepo(
                 row.content = updates.content ?? row.content;
             if (updates.answer !== undefined)
                 row.answer = updates.answer ?? row.answer;
+            if (updates.explanation !== undefined)
+                row.explanation = updates.explanation ?? row.explanation;
+            if (updates.hintText !== undefined)
+                row.hintText = updates.hintText ?? row.hintText;
             return { id: row.id };
         },
         async softDeleteAll(matchId) {
