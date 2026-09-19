@@ -35,6 +35,31 @@ const toQuestionData = (row: Record<string, unknown>): QuestionData => {
 const isQuestionUsed = (q: QuestionData): boolean =>
   Boolean(q.is_used ?? q.isUsed ?? false);
 
+interface BankData {
+  bank_id: string;
+  bank_code: string;
+  content: string;
+  answer: string;
+  explanation: string | null;
+  media_url: string | null;
+  options?: string | null;
+  tags?: string | null;
+  round_hint?: string | null;
+}
+
+const toBankData = (row: Record<string, unknown>): BankData => ({
+  bank_id: String(row.id ?? row.bank_id ?? ""),
+  bank_code: String(row.bankCode ?? row.bank_code ?? ""),
+  content: String(row.content ?? ""),
+  answer: String(row.answer ?? ""),
+  explanation: (row.explanation as string | null) ?? null,
+  media_url:
+    (row.mediaUrl as string | null) ?? (row.media_url as string | null) ?? null,
+  options: (row.options as string | null) ?? null,
+  tags: (row.tags as string | null) ?? null,
+  round_hint: (row.roundHint as string | null) ?? (row.round_hint as string | null) ?? null,
+});
+
 interface ApiResponse {
   status: "success" | "error";
   message: string;
@@ -55,10 +80,10 @@ const QAuthorQuestionPage = () => {
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"match" | "bank">("match");
-  const [bankCode, setBankCode] = useState("");
-  const [bankQuestions, setBankQuestions] = useState<QuestionData[]>([]);
+  const [bankQuestions, setBankQuestions] = useState<BankData[]>([]);
   const [bankLoading, setBankLoading] = useState(false);
   const [bankQuery, setBankQuery] = useState("");
+  const [bankRound, setBankRound] = useState("KD_C");
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
   const [form, setForm] = useState(emptyForm);
@@ -188,20 +213,21 @@ const QAuthorQuestionPage = () => {
     [fetchQuestions, matchCode],
   );
 
-  // Bank: load questions from another match to search + reuse.
+  // Bank: search stable QB_* bank, pick copies into match with OC<number>_Q_* code.
   const fetchBank = useCallback(async () => {
-    const code = bankCode.trim();
-    if (!code) return;
     setBankLoading(true);
     try {
+      const params = new URLSearchParams();
+      if (bankQuery.trim()) params.set("q", bankQuery.trim());
+      params.set("limit", "50");
       const res = await fetch(
-        `${API_BASE_URL}/questions?match_code=${encodeURIComponent(code)}`,
+        `${API_BASE_URL}/bank/search?${params.toString()}`,
         { credentials: "include" },
       );
       const json: ApiResponse = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {
         setBankQuestions(
-          (json.data as Record<string, unknown>[]).map(toQuestionData),
+          (json.data as Record<string, unknown>[]).map(toBankData),
         );
       } else {
         setBankQuestions([]);
@@ -212,34 +238,35 @@ const QAuthorQuestionPage = () => {
     } finally {
       setBankLoading(false);
     }
-  }, [bankCode]);
+  }, [bankQuery]);
 
   const reuseFromBank = useCallback(
-    async (q: QuestionData) => {
+    async (q: BankData) => {
       const code = matchCode.trim();
       if (!code) {
         alert("Nhập mã trận đấu hiện tại trước khi thêm vào trận.");
         return;
       }
-      setAddingId(q.question_code);
+      const round = bankRound.trim().toUpperCase() || "KD_C";
+      setAddingId(q.bank_code);
       try {
-        const res = await fetch(`${API_BASE_URL}/questions`, {
+        const res = await fetch(`${API_BASE_URL}/questions/pick`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
             matchCode: code,
-            questionCode: q.question_code,
-            content: q.content,
-            answer: q.answer,
-            explanation: q.explanation ?? undefined,
-            mediaUrl: q.media_url ?? undefined,
-            options: q.options ?? undefined,
+            bankCode: q.bank_code,
+            round,
           }),
         });
         const json = await res.json();
         if (res.ok) {
-          setAddedCodes((prev) => new Set(prev).add(q.question_code));
+          const newCode = String(
+            (json.data as Record<string, unknown> | null)?.questionCode ?? q.bank_code,
+          );
+          setAddedCodes((prev) => new Set(prev).add(q.bank_code));
+          alert(`Đã thêm ${newCode} vào trận.`);
           await fetchQuestions();
         } else {
           alert(`Thêm thất bại: ${json.message ?? "Lỗi không xác định"}`);
@@ -251,16 +278,10 @@ const QAuthorQuestionPage = () => {
         setAddingId(null);
       }
     },
-    [fetchQuestions, matchCode],
+    [fetchQuestions, matchCode, bankRound],
   );
 
-  const filteredBank = bankQuery.trim()
-    ? bankQuestions.filter((q) =>
-        `${q.question_code} ${q.content} ${q.answer}`
-          .toLowerCase()
-          .includes(bankQuery.trim().toLowerCase()),
-      )
-    : bankQuestions;
+  const filteredBank = bankQuestions;
 
   return (
     <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white">
@@ -293,28 +314,28 @@ const QAuthorQuestionPage = () => {
               placeholder="Mã trận đích (VD: OC3_M_... / OC4_M_...)"
               className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
             />
+            <input
+              value={bankRound}
+              onChange={(e) => setBankRound(e.target.value.toUpperCase())}
+              placeholder="Round (KD_C, GM, BP, VD)"
+              className="w-44 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+            />
           </div>
           <div className="flex gap-2">
             <input
-              value={bankCode}
-              onChange={(e) => setBankCode(e.target.value)}
-              placeholder="Mã trận nguồn (VD: OC3_M_... / OC4_M_...)"
-              className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+              value={bankQuery}
+              onChange={(e) => setBankQuery(e.target.value)}
+              placeholder="Tìm theo mã / nội dung / đáp án…"
+              className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
             />
             <button
               onClick={() => void fetchBank()}
-              disabled={bankLoading || !bankCode.trim()}
+              disabled={bankLoading}
               className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
             >
-              <Search size={14} /> Tải
+              <Search size={14} /> Tìm
             </button>
           </div>
-          <input
-            value={bankQuery}
-            onChange={(e) => setBankQuery(e.target.value)}
-            placeholder="Tìm theo mã / nội dung / đáp án…"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-          />
           {bankLoading ? (
             <p className="text-gray-400 text-sm">Đang tải…</p>
           ) : filteredBank.length === 0 ? (
@@ -332,13 +353,19 @@ const QAuthorQuestionPage = () => {
               </thead>
               <tbody>
                 {filteredBank.map((q) => {
-                  const added = addedCodes.has(q.question_code);
-                  const adding = addingId === q.question_code;
-                  const used = isQuestionUsed(q);
-                  const usedElsewhere = used && !added;
+                  const added = addedCodes.has(q.bank_code);
+                  const adding = addingId === q.bank_code;
                   return (
-                  <tr key={q.question_code} className="border-b border-white/5 align-top">
-                    <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">{q.question_code}</td>
+                  <tr key={q.bank_code} className="border-b border-white/5 align-top">
+                    <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">
+                      {q.bank_code}
+                      {q.round_hint && (
+                        <span className="ml-1 text-gray-500">· {q.round_hint}</span>
+                      )}
+                      {q.tags && (
+                        <span className="ml-1 text-gray-500">· {q.tags}</span>
+                      )}
+                    </td>
                     <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
                     <td className="py-2 px-2 font-semibold">{q.answer}</td>
                     <td className="py-2 px-2 whitespace-nowrap">
@@ -346,13 +373,9 @@ const QAuthorQuestionPage = () => {
                         <span className="px-2 py-0.5 rounded-full text-xs bg-green-600/20 text-green-300">
                           Đã thêm vào {matchCode.trim() || "trận này"}
                         </span>
-                      ) : used ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300" title={`Đã dùng ở ${bankCode.trim()}`}>
-                          Đã dùng ở {bankCode.trim() || "trận nguồn"}
-                        </span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-white/10 text-gray-400">
-                          Chưa dùng
+                          Bank QB_*
                         </span>
                       )}
                     </td>
@@ -361,7 +384,7 @@ const QAuthorQuestionPage = () => {
                         onClick={() => void reuseFromBank(q)}
                         disabled={adding || added}
                         className={`flex items-center gap-1 px-2 py-1 rounded text-xs text-white ${added ? "bg-white/10 text-gray-500" : "bg-green-700 hover:bg-green-600 disabled:opacity-50"}`}
-                        title={added ? "Đã thêm vào trận" : usedElsewhere ? "Đã dùng ở trận nguồn — vẫn thêm được" : "Thêm vào trận hiện tại"}
+                        title={added ? "Đã thêm vào trận" : `Pick vào trận với round ${bankRound.trim() || "KD_C"}`}
                       >
                         <Plus size={13} /> {adding ? "Đang thêm…" : added ? "Đã thêm" : "Thêm vào trận"}
                       </button>

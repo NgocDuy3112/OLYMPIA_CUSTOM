@@ -3,12 +3,18 @@ import { requireAuth } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleQuestionRepo, type QuestionRepo } from "./question.repo.js";
+import { drizzleBankRepo, type BankRepo } from "./bank.repo.js";
+import {
+  makeQuestionCode,
+  ocPrefixFromCode,
+} from "@oc/shared";
 
 export async function questionRoutes(
   app: FastifyInstance,
-  opts: { repo?: QuestionRepo } = {},
+  opts: { repo?: QuestionRepo; bankRepo?: BankRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleQuestionRepo;
+  const bankRepo = opts.bankRepo ?? drizzleBankRepo;
   function getScopes(session: { operatorScopes?: string | null }): string[] {
     return (session.operatorScopes ?? "")
       .split(",")
@@ -472,6 +478,156 @@ export async function questionRoutes(
         status: "success",
         message: "Question marked used",
         data: null,
+      });
+    },
+  );
+
+  // GET /bank/search?q=...&tags=...&round_hint=...&limit=...
+  // Stable QB_* bank, searchable. Requires auth; answer visible to
+  // question writers (admin/question_creator/tournament qauthor), stripped otherwise.
+  app.get(
+    "/bank/search",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const { q, tags, round_hint, roundHint, limit } = request.query as {
+        q?: string;
+        tags?: string;
+        round_hint?: string;
+        roundHint?: string;
+        limit?: string;
+      };
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+          };
+        }
+      ).session;
+      const canSee =
+        session.role === "admin" ||
+        (session.role === "operator" &&
+          getScopes(session).includes("question_creator"));
+      const rows = await bankRepo.search({
+        q,
+        tags,
+        roundHint: roundHint ?? round_hint,
+        limit: limit ? Number(limit) : undefined,
+      });
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: rows.map((r) => (canSee ? r : { ...r, answer: "" })),
+      });
+    },
+  );
+
+  // POST /questions/pick { bankId|bankCode, matchCode|match_code, round }
+  // Copies bank -> match, auto-generates OC<number>_Q_<round>_* code.
+  // Allowed: admin, operator question_creator, tournament qauthor.
+  app.post(
+    "/questions/pick",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const raw = request.body as {
+        bankId?: string;
+        bank_id?: string;
+        bankCode?: string;
+        bank_code?: string;
+        matchCode?: string;
+        match_code?: string;
+        round?: string;
+      };
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+            userCode?: string;
+          };
+        }
+      ).session;
+      const matchCode = raw.matchCode ?? raw.match_code ?? "";
+      const round = String(raw.round ?? "").trim().toUpperCase();
+      if (!matchCode || !round) {
+        return reply.code(400).send({
+          status: "error",
+          message: "matchCode and round required",
+          data: null,
+        });
+      }
+      if (!/^[A-Z0-9_]{1,20}$/.test(round)) {
+        return reply.code(400).send({
+          status: "error",
+          message: "round must be A-Z/0-9/_ (e.g. KD_C, GM, BP, VD)",
+          data: null,
+        });
+      }
+      const check = await canWriteQuestions(session, matchCode);
+      if (!check.ok || !check.matchId) {
+        const status = check.message === "Match not found" ? 404 : 403;
+        return reply.code(status).send({
+          status: "error",
+          message: check.message ?? "Forbidden",
+          data: null,
+        });
+      }
+      const bankId = raw.bankId ?? raw.bank_id ?? "";
+      const bankCode = raw.bankCode ?? raw.bank_code ?? "";
+      if (!bankId && !bankCode) {
+        return reply.code(400).send({
+          status: "error",
+          message: "bankId or bankCode required",
+          data: null,
+        });
+      }
+      const bankRow = bankId
+        ? await bankRepo.findById(bankId)
+        : await bankRepo.findByCode(bankCode);
+      if (!bankRow) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Bank question not found",
+          data: null,
+        });
+      }
+      const ocPrefix = ocPrefixFromCode(matchCode);
+      const suffix = `${Date.now().toString(36).toUpperCase()}`;
+      const questionCode = makeQuestionCode(
+        ocPrefix.replace(/^OC/, ""),
+        `${round}_${suffix}`,
+      );
+      const existing = await repo.findByCode(check.matchId, questionCode);
+      if (existing) {
+        return reply.code(409).send({
+          status: "error",
+          message: "Generated question code collided, retry",
+          data: null,
+        });
+      }
+      const result = await repo.create({
+        matchId: check.matchId,
+        questionCode,
+        content: bankRow.content,
+        answer: bankRow.answer,
+        explanation: bankRow.explanation ?? undefined,
+        mediaUrl: bankRow.mediaUrl ?? undefined,
+        options: bankRow.options ?? undefined,
+        sourceBankId: bankRow.id,
+      });
+      void writeAudit({
+        actionType: "QUESTION_USED",
+        actorCode: session?.userCode ?? null,
+        matchCode,
+        targetCode: questionCode,
+        details: `picked from bank ${bankRow.bankCode}`,
+      });
+      return reply.code(201).send({
+        status: "success",
+        message: "Question picked from bank",
+        data: { id: result.id, questionCode, bankCode: bankRow.bankCode },
       });
     },
   );
