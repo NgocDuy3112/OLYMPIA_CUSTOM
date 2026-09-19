@@ -35,11 +35,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
 
   if (requiredScope && user.role !== "admin") {
     const scopes = (user.operatorScopes ?? "").split(",").map((s) => s.trim());
-    // Legacy rows may hold question_creator instead of qauthor.
-    const ok =
-      scopes.includes(requiredScope) ||
-      (requiredScope === "qauthor" && scopes.includes("question_creator"));
-    if (user.role !== "operator" || !ok) {
+    if (user.role !== "operator" || !scopes.includes(requiredScope)) {
       return <Navigate to="/login" replace />;
     }
   }

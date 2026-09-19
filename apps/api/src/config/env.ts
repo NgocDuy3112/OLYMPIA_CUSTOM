@@ -35,7 +35,7 @@ const envSchema = z.object({
 
   // ── Seeded staff accounts (admin/operator login via username+password) ──
   // Format: "username:argon2id_hash:role:scopes" separated by ";".
-  // Example: "admin:$argon2id$...:admin:;mc1:$argon2id$...:operator:mc"
+  // Example: "admin:$argon2id$...:admin:;mc1:$argon2id$...:operator:mc;qa1:$argon2id$...:operator:qauthor"
   STAFF_CREDENTIALS: z.string().default(""),
 
   // ── S3 ──

@@ -40,9 +40,7 @@ export async function answerRoutes(
       const isStaff =
         session.role === "admin" ||
         (session.role === "operator" &&
-          (scopes.includes("controller") ||
-            scopes.includes("qauthor") ||
-            scopes.includes("question_creator")));
+          (scopes.includes("controller") || scopes.includes("qauthor")));
       // Non-staff must submit as themselves; ignore spoofed user_code.
       const effectiveUserCode =
         isStaff && body.user_code ? body.user_code : session.userCode;
@@ -120,7 +118,6 @@ export async function answerRoutes(
         (session.role === "operator" &&
           (scopes.includes("controller") ||
             scopes.includes("qauthor") ||
-            scopes.includes("question_creator") ||
             scopes.includes("mc")));
       if (isStaff) {
         return reply.send({ status: "success", message: "OK", data: rows });
@@ -162,7 +159,6 @@ export async function answerRoutes(
         (session.role === "operator" &&
           (scopes.includes("controller") ||
             scopes.includes("qauthor") ||
-            scopes.includes("question_creator") ||
             scopes.includes("mc")));
       if (!isStaff) {
         return reply.code(403).send({

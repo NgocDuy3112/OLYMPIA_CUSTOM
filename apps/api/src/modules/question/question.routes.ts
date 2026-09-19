@@ -28,9 +28,7 @@ export async function questionRoutes(
   }): boolean {
     if (session.role === "admin") return true;
     if (session.role !== "operator") return false;
-    const scopes = getScopes(session);
-    // Canonical scope is qauthor; accept legacy question_creator rows.
-    return scopes.includes("qauthor") || scopes.includes("question_creator");
+    return getScopes(session).includes("qauthor");
   }
 
   async function isTournamentQuestionAuthor(
@@ -38,13 +36,7 @@ export async function questionRoutes(
     matchId: string,
   ): Promise<boolean> {
     const role = await repo.findTournamentRole(userId, matchId);
-    // Canonical tournament role is qauthor
-    // (legacy rows may hold question_author/question_creator).
-    return (
-      role === "qauthor" ||
-      role === "question_author" ||
-      role === "question_creator"
-    );
+    return role === "qauthor";
   }
 
   async function canWriteQuestions(
@@ -66,12 +58,7 @@ export async function questionRoutes(
     if (isGlobalQAuthor(session)) return true;
     if (getScopes(session).includes("controller")) return true;
     const role = await repo.findTournamentRole(session.userId, matchId);
-    return (
-      role === "qauthor" ||
-      role === "question_author" ||
-      role === "question_creator" ||
-      role === "controller"
-    );
+    return role === "qauthor" || role === "controller";
   }
 
   function stripQuestion<T extends { answer?: unknown; explanation?: unknown }>(
@@ -510,8 +497,7 @@ export async function questionRoutes(
       const canSee =
         session.role === "admin" ||
         (session.role === "operator" &&
-          (getScopes(session).includes("qauthor") ||
-            getScopes(session).includes("question_creator")));
+          getScopes(session).includes("qauthor"));
       const rows = await bankRepo.search({
         q,
         tags,
