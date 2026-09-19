@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 import { db, matches, questionBank, questions } from "@oc/db";
 
 export interface BankRow {
@@ -30,11 +30,22 @@ export interface BankSearchParams {
     tags?: string;
     roundHint?: string;
     limit?: number;
+    offset?: number;
+}
+
+export interface BankSearchResult<T> {
+    rows: T[];
+    total: number;
+    limit: number;
+    offset: number;
 }
 
 export interface BankRepo {
     search(params: BankSearchParams): Promise<BankRow[]>;
     searchWithUsage(params: BankSearchParams): Promise<BankRowWithUsage[]>;
+    searchPaged(
+        params: BankSearchParams,
+    ): Promise<BankSearchResult<BankRowWithUsage>>;
     findByCode(bankCode: string): Promise<BankRow | null>;
     findById(id: string): Promise<BankRow | null>;
     create(input: {
@@ -64,40 +75,77 @@ function toBankRow(r: typeof questionBank.$inferSelect): BankRow {
     };
 }
 
+function buildBankConds(params: BankSearchParams): SQL[] {
+    const conds: SQL[] = [eq(questionBank.isDeleted, false)];
+    const q = params.q?.trim();
+    if (q) {
+        const like = `%${q}%`;
+        conds.push(
+            or(
+                ilike(questionBank.bankCode, like),
+                ilike(questionBank.content, like),
+                ilike(questionBank.answer, like),
+                ilike(questionBank.tags, like),
+            ) as SQL,
+        );
+    }
+    if (params.tags?.trim()) {
+        conds.push(ilike(questionBank.tags, `%${params.tags.trim()}%`));
+    }
+    if (params.roundHint?.trim()) {
+        conds.push(eq(questionBank.roundHint, params.roundHint.trim()));
+    }
+    return conds;
+}
+
 export const drizzleBankRepo: BankRepo = {
     async search(params): Promise<BankRow[]> {
         const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
-        const conds: SQL[] = [eq(questionBank.isDeleted, false)];
-        const q = params.q?.trim();
-        if (q) {
-            const like = `%${q}%`;
-            conds.push(
-                or(
-                    ilike(questionBank.bankCode, like),
-                    ilike(questionBank.content, like),
-                    ilike(questionBank.answer, like),
-                    ilike(questionBank.tags, like),
-                ) as SQL,
-            );
-        }
-        if (params.tags?.trim()) {
-            conds.push(ilike(questionBank.tags, `%${params.tags.trim()}%`));
-        }
-        if (params.roundHint?.trim()) {
-            conds.push(eq(questionBank.roundHint, params.roundHint.trim()));
-        }
+        const offset = Math.max(params.offset ?? 0, 0);
+        const conds = buildBankConds(params);
         const rows = await db
             .select()
             .from(questionBank)
             .where(and(...conds))
             .orderBy(desc(questionBank.createdAt))
-            .limit(limit);
+            .limit(limit)
+            .offset(offset);
         return rows.map(toBankRow);
     },
 
     async searchWithUsage(params): Promise<BankRowWithUsage[]> {
-        const rows = await drizzleBankRepo.search(params);
-        if (rows.length === 0) return [];
+        const result = await drizzleBankRepo.searchPaged(params);
+        return result.rows;
+    },
+
+    async searchPaged(
+        params,
+    ): Promise<BankSearchResult<BankRowWithUsage>> {
+        const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
+        const offset = Math.max(params.offset ?? 0, 0);
+        const conds = buildBankConds(params);
+        const [totalRows, pageRows] = await Promise.all([
+            db
+                .select({ count: sql<number>`count(*)`.as("count") })
+                .from(questionBank)
+                .where(and(...conds)),
+            db
+                .select()
+                .from(questionBank)
+                .where(and(...conds))
+                .orderBy(desc(questionBank.createdAt))
+                .limit(limit)
+                .offset(offset),
+        ]);
+        const rows = pageRows.map(toBankRow);
+        if (rows.length === 0) {
+            return {
+                rows: [],
+                total: Number(totalRows[0]?.count ?? 0),
+                limit,
+                offset,
+            };
+        }
         const ids = rows.map((r) => r.id);
         const usage = await db
             .select({
@@ -126,10 +174,15 @@ export const drizzleBankRepo: BankRepo = {
             });
             byBank.set(u.bankId, list);
         }
-        return rows.map((r) => {
-            const usedIn = byBank.get(r.id) ?? [];
-            return { ...r, usedCount: usedIn.length, usedIn };
-        });
+        return {
+            rows: rows.map((r) => {
+                const usedIn = byBank.get(r.id) ?? [];
+                return { ...r, usedCount: usedIn.length, usedIn };
+            }),
+            total: Number(totalRows[0]?.count ?? 0),
+            limit,
+            offset,
+        };
     },
 
     async findByCode(bankCode): Promise<BankRow | null> {
@@ -182,6 +235,8 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
         const q = params.q?.trim().toLowerCase() ?? "";
         const tags = params.tags?.trim().toLowerCase() ?? "";
         const roundHint = params.roundHint?.trim() ?? "";
+        const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
+        const offset = Math.max(params.offset ?? 0, 0);
         let out = [...rows];
         if (q) {
             out = out.filter((r) =>
@@ -196,19 +251,44 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
         if (roundHint) {
             out = out.filter((r) => r.roundHint === roundHint);
         }
-        return out.slice(0, Math.min(params.limit ?? 50, 100));
+        return out.slice(offset, offset + limit);
     };
+    const withUsage = (list: BankRow[]): BankRowWithUsage[] =>
+        list.map((r) => ({ ...r, usedCount: 0, usedIn: [] }));
     return {
         rows,
         async search(params) {
             return searchRows(params);
         },
         async searchWithUsage(params) {
-            return searchRows(params).map((r) => ({
-                ...r,
-                usedCount: 0,
-                usedIn: [],
-            }));
+            return withUsage(searchRows(params));
+        },
+        async searchPaged(params) {
+            const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
+            const offset = Math.max(params.offset ?? 0, 0);
+            const q = params.q?.trim().toLowerCase() ?? "";
+            const tags = params.tags?.trim().toLowerCase() ?? "";
+            const roundHint = params.roundHint?.trim() ?? "";
+            let out = [...rows];
+            if (q) {
+                out = out.filter((r) =>
+                    `${r.bankCode} ${r.content} ${r.answer} ${r.tags ?? ""}`
+                        .toLowerCase()
+                        .includes(q),
+                );
+            }
+            if (tags) {
+                out = out.filter((r) => (r.tags ?? "").toLowerCase().includes(tags));
+            }
+            if (roundHint) {
+                out = out.filter((r) => r.roundHint === roundHint);
+            }
+            return {
+                rows: withUsage(out.slice(offset, offset + limit)),
+                total: out.length,
+                limit,
+                offset,
+            };
         },
         async findByCode(bankCode) {
             return rows.find((r) => r.bankCode === bankCode) ?? null;

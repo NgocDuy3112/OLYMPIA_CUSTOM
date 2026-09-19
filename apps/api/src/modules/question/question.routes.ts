@@ -471,23 +471,26 @@ export async function questionRoutes(
     },
   );
 
-  // GET /bank/search?q=...&tags=...&round_hint=...&limit=...&used=...
+  // GET /bank/search?q=...&tags=...&round_hint=...&limit=...&page=...&used=...
   // Stable QB_* bank, searchable. Requires auth; answer visible to
   // question writers (admin/qauthor), stripped otherwise.
   // used=only|unused filters by used-where (source_bank_id links);
   // response rows carry usedCount + usedIn [{matchCode, questionCode, isUsed}].
+  // Paged: limit (default 20) + page (1-based) -> data {rows,total,limit,page,pages}.
   app.get(
     "/bank/search",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const { q, tags, round_hint, roundHint, limit, used } = request.query as {
-        q?: string;
-        tags?: string;
-        round_hint?: string;
-        roundHint?: string;
-        limit?: string;
-        used?: string;
-      };
+      const { q, tags, round_hint, roundHint, limit, page, used } =
+        request.query as {
+          q?: string;
+          tags?: string;
+          round_hint?: string;
+          roundHint?: string;
+          limit?: string;
+          page?: string;
+          used?: string;
+        };
       const session = (
         request as unknown as {
           session: {
@@ -501,23 +504,32 @@ export async function questionRoutes(
         session.role === "admin" ||
         (session.role === "operator" &&
           getScopes(session).includes("qauthor"));
-      const rows = await bankRepo.searchWithUsage({
+      const pageSize = Math.min(Math.max(Number(limit) || 20, 1), 100);
+      const pageNum = Math.max(Number(page) || 1, 1);
+      const paged = await bankRepo.searchPaged({
         q,
         tags,
         roundHint: roundHint ?? round_hint,
-        limit: limit ? Number(limit) : undefined,
+        limit: pageSize,
+        offset: (pageNum - 1) * pageSize,
       });
       const usedFilter = String(used ?? "").trim().toLowerCase();
-      const filtered =
+      const rows =
         usedFilter === "only"
-          ? rows.filter((r) => r.usedCount > 0)
+          ? paged.rows.filter((r) => r.usedCount > 0)
           : usedFilter === "unused"
-            ? rows.filter((r) => r.usedCount === 0)
-            : rows;
+            ? paged.rows.filter((r) => r.usedCount === 0)
+            : paged.rows;
       return reply.send({
         status: "success",
         message: "OK",
-        data: filtered.map((r) => (canSee ? r : { ...r, answer: "" })),
+        data: {
+          rows: rows.map((r) => (canSee ? r : { ...r, answer: "" })),
+          total: paged.total,
+          limit: paged.limit,
+          page: pageNum,
+          pages: Math.max(Math.ceil(paged.total / paged.limit), 1),
+        },
       });
     },
   );

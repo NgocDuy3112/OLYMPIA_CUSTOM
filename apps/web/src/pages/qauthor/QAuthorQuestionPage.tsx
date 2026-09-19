@@ -4,6 +4,7 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { normalizeQuestionRow } from "@/utils/questionMapper";
+import { RenderMedia } from "@/components/shared/RenderMedia";
 
 const logger = createLogger("QAuthorQuestionPage");
 
@@ -85,6 +86,20 @@ interface ApiResponse {
   data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
+interface BankSearchResponse {
+  status: "success" | "error";
+  message: string;
+  data: {
+    rows: Record<string, unknown>[];
+    total: number;
+    limit: number;
+    page: number;
+    pages: number;
+  } | null;
+}
+
+const BANK_PAGE_SIZE = 20;
+
 const emptyForm = {
   questionCode: "",
   content: "",
@@ -104,6 +119,9 @@ const QAuthorQuestionPage = () => {
   const [bankQuery, setBankQuery] = useState("");
   const [bankRound, setBankRound] = useState("KD_C");
   const [bankUsed, setBankUsed] = useState<"all" | "only" | "unused">("all");
+  const [bankPage, setBankPage] = useState(1);
+  const [bankTotal, setBankTotal] = useState(0);
+  const [bankPages, setBankPages] = useState(1);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
   const [form, setForm] = useState(emptyForm);
@@ -234,24 +252,41 @@ const QAuthorQuestionPage = () => {
   );
 
   // Bank: search stable QB_* bank, pick copies into match with OC<number>_Q_* code.
-  const fetchBank = useCallback(async () => {
+  const fetchBank = useCallback(async (page = 1) => {
     setBankLoading(true);
     try {
       const params = new URLSearchParams();
       if (bankQuery.trim()) params.set("q", bankQuery.trim());
       if (bankUsed !== "all") params.set("used", bankUsed);
-      params.set("limit", "50");
+      params.set("limit", String(BANK_PAGE_SIZE));
+      params.set("page", String(page));
       const res = await fetch(
         `${API_BASE_URL}/bank/search?${params.toString()}`,
         { credentials: "include" },
       );
-      const json: ApiResponse = await res.json();
-      if (json.status === "success" && Array.isArray(json.data)) {
-        setBankQuestions(
-          (json.data as Record<string, unknown>[]).map(toBankData),
-        );
+      const json: BankSearchResponse = await res.json();
+      if (json.status === "success" && json.data) {
+        // Backward compat: old API returned a bare array.
+        const payload = json.data as unknown;
+        if (Array.isArray(payload)) {
+          setBankQuestions(
+            (payload as Record<string, unknown>[]).map(toBankData),
+          );
+          setBankTotal(payload.length);
+          setBankPages(1);
+          setBankPage(1);
+        } else {
+          setBankQuestions(
+            (json.data.rows as Record<string, unknown>[]).map(toBankData),
+          );
+          setBankTotal(json.data.total);
+          setBankPages(json.data.pages);
+          setBankPage(json.data.page);
+        }
       } else {
         setBankQuestions([]);
+        setBankTotal(0);
+        setBankPages(1);
       }
     } catch (err) {
       logger.error("Error fetching bank:", err);
@@ -359,7 +394,7 @@ const QAuthorQuestionPage = () => {
               <option value="only">Đã dùng</option>
             </select>
             <button
-              onClick={() => void fetchBank()}
+              onClick={() => void fetchBank(1)}
               disabled={bankLoading}
               className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
             >
@@ -371,6 +406,7 @@ const QAuthorQuestionPage = () => {
           ) : filteredBank.length === 0 ? (
             <p className="text-gray-400 text-sm">Chưa có dữ liệu bank.</p>
           ) : (
+            <>
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-green-300 border-b border-white/10">
@@ -431,6 +467,28 @@ const QAuthorQuestionPage = () => {
                 })}
               </tbody>
             </table>
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-xs text-gray-500">
+                Trang {bankPage}/{bankPages} · {bankTotal} câu
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => void fetchBank(bankPage - 1)}
+                  disabled={bankLoading || bankPage <= 1}
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                >
+                  ← Trước
+                </button>
+                <button
+                  onClick={() => void fetchBank(bankPage + 1)}
+                  disabled={bankLoading || bankPage >= bankPages}
+                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                >
+                  Sau →
+                </button>
+              </div>
+            </div>
+            </>
           )}
         </div>
       )}
@@ -565,6 +623,14 @@ const QAuthorQuestionPage = () => {
             className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white font-mono text-sm md:col-span-2"
           />
         </div>
+        {form.mediaUrl.trim() && (
+          <div className="rounded-lg bg-blue-950 border border-blue-700 p-3">
+            <p className="text-xs text-blue-300 mb-2">Preview media:</p>
+            <div className="max-h-64 overflow-hidden rounded">
+              <RenderMedia mediaUrl={form.mediaUrl.trim()} />
+            </div>
+          </div>
+        )}
         <button
           onClick={() => void createQuestion()}
           disabled={saving}
