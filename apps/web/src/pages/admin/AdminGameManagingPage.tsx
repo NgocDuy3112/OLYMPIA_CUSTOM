@@ -38,7 +38,7 @@ const VaoPhongButton = ({
       return;
     }
     persistMatchCode(codeToUse);
-    navigate(`/admin/waiting/${codeToUse}`);
+    navigate(`/controller/waiting/${codeToUse}`);
   };
 
   return (

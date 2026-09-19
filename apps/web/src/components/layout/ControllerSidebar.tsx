@@ -2,18 +2,16 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  Trophy,
-  Gamepad2,
-  Users,
-  ScrollText,
-  DatabaseBackup,
+  Play,
+  ClipboardCheck,
   HelpCircle,
+  Users,
   ChevronRight,
   X,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { getMatchCode } from "@/utils/storage";
 
-interface AdminSidebarProps {
+interface ControllerSidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -24,63 +22,42 @@ interface SidebarItem {
   icon: React.ReactNode;
 }
 
-export const AdminSidebar: React.FC<AdminSidebarProps> = ({
+export const ControllerSidebar: React.FC<ControllerSidebarProps> = ({
   isOpen = true,
   onClose,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const matchCode = getMatchCode();
 
-  // Admin tracks operations only (tournaments, matches, users, audit).
-  // Question content lives in the separate QAuthor shell — admin jumps
-  // there via cross-link (admin bypasses qauthor guards backend-side).
-  // Live control lives in the separate Controller shell.
-  const SIDEBAR_ITEMS = [
-    { label: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} /> },
+  const items: SidebarItem[] = [
+    {
+      label: "Tổng quan live",
+      path: "/controller/overview",
+      icon: <LayoutDashboard size={18} />,
+    },
+    {
+      label: "Sảnh chờ",
+      path: matchCode ? `/controller/waiting/${matchCode}` : "/controller",
+      icon: <Play size={18} />,
+    },
+    {
+      label: "Duyệt điểm",
+      path: "/operator/qauthor/reviews",
+      icon: <ClipboardCheck size={18} />,
+    },
+    {
+      label: "Câu hỏi trận này",
+      path: "/operator/qauthor/questions",
+      icon: <HelpCircle size={18} />,
+    },
     { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
-    ...(isAdmin
-      ? [
-          {
-            label: "Live (Controller)",
-            path: "/controller/overview",
-            icon: <Gamepad2 size={18} />,
-          },
-          {
-            label: "Câu hỏi (QAuthor)",
-            path: "/operator/qauthor/overview",
-            icon: <HelpCircle size={18} />,
-          },
-        ]
-      : []),
-    ...(isAdmin
-      ? [
-          {
-            label: "Giải đấu",
-            path: "/admin/tournaments",
-            icon: <Trophy size={18} />,
-          },
-          {
-            label: "Trận đấu",
-            path: "/admin/game-managing",
-            icon: <Gamepad2 size={18} />,
-          },
-          { label: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
-          { label: "Nhật ký", path: "/admin/audit", icon: <ScrollText size={18} /> },
-          { label: "Checkpoints", path: "/admin/checkpoints", icon: <DatabaseBackup size={18} /> },
-        ]
-      : []),
   ];
 
-  const isActive = (path: string) => {
-    if (path === "/admin") return location.pathname === "/admin";
-    return location.pathname.startsWith(path);
-  };
+  const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -88,7 +65,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full w-64 bg-[#12102e] border-r border-white/10
@@ -97,7 +73,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           ${isOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
-        {/* Mobile close button */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 lg:hidden">
           <span className="text-sm font-bold text-white">Menu</span>
           <button
@@ -108,9 +83,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className="p-3 space-y-1">
-          {SIDEBAR_ITEMS.map((item) => {
+          {items.map((item) => {
             const active = isActive(item.path);
             return (
               <button
@@ -123,7 +97,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
                   ${
                     active
-                      ? "bg-blue-600/20 text-blue-400"
+                      ? "bg-orange-600/20 text-orange-400"
                       : "text-gray-400 hover:text-white hover:bg-white/5"
                   }
                 `}
@@ -132,7 +106,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <span className="flex-1 text-left text-sm font-medium">
                   {item.label}
                 </span>
-                {active && <ChevronRight size={16} className="text-blue-400" />}
+                {active && <ChevronRight size={16} className="text-orange-400" />}
               </button>
             );
           })}

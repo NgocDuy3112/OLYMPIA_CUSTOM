@@ -36,7 +36,7 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
 
   const handleWaitingClick = () => {
     if (!matchCode) return;
-    const target = `/admin/waiting/${matchCode}`;
+    const target = `/controller/waiting/${matchCode}`;
     void sendMessage({
       type: "navigate",
       user_code: "",
@@ -45,7 +45,7 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
     window.setTimeout(() => window.location.assign(target), 50);
   };
 
-  // Center content: navigation tabs
+  // Center content: navigation tabs (controller live only — no admin CRUD links)
   const centerContent = (
     <div className="flex items-center gap-1 sm:gap-2">
       {/* Waiting room button */}
@@ -62,28 +62,16 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
         Sảnh Chờ
       </button>
 
-      {/* Tournaments button */}
+      {/* Live overview button */}
       <button
-        onClick={() => navigate("/admin/tournaments")}
+        onClick={() => navigate("/controller/overview")}
         className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors ${
-          location.pathname.includes("/tournaments")
+          location.pathname.includes("/overview")
             ? "bg-white/20 text-white"
             : "text-white/80 hover:text-white hover:bg-white/10"
         }`}
       >
-        Giải Đấu
-      </button>
-
-      {/* Management button */}
-      <button
-        onClick={() => navigate("/admin/game-managing")}
-        className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors ${
-          location.pathname.includes("/game-managing")
-            ? "bg-white/20 text-white"
-            : "text-white/80 hover:text-white hover:bg-white/10"
-        }`}
-      >
-        Quản lý
+        Tổng quan
       </button>
     </div>
   );

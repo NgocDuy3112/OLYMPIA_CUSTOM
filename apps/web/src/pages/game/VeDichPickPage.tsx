@@ -58,7 +58,7 @@ const AdminVeDichPickView = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!currentMatchCode) navigate("/admin/manage");
+    if (!currentMatchCode) navigate("/controller/overview");
   }, [currentMatchCode, navigate]);
 
   const currentPath = window.location.pathname;
@@ -474,8 +474,8 @@ const AdminVeDichPickView = () => {
       );
       setTimeout(() => {
         const dest = isChung
-          ? `/admin/vdc/${currentMatchCode}`
-          : `/admin/vdr/${currentMatchCode}`;
+          ? `/controller/vdc/${currentMatchCode}`
+          : `/controller/vdr/${currentMatchCode}`;
         navigate(dest);
       }, 1500);
     } catch (err) {

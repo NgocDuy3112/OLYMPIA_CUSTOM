@@ -16,7 +16,7 @@ export async function endRoundAndReturnToWaiting({
   round,
   sendMessage,
 }: EndRoundAndReturnToWaitingOptions): Promise<void> {
-  const adminPath = `/admin/waiting/${currentMatchCode}`;
+  const controllerPath = `/controller/waiting/${currentMatchCode}`;
   const playerPath = `/player/waiting/${currentMatchCode}`;
 
   await Promise.all([
@@ -24,5 +24,5 @@ export async function endRoundAndReturnToWaiting({
     sendMessage({ type: "clear_question", user_code: "" }),
     sendMessage({ type: "navigate", user_code: "", path: playerPath }),
   ]);
-  navigate(adminPath);
+  navigate(controllerPath);
 }

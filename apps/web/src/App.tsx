@@ -6,6 +6,7 @@ import RulesPage from "@/pages/info/RulesPage";
 
 const PlayerRoutes = lazy(() => import("@/routes/PlayerRoutes"));
 const AdminRoutes = lazy(() => import("@/routes/AdminRoutes"));
+const ControllerRoutes = lazy(() => import("@/routes/ControllerRoutes"));
 const MCRoutes = lazy(() => import("@/routes/MCRoutes"));
 const SpectatorRoutes = lazy(() => import("@/routes/SpectatorRoutes"));
 const TournamentRoutes = lazy(() => import("@/routes/TournamentRoutes"));
@@ -25,6 +26,7 @@ function App() {
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/player/*" element={<PlayerRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
+            <Route path="/controller/*" element={<ControllerRoutes />} />
             <Route path="/operator/qauthor/*" element={<QAuthorRoutes />} />
             <Route path="/mc/*" element={<MCRoutes />} />
             <Route path="/info/rules" element={<RulesPage />} />

@@ -95,7 +95,7 @@ const AdminVeDichChungView = () => {
     }
   }, [urlMatchCode, storedMatchCode]);
   useEffect(() => {
-    if (!currentMatchCode) navigate("/admin/manage");
+    if (!currentMatchCode) navigate("/controller/overview");
   }, [currentMatchCode, navigate]);
 
   const { lastMessage, sendMessage } = useGameWebSocket();
@@ -927,7 +927,7 @@ const AdminVeDichChungView = () => {
         <>
           <CControlButton
             onClick={() =>
-              navigate(`/admin/vdc/pick/${currentMatchCode ?? ""}`)
+              navigate(`/controller/vdc/pick/${currentMatchCode ?? ""}`)
             }
             disabled={isTimerRunning}
           >
