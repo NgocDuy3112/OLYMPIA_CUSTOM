@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import QAuthorOverviewPage from "@/pages/qauthor/QAuthorOverviewPage";
 import QAuthorQuestionPage from "@/pages/qauthor/QAuthorQuestionPage";
+import QAuthorQualifierPage from "@/pages/qauthor/QAuthorQualifierPage";
 import QAuthorReviewsPage from "@/pages/qauthor/QAuthorReviewsPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { QAuthorHeader, QAuthorSidebar } from "@/components/layout";
@@ -33,6 +34,7 @@ const QAuthorRoutes = () => {
           <Route path="/" element={<Navigate to="/operator/qauthor/overview" replace />} />
           <Route path="/overview" element={<QAuthorOverviewPage />} />
           <Route path="/questions" element={<QAuthorQuestionPage />} />
+          <Route path="/qualifier" element={<QAuthorQualifierPage />} />
           <Route path="/reviews" element={<QAuthorReviewsPage />} />
           <Route path="*" element={<Navigate to="/operator/qauthor/overview" replace />} />
         </Routes>

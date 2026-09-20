@@ -32,6 +32,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <HelpCircle size={18} />,
   },
   {
+    label: "Vòng loại",
+    path: "/operator/qauthor/qualifier",
+    icon: <HelpCircle size={18} />,
+  },
+  {
     label: "Duyệt điểm",
     path: "/operator/qauthor/reviews",
     icon: <ClipboardCheck size={18} />,

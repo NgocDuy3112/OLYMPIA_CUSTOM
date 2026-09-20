@@ -25,6 +25,7 @@ import { templateRoutes } from "./modules/template/template.routes.js";
 import { discordRoutes } from "./modules/discord/discord.routes.js";
 import { checkpointRoutes } from "./modules/checkpoint/checkpoint.routes.js";
 import { auditRoutes } from "./modules/audit/audit.routes.js";
+import { qualifierRoutes } from "./modules/qualifier/qualifier.routes.js";
 import { startCheckpointJob } from "./state/checkpoint.service.js";
 import { wsRoute } from "./modules/ws/ws.route.js";
 
@@ -71,6 +72,7 @@ export async function createApp() {
   await app.register(discordRoutes, { prefix: "/api" });
   await app.register(checkpointRoutes, { prefix: "/api" });
   await app.register(auditRoutes, { prefix: "/api" });
+  await app.register(qualifierRoutes, { prefix: "/api" });
 
   // Background: snapshot Valkey match state every 30s
   const checkpointJob = startCheckpointJob(app);
