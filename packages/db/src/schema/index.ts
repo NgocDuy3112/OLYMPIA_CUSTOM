@@ -9,5 +9,6 @@ export { answers } from "./answer.js";
 export { records } from "./record.js";
 export { matchCheckpoints } from "./checkpoint.js";
 export { tournaments, tournamentPlayers } from "./tournament.js";
+export { qualifierQuestions, qualifierAttempts } from "./qualifier.js";
 export { tournamentPhases, bracketEdges } from "./phase.js";
 export { scoreReviews } from "./score-review.js";
