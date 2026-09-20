@@ -21,6 +21,7 @@ import VeDichRiengPage from "@/pages/game/VeDichRiengPage";
 import WaitingPage from "@/pages/game/WaitingPage";
 import VeDichPickPage from "@/pages/game/VeDichPickPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
+import PQualifierPage from "@/pages/player/PQualifierPage";
 import { VeDichRound } from "@/types/veDich";
 
 const PlayerAutoNavigator: React.FC = () => {
@@ -131,10 +132,7 @@ const PlayerRoutes = () => {
             path="/vl"
             element={<Navigate to="/player/access" replace />}
           />
-          <Route
-            path="/vl/:matchCode"
-            element={<Navigate to="/player/access" replace />}
-          />
+          <Route path="/vl/:tournamentCode" element={<PQualifierPage />} />
           <Route path="/gm/:matchCode" element={<GiaiMaPage />} />
           <Route path="*" element={<Navigate to="/player/access" replace />} />
         </Routes>
