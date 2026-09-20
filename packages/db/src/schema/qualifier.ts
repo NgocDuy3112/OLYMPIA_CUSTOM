@@ -17,8 +17,12 @@ import { users } from "./user.js";
 /**
  * Qualifier questions — multiple-choice screening round per tournament (option A).
  *
- * One tournament shares one qualifier set; players take it before matches
- * are drawn. Each question has 4-6 options and exactly one correct answer.
+ * One tournament shares one qualifier set (16 questions, position 1-16);
+ * players take it before matches are drawn. Each question has 4-6 options
+ * and exactly one correct answer.
+ *
+ * Zero-sum scoring per question: X correct, Y wrong, Z blank (Z = N - X - Y).
+ *   correct +Y each, wrong -X each, blank 0. Points only valid after close.
  */
 export const qualifierQuestions = pgTable(
   "qualifier_questions",
@@ -37,6 +41,8 @@ export const qualifierQuestions = pgTable(
     mediaUrl: varchar("media_url"),
     roundNumber: integer("round_number").notNull().default(1),
     position: integer("position").notNull().default(0),
+    // open: accepting attempts, X/Y not frozen. closed: frozen + scored.
+    status: varchar("status", { length: 20 }).notNull().default("open"),
     isDeleted: boolean("is_deleted").default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -44,6 +50,7 @@ export const qualifierQuestions = pgTable(
   (t) => [
     index("idx_qualifier_questions_tournament").on(t.tournamentId),
     unique("uq_qualifier_question_code").on(t.tournamentId, t.questionCode),
+    unique("uq_qualifier_position").on(t.tournamentId, t.position),
     check(
       "check_qualifier_options_4_to_6",
       sql`jsonb_array_length(${t.options}) BETWEEN 4 AND 6`,
@@ -52,12 +59,17 @@ export const qualifierQuestions = pgTable(
       "check_qualifier_correct_option",
       sql`${t.correctOption} IN ('A','B','C','D','E','F')`,
     ),
+    check(
+      "check_qualifier_status",
+      sql`${t.status} IN ('open','closed')`,
+    ),
   ],
 );
 
 /**
  * Qualifier attempts — one row per player per question.
- * Ranking derives from is_correct count + response_time_ms (no extra table).
+ * points NULL until question closed + scored (zero-sum: correct +Y, wrong -X).
+ * Ranking: SUM(points) DESC, COUNT(correct) DESC, AVG(correct time) ASC.
  */
 export const qualifierAttempts = pgTable(
   "qualifier_attempts",
@@ -72,6 +84,7 @@ export const qualifierAttempts = pgTable(
     selectedOption: varchar("selected_option", { length: 1 }).notNull(),
     isCorrect: boolean("is_correct").notNull().default(false),
     responseTimeMs: integer("response_time_ms").notNull().default(0),
+    points: integer("points"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => [

@@ -42,6 +42,20 @@ export {
   isCorrectOption,
 } from "./base/validation.js";
 
+export {
+  round3,
+  qualifierQuestionPoints,
+  scoreQualifierQuestion,
+  avgCorrectTimeSec,
+  summarizeQualifierPlayers,
+  rankQualifierPlayers,
+} from "./base/qualifier.js";
+export type {
+  QualifierAttemptInput,
+  QualifierQuestionResult,
+  QualifierPlayerStat,
+} from "./base/qualifier.js";
+
 export { STATUS_TRANSITIONS, canTransitionStatus } from "./base/lifecycle.js";
 
 // ── Engines ──
