@@ -1,13 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  HelpCircle,
-  ClipboardCheck,
-  Users,
-  ChevronRight,
-  X,
-} from "lucide-react";
+import { Database, Bot, Users, ChevronRight, X } from "lucide-react";
 
 interface QAuthorSidebarProps {
   isOpen?: boolean;
@@ -22,39 +15,14 @@ interface SidebarItem {
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   {
-    label: "Tổng quan",
-    path: "/operator/qauthor/overview",
-    icon: <LayoutDashboard size={18} />,
-  },
-  {
-    label: "Câu hỏi",
-    path: "/operator/qauthor/questions",
-    icon: <HelpCircle size={18} />,
-  },
-  {
-    label: "Bank QB_*",
+    label: "Ngân hàng trận",
     path: "/operator/qauthor/bank",
-    icon: <HelpCircle size={18} />,
+    icon: <Database size={18} />,
   },
   {
-    label: "Media",
-    path: "/operator/qauthor/media",
-    icon: <HelpCircle size={18} />,
-  },
-  {
-    label: "Import Excel",
-    path: "/operator/qauthor/import",
-    icon: <HelpCircle size={18} />,
-  },
-  {
-    label: "Vòng loại",
-    path: "/operator/qauthor/qualifier",
-    icon: <HelpCircle size={18} />,
-  },
-  {
-    label: "Duyệt điểm",
-    path: "/operator/qauthor/reviews",
-    icon: <ClipboardCheck size={18} />,
+    label: "AI Agent",
+    path: "/operator/qauthor/agent",
+    icon: <Bot size={18} />,
   },
   { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
 ];

@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import AdminGameManagingPage from "@/pages/admin/AdminGameManagingPage";
+import AdminHealthPage from "@/pages/admin/AdminHealthPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminAuditPage from "@/pages/admin/AdminAuditPage";
 import AdminCheckpointsPage from "@/pages/admin/AdminCheckpointsPage";
@@ -54,6 +55,7 @@ const AdminRoutes = () => {
           <Route path="/manage" element={<AdminGameManagingPage />} />
           <Route path="/game-managing" element={<AdminGameManagingPage />} />
           <Route path="/users" element={<AdminUsersPage />} />
+          <Route path="/health" element={<AdminHealthPage />} />
           <Route path="/audit" element={<AdminAuditPage />} />
           <Route path="/checkpoints" element={<AdminCheckpointsPage />} />
           {/* Tournament management routes */}

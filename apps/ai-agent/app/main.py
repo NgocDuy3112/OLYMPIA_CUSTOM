@@ -5,10 +5,10 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Request, Response
 
 from app.adapters.api_gateway import ApiGatewayRepo
-from app.adapters.llm_stub import StubLLMClient
+from app.adapters.llm_http import build_llm_client
 from app.adapters.valkey_snapshot import ValkeySnapshotRepo
 from app.config import settings
 from app.domain.models import AgentError, AgentRequest, AgentResponse, UserRole
@@ -16,11 +16,10 @@ from app.services.agent_service import AgentService
 
 ROLE_HEADER_ALIASES: dict[str, UserRole] = {
     "controller": "controller",
-    "admin": "controller",
+    "admin": "admin",
+    "operator": "operator",
     "mc": "mc",
     "qauthor": "qauthor",
-    "player": "player",
-    "spectator": "spectator",
 }
 
 RATE_LIMIT_PER_MINUTE = 10
@@ -34,7 +33,7 @@ async def lifespan(app: FastAPI):
         decode_responses=True,
     )
     snapshot_repo = ValkeySnapshotRepo(redis_client)
-    llm = StubLLMClient()  # swap by LLM_PROVIDER when real provider added
+    llm = build_llm_client()  # OpenAI-compatible qua LLM_BASE_URL
     app.state.agent = AgentService(
         llm=llm,
         snapshot_repo=snapshot_repo,
@@ -71,12 +70,12 @@ async def agent_ask(
     body: AgentRequest,
     request: Request,
     x_user_code: str = Header(default="anonymous"),
-    x_user_role: str = Header(default="spectator"),
+    x_user_role: str = Header(default="operator"),
 ) -> AgentResponse:
     _check_service_token(request)
     role = ROLE_HEADER_ALIASES.get(x_user_role)
     if role is None:
-        raise HTTPException(status_code=400, detail="Invalid role")
+        raise HTTPException(status_code=403, detail="OCee chỉ dành cho admin/operator")
 
     await _check_rate_limit(request.app.state.redis, x_user_code)
 
@@ -93,3 +92,11 @@ async def agent_ask(
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+async def metrics() -> Response:
+    from app.metrics import metrics_bytes
+
+    body, content_type = metrics_bytes()
+    return Response(content=body, media_type=content_type)

@@ -11,6 +11,7 @@
  */
 
 import { getEnv } from "../../config/env.js";
+import { observeAgentAsk } from "../metrics/metrics.routes.js";
 
 const env = getEnv();
 const AGENT_URL = env.AGENT_URL;
@@ -19,7 +20,7 @@ const RATE_LIMIT_PER_MINUTE = 10;
 
 export interface GatewayIdentity {
   userCode: string;
-  role: "controller" | "mc" | "player" | "spectator";
+  role: "controller" | "mc" | "qauthor" | "operator" | "admin";
 }
 
 /**
@@ -42,6 +43,7 @@ export async function forwardAgentAsk(
     await valkey.expire(rateKey, 60);
   }
   if (count > RATE_LIMIT_PER_MINUTE) {
+    observeAgentAsk("rate_limited");
     throw new AgentRateLimitError();
   }
 
@@ -56,11 +58,16 @@ export async function forwardAgentAsk(
     signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
   });
 
-  if (response.status === 429) throw new AgentRateLimitError();
+  if (response.status === 429) {
+    observeAgentAsk("rate_limited");
+    throw new AgentRateLimitError();
+  }
   if (!response.ok) {
-    const detail = await response.text().catch(() => "");
+    observeAgentAsk("error");
+    const detail = await response.text().catch("");
     throw new Error(`Agent error (${response.status}): ${detail.slice(0, 200)}`);
   }
+  observeAgentAsk("ok");
 
   const data = (await response.json()) as {
     answer: string;

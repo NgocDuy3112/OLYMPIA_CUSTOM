@@ -48,12 +48,12 @@ export const ControllerSidebar: React.FC<ControllerSidebarProps> = ({
     },
     {
       label: "Duyệt điểm",
-      path: "/operator/qauthor/reviews",
+      path: "/controller/reviews",
       icon: <ClipboardCheck size={18} />,
     },
     {
       label: "Câu hỏi trận này",
-      path: "/operator/qauthor/questions",
+      path: "/operator/qauthor/bank",
       icon: <HelpCircle size={18} />,
     },
     { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },

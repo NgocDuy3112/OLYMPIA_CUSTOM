@@ -1,11 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import QAuthorOverviewPage from "@/pages/qauthor/QAuthorOverviewPage";
-import QAuthorBankPage from "@/pages/qauthor/QAuthorBankPage";
-import QAuthorImportPage from "@/pages/qauthor/QAuthorImportPage";
-import QAuthorMediaPage from "@/pages/qauthor/QAuthorMediaPage";
-import QAuthorQuestionPage from "@/pages/qauthor/QAuthorQuestionPage";
-import QAuthorQualifierPage from "@/pages/qauthor/QAuthorQualifierPage";
-import QAuthorReviewsPage from "@/pages/qauthor/QAuthorReviewsPage";
+import QAuthorBankHubPage from "@/pages/qauthor/QAuthorBankHubPage";
+import QAuthorAgentPage from "@/pages/qauthor/QAuthorAgentPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { QAuthorHeader, QAuthorSidebar } from "@/components/layout";
 import { useState } from "react";
@@ -34,15 +29,17 @@ const QAuthorRoutes = () => {
     <AuthGuard requiredRole="operator" requiredScope="qauthor">
       <QAuthorLayout>
         <Routes>
-          <Route path="/" element={<Navigate to="/operator/qauthor/overview" replace />} />
-          <Route path="/overview" element={<QAuthorOverviewPage />} />
-          <Route path="/bank" element={<QAuthorBankPage />} />
-          <Route path="/import" element={<QAuthorImportPage />} />
-          <Route path="/media" element={<QAuthorMediaPage />} />
-          <Route path="/questions" element={<QAuthorQuestionPage />} />
-          <Route path="/qualifier" element={<QAuthorQualifierPage />} />
-          <Route path="/reviews" element={<QAuthorReviewsPage />} />
-          <Route path="*" element={<Navigate to="/operator/qauthor/overview" replace />} />
+          <Route path="/" element={<Navigate to="/operator/qauthor/bank" replace />} />
+          <Route path="/bank" element={<QAuthorBankHubPage />} />
+          <Route path="/agent" element={<QAuthorAgentPage />} />
+          {/* Legacy: gom về hub Bank */}
+          <Route path="/overview" element={<Navigate to="/operator/qauthor/bank" replace />} />
+          <Route path="/import" element={<Navigate to="/operator/qauthor/bank" replace />} />
+          <Route path="/media" element={<Navigate to="/operator/qauthor/bank" replace />} />
+          <Route path="/questions" element={<Navigate to="/operator/qauthor/bank" replace />} />
+          <Route path="/qualifier" element={<Navigate to="/operator/qauthor/bank" replace />} />
+          <Route path="/reviews" element={<Navigate to="/controller/reviews" replace />} />
+          <Route path="*" element={<Navigate to="/operator/qauthor/bank" replace />} />
         </Routes>
       </QAuthorLayout>
     </AuthGuard>

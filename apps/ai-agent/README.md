@@ -28,9 +28,9 @@ app/main.py     FastAPI wiring
 ```json
 { "match_code": "OC3_x", "question": "Ai đang dẫn đầu?" }
 ```
-Headers: `X-User-Code`, `X-User-Role` (controller|mc|player|spectator).
+Headers: `X-User-Code`, `X-User-Role` (controller|mc|qauthor|operator|admin — staff only).
 
 Response: `{ "answer": "...", "tools_used": ["get_scoreboard"], "cached": false }`
 
 Env: `VALKEY_HOST`, `VALKEY_PORT`, `API_INTERNAL_URL`, `AGENT_SERVICE_TOKEN`,
-`LLM_PROVIDER` (`stub`|`anthropic`|`openai`), `LLM_API_KEY`, `LLM_MODEL`.
+`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`.

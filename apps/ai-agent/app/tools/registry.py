@@ -12,6 +12,7 @@ from typing import Any
 
 from app.domain.models import AgentError, UserRole
 from app.domain.ports import (
+    BankRepo,
     DiscordRepo,
     MatchLookupRepo,
     MatchStateRepo,
@@ -36,6 +37,7 @@ class ToolContext:
         role: UserRole,
         match_code: str = "",
         discord_repo: DiscordRepo | None = None,
+        bank_repo: BankRepo | None = None,
     ) -> None:
         self.snapshot_repo = snapshot_repo
         self.score_repo = score_repo
@@ -45,6 +47,7 @@ class ToolContext:
         self.role = role
         self.match_code = match_code
         self.discord_repo = discord_repo
+        self.bank_repo = bank_repo
 
 
 TOOL_SCHEMAS: list[dict] = [
@@ -160,6 +163,95 @@ TOOL_SCHEMAS: list[dict] = [
             },
             "required": ["tournament_code", "user_code"],
         },
+    },    {
+        "name": "verify_bank_question",
+        "description": (
+            "Check 1 câu bank QB_* so với nguồn ngoài: trả về nội dung, "
+            "đáp án, tags, round_hint để LLM đối chiếu. Read-only."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"bank_code": {"type": "string"}},
+            "required": ["bank_code"],
+        },
+    },
+    {
+        "name": "update_bank_question",
+        "description": (
+            "Sửa 1 câu bank (content/answer/explanation/tags/round_hint). "
+            "Chỉ qauthor/controller. Write — cần duyệt trước khi apply."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bank_code": {"type": "string"},
+                "content": {"type": "string"},
+                "answer": {"type": "string"},
+                "explanation": {"type": "string"},
+                "tags": {"type": "string"},
+                "round_hint": {"type": "string"},
+            },
+            "required": ["bank_code"],
+        },
+    },
+    {
+        "name": "place_question_to_match",
+        "description": (
+            "Bỏ 1 câu bank vào trận (vd M17 vòng Bứt phá): copy bank -> "
+            "match qua POST /questions/pick. Chỉ qauthor/controller."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bank_code": {"type": "string"},
+                "match_code": {"type": "string"},
+                "round": {"type": "string"},
+            },
+            "required": ["bank_code", "match_code", "round"],
+        },
+    },
+    {
+        "name": "search_bank",
+        "description": (
+            "Tìm lại bank theo q/tags/round_hint. Read-only, dùng cho "
+            "task index/tìm lại."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "q": {"type": "string"},
+                "tags": {"type": "string"},
+                "round_hint": {"type": "string"},
+            },
+            "required": [],
+        },
+    },
+    {
+        "name": "search_external",
+        "description": (
+            "Check nguồn ngoài theo nội dung câu hỏi, trả citations. "
+            "Adapter stub trước, swap provider sau."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "propose_bank_edit",
+        "description": (
+            "Soạn proposal diff sửa bank từ yêu cầu (chưa write). "
+            "Node review duyệt rồi mới apply."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "bank_code": {"type": "string"},
+                "request": {"type": "string"},
+            },
+            "required": ["bank_code", "request"],
+        },
     },
 ]
 
@@ -167,7 +259,17 @@ MAX_TOOL_ROUNDS = 3
 
 
 async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
+    from app.metrics import TOOL_ERRORS
+
     match_code = ctx.match_code  # set per-request by AgentService
+    try:
+        return await _execute_tool_inner(name, args, ctx, match_code)
+    except AgentError:
+        TOOL_ERRORS.labels(tool=name).inc()
+        raise
+
+
+async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_code: str) -> Any:
 
     if name == "get_scoreboard":
         scores = await ctx.score_repo.get_scoreboard(match_code)
@@ -256,12 +358,119 @@ async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
             else None,
         )
 
+    if name == "verify_bank_question":
+        if ctx.bank_repo is None:
+            raise AgentError("Bank repo not configured", status_code=500)
+        bank_code = str(args.get("bank_code", "")).strip().upper()
+        if not bank_code:
+            raise AgentError("bank_code required", status_code=400)
+        row = await ctx.bank_repo.get_bank_row(bank_code)
+        if row is None:
+            raise AgentError(f"Bank {bank_code} not found", status_code=404)
+        return {
+            "bank_code": bank_code,
+            "content": row.get("content"),
+            "answer": row.get("answer"),
+            "explanation": row.get("explanation"),
+            "tags": row.get("tags"),
+            "round_hint": row.get("roundHint") or row.get("round_hint"),
+            "note": "Đối chiếu với nguồn ngoài rồi verdict.",
+        }
+
+    if name == "update_bank_question":
+        if ctx.bank_repo is None:
+            raise AgentError("Bank repo not configured", status_code=500)
+        _require_qauthor(ctx.role)
+        bank_code = str(args.get("bank_code", "")).strip().upper()
+        if not bank_code:
+            raise AgentError("bank_code required", status_code=400)
+        row = await ctx.bank_repo.get_bank_row(bank_code)
+        if row is None:
+            raise AgentError(f"Bank {bank_code} not found", status_code=404)
+        bank_id = str(row.get("id") or row.get("bank_id") or "")
+        updates = {
+            k: v
+            for k, v in {
+                "content": args.get("content"),
+                "answer": args.get("answer"),
+                "explanation": args.get("explanation"),
+                "tags": args.get("tags"),
+                "roundHint": args.get("round_hint") or args.get("roundHint"),
+            }.items()
+            if isinstance(v, str) and v.strip()
+        }
+        if not updates:
+            raise AgentError("Nothing to update", status_code=400)
+        return await ctx.bank_repo.update_bank_row(bank_id, updates)
+
+    if name == "place_question_to_match":
+        if ctx.bank_repo is None:
+            raise AgentError("Bank repo not configured", status_code=500)
+        _require_qauthor(ctx.role)
+        bank_code = str(args.get("bank_code", "")).strip().upper()
+        match_code_arg = str(args.get("match_code", "")).strip()
+        round_arg = str(args.get("round", "")).strip().upper()
+        if not bank_code or not match_code_arg or not round_arg:
+            raise AgentError(
+                "bank_code, match_code, round required", status_code=400
+            )
+        return await ctx.bank_repo.place_to_match(
+            bank_code, match_code_arg, round_arg
+        )
+
+    if name == "search_bank":
+        if ctx.bank_repo is None:
+            raise AgentError("Bank repo not configured", status_code=500)
+        rows = await ctx.bank_repo.search_bank(
+            q=str(args.get("q", "") or ""),
+            tags=str(args.get("tags", "") or ""),
+            round_hint=str(args.get("round_hint", "") or ""),
+        )
+        return rows
+
+    if name == "search_external":
+        query = str(args.get("query", "")).strip()
+        if not query:
+            raise AgentError("query required", status_code=400)
+        # Stub: chưa gắn provider search thật. Swap Adapter sau, giữ Interface.
+        return {"query": query[:200], "citations": [], "note": "stub — chưa gắn provider"}
+
+    if name == "propose_bank_edit":
+        if ctx.bank_repo is None:
+            raise AgentError("Bank repo not configured", status_code=500)
+        _require_qauthor(ctx.role)
+        bank_code = str(args.get("bank_code", "")).strip().upper()
+        request_text = str(args.get("request", "")).strip()
+        if not bank_code or not request_text:
+            raise AgentError("bank_code, request required", status_code=400)
+        row = await ctx.bank_repo.get_bank_row(bank_code)
+        if row is None:
+            raise AgentError(f"Bank {bank_code} not found", status_code=404)
+        return {
+            "bank_code": bank_code,
+            "bank_id": str(row.get("id") or row.get("bank_id") or ""),
+            "current": {
+                "content": row.get("content"),
+                "answer": row.get("answer"),
+                "explanation": row.get("explanation"),
+                "tags": row.get("tags"),
+                "round_hint": row.get("roundHint") or row.get("round_hint"),
+            },
+            "request": request_text[:1000],
+            "note": "Draft chưa write — chờ review duyệt.",
+        }
+
     raise AgentError(f"Unknown tool: {name}", status_code=400)
 
 
 def _require_staff(role: UserRole) -> None:
     if role not in ("controller", "mc"):
         raise AgentError("Forbidden: controller/mc role required", status_code=403)
+
+
+def _require_qauthor(role: UserRole) -> None:
+    if role not in ("qauthor", "controller"):
+        raise AgentError("Forbidden: qauthor/controller role required", status_code=403)
 
 
 def tool_result_message(name: str, result: Any) -> dict:

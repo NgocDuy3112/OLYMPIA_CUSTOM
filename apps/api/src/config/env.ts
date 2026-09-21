@@ -13,6 +13,9 @@ const envSchema = z.object({
   // Shared secret for discord-bot -> API score-review callbacks.
   // If empty (dev), bot callbacks are allowed without token (same as ai-agent).
   BOT_SERVICE_TOKEN: z.string().default(""),
+  // Shared secret for ai-agent -> API internal calls (bank/tools).
+  // If empty (dev), agent calls are allowed without token.
+  AGENT_SERVICE_TOKEN: z.string().default(""),
 
   // ── Database ──
   DATABASE_URL: z.string().url().optional(),

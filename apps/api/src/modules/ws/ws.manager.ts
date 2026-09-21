@@ -8,6 +8,7 @@
 import type Redis from "ioredis";
 import type { WebSocket } from "ws";
 import type { WsConnection } from "./ws.types.js";
+import { wsConnectionsCurrent } from "../metrics/metrics.routes.js";
 
 class ConnectionManager {
   private rooms = new Map<string, Set<WsConnection>>();
@@ -41,6 +42,7 @@ class ConnectionManager {
     }
     this.rooms.get(matchCode)!.add(conn);
     this.wsToConn.set(ws, conn);
+    wsConnectionsCurrent.inc();
   }
 
   disconnect(ws: WebSocket): void {
@@ -59,6 +61,7 @@ class ConnectionManager {
       if (room.size === 0) this.rooms.delete(conn.matchCode);
     }
     this.wsToConn.delete(ws);
+    wsConnectionsCurrent.dec();
   }
 
   getConnection(ws: WebSocket): WsConnection | undefined {

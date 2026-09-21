@@ -1,0 +1,104 @@
+{
+  "title": "Olympia Custom — Vận hành",
+  "uid": "olympia-ops",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "API latency p95 (s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(oc_api_http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{route}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "API error rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (route) (rate(oc_api_http_requests_total{status=~\"5..\"}[5m]))",
+          "legendFormat": "{{route}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "WS connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+      "targets": [{ "expr": "oc_api_ws_connections_current" }]
+    },
+    {
+      "id": 4,
+      "title": "Agent asks (ok / error / rate_limited)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(oc_api_agent_ask_total[5m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "OCee asks theo task",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        {
+          "expr": "sum by (task, status) (rate(ocee_ask_total[5m]))",
+          "legendFormat": "{{task}}/{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "OCee latency p95 (s) theo task",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le, task) (rate(ocee_ask_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{task}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "OCee reflect rounds",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le, task) (rate(ocee_reflect_rounds_bucket[5m])))",
+          "legendFormat": "p50 {{task}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "OCee tool + LLM errors",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "sum by (tool) (rate(ocee_tool_errors_total[5m]))",
+          "legendFormat": "tool {{tool}}"
+        },
+        {
+          "expr": "sum (rate(ocee_llm_errors_total[5m]))",
+          "legendFormat": "llm"
+        }
+      ]
+    }
+  ]
+}

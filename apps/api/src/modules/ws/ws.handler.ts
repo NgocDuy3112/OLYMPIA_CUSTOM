@@ -124,6 +124,15 @@ async function handleAgentAsk(
 ): Promise<void> {
   const question = typeof data.question === "string" ? data.question : "";
   if (!question.trim() || !conn.matchCode || !manager.valkey) return;
+  // OCee chỉ nhận lệnh từ staff — player/spectator bị map thành player ở
+  // ws.route nên chặn tại đây, fail closed.
+  if (conn.role !== "controller" && conn.role !== "mc") {
+    await manager.sendToUser(conn.matchCode, conn.userCode, {
+      type: "agent_error",
+      message: "OCee chỉ dành cho điều phối.",
+    });
+    return;
+  }
 
   try {
     const result = await forwardAgentAsk(

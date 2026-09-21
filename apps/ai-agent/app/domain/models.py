@@ -6,7 +6,9 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-UserRole = Literal["controller", "mc", "qauthor", "player", "spectator"]
+StaffRole = Literal["controller", "mc", "qauthor"]
+ApiRole = Literal["operator", "admin"]
+UserRole = Literal["controller", "mc", "qauthor", "operator", "admin"]
 
 
 class PlayerScore(BaseModel):

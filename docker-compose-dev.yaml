@@ -71,28 +71,73 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile.dev
     ports:
-      - "5173:5173"
+      - "4173:4173"
     volumes:
       - ./apps/web/src:/app/apps/web/src:ro
     networks:
       - oc-network
 
-  # ── AI Agent (MVP 2 — Q&A, internal only) ────────────────
+  # ── AI Agent (OCee — internal only) ───────────────────────
   ai-agent:
     container_name: oc-ai-agent
     build:
       context: .
       dockerfile: apps/ai-agent/Dockerfile
+    env_file:
+      - ./configs/.env
     environment:
       VALKEY_HOST: ${VALKEY_HOST}
       VALKEY_PORT: ${VALKEY_PORT}
       API_INTERNAL_URL: http://app:8000/api
-      LLM_PROVIDER: stub
+    ports:
+      - "8100:8100"
     depends_on:
       - valkey
       - app
     networks:
       - oc-network
+
+  # ── Observability: Prometheus + Grafana + Opik ───────────
+  prometheus:
+    container_name: oc-prometheus
+    image: docker.io/prom/prometheus:v3.1.0
+    command: --config.file=/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - oc-network
+    restart: unless-stopped
+
+  grafana:
+    container_name: oc-grafana
+    image: docker.io/grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./configs/grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - oc-network
+    restart: unless-stopped
+
+  # Opik self-host (open-source LLM tracing) — xem trace OCee graph.
+  # UI: http://localhost:5174 . Agent trỏ OPIK_URL_HOST=http://opik:5173 .
+  opik:
+    container_name: oc-opik
+    image: docker.io/opik/opik:1.8.0
+    ports:
+      - "5174:5173"
+    networks:
+      - oc-network
+    restart: unless-stopped
 
   discord-bot:
     container_name: oc-discord-bot

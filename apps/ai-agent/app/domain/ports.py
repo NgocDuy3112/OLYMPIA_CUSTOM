@@ -31,6 +31,22 @@ class MatchLookupRepo(Protocol):
     async def find_tournament_code(self, match_code: str) -> str | None: ...
 
 
+class BankRepo(Protocol):
+    """Question bank — read + write qua Fastify internal endpoints."""
+
+    async def search_bank(
+        self, q: str = "", tags: str = "", round_hint: str = ""
+    ) -> list[dict]: ...
+
+    async def get_bank_row(self, bank_code: str) -> dict | None: ...
+
+    async def update_bank_row(self, bank_id: str, updates: dict) -> dict: ...
+
+    async def place_to_match(
+        self, bank_code: str, match_code: str, round: str
+    ) -> dict: ...
+
+
 class DiscordRepo(Protocol):
     """Discord identity + commands, via Fastify /discord endpoints."""
 
@@ -72,8 +88,8 @@ class LLMClient(Protocol):
 
 
 def strip_answers_for_role(questions: list[dict], role: UserRole) -> list[dict]:
-    """Role filter: controller/mc/qauthor see answers; others never do."""
-    if role in ("controller", "mc", "qauthor"):
+    """Role filter: only staff (operator/admin + controller/mc/qauthor scopes) see answers."""
+    if role in ("operator", "admin", "controller", "mc", "qauthor"):
         return questions
     stripped = []
     for q in questions:

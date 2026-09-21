@@ -17,6 +17,7 @@ credentials.json
 .cursor/
 .DS_Store
 .turbo/
+.venv/
 
 # gitignore template for LangChain products, e.g., LangGraph, LangSmith
 # website: https://www.langchain.com/

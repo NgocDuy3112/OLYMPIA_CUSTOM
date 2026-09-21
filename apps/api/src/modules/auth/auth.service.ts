@@ -360,7 +360,7 @@ export function googleCallback(
     const env = getEnv();
     const frontendUrl =
       env.CORS_ORIGINS === "*"
-        ? "http://localhost:5173"
+        ? "http://localhost:4173"
         : env.CORS_ORIGINS.split(",")[0].trim();
 
     return reply
@@ -581,6 +581,24 @@ export function requireRole(app: FastifyInstance, ...roles: string[]) {
       });
     }
   };
+}
+
+// requireAgentToken — ai-agent internal calls present shared secret
+// (X-Agent-Token). Empty token = dev, allow through (same as bot).
+export function requireAgentToken(
+  request: FastifyRequest,
+  reply: FastifyReply,
+) {
+  const expected = getEnv().AGENT_SERVICE_TOKEN;
+  if (!expected) return;
+  const got = request.headers["x-agent-token"];
+  if (typeof got !== "string" || got !== expected) {
+    return reply.code(401).send({
+      status: "error",
+      message: "Invalid agent token",
+      data: null,
+    });
+  }
 }
 
 // requireScope — operator must hold a specific scope (controller/mc/qauthor).

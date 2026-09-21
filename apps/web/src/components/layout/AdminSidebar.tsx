@@ -8,6 +8,7 @@ import {
   ScrollText,
   DatabaseBackup,
   HelpCircle,
+  Activity,
   ChevronRight,
   X,
 } from "lucide-react";
@@ -69,6 +70,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           { label: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
           { label: "Nhật ký", path: "/admin/audit", icon: <ScrollText size={18} /> },
           { label: "Checkpoints", path: "/admin/checkpoints", icon: <DatabaseBackup size={18} /> },
+          { label: "Sức khỏe", path: "/admin/health", icon: <Activity size={18} /> },
         ]
       : []),
   ];

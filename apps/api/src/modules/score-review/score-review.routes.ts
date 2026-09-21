@@ -321,7 +321,11 @@ export async function scoreReviewRoutes(
     try {
       const resp = await fetch(`${agentUrl}/agent/ask`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Code": "ocee-review",
+          "X-User-Role": "controller",
+        },
         body: JSON.stringify({
           match_code: review.matchCode,
           question: prompt,

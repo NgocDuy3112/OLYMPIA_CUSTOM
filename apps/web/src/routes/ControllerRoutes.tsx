@@ -17,6 +17,7 @@ import WaitingPage from "@/pages/game/WaitingPage";
 import VeDichPickPage from "@/pages/game/VeDichPickPage";
 import ControllerOverviewPage from "@/pages/controller/ControllerOverviewPage";
 import CQualifierPage from "@/pages/controller/CQualifierPage";
+import CReviewsPage from "@/pages/controller/CReviewsPage";
 import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -110,6 +111,7 @@ const ControllerRoutes = () => {
             />
             <Route path="/overview" element={<ControllerOverviewPage />} />
             <Route path="/qualifier" element={<CQualifierPage />} />
+            <Route path="/reviews" element={<CReviewsPage />} />
             <Route path="/waiting/:matchCode" element={<WaitingPage />} />
             <Route path="/kdc/:matchCode?" element={<KhoiDongChungPage />} />
             <Route path="/kdr/:matchCode?" element={<KhoiDongRiengPage />} />
