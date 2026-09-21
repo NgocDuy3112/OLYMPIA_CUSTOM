@@ -8,12 +8,12 @@ export interface BaseQuestionBoardControls {
   activeIndices?: number[];
 }
 
-export interface AdminQuestionBoardControls extends BaseQuestionBoardControls {
+export interface ControllerQuestionBoardControls extends BaseQuestionBoardControls {
   onToggle?: (index: number, state: boolean) => void;
 }
 
-/** Alias mới theo role controller — dùng cho file C*. */
-export type ControllerQuestionBoardControls = AdminQuestionBoardControls;
+/** Alias cũ giữ cho tương thích — AQuestionBoard đã gộp vào CQuestionBoard. */
+export type AdminQuestionBoardControls = ControllerQuestionBoardControls;
 
 export type PlayerQuestionBoardControls = BaseQuestionBoardControls;
 
