@@ -1,8 +1,40 @@
 import { useCallback, useRef, useState } from "react";
-import { FileSpreadsheet, Upload } from "lucide-react";
+import { Download, FileSpreadsheet, Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+
+// Template mau khop HEADER_MAP + seed 009 (12 cau QB_*).
+const TEMPLATE_ROWS: Record<string, string>[] = [
+  { bank_code: "QB_KDC_001", content: "Thủ đô của Việt Nam là thành phố nào?", answer: "Hà Nội", explanation: "Thủ đô từ năm 1976.", options: "", tags: "dia-ly,viet-nam", round_hint: "KD_C" },
+  { bank_code: "QB_KDC_002", content: "2 + 2 x 3 bằng bao nhiêu?", answer: "8", explanation: "Nhân trước cộng sau.", options: "", tags: "toan-hoc", round_hint: "KD_C" },
+  { bank_code: "QB_KDR_001", content: "Nguyên tố hóa học có ký hiệu O là gì?", answer: "Oxy", explanation: "Số nguyên tử 8.", options: "", tags: "hoa-hoc", round_hint: "KD_R" },
+  { bank_code: "QB_KDR_002", content: "Tác giả Truyện Kiều là ai?", answer: "Nguyễn Du", explanation: "Đại thi hào dân tộc.", options: "", tags: "van-hoc", round_hint: "KD_R" },
+  { bank_code: "QB_GM_001", content: "Gợi ý: loài vật biểu tượng của năm 2026 (Bính Ngọ)?", answer: "Ngựa", explanation: "Năm Ngọ cầm tinh con ngựa.", options: "", tags: "giai-ma,van-hoa", round_hint: "GM" },
+  { bank_code: "QB_GM_002", content: "Từ khóa 6 chữ: nơi diễn ra trận chung kết?", answer: "TRUONGQ", explanation: "Placeholder mẫu.", options: "", tags: "giai-ma", round_hint: "GM" },
+  { bank_code: "QB_BP_001", content: "Sông dài nhất Việt Nam là sông nào?", answer: "Sông Đồng Nai", explanation: "Dài khoảng 586 km.", options: "", tags: "dia-ly", round_hint: "BP" },
+  { bank_code: "QB_BP_002", content: "Hành tinh gần Mặt Trời nhất?", answer: "Sao Thủy", explanation: "Mercury.", options: "", tags: "khoa-hoc", round_hint: "BP" },
+  { bank_code: "QB_VD_TTTK_20", content: "Đạo hàm của x^2 là gì?", answer: "2x", explanation: "Công thức cơ bản.", options: "", tags: "toan-hoc", round_hint: "VD" },
+  { bank_code: "QB_VD_TNSS_30", content: "Quá trình cây xanh tạo oxy gọi là gì?", answer: "Quang hợp", explanation: "Photosynthesis.", options: "", tags: "sinh-hoc", round_hint: "VD" },
+  { bank_code: "QB_VD_XHPL_40", content: "Hiến pháp Việt Nam hiện hành ban hành năm nào?", answer: "2013", explanation: "Hiến pháp 2013.", options: "", tags: "phap-luat", round_hint: "VD" },
+  { bank_code: "QB_VD_VHTT_50", content: "SEA Games 31 tổ chức ở quốc gia nào?", answer: "Việt Nam", explanation: "Hà Nội 2022.", options: "", tags: "the-thao", round_hint: "VD" },
+];
+
+function downloadTemplate() {
+  const ws = XLSX.utils.json_to_sheet(TEMPLATE_ROWS);
+  ws["!cols"] = [
+    { wch: 16 },
+    { wch: 50 },
+    { wch: 16 },
+    { wch: 30 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 12 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "bank");
+  XLSX.writeFile(wb, "bank-template.xlsx");
+}
 
 const logger = createLogger("QAuthorImportPage");
 
@@ -180,12 +212,19 @@ const QAuthorImportPage = () => {
           e.target.value = "";
         }}
       />
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button
           onClick={() => fileRef.current?.click()}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm"
         >
           <FileSpreadsheet size={16} /> Chọn file Excel
+        </button>
+        <button
+          onClick={downloadTemplate}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-sm"
+          title="Tải file mẫu 12 câu đúng header"
+        >
+          <Download size={16} /> Tải template mẫu
         </button>
         {fileName && <p className="text-xs text-gray-400 font-mono self-center">{fileName}</p>}
       </div>

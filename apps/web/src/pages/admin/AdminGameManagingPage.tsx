@@ -9,7 +9,6 @@ import {
   Pencil,
   X,
   FileSpreadsheet,
-  FileArchive,
   Trash2,
   ChevronDown,
   Paperclip,
@@ -104,10 +103,8 @@ const AdminGameManagingPage = () => {
   const editMediaInputRef = useRef<HTMLInputElement>(null);
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [uploadingExcelQl, setUploadingExcelQl] = useState(false);
-  const [uploadingZip, setUploadingZip] = useState(false);
   const excelInputRef = useRef<HTMLInputElement>(null);
   const excelQlInputRef = useRef<HTMLInputElement>(null);
-  const zipInputRef = useRef<HTMLInputElement>(null);
 
   const authHeaders = useCallback(
     (): HeadersInit => ({
@@ -433,43 +430,6 @@ const AdminGameManagingPage = () => {
       }
     },
     [authHeaders, questionsMatchCode, matchCode, fetchQuestions],
-  );
-
-  const uploadZip = useCallback(
-    async (file: File) => {
-      if (
-        !confirm(
-          "Upload ZIP sẽ XÓA câu hỏi cũ và thay bằng nội dung mới (cả media trên S3). Tiếp tục?",
-        )
-      ) {
-        return;
-      }
-      setUploadingZip(true);
-      try {
-        const formData = new FormData();
-        formData.append("file", file);
-        const res = await fetch(`${API_BASE_URL}/questions/zip/`, {
-          method: "POST",
-          headers: authHeaders(),
-          body: formData,
-        });
-        const json: ApiResponse = await res.json();
-        if (json.status === "success") {
-          alert(`Upload ZIP thành công:\n${json.message}`);
-          await fetchQuestions();
-        } else {
-          alert(
-            `Upload ZIP thất bại: ${json.message ?? (json as unknown as Record<string, string>).detail ?? "Lỗi không xác định"}`,
-          );
-        }
-      } catch (err) {
-        logger.error("Error uploading ZIP:", err);
-        alert("Lỗi khi upload file ZIP");
-      } finally {
-        setUploadingZip(false);
-      }
-    },
-    [authHeaders, fetchQuestions],
   );
 
   useEffect(() => {
@@ -873,17 +833,6 @@ const AdminGameManagingPage = () => {
               }}
             />
             <input
-              ref={zipInputRef}
-              type="file"
-              accept=".zip"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadZip(file);
-                e.target.value = "";
-              }}
-            />
-            <input
               type="text"
               placeholder="Mã trận đấu"
               value={questionsMatchCode}
@@ -928,16 +877,6 @@ const AdminGameManagingPage = () => {
                     className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
                   >
                     <FileSpreadsheet size={14} /> Excel VL
-                  </button>
-                  <button
-                    onClick={() => {
-                      zipInputRef.current?.click();
-                      setShowImportMenu(false);
-                    }}
-                    disabled={uploadingZip}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
-                  >
-                    <FileArchive size={14} /> ZIP
                   </button>
                 </div>
               )}
