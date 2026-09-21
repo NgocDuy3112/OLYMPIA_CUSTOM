@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireAuth, requireScope } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
+import { manager } from "../ws/ws.manager.js";
 import {
   drizzleQualifierRepo,
   type QualifierRepo,
@@ -158,6 +159,13 @@ export async function qualifierRoutes(
           targetCode: raw.questionCode,
           details: "qualifier question created",
         });
+        // Realtime: player pages in qualifier_<CODE> room refresh list.
+        void manager.broadcast(`qualifier_${tournamentCode}`, {
+          type: "qualifier_opened",
+          tournament_code: tournamentCode,
+          question_code: raw.questionCode,
+          position,
+        });
         return reply.code(201).send({
           status: "success",
           message: "Qualifier question created",
@@ -265,6 +273,11 @@ export async function qualifierRoutes(
           data: null,
         });
       }
+      void manager.broadcast(`qualifier_${tournamentCode}`, {
+        type: "qualifier_updated",
+        tournament_code: tournamentCode,
+        question_code: questionCode,
+      });
       return reply.send({
         status: "success",
         message: "Qualifier question updated",
@@ -306,6 +319,11 @@ export async function qualifierRoutes(
           data: null,
         });
       }
+      void manager.broadcast(`qualifier_${tournamentCode}`, {
+        type: "qualifier_deleted",
+        tournament_code: tournamentCode,
+        question_code: questionCode,
+      });
       return reply.send({
         status: "success",
         message: "Qualifier question deleted",
@@ -425,6 +443,17 @@ export async function qualifierRoutes(
         matchCode: tournamentCode,
         targetCode: questionCode,
         details: `qualifier closed X=${result.correctCount} Y=${result.wrongCount} Z=${result.noAnswerCount}`,
+      });
+      // Realtime: players refresh list + standings (correctness now visible).
+      void manager.broadcast(`qualifier_${tournamentCode}`, {
+        type: "qualifier_closed",
+        tournament_code: tournamentCode,
+        question_code: questionCode,
+        correct_count: result.correctCount,
+        wrong_count: result.wrongCount,
+        no_answer_count: result.noAnswerCount,
+        per_correct: result.perCorrect,
+        per_wrong: result.perWrong,
       });
       return reply.send({
         status: "success",

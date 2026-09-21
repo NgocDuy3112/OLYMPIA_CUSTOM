@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, ChevronLeft, ChevronRight, ListOrdered, Send, Trophy } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { API_BASE_URL, WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { getPlayerCode } from "@/utils/storage";
+import { parseWebSocketMessage } from "@/types/websocket";
 import type { PlayerStatus } from "@/types/player";
 
 const logger = createLogger("PQualifierPage");
@@ -114,6 +115,36 @@ const PQualifierPage = () => {
     void fetchQuestions();
     void fetchStandings();
   }, [fetchQuestions, fetchStandings]);
+
+  // Realtime: qauthor CRUD/chot cau -> refresh list + standings.
+  useEffect(() => {
+    if (!code) return;
+    let socket: WebSocket | null = null;
+    let closed = false;
+    try {
+      socket = new WebSocket(`${WS_BASE_URL}/ws/qualifier_${encodeURIComponent(code)}`);
+    } catch {
+      return;
+    }
+    socket.onmessage = (event: MessageEvent<string>) => {
+      const msg = parseWebSocketMessage(event.data);
+      if (!msg) return;
+      if (
+        msg.type === "qualifier_opened" ||
+        msg.type === "qualifier_updated" ||
+        msg.type === "qualifier_deleted" ||
+        msg.type === "qualifier_closed"
+      ) {
+        if (closed) return;
+        void fetchQuestions();
+        if (msg.type === "qualifier_closed") void fetchStandings();
+      }
+    };
+    return () => {
+      closed = true;
+      socket?.close(1000, "cleanup");
+    };
+  }, [code, fetchQuestions, fetchStandings]);
 
   const current = questions[index] ?? null;
   const currentLetter = current ? selected[current.questionCode] : undefined;

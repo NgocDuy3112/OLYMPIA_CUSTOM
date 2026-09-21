@@ -35,6 +35,67 @@ export async function wsRoute(app: FastifyInstance) {
         return;
       }
 
+      const userCode = session.userCode;
+      const sessionScopes = (
+        (session as { operatorScopes?: string | null }).operatorScopes ?? ""
+      )
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      // Qualifier room: /ws/qualifier_<TOURNAMENT_CODE> — tournament-scoped,
+      // no match needed (qualifier runs before matches are drawn).
+      // Server pushes qualifier_opened/updated/deleted/closed; clients only
+      // send presence/heartbeat.
+      if (matchCode.startsWith("qualifier_")) {
+        const tournamentCode = matchCode.slice("qualifier_".length);
+        const tournament =
+          await drizzleTournamentRepo.findByCode(tournamentCode);
+        if (!tournament) {
+          socket.close(4004, "Tournament not found");
+          return;
+        }
+        let qualifierRole: "controller" | "mc" | "player" = "player";
+        if (
+          session.role === "admin" ||
+          sessionScopes.includes("controller") ||
+          sessionScopes.includes("qauthor")
+        ) {
+          qualifierRole = "controller";
+        } else if (sessionScopes.includes("mc")) {
+          qualifierRole = "mc";
+        }
+        manager.connect(
+          socket,
+          matchCode,
+          userCode,
+          qualifierRole,
+          sid,
+          "oc3",
+        );
+        socket.on("message", async (raw) => {
+          try {
+            const data = JSON.parse(raw.toString());
+            const t = String(data.type || "");
+            if (t === "user_online" && data.status === "heartbeat") return;
+            if (t === "user_online") {
+              await manager.broadcast(matchCode, {
+                ...data,
+                user_code: userCode,
+                role: qualifierRole,
+              });
+            }
+            // Ignore everything else from clients in qualifier rooms.
+          } catch {
+            /* ignore malformed messages */
+          }
+        });
+        socket.on("close", () => {
+          manager.disconnect(socket);
+        });
+        return;
+      }
+
       const matchRow = await drizzleMatchRepo.findByCode(matchCode);
       if (!matchRow) {
         socket.close(4004, "Match not found");
@@ -49,18 +110,9 @@ export async function wsRoute(app: FastifyInstance) {
         return;
       }
 
-      const userCode = session.userCode;
-
       // Determine game role: admin/controller-scope -> controller,
       // mc-scope -> mc, else per-tournament membership, else player.
       let gameRole: "controller" | "mc" | "player" = "player";
-
-      const sessionScopes = (
-        (session as { operatorScopes?: string | null }).operatorScopes ?? ""
-      )
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
 
       if (session.role === "admin" || sessionScopes.includes("controller")) {
         gameRole = "controller";
