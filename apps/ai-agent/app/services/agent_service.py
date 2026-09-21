@@ -34,12 +34,18 @@ class AgentService:
         self,
         llm: LLMClient,
         snapshot_repo,
-        gateway,  # ScoreRepo + QuestionRepo + TournamentRepo + MatchLookup
+        score_repo,
+        question_repo,
+        bank_repo,
+        discord_repo,
         cache=None,  # redis.asyncio.Redis | None
     ) -> None:
         self._llm = llm
         self._snapshot_repo = snapshot_repo
-        self._gateway = gateway
+        self._score_repo = score_repo
+        self._question_repo = question_repo
+        self._bank_repo = bank_repo
+        self._discord_repo = discord_repo
         self._cache = cache
 
     async def ask(
@@ -77,9 +83,12 @@ class AgentService:
         }
         config = {
             "configurable": {
-                "gateway": self._gateway,
+                "snapshot_repo": self._snapshot_repo,
+                "score_repo": self._score_repo,
+                "question_repo": self._question_repo,
+                "bank_repo": self._bank_repo,
+                "discord_repo": self._discord_repo,
                 "llm": self._llm,
-                "service": self,
                 "thread_id": f"{match_code}:{question[:24]}",
             }
         }

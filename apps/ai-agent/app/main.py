@@ -7,8 +7,11 @@ from contextlib import asynccontextmanager
 import redis.asyncio as redis
 from fastapi import FastAPI, Header, HTTPException, Request, Response
 
-from app.adapters.api_gateway import ApiGatewayRepo
+from app.adapters.bank_gateway import BankGatewayRepo
+from app.adapters.discord_gateway import DiscordGatewayRepo
 from app.adapters.llm_http import build_llm_client
+from app.adapters.question_gateway import QuestionGatewayRepo
+from app.adapters.score_gateway import ScoreGatewayRepo
 from app.adapters.valkey_snapshot import ValkeySnapshotRepo
 from app.config import settings
 from app.domain.models import AgentError, AgentRequest, AgentResponse, UserRole
@@ -37,7 +40,10 @@ async def lifespan(app: FastAPI):
     app.state.agent = AgentService(
         llm=llm,
         snapshot_repo=snapshot_repo,
-        gateway=ApiGatewayRepo(),
+        score_repo=ScoreGatewayRepo(),
+        question_repo=QuestionGatewayRepo(),
+        bank_repo=BankGatewayRepo(),
+        discord_repo=DiscordGatewayRepo(),
         cache=redis_client,
     )
     app.state.redis = redis_client

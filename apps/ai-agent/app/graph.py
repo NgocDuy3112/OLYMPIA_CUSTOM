@@ -363,19 +363,34 @@ def _config_value(config: RunnableConfig, key: str) -> Any:
 def _tool_context(state: AgentState, config: RunnableConfig) -> Any:
     from app.tools.registry import ToolContext
 
-    gateway = _config_value(config, "gateway")
-    if gateway is None:
-        raise RuntimeError("Graph cần gateway trong config.configurable")
+    snapshot_repo = _config_value(config, "snapshot_repo")
+    score_repo = _config_value(config, "score_repo")
+    question_repo = _config_value(config, "question_repo")
+    bank_repo = _config_value(config, "bank_repo")
+    discord_repo = _config_value(config, "discord_repo")
+    missing = [
+        name
+        for name, repo in (
+            ("snapshot_repo", snapshot_repo),
+            ("score_repo", score_repo),
+            ("question_repo", question_repo),
+            ("bank_repo", bank_repo),
+            ("discord_repo", discord_repo),
+        )
+        if repo is None
+    ]
+    if missing:
+        raise RuntimeError(f"Graph thiếu repos: {','.join(missing)}")
     return ToolContext(
-        snapshot_repo=gateway,
-        score_repo=gateway,
-        question_repo=gateway,
-        tournament_repo=gateway,
-        match_lookup=gateway,
+        snapshot_repo=snapshot_repo,
+        score_repo=score_repo,
+        question_repo=question_repo,
+        tournament_repo=question_repo,
+        match_lookup=question_repo,
         role=state.get("role", "qauthor"),
         match_code=str(state.get("match_code", "")),
-        discord_repo=gateway,
-        bank_repo=gateway,
+        discord_repo=discord_repo,
+        bank_repo=bank_repo,
     )
 
 

@@ -75,7 +75,10 @@ def make_service(snapshot, gateway, cache=None) -> AgentService:
     return AgentService(
         llm=_EchoLLM(),
         snapshot_repo=FakeSnapshotRepo(snapshot),
-        gateway=gateway,
+        score_repo=gateway,
+        question_repo=gateway,
+        bank_repo=gateway,
+        discord_repo=gateway,
         cache=cache,
     )
 
