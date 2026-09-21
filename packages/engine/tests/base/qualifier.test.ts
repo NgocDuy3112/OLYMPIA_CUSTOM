@@ -2,12 +2,27 @@ import { describe, expect, it } from "vitest";
 
 import {
   avgCorrectTimeSec,
+  isQualifierTimeout,
+  QUALIFIER_TIME_LIMIT_MS,
+  QUALIFIER_TIME_LIMIT_SEC,
   qualifierQuestionPoints,
   rankQualifierPlayers,
   round3,
   scoreQualifierQuestion,
   summarizeQualifierPlayers,
 } from "../../src/base/qualifier.js";
+
+describe("qualifier time limit", () => {
+  it("10s per question", () => {
+    expect(QUALIFIER_TIME_LIMIT_MS).toBe(10_000);
+    expect(QUALIFIER_TIME_LIMIT_SEC).toBe(10);
+  });
+
+  it("timeout only when strictly over 10s", () => {
+    expect(isQualifierTimeout(10_000)).toBe(false);
+    expect(isQualifierTimeout(10_001)).toBe(true);
+  });
+});
 
 describe("qualifierQuestionPoints", () => {
   it("correct +Y, wrong -X", () => {

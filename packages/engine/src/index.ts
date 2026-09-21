@@ -44,6 +44,9 @@ export {
 
 export {
   round3,
+  QUALIFIER_TIME_LIMIT_MS,
+  QUALIFIER_TIME_LIMIT_SEC,
+  isQualifierTimeout,
   qualifierQuestionPoints,
   scoreQualifierQuestion,
   avgCorrectTimeSec,

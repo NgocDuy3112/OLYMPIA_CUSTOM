@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, ChevronLeft, ChevronRight, ListOrdered, Send, Trophy } from "lucide-react";
+import { CheckCircle2, ListOrdered, Send, Trophy } from "lucide-react";
 import { API_BASE_URL, WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
+import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { getPlayerCode } from "@/utils/storage";
 import { parseWebSocketMessage } from "@/types/websocket";
 import type { PlayerStatus } from "@/types/player";
+import type { Question } from "@/types/question";
 
 const logger = createLogger("PQualifierPage");
 
@@ -61,7 +63,14 @@ const PQualifierPage = () => {
   const [selected, setSelected] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const openedAtRef = useRef<Record<string, number>>({});
+
+  // Tick 250ms de countdown 10s moi cau.
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 250);
+    return () => window.clearInterval(id);
+  }, []);
 
   const fetchQuestions = useCallback(async () => {
     if (!code) return;
@@ -149,12 +158,23 @@ const PQualifierPage = () => {
   const current = questions[index] ?? null;
   const currentLetter = current ? selected[current.questionCode] : undefined;
   const currentDone = current ? submitted[current.questionCode] : false;
+  // Moi cau 10s (QUALIFIER_TIME_LIMIT_MS). Het gio → khoa, tinh nhu bo qua.
+  const currentElapsedMs = current
+    ? Math.max(0, nowMs - (openedAtRef.current[current.questionCode] ?? nowMs))
+    : 0;
+  const currentLeftSec = current
+    ? Math.max(0, Math.ceil((10_000 - currentElapsedMs) / 1000))
+    : 0;
+  const currentTimedOut =
+    !!current && !currentDone && currentElapsedMs > 10_000;
 
   const submit = useCallback(
     async (questionCode: string, letter: string) => {
       if (!code || submitted[questionCode]) return;
       const openedAt = openedAtRef.current[questionCode] ?? Date.now();
       const responseTimeMs = Math.max(0, Date.now() - openedAt);
+      // Chan client-side: qua 10s thi khoa, khong gui.
+      if (responseTimeMs > 10_000) return;
       setSubmitting(true);
       try {
         const res = await fetch(
@@ -204,36 +224,45 @@ const PQualifierPage = () => {
         ) : (
           current && (
             <>
-              <div className="flex gap-1.5 flex-wrap" role="tablist" aria-label="Danh sách câu">
-                {questions.map((q, i) => (
-                  <button
-                    key={q.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === index}
-                    aria-label={`Câu ${q.position}`}
-                    onClick={() => setIndex(i)}
-                    className={`min-w-11 min-h-11 px-2 rounded-lg text-sm font-bold transition-colors ${
-                      i === index
-                        ? "bg-blue-500 text-white"
-                        : submitted[q.questionCode]
-                          ? "bg-emerald-700 text-white"
-                          : "bg-white/10 text-gray-300 hover:bg-white/20"
-                    }`}
-                  >
-                    {q.position}
-                  </button>
-                ))}
-              </div>
+              <PQuestionBoard
+                title={`VÒNG LOẠI - CÂU ${current.position}`}
+                question={
+                  {
+                    questionCode: current.questionCode,
+                    questionText: current.content,
+                    questionAnswer: "",
+                    questionMediaURL: current.mediaUrl ?? undefined,
+                  } satisfies Question
+                }
+                timerDuration={currentLeftSec}
+                controls={{
+                  variant: "numbers",
+                  count: questions.length,
+                  activeIndices: [index],
+                }}
+                questionSelect={(i) => setIndex(i)}
+                answeredIndices={
+                  new Set(
+                    questions.map((q, i) =>
+                      submitted[q.questionCode] ? i : -1,
+                    ),
+                  )
+                }
+                boardHeightClass="min-h-[30vh]"
+              />
 
               <div className="rounded-xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
-                <p className="text-xs text-gray-500 font-mono">
-                  Câu {current.position}/{questions.length} · {current.questionCode}
-                  {current.status === "closed" && (
-                    <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-300">Đã chốt</span>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-gray-500 font-mono">
+                    Câu {current.position}/{questions.length} · {current.questionCode}
+                    {current.status === "closed" && (
+                      <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-300">Đã chốt</span>
+                    )}
+                  </p>
+                  {currentTimedOut && (
+                    <p className="text-xs text-red-400">Hết giờ — tính như bỏ qua (0 điểm).</p>
                   )}
-                </p>
-                <h2 className="text-lg font-semibold">{current.content}</h2>
+                </div>
                 <div className="grid gap-2" role="radiogroup" aria-label="Phương án trả lời">
                   {current.options.map((opt, i) => {
                     const letter = LETTERS[i] ?? String(i + 1);
@@ -244,7 +273,7 @@ const PQualifierPage = () => {
                         type="button"
                         role="radio"
                         aria-checked={active}
-                        disabled={currentDone || current.status === "closed"}
+                        disabled={currentDone || current.status === "closed" || currentTimedOut}
                         onClick={() => setSelected((p) => ({ ...p, [current.questionCode]: letter }))}
                         className={`min-h-11 px-4 py-3 rounded-lg text-left text-sm transition-colors flex gap-3 items-start disabled:opacity-60 ${
                           active
@@ -261,16 +290,8 @@ const PQualifierPage = () => {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setIndex((v) => Math.max(0, v - 1))}
-                    disabled={index === 0}
-                    className="flex items-center gap-1 px-3 py-2 min-h-11 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 text-sm"
-                  >
-                    <ChevronLeft size={16} /> Trước
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => currentLetter && void submit(current.questionCode, currentLetter)}
-                    disabled={!currentLetter || currentDone || submitting || current.status === "closed"}
+                    disabled={!currentLetter || currentDone || submitting || current.status === "closed" || currentTimedOut}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 min-h-11 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
                   >
                     {currentDone ? (
@@ -282,14 +303,6 @@ const PQualifierPage = () => {
                         <Send size={16} /> {submitting ? "Đang nộp…" : "Nộp đáp án"}
                       </>
                     )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIndex((v) => Math.min(questions.length - 1, v + 1))}
-                    disabled={index >= questions.length - 1}
-                    className="flex items-center gap-1 px-3 py-2 min-h-11 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 text-sm"
-                  >
-                    Sau <ChevronRight size={16} />
                   </button>
                 </div>
                 <p className="text-xs text-gray-500">

@@ -3,6 +3,10 @@ import { requireAuth, requireScope } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { manager } from "../ws/ws.manager.js";
 import {
+  QUALIFIER_TIME_LIMIT_MS,
+  isQualifierTimeout,
+} from "@oc/engine";
+import {
   drizzleQualifierRepo,
   type QualifierRepo,
 } from "./qualifier.repo.js";
@@ -401,6 +405,14 @@ export async function qualifierRoutes(
         return reply.code(400).send({
           status: "error",
           message: "responseTimeMs must be >= 0",
+          data: null,
+        });
+      }
+      // Moi cau 10s: qua gio → 400, tinh nhu bo qua (khong ghi attempt).
+      if (isQualifierTimeout(ms)) {
+        return reply.code(400).send({
+          status: "error",
+          message: `Time limit ${QUALIFIER_TIME_LIMIT_MS}ms exceeded`,
           data: null,
         });
       }

@@ -1,6 +1,5 @@
 import React from "react";
-import { RenderMedia } from "@/components/shared/RenderMedia";
-import { MathText } from "@/components/shared/MathText";
+import { QuestionContent } from "@/components/shared/QuestionContent";
 import type { Question } from "@/types/question";
 import type { PlayerQuestionBoardControls } from "@/types/questionBoardTypes";
 
@@ -125,38 +124,12 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
 
       {!hideContent && (
         <div className="flex flex-col lg:flex-row flex-1 gap-4 min-h-0 overflow-hidden">
-          {question.questionMediaURL ? (
-            <>
-              {}
-              <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
-                <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
-                  <MathText text={question.questionText} />
-                </p>
-              </div>
-              {}
-              <div className="w-full lg:flex-[7] aspect-video lg:aspect-auto lg:h-full min-h-0 overflow-hidden">
-                {}
-                <div
-                  className={
-                    hideMediaUntilPlayed && videoPlayState == null
-                      ? "h-full w-full overflow-hidden opacity-0 pointer-events-none absolute -z-10"
-                      : "h-full w-full overflow-hidden"
-                  }
-                >
-                  <RenderMedia
-                    mediaUrl={question.questionMediaURL}
-                    videoPlayState={videoPlayState}
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="w-full overflow-y-auto min-h-0">
-              <p className="text-sm sm:text-lg lg:text-[20px] font-bold text-white leading-relaxed text-left break-words">
-                <MathText text={question.questionText} />
-              </p>
-            </div>
-          )}
+          <QuestionContent
+            question={question}
+            videoPlayState={videoPlayState}
+            hideMediaUntilPlayed={hideMediaUntilPlayed}
+            textSizeClass="text-sm sm:text-lg lg:text-[20px]"
+          />
         </div>
       )}
     </div>

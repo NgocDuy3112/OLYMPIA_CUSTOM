@@ -41,6 +41,15 @@ export function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
 
+/** Moi cau vong loai: 10s suy nghi + tra loi. */
+export const QUALIFIER_TIME_LIMIT_MS = 10_000;
+export const QUALIFIER_TIME_LIMIT_SEC = 10;
+
+/** Qua 10s → het gio, tinh nhu bo qua. */
+export function isQualifierTimeout(responseTimeMs: number): boolean {
+  return responseTimeMs > QUALIFIER_TIME_LIMIT_MS;
+}
+
 /**
  * Diem moi cau tu X/Y.
  * perCorrect = +Y, perWrong = -X.
