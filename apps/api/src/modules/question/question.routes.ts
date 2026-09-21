@@ -649,4 +649,204 @@ export async function questionRoutes(
       });
     },
   );
+
+  function isBankWriter(session: {
+    role: string;
+    operatorScopes?: string | null;
+  }): boolean {
+    if (session.role === "admin") return true;
+    return (
+      session.role === "operator" && getScopes(session).includes("qauthor")
+    );
+  }
+
+  // POST /bank — QAuthor creates a stable QB_* bank row (media chèn sau).
+  app.post(
+    "/bank",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+          };
+        }
+      ).session;
+      if (!isBankWriter(session)) {
+        return reply.code(403).send({
+          status: "error",
+          message: "Only admin or qauthor can write bank",
+          data: null,
+        });
+      }
+      const raw = request.body as {
+        bankCode?: string;
+        content?: string;
+        answer?: string;
+        explanation?: string;
+        hintText?: string;
+        hint_text?: string;
+        mediaUrl?: string;
+        media_url?: string;
+        options?: string[] | string;
+        tags?: string;
+        roundHint?: string;
+        round_hint?: string;
+      };
+      const bankCode = String(raw.bankCode ?? "").trim().toUpperCase();
+      if (!/^QB_[A-Z0-9_]{1,20}$/.test(bankCode)) {
+        return reply.code(400).send({
+          status: "error",
+          message: "bankCode must match QB_* (A-Z/0-9/_, max 20 chars)",
+          data: null,
+        });
+      }
+      if (!raw.content?.trim() || !raw.answer?.trim()) {
+        return reply.code(400).send({
+          status: "error",
+          message: "content and answer required",
+          data: null,
+        });
+      }
+      const options = Array.isArray(raw.options)
+        ? JSON.stringify(raw.options)
+        : typeof raw.options === "string"
+          ? raw.options
+          : null;
+      try {
+        const result = await bankRepo.create({
+          bankCode,
+          content: raw.content.trim(),
+          answer: raw.answer.trim(),
+          explanation: raw.explanation?.trim() || null,
+          hintText: (raw.hintText ?? raw.hint_text)?.trim() || null,
+          mediaUrl: (raw.mediaUrl ?? raw.media_url)?.trim() || null,
+          options,
+          tags: raw.tags?.trim() || null,
+          roundHint: (raw.roundHint ?? raw.round_hint)?.trim().toUpperCase() || null,
+          createdBy: session.userId,
+        });
+        return reply.code(201).send({
+          status: "success",
+          message: "Bank question created",
+          data: { id: result.id, bankCode },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Create failed";
+        const code = /unique|duplicate/i.test(msg) ? 409 : 400;
+        return reply.code(code).send({
+          status: "error",
+          message: msg,
+          data: null,
+        });
+      }
+    },
+  );
+
+  // PATCH /bank/:id — QAuthor edits a bank row (kể cả chèn mediaUrl sau).
+  app.patch(
+    "/bank/:id",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const session = (
+        request as unknown as {
+          session: { role: string; operatorScopes?: string | null };
+        }
+      ).session;
+      if (!isBankWriter(session)) {
+        return reply.code(403).send({
+          status: "error",
+          message: "Only admin or qauthor can write bank",
+          data: null,
+        });
+      }
+      const { id } = request.params as { id: string };
+      const raw = request.body as {
+        content?: string | null;
+        answer?: string | null;
+        explanation?: string | null;
+        hintText?: string | null;
+        hint_text?: string | null;
+        mediaUrl?: string | null;
+        media_url?: string | null;
+        options?: string[] | string | null;
+        tags?: string | null;
+        roundHint?: string | null;
+        round_hint?: string | null;
+      };
+      const updates: {
+        content?: string | null;
+        answer?: string | null;
+        explanation?: string | null;
+        hintText?: string | null;
+        mediaUrl?: string | null;
+        options?: string | null;
+        tags?: string | null;
+        roundHint?: string | null;
+      } = {};
+      if (raw.content !== undefined) updates.content = raw.content;
+      if (raw.answer !== undefined) updates.answer = raw.answer;
+      if (raw.explanation !== undefined) updates.explanation = raw.explanation;
+      if (raw.hintText !== undefined || raw.hint_text !== undefined)
+        updates.hintText = raw.hintText ?? raw.hint_text ?? null;
+      if (raw.mediaUrl !== undefined || raw.media_url !== undefined)
+        updates.mediaUrl = raw.mediaUrl ?? raw.media_url ?? null;
+      if (raw.options !== undefined)
+        updates.options = Array.isArray(raw.options)
+          ? JSON.stringify(raw.options)
+          : raw.options;
+      if (raw.tags !== undefined) updates.tags = raw.tags;
+      if (raw.roundHint !== undefined || raw.round_hint !== undefined)
+        updates.roundHint = raw.roundHint ?? raw.round_hint ?? null;
+      const ok = await bankRepo.update(id, updates);
+      if (!ok) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Bank question not found or nothing to update",
+          data: null,
+        });
+      }
+      return reply.send({
+        status: "success",
+        message: "Bank question updated",
+        data: { id },
+      });
+    },
+  );
+
+  // DELETE /bank/:id — QAuthor soft-deletes a bank row.
+  app.delete(
+    "/bank/:id",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const session = (
+        request as unknown as {
+          session: { role: string; operatorScopes?: string | null };
+        }
+      ).session;
+      if (!isBankWriter(session)) {
+        return reply.code(403).send({
+          status: "error",
+          message: "Only admin or qauthor can write bank",
+          data: null,
+        });
+      }
+      const { id } = request.params as { id: string };
+      const ok = await bankRepo.softDelete(id);
+      if (!ok) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Bank question not found",
+          data: null,
+        });
+      }
+      return reply.send({
+        status: "success",
+        message: "Bank question deleted",
+        data: null,
+      });
+    },
+  );
 }

@@ -49,6 +49,20 @@ export interface BankRepo {
     ): Promise<BankSearchResult<BankRowWithUsage>>;
     findByCode(bankCode: string): Promise<BankRow | null>;
     findById(id: string): Promise<BankRow | null>;
+    update(
+        id: string,
+        updates: {
+            content?: string | null;
+            answer?: string | null;
+            explanation?: string | null;
+            hintText?: string | null;
+            mediaUrl?: string | null;
+            options?: string | null;
+            tags?: string | null;
+            roundHint?: string | null;
+        },
+    ): Promise<boolean>;
+    softDelete(id: string): Promise<boolean>;
     create(input: {
         bankCode: string;
         content: string;
@@ -231,6 +245,39 @@ export const drizzleBankRepo: BankRepo = {
             .returning({ id: questionBank.id });
         return result[0];
     },
+
+    async update(id, updates): Promise<boolean> {
+        const values: Record<string, unknown> = {};
+        if (updates.content !== undefined) values.content = updates.content;
+        if (updates.answer !== undefined) values.answer = updates.answer;
+        if (updates.explanation !== undefined)
+            values.explanation = updates.explanation;
+        if (updates.hintText !== undefined) values.hintText = updates.hintText;
+        if (updates.mediaUrl !== undefined) values.mediaUrl = updates.mediaUrl;
+        if (updates.options !== undefined) values.options = updates.options;
+        if (updates.tags !== undefined) values.tags = updates.tags;
+        if (updates.roundHint !== undefined) values.roundHint = updates.roundHint;
+        if (Object.keys(values).length === 0) return false;
+        const result = await db
+            .update(questionBank)
+            .set(values)
+            .where(
+                and(eq(questionBank.id, id), eq(questionBank.isDeleted, false)),
+            )
+            .returning({ id: questionBank.id });
+        return result.length > 0;
+    },
+
+    async softDelete(id): Promise<boolean> {
+        const result = await db
+            .update(questionBank)
+            .set({ isDeleted: true })
+            .where(
+                and(eq(questionBank.id, id), eq(questionBank.isDeleted, false)),
+            )
+            .returning({ id: questionBank.id });
+        return result.length > 0;
+    },
 };
 
 export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows: BankRow[] } {
@@ -315,6 +362,18 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
             };
             rows.push(row);
             return { id: row.id };
+        },
+        async update(id, updates) {
+            const row = rows.find((r) => r.id === id);
+            if (!row) return false;
+            Object.assign(row, updates);
+            return true;
+        },
+        async softDelete(id) {
+            const idx = rows.findIndex((r) => r.id === id);
+            if (idx < 0) return false;
+            rows.splice(idx, 1);
+            return true;
         },
     };
 }

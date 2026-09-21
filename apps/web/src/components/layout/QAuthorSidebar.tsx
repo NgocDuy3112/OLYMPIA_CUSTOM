@@ -32,6 +32,21 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     icon: <HelpCircle size={18} />,
   },
   {
+    label: "Bank QB_*",
+    path: "/operator/qauthor/bank",
+    icon: <HelpCircle size={18} />,
+  },
+  {
+    label: "Media",
+    path: "/operator/qauthor/media",
+    icon: <HelpCircle size={18} />,
+  },
+  {
+    label: "Import Excel",
+    path: "/operator/qauthor/import",
+    icon: <HelpCircle size={18} />,
+  },
+  {
     label: "Vòng loại",
     path: "/operator/qauthor/qualifier",
     icon: <HelpCircle size={18} />,

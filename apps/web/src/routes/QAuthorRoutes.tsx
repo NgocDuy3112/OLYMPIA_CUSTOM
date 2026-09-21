@@ -1,5 +1,8 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import QAuthorOverviewPage from "@/pages/qauthor/QAuthorOverviewPage";
+import QAuthorBankPage from "@/pages/qauthor/QAuthorBankPage";
+import QAuthorImportPage from "@/pages/qauthor/QAuthorImportPage";
+import QAuthorMediaPage from "@/pages/qauthor/QAuthorMediaPage";
 import QAuthorQuestionPage from "@/pages/qauthor/QAuthorQuestionPage";
 import QAuthorQualifierPage from "@/pages/qauthor/QAuthorQualifierPage";
 import QAuthorReviewsPage from "@/pages/qauthor/QAuthorReviewsPage";
@@ -33,6 +36,9 @@ const QAuthorRoutes = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/operator/qauthor/overview" replace />} />
           <Route path="/overview" element={<QAuthorOverviewPage />} />
+          <Route path="/bank" element={<QAuthorBankPage />} />
+          <Route path="/import" element={<QAuthorImportPage />} />
+          <Route path="/media" element={<QAuthorMediaPage />} />
           <Route path="/questions" element={<QAuthorQuestionPage />} />
           <Route path="/qualifier" element={<QAuthorQualifierPage />} />
           <Route path="/reviews" element={<QAuthorReviewsPage />} />
