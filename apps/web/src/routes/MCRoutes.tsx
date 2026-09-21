@@ -21,6 +21,7 @@ import VeDichRiengPage from "@/pages/game/VeDichRiengPage";
 import WaitingPage from "@/pages/game/WaitingPage";
 import VeDichPickPage from "@/pages/game/VeDichPickPage";
 import MGameAccessPage from "@/pages/mc/MGameAccessPage";
+import MQualifierPage from "@/pages/mc/MQualifierPage";
 import { VeDichRound } from "@/types/veDich";
 
 const MCAutoNavigator: React.FC = () => {
@@ -105,6 +106,7 @@ const MCRoutes = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/mc/access" replace />} />
           <Route path="/access" element={<MGameAccessPage />} />
+          <Route path="/qualifier/:tournamentCode?" element={<MQualifierPage />} />
           <Route path="/waiting" element={<WaitingPage />} />
           <Route path="/waiting/:matchCode" element={<WaitingPage />} />
           <Route path="/kdc/:matchCode" element={<KhoiDongChungPage />} />

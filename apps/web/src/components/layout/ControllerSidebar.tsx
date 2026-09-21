@@ -42,6 +42,11 @@ export const ControllerSidebar: React.FC<ControllerSidebarProps> = ({
       icon: <Play size={18} />,
     },
     {
+      label: "Vòng loại",
+      path: "/controller/qualifier",
+      icon: <HelpCircle size={18} />,
+    },
+    {
       label: "Duyệt điểm",
       path: "/operator/qauthor/reviews",
       icon: <ClipboardCheck size={18} />,

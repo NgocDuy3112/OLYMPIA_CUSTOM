@@ -68,6 +68,7 @@ const QAuthorQualifierPage = () => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [closing, setClosing] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<Record<string, unknown> | null>(null);
   const [editing, setEditing] = useState<QualifierQuestion | null>(null);
@@ -350,6 +351,29 @@ const QAuthorQualifierPage = () => {
             className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
           >
             <Search size={14} /> Tải
+          </button>
+          <button
+            onClick={() => {
+              const code = tournamentCode.trim();
+              if (!code) return;
+              setSeeding(true);
+              fetch(`${API_BASE_URL}${base()}/seed`, { method: "POST", credentials: "include" })
+                .then((r) => r.json().catch(() => null))
+                .then((json) => {
+                  if (!json || json.status !== "success") alert(`Seed thất bại: ${json?.message ?? "Lỗi không xác định"}`);
+                  return Promise.all([fetchQuestions(), fetchStandings()]);
+                })
+                .catch((err) => {
+                  logger.error("Error seeding qualifier:", err);
+                  alert("Lỗi kết nối khi seed");
+                })
+                .finally(() => setSeeding(false));
+            }}
+            disabled={seeding || !tournamentCode.trim()}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-sm"
+            title="Chèn 16 câu mẫu VL_01..VL_16 còn thiếu"
+          >
+            <Plus size={14} /> {seeding ? "Đang seed…" : "Seed 16 câu"}
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

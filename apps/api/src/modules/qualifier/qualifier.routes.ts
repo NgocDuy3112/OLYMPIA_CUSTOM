@@ -9,6 +9,34 @@ import {
 
 const OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
 
+// 16 cau mau — mirror packages/db/migrations/013_seed_qualifier.sql.
+// POST /qualifier/:code/seed inserts missing VL_01..VL_16 (idempotent).
+const SEED_QUESTIONS: Array<{
+  questionCode: string;
+  content: string;
+  options: string[];
+  correctOption: string;
+  explanation: string;
+  position: number;
+}> = [
+  { questionCode: "VL_01", content: "Thủ đô của Việt Nam là thành phố nào?", options: ["Hà Nội", "Huế", "Đà Nẵng", "TP. Hồ Chí Minh"], correctOption: "A", explanation: "Thủ đô từ năm 1976.", position: 1 },
+  { questionCode: "VL_02", content: "2 + 2 x 3 bằng bao nhiêu?", options: ["6", "8", "10", "12"], correctOption: "B", explanation: "Nhân trước cộng sau.", position: 2 },
+  { questionCode: "VL_03", content: "Nguyên tố có ký hiệu O là gì?", options: ["Vàng", "Oxy", "Bạc", "Sắt"], correctOption: "B", explanation: "Số nguyên tử 8.", position: 3 },
+  { questionCode: "VL_04", content: "Tác giả Truyện Kiều là ai?", options: ["Hồ Xuân Hương", "Nguyễn Trãi", "Nguyễn Du", "Cao Bá Quát"], correctOption: "C", explanation: "Đại thi hào dân tộc.", position: 4 },
+  { questionCode: "VL_05", content: "Sông dài nhất Việt Nam?", options: ["Sông Hồng", "Sông Mekong", "Sông Đồng Nai", "Sông Cả"], correctOption: "C", explanation: "Khoảng 586 km.", position: 5 },
+  { questionCode: "VL_06", content: "Hành tinh gần Mặt Trời nhất?", options: ["Sao Kim", "Trái Đất", "Sao Thủy", "Sao Hỏa"], correctOption: "C", explanation: "Mercury.", position: 6 },
+  { questionCode: "VL_07", content: "Đạo hàm của x^2 là gì?", options: ["x", "2x", "x^2", "2"], correctOption: "B", explanation: "Công thức cơ bản.", position: 7 },
+  { questionCode: "VL_08", content: "Quá trình cây xanh tạo oxy gọi là gì?", options: ["Hô hấp", "Quang hợp", "Thoát hơi nước", "Thụ phấn"], correctOption: "B", explanation: "Photosynthesis.", position: 8 },
+  { questionCode: "VL_09", content: "Hiến pháp Việt Nam hiện hành ban hành năm nào?", options: ["1992", "2001", "2013", "2015"], correctOption: "C", explanation: "Hiến pháp 2013.", position: 9 },
+  { questionCode: "VL_10", content: "SEA Games 31 tổ chức ở quốc gia nào?", options: ["Thái Lan", "Việt Nam", "Indonesia", "Philippines"], correctOption: "B", explanation: "Hà Nội 2022.", position: 10 },
+  { questionCode: "VL_11", content: "Số nguyên tố nhỏ nhất là số nào?", options: ["0", "1", "2", "3"], correctOption: "C", explanation: "Số 2.", position: 11 },
+  { questionCode: "VL_12", content: "Đại dương lớn nhất thế giới?", options: ["Đại Tây Dương", "Ấn Độ Dương", "Bắc Băng Dương", "Thái Bình Dương"], correctOption: "D", explanation: "Pacific.", position: 12 },
+  { questionCode: "VL_13", content: "Năm nhuận có bao nhiêu ngày?", options: ["365", "366", "364", "367"], correctOption: "B", explanation: "Tháng 2 có 29 ngày.", position: 13 },
+  { questionCode: "VL_14", content: "Đơn vị đo cường độ dòng điện?", options: ["Volt", "Watt", "Ampere", "Ohm"], correctOption: "C", explanation: "Ký hiệu A.", position: 14 },
+  { questionCode: "VL_15", content: "Châu lục nhỏ nhất thế giới?", options: ["Châu Âu", "Châu Úc", "Nam Cực", "Nam Mỹ"], correctOption: "B", explanation: "Oceania.", position: 15 },
+  { questionCode: "VL_16", content: "Ngôn ngữ lập trình nào chạy trên trình duyệt?", options: ["Python", "JavaScript", "C++", "Rust", "Go"], correctOption: "B", explanation: "JS là ngôn ngữ web.", position: 16 },
+];
+
 function validateOptions(options: unknown): options is string[] {
   return (
     Array.isArray(options) &&
@@ -402,10 +430,11 @@ export async function qualifierRoutes(
     },
   );
 
-  // POST /qualifier/:tournamentCode/questions/:questionCode/close — qauthor freezes + scores.
+  // POST /qualifier/:tournamentCode/questions/:questionCode/close — qauthor/controller
+  // freezes + scores (controller allowed for live ops).
   app.post(
     "/qualifier/:tournamentCode/questions/:questionCode/close",
-    { preHandler: [requireScope(app, "qauthor")] },
+    { preHandler: [requireScope(app, "qauthor", "controller")] },
     async (request, reply) => {
       const { tournamentCode, questionCode } = request.params as {
         tournamentCode: string;
@@ -484,6 +513,111 @@ export async function qualifierRoutes(
         status: "success",
         message: "OK",
         data: rows,
+      });
+    },
+  );
+
+  // POST /qualifier/:tournamentCode/seed — qauthor inserts missing VL_01..VL_16.
+  // Idempotent: skips codes already present. Controller scope also allowed
+  // so live ops can bootstrap a tournament without QAuthor login.
+  app.post(
+    "/qualifier/:tournamentCode/seed",
+    { preHandler: [requireScope(app, "qauthor", "controller")] },
+    async (request, reply) => {
+      const { tournamentCode } = request.params as { tournamentCode: string };
+      const t = await resolveTournament(tournamentCode);
+      if (!t) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Tournament not found",
+          data: null,
+        });
+      }
+      const existing = await repo.listQuestions(t.id);
+      const have = new Set(existing.map((q) => q.questionCode));
+      let created = 0;
+      for (const s of SEED_QUESTIONS) {
+        if (have.has(s.questionCode)) continue;
+        try {
+          await repo.createQuestion({
+            tournamentId: t.id,
+            questionCode: s.questionCode,
+            content: s.content,
+            options: s.options,
+            correctOption: s.correctOption,
+            explanation: s.explanation,
+            position: s.position,
+          });
+          created++;
+        } catch {
+          /* unique race — treat as existing */
+        }
+      }
+      const session = (request as unknown as { session: { userCode?: string } }).session;
+      void writeAudit({
+        actionType: "MATCH_CREATED",
+        actorCode: session?.userCode ?? null,
+        matchCode: tournamentCode,
+        details: `qualifier seeded ${created} questions`,
+      });
+      void manager.broadcast(`qualifier_${tournamentCode}`, {
+        type: "qualifier_opened",
+        tournament_code: tournamentCode,
+        seeded: created,
+      });
+      return reply.code(201).send({
+        status: "success",
+        message: `Seeded ${created} questions`,
+        data: { created },
+      });
+    },
+  );
+
+  // POST /qualifier/:tournamentCode/close-all — qauthor/controller closes
+  // every open question (zero-sum each) for live ops. Skips already closed.
+  app.post(
+    "/qualifier/:tournamentCode/close-all",
+    { preHandler: [requireScope(app, "qauthor", "controller")] },
+    async (request, reply) => {
+      const { tournamentCode } = request.params as { tournamentCode: string };
+      const t = await resolveTournament(tournamentCode);
+      if (!t) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Tournament not found",
+          data: null,
+        });
+      }
+      const n = await repo.countMembers(t.id);
+      const open = (await repo.listQuestions(t.id)).filter(
+        (q) => q.status === "open",
+      );
+      const results: Array<{ questionCode: string; result: unknown }> = [];
+      for (const q of open) {
+        const result = await repo.closeAndScore(q.id, n);
+        results.push({ questionCode: q.questionCode, result });
+        void manager.broadcast(`qualifier_${tournamentCode}`, {
+          type: "qualifier_closed",
+          tournament_code: tournamentCode,
+          question_code: q.questionCode,
+          correct_count: result.correctCount,
+          wrong_count: result.wrongCount,
+          no_answer_count: result.noAnswerCount,
+          per_correct: result.perCorrect,
+          per_wrong: result.perWrong,
+        });
+      }
+      const session = (request as unknown as { session: { userCode?: string } }).session;
+      void writeAudit({
+        actionType: "MATCH_STATE_CHANGE",
+        actorCode: session?.userCode ?? null,
+        matchCode: tournamentCode,
+        details: `qualifier close-all ${results.length} questions`,
+      });
+      return reply.send({
+        status: "success",
+        message: `Closed ${results.length} questions`,
+        data: { closed: results.length, results },
       });
     },
   );
