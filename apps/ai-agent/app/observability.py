@@ -1,7 +1,7 @@
-"""Opik tracing — open-source LLM observability (self-host).
+"""Opik tracing — Opik Cloud free tier (25k spans/tháng, giữ 60 ngày).
 
-Bật khi OPIK_URL_HOST có giá trị (vd http://opik:5173 trong compose).
-Không có env → no-op, graph chạy bình thường không trace.
+Bật khi OPIK_API_KEY có giá trị. Không có env → no-op, graph chạy
+bình thường không trace.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from typing import Any
 
 
 def is_enabled() -> bool:
-    return bool(os.environ.get("OPIK_URL_HOST", "").strip())
+    return bool(os.environ.get("OPIK_API_KEY", "").strip())
 
 
 def track_graph(graph: Any, tags: list[str] | None = None) -> Any:

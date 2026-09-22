@@ -97,7 +97,9 @@ services:
     networks:
       - oc-network
 
-  # ── Observability: Prometheus + Grafana + Opik ───────────
+  # ── Observability: Prometheus + Grafana ──────────────────
+  # Opik Cloud (free 25k spans/tháng): agent đọc OPIK_API_KEY + OPIK_PROJECT_NAME
+  # từ env, không cần service riêng trong compose.
   prometheus:
     container_name: oc-prometheus
     image: docker.io/prom/prometheus:v3.1.0
@@ -124,17 +126,6 @@ services:
       - ./configs/grafana/dashboards:/etc/grafana/dashboards:ro
     depends_on:
       - prometheus
-    networks:
-      - oc-network
-    restart: unless-stopped
-
-  # Opik self-host (open-source LLM tracing) — xem trace OCee graph.
-  # UI: http://localhost:5174 . Agent trỏ OPIK_URL_HOST=http://opik:5173 .
-  opik:
-    container_name: oc-opik
-    image: docker.io/opik/opik:1.8.0
-    ports:
-      - "5174:5173"
     networks:
       - oc-network
     restart: unless-stopped

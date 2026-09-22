@@ -14,7 +14,7 @@ interface HealthRow {
 
 const GRAFANA_URL =
   import.meta.env.VITE_GRAFANA_URL ?? "http://localhost:3000";
-const OPIK_URL = import.meta.env.VITE_OPIK_URL ?? "http://localhost:5174";
+const OPIK_URL = import.meta.env.VITE_OPIK_URL ?? "http://localhost:5173";
 
 const HealthDot = ({ ok }: { ok: boolean | null }) => (
   <span
