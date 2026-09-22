@@ -37,6 +37,9 @@ const envSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().url(),
 
   // ── Seeded staff accounts (admin/operator login via username+password) ──
+  // Plaintext admin pair for dev (takes precedence over STAFF_CREDENTIALS).
+  ADMIN_USERNAME: z.string().default(""),
+  ADMIN_PASSWORD: z.string().default(""),
   // Format: "username:argon2id_hash:role:scopes" separated by ";".
   // Example: "admin:$argon2id$...:admin:;mc1:$argon2id$...:operator:mc;qa1:$argon2id$...:operator:qauthor"
   STAFF_CREDENTIALS: z.string().default(""),

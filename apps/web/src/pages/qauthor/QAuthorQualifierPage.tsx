@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
-import { ListOrdered, Pencil, Plus, Search, Trash2, Trophy, X } from "lucide-react";
+import { ListOrdered, Pencil, Plus, Search, Trash2, Trophy } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 const logger = createLogger("QAuthorQualifierPage");
 
@@ -268,18 +269,13 @@ const QAuthorQualifierPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white">
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-blue-200">Sửa câu vòng loại</h3>
-              <button
-                onClick={() => setEditing(null)}
-                className="p-1 rounded hover:bg-blue-800 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <SidePanel
+        open={editing !== null}
+        onClose={() => setEditing(null)}
+        title="Sửa câu vòng loại"
+      >
+        {editing && (
+          <>
             <p className="text-xs text-blue-400 font-mono -mt-2">{editing.questionCode}</p>
             <label className="text-xs text-blue-300">Nội dung</label>
             <textarea
@@ -330,9 +326,9 @@ const QAuthorQualifierPage = () => {
                 Lưu
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </SidePanel>
 
       <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4">
         <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">

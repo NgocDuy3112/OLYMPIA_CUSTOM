@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, RefreshCw, Trash2, Users } from "lucide-react";
+import { Pencil, Plus, RefreshCw, ShieldCheck, Trash2, Users } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 const logger = createLogger("AdminUsersPage");
 
@@ -34,6 +35,31 @@ const AdminUsersPage = () => {
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // Popup: thêm user
+  const [showAdd, setShowAdd] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addEmail, setAddEmail] = useState("");
+  const [addPassword, setAddPassword] = useState("");
+  const [addRole, setAddRole] = useState<GlobalRole>("player");
+  const [addScopes, setAddScopes] = useState<OperatorScope[]>([]);
+  const [savingAdd, setSavingAdd] = useState(false);
+
+  // Popup: đổi vai trò / scopes
+  const [roleUser, setRoleUser] = useState<UserData | null>(null);
+  const [roleValue, setRoleValue] = useState<GlobalRole>("player");
+  const [roleScopes, setRoleScopes] = useState<OperatorScope[]>([]);
+  const [savingRole, setSavingRole] = useState(false);
+
+  // Popup: xác nhận xoá
+  const [deleteTarget, setDeleteTarget] = useState<UserData | null>(null);
+  const [savingDelete, setSavingDelete] = useState(false);
+
+  const toggleScope = (
+    list: OperatorScope[],
+    scope: OperatorScope,
+  ): OperatorScope[] =>
+    list.includes(scope) ? list.filter((s) => s !== scope) : [...list, scope];
 
   const authHeaders = useCallback(
     (): HeadersInit => ({ "Content-Type": "application/json" }),
@@ -91,72 +117,109 @@ const AdminUsersPage = () => {
     }
   }, [authHeaders, editingUser, editName, editEmail, fetchUsers]);
 
-  const deleteUser = useCallback(
-    async (userCode: string, userName: string) => {
-      const confirmed = window.confirm(
-        `Bạn có chắc muốn xoá thí sinh "${userName}" (${userCode})?\nHành động này không thể hoàn tác.`,
-      );
-      if (!confirmed) return;
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/users/${encodeURIComponent(userCode)}`,
-          { method: "DELETE", headers: authHeaders() },
-        );
-        const json = await res.json();
-        if (res.ok) {
-          await fetchUsers();
-        } else {
-          alert(
-            `Xoá thất bại: ${json.detail ?? json.message ?? "Lỗi không xác định"}`,
-          );
-        }
-      } catch (err) {
-        logger.error("Error deleting user:", err);
-        alert("Lỗi kết nối khi xoá thí sinh");
+  const createUser = useCallback(async () => {
+    if (!addName.trim() || !addEmail.trim()) return;
+    setSavingAdd(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/users`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          userName: addName.trim(),
+          email: addEmail.trim(),
+          password: addPassword,
+          role: addRole,
+          scopes: addRole === "operator" ? addScopes : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setShowAdd(false);
+        setAddName("");
+        setAddEmail("");
+        setAddPassword("");
+        setAddRole("player");
+        setAddScopes([]);
+        await fetchUsers();
+      } else {
+        alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
       }
-    },
-    [authHeaders, fetchUsers],
-  );
+    } catch (err) {
+      logger.error("Error creating user:", err);
+      alert("Lỗi kết nối khi tạo người dùng");
+    } finally {
+      setSavingAdd(false);
+    }
+  }, [addName, addEmail, addPassword, addRole, addScopes, authHeaders, fetchUsers]);
 
-  const grantOperator = useCallback(
-    async (userCode: string) => {
-      const input = window.prompt(
-        `Cấp operator cho ${userCode}.\nNhập scopes (phân cách dấu phẩy): qauthor, controller, mc`,
-        "controller,mc",
+  const saveRole = useCallback(async () => {
+    if (!roleUser) return;
+    setSavingRole(true);
+    try {
+      const resRole = await fetch(
+        `${API_BASE_URL}/users/${encodeURIComponent(roleUser.user_code)}`,
+        {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify({ role: roleValue }),
+        },
       );
-      if (input === null) return;
-      const scopes = input
-        .split(",")
-        .map((s) => s.trim())
-        .filter((s) => OPERATOR_SCOPES.includes(s as OperatorScope));
-      if (scopes.length === 0) {
-        alert("Scopes không hợp lệ");
+      const jsonRole = await resRole.json();
+      if (!resRole.ok) {
+        alert(`Đổi vai trò thất bại: ${jsonRole.message ?? "Lỗi"}`);
         return;
       }
-      try {
-        const res = await fetch(
-          `${API_BASE_URL}/users/${encodeURIComponent(userCode)}/operator`,
+      if (roleValue === "operator") {
+        if (roleScopes.length === 0) {
+          alert("Chọn ít nhất 1 scope cho operator");
+          return;
+        }
+        const resScopes = await fetch(
+          `${API_BASE_URL}/users/${encodeURIComponent(roleUser.user_code)}/operator`,
           {
             method: "PUT",
             headers: authHeaders(),
-            body: JSON.stringify({ scopes }),
+            body: JSON.stringify({ scopes: roleScopes }),
           },
         );
-        const json = await res.json();
-        if (res.ok) {
-          await fetchUsers();
-        } else {
-          alert(
-            `Cấp quyền thất bại: ${json.detail ?? json.message ?? "Lỗi không xác định"}`,
-          );
+        const jsonScopes = await resScopes.json();
+        if (!resScopes.ok) {
+          alert(`Cấp scope thất bại: ${jsonScopes.message ?? "Lỗi"}`);
+          return;
         }
-      } catch (err) {
-        logger.error("Error granting operator:", err);
-        alert("Lỗi kết nối khi cấp quyền");
       }
-    },
-    [authHeaders, fetchUsers],
-  );
+      setRoleUser(null);
+      await fetchUsers();
+    } catch (err) {
+      logger.error("Error updating role:", err);
+      alert("Lỗi kết nối khi đổi vai trò");
+    } finally {
+      setSavingRole(false);
+    }
+  }, [roleUser, roleValue, roleScopes, authHeaders, fetchUsers]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setSavingDelete(true);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/users/${encodeURIComponent(deleteTarget.user_code)}`,
+        { method: "DELETE", headers: authHeaders() },
+      );
+      const json = await res.json();
+      if (res.ok) {
+        setDeleteTarget(null);
+        await fetchUsers();
+      } else {
+        alert(`Xoá thất bại: ${json.message ?? "Lỗi không xác định"}`);
+      }
+    } catch (err) {
+      logger.error("Error deleting user:", err);
+      alert("Lỗi kết nối khi xoá người dùng");
+    } finally {
+      setSavingDelete(false);
+    }
+  }, [deleteTarget, authHeaders, fetchUsers]);
 
   useEffect(() => {
     void fetchUsers();
@@ -164,20 +227,13 @@ const AdminUsersPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white">
-      {editingUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-blue-200">
-                Sửa thông tin thí sinh
-              </h3>
-              <button
-                onClick={() => setEditingUser(null)}
-                className="p-1 rounded hover:bg-blue-800 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
+      <SidePanel
+        open={editingUser !== null}
+        onClose={() => setEditingUser(null)}
+        title="Sửa thông tin thí sinh"
+      >
+        {editingUser && (
+          <>
             <p className="text-xs text-blue-400 font-mono -mt-2">
               Mã: {editingUser.user_code}
             </p>
@@ -217,9 +273,204 @@ const AdminUsersPage = () => {
                 {savingEdit ? "Đang lưu…" : "Lưu thay đổi"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </SidePanel>
+
+      <SidePanel
+        open={showAdd}
+        onClose={() => setShowAdd(false)}
+        title="Thêm người dùng"
+      >
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-blue-300">Tên người dùng</label>
+                <input
+                  type="text"
+                  value={addName}
+                  onChange={(e) => setAddName(e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-blue-300">Email</label>
+                <input
+                  type="email"
+                  value={addEmail}
+                  onChange={(e) => setAddEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-blue-300">Mật khẩu</label>
+                <input
+                  type="password"
+                  value={addPassword}
+                  onChange={(e) => setAddPassword(e.target.value)}
+                  placeholder="Tối thiểu 8 ký tự"
+                  minLength={8}
+                  className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-blue-300">Vai trò</label>
+                <select
+                  value={addRole}
+                  onChange={(e) => setAddRole(e.target.value as GlobalRole)}
+                  className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
+                >
+                  <option value="player">Thí sinh (player)</option>
+                  <option value="spectator">Khán giả (spectator)</option>
+                  <option value="operator">Điều phối (operator)</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              {addRole === "operator" && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-blue-300">
+                    Scopes (chọn 1+)
+                  </label>
+                  <div className="flex gap-3 text-sm text-blue-100">
+                    {OPERATOR_SCOPES.map((s) => (
+                      <label key={s} className="flex items-center gap-1.5">
+                        <input
+                          type="checkbox"
+                          checked={addScopes.includes(s)}
+                          onChange={() =>
+                            setAddScopes((prev) => toggleScope(prev, s))
+                          }
+                          className="accent-blue-500"
+                        />
+                        {s}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setShowAdd(false)}
+                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => void createUser()}
+                disabled={
+                  savingAdd ||
+                  !addName.trim() ||
+                  !addEmail.trim() ||
+                  addPassword.length < 8 ||
+                  (addRole === "operator" && addScopes.length === 0)
+                }
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+              >
+                {savingAdd ? "Đang tạo…" : "Tạo người dùng"}
+              </button>
+            </div>
+      </SidePanel>
+
+      <SidePanel
+        open={roleUser !== null}
+        onClose={() => setRoleUser(null)}
+        title="Đổi vai trò"
+      >
+        {roleUser && (
+          <>
+            <p className="text-xs text-blue-400 font-mono -mt-2">
+              {roleUser.user_name} · {roleUser.user_code}
+            </p>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-blue-300">Vai trò</label>
+              <select
+                value={roleValue}
+                onChange={(e) => setRoleValue(e.target.value as GlobalRole)}
+                className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
+              >
+                <option value="player">Thí sinh (player)</option>
+                <option value="spectator">Khán giả (spectator)</option>
+                <option value="operator">Điều phối (operator)</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            {roleValue === "operator" && (
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-blue-300">Scopes</label>
+                <div className="flex gap-3 text-sm text-blue-100">
+                  {OPERATOR_SCOPES.map((s) => (
+                    <label key={s} className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={roleScopes.includes(s)}
+                        onChange={() =>
+                          setRoleScopes((prev) => toggleScope(prev, s))
+                        }
+                        className="accent-blue-500"
+                      />
+                      {s}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setRoleUser(null)}
+                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => void saveRole()}
+                disabled={
+                  savingRole ||
+                  (roleValue === "operator" && roleScopes.length === 0)
+                }
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+              >
+                {savingRole ? "Đang lưu…" : "Lưu"}
+              </button>
+            </div>
+          </>
+        )}
+      </SidePanel>
+
+      <SidePanel
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Xoá người dùng?"
+        tone="danger"
+      >
+        {deleteTarget && (
+          <>
+            <p className="text-sm text-blue-200">
+              <span className="font-mono">{deleteTarget.user_code}</span> ·{" "}
+              {deleteTarget.user_name}
+              <br />
+              <span className="text-xs text-blue-400">
+                Hành động này không thể hoàn tác.
+              </span>
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => void confirmDelete()}
+                disabled={savingDelete}
+                className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 font-semibold text-sm transition-colors"
+              >
+                {savingDelete ? "Đang xoá…" : "Xoá"}
+              </button>
+            </div>
+          </>
+        )}
+      </SidePanel>
 
       <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
         <div className="flex items-center justify-between">
@@ -239,17 +490,25 @@ const AdminUsersPage = () => {
               <option value="spectator">Khán giả</option>
             </select>
           </div>
-          <button
-            onClick={() => void fetchUsers()}
-            disabled={usersLoading}
-            className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
-            title="Làm mới"
-          >
-            <RefreshCw
-              size={16}
-              className={usersLoading ? "animate-spin" : ""}
-            />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAdd(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm font-medium"
+            >
+              <Plus size={15} /> Thêm người dùng
+            </button>
+            <button
+              onClick={() => void fetchUsers()}
+              disabled={usersLoading}
+              className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
+              title="Làm mới"
+            >
+              <RefreshCw
+                size={16}
+                className={usersLoading ? "animate-spin" : ""}
+              />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-y-auto flex-1 -mr-2 pr-2">
@@ -312,16 +571,27 @@ const AdminUsersPage = () => {
                             <Pencil size={13} />
                           </button>
                           <button
-                            onClick={() => void grantOperator(u.user_code)}
+                            onClick={() => {
+                              setRoleUser(u);
+                              setRoleValue(u.role);
+                              setRoleScopes(
+                                (u.operator_scopes ?? "")
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter((s): s is OperatorScope =>
+                                    OPERATOR_SCOPES.includes(s as OperatorScope),
+                                  ),
+                              );
+                            }}
                             className="p-1.5 rounded bg-amber-600/70 hover:bg-amber-500 transition-colors"
-                            title="Cấp operator (qauthor, controller, mc)"
+                            title="Đổi vai trò / cấp scope"
                           >
-                            <Users size={13} />
+                            <ShieldCheck size={13} />
                           </button>
                           <button
-                            onClick={() => void deleteUser(u.user_code, u.user_name)}
+                            onClick={() => setDeleteTarget(u)}
                             className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
-                            title="Xoá thí sinh"
+                            title="Xoá người dùng"
                           >
                             <Trash2 size={13} />
                           </button>

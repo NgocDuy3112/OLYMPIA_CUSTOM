@@ -4,7 +4,7 @@ import {
   type UserRepo,
   type UserRow,
 } from "./user.repo.js";
-import { requireAuth, requireRole } from "../auth/auth.service.js";
+import { requireAuth, requireRole, hashPassword } from "../auth/auth.service.js";
 
 function toPublicProfile(row: UserRow) {
   return {
@@ -136,6 +136,94 @@ export async function userRoutes(
         message: "OK",
         data: toAdminView(row),
       });
+    },
+  );
+
+  // POST /users — admin tạo user mới kèm role (+ scopes nếu operator).
+  app.post(
+    "/users",
+    { preHandler: [requireRole(app, "admin")] },
+    async (request, reply) => {
+      const body = request.body as {
+        userName?: unknown;
+        email?: unknown;
+        password?: unknown;
+        role?: unknown;
+        scopes?: unknown;
+      };
+      const userName =
+        typeof body.userName === "string" ? body.userName.trim() : "";
+      const email = typeof body.email === "string" ? body.email.trim() : "";
+      const password =
+        typeof body.password === "string" ? body.password : "";
+      const role = typeof body.role === "string" ? body.role : "player";
+      const allowed = ["admin", "operator", "player", "spectator"];
+      if (!userName || !email) {
+        return reply.code(400).send({
+          status: "error",
+          message: "userName and email required",
+          data: null,
+        });
+      }
+      if (password.length < 8) {
+        return reply.code(400).send({
+          status: "error",
+          message: "password must be at least 8 characters",
+          data: null,
+        });
+      }
+      if (!allowed.includes(role)) {
+        return reply.code(400).send({
+          status: "error",
+          message: `Invalid role. Must be one of: ${allowed.join(", ")}`,
+          data: null,
+        });
+      }
+      const validScopes = ["qauthor", "controller", "mc"];
+      const scopes =
+        role === "operator" && Array.isArray(body.scopes)
+          ? body.scopes.filter(
+              (s): s is string =>
+                typeof s === "string" && validScopes.includes(s),
+            )
+          : [];
+      if (role === "operator" && scopes.length === 0) {
+        return reply.code(400).send({
+          status: "error",
+          message: `operator cần ít nhất 1 scope: ${validScopes.join(", ")}`,
+          data: null,
+        });
+      }
+      const existing = await repo.findByEmail(email);
+      if (existing) {
+        return reply.code(409).send({
+          status: "error",
+          message: "Email đã tồn tại",
+          data: null,
+        });
+      }
+      try {
+        const userCode = `OC_U_${String(Date.now()).slice(-6)}`;
+        const passwordHash = await hashPassword(password);
+        const created = await repo.create({
+          email,
+          userCode,
+          userName: userName.slice(0, 100),
+          role: role as UserRow["role"],
+          operatorScopes: scopes.length > 0 ? scopes.join(",") : null,
+          passwordHash,
+        });
+        return reply.code(201).send({
+          status: "success",
+          message: "User created",
+          data: toAdminView(created),
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Create failed";
+        return reply
+          .code(/unique|duplicate/i.test(msg) ? 409 : 400)
+          .send({ status: "error", message: msg, data: null });
+      }
     },
   );
 

@@ -46,7 +46,8 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file:
-      - ./configs/.env
+      - ./configs/.env.infra
+      - ./configs/.env.api
     environment:
       DATABASE_URL: postgresql://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@${POSTGRES_DB_HOST}:${POSTGRES_DB_PORT}/${POSTGRES_DB_NAME}
     ports:
@@ -70,10 +71,14 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile.dev
+    environment:
+      VITE_PROXY_TARGET: http://app:8000
     ports:
       - "4173:4173"
     volumes:
       - ./apps/web/src:/app/apps/web/src:ro
+    depends_on:
+      - app
     networks:
       - oc-network
 
@@ -84,7 +89,8 @@ services:
       context: .
       dockerfile: apps/ai-agent/Dockerfile
     env_file:
-      - ./configs/.env
+      - ./configs/.env.infra
+      - ./configs/.env.agent
     environment:
       VALKEY_HOST: ${VALKEY_HOST}
       VALKEY_PORT: ${VALKEY_PORT}
@@ -117,6 +123,8 @@ services:
     image: docker.io/grafana/grafana:11.4.0
     ports:
       - "3000:3000"
+    env_file:
+      - ./configs/.env.obs
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -136,7 +144,7 @@ services:
       context: .
       dockerfile: apps/discord-bot/Dockerfile
     env_file:
-      - ./configs/.env
+      - ./configs/.env.bot
     environment:
       EXECUTOR_PORT: 8200
     ports:

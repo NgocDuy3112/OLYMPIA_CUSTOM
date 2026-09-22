@@ -7,7 +7,6 @@ import {
   Gamepad2,
   HelpCircle,
   Pencil,
-  X,
   FileSpreadsheet,
   Trash2,
   ChevronDown,
@@ -19,6 +18,7 @@ import {
   getMatchCode as readStoredMatchCode,
   setMatchCode as persistMatchCode,
 } from "@/utils/storage";
+import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 const logger = createLogger("AdminGameManaging");
 
@@ -451,18 +451,13 @@ const AdminGameManagingPage = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 grid-rows-[auto_1fr] lg:grid-rows-[1fr_2fr] gap-3 sm:gap-4 p-3 sm:p-4 lg:p-6 min-h-screen lg:h-screen text-white overflow-auto lg:overflow-hidden">
-      {editingQuestion && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-blue-200">Sửa câu hỏi</h3>
-              <button
-                onClick={() => setEditingQuestion(null)}
-                className="p-1 rounded hover:bg-blue-800 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
+      <SidePanel
+        open={editingQuestion !== null}
+        onClose={() => setEditingQuestion(null)}
+        title="Sửa câu hỏi"
+      >
+        {editingQuestion && (
+          <>
             <p className="text-xs text-blue-400 font-mono -mt-2">
               {editingQuestion.question_code}
             </p>
@@ -567,9 +562,9 @@ const AdminGameManagingPage = () => {
                 {savingQuestionEdit ? "Đang lưu…" : "Lưu thay đổi"}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </SidePanel>
 
       {}
       <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden row-span-2">

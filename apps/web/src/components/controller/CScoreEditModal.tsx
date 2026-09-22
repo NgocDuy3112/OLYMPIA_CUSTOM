@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 const logger = createLogger("CScoreEditModal");
 
@@ -62,8 +63,6 @@ export default function CScoreEditModal({
     };
   }, [open, matchCode]);
 
-  if (!open) return null;
-
   const save = async () => {
     const score = Number(points);
     if (!questionCode || !Number.isInteger(score) || score % 5 !== 0) return;
@@ -101,14 +100,7 @@ export default function CScoreEditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-blue-950 border border-blue-700 rounded-xl p-6 w-full max-w-sm shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-blue-200">Sửa điểm theo câu</h3>
-          <button onClick={onClose} className="text-blue-400 hover:text-white">
-            ✕
-          </button>
-        </div>
+    <SidePanel open={open} onClose={onClose} title="Sửa điểm theo câu">
         <p className="text-sm text-blue-300 mb-4">
           {playerName} ({playerCode})
         </p>
@@ -159,7 +151,6 @@ export default function CScoreEditModal({
             {saving ? "Đang lưu..." : "Lưu"}
           </button>
         </div>
-      </div>
-    </div>
+    </SidePanel>
   );
 }

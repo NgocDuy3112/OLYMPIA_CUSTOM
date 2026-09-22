@@ -67,7 +67,6 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
     }
   };
 
-  const [showEditModal, setShowEditModal] = useState(false);
   const [isRequestingReview, setIsRequestingReview] = useState(false);
 
   const handleRequestReview = async (e: React.MouseEvent) => {
@@ -85,74 +84,12 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
       setIsRequestingReview(false);
     }
   };
-  const [editScoreValue, setEditScoreValue] = useState(
-    player.playerScore.toString(),
-  );
-  const [isUpdating, setIsUpdating] = useState(false);
   const [showQuestionScoreModal, setShowQuestionScoreModal] = useState(false);
 
   const handleEditScoreClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (disabled || !onEditScore) return;
-    setEditScoreValue(player.playerScore.toString());
     setShowQuestionScoreModal(true);
-  };
-
-  const handleUpdateScore = async () => {
-    const newScore = parseInt(editScoreValue, 10);
-    if (isNaN(newScore) || !matchCode) return;
-    if (newScore % 5 !== 0) {
-      alert("Điểm mới phải là bội số của 5.");
-      return;
-    }
-
-    setIsUpdating(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/scoreboard/controller-adjust`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          match_code: matchCode,
-          user_code: player.playerCode,
-          new_score: newScore,
-          reason: "Controller manually adjusted score",
-        }),
-      });
-
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
-        onEditScore?.(player.playerCode, newScore);
-
-        if (sendMessage) {
-          sendMessage({
-            type: "player_score_updated",
-            user_code: player.playerCode,
-            new_total_score: newScore,
-          });
-        }
-
-        setShowEditModal(false);
-      } else {
-        console.error("Failed to update score:", json);
-        alert(json.detail ?? json.message ?? "Không thể cập nhật điểm.");
-      }
-    } catch (err) {
-      console.error("Error updating score:", err);
-      alert("Lỗi kết nối. Vui lòng thử lại.");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const handleKeyDownModal = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleUpdateScore();
-    } else if (e.key === "Escape") {
-      setShowEditModal(false);
-    }
   };
 
   const hasTieBreaker =
@@ -293,73 +230,6 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
           setShowQuestionScoreModal(false);
         }}
       />
-      {false && showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div
-            className="bg-blue-950 border border-blue-700 rounded-xl p-6 w-full max-w-sm shadow-2xl"
-            onKeyDown={handleKeyDownModal}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="flex items-center gap-2 text-lg font-bold text-blue-200">
-                <Pencil size={18} /> Sửa điểm cho {player.playerName}
-              </h2>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="p-1 rounded hover:bg-blue-800 transition-colors text-blue-400"
-                disabled={isUpdating}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-4">
-              <div>
-                <label className="block text-sm font-medium text-blue-300 mb-2">
-                  Điểm mới
-                </label>
-                <input
-                  type="number"
-                  value={editScoreValue}
-                  onChange={(e) => setEditScoreValue(e.target.value)}
-                  className="w-full px-4 py-2 bg-blue-900 border border-blue-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-400 text-lg font-bold"
-                  autoFocus
-                  disabled={isUpdating}
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 font-medium transition-colors disabled:opacity-50"
-                  disabled={isUpdating}
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleUpdateScore}
-                  className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 font-medium transition-colors disabled:opacity-50"
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? "Đang cập nhật..." : "Cập nhật"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 };

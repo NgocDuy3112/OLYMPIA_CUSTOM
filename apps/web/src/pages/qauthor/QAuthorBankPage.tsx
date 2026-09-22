@@ -1,8 +1,8 @@
 import { useCallback, useRef, useState } from "react";
-import { Database, Pencil, Plus, Search, Trash2, Upload, X } from "lucide-react";
+import { Database, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import { RenderMedia } from "@/components/shared/RenderMedia";
+import { EditBankPanel, type BankEditValue } from "@/components/qauthor/EditBankPanel";
 
 const logger = createLogger("QAuthorBankPage");
 
@@ -79,9 +79,6 @@ const QAuthorBankPage = () => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<BankData | null>(null);
-  const [editContent, setEditContent] = useState("");
-  const [editAnswer, setEditAnswer] = useState("");
-  const [editMediaUrl, setEditMediaUrl] = useState("");
   const [uploadingFor, setUploadingFor] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pendingUploadBank, setPendingUploadBank] = useState<BankData | null>(null);
@@ -159,7 +156,7 @@ const QAuthorBankPage = () => {
     }
   }, [fetchBank, form]);
 
-  const saveEdit = useCallback(async () => {
+  const saveEdit = useCallback(async (value: BankEditValue) => {
     if (!editing) return;
     try {
       const res = await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(editing.bank_id)}`, {
@@ -167,9 +164,9 @@ const QAuthorBankPage = () => {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          content: editContent.trim() || null,
-          answer: editAnswer.trim() || null,
-          media_url: editMediaUrl.trim() || null,
+          content: value.content.trim() || null,
+          answer: value.answer.trim() || null,
+          media_url: value.mediaUrl.trim() || null,
         }),
       });
       const json = await res.json();
@@ -183,7 +180,7 @@ const QAuthorBankPage = () => {
       logger.error("Error patching bank:", err);
       alert("Lỗi kết nối khi sửa bank");
     }
-  }, [editing, editContent, editAnswer, editMediaUrl, fetchBank, page]);
+  }, [editing, fetchBank, page]);
 
   const deleteBank = useCallback(async (q: BankData) => {
     if (!window.confirm(`Xoá bank ${q.bank_code}?`)) return;
@@ -257,61 +254,7 @@ const QAuthorBankPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white">
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-blue-200">Sửa bank + chèn media</h3>
-              <button onClick={() => setEditing(null)} className="p-1 rounded hover:bg-blue-800">
-                <X size={18} />
-              </button>
-            </div>
-            <p className="text-xs text-blue-400 font-mono -mt-2">{editing.bank_code}</p>
-            <label className="text-xs text-blue-300">Nội dung</label>
-            <textarea
-              rows={3}
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm resize-none"
-            />
-            <label className="text-xs text-blue-300">Đáp án</label>
-            <input
-              value={editAnswer}
-              onChange={(e) => setEditAnswer(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
-            />
-            <label className="text-xs text-blue-300">Media URL (S3 key)</label>
-            <input
-              value={editMediaUrl}
-              onChange={(e) => setEditMediaUrl(e.target.value)}
-              placeholder="questions/QB_.../file.mp4"
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm font-mono"
-            />
-            {editMediaUrl.trim() && (
-              <div className="rounded-lg bg-blue-950 border border-blue-700 p-3">
-                <p className="text-xs text-blue-300 mb-2">Preview:</p>
-                <div className="max-h-64 overflow-hidden rounded">
-                  <RenderMedia mediaUrl={editMediaUrl.trim()} />
-                </div>
-              </div>
-            )}
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setEditing(null)}
-                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
-              >
-                Huỷ
-              </button>
-              <button
-                onClick={() => void saveEdit()}
-                className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm"
-              >
-                Lưu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditBankPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
 
       <input
         ref={fileRef}
@@ -454,12 +397,7 @@ const QAuthorBankPage = () => {
                           <Upload size={13} />
                         </button>
                         <button
-                          onClick={() => {
-                            setEditing(q);
-                            setEditContent(q.content);
-                            setEditAnswer(q.answer);
-                            setEditMediaUrl(q.media_url ?? "");
-                          }}
+                          onClick={() => setEditing(q)}
                           className="p-1.5 rounded bg-white-600/70 hover:bg-white-500"
                           title="Sửa"
                         >

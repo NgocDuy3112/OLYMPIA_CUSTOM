@@ -4,6 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 import { fileURLToPath, URL } from "node:url";
 
 // https://vite.dev/config/
+const proxyTarget = process.env.VITE_PROXY_TARGET ?? "http://localhost:8000";
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
@@ -11,12 +13,11 @@ export default defineConfig({
     port: 4173,
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: proxyTarget,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
       },
       "/ws": {
-        target: "ws://localhost:8000",
+        target: proxyTarget.replace("http", "ws"),
         ws: true,
         changeOrigin: true,
       },

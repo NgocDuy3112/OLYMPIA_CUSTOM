@@ -5,8 +5,7 @@ temp/
 *.log
 *.sqlite3
 
-# Ignore env files with real values, but allow .env.example templates
-configs/.env
+# Ignore env files with real values (templates re-allowed below)
 configs/*.json
 backend/app/.env
 credentials.json
@@ -315,6 +314,7 @@ web_modules/
 .env
 .env.*
 !.env.example
+!configs/.env.*.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

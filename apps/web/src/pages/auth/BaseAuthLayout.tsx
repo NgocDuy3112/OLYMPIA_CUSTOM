@@ -12,7 +12,13 @@ export const BaseAuthLayout: React.FC<BaseAuthLayoutProps> = ({
   children,
 }) => (
   <div className="flex flex-col justify-center items-center min-h-screen bg-cover bg-center p-4">
-    <div className="card w-full max-w-sm sm:max-w-md">
+    <div
+      className="card w-full max-w-sm sm:max-w-md"
+      style={{
+        borderColor: "rgba(168, 85, 247, 0.7)",
+        boxShadow: "0 25px 50px rgba(126, 34, 206, 0.35)",
+      }}
+    >
       <div className="text-center mb-6">
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-[SVN-Gratelos_Display] font-bold mb-2 uppercase">
           {title}

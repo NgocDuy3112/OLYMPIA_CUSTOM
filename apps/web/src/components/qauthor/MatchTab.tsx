@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
-import { Pencil, Plus, RefreshCw, Search, Trash2, X } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { normalizeQuestionRow } from "@/utils/questionMapper";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { EditQuestionPanel, type QuestionEditValue } from "./EditQuestionPanel";
 import { BANK_PAGE_SIZE, toBankData, type BankData } from "./bankTypes";
 
 const logger = createLogger("MatchTab");
@@ -61,12 +62,6 @@ export const MatchTab = () => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<QuestionData | null>(null);
-  const [editContent, setEditContent] = useState("");
-  const [editAnswer, setEditAnswer] = useState("");
-  const [editExplanation, setEditExplanation] = useState("");
-  const [editHintText, setEditHintText] = useState("");
-  const [editMediaUrl, setEditMediaUrl] = useState("");
-  const [editOptions, setEditOptions] = useState("");
 
   const fetchQuestions = useCallback(async () => {
     const code = matchCode.trim();
@@ -131,7 +126,7 @@ export const MatchTab = () => {
     }
   }, [fetchQuestions, form, matchCode]);
 
-  const saveEdit = useCallback(async () => {
+  const saveEdit = useCallback(async (value: QuestionEditValue) => {
     if (!editing) return;
     const code = matchCode.trim();
     try {
@@ -142,12 +137,12 @@ export const MatchTab = () => {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            content: editContent.trim() || null,
-            answer: editAnswer.trim() || null,
-            explanation: editExplanation.trim() || null,
-            hint_text: editHintText.trim() || null,
-            media_url: editMediaUrl.trim() || null,
-            options: editOptions.trim() || null,
+            content: value.content.trim() || null,
+            answer: value.answer.trim() || null,
+            explanation: value.explanation.trim() || null,
+            hint_text: value.hintText.trim() || null,
+            media_url: value.mediaUrl.trim() || null,
+            options: value.options.trim() || null,
           }),
         },
       );
@@ -162,7 +157,7 @@ export const MatchTab = () => {
       logger.error("Error patching question:", err);
       alert("Lỗi kết nối khi sửa câu hỏi");
     }
-  }, [editing, editAnswer, editContent, editExplanation, editHintText, editMediaUrl, editOptions, fetchQuestions, matchCode]);
+  }, [editing, fetchQuestions, matchCode]);
 
   const deleteQuestion = useCallback(async (q: QuestionData) => {
     const code = matchCode.trim();
@@ -242,64 +237,7 @@ export const MatchTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      {editing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-md flex flex-col gap-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-blue-200">Sửa câu hỏi</h3>
-              <button onClick={() => setEditing(null)} className="p-1 rounded hover:bg-blue-800">
-                <X size={18} />
-              </button>
-            </div>
-            <p className="text-xs text-blue-400 font-mono -mt-2">{editing.question_code}</p>
-            <label className="text-xs text-blue-300">Nội dung</label>
-            <textarea
-              rows={3}
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm resize-none"
-            />
-            <label className="text-xs text-blue-300">Đáp án</label>
-            <input
-              value={editAnswer}
-              onChange={(e) => setEditAnswer(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
-            />
-            <label className="text-xs text-blue-300">Giải thích</label>
-            <input
-              value={editExplanation}
-              onChange={(e) => setEditExplanation(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
-            />
-            <label className="text-xs text-blue-300">Gợi ý GIAI_MA</label>
-            <input
-              value={editHintText}
-              onChange={(e) => setEditHintText(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
-            />
-            <label className="text-xs text-blue-300">Media URL</label>
-            <input
-              value={editMediaUrl}
-              onChange={(e) => setEditMediaUrl(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm font-mono"
-            />
-            <label className="text-xs text-blue-300">Options (JSON hoặc A|B|C)</label>
-            <input
-              value={editOptions}
-              onChange={(e) => setEditOptions(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm font-mono"
-            />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm">
-                Huỷ
-              </button>
-              <button onClick={() => void saveEdit()} className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm">
-                Lưu
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditQuestionPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
 
       <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4">
         <div className="flex gap-2">
@@ -461,15 +399,7 @@ export const MatchTab = () => {
                   <td className="py-2 px-2 text-right">
                     <div className="flex gap-1 justify-end">
                       <button
-                        onClick={() => {
-                          setEditing(q);
-                          setEditContent(q.content);
-                          setEditAnswer(q.answer);
-                          setEditExplanation(q.explanation ?? "");
-                          setEditHintText(q.hintText ?? "");
-                          setEditMediaUrl(q.media_url ?? "");
-                          setEditOptions(typeof q.options === "string" ? q.options : "");
-                        }}
+                        onClick={() => setEditing(q)}
                         className="p-1.5 rounded bg-white-600/70 hover:bg-white-500"
                         title="Sửa"
                       >

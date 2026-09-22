@@ -64,7 +64,7 @@ export async function forwardAgentAsk(
   }
   if (!response.ok) {
     observeAgentAsk("error");
-    const detail = await response.text().catch("");
+    const detail = await response.text().catch(() => "");
     throw new Error(`Agent error (${response.status}): ${detail.slice(0, 200)}`);
   }
   observeAgentAsk("ok");

@@ -34,7 +34,7 @@ function newSalt(): Uint8Array {
   return salt;
 }
 
-async function hashPassword(password: string): Promise<string> {
+export async function hashPassword(password: string): Promise<string> {
   return argon2id({
     password,
     salt: newSalt(),
@@ -518,9 +518,22 @@ export function staffLogin(app: FastifyInstance) {
 
     await checkLoginRateLimit(app.valkey, rateKey);
 
-    const cred = parseStaffCredentials().find((c) => c.username === username);
-    const ok =
-      cred && (await verifyPassword(body.password as string, cred.hash));
+    // Dev admin pair (ADMIN_USERNAME/ADMIN_PASSWORD) — precedence, plaintext.
+    const env = getEnv();
+    const envAdmin = env.ADMIN_USERNAME.trim().toLowerCase();
+    let cred = parseStaffCredentials().find((c) => c.username === username);
+    let ok = false;
+    if (envAdmin && username === envAdmin && env.ADMIN_PASSWORD) {
+      ok = body.password === env.ADMIN_PASSWORD;
+      cred = cred ?? {
+        username: envAdmin,
+        hash: "",
+        role: "admin",
+        scopes: "",
+      };
+    } else if (cred) {
+      ok = await verifyPassword(body.password as string, cred.hash);
+    }
     if (!cred || !ok) {
       await recordFailedLogin(app.valkey, rateKey);
       throw new AppError(401, "Invalid username or password");

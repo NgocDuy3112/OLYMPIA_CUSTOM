@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "@/pages/auth/LoginPage";
+import StaffLoginPage from "@/pages/auth/StaffLoginPage";
 import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RulesPage from "@/pages/info/RulesPage";
 
@@ -23,6 +24,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/tournament/*" replace />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/login/staffs" element={<StaffLoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/player/*" element={<PlayerRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />

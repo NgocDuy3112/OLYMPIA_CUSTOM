@@ -7,15 +7,28 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-if [ -f configs/.env ]; then
-  set -a
-  source configs/.env
-  set +a
-fi
+# Tự dò mọi configs/.env* (trừ *.example), source hết để lấy DB_USER/DB_NAME,
+# rồi truyền từng file vào compose qua --env-file. Thêm file mới không sửa script.
+ENV_FILES=(configs/.env.*)
+ENV_ARGS=()
+for f in "${ENV_FILES[@]}"; do
+  case "$f" in
+    *.example) continue ;;
+  esac
+  if [ -f "$f" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$f"
+    set +a
+    ENV_ARGS+=(--env-file "$f")
+  fi
+done
 DB_USER="${POSTGRES_DB_USER}"
 DB_NAME="${POSTGRES_DB_NAME}"
 
-podman compose -f docker-compose-dev.yaml up -d --build --force-recreate
+podman compose \
+  "${ENV_ARGS[@]}" \
+  -f docker-compose-dev.yaml up -d --build --force-recreate
 
 podman image prune -f
 
