@@ -3,7 +3,7 @@ import { Plus, Search } from "lucide-react";
 import { RowActions } from "@/components/shared/RowActions";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import { EditBankSidebar, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
+import { EditBankSidebar, genBankCode, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
 import {
   BANK_PAGE_SIZE,
   toBankData,
@@ -13,38 +13,35 @@ import { uploadQuestionMedia } from "./uploadMedia";
 
 const logger = createLogger("BankTab");
 
-/** Ngày truy cập VN, format DD/MM/YYYY. */
-const DATE_RE = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
-
-/** Citation: 3 ô nguồn/link/ngày phải đi cùng nhau. */
+/** Citation: chỉ cần link (tùy chọn). Ngày do OCee đọc link + check sau. */
 function citationErrorOf(v: BankFormValue): string {
-  const n = [v.citationSource.trim(), v.citationUrl.trim(), v.citationDate.trim()].filter(Boolean).length;
-  if (n > 0 && n < 3) return "Nhập đủ 3 ô nguồn + link + ngày, hoặc bỏ trống cả 3.";
-  if (n === 3 && !DATE_RE.test(v.citationDate.trim())) return "Ngày phải đúng DD/MM/YYYY.";
+  if (v.citationUrl.trim() && !/^https?:\/\//i.test(v.citationUrl.trim())) {
+    return "Link nguồn phải bắt đầu http(s)://.";
+  }
   return "";
 }
 
-/** Dựng citations array từ 3 ô nguồn/link/ngày (rỗng = []). */
+/** Dựng citations array từ ô link (rỗng = []). */
 function buildCitations(v: BankFormValue): { source: string; url: string; accessedAt: string }[] {
-  if (!v.citationSource.trim() || !v.citationUrl.trim() || !v.citationDate.trim()) return [];
+  if (!v.citationUrl.trim()) return [];
   return [{
-    source: v.citationSource.trim(),
+    source: "",
     url: v.citationUrl.trim(),
-    accessedAt: v.citationDate.trim(),
+    accessedAt: "",
   }];
 }
 
-type RoundGroup = "kd" | "gm" | "bp" | "vd";
+export type BankRoundGroup = "kd" | "gm" | "bp" | "vd";
 
-const GROUP_ROUNDS: Record<RoundGroup, string> = {
+const GROUP_ROUNDS: Record<BankRoundGroup, string> = {
   kd: "KD_C,KD_R",
   gm: "GM",
   bp: "BP",
   vd: "VD",
 };
 
-export const BankTab = () => {
-  const [group, setGroup] = useState<RoundGroup>("kd");
+export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup }) => {
+  const [group] = useState<BankRoundGroup>(initialGroup);
   const [rows, setRows] = useState<BankData[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
@@ -124,10 +121,6 @@ export const BankTab = () => {
       setFormError("Nhập nội dung và đáp án.");
       return;
     }
-    if (sidebar.mode === "create" && !/^QB_[A-Z0-9_]{1,20}$/.test(v.bankCode.trim())) {
-      setFormError("Mã bank phải dạng QB_*.");
-      return;
-    }
     if (sidebar.kind === "vd" && (!v.domain || !v.difficulty)) {
       setFormError("VĐ bắt buộc chọn lĩnh vực + độ khó.");
       return;
@@ -145,7 +138,8 @@ export const BankTab = () => {
     setSaving(true);
     try {
       if (sidebar.mode === "create") {
-        const bankCode = v.bankCode.trim();
+        const roundHint = v.roundHint.trim() || GROUP_ROUNDS[group].split(",")[0];
+        const bankCode = genBankCode(roundHint);
         const res = await fetch(`${API_BASE_URL}/bank`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -155,8 +149,7 @@ export const BankTab = () => {
             content: v.content.trim(),
             answer: v.answer.trim(),
             explanation: v.explanation.trim() || undefined,
-            options: v.options.trim() || undefined,
-            roundHint: v.roundHint.trim() || GROUP_ROUNDS[group].split(",")[0],
+            roundHint,
             domain: v.domain || undefined,
             difficulty: v.difficulty ? Number(v.difficulty) : undefined,
             setCode: v.setCode || undefined,
@@ -247,20 +240,6 @@ export const BankTab = () => {
       />
       {formError && <p className="text-xs text-red-300">{formError}</p>}
 
-      <div className="flex gap-1.5 flex-wrap bg-white/5 border border-white/10 rounded-xl p-1.5">
-        {(["kd", "gm", "bp", "vd"] as RoundGroup[]).map((g) => (
-          <button
-            key={g}
-            onClick={() => { setGroup(g); setPage(1); }}
-            className={`px-3 py-2 rounded-lg text-sm font-medium ${
-              group === g ? "bg-green-600/20 text-green-300" : "text-gray-400 hover:text-white hover:bg-white/5"
-            }`}
-          >
-            {g === "kd" ? "Khởi động" : g === "gm" ? "Giải mã" : g === "bp" ? "Bứt phá" : "Về đích"}
-          </button>
-        ))}
-      </div>
-
       <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
         <div className="flex gap-2 flex-wrap">
           {group === "kd" && (
@@ -315,7 +294,7 @@ export const BankTab = () => {
             onChange={(e) => setReviewStatus(e.target.value as "" | "pending" | "approved" | "rejected")}
             className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           >
-            <option value="">Mọi duyệt</option>
+            <option value="">Tất cả</option>
             <option value="pending">Chờ duyệt</option>
             <option value="approved">Đã duyệt</option>
             <option value="rejected">Không duyệt</option>

@@ -311,82 +311,129 @@ export const MatchTab = () => {
     }
   }, [fetchQuestions, matchCode]);
 
+  const ROUND_TABS: { id: PickRound; label: string }[] = [
+    { id: "KDC", label: "KĐ chung" },
+    { id: "KDR", label: "KĐ riêng" },
+    { id: "GM", label: "Giải mã" },
+    { id: "BP", label: "Bứt phá" },
+    { id: "VD", label: "Về đích" },
+  ];
+
+  const roundProgress = (r: PickRound): string => {
+    const slots = slotsFor(r);
+    const n = slots.filter((s) => questions.some((q) => q.slot === s)).length;
+    return `${n}/${slots.length}`;
+  };
+
+  const roundOfSlot = (slot: string | null): string => {
+    if (!slot) return "Chưa xếp";
+    if (slot.startsWith("KDC")) return "KĐ chung";
+    if (slot.startsWith("KDR")) return "KĐ riêng";
+    if (slot.startsWith("GM")) return "Giải mã";
+    if (slot.startsWith("BP")) return "Bứt phá";
+    if (slot.startsWith("VD")) return "Về đích";
+    return "Khác";
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <EditQuestionPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
 
-      <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4">
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
           <input
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value)}
             placeholder="Mã trận đấu"
-            className="flex-1 px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white font-mono text-sm"
+            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
           />
           <button
             onClick={() => void fetchQuestions()}
             disabled={loading || !matchCode.trim()}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium transition-colors"
           >
             <Search size={14} /> Tải
           </button>
           <button
             onClick={() => void fetchQuestions()}
             disabled={loading}
-            className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50"
+            className="p-2 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 transition-colors"
             title="Làm mới"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
           </button>
         </div>
+        {matchCode.trim() && (
+          <div className="flex gap-1.5 flex-wrap">
+            {ROUND_TABS.map((t) => {
+              const [done, total] = roundProgress(t.id).split("/");
+              const full = done === total;
+              return (
+                <span
+                  key={t.id}
+                  className={`px-2 py-1 rounded-full text-xs font-mono ${
+                    full ? "bg-green-600/20 text-green-300" : "bg-white/5 text-gray-400"
+                  }`}
+                >
+                  {t.label} {done}/{total}
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <details className="bg-white/5 border border-white/10 rounded-xl px-5 py-3">
+        <summary className="text-sm text-gray-400 hover:text-white cursor-pointer select-none transition-colors">
+          Soạn câu tay (ít dùng — nên pick từ bank theo slot)
+        </summary>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
           <input
             value={form.questionCode}
             onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value }))}
             placeholder="Mã câu hỏi (VD: OC3_Q_KD_C_1)"
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white font-mono text-sm"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
           />
           <input
             value={form.answer}
             onChange={(e) => setForm((p) => ({ ...p, answer: e.target.value }))}
             placeholder="Đáp án"
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           />
           <textarea
             rows={2}
             value={form.content}
             onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
             placeholder="Nội dung câu hỏi"
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm resize-none md:col-span-2"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none md:col-span-2"
           />
           <input
             value={form.explanation}
             onChange={(e) => setForm((p) => ({ ...p, explanation: e.target.value }))}
             placeholder="Giải thích (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           />
           <input
             value={form.hintText}
             onChange={(e) => setForm((p) => ({ ...p, hintText: e.target.value }))}
             placeholder="Gợi ý GIAI_MA (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           />
           <input
             value={form.mediaUrl}
             onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
             placeholder="Media URL (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white font-mono text-sm"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
           />
           <input
             value={form.options}
             onChange={(e) => setForm((p) => ({ ...p, options: e.target.value }))}
             placeholder="Options JSON (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white font-mono text-sm md:col-span-2"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm md:col-span-2"
           />
         </div>
         {form.mediaUrl.trim() && (
-          <div className="rounded-lg bg-blue-950 border border-blue-700 p-3">
+          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <p className="text-xs text-blue-300 mb-2">Preview media:</p>
             <div className="max-h-64 overflow-hidden rounded">
               <RenderMedia mediaUrl={form.mediaUrl.trim()} />
@@ -400,30 +447,43 @@ export const MatchTab = () => {
         >
           <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu hỏi"}
         </button>
-      </div>
+      </details>
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
           Pick từ bank vào trận (theo slot)
         </h3>
         <div className="flex gap-1.5 flex-wrap">
-          {(["KDC", "KDR", "GM", "BP", "VD"] as PickRound[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => { setPickRound(r); setSelSlot(null); }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium ${
-                pickRound === r ? "bg-green-600/20 text-green-300" : "text-gray-400 hover:text-white bg-white/5"
-              }`}
-            >
-              {r === "KDC" ? "KĐ chung (6)" : r === "KDR" ? "KĐ riêng (4×6)" : r === "GM" ? "Giải mã (9)" : r === "BP" ? "Bứt phá (4)" : "Về đích (24)"}
-            </button>
-          ))}
+          {ROUND_TABS.map((t) => {
+            const prog = roundProgress(t.id);
+            const [done, total] = prog.split("/");
+            return (
+              <button
+                key={t.id}
+                onClick={() => { setPickRound(t.id); setSelSlot(null); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  pickRound === t.id ? "bg-green-600/20 text-green-300" : "text-gray-400 hover:text-white bg-white/5"
+                }`}
+              >
+                {t.label} <span className={`font-mono ${done === total && total !== "0" ? "text-green-300" : "opacity-70"}`}>{prog}</span>
+              </button>
+            );
+          })}
         </div>
         {pickRound === "KDR" && (
           <p className="text-xs text-gray-500">Lượt i = thí sinh vị trí i trong trận (tự map lúc pick).</p>
         )}
-        <div className="flex flex-wrap gap-1.5">
-          {slotsFor(pickRound).map((s) => {
+        {(pickRound === "KDR" || pickRound === "VD" ? (
+          pickRound === "KDR"
+            ? [1, 2, 3, 4].map((t) => ({ label: `Lượt ${t}`, slots: slotsFor(pickRound).filter((s) => s.startsWith(`KDR${t}_`)) }))
+            : ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"].map((d) => ({ label: d, slots: slotsFor(pickRound).filter((s) => s.startsWith(`VD_${d}_`)) }))
+        ) : (
+          [{ label: "", slots: slotsFor(pickRound) }]
+        )).map((grp) => (
+          <div key={grp.label || "all"} className="flex flex-col gap-1.5">
+            {grp.label && <p className="text-xs font-semibold text-gray-400">{grp.label}</p>}
+            <div className="flex flex-wrap gap-1.5">
+              {grp.slots.map((s) => {
             const filled = questions.find((q) => q.slot === s);
             const active = selSlot === s;
             const short = s.startsWith("KDR")
@@ -446,7 +506,9 @@ export const MatchTab = () => {
               </button>
             );
           })}
-        </div>
+            </div>
+          </div>
+        ))}
         {pickRound === "GM" && (
           <p className="text-xs text-gray-500">
             Chọn dòng KEY bên dưới rồi Pick cả set (chặn cứng nếu set thiếu 1 KEY + 8 hint đã duyệt).
@@ -500,8 +562,8 @@ export const MatchTab = () => {
         })}
       </div>
 
-      <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4">
-        <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">
+      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
+        <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
           Danh sách ({questions.length})
         </h3>
         {loading ? (
@@ -509,30 +571,25 @@ export const MatchTab = () => {
         ) : questions.length === 0 ? (
           <p className="text-gray-400 text-sm">Chưa có câu hỏi. Nhập mã trận rồi bấm Tải.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-blue-900">
-              <tr className="text-left text-blue-300 border-b border-blue-700">
-                <th className="py-2 px-2">Mã</th>
-                <th className="py-2 px-2">Slot</th>
-                <th className="py-2 px-2">Nội dung</th>
-                <th className="py-2 px-2">Đáp án</th>
-                <th className="py-2 px-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {questions.map((q) => (
-                <tr key={q.question_code} className="border-b border-blue-800/50 align-top">
-                  <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">{q.question_code}</td>
-                  <td className="py-2 px-2 font-mono text-xs text-green-300 whitespace-nowrap">{q.slot ?? "—"}</td>
-                  <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
-                  <td className="py-2 px-2 font-semibold">{q.answer}</td>
-                  <td className="py-2 px-2 text-right">
+          ["KĐ chung", "KĐ riêng", "Giải mã", "Bứt phá", "Về đích", "Chưa xếp", "Khác"].map((g) => {
+            const groupQs = questions.filter((q) => roundOfSlot(q.slot) === g);
+            if (groupQs.length === 0) return null;
+            return (
+              <div key={g} className="flex flex-col gap-1">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-2">
+                  {g} ({groupQs.length})
+                </p>
+                {groupQs.map((q) => (
+                  <div key={q.question_code} className="flex items-center gap-2 text-sm py-1.5 border-b border-white/5">
+                    <span className="font-mono text-xs text-green-300 whitespace-nowrap">{q.slot ?? "—"}</span>
+                    <p className="flex-1 truncate text-white">{q.content}</p>
+                    <span className="font-semibold text-sm hidden sm:inline">{q.answer}</span>
                     <RowActions onEdit={() => setEditing(q)} onDelete={() => void deleteQuestion(q)} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                ))}
+              </div>
+            );
+          })
         )}
       </div>
     </div>

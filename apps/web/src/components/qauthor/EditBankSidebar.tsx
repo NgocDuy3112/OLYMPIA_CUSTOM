@@ -12,22 +12,17 @@ export const VD_DOMAINS = ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"] as co
 export const VD_LEVELS = [20, 30, 40, 50] as const;
 export const GM_HINTS = ["H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"] as const;
 
-/** Giá trị sidebar bank trả về khi lưu. */
+/** Giá trị sidebar bank trả về khi lưu (mã bank tự sinh lúc lưu). */
 export interface BankFormValue {
-  bankCode: string;
   content: string;
   answer: string;
   explanation: string;
   roundHint: string;
-  options: string;
   domain: string;
   difficulty: string;
   setCode: string;
   hintIndex: string;
-  citationSource: string;
   citationUrl: string;
-  citationDate: string;
-  /** File media mới chọn (chưa upload), null = giữ nguyên. */
   mediaFile: File | null;
   /** True = xóa media hiện có. */
   removeMedia: boolean;
@@ -46,19 +41,15 @@ interface EditBankSidebarProps {
 }
 
 const EMPTY: BankFormValue = {
-  bankCode: "",
   content: "",
   answer: "",
   explanation: "",
   roundHint: "",
-  options: "",
   domain: "",
   difficulty: "",
   setCode: "",
   hintIndex: "",
-  citationSource: "",
   citationUrl: "",
-  citationDate: "",
   mediaFile: null,
   removeMedia: false,
 };
@@ -76,15 +67,33 @@ const KIND_TITLE: Record<BankFormKind, string> = {
   "gm-hint": "GM — gợi ý",
 };
 
-/** Mã bank tự sinh dạng QB_<timestamp base36>, vừa khung 20 ký tự. */
-export function genBankCode(): string {
-  return `QB_${Date.now().toString(36).toUpperCase()}`;
+/** Stamp VN hiện tại: HHMMSS + DDMMYYYY (Asia/Ho_Chi_Minh). */
+function vnStamp(): { time: string; date: string } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return {
+    time: `${get("hour")}${get("minute")}${get("second")}`,
+    date: `${get("day")}${get("month")}${get("year")}`,
+  };
 }
 
-/** ISO → DD/MM/YYYY cho ô nhập. */
-function toDdMmYyyy(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+/** Mã bank dạng QB_<VÒNG>_<HHMMSS>_<DDMMYYYY> (giờ VN).
+ *  VD: QB_KDC_143022_23092026 */
+export function genBankCode(roundHint = ""): string {
+  const round = roundHint.trim().toUpperCase().replace(/[^A-Z]/g, "") || "QB";
+  const stem = round === "QB" ? "QB" : `QB_${round}`;
+  const { time, date } = vnStamp();
+  const code = `${stem}_${time}_${date}`;
+  return code.length <= 23 ? code : `QB_${time}_${date}`;
 }
 
 /** Preview file local chưa upload: ảnh hiện ảnh, video hiện video, audio hiện audio. */
@@ -106,6 +115,11 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
   const [dupNote, setDupNote] = useState("");
   const [checkingDup, setCheckingDup] = useState(false);
 
+  const defaultRound = (kind === "gm-key" || kind === "gm-hint") ? "GM"
+    : kind === "vd" ? "VD"
+    : kind === "bp" ? "BP"
+    : (preset?.roundHint || "KD_C");
+
   useEffect(() => {
     if (!open) return;
     setDupNote("");
@@ -117,22 +131,18 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         answer: initial.answer,
         explanation: initial.explanation ?? "",
         roundHint: initial.round_hint ?? "",
-        options: initial.options ?? "",
         domain: initial.domain ?? "",
         difficulty: initial.difficulty != null ? String(initial.difficulty) : "",
         setCode: initial.set_code ?? "",
         hintIndex: initial.hint_index ?? "",
-        citationSource: c0?.source ?? "",
         citationUrl: c0?.url ?? "",
-        citationDate: toDdMmYyyy(c0?.accessedAt ?? ""),
       });
     } else if (kind === "gm-key") {
-      setValue({ ...EMPTY, bankCode: genBankCode(), roundHint: "GM", setCode: genSetCode(), hintIndex: "KEY" });
+      setValue({ ...EMPTY, roundHint: "GM", setCode: genSetCode(), hintIndex: "KEY" });
     } else {
       setValue({
         ...EMPTY,
-        bankCode: genBankCode(),
-        roundHint: preset?.roundHint ?? "",
+        roundHint: preset?.roundHint ?? defaultRound,
         domain: preset?.domain ?? "",
         difficulty: preset?.difficulty ?? "",
         setCode: preset?.setCode ?? "",
@@ -197,47 +207,24 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
     <SidePanel
       open={open}
       onClose={onClose}
+      wide
       title={mode === "create" ? `Tạo câu ${KIND_TITLE[kind]}` : `Sửa ${initial?.bank_code ?? ""}`}
     >
       {mode === "create" && (
-        <>
-          <label className={labelClass}>Mã bank * (tự sinh, sửa được)</label>
-          <div className="flex gap-2">
-            <input
-              value={value.bankCode}
-              onChange={(e) =>
-                setValue((prev) => ({ ...prev, bankCode: e.target.value.toUpperCase() }))
-              }
-              placeholder="QB_*"
-              className={`${inputClass} font-mono flex-1`}
-            />
-            <button
-              onClick={() => setValue((prev) => ({ ...prev, bankCode: genBankCode() }))}
-              className="px-3 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
-              title="Sinh mã mới"
-            >
-              ↻
-            </button>
-          </div>
-        </>
+        <p className="text-xs text-gray-500 font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
       )}
       <label className={labelClass}>Nội dung *</label>
       <textarea
-        rows={3}
+        rows={4}
         value={value.content}
         onChange={set("content")}
         className={`${inputClass} resize-none`}
       />
-      <label className={labelClass}>Đáp án *</label>
-      <input value={value.answer} onChange={set("answer")} className={inputClass} />
-      <label className={labelClass}>Giải thích</label>
-      <textarea
-        rows={2}
-        value={value.explanation}
-        onChange={set("explanation")}
-        className={`${inputClass} resize-none`}
-      />
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div className="flex flex-col gap-1">
+          <label className={labelClass}>Đáp án *</label>
+          <input value={value.answer} onChange={set("answer")} className={inputClass} />
+        </div>
         <div className="flex flex-col gap-1">
           <label className={labelClass}>Round</label>
           {kind === "kd" && mode === "create" ? (
@@ -253,16 +240,14 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
             <input value={value.roundHint} readOnly className={`${inputClass} font-mono opacity-70`} />
           )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>Ngày truy cập</label>
-          <input
-            value={value.citationDate}
-            onChange={set("citationDate")}
-            placeholder="DD/MM/YYYY"
-            className={`${inputClass} font-mono`}
-          />
-        </div>
       </div>
+      <label className={labelClass}>Giải thích</label>
+      <textarea
+        rows={3}
+        value={value.explanation}
+        onChange={set("explanation")}
+        className={`${inputClass} resize-none`}
+      />
       {kind === "vd" && (
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
@@ -318,20 +303,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
           </div>
         </div>
       )}
-      <label className={labelClass}>Options JSON</label>
-      <input
-        value={value.options}
-        onChange={set("options")}
-        className={`${inputClass} font-mono`}
-      />
-      <label className={labelClass}>Nguồn</label>
-      <input
-        value={value.citationSource}
-        onChange={set("citationSource")}
-        placeholder="VD: Cổng Vũng Tàu"
-        className={inputClass}
-      />
-      <label className={labelClass}>Link nguồn</label>
+      <label className={labelClass}>Link nguồn (OCee tự đọc + check ngày sau)</label>
       <input
         value={value.citationUrl}
         onChange={set("citationUrl")}

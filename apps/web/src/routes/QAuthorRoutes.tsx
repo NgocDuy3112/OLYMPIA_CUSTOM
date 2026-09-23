@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import QAuthorBankHubPage from "@/pages/qauthor/QAuthorBankHubPage";
+import QAuthorMatchPage from "@/pages/qauthor/QAuthorMatchPage";
+import QAuthorQualifierPage from "@/pages/qauthor/QAuthorQualifierPage";
 import QAuthorAgentPage from "@/pages/qauthor/QAuthorAgentPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { QAuthorHeader, QAuthorSidebar } from "@/components/layout";
@@ -31,13 +33,14 @@ const QAuthorRoutes = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/operator/qauthor/bank" replace />} />
           <Route path="/bank" element={<QAuthorBankHubPage />} />
+          <Route path="/match" element={<QAuthorMatchPage />} />
+          <Route path="/qualifier" element={<QAuthorQualifierPage />} />
           <Route path="/agent" element={<QAuthorAgentPage />} />
-          {/* Legacy: gom về hub Bank */}
+          {/* Legacy: gom về trang mới */}
           <Route path="/overview" element={<Navigate to="/operator/qauthor/bank" replace />} />
           <Route path="/import" element={<Navigate to="/operator/qauthor/bank" replace />} />
           <Route path="/media" element={<Navigate to="/operator/qauthor/bank" replace />} />
-          <Route path="/questions" element={<Navigate to="/operator/qauthor/bank" replace />} />
-          <Route path="/qualifier" element={<Navigate to="/operator/qauthor/bank" replace />} />
+          <Route path="/questions" element={<Navigate to="/operator/qauthor/match" replace />} />
           <Route path="/reviews" element={<Navigate to="/controller/reviews" replace />} />
           <Route path="*" element={<Navigate to="/operator/qauthor/bank" replace />} />
         </Routes>

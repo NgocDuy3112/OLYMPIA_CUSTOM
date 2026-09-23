@@ -1,9 +1,10 @@
 import { useCallback, useState } from "react";
-import { ListOrdered, Plus, Search, Trophy } from "lucide-react";
+import { Plus, Search, Trophy } from "lucide-react";
 import { RowActions } from "@/components/shared/RowActions";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditQualifierPanel, type QualifierEditValue } from "./EditQualifierPanel";
+import { QualifierOptionsInput } from "./QualifierOptionsInput";
 
 const logger = createLogger("QualifierTab");
 
@@ -53,7 +54,7 @@ const toQuestion = (row: Record<string, unknown>): QualifierQuestion => ({
 const emptyForm = {
   questionCode: "",
   content: "",
-  options: "",
+  optionList: ["", "", "", ""],
   correctOption: "A",
   explanation: "",
   mediaUrl: "",
@@ -132,13 +133,9 @@ export const QualifierTab = () => {
 
   const createQuestion = useCallback(async () => {
     const code = tournamentCode.trim();
-    const options = parseOptions(form.options);
-    if (!code || !form.questionCode.trim() || !form.content.trim() || !options) {
-      alert("Nhập mã giải, mã câu, nội dung, options (JSON hoặc A|B|C|D).");
-      return;
-    }
-    if (options.length < 4 || options.length > 6) {
-      alert("Options phải 4-6 phương án.");
+    const options = form.optionList.map((s) => s.trim());
+    if (!code || !form.questionCode.trim() || !form.content.trim() || options.some((s) => !s)) {
+      alert("Nhập mã giải, mã câu, nội dung và đủ 4 phương án.");
       return;
     }
     setSaving(true);
@@ -261,10 +258,7 @@ export const QualifierTab = () => {
     <div className="flex flex-col gap-4">
       <EditQualifierPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-green-300 uppercase tracking-wide">
-          <ListOrdered size={16} /> Vòng loại — 16 câu / giải
-        </h3>
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
           <input
             value={tournamentCode}
@@ -275,7 +269,7 @@ export const QualifierTab = () => {
           <button
             onClick={() => { void fetchQuestions(); void fetchStandings(); }}
             disabled={loading || !tournamentCode.trim()}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium transition-colors"
           >
             <Search size={14} /> Tải
           </button>
@@ -297,12 +291,32 @@ export const QualifierTab = () => {
                 .finally(() => setSeeding(false));
             }}
             disabled={seeding || !tournamentCode.trim()}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-sm text-white"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-sm text-white transition-colors"
+            title="Tạo nhanh 16 câu mẫu"
           >
-            <Plus size={14} /> {seeding ? "Đang seed…" : "Seed 16 câu"}
+            <Plus size={14} /> {seeding ? "…" : "Seed"}
           </button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {tournamentCode.trim() && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-green-500 transition-all"
+                style={{ width: `${Math.min(questions.length / 16 * 100, 100)}%` }}
+              />
+            </div>
+            <span className="font-mono text-xs text-gray-400 whitespace-nowrap">
+              {questions.length}/16 câu · {questions.filter((q) => q.status === "closed").length} đã chốt
+            </span>
+          </div>
+        )}
+      </div>
+
+      <details className="bg-white/5 border border-white/10 rounded-xl px-5 py-3">
+        <summary className="text-sm text-gray-400 hover:text-white cursor-pointer select-none transition-colors">
+          Soạn câu tay (hoặc Seed 16 câu mẫu rồi sửa)
+        </summary>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
           <input
             value={form.questionCode}
             onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value }))}
@@ -310,20 +324,19 @@ export const QualifierTab = () => {
             className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
           />
           <div className="grid grid-cols-2 gap-2">
-            <select
-              value={form.correctOption}
-              onChange={(e) => setForm((p) => ({ ...p, correctOption: e.target.value }))}
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-            >
-              {LETTERS.map((l) => (
-                <option key={l} value={l}>Đáp án {l}</option>
-              ))}
-            </select>
             <input
               value={form.position}
               onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
               placeholder="Vị trí 1-16"
               className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <QualifierOptionsInput
+              options={form.optionList}
+              correct={form.correctOption}
+              onChange={(optionList) => setForm((p) => ({ ...p, optionList }))}
+              onCorrectChange={(correctOption) => setForm((p) => ({ ...p, correctOption }))}
             />
           </div>
           <textarea
@@ -332,12 +345,6 @@ export const QualifierTab = () => {
             onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
             placeholder="Nội dung câu hỏi"
             className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none md:col-span-2"
-          />
-          <input
-            value={form.options}
-            onChange={(e) => setForm((p) => ({ ...p, options: e.target.value }))}
-            placeholder='Options JSON ["A","B","C","D"] hoặc A|B|C|D (4-6)'
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm md:col-span-2"
           />
           <input
             value={form.explanation}
@@ -359,7 +366,7 @@ export const QualifierTab = () => {
         >
           <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
         </button>
-      </div>
+      </details>
 
       {closeResult && (
         <div className="bg-emerald-900/40 border border-emerald-600 rounded-xl p-4 text-sm">
@@ -379,53 +386,73 @@ export const QualifierTab = () => {
         ) : questions.length === 0 ? (
           <p className="text-gray-400 text-sm">Chưa có câu hỏi. Nhập mã giải rồi bấm Tải.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-green-300 border-b border-white/10">
-                <th className="py-2 px-2">#</th>
-                <th className="py-2 px-2">Mã</th>
-                <th className="py-2 px-2">Nội dung</th>
-                <th className="py-2 px-2">Đáp án</th>
-                <th className="py-2 px-2">Trạng thái</th>
-                <th className="py-2 px-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {questions.map((q) => (
-                <tr key={q.id} className="border-b border-white/5 align-top">
-                  <td className="py-2 px-2 font-mono text-xs">{q.position}</td>
-                  <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">{q.questionCode}</td>
-                  <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
-                  <td className="py-2 px-2 font-semibold">{q.correctOption || "(ẩn)"}</td>
-                  <td className="py-2 px-2 whitespace-nowrap">
-                    {q.status === "closed" ? (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-600/20 text-emerald-300">Đã chốt</span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300">Mở</span>
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: 16 }, (_, i) => {
+                const pos = i + 1;
+                const q = questions.find((x) => x.position === pos);
+                return (
+                  <span
+                    key={pos}
+                    title={q ? `${q.questionCode} · ${q.status === "closed" ? "Đã chốt" : "Mở"}` : `Trống vị trí ${pos}`}
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg font-mono text-xs border ${
+                      !q
+                        ? "bg-white/5 border-white/10 text-gray-600"
+                        : q.status === "closed"
+                          ? "bg-emerald-600/20 border-emerald-600 text-emerald-200"
+                          : "bg-yellow-600/20 border-yellow-600 text-yellow-200"
+                    }`}
+                  >
+                    {pos}
+                  </span>
+                );
+              })}
+            </div>
+            {[...questions].sort((a, b) => a.position - b.position).map((q) => (
+              <div key={q.id} className="flex flex-col gap-1.5 py-2 border-b border-white/5">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-mono text-xs text-gray-400 w-6">#{q.position}</span>
+                  <span className="font-mono text-xs text-green-300">{q.questionCode}</span>
+                  <p className="flex-1 truncate text-white">{q.content}</p>
+                  {q.status === "closed" ? (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-600/20 text-emerald-300 whitespace-nowrap">Đã chốt</span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300 whitespace-nowrap">Mở</span>
+                  )}
+                  <RowActions
+                    onEdit={q.status === "open" ? () => setEditing(q) : undefined}
+                    onDelete={q.status === "open" ? () => void deleteQuestion(q) : undefined}
+                  >
+                    {q.status === "open" && (
+                      <button
+                        onClick={() => void closeQuestion(q)}
+                        disabled={closing === q.questionCode}
+                        className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-xs text-white whitespace-nowrap"
+                      >
+                        {closing === q.questionCode ? "…" : "Chốt + chấm"}
+                      </button>
                     )}
-                  </td>
-                  <td className="py-2 px-2 text-right">
-                    <div className="flex gap-1 justify-end">
-                      {q.status === "open" && (
-                        <RowActions
-                          onEdit={() => setEditing(q)}
-                          onDelete={() => void deleteQuestion(q)}
-                        >
-                          <button
-                            onClick={() => void closeQuestion(q)}
-                            disabled={closing === q.questionCode}
-                            className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-xs text-white"
-                          >
-                            {closing === q.questionCode ? "Đang chốt…" : "Chốt + chấm"}
-                          </button>
-                        </RowActions>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </RowActions>
+                </div>
+                <div className="flex gap-1 flex-wrap pl-8">
+                  {q.options.map((opt, i) => {
+                    const letter = LETTERS[i] ?? String(i + 1);
+                    const correct = letter === q.correctOption;
+                    return (
+                      <span
+                        key={i}
+                        className={`px-2 py-0.5 rounded text-xs font-mono ${
+                          correct ? "bg-green-600/25 text-green-200" : "bg-white/5 text-gray-400"
+                        }`}
+                      >
+                        {letter}. {opt}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </div>
 
@@ -445,28 +472,28 @@ export const QualifierTab = () => {
         {standings.length === 0 ? (
           <p className="text-gray-400 text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-green-300 border-b border-white/10">
-                <th className="py-2 px-2">Hạng</th>
-                <th className="py-2 px-2">Thí sinh</th>
-                <th className="py-2 px-2">Tổng điểm</th>
-                <th className="py-2 px-2">Câu đúng</th>
-                <th className="py-2 px-2">Avg time đúng (s)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.map((s) => (
-                <tr key={s.playerId} className="border-b border-white/5">
-                  <td className="py-2 px-2 font-mono">{s.rank}</td>
-                  <td className="py-2 px-2">{s.userName} <span className="text-gray-500 font-mono text-xs">· {s.userCode}</span></td>
-                  <td className="py-2 px-2 font-bold">{s.totalPoints}</td>
-                  <td className="py-2 px-2">{s.correctCount}</td>
-                  <td className="py-2 px-2 font-mono">{Number.isFinite(s.avgCorrectTimeSec) ? s.avgCorrectTimeSec.toFixed(3) : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          standings.map((s) => (
+            <div key={s.playerId} className="flex items-center gap-3 py-2 border-b border-white/5 text-sm">
+              <span
+                className={`w-7 h-7 flex items-center justify-center rounded-full font-mono text-xs font-bold ${
+                  s.rank === 1
+                    ? "bg-yellow-500/25 text-yellow-300"
+                    : s.rank === 2
+                      ? "bg-gray-400/25 text-gray-200"
+                      : s.rank === 3
+                        ? "bg-amber-700/30 text-amber-400"
+                        : "bg-white/5 text-gray-400"
+                }`}
+              >
+                {s.rank}
+              </span>
+              <p className="flex-1 text-white">
+                {s.userName} <span className="text-gray-500 font-mono text-xs">· {s.userCode}</span>
+              </p>
+              <span className="font-mono text-xs text-gray-400 hidden sm:inline">{s.correctCount} đúng</span>
+              <span className="font-bold text-white font-mono">{s.totalPoints}đ</span>
+            </div>
+          ))
         )}
       </div>
     </div>

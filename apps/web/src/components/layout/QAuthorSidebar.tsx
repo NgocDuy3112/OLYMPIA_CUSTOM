@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Database, Bot, Users, ChevronRight, X } from "lucide-react";
+import { Database, Swords, ListOrdered, Bot, Users, ChevronRight, X } from "lucide-react";
 
 interface QAuthorSidebarProps {
   isOpen?: boolean;
@@ -15,9 +15,19 @@ interface SidebarItem {
 
 const SIDEBAR_ITEMS: SidebarItem[] = [
   {
-    label: "Ngân hàng trận",
+    label: "Ngân hàng câu hỏi",
     path: "/operator/qauthor/bank",
     icon: <Database size={18} />,
+  },
+  {
+    label: "Câu hỏi trận",
+    path: "/operator/qauthor/match",
+    icon: <Swords size={18} />,
+  },
+  {
+    label: "Vòng loại",
+    path: "/operator/qauthor/qualifier",
+    icon: <ListOrdered size={18} />,
   },
   {
     label: "AI Agent",

@@ -5,6 +5,8 @@ interface SidePanelProps {
     onClose: () => void;
     title: string;
     tone?: "default" | "danger";
+    /** Rộng nửa màn hình cho form nhiều field. */
+    wide?: boolean;
     children: React.ReactNode;
 }
 
@@ -13,6 +15,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     onClose,
     title,
     tone = "default",
+    wide = false,
     children,
 }) => {
     const panelRef = useRef<HTMLElement>(null);
@@ -66,7 +69,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             className={`absolute inset-0 bg-black/50 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`}
         />
         <aside
-            className={`absolute right-0 top-0 h-full w-full sm:w-96 bg-blue-950 border-l-4 shadow-2xl p-6 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out ${tone === "danger" ? "border-red-700" : "border-blue-600"
+            className={`absolute right-0 top-0 h-full w-full ${wide ? "sm:w-1/2 sm:min-w-[560px]" : "sm:w-96"} bg-blue-950 border-l-4 shadow-2xl p-6 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out ${tone === "danger" ? "border-red-700" : "border-blue-600"
                 } ${open ? "translate-x-0" : "translate-x-full"}`}
             role="dialog"
             aria-modal="true"

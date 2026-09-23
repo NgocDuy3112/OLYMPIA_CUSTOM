@@ -1,55 +1,49 @@
 import { useState } from "react";
-import { Database, ImagePlus, ListOrdered, Swords } from "lucide-react";
-import { BankTab } from "@/components/qauthor/BankTab";
-import { MediaTab } from "@/components/qauthor/MediaTab";
-import { MatchTab } from "@/components/qauthor/MatchTab";
-import { QualifierTab } from "@/components/qauthor/QualifierTab";
-import { OverviewStats } from "@/components/qauthor/OverviewStats";
+import { Database, Lightbulb, Zap, Flag } from "lucide-react";
+import { BankTab, type BankRoundGroup } from "@/components/qauthor/BankTab";
 
-type TabId = "bank" | "media" | "match" | "qualifier";
+type TabId = BankRoundGroup;
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "bank", label: "Bank QB_*", icon: <Database size={15} /> },
-  { id: "media", label: "Media", icon: <ImagePlus size={15} /> },
-  { id: "match", label: "Câu hỏi trận", icon: <Swords size={15} /> },
-  { id: "qualifier", label: "Vòng loại", icon: <ListOrdered size={15} /> },
+const TABS: { id: TabId; label: string; sub: string; icon: React.ReactNode }[] = [
+  { id: "kd", label: "Khởi động", sub: "KĐ chung + riêng", icon: <Zap size={20} /> },
+  { id: "gm", label: "Giải mã", sub: "Set KEY + 8 hint", icon: <Lightbulb size={20} /> },
+  { id: "bp", label: "Bứt phá", sub: "4 câu/trận", icon: <Flag size={20} /> },
+  { id: "vd", label: "Về đích", sub: "6 lĩnh vực × 4 mức", icon: <Database size={20} /> },
 ];
 
 const QAuthorBankHubPage = () => {
-  const [tab, setTab] = useState<TabId>("bank");
+  const [tab, setTab] = useState<TabId>("kd");
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-xl font-bold text-white">Ngân hàng trận</h1>
+        <h1 className="text-xl font-bold text-white">Ngân hàng câu hỏi</h1>
         <p className="text-xs text-gray-500">
-          Excel chỉ nhập text · media chèn sau ở tab Media
+          Soạn câu theo vòng thi
         </p>
       </div>
 
-      <OverviewStats />
-
-      <div className="flex gap-1.5 flex-wrap bg-white/5 border border-white/10 rounded-xl p-1.5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-colors ${
               tab === t.id
-                ? "bg-green-600/20 text-green-300"
-                : "text-gray-400 hover:text-white hover:bg-white/5"
+                ? "bg-green-600/20 border-green-600/50 text-green-300"
+                : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
             }`}
           >
             {t.icon}
-            {t.label}
+            <span>
+              <span className="block text-base font-semibold">{t.label}</span>
+              <span className="block text-xs opacity-70">{t.sub}</span>
+            </span>
           </button>
         ))}
       </div>
 
-      {tab === "bank" && <BankTab />}
-      {tab === "media" && <MediaTab />}
-      {tab === "match" && <MatchTab />}
-      {tab === "qualifier" && <QualifierTab />}
+      <BankTab key={tab} initialGroup={tab} />
     </div>
   );
 };

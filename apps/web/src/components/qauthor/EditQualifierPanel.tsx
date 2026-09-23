@@ -1,7 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
-
-const LETTERS = ["A", "B", "C", "D", "E", "F"];
+import { QualifierOptionsInput } from "./QualifierOptionsInput";
 
 /** Câu vòng loại tối thiểu để sửa — QualifierTab. */
 export interface EditableQualifier {
@@ -39,6 +38,7 @@ export function EditQualifierPanel({
   onSave,
 }: EditQualifierPanelProps) {
   const [value, setValue] = useState<QualifierEditValue>(EMPTY);
+  const [optionList, setOptionList] = useState<string[]>(["", "", "", ""]);
   const open = item !== null;
 
   // Reset form mỗi lần mở panel (item đổi hoặc mở lại lần nữa).
@@ -50,6 +50,9 @@ export function EditQualifierPanel({
       correctOption: item.correctOption || "A",
       position: String(item.position),
     });
+    const opts = [...item.options];
+    while (opts.length < 4) opts.push("");
+    setOptionList(opts.slice(0, 6));
   }, [open, item]);
 
   const set =
@@ -72,27 +75,14 @@ export function EditQualifierPanel({
         onChange={set("content")}
         className={`${inputClass} resize-none`}
       />
-      <label className="text-xs text-blue-300">Options (JSON hoặc A|B|C|D)</label>
-      <input
-        value={value.options}
-        onChange={set("options")}
-        className={`${inputClass} font-mono`}
+      <label className="text-xs text-blue-300">Phương án (bấm để chọn đáp án đúng)</label>
+      <QualifierOptionsInput
+        options={optionList}
+        correct={value.correctOption}
+        onChange={setOptionList}
+        onCorrectChange={(correctOption) => setValue((prev) => ({ ...prev, correctOption }))}
       />
       <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs text-blue-300">Đáp án đúng</label>
-          <select
-            value={value.correctOption}
-            onChange={set("correctOption")}
-            className={`w-full ${inputClass}`}
-          >
-            {LETTERS.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </div>
         <div>
           <label className="text-xs text-blue-300">Vị trí 1-16</label>
           <input
@@ -110,7 +100,14 @@ export function EditQualifierPanel({
           Huỷ
         </button>
         <button
-          onClick={() => void onSave(value)}
+          onClick={() => {
+            const filled = optionList.map((s) => s.trim());
+            if (filled.some((s) => !s)) {
+              alert("Nhập đủ phương án.");
+              return;
+            }
+            void onSave({ ...value, options: JSON.stringify(filled) });
+          }}
           className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm"
         >
           Lưu
