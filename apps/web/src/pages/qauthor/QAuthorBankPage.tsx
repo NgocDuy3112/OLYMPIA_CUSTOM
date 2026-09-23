@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
-import { Database, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { Database, Plus, Search, Upload } from "lucide-react";
+import { RowActions } from "@/components/shared/RowActions";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditBankPanel, type BankEditValue } from "@/components/qauthor/EditBankPanel";
@@ -384,7 +385,7 @@ const QAuthorBankPage = () => {
                       )}
                     </td>
                     <td className="py-2 px-2 text-right">
-                      <div className="flex gap-1 justify-end">
+                      <RowActions onEdit={() => setEditing(q)} onDelete={() => void deleteBank(q)}>
                         <button
                           onClick={() => {
                             setPendingUploadBank(q);
@@ -396,21 +397,7 @@ const QAuthorBankPage = () => {
                         >
                           <Upload size={13} />
                         </button>
-                        <button
-                          onClick={() => setEditing(q)}
-                          className="p-1.5 rounded bg-white-600/70 hover:bg-white-500"
-                          title="Sửa"
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          onClick={() => void deleteBank(q)}
-                          className="p-1.5 rounded bg-red-700/70 hover:bg-red-600"
-                          title="Xoá"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
+                      </RowActions>
                     </td>
                   </tr>
                 ))}

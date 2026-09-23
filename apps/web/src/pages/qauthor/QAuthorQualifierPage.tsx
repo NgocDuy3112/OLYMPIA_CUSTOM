@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { ListOrdered, Pencil, Plus, Search, Trash2, Trophy } from "lucide-react";
+import { ListOrdered, Plus, Search, Trophy } from "lucide-react";
+import { RowActions } from "@/components/shared/RowActions";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditQualifierPanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierPanel";
@@ -414,14 +415,10 @@ const QAuthorQualifierPage = () => {
                   <td className="py-2 px-2 text-right">
                     <div className="flex gap-1 justify-end">
                       {q.status === "open" && (
-                        <>
-                          <button
-                            onClick={() => setEditing(q)}
-                            className="p-1.5 rounded bg-white-600/70 hover:bg-white-500"
-                            title="Sửa"
-                          >
-                            <Pencil size={13} />
-                          </button>
+                        <RowActions
+                          onEdit={() => setEditing(q)}
+                          onDelete={() => void deleteQuestion(q)}
+                        >
                           <button
                             onClick={() => void closeQuestion(q)}
                             disabled={closing === q.questionCode}
@@ -430,14 +427,7 @@ const QAuthorQualifierPage = () => {
                           >
                             {closing === q.questionCode ? "Đang chốt…" : "Chốt + chấm"}
                           </button>
-                          <button
-                            onClick={() => void deleteQuestion(q)}
-                            className="p-1.5 rounded bg-red-700/70 hover:bg-red-600"
-                            title="Xoá"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </>
+                        </RowActions>
                       )}
                     </div>
                   </td>

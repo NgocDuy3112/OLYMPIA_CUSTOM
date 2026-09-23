@@ -1,4 +1,5 @@
-import { Pencil, ShieldCheck, Trash2 } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import { RowActions } from "@/components/shared/RowActions";
 
 interface UserRowActionsProps {
   onEdit: () => void;
@@ -13,14 +14,7 @@ export function UserRowActions({
   onDelete,
 }: UserRowActionsProps) {
   return (
-    <div className="flex gap-1 justify-end">
-      <button
-        onClick={onEdit}
-        className="p-1.5 rounded bg-white-600/70 hover:bg-white-500 transition-colors"
-        title="Sửa thông tin"
-      >
-        <Pencil size={13} />
-      </button>
+    <RowActions onEdit={onEdit} onDelete={onDelete}>
       <button
         onClick={onChangeRole}
         className="p-1.5 rounded bg-amber-600/70 hover:bg-amber-500 transition-colors"
@@ -28,14 +22,7 @@ export function UserRowActions({
       >
         <ShieldCheck size={13} />
       </button>
-      <button
-        onClick={onDelete}
-        className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
-        title="Xoá người dùng"
-      >
-        <Trash2 size={13} />
-      </button>
-    </div>
+    </RowActions>
   );
 }
 

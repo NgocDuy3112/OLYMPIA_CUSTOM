@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { HelpCircle, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { HelpCircle, Plus, RefreshCw, Search } from "lucide-react";
+import { RowActions } from "@/components/shared/RowActions";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
@@ -614,22 +615,7 @@ const QAuthorQuestionPage = () => {
                   <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
                   <td className="py-2 px-2 font-semibold">{q.answer}</td>
                   <td className="py-2 px-2 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <button
-                        onClick={() => setEditing(q)}
-                        className="p-1.5 rounded bg-white-600/70 hover:bg-white-500"
-                        title="Sửa"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                      <button
-                        onClick={() => void deleteQuestion(q)}
-                        className="p-1.5 rounded bg-red-700/70 hover:bg-red-600"
-                        title="Xoá"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+                    <RowActions onEdit={() => setEditing(q)} onDelete={() => void deleteQuestion(q)} />
                   </td>
                 </tr>
               ))}
