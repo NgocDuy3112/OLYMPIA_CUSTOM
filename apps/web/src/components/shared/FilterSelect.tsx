@@ -4,7 +4,6 @@ interface FilterSelectProps {
   value: string;
   onChange: (value: string) => void;
   children: ReactNode;
-  className?: string;
   "aria-label"?: string;
 }
 
@@ -13,14 +12,13 @@ export function FilterSelect({
   value,
   onChange,
   children,
-  className = "",
   ...rest
 }: FilterSelectProps) {
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm ${className}`}
+      className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
       {...rest}
     >
       {children}

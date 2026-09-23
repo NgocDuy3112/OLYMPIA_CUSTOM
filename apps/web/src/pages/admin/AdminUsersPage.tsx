@@ -257,7 +257,6 @@ const AdminUsersPage = () => {
               value={userRoleFilter}
               onChange={setUserRoleFilter}
               aria-label="Lọc theo vai trò"
-              className="px-2 py-1 text-xs"
             >
               <option value="all">Tất cả</option>
               <option value="admin">Admin</option>
