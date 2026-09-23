@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { Database, FileSpreadsheet, ImagePlus, ListOrdered, Swords } from "lucide-react";
+import { Database, ImagePlus, ListOrdered, Swords } from "lucide-react";
 import { BankTab } from "@/components/qauthor/BankTab";
-import { ImportTab } from "@/components/qauthor/ImportTab";
 import { MediaTab } from "@/components/qauthor/MediaTab";
 import { MatchTab } from "@/components/qauthor/MatchTab";
 import { QualifierTab } from "@/components/qauthor/QualifierTab";
 import { OverviewStats } from "@/components/qauthor/OverviewStats";
 
-type TabId = "bank" | "import" | "media" | "match" | "qualifier";
+type TabId = "bank" | "media" | "match" | "qualifier";
 
 const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
   { id: "bank", label: "Bank QB_*", icon: <Database size={15} /> },
-  { id: "import", label: "Import Excel", icon: <FileSpreadsheet size={15} /> },
   { id: "media", label: "Media", icon: <ImagePlus size={15} /> },
   { id: "match", label: "Câu hỏi trận", icon: <Swords size={15} /> },
   { id: "qualifier", label: "Vòng loại", icon: <ListOrdered size={15} /> },
@@ -49,7 +47,6 @@ const QAuthorBankHubPage = () => {
       </div>
 
       {tab === "bank" && <BankTab />}
-      {tab === "import" && <ImportTab />}
       {tab === "media" && <MediaTab />}
       {tab === "match" && <MatchTab />}
       {tab === "qualifier" && <QualifierTab />}

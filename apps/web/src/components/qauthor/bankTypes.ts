@@ -12,8 +12,12 @@ export interface BankData {
   explanation: string | null;
   media_url: string | null;
   options?: string | null;
-  tags?: string | null;
   round_hint?: string | null;
+  domain?: string | null;
+  difficulty?: number | null;
+  set_code?: string | null;
+  hint_index?: string | null;
+  status: "pending" | "approved" | "rejected";
   usedCount: number;
   usedIn: BankUsage[];
 }
@@ -39,9 +43,13 @@ export function toBankData(row: Record<string, unknown>): BankData {
     media_url:
       (row.mediaUrl as string | null) ?? (row.media_url as string | null) ?? null,
     options: (row.options as string | null) ?? null,
-    tags: (row.tags as string | null) ?? null,
     round_hint:
       (row.roundHint as string | null) ?? (row.round_hint as string | null) ?? null,
+    domain: (row.domain as string | null) ?? null,
+    difficulty: (row.difficulty as number | null) ?? null,
+    set_code: (row.setCode as string | null) ?? (row.set_code as string | null) ?? null,
+    hint_index: (row.hintIndex as string | null) ?? (row.hint_index as string | null) ?? null,
+    status: (row.status as BankData["status"]) ?? "pending",
     usedCount: Number(row.usedCount ?? row.used_count ?? rawUsed.length ?? 0),
     usedIn: rawUsed.map((u) => ({
       matchCode: String(u.matchCode ?? u.match_code ?? ""),

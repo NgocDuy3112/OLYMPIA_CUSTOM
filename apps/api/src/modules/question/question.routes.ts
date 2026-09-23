@@ -477,7 +477,7 @@ export async function questionRoutes(
     },
   );
 
-  // GET /bank/search?q=...&tags=...&round_hint=...&limit=...&page=...&used=...
+  // GET /bank/search?q=...&round_hint=...&limit=...&page=...&used=...
   // Stable QB_* bank, searchable. Requires auth; answer visible to
   // question writers (admin/qauthor), stripped otherwise.
   // Agent internal calls (X-Agent-Token) bypass session, see full rows.
@@ -498,12 +498,16 @@ export async function questionRoutes(
       },
     },
     async (request, reply) => {
-      const { q, tags, round_hint, roundHint, limit, page, used } =
+      const { q, round_hint, roundHint, round_hints, domain, difficulty, set_code, status, limit, page, used } =
         request.query as {
           q?: string;
-          tags?: string;
           round_hint?: string;
           roundHint?: string;
+          round_hints?: string;
+          domain?: string;
+          difficulty?: string;
+          set_code?: string;
+          status?: string;
           limit?: string;
           page?: string;
           used?: string;
@@ -528,8 +532,12 @@ export async function questionRoutes(
       const pageNum = Math.max(Number(page) || 1, 1);
       const paged = await bankRepo.searchPaged({
         q,
-        tags,
         roundHint: roundHint ?? round_hint,
+        roundHints: round_hints ? round_hints.split(",") : undefined,
+        domain,
+        difficulty: difficulty !== undefined ? Number(difficulty) : undefined,
+        setCode: set_code,
+        status,
         limit: pageSize,
         offset: (pageNum - 1) * pageSize,
       });
@@ -554,8 +562,37 @@ export async function questionRoutes(
     },
   );
 
-  // POST /questions/pick { bankId|bankCode, matchCode|match_code, round }
-  // Copies bank -> match, auto-generates OC<number>_Q_<round>_* code.
+  // POST /questions/pick — gộp 2 mode:
+  //  - Lẻ (KĐC/KĐR/BP/VĐ): { bankId|bankCode, matchCode, round, slot? }
+  //  - Cả set GM: { matchCode, round: "GM", setCode } (setCode hoặc bankCode KEY)
+  // GM chặn pick lẻ. Response chuẩn: data { created: [{slot, questionCode, bankCode}], setCode }.
+  const SLOT_PATTERNS: Record<string, RegExp> = {
+    KD_C: /^KDC_[1-6]$/,
+    KD_R: /^KDR[1-4]_[1-6]$/,
+    GM: /^GM_(KEY|H[1-8])$/,
+    BP: /^BP_[1-4]$/,
+    VD: /^VD_(THTH|TNSS|XHPL|VHNT|TTGT|KTTH)_(20|30|40|50)$/,
+  };
+
+  function matchSlotToRow(
+    round: string,
+    slot: string,
+    bankRow: { domain: string | null; difficulty: number | null; hintIndex: string | null },
+  ): string | null {
+    if (round === "VD") {
+      const m = /^VD_([A-Z]+)_(\d+)$/.exec(slot);
+      if (m && (bankRow.domain !== m[1] || bankRow.difficulty !== Number(m[2]))) {
+        return `slot ${slot} needs domain ${m[1]} level ${m[2]}`;
+      }
+    }
+    if (round === "GM") {
+      const want = slot === "GM_KEY" ? "KEY" : slot.slice(3);
+      if (bankRow.hintIndex !== want) {
+        return `slot ${slot} needs hint ${want}`;
+      }
+    }
+    return null;
+  }
   // Allowed: admin, operator qauthor, tournament qauthor, or agent token
   // (agent đã xác thực user qauthor ở gateway, audit ghi actor agent).
   app.post(
@@ -577,9 +614,12 @@ export async function questionRoutes(
         bank_id?: string;
         bankCode?: string;
         bank_code?: string;
+        setCode?: string;
+        set_code?: string;
         matchCode?: string;
         match_code?: string;
         round?: string;
+        slot?: string;
       };
       const session = (
         request as unknown as {
@@ -643,6 +683,86 @@ export async function questionRoutes(
       }
       const bankId = raw.bankId ?? raw.bank_id ?? "";
       const bankCode = raw.bankCode ?? raw.bank_code ?? "";
+      const ocPrefix = ocPrefixFromCode(matchCode);
+      // Mode set GM: { matchCode, round: "GM", setCode } — pick cả 9 1 lần.
+      if (round === "GM") {
+        let setCode = String(raw.setCode ?? raw.set_code ?? "").trim().toUpperCase();
+        if (!setCode) {
+          if (!bankCode) {
+            return reply.code(400).send({
+              status: "error",
+              message: "GM chỉ pick cả set: cần setCode (hoặc bankCode KEY)",
+              data: null,
+            });
+          }
+          const keyRow = await bankRepo.findByCode(bankCode);
+          if (!keyRow || keyRow.hintIndex !== "KEY" || !keyRow.setCode) {
+            return reply.code(404).send({
+              status: "error",
+              message: "KEY row with set_code not found",
+              data: null,
+            });
+          }
+          setCode = keyRow.setCode;
+        }
+        const setRows = await bankRepo.search({ setCode, status: "approved", limit: 100 });
+        const byHint = new Map(setRows.map((r) => [r.hintIndex, r]));
+        const order = ["KEY", "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"];
+        const missing = order.filter((h) => !byHint.has(h));
+        if (missing.length > 0) {
+          return reply.code(422).send({
+            status: "error",
+            message: `GM set ${setCode} incomplete, missing ${missing.join(",")}`,
+            data: null,
+          });
+        }
+        const slots = order.map((h) => (h === "KEY" ? "GM_KEY" : `GM_${h}`));
+        for (const s of slots) {
+          const taken = await repo.findBySlot(matchId, s);
+          if (taken) {
+            return reply.code(409).send({
+              status: "error",
+              message: `slot ${s} already filled by ${taken.questionCode}`,
+              data: null,
+            });
+          }
+        }
+        const created: { slot: string; questionCode: string; bankCode: string }[] = [];
+        for (const h of order) {
+          const setRow = byHint.get(h)!;
+          const slot = h === "KEY" ? "GM_KEY" : `GM_${h}`;
+          const suffix = `${Date.now().toString(36).toUpperCase()}`;
+          const questionCode = makeQuestionCode(
+            ocPrefix.replace(/^OC/, ""),
+            `GM_${suffix}`,
+          );
+          await repo.create({
+            matchId,
+            questionCode,
+            content: setRow.content,
+            answer: setRow.answer,
+            explanation: setRow.explanation ?? undefined,
+            hintText: setRow.hintText ?? undefined,
+            mediaUrl: setRow.mediaUrl ?? undefined,
+            options: setRow.options ?? undefined,
+            sourceBankId: setRow.id,
+            slot,
+          });
+          created.push({ slot, questionCode, bankCode: setRow.bankCode });
+        }
+        void writeAudit({
+          actionType: "QUESTION_USED",
+          actorCode,
+          matchCode,
+          targetCode: setCode,
+          details: `picked GM set ${setCode} (9 rows)`,
+        });
+        return reply.code(201).send({
+          status: "success",
+          message: "GM set picked",
+          data: { setCode, created },
+        });
+      }
       if (!bankId && !bankCode) {
         return reply.code(400).send({
           status: "error",
@@ -660,7 +780,43 @@ export async function questionRoutes(
           data: null,
         });
       }
-      const ocPrefix = ocPrefixFromCode(matchCode);
+      if (bankRow.status !== "approved") {
+        return reply.code(422).send({
+          status: "error",
+          message: `Bank question is ${bankRow.status}, only approved rows can be picked`,
+          data: null,
+        });
+      }
+      const slot = String(raw.slot ?? "").trim().toUpperCase() || null;
+      if (slot) {
+        const pattern = SLOT_PATTERNS[round];
+        if (!pattern || !pattern.test(slot)) {
+          return reply.code(400).send({
+            status: "error",
+            message: `slot ${slot} invalid for round ${round}`,
+            data: null,
+          });
+        }
+        const taken = await repo.findBySlot(matchId, slot);
+        if (taken) {
+          return reply.code(409).send({
+            status: "error",
+            message: `slot ${slot} already filled by ${taken.questionCode}`,
+            data: null,
+          });
+        }
+        const slotErr = matchSlotToRow(round, slot, bankRow);
+        if (slotErr) {
+          return reply.code(422).send({ status: "error", message: slotErr, data: null });
+        }
+      }
+      if (round === "GM") {
+        return reply.code(422).send({
+          status: "error",
+          message: "GM chỉ pick cả set: cần setCode (hoặc bankCode KEY)",
+          data: null,
+        });
+      }
       const suffix = `${Date.now().toString(36).toUpperCase()}`;
       const questionCode = makeQuestionCode(
         ocPrefix.replace(/^OC/, ""),
@@ -674,7 +830,7 @@ export async function questionRoutes(
           data: null,
         });
       }
-      const result = await repo.create({
+      await repo.create({
         matchId,
         questionCode,
         content: bankRow.content,
@@ -684,6 +840,7 @@ export async function questionRoutes(
         mediaUrl: bankRow.mediaUrl ?? undefined,
         options: bankRow.options ?? undefined,
         sourceBankId: bankRow.id,
+        slot,
       });
       void writeAudit({
         actionType: "QUESTION_USED",
@@ -695,7 +852,10 @@ export async function questionRoutes(
       return reply.code(201).send({
         status: "success",
         message: "Question picked from bank",
-        data: { id: result.id, questionCode, bankCode: bankRow.bankCode },
+        data: {
+          setCode: null,
+          created: [{ slot, questionCode, bankCode: bankRow.bankCode }],
+        },
       });
     },
   );
@@ -741,9 +901,14 @@ export async function questionRoutes(
         mediaUrl?: string;
         media_url?: string;
         options?: string[] | string;
-        tags?: string;
         roundHint?: string;
         round_hint?: string;
+        domain?: string;
+        difficulty?: number;
+        setCode?: string;
+        set_code?: string;
+        hintIndex?: string;
+        hint_index?: string;
       };
       const bankCode = String(raw.bankCode ?? "").trim().toUpperCase();
       if (!/^QB_[A-Z0-9_]{1,20}$/.test(bankCode)) {
@@ -774,8 +939,11 @@ export async function questionRoutes(
           hintText: (raw.hintText ?? raw.hint_text)?.trim() || null,
           mediaUrl: (raw.mediaUrl ?? raw.media_url)?.trim() || null,
           options,
-          tags: raw.tags?.trim() || null,
           roundHint: (raw.roundHint ?? raw.round_hint)?.trim().toUpperCase() || null,
+          domain: raw.domain?.trim().toUpperCase() || null,
+          difficulty: raw.difficulty ?? null,
+          setCode: (raw.setCode ?? raw.set_code)?.trim().toUpperCase() || null,
+          hintIndex: (raw.hintIndex ?? raw.hint_index)?.trim().toUpperCase() || null,
           createdBy: session.userId,
         });
         return reply.code(201).send({
@@ -842,9 +1010,14 @@ export async function questionRoutes(
         mediaUrl?: string | null;
         media_url?: string | null;
         options?: string[] | string | null;
-        tags?: string | null;
         roundHint?: string | null;
         round_hint?: string | null;
+        domain?: string | null;
+        difficulty?: number | null;
+        setCode?: string | null;
+        set_code?: string | null;
+        hintIndex?: string | null;
+        hint_index?: string | null;
       };
       const updates: {
         content?: string | null;
@@ -853,8 +1026,11 @@ export async function questionRoutes(
         hintText?: string | null;
         mediaUrl?: string | null;
         options?: string | null;
-        tags?: string | null;
         roundHint?: string | null;
+        domain?: string | null;
+        difficulty?: number | null;
+        setCode?: string | null;
+        hintIndex?: string | null;
       } = {};
       if (raw.content !== undefined) updates.content = raw.content;
       if (raw.answer !== undefined) updates.answer = raw.answer;
@@ -867,15 +1043,29 @@ export async function questionRoutes(
         updates.options = Array.isArray(raw.options)
           ? JSON.stringify(raw.options)
           : raw.options;
-      if (raw.tags !== undefined) updates.tags = raw.tags;
       if (raw.roundHint !== undefined || raw.round_hint !== undefined)
         updates.roundHint = raw.roundHint ?? raw.round_hint ?? null;
+      if (raw.domain !== undefined) updates.domain = raw.domain;
+      if (raw.difficulty !== undefined) updates.difficulty = raw.difficulty;
+      if (raw.setCode !== undefined || raw.set_code !== undefined)
+        updates.setCode = raw.setCode ?? raw.set_code ?? null;
+      if (raw.hintIndex !== undefined || raw.hint_index !== undefined)
+        updates.hintIndex = raw.hintIndex ?? raw.hint_index ?? null;
+      // Sửa nội dung/đáp án câu đã duyệt → rớt về pending, duyệt lại.
+      const before = await bankRepo.findById(id);
+      const contentChanged = raw.content !== undefined || raw.answer !== undefined;
       const ok = await bankRepo.update(id, updates);
       if (!ok) {
         return reply.code(404).send({
           status: "error",
           message: "Bank question not found or nothing to update",
           data: null,
+        });
+      }
+      if (before?.status === "approved" && contentChanged) {
+        await bankRepo.review(id, {
+          status: "pending",
+          reviewNote: "Tự động: nội dung thay đổi sau duyệt",
         });
       }
       if (agentCall === true) {
@@ -924,6 +1114,76 @@ export async function questionRoutes(
         status: "success",
         message: "Bank question deleted",
         data: null,
+      });
+    },
+  );
+
+  // POST /bank/:id/review { decision: approved|rejected, note? }
+  // Chỉ admin duyệt. OCee hỗ trợ bằng tool suggest_bank_review (read-only),
+  // không được write duyệt.
+  app.post(
+    "/bank/:id/review",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+          };
+        }
+      ).session;
+      const canReview = session.role === "admin";
+      if (!canReview) {
+        return reply.code(403).send({
+          status: "error",
+          message: "Only admin can review bank",
+          data: null,
+        });
+      }
+      const { id } = request.params as { id: string };
+      const raw = request.body as { decision?: string; note?: string };
+      const decision = String(raw.decision ?? "").trim().toLowerCase();
+      if (decision !== "approved" && decision !== "rejected") {
+        return reply.code(400).send({
+          status: "error",
+          message: "decision must be approved or rejected",
+          data: null,
+        });
+      }
+      const note = String(raw.note ?? "").trim();
+      if (decision === "rejected" && !note) {
+        return reply.code(400).send({
+          status: "error",
+          message: "note required when rejecting",
+          data: null,
+        });
+      }
+      const row = await bankRepo.findById(id);
+      if (!row) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Bank question not found",
+          data: null,
+        });
+      }
+      const ok = await bankRepo.review(id, {
+        status: decision,
+        reviewNote: note || null,
+        reviewedBy: session.userId,
+      });
+      if (!ok) {
+        return reply.code(404).send({
+          status: "error",
+          message: "Bank question not found",
+          data: null,
+        });
+      }
+      return reply.send({
+        status: "success",
+        message: `Bank question ${decision}`,
+        data: { id, status: decision },
       });
     },
   );

@@ -13,11 +13,13 @@ export interface QuestionRow {
     matchId: string;
     isUsed: boolean;
     sourceBankId: string | null;
+    slot: string | null;
 }
 
 export interface QuestionRepo {
     listByMatchId(matchId: string): Promise<QuestionRow[]>;
     findByCode(matchId: string, questionCode: string): Promise<QuestionRow | null>;
+    findBySlot(matchId: string, slot: string): Promise<QuestionRow | null>;
     create(input: {
         matchId: string;
         questionCode: string;
@@ -28,6 +30,7 @@ export interface QuestionRepo {
         mediaUrl?: string | null;
         options?: string | null;
         sourceBankId?: string | null;
+        slot?: string | null;
     }): Promise<{ id: string }>;
     update(
         matchId: string,
@@ -80,6 +83,24 @@ export const drizzleQuestionRepo: QuestionRepo = {
         return (rows[0] as QuestionRow | undefined) ?? null;
     },
 
+    async findBySlot(
+        matchId: string,
+        slot: string,
+    ): Promise<QuestionRow | null> {
+        const rows = await db
+            .select()
+            .from(questions)
+            .where(
+                and(
+                    eq(questions.matchId, matchId),
+                    eq(questions.slot, slot),
+                    eq(questions.isDeleted, false),
+                ),
+            )
+            .limit(1);
+        return (rows[0] as QuestionRow | undefined) ?? null;
+    },
+
     async create(input: {
         matchId: string;
         questionCode: string;
@@ -103,6 +124,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
                 mediaUrl: input.mediaUrl,
                 options: input.options,
                 sourceBankId: input.sourceBankId ?? null,
+                slot: input.slot ?? null,
             })
             .returning({ id: questions.id });
         return result[0];
@@ -245,6 +267,11 @@ export function createInMemoryQuestionRepo(
                 ) ?? null
             );
         },
+        async findBySlot(matchId, slot) {
+            return (
+                rows.find((r) => r.matchId === matchId && r.slot === slot) ?? null
+            );
+        },
         async create(input) {
             const row: QuestionRow = {
                 id: `mem-${rows.length + 1}`,
@@ -258,6 +285,7 @@ export function createInMemoryQuestionRepo(
                 options: input.options ?? null,
                 isUsed: false,
                 sourceBankId: input.sourceBankId ?? null,
+                slot: input.slot ?? null,
             };
             rows.push(row);
             return { id: row.id };

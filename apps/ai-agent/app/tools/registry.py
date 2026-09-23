@@ -167,7 +167,7 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "verify_bank_question",
         "description": (
             "Check 1 câu bank QB_* so với nguồn ngoài: trả về nội dung, "
-            "đáp án, tags, round_hint để LLM đối chiếu. Read-only."
+            "đáp án, round_hint để LLM đối chiếu. Read-only."
         ),
         "parameters": {
             "type": "object",
@@ -178,7 +178,7 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "update_bank_question",
         "description": (
-            "Sửa 1 câu bank (content/answer/explanation/tags/round_hint). "
+            "Sửa 1 câu bank (content/answer/explanation/round_hint). "
             "Chỉ qauthor/controller. Write — cần duyệt trước khi apply."
         ),
         "parameters": {
@@ -188,7 +188,6 @@ TOOL_SCHEMAS: list[dict] = [
                 "content": {"type": "string"},
                 "answer": {"type": "string"},
                 "explanation": {"type": "string"},
-                "tags": {"type": "string"},
                 "round_hint": {"type": "string"},
             },
             "required": ["bank_code"],
@@ -213,14 +212,13 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "search_bank",
         "description": (
-            "Tìm lại bank theo q/tags/round_hint. Read-only, dùng cho "
+            "Tìm lại bank theo q/round_hint. Read-only, dùng cho "
             "task index/tìm lại."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "q": {"type": "string"},
-                "tags": {"type": "string"},
                 "round_hint": {"type": "string"},
             },
             "required": [],
@@ -251,6 +249,18 @@ TOOL_SCHEMAS: list[dict] = [
                 "request": {"type": "string"},
             },
             "required": ["bank_code", "request"],
+        },
+    },
+    {
+        "name": "suggest_bank_review",
+        "description": (
+            "Gợi ý duyệt 1 câu bank QB_*: trả nội dung, đáp án, câu tương tự, "
+            "checklist trùng lặp/nguồn/round. Read-only — admin quyết cuối."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {"bank_code": {"type": "string"}},
+            "required": ["bank_code"],
         },
     },
 ]
@@ -372,7 +382,6 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
             "content": row.get("content"),
             "answer": row.get("answer"),
             "explanation": row.get("explanation"),
-            "tags": row.get("tags"),
             "round_hint": row.get("roundHint") or row.get("round_hint"),
             "note": "Đối chiếu với nguồn ngoài rồi verdict.",
         }
@@ -394,7 +403,6 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
                 "content": args.get("content"),
                 "answer": args.get("answer"),
                 "explanation": args.get("explanation"),
-                "tags": args.get("tags"),
                 "roundHint": args.get("round_hint") or args.get("roundHint"),
             }.items()
             if isinstance(v, str) and v.strip()
@@ -423,7 +431,6 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
             raise AgentError("Bank repo not configured", status_code=500)
         rows = await ctx.bank_repo.search_bank(
             q=str(args.get("q", "") or ""),
-            tags=str(args.get("tags", "") or ""),
             round_hint=str(args.get("round_hint", "") or ""),
         )
         return rows
@@ -453,11 +460,45 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
                 "content": row.get("content"),
                 "answer": row.get("answer"),
                 "explanation": row.get("explanation"),
-                "tags": row.get("tags"),
                 "round_hint": row.get("roundHint") or row.get("round_hint"),
             },
             "request": request_text[:1000],
             "note": "Draft chưa write — chờ review duyệt.",
+        }
+
+    if name == "suggest_bank_review":
+        if ctx.bank_repo is None:
+            raise AgentError("Bank repo not configured", status_code=500)
+        bank_code = str(args.get("bank_code", "")).strip().upper()
+        if not bank_code:
+            raise AgentError("bank_code required", status_code=400)
+        row = await ctx.bank_repo.get_bank_row(bank_code)
+        if row is None:
+            raise AgentError(f"Bank {bank_code} not found", status_code=404)
+        content = str(row.get("content") or "")
+        similar_rows = await ctx.bank_repo.search_bank(q=content[:40]) if content else []
+        similar = [
+            {
+                "bank_code": str(r.get("bankCode") or r.get("bank_code") or ""),
+                "content": r.get("content"),
+                "answer": r.get("answer"),
+            }
+            for r in similar_rows
+            if str(r.get("bankCode") or r.get("bank_code") or "").upper() != bank_code
+        ][:5]
+        return {
+            "bank_code": bank_code,
+            "content": row.get("content"),
+            "answer": row.get("answer"),
+            "explanation": row.get("explanation"),
+            "round_hint": row.get("roundHint") or row.get("round_hint"),
+            "similar": similar,
+            "checklist": [
+                f"trùng lặp: {len(similar)} câu tương tự",
+                "nguồn: đối chiếu search_external trước khi duyệt",
+                f"round_hint: {row.get('roundHint') or row.get('round_hint')}",
+            ],
+            "note": "Gợi ý only — admin duyệt cuối ở /admin/bank-review.",
         }
 
     raise AgentError(f"Unknown tool: {name}", status_code=400)

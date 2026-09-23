@@ -56,7 +56,6 @@ interface BankData {
   explanation: string | null;
   media_url: string | null;
   options?: string | null;
-  tags?: string | null;
   round_hint?: string | null;
   usedCount: number;
   usedIn: BankUsage[];
@@ -75,7 +74,6 @@ const toBankData = (row: Record<string, unknown>): BankData => {
     media_url:
       (row.mediaUrl as string | null) ?? (row.media_url as string | null) ?? null,
     options: (row.options as string | null) ?? null,
-    tags: (row.tags as string | null) ?? null,
     round_hint: (row.roundHint as string | null) ?? (row.round_hint as string | null) ?? null,
     usedCount: Number(row.usedCount ?? row.used_count ?? rawUsed.length ?? 0),
     usedIn: rawUsed.map((u) => ({
@@ -322,9 +320,8 @@ const QAuthorQuestionPage = () => {
         });
         const json = await res.json();
         if (res.ok) {
-          const newCode = String(
-            (json.data as Record<string, unknown> | null)?.questionCode ?? q.bank_code,
-          );
+          const created = (json.data as { created?: { questionCode: string }[] } | null)?.created ?? [];
+          const newCode = String(created[0]?.questionCode ?? q.bank_code);
           setAddedCodes((prev) => new Set(prev).add(q.bank_code));
           alert(`Đã thêm ${newCode} vào trận.`);
           await fetchQuestions();
@@ -431,9 +428,6 @@ const QAuthorQuestionPage = () => {
                       {q.bank_code}
                       {q.round_hint && (
                         <span className="ml-1 text-gray-500">· {q.round_hint}</span>
-                      )}
-                      {q.tags && (
-                        <span className="ml-1 text-gray-500">· {q.tags}</span>
                       )}
                     </td>
                     <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>

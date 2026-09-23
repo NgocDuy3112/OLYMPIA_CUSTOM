@@ -46,7 +46,7 @@ class FakeGateway:
 
     # ── BankRepo ──
 
-    async def search_bank(self, q="", tags="", round_hint="") -> list[dict]:
+    async def search_bank(self, q="", round_hint="") -> list[dict]:
         self.calls.append("bank_search")
         return [r for r in self._bank.values() if not q or q.upper() in r.get("bankCode", "")]
 
@@ -283,7 +283,6 @@ BANK_ROW = {
     "content": "Thủ đô của Việt Nam?",
     "answer": "Hà Nội",
     "explanation": None,
-    "tags": "dia-ly,viet-nam",
     "roundHint": "KD_C",
 }
 
@@ -335,6 +334,18 @@ async def test_bank_write_requires_qauthor():
 
 
 @pytest.mark.asyncio
+async def test_suggest_bank_review_returns_checklist():
+    from app.tools.registry import execute_tool
+
+    gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
+    ctx = _bank_ctx(gateway)
+    result = await execute_tool("suggest_bank_review", {"bank_code": "QB_KDC_001"}, ctx)
+    assert result["bank_code"] == "QB_KDC_001"
+    assert "similar" in result and "checklist" in result
+    assert "bank_get" in gateway.calls
+
+
+@pytest.mark.asyncio
 async def test_update_and_place_bank_tools():
     from app.tools.registry import execute_tool
 
@@ -360,12 +371,7 @@ def test_route_task_bank_kinds():
     assert route_task("bỏ QB_KDC_001 vào trận OC3_M_1 vòng Bứt phá") == "place"
     assert route_task("đánh index QB_KDC_001") == "index"
     assert route_task("ai đang dẫn đầu?") == "qa"
-
-
-def test_normalize_tags_dedupes():
-    from app.graph import _normalize_tags
-
-    assert _normalize_tags("Dia-ly, viet-nam;dia-ly") == ["dia-ly", "viet-nam"]
+    assert route_task("cho ý kiến duyệt QB_KDC_001") == "assist"
 
 
 @pytest.mark.asyncio

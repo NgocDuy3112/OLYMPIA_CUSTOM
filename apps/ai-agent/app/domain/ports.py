@@ -34,9 +34,7 @@ class MatchLookupRepo(Protocol):
 class BankRepo(Protocol):
     """Question bank — read + write qua Fastify internal endpoints."""
 
-    async def search_bank(
-        self, q: str = "", tags: str = "", round_hint: str = ""
-    ) -> list[dict]: ...
+    async def search_bank(self, q: str = "", round_hint: str = "") -> list[dict]: ...
 
     async def get_bank_row(self, bank_code: str) -> dict | None: ...
 

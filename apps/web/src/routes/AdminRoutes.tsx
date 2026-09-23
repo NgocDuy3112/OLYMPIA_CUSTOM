@@ -10,6 +10,7 @@ import AdminHealthPage from "@/pages/admin/AdminHealthPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminAuditPage from "@/pages/admin/AdminAuditPage";
 import AdminCheckpointsPage from "@/pages/admin/AdminCheckpointsPage";
+import AdminBankReviewPage from "@/pages/admin/AdminBankReviewPage";
 import TournamentListPage from "@/pages/admin/tournament/TournamentListPage";
 import TournamentFormPage from "@/pages/admin/tournament/TournamentFormPage";
 import TournamentDetailPage from "@/pages/admin/tournament/TournamentDetailPage";
@@ -55,6 +56,7 @@ const AdminRoutes = () => {
           <Route path="/manage" element={<AdminGameManagingPage />} />
           <Route path="/game-managing" element={<AdminGameManagingPage />} />
           <Route path="/users" element={<AdminUsersPage />} />
+          <Route path="/bank-review" element={<AdminBankReviewPage />} />
           <Route path="/health" element={<AdminHealthPage />} />
           <Route path="/audit" element={<AdminAuditPage />} />
           <Route path="/checkpoints" element={<AdminCheckpointsPage />} />

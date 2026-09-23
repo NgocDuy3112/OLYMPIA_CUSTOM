@@ -8,10 +8,8 @@ from app.adapters.transport import ApiGatewayTransport
 class BankGatewayRepo(ApiGatewayTransport):
     """BankRepo qua Fastify internal endpoints."""
 
-    async def search_bank(
-        self, q: str = "", tags: str = "", round_hint: str = ""
-    ) -> list[dict]:
-        params = {k: v for k, v in {"q": q, "tags": tags}.items() if v}
+    async def search_bank(self, q: str = "", round_hint: str = "") -> list[dict]:
+        params = {k: v for k, v in {"q": q}.items() if v}
         if round_hint:
             params["round_hint"] = round_hint
         query = "&".join(f"{k}={v}" for k, v in params.items())

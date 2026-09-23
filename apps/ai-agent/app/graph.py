@@ -3,13 +3,13 @@
 Nodes:
   intake   — route_task(question) → verify/update/place/index/qa
   verify   — get_bank_row + search_external (read-only, ghi bank_row/citations)
-  search   — search_bank theo q/tags/round_hint (task index/tìm lại)
+  search   — search_bank theo q/round_hint (task index/tìm lại)
   propose  — soạn proposal diff từ bank_row + yêu cầu (chưa write)
   critique — LLM chấm proposal theo bank_row + citations;
              chưa đạt + còn lượt → quay lại verify (reflect)
   review   — interrupt() duyệt write trước khi apply
   apply    — update_bank / place_to_match (write, sau duyệt)
-  index    — normalize tags/round_hint để tìm lại
+  index    — normalize round_hint để tìm lại
   qa       — flow Q&A cũ (scoreboard/match/questions)
 
 Gateway inject qua config["gateway"], llm qua config["llm"] để node gọi
@@ -27,7 +27,7 @@ except ImportError:
 
 from typing_extensions import TypedDict
 
-TaskKind = Literal["verify", "update", "place", "index", "qa"]
+TaskKind = Literal["verify", "update", "place", "index", "qa", "assist"]
 
 MAX_REFLECT_ROUNDS = 3
 
@@ -70,6 +70,8 @@ def route_task(question: str) -> TaskKind:
         return "place"
     if any(w in q for w in ("update", "sửa", "sua", "cập nhật", "cap nhat")):
         return "update"
+    if any(w in q for w in ("duyệt", "duyet", "review", "approve", "ý kiến", "y kien", "có nên")):
+        return "assist"
     if any(w in q for w in ("index", "đánh index", "tag", "tìm lại")):
         return "index"
     if any(w in q for w in ("check", "kiểm tra", "kiem tra", "chính xác", "verify", "qb_")):
@@ -91,6 +93,7 @@ def build_graph(checkpointer: Any | None = None) -> Any:
     builder.add_node("apply", _apply_node)
     builder.add_node("index", _index_node)
     builder.add_node("qa", _qa_node)
+    builder.add_node("assist", _assist_node)
 
     builder.add_edge(START, "intake")
     builder.add_conditional_edges(
@@ -102,8 +105,10 @@ def build_graph(checkpointer: Any | None = None) -> Any:
             "place": "verify",
             "index": "search",
             "qa": "qa",
+            "assist": "assist",
         },
     )
+    builder.add_edge("assist", END)
     builder.add_edge("verify", "propose")
     builder.add_edge("propose", "critique")
     builder.add_conditional_edges(
@@ -176,12 +181,32 @@ async def _search_node(state: AgentState, config: RunnableConfig) -> dict:
     q = str(state.get("question", ""))
     try:
         rows = await execute_tool(
-            "search_bank", {"q": q, "tags": "", "round_hint": ""}, ctx
+            "search_bank", {"q": q, "round_hint": ""}, ctx
         )
     except Exception as exc:  # noqa: BLE001
         return {"search_rows": [], "search_error": str(exc)}
     tools = list(state.get("tools_used") or []) + ["search_bank"]
     return {"search_rows": rows, "tools_used": tools}
+
+
+async def _assist_node(state: AgentState, config: RunnableConfig) -> dict:
+    """Hỗ trợ duyệt: gợi ý read-only (row + tương tự), admin quyết cuối."""
+    import re
+
+    from app.tools.registry import execute_tool
+
+    ctx = _tool_context(state, config)
+    m = re.search(r"\bQB_[A-Z0-9_]{1,20}\b", str(state.get("question", "")).upper())
+    if not m:
+        return {"search_rows": [], "search_error": "Thiếu mã bank QB_*."}
+    try:
+        suggestion = await execute_tool(
+            "suggest_bank_review", {"bank_code": m.group(0)}, ctx
+        )
+    except Exception as exc:  # noqa: BLE001
+        return {"search_rows": [], "search_error": str(exc)}
+    tools = list(state.get("tools_used") or []) + ["suggest_bank_review"]
+    return {"search_rows": [suggestion], "tools_used": tools}
 
 
 async def _propose_node(state: AgentState, config: RunnableConfig) -> dict:
@@ -288,7 +313,7 @@ async def _apply_node(state: AgentState, config: RunnableConfig) -> dict:
                 "update_bank_question",
                 {
                     "bank_code": _bank_code(state) or "",
-                    **{k: v for k, v in proposal.items() if k in ("content", "answer", "explanation", "tags", "round_hint", "roundHint")},
+                    **{k: v for k, v in proposal.items() if k in ("content", "answer", "explanation", "round_hint", "roundHint")},
                 },
                 ctx,
             )
@@ -300,9 +325,8 @@ async def _apply_node(state: AgentState, config: RunnableConfig) -> dict:
 
 async def _index_node(state: AgentState) -> dict:
     row = state.get("bank_row") or {}
-    tags = _normalize_tags(str(row.get("tags") or ""))
     round_hint = str(row.get("roundHint") or row.get("round_hint") or "").upper()
-    return {"index": {"tags": tags, "round_hint": round_hint}}
+    return {"index": {"round_hint": round_hint}}
 
 
 async def _qa_node(state: AgentState, config: RunnableConfig) -> dict:
@@ -432,12 +456,3 @@ def _parse_verdict(text: str) -> tuple[bool, str]:
     if '"passed": true' in low or '"passed":true' in low:
         return True, text[:500]
     return False, text[:500]
-
-
-def _normalize_tags(raw: str) -> list[str]:
-    parts = [p.strip().lower() for p in raw.replace(";", ",").split(",")]
-    seen: list[str] = []
-    for p in parts:
-        if p and p not in seen:
-            seen.append(p)
-    return seen
