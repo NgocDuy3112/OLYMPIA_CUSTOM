@@ -1,17 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Plus,
-  RefreshCw,
-  Gamepad2,
-  HelpCircle,
-  Pencil,
-  FileSpreadsheet,
-  Trash2,
-  ChevronDown,
-  Paperclip,
-} from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import {
@@ -19,51 +6,11 @@ import {
   setMatchCode as persistMatchCode,
 } from "@/utils/storage";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { MatchManagerCard } from "@/components/admin/MatchManagerCard";
+import { QuestionsCard } from "@/components/admin/QuestionsCard";
+import type { MatchData, QuestionData } from "@/components/admin/gameTypes";
 
 const logger = createLogger("AdminGameManaging");
-
-const VaoPhongButton = ({
-  matchCode,
-  disabled,
-}: {
-  matchCode: string;
-  disabled?: boolean;
-}) => {
-  const navigate = useNavigate();
-  const handleClick = () => {
-    const codeToUse = matchCode || readStoredMatchCode();
-    if (!codeToUse) {
-      alert("Vui lòng nhập Mã trận đấu trước khi Vào trận đấu.");
-      return;
-    }
-    persistMatchCode(codeToUse);
-    navigate(`/controller/waiting/${codeToUse}`);
-  };
-
-  return (
-    <button
-      onClick={handleClick}
-      disabled={disabled}
-      className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-400 disabled:opacity-50 font-medium transition-colors"
-    >
-      Vào trận đấu
-    </button>
-  );
-};
-
-interface MatchData {
-  match_code: string;
-  match_name: string;
-  match_status?: string;
-}
-
-interface QuestionData {
-  question_code: string;
-  content: string;
-  answer: string;
-  explanation: string | null;
-  media_url: string | null;
-}
 
 interface ApiResponse {
   status: "success" | "error";
@@ -88,9 +35,6 @@ const AdminGameManagingPage = () => {
   const [questionsMatchCode, setQuestionsMatchCode] = useState(
     readStoredMatchCode(),
   );
-  const [showImportMenu, setShowImportMenu] = useState(false);
-  const importMenuRef = useRef<HTMLDivElement>(null);
-
   const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(
     null,
   );
@@ -103,8 +47,6 @@ const AdminGameManagingPage = () => {
   const editMediaInputRef = useRef<HTMLInputElement>(null);
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [uploadingExcelQl, setUploadingExcelQl] = useState(false);
-  const excelInputRef = useRef<HTMLInputElement>(null);
-  const excelQlInputRef = useRef<HTMLInputElement>(null);
 
   const authHeaders = useCallback(
     (): HeadersInit => ({
@@ -134,21 +76,6 @@ const AdminGameManagingPage = () => {
     matchCode,
     editQMediaFile,
   ]);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (
-        importMenuRef.current &&
-        !importMenuRef.current.contains(e.target as Node)
-      ) {
-        setShowImportMenu(false);
-      }
-    };
-    if (showImportMenu) {
-      document.addEventListener("mousedown", handleClick);
-      return () => document.removeEventListener("mousedown", handleClick);
-    }
-  }, [showImportMenu]);
 
   const lookupMatchByCode = useCallback(
     async (code: string) => {
@@ -448,7 +375,91 @@ const AdminGameManagingPage = () => {
       return next;
     });
   };
+  const handleMatchCodeChange = useCallback((value: string) => {
+    setMatchCode(value);
+    setQuestionsMatchCode(value);
+    setMatchExists(false);
+    persistMatchCode(value);
+  }, []);
 
+  const handleQuestionsMatchCodeChange = useCallback((value: string) => {
+    setQuestionsMatchCode(value);
+  }, []);
+
+  const handleSelectMatch = useCallback(
+    (code: string) => {
+      setMatchCode(code);
+      setQuestionsMatchCode(code);
+      persistMatchCode(code);
+      setMatchExists(false);
+      void lookupMatchByCode(code);
+    },
+    [lookupMatchByCode],
+  );
+
+  const handleEditQuestion = useCallback((q: QuestionData) => {
+    setEditingQuestion(q);
+    setEditQContent(q.content);
+    setEditQAnswer(q.answer);
+    setEditQExplanation(q.explanation ?? "");
+    setEditQMediaUrl(q.media_url ?? "");
+  }, []);
+
+  const finishMatch = useCallback(
+    async (m: MatchData) => {
+      if (
+        !confirm(
+          `Xác nhận hoàn thành trận đấu "${m.match_name}" (${m.match_code})? Hành động này không thể hoàn tác.`,
+        )
+      )
+        return;
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/matches/${encodeURIComponent(m.match_code)}/finish`,
+          { method: "PATCH", headers: authHeaders() },
+        );
+        const json = await res.json();
+        if (json.status === "success") {
+          alert("✅ Đã hoàn thành trận đấu!");
+          await fetchAllMatches();
+        } else {
+          alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành"}`);
+        }
+      } catch (err) {
+        logger.error("Error finishing match:", err);
+        alert("Lỗi kết nối khi hoàn thành trận đấu");
+      }
+    },
+    [authHeaders, fetchAllMatches],
+  );
+
+  const deleteMatch = useCallback(
+    async (m: MatchData) => {
+      if (
+        !confirm(
+          `Xác nhận xoá trận đấu "${m.match_name}" (${m.match_code})?\nHành động này không thể hoàn tác.`,
+        )
+      )
+        return;
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/matches/${encodeURIComponent(m.match_code)}`,
+          { method: "DELETE", headers: authHeaders() },
+        );
+        const json = await res.json();
+        if (json.status === "success") {
+          alert("✅ Đã xoá trận đấu!");
+          await fetchAllMatches();
+        } else {
+          alert(`Lỗi: ${json.message ?? json.detail ?? "Không thể xoá trận đấu"}`);
+        }
+      } catch (err) {
+        logger.error("Error deleting match:", err);
+        alert("Lỗi kết nối khi xoá trận đấu");
+      }
+    },
+    [authHeaders, fetchAllMatches],
+  );
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 grid-rows-[auto_1fr] lg:grid-rows-[1fr_2fr] gap-3 sm:gap-4 p-3 sm:p-4 lg:p-6 min-h-screen lg:h-screen text-white overflow-auto lg:overflow-hidden">
       <SidePanel
@@ -566,387 +577,37 @@ const AdminGameManagingPage = () => {
         )}
       </SidePanel>
 
-      {}
-      <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden row-span-2">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
-            <Gamepad2 size={22} /> Tạo trận đấu & Quản lý trận đấu
-          </h2>
-          <button
-            onClick={fetchAllMatches}
-            disabled={allMatchesLoading}
-            className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
-            title="Làm mới"
-          >
-            <RefreshCw
-              size={16}
-              className={allMatchesLoading ? "animate-spin" : ""}
-            />
-          </button>
-        </div>
+      <MatchManagerCard
+        matchCode={matchCode}
+        matchName={matchName}
+        userCodes={userCodes}
+        userInputs={userInputs}
+        matchExists={matchExists}
+        matchLoading={matchLoading}
+        allMatches={allMatches}
+        allMatchesLoading={allMatchesLoading}
+        onMatchCodeChange={handleMatchCodeChange}
+        onMatchNameChange={setMatchName}
+        onUserInputChange={handleUserInputChange}
+        onSaveMatch={() => void createMatch()}
+        onRefreshMatches={() => void fetchAllMatches()}
+        onSelectMatch={handleSelectMatch}
+        onFinishMatch={finishMatch}
+        onDeleteMatch={deleteMatch}
+      />
 
-        {}
-        <div className="bg-blue-800/20 border border-blue-700 rounded-lg p-4 flex flex-col gap-3">
-          <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">
-            Tạo / Cập nhật trận đấu
-          </h3>
-
-          {}
-          <input
-            type="text"
-            placeholder="Mã trận đấu"
-            value={matchCode}
-            onChange={(e) => {
-              const val = e.target.value;
-              setMatchCode(val);
-              setQuestionsMatchCode(val);
-              setMatchExists(false);
-              persistMatchCode(val);
-            }}
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          />
-
-          {}
-          <input
-            type="text"
-            placeholder="Tên trận đấu"
-            value={matchName}
-            onChange={(e) => setMatchName(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          />
-
-          {}
-
-          <div className="grid grid-cols-2 gap-2">
-            {userInputs.map((input, i) => (
-              <div key={i} className="relative">
-                <input
-                  placeholder={`Tên / mã vị trí #${i + 1}`}
-                  value={input}
-                  onChange={(e) => handleUserInputChange(i, e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-                {userCodes[i] && userCodes[i] !== input && (
-                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-blue-400 font-mono pointer-events-none">
-                    {userCodes[i]}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {}
-          <div className="flex gap-2">
-            <button
-              onClick={createMatch}
-              disabled={
-                matchLoading ||
-                !matchCode ||
-                !matchName ||
-                userCodes.filter((c) => c.trim() !== "").length < 2
-              }
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold transition-colors"
-            >
-              <Plus size={16} />
-              {matchExists ? "Cập nhật trận đấu" : "Tạo trận đấu"}
-            </button>
-
-            <VaoPhongButton
-              matchCode={matchCode}
-              disabled={!matchCode || !matchExists}
-            />
-          </div>
-        </div>
-
-        {}
-        <div className="border-t border-blue-700 my-2"></div>
-
-        {}
-        <div className="flex flex-col gap-2 flex-1 min-h-0">
-          <h3 className="text-sm font-semibold text-blue-300 uppercase tracking-wide">
-            Danh sách trận đấu
-          </h3>
-          <div className="overflow-y-auto flex-1 min-h-0 -mr-2 pr-2">
-            {allMatchesLoading ? (
-              <p className="text-gray-400 text-sm">Đang tải…</p>
-            ) : allMatches.length === 0 ? (
-              <p className="text-gray-400 text-sm">Chưa có trận đấu nào.</p>
-            ) : (
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-blue-900">
-                  <tr className="text-left text-blue-300 border-b border-blue-700">
-                    <th className="py-2 px-2">Mã trận</th>
-                    <th className="py-2 px-2">Tên trận đấu</th>
-                    <th className="py-2 px-2">Trạng thái</th>
-                    <th className="py-2 px-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allMatches.map((m) => (
-                    <tr
-                      key={m.match_code}
-                      className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors cursor-pointer"
-                      onClick={() => {
-                        setMatchCode(m.match_code);
-                        setQuestionsMatchCode(m.match_code);
-                        persistMatchCode(m.match_code);
-                        setMatchExists(false);
-                        void lookupMatchByCode(m.match_code);
-                      }}
-                    >
-                      <td className="py-2 px-2 font-mono text-xs">
-                        {m.match_code}
-                      </td>
-                      <td className="py-2 px-2">{m.match_name}</td>
-                      <td className="py-2 px-2 text-xs">
-                        {m.match_status === "finished" ? (
-                          <span className="text-green-400 font-semibold">
-                            ✅ Hoàn thành
-                          </span>
-                        ) : (
-                          <span className="text-blue-300 capitalize">
-                            {m.match_status ?? "—"}
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className="py-2 px-2 text-right"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex gap-1 justify-end">
-                          {m.match_status !== "finished" && (
-                            <button
-                              onClick={async () => {
-                                if (
-                                  !confirm(
-                                    `Xác nhận hoàn thành trận đấu "${m.match_name}" (${m.match_code})? Hành động này không thể hoàn tác.`,
-                                  )
-                                )
-                                  return;
-                                try {
-                                  const res = await fetch(
-                                    `${API_BASE_URL}/matches/${encodeURIComponent(m.match_code)}/finish`,
-                                    {
-                                      method: "PATCH",
-                                      headers: authHeaders(),
-                                    },
-                                  );
-                                  const json = await res.json();
-                                  if (json.status === "success") {
-                                    alert("✅ Đã hoàn thành trận đấu!");
-                                    await fetchAllMatches();
-                                  } else {
-                                    alert(
-                                      `Lỗi: ${json.message ?? json.detail ?? "Không thể hoàn thành"}`,
-                                    );
-                                  }
-                                } catch (err) {
-                                  logger.error("Error finishing match:", err);
-                                  alert("Lỗi kết nối khi hoàn thành trận đấu");
-                                }
-                              }}
-                              className="text-xs px-3 py-1 rounded bg-green-700 hover:bg-green-500 transition-colors font-semibold"
-                              title="Đánh dấu trận đấu đã hoàn thành"
-                            >
-                              Hoàn thành
-                            </button>
-                          )}
-                          <button
-                            onClick={async () => {
-                              if (
-                                !confirm(
-                                  `Xác nhận xoá trận đấu "${m.match_name}" (${m.match_code})?\nHành động này không thể hoàn tác.`,
-                                )
-                              )
-                                return;
-                              try {
-                                const res = await fetch(
-                                  `${API_BASE_URL}/matches/${encodeURIComponent(m.match_code)}`,
-                                  {
-                                    method: "DELETE",
-                                    headers: authHeaders(),
-                                  },
-                                );
-                                const json = await res.json();
-                                if (json.status === "success") {
-                                  alert("✅ Đã xoá trận đấu!");
-                                  await fetchAllMatches();
-                                } else {
-                                  alert(
-                                    `Lỗi: ${json.message ?? json.detail ?? "Không thể xoá trận đấu"}`,
-                                  );
-                                }
-                              } catch (err) {
-                                logger.error("Error deleting match:", err);
-                                alert("Lỗi kết nối khi xoá trận đấu");
-                              }
-                            }}
-                            className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
-                            title="Xoá trận đấu"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {}
-      <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
-            <HelpCircle size={22} /> Câu hỏi
-          </h2>
-          <div className="flex items-center gap-2">
-            {}
-            <input
-              ref={excelInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadExcel(file, false);
-                e.target.value = "";
-              }}
-            />
-            <input
-              ref={excelQlInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void uploadExcel(file, true);
-                e.target.value = "";
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Mã trận đấu"
-              value={questionsMatchCode}
-              onChange={(e) => setQuestionsMatchCode(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-40"
-            />
-            <button
-              onClick={fetchQuestions}
-              disabled={questionsLoading || (!questionsMatchCode && !matchCode)}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors text-sm"
-            >
-              <Search size={14} /> Tải câu hỏi
-            </button>
-            {}
-            <div className="relative" ref={importMenuRef}>
-              <button
-                onClick={() => setShowImportMenu((v) => !v)}
-                className="flex items-center gap-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 transition-colors text-sm"
-              >
-                <FileSpreadsheet size={14} /> Import <ChevronDown size={14} />
-              </button>
-              {showImportMenu && (
-                <div className="absolute right-0 top-full mt-1 z-30 bg-blue-950 border border-blue-700 rounded-lg shadow-xl flex flex-col min-w-[10rem]">
-                  <button
-                    onClick={() => {
-                      excelInputRef.current?.click();
-                      setShowImportMenu(false);
-                    }}
-                    disabled={
-                      uploadingExcel || (!questionsMatchCode && !matchCode)
-                    }
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
-                  >
-                    <FileSpreadsheet size={14} /> Excel thường
-                  </button>
-                  <button
-                    onClick={() => {
-                      excelQlInputRef.current?.click();
-                      setShowImportMenu(false);
-                    }}
-                    disabled={uploadingExcelQl}
-                    className="flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-blue-800 disabled:opacity-50 transition-colors"
-                  >
-                    <FileSpreadsheet size={14} /> Excel VL
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-y-auto flex-1 -mr-2 pr-2">
-          {questionsLoading ? (
-            <p className="text-gray-400 text-sm">Đang tải…</p>
-          ) : questions.length === 0 ? (
-            <p className="text-gray-400 text-sm">
-              Chưa có câu hỏi. Nhập match_code rồi bấm "Tải câu hỏi".
-            </p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-blue-900">
-                <tr className="text-left text-blue-300 border-b border-blue-700">
-                  <th className="py-2 px-2 w-10"></th>
-                  <th className="py-2 px-2">Mã câu hỏi</th>
-                  <th className="py-2 px-2">Nội dung</th>
-                  <th className="py-2 px-2">Đáp án</th>
-                  <th className="py-2 px-2">Giải thích</th>
-                  <th className="py-2 px-2">Media</th>
-                </tr>
-              </thead>
-              <tbody>
-                {questions.map((q) => (
-                  <tr
-                    key={q.question_code}
-                    className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors align-top"
-                  >
-                    <td className="py-2 px-2">
-                      <button
-                        onClick={() => {
-                          setEditingQuestion(q);
-                          setEditQContent(q.content);
-                          setEditQAnswer(q.answer);
-                          setEditQExplanation(q.explanation ?? "");
-                          setEditQMediaUrl(q.media_url ?? "");
-                        }}
-                        className="p-1 rounded hover:bg-blue-700 transition-colors"
-                        title="Sửa câu hỏi"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    </td>
-                    <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">
-                      {q.question_code}
-                    </td>
-                    <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
-                    <td className="py-2 px-2 font-semibold">{q.answer}</td>
-                    <td className="py-2 px-2 text-gray-300 max-w-xs truncate">
-                      {q.explanation ?? "—"}
-                    </td>
-                    <td className="py-2 px-2 text-xs">
-                      {q.media_url ? (
-                        <span
-                          className="inline-flex items-center gap-1 text-blue-400"
-                          title={q.media_url}
-                        >
-                          <Paperclip size={14} />{" "}
-                          <span className="text-gray-400">✓</span>
-                        </span>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
+      <QuestionsCard
+        matchCode={matchCode}
+        questionsMatchCode={questionsMatchCode}
+        questions={questions}
+        questionsLoading={questionsLoading}
+        uploadingExcel={uploadingExcel}
+        uploadingExcelQl={uploadingExcelQl}
+        onQuestionsMatchCodeChange={handleQuestionsMatchCodeChange}
+        onFetch={() => void fetchQuestions()}
+        onUploadExcel={(file, isQualifier) => void uploadExcel(file, isQualifier)}
+        onEditQuestion={handleEditQuestion}
+      />
 
     </div>
   );
