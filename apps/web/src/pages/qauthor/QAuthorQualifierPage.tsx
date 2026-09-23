@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { ListOrdered, Pencil, Plus, Search, Trash2, Trophy } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { EditQualifierPanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierPanel";
 
 const logger = createLogger("QAuthorQualifierPage");
 
@@ -73,10 +73,6 @@ const QAuthorQualifierPage = () => {
   const [closing, setClosing] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<Record<string, unknown> | null>(null);
   const [editing, setEditing] = useState<QualifierQuestion | null>(null);
-  const [editContent, setEditContent] = useState("");
-  const [editOptions, setEditOptions] = useState("");
-  const [editCorrect, setEditCorrect] = useState("A");
-  const [editPosition, setEditPosition] = useState("1");
 
   const base = useCallback(
     () => `/qualifier/${encodeURIComponent(tournamentCode.trim())}`,
@@ -182,9 +178,9 @@ const QAuthorQualifierPage = () => {
     }
   }, [base, fetchQuestions, form, questions.length, tournamentCode]);
 
-  const saveEdit = useCallback(async () => {
+  const saveEdit = useCallback(async (value: QualifierEditValue) => {
     if (!editing) return;
-    const options = parseOptions(editOptions);
+    const options = parseOptions(value.options);
     if (!options || options.length < 4 || options.length > 6) {
       alert("Options phải 4-6 phương án.");
       return;
@@ -197,10 +193,10 @@ const QAuthorQualifierPage = () => {
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
-            content: editContent.trim() || undefined,
+            content: value.content.trim() || undefined,
             options,
-            correctOption: editCorrect,
-            position: Number(editPosition) || undefined,
+            correctOption: value.correctOption,
+            position: Number(value.position) || undefined,
           }),
         },
       );
@@ -215,7 +211,7 @@ const QAuthorQualifierPage = () => {
       logger.error("Error patching qualifier:", err);
       alert("Lỗi kết nối khi sửa câu hỏi");
     }
-  }, [base, editContent, editCorrect, editOptions, editPosition, editing, fetchQuestions]);
+  }, [base, editing, fetchQuestions]);
 
   const deleteQuestion = useCallback(
     async (q: QualifierQuestion) => {
@@ -269,66 +265,7 @@ const QAuthorQualifierPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white">
-      <SidePanel
-        open={editing !== null}
-        onClose={() => setEditing(null)}
-        title="Sửa câu vòng loại"
-      >
-        {editing && (
-          <>
-            <p className="text-xs text-blue-400 font-mono -mt-2">{editing.questionCode}</p>
-            <label className="text-xs text-blue-300">Nội dung</label>
-            <textarea
-              rows={3}
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm resize-none"
-            />
-            <label className="text-xs text-blue-300">Options (JSON hoặc A|B|C|D)</label>
-            <input
-              value={editOptions}
-              onChange={(e) => setEditOptions(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm font-mono"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-xs text-blue-300">Đáp án đúng</label>
-                <select
-                  value={editCorrect}
-                  onChange={(e) => setEditCorrect(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm"
-                >
-                  {LETTERS.map((l) => (
-                    <option key={l} value={l}>{l}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-blue-300">Vị trí 1-16</label>
-                <input
-                  value={editPosition}
-                  onChange={(e) => setEditPosition(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm font-mono"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setEditing(null)}
-                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
-              >
-                Huỷ
-              </button>
-              <button
-                onClick={() => void saveEdit()}
-                className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm"
-              >
-                Lưu
-              </button>
-            </div>
-          </>
-        )}
-      </SidePanel>
+      <EditQualifierPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
 
       <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4">
         <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
@@ -479,13 +416,7 @@ const QAuthorQualifierPage = () => {
                       {q.status === "open" && (
                         <>
                           <button
-                            onClick={() => {
-                              setEditing(q);
-                              setEditContent(q.content);
-                              setEditOptions(JSON.stringify(q.options));
-                              setEditCorrect(q.correctOption || "A");
-                              setEditPosition(String(q.position));
-                            }}
+                            onClick={() => setEditing(q)}
                             className="p-1.5 rounded bg-white-600/70 hover:bg-white-500"
                             title="Sửa"
                           >
