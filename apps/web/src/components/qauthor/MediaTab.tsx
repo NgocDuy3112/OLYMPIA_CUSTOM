@@ -7,12 +7,6 @@ import { uploadQuestionMedia } from "./uploadMedia";
 
 const logger = createLogger("MediaTab");
 
-interface ApiResponse {
-  status: "success" | "error";
-  message: string;
-  data: unknown;
-}
-
 export const MediaTab = () => {
   const [code, setCode] = useState("");
   const [kind, setKind] = useState<"bank" | "question">("bank");

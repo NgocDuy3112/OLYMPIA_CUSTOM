@@ -244,11 +244,6 @@ export const MatchTab = () => {
     } finally {
       setBankLoading(false);
     }
-  }, [bankQuery]);
-
-    } finally {
-      setBankLoading(false);
-    }
   }, [bankQuery, pickRound, selSlot]);
 
   const reuseFromBank = useCallback(async (q: BankData, slotOverride?: string) => {

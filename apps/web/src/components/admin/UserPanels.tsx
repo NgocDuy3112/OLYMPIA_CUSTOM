@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 export type GlobalRole = "admin" | "operator" | "player" | "spectator";

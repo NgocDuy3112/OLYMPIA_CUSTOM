@@ -16,7 +16,6 @@ import TournamentFormPage from "@/pages/admin/tournament/TournamentFormPage";
 import TournamentDetailPage from "@/pages/admin/tournament/TournamentDetailPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminHeader, AdminSidebar } from "@/components/layout";
-import { getMatchCode } from "@/utils/storage";
 
 // Admin Layout wrapper for management pages
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
@@ -41,8 +40,6 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
 };
 
 const AdminRoutes = () => {
-  const stored = getMatchCode();
-
   // Management pages with AdminLayout — CRUD only.
   // Live control moved to ControllerRoutes (/controller/*).
   return (

@@ -162,10 +162,6 @@ export const BankTab = () => {
             setCode: v.setCode || undefined,
             hintIndex: v.hintIndex || undefined,
             citations: buildCitations(v),
-            domain: v.domain || undefined,
-            difficulty: v.difficulty ? Number(v.difficulty) : undefined,
-            setCode: v.setCode || undefined,
-            hintIndex: v.hintIndex || undefined,
           }),
         });
         const json = await res.json();
@@ -189,11 +185,6 @@ export const BankTab = () => {
           answer: v.answer.trim(),
           explanation: v.explanation.trim() || null,
           citations: buildCitations(v),
-          domain: v.domain || null,
-          difficulty: v.difficulty ? Number(v.difficulty) : null,
-          setCode: v.setCode || null,
-          hintIndex: v.hintIndex || null,
-        };
           domain: v.domain || null,
           difficulty: v.difficulty ? Number(v.difficulty) : null,
           setCode: v.setCode || null,

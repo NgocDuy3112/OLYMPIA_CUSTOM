@@ -54,7 +54,7 @@ export function EditQualifierPanel({
 
   const set =
     (key: keyof QualifierEditValue) =>
-    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setValue((prev) => ({ ...prev, [key]: e.target.value }));
 
   const inputClass =

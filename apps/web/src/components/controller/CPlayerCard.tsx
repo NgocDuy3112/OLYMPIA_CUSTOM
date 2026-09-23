@@ -3,7 +3,6 @@ import { Mic, KeyRound, Pencil } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
-import { API_BASE_URL } from "@/configs";
 import CScoreEditModal from "@/components/controller/CScoreEditModal";
 
 interface CPlayerCardProps {

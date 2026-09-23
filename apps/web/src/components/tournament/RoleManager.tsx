@@ -23,7 +23,7 @@ const ROLES = [
   { value: "player", label: "Thí sinh", color: "bg-green-500" },
   { value: "mc", label: "MC", color: "bg-pink-500" },
   { value: "controller", label: "Điều hành", color: "bg-purple-500" },
-  { value: "qauthor", label: "Soạn câu hỏi", color: "bg-amber-500" },,
+  { value: "qauthor", label: "Soạn câu hỏi", color: "bg-amber-500" },
   { value: "spectator", label: "Khán giả", color: "bg-gray-500" },
 ];
 

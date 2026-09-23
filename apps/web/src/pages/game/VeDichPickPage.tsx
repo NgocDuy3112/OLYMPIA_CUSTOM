@@ -788,7 +788,7 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
         >
           {Array.from({ length: 6 * 4 }).map((_, idx) => {
             const questionCode = allQuestionCodes[idx];
-            const oc = currentMatchCode.toUpperCase().match(/^OC(\d+)/)?.[0] ?? "OC3";
+            const oc = (paramMatchCode || "").toUpperCase().match(/^OC(\d+)/)?.[0] ?? "OC3";
             const fallbackCode = `${oc}_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
             const displayCode = questionCode || fallbackCode;
             const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";

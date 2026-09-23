@@ -20,12 +20,6 @@ interface AdminSidebarProps {
   onClose?: () => void;
 }
 
-interface SidebarItem {
-  label: string;
-  path: string;
-  icon: React.ReactNode;
-}
-
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   isOpen = true,
   onClose,
