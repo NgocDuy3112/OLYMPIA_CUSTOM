@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import {
   getMatchCode as readStoredMatchCode,
   setMatchCode as persistMatchCode,
 } from "@/utils/storage";
-import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { MatchManagerCard } from "@/components/admin/MatchManagerCard";
 import { QuestionsCard } from "@/components/admin/QuestionsCard";
+import { EditMatchQuestionPanel, type MatchQuestionEditValue } from "@/components/admin/EditMatchQuestionPanel";
 import type { MatchData, QuestionData } from "@/components/admin/gameTypes";
 
 const logger = createLogger("AdminGameManaging");
@@ -38,13 +38,7 @@ const AdminGameManagingPage = () => {
   const [editingQuestion, setEditingQuestion] = useState<QuestionData | null>(
     null,
   );
-  const [editQContent, setEditQContent] = useState("");
-  const [editQAnswer, setEditQAnswer] = useState("");
-  const [editQExplanation, setEditQExplanation] = useState("");
-  const [editQMediaUrl, setEditQMediaUrl] = useState("");
-  const [editQMediaFile, setEditQMediaFile] = useState<File | null>(null);
   const [savingQuestionEdit, setSavingQuestionEdit] = useState(false);
-  const editMediaInputRef = useRef<HTMLInputElement>(null);
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [uploadingExcelQl, setUploadingExcelQl] = useState(false);
 
@@ -54,28 +48,6 @@ const AdminGameManagingPage = () => {
     }),
     [],
   );
-
-  useEffect(() => {
-    if (editingQuestion && !editQMediaFile) {
-      const codeToUse = questionsMatchCode || matchCode;
-      if (codeToUse && editingQuestion.question_code) {
-        const ext = editQMediaUrl
-          ? editQMediaUrl.split(".").pop() || "png"
-          : "png";
-        const suggestedKey = `${codeToUse}/${editingQuestion.question_code}.${ext}`;
-
-        if (!editQMediaUrl || editQMediaUrl.startsWith(codeToUse)) {
-          setEditQMediaUrl(suggestedKey);
-        }
-      }
-    }
-  }, [
-    editQMediaUrl,
-    editingQuestion,
-    questionsMatchCode,
-    matchCode,
-    editQMediaFile,
-  ]);
 
   const lookupMatchByCode = useCallback(
     async (code: string) => {
@@ -252,75 +224,68 @@ const AdminGameManagingPage = () => {
     }
   }, [authHeaders, matchCode, questionsMatchCode]);
 
-  const patchQuestion = useCallback(async () => {
-    if (!editingQuestion) return;
-    const code = questionsMatchCode || matchCode;
-    setSavingQuestionEdit(true);
-    try {
-      let mediaUrl = editQMediaUrl.trim() || null;
+  const patchQuestion = useCallback(
+    async (
+      value: MatchQuestionEditValue,
+      mediaFile: File | null,
+    ) => {
+      if (!editingQuestion) return;
+      const code = questionsMatchCode || matchCode;
+      setSavingQuestionEdit(true);
+      try {
+        let mediaUrl = value.mediaUrl.trim() || null;
 
-      if (editQMediaFile) {
-        const ext = editQMediaFile.name.split(".").pop() || "png";
-        const s3Key = `${code}/${editingQuestion.question_code}.${ext}`;
+        if (mediaFile) {
+          const ext = mediaFile.name.split(".").pop() || "png";
+          const s3Key = `${code}/${editingQuestion.question_code}.${ext}`;
 
-        const formData = new FormData();
-        formData.append("file", editQMediaFile);
+          const formData = new FormData();
+          formData.append("file", mediaFile);
 
-        const uploadRes = await fetch(
-          `${API_BASE_URL}/media/upload/?match_code=${encodeURIComponent(code)}`,
-          {
-            method: "POST",
-            headers: authHeaders(),
-            body: formData,
-          },
-        );
+          const uploadRes = await fetch(
+            `${API_BASE_URL}/media/upload/?match_code=${encodeURIComponent(code)}`,
+            {
+              method: "POST",
+              headers: authHeaders(),
+              body: formData,
+            },
+          );
 
-        if (uploadRes.ok) {
-          const uploadJson = await uploadRes.json();
-          mediaUrl = uploadJson.key || s3Key;
-          logger.info(`Media uploaded successfully: ${mediaUrl}`);
-        } else {
-          logger.warn("Media upload failed, using existing media URL");
+          if (uploadRes.ok) {
+            const uploadJson = await uploadRes.json();
+            mediaUrl = uploadJson.key || s3Key;
+            logger.info(`Media uploaded successfully: ${mediaUrl}`);
+          } else {
+            logger.warn("Media upload failed, using existing media URL");
+          }
         }
-      }
 
-      const body: Record<string, string | null> = {
-        content: editQContent.trim() || null,
-        answer: editQAnswer.trim() || null,
-        explanation: editQExplanation.trim() || null,
-        media_url: mediaUrl,
-      };
-      const res = await fetch(
-        `${API_BASE_URL}/questions/${encodeURIComponent(code)}/${encodeURIComponent(editingQuestion.question_code)}`,
-        { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) },
-      );
-      const json: ApiResponse = await res.json();
-      if (json.status === "success") {
-        setEditingQuestion(null);
-        setEditQMediaFile(null);
-        if (editMediaInputRef.current) editMediaInputRef.current.value = "";
-        await fetchQuestions();
-      } else {
-        alert(`Thất bại: ${json.message ?? "Lỗi không xác định"}`);
+        const body: Record<string, string | null> = {
+          content: value.content.trim() || null,
+          answer: value.answer.trim() || null,
+          explanation: value.explanation.trim() || null,
+          media_url: mediaUrl,
+        };
+        const res = await fetch(
+          `${API_BASE_URL}/questions/${encodeURIComponent(code)}/${encodeURIComponent(editingQuestion.question_code)}`,
+          { method: "PATCH", headers: authHeaders(), body: JSON.stringify(body) },
+        );
+        const json: ApiResponse = await res.json();
+        if (json.status === "success") {
+          setEditingQuestion(null);
+          await fetchQuestions();
+        } else {
+          alert(`Thất bại: ${json.message ?? "Lỗi không xác định"}`);
+        }
+      } catch (err) {
+        logger.error("Error patching question:", err);
+        alert("Lỗi kết nối khi sửa câu hỏi");
+      } finally {
+        setSavingQuestionEdit(false);
       }
-    } catch (err) {
-      logger.error("Error patching question:", err);
-      alert("Lỗi kết nối khi sửa câu hỏi");
-    } finally {
-      setSavingQuestionEdit(false);
-    }
-  }, [
-    authHeaders,
-    editingQuestion,
-    editQContent,
-    editQAnswer,
-    editQExplanation,
-    editQMediaUrl,
-    editQMediaFile,
-    questionsMatchCode,
-    matchCode,
-    fetchQuestions,
-  ]);
+    },
+    [authHeaders, editingQuestion, questionsMatchCode, matchCode, fetchQuestions],
+  );
 
   const uploadExcel = useCallback(
     async (file: File, isQualifier: boolean) => {
@@ -399,10 +364,6 @@ const AdminGameManagingPage = () => {
 
   const handleEditQuestion = useCallback((q: QuestionData) => {
     setEditingQuestion(q);
-    setEditQContent(q.content);
-    setEditQAnswer(q.answer);
-    setEditQExplanation(q.explanation ?? "");
-    setEditQMediaUrl(q.media_url ?? "");
   }, []);
 
   const finishMatch = useCallback(
@@ -462,120 +423,13 @@ const AdminGameManagingPage = () => {
   );
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 grid-rows-[auto_1fr] lg:grid-rows-[1fr_2fr] gap-3 sm:gap-4 p-3 sm:p-4 lg:p-6 min-h-screen lg:h-screen text-white overflow-auto lg:overflow-hidden">
-      <SidePanel
-        open={editingQuestion !== null}
+      <EditMatchQuestionPanel
+        item={editingQuestion}
+        matchCode={questionsMatchCode || matchCode}
+        saving={savingQuestionEdit}
         onClose={() => setEditingQuestion(null)}
-        title="Sửa câu hỏi"
-      >
-        {editingQuestion && (
-          <>
-            <p className="text-xs text-blue-400 font-mono -mt-2">
-              {editingQuestion.question_code}
-            </p>
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-blue-300">Nội dung</label>
-                <textarea
-                  rows={3}
-                  value={editQContent}
-                  onChange={(e) => setEditQContent(e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-blue-300">Đáp án</label>
-                <input
-                  type="text"
-                  value={editQAnswer}
-                  onChange={(e) => setEditQAnswer(e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-blue-300">Giải thích</label>
-                <input
-                  type="text"
-                  value={editQExplanation}
-                  onChange={(e) => setEditQExplanation(e.target.value)}
-                  placeholder="(tuỳ chọn)"
-                  className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-blue-300">
-                  Media URL / S3 key
-                </label>
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="text"
-                    value={editQMediaUrl}
-                    onChange={(e) => setEditQMediaUrl(e.target.value)}
-                    placeholder="OC3_M01T/OC3_Q_... (VD: OC<number>_M_*/OC<number>_Q_*)"
-                    className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
-                  />
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={editMediaInputRef}
-                      type="file"
-                      accept="image/*,audio/*,video/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setEditQMediaFile(file);
-                          const ext = file.name.split(".").pop() || "png";
-                          const codeToUse = questionsMatchCode || matchCode;
-                          const suggestedKey =
-                            codeToUse && editingQuestion?.question_code
-                              ? `${codeToUse}/${editingQuestion.question_code}.${ext}`
-                              : `filename.${ext}`;
-                          setEditQMediaUrl(suggestedKey);
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={() => editMediaInputRef.current?.click()}
-                      className="flex-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-white text-sm truncate"
-                      title="Upload file mới"
-                    >
-                      {editQMediaFile ? editQMediaFile.name : "Chọn file mới"}
-                    </button>
-                    {editQMediaFile && (
-                      <span className="text-xs text-green-400 whitespace-nowrap">
-                        Sẽ upload khi lưu
-                      </span>
-                    )}
-                  </div>
-                  {editQMediaUrl && (
-                    <div className="text-xs text-blue-300">
-                      S3 key: <span className="font-mono">{editQMediaUrl}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setEditingQuestion(null)}
-                className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
-              >
-                Huỷ
-              </button>
-              <button
-                onClick={patchQuestion}
-                disabled={
-                  savingQuestionEdit ||
-                  !editQContent.trim() ||
-                  !editQAnswer.trim()
-                }
-                className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm transition-colors"
-              >
-                {savingQuestionEdit ? "Đang lưu…" : "Lưu thay đổi"}
-              </button>
-            </div>
-          </>
-        )}
-      </SidePanel>
+        onSave={patchQuestion}
+      />
 
       <MatchManagerCard
         matchCode={matchCode}
