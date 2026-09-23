@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pencil, Plus, RefreshCw, ShieldCheck, Trash2, Users } from "lucide-react";
+import { Plus, RefreshCw, Users } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import {
@@ -12,6 +12,7 @@ import {
   type UserAddValue,
   type UserRoleValue,
 } from "@/components/admin/UserPanels";
+import { UserRowActions } from "@/components/admin/UserRowActions";
 
 const logger = createLogger("AdminUsersPage");
 
@@ -331,29 +332,11 @@ const AdminUsersPage = () => {
                         )}
                       </td>
                       <td className="py-2 px-2 text-right">
-                        <div className="flex gap-1 justify-end">
-                          <button
-                            onClick={() => setEditingUser(u)}
-                            className="p-1.5 rounded bg-white-600/70 hover:bg-white-500 transition-colors"
-                            title="Sửa thông tin"
-                          >
-                            <Pencil size={13} />
-                          </button>
-                          <button
-                            onClick={() => setRoleUser(u)}
-                            className="p-1.5 rounded bg-amber-600/70 hover:bg-amber-500 transition-colors"
-                            title="Đổi vai trò / cấp scope"
-                          >
-                            <ShieldCheck size={13} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(u)}
-                            className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
-                            title="Xoá người dùng"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
+                        <UserRowActions
+                          onEdit={() => setEditingUser(u)}
+                          onChangeRole={() => setRoleUser(u)}
+                          onDelete={() => setDeleteTarget(u)}
+                        />
                       </td>
                     </tr>
                   ))}
