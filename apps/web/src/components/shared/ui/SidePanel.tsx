@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 
 interface SidePanelProps {
     open: boolean;
@@ -15,15 +15,41 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     tone = "default",
     children,
 }) => {
-    // Esc đóng panel + chặn scroll nền.
+    const panelRef = useRef<HTMLElement>(null);
+
+    // Esc đóng panel + chặn scroll nền + focus-trap Tab.
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent) => {
-            if (e.key === "Escape") onClose();
+            if (e.key === "Escape") {
+                onClose();
+                return;
+            }
+            if (e.key !== "Tab") return;
+            const el = panelRef.current;
+            if (!el) return;
+            const focusables = el.querySelectorAll<HTMLElement>(
+                'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+            );
+            if (focusables.length === 0) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            const active = document.activeElement;
+            if (!el.contains(active)) {
+                e.preventDefault();
+                first.focus();
+            } else if (e.shiftKey && active === first) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && active === last) {
+                e.preventDefault();
+                first.focus();
+            }
         };
         document.addEventListener("keydown", onKey);
         const prevOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
+        panelRef.current?.focus();
         return () => {
             document.removeEventListener("keydown", onKey);
             document.body.style.overflow = prevOverflow;
@@ -43,7 +69,10 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             className={`absolute right-0 top-0 h-full w-full sm:w-96 bg-blue-950 border-l-4 shadow-2xl p-6 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out ${tone === "danger" ? "border-red-700" : "border-blue-600"
                 } ${open ? "translate-x-0" : "translate-x-full"}`}
             role="dialog"
+            aria-modal="true"
             aria-label={title}
+            ref={panelRef}
+            tabIndex={-1}
         >
             <div className="flex items-center justify-between">
                 <h3
