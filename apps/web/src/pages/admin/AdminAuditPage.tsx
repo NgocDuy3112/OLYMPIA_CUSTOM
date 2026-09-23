@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RefreshCw, ScrollText } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { FilterSelect } from "@/components/shared/FilterSelect";
 
 const logger = createLogger("AdminAuditPage");
 
@@ -82,18 +83,14 @@ const AdminAuditPage = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <select
-            value={action}
-            onChange={(e) => setAction(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
-          >
+          <FilterSelect value={action} onChange={setAction} aria-label="Lọc hành động">
             <option value="">Tất cả hành động</option>
             {ACTIONS.map((a) => (
               <option key={a} value={a}>
                 {a}
               </option>
             ))}
-          </select>
+          </FilterSelect>
           <input
             value={actor}
             onChange={(e) => setActor(e.target.value)}

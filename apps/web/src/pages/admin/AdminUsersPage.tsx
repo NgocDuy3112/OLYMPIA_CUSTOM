@@ -13,6 +13,7 @@ import {
   type UserRoleValue,
 } from "@/components/admin/UserPanels";
 import { UserRowActions } from "@/components/admin/UserRowActions";
+import { FilterSelect } from "@/components/shared/FilterSelect";
 
 const logger = createLogger("AdminUsersPage");
 
@@ -252,17 +253,18 @@ const AdminUsersPage = () => {
             <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
               <Users size={20} /> Người dùng
             </h2>
-            <select
+            <FilterSelect
               value={userRoleFilter}
-              onChange={(e) => setUserRoleFilter(e.target.value)}
-              className="px-2 py-1 rounded bg-blue-950 border border-blue-700 text-blue-200 text-xs"
+              onChange={setUserRoleFilter}
+              aria-label="Lọc theo vai trò"
+              className="px-2 py-1 text-xs"
             >
               <option value="all">Tất cả</option>
               <option value="admin">Admin</option>
               <option value="operator">Operator</option>
               <option value="player">Thí sinh</option>
               <option value="spectator">Khán giả</option>
-            </select>
+            </FilterSelect>
           </div>
           <div className="flex items-center gap-2">
             <button
