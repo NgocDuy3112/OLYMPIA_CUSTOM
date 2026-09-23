@@ -42,6 +42,8 @@ services:
   # ── Backend API (dev — hot reload) ───────────────────────
   app:
     container_name: oc-app
+    mem_limit: 512m
+    memswap_limit: 512m
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -85,6 +87,8 @@ services:
   # ── AI Agent (OCee — internal only) ───────────────────────
   ai-agent:
     container_name: oc-ai-agent
+    mem_limit: 512m
+    memswap_limit: 512m
     build:
       context: .
       dockerfile: apps/ai-agent/Dockerfile
@@ -140,6 +144,8 @@ services:
 
   discord-bot:
     container_name: oc-discord-bot
+    mem_limit: 256m
+    memswap_limit: 256m
     build:
       context: .
       dockerfile: apps/discord-bot/Dockerfile
