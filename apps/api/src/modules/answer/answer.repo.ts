@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "@oc/db";
 import { db, answers, users } from "@oc/db";
 
 export type AnswerRow = typeof answers.$inferSelect;

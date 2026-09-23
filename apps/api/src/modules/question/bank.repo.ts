@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "@oc/db";
 import { db, matches, questionBank, questions } from "@oc/db";
 
 export type BankStatus = "pending" | "approved" | "rejected";

@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "@oc/db";
 import { db, matches, matchCheckpoints } from "@oc/db";
 
 export type CheckpointRow = typeof matchCheckpoints.$inferSelect;

@@ -7,6 +7,11 @@ import * as schema from "./schema/index.js";
 //   `db` auto-connects on first use, or use getDb() for explicit init
 export * from "./schema/index.js";
 
+// Single drizzle-orm instance: API imports query helpers from here,
+// never from "drizzle-orm" directly (tránh 2 bản type xung đột).
+export { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
+export type { SQL } from "drizzle-orm";
+
 // ── Connection ──
 
 function getDbUrl(): string {

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq } from "@oc/db";
 import { db, matches, questions, tournamentPlayers } from "@oc/db";
 
 export interface QuestionRow {
@@ -113,6 +113,8 @@ export const drizzleQuestionRepo: QuestionRepo = {
         mediaUrl?: string | null;
         options?: string | null;
         sourceBankId?: string | null;
+        slot?: string | null;
+        citations?: { source: string; url: string; accessedAt: string }[] | null;
     }): Promise<{ id: string }> {
         const result = await db
             .insert(questions)
