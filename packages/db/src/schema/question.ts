@@ -6,6 +6,7 @@ import {
   timestamp,
   text,
   integer,
+  jsonb,
   index,
   uniqueIndex,
   check,
@@ -35,6 +36,8 @@ export const questions = pgTable(
       .notNull()
       .references(() => matches.id),
     sourceBankId: uuid("source_bank_id"),
+    // [{source, url, accessed_at}] — copy từ bank khi pick.
+    citations: jsonb("citations").notNull().default([]),
     // Round slot: KDC_1..6 | KDR{1..4}_1..6 | GM_KEY/GM_H1..H8 |
     // BP_1..4 | VD_<DOMAIN>_<20|30|40|50>. One slot per match max.
     slot: varchar("slot", { length: 25 }),
@@ -73,6 +76,8 @@ export const questionBank = pgTable(
     difficulty: integer("difficulty"),
     setCode: varchar("set_code", { length: 50 }),
     hintIndex: varchar("hint_index", { length: 4 }),
+    // [{source, url, accessed_at}] — hiển thị DD/MM/YYYY (Asia/Ho_Chi_Minh).
+    citations: jsonb("citations").notNull().default([]),
     // Review workflow: new rows pending, only approved rows pickable to matches.
     status: varchar("status", { length: 20 }).notNull().default("pending"),
     reviewNote: text("review_note"),

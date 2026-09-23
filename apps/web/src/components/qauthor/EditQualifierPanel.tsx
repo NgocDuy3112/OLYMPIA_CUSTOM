@@ -3,7 +3,7 @@ import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
-/** Câu vòng loại tối thiểu để sửa — QualifierTab & QAuthorQualifierPage đều thỏa. */
+/** Câu vòng loại tối thiểu để sửa — QualifierTab. */
 export interface EditableQualifier {
   questionCode: string;
   content: string;
@@ -32,7 +32,7 @@ interface EditQualifierPanelProps {
   onSave: (value: QualifierEditValue) => void | Promise<void>;
 }
 
-/** Panel sửa câu vòng loại (SidePanel) — dùng chung QualifierTab/QAuthorQualifierPage. */
+/** Panel sửa câu vòng loại (SidePanel) — dùng cho QualifierTab. */
 export function EditQualifierPanel({
   item,
   onClose,

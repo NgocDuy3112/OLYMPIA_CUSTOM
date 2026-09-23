@@ -4,6 +4,12 @@ export interface BankUsage {
   isUsed: boolean;
 }
 
+export interface Citation {
+  source: string;
+  url: string;
+  accessedAt: string;
+}
+
 export interface BankData {
   bank_id: string;
   bank_code: string;
@@ -17,6 +23,7 @@ export interface BankData {
   difficulty?: number | null;
   set_code?: string | null;
   hint_index?: string | null;
+  citations: Citation[];
   status: "pending" | "approved" | "rejected";
   usedCount: number;
   usedIn: BankUsage[];
@@ -29,6 +36,14 @@ export interface BankApiResponse {
 }
 
 export const BANK_PAGE_SIZE = 20;
+
+/** ISO date → DD/MM/YYYY (Asia/Ho_Chi_Minh). */
+export function formatVnDate(iso: string): string {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return iso;
+}
 
 export function toBankData(row: Record<string, unknown>): BankData {
   const rawUsed = Array.isArray(row.usedIn ?? row.used_in)
@@ -49,6 +64,13 @@ export function toBankData(row: Record<string, unknown>): BankData {
     difficulty: (row.difficulty as number | null) ?? null,
     set_code: (row.setCode as string | null) ?? (row.set_code as string | null) ?? null,
     hint_index: (row.hintIndex as string | null) ?? (row.hint_index as string | null) ?? null,
+    citations: Array.isArray(row.citations)
+      ? (row.citations as Record<string, unknown>[]).map((c) => ({
+          source: String(c.source ?? ""),
+          url: String(c.url ?? ""),
+          accessedAt: String(c.accessedAt ?? c.accessed_at ?? ""),
+        }))
+      : [],
     status: (row.status as BankData["status"]) ?? "pending",
     usedCount: Number(row.usedCount ?? row.used_count ?? rawUsed.length ?? 0),
     usedIn: rawUsed.map((u) => ({

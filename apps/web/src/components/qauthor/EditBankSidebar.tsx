@@ -81,6 +81,12 @@ export function genBankCode(): string {
   return `QB_${Date.now().toString(36).toUpperCase()}`;
 }
 
+/** ISO → DD/MM/YYYY cho ô nhập. */
+function toDdMmYyyy(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+}
+
 /** Preview file local chưa upload: ảnh hiện ảnh, video hiện video, audio hiện audio. */
 function LocalPreview({ file }: { file: File }) {
   const url = useMemo(() => URL.createObjectURL(file), [file]);
@@ -104,6 +110,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
     if (!open) return;
     setDupNote("");
     if (mode === "edit" && initial) {
+      const c0 = initial.citations?.[0];
       setValue({
         ...EMPTY,
         content: initial.content,
@@ -115,6 +122,9 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         difficulty: initial.difficulty != null ? String(initial.difficulty) : "",
         setCode: initial.set_code ?? "",
         hintIndex: initial.hint_index ?? "",
+        citationSource: c0?.source ?? "",
+        citationUrl: c0?.url ?? "",
+        citationDate: toDdMmYyyy(c0?.accessedAt ?? ""),
       });
     } else if (kind === "gm-key") {
       setValue({ ...EMPTY, bankCode: genBankCode(), roundHint: "GM", setCode: genSetCode(), hintIndex: "KEY" });

@@ -3,6 +3,12 @@ import { db, matches, questionBank, questions } from "@oc/db";
 
 export type BankStatus = "pending" | "approved" | "rejected";
 
+export interface Citation {
+    source: string;
+    url: string;
+    accessedAt: string;
+}
+
 export interface BankRow {
     id: string;
     bankCode: string;
@@ -17,6 +23,7 @@ export interface BankRow {
     difficulty: number | null;
     setCode: string | null;
     hintIndex: string | null;
+    citations: Citation[];
     status: BankStatus;
     reviewNote: string | null;
     reviewedBy: string | null;
@@ -76,6 +83,7 @@ export interface BankRepo {
             difficulty?: number | null;
             setCode?: string | null;
             hintIndex?: string | null;
+            citations?: Citation[] | null;
         },
     ): Promise<boolean>;
     softDelete(id: string): Promise<boolean>;
@@ -96,6 +104,7 @@ export interface BankRepo {
         difficulty?: number | null;
         setCode?: string | null;
         hintIndex?: string | null;
+        citations?: Citation[] | null;
         createdBy?: string | null;
     }): Promise<{ id: string }>;
 }
@@ -115,6 +124,7 @@ function toBankRow(r: typeof questionBank.$inferSelect): BankRow {
         difficulty: r.difficulty,
         setCode: r.setCode,
         hintIndex: r.hintIndex,
+        citations: (r.citations ?? []) as Citation[],
         status: (r.status ?? "pending") as BankStatus,
         reviewNote: r.reviewNote,
         reviewedBy: r.reviewedBy,
@@ -286,6 +296,7 @@ export const drizzleBankRepo: BankRepo = {
                 difficulty: input.difficulty ?? null,
                 setCode: input.setCode ?? null,
                 hintIndex: input.hintIndex ?? null,
+                citations: input.citations ?? [],
                 createdBy: input.createdBy ?? null,
                 status: "pending",
             })
@@ -307,6 +318,7 @@ export const drizzleBankRepo: BankRepo = {
         if (updates.difficulty !== undefined) values.difficulty = updates.difficulty;
         if (updates.setCode !== undefined) values.setCode = updates.setCode;
         if (updates.hintIndex !== undefined) values.hintIndex = updates.hintIndex;
+        if (updates.citations !== undefined) values.citations = updates.citations;
         if (Object.keys(values).length === 0) return false;
         const result = await db
             .update(questionBank)
@@ -453,6 +465,7 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
                 difficulty: input.difficulty ?? null,
                 setCode: input.setCode ?? null,
                 hintIndex: input.hintIndex ?? null,
+                citations: input.citations ?? [],
                 status: "pending",
                 reviewNote: null,
                 reviewedBy: null,

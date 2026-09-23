@@ -566,6 +566,23 @@ export async function questionRoutes(
   //  - Lẻ (KĐC/KĐR/BP/VĐ): { bankId|bankCode, matchCode, round, slot? }
   //  - Cả set GM: { matchCode, round: "GM", setCode } (setCode hoặc bankCode KEY)
   // GM chặn pick lẻ. Response chuẩn: data { created: [{slot, questionCode, bankCode}], setCode }.
+  // Citation chuẩn: [{source, url, accessed_at}] — accessed_at nhận
+  // DD/MM/YYYY (VN) hoặc ISO, lưu ISO để sort mới-cũ.
+  function normalizeCitations(raw: unknown): { source: string; url: string; accessedAt: string }[] | null {
+    if (raw === undefined) return null;
+    if (!Array.isArray(raw)) return [];
+    return raw.slice(0, 3).map((c) => {
+      const item = (c ?? {}) as Record<string, unknown>;
+      let at = String(item.accessedAt ?? item.accessed_at ?? "").trim();
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(at);
+      if (m) at = `${m[3]}-${m[2]}-${m[1]}`;
+      return {
+        source: String(item.source ?? "").trim(),
+        url: String(item.url ?? "").trim(),
+        accessedAt: at,
+      };
+    }).filter((c) => c.source || c.url);
+  }
   const SLOT_PATTERNS: Record<string, RegExp> = {
     KD_C: /^KDC_[1-6]$/,
     KD_R: /^KDR[1-4]_[1-6]$/,
@@ -747,6 +764,7 @@ export async function questionRoutes(
             options: setRow.options ?? undefined,
             sourceBankId: setRow.id,
             slot,
+            citations: setRow.citations,
           });
           created.push({ slot, questionCode, bankCode: setRow.bankCode });
         }
@@ -841,6 +859,7 @@ export async function questionRoutes(
         options: bankRow.options ?? undefined,
         sourceBankId: bankRow.id,
         slot,
+        citations: bankRow.citations,
       });
       void writeAudit({
         actionType: "QUESTION_USED",
@@ -909,6 +928,7 @@ export async function questionRoutes(
         set_code?: string;
         hintIndex?: string;
         hint_index?: string;
+        citations?: unknown;
       };
       const bankCode = String(raw.bankCode ?? "").trim().toUpperCase();
       if (!/^QB_[A-Z0-9_]{1,20}$/.test(bankCode)) {
@@ -944,6 +964,7 @@ export async function questionRoutes(
           difficulty: raw.difficulty ?? null,
           setCode: (raw.setCode ?? raw.set_code)?.trim().toUpperCase() || null,
           hintIndex: (raw.hintIndex ?? raw.hint_index)?.trim().toUpperCase() || null,
+          citations: normalizeCitations(raw.citations) ?? [],
           createdBy: session.userId,
         });
         return reply.code(201).send({
@@ -1018,6 +1039,7 @@ export async function questionRoutes(
         set_code?: string | null;
         hintIndex?: string | null;
         hint_index?: string | null;
+        citations?: unknown;
       };
       const updates: {
         content?: string | null;
@@ -1031,6 +1053,7 @@ export async function questionRoutes(
         difficulty?: number | null;
         setCode?: string | null;
         hintIndex?: string | null;
+        citations?: { source: string; url: string; accessedAt: string }[] | null;
       } = {};
       if (raw.content !== undefined) updates.content = raw.content;
       if (raw.answer !== undefined) updates.answer = raw.answer;
@@ -1051,6 +1074,8 @@ export async function questionRoutes(
         updates.setCode = raw.setCode ?? raw.set_code ?? null;
       if (raw.hintIndex !== undefined || raw.hint_index !== undefined)
         updates.hintIndex = raw.hintIndex ?? raw.hint_index ?? null;
+      const normCites = normalizeCitations(raw.citations);
+      if (normCites !== null) updates.citations = normCites;
       // Sửa nội dung/đáp án câu đã duyệt → rớt về pending, duyệt lại.
       const before = await bankRepo.findById(id);
       const contentChanged = raw.content !== undefined || raw.answer !== undefined;

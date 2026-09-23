@@ -24,13 +24,14 @@ function citationErrorOf(v: BankFormValue): string {
   return "";
 }
 
-/** Gộp citation vào explanation (backend chưa có cột riêng). */
-function withCitation(explanation: string, v: BankFormValue): string | undefined {
-  const parts = [v.citationSource.trim(), v.citationUrl.trim(), v.citationDate.trim()];
-  if (parts.every(Boolean)) {
-    return `${explanation.trim()} [Nguồn: ${parts[0]} | ${parts[1]} | truy cập ${parts[2]}]`.trim();
-  }
-  return explanation.trim() || undefined;
+/** Dựng citations array từ 3 ô nguồn/link/ngày (rỗng = []). */
+function buildCitations(v: BankFormValue): { source: string; url: string; accessedAt: string }[] {
+  if (!v.citationSource.trim() || !v.citationUrl.trim() || !v.citationDate.trim()) return [];
+  return [{
+    source: v.citationSource.trim(),
+    url: v.citationUrl.trim(),
+    accessedAt: v.citationDate.trim(),
+  }];
 }
 
 type RoundGroup = "kd" | "gm" | "bp" | "vd";
@@ -48,6 +49,7 @@ export const BankTab = () => {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [used, setUsed] = useState<"all" | "only" | "unused">("all");
+  const [reviewStatus, setReviewStatus] = useState<"" | "pending" | "approved" | "rejected">("");
   const [vdDomain, setVdDomain] = useState("");
   const [vdLevel, setVdLevel] = useState("");
   const [page, setPage] = useState(1);
@@ -68,6 +70,7 @@ export const BankTab = () => {
       const params = new URLSearchParams();
       if (query.trim()) params.set("q", query.trim());
       if (used !== "all") params.set("used", used);
+      if (reviewStatus) params.set("status", reviewStatus);
       const gr = GROUP_ROUNDS[group];
       if (group === "kd") {
         params.set("round_hints", gr);
@@ -107,13 +110,13 @@ export const BankTab = () => {
     } finally {
       setLoading(false);
     }
-  }, [query, used, group, vdDomain, vdLevel]);
+  }, [query, used, group, vdDomain, vdLevel, reviewStatus]);
 
   // Matrix/tab đổi là tự tải, khỏi bấm Tìm.
   useEffect(() => {
     void fetchBank(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group, vdDomain, vdLevel]);
+  }, [group, vdDomain, vdLevel, reviewStatus]);
 
   const saveSidebar = useCallback(async (v: BankFormValue) => {
     if (!sidebar) return;
@@ -151,9 +154,14 @@ export const BankTab = () => {
             bankCode,
             content: v.content.trim(),
             answer: v.answer.trim(),
-            explanation: withCitation(v.explanation, v),
+            explanation: v.explanation.trim() || undefined,
             options: v.options.trim() || undefined,
             roundHint: v.roundHint.trim() || GROUP_ROUNDS[group].split(",")[0],
+            domain: v.domain || undefined,
+            difficulty: v.difficulty ? Number(v.difficulty) : undefined,
+            setCode: v.setCode || undefined,
+            hintIndex: v.hintIndex || undefined,
+            citations: buildCitations(v),
             domain: v.domain || undefined,
             difficulty: v.difficulty ? Number(v.difficulty) : undefined,
             setCode: v.setCode || undefined,
@@ -176,10 +184,16 @@ export const BankTab = () => {
         await fetchBank(1);
       } else {
         const row = sidebar.row!;
-        const body: Record<string, string | number | null> = {
+        const body: Record<string, string | number | object | null> = {
           content: v.content.trim(),
           answer: v.answer.trim(),
-          explanation: withCitation(v.explanation, v) ?? null,
+          explanation: v.explanation.trim() || null,
+          citations: buildCitations(v),
+          domain: v.domain || null,
+          difficulty: v.difficulty ? Number(v.difficulty) : null,
+          setCode: v.setCode || null,
+          hintIndex: v.hintIndex || null,
+        };
           domain: v.domain || null,
           difficulty: v.difficulty ? Number(v.difficulty) : null,
           setCode: v.setCode || null,
@@ -304,6 +318,16 @@ export const BankTab = () => {
             <option value="all">Tất cả</option>
             <option value="unused">Chưa dùng</option>
             <option value="only">Đã dùng</option>
+          </select>
+          <select
+            value={reviewStatus}
+            onChange={(e) => setReviewStatus(e.target.value as "" | "pending" | "approved" | "rejected")}
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+          >
+            <option value="">Mọi duyệt</option>
+            <option value="pending">Chờ duyệt</option>
+            <option value="approved">Đã duyệt</option>
+            <option value="rejected">Không duyệt</option>
           </select>
           {group === "vd" && (
             <>

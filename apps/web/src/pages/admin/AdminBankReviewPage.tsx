@@ -18,6 +18,7 @@ interface BankRow {
   roundHint: string | null;
   status: Status;
   reviewNote: string | null;
+  citations: { source: string; url: string; accessedAt: string }[];
 }
 
 const toRow = (r: Record<string, unknown>): BankRow => ({
@@ -30,7 +31,19 @@ const toRow = (r: Record<string, unknown>): BankRow => ({
   roundHint: (r.roundHint as string | null) ?? (r.round_hint as string | null) ?? null,
   status: String(r.status ?? "pending") as Status,
   reviewNote: (r.reviewNote as string | null) ?? (r.review_note as string | null) ?? null,
+  citations: Array.isArray(r.citations)
+    ? (r.citations as Record<string, unknown>[]).map((c) => ({
+        source: String(c.source ?? ""),
+        url: String(c.url ?? ""),
+        accessedAt: String(c.accessedAt ?? c.accessed_at ?? ""),
+      }))
+    : [],
 });
+
+function formatVnDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
 
 const STATUS_VN: Record<Status, string> = {
   pending: "CHỜ DUYỆT",
@@ -198,6 +211,16 @@ const AdminBankReviewPage = () => {
           <p className="text-sm">{selected.content}</p>
           <p className="text-sm font-semibold">Đáp án: {selected.answer}</p>
           {selected.explanation && <p className="text-xs text-gray-400">{selected.explanation}</p>}
+          {selected.citations.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <p className="text-xs text-gray-400">Nguồn:</p>
+              {selected.citations.map((c, i) => (
+                <p key={i} className="text-xs text-gray-300 font-mono break-all">
+                  {c.source} · {formatVnDate(c.accessedAt)}{c.url && <> · <a href={c.url} target="_blank" rel="noreferrer" className="text-blue-300 underline">{c.url}</a></>}
+                </p>
+              ))}
+            </div>
+          )}
           {selected.mediaUrl && (
             <div className="rounded-lg bg-black/30 border border-white/10 p-3 max-h-64 overflow-hidden">
               <RenderMedia mediaUrl={selected.mediaUrl} />

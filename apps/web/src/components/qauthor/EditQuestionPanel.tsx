@@ -1,7 +1,7 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 
-/** Câu hỏi tối thiểu để sửa — MatchTab & QAuthorQuestionPage đều thỏa. */
+/** Câu hỏi tối thiểu để sửa — MatchTab. */
 export interface EditableQuestion {
   question_code: string;
   content: string;
@@ -37,7 +37,7 @@ interface EditQuestionPanelProps {
   onSave: (value: QuestionEditValue) => void | Promise<void>;
 }
 
-/** Panel sửa câu hỏi (SidePanel) — dùng chung cho MatchTab/QAuthorQuestionPage. */
+/** Panel sửa câu hỏi (SidePanel) — dùng cho MatchTab. */
 export function EditQuestionPanel({
   item,
   onClose,

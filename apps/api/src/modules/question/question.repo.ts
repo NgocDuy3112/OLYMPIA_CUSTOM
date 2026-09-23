@@ -14,6 +14,7 @@ export interface QuestionRow {
     isUsed: boolean;
     sourceBankId: string | null;
     slot: string | null;
+    citations: { source: string; url: string; accessedAt: string }[];
 }
 
 export interface QuestionRepo {
@@ -31,6 +32,7 @@ export interface QuestionRepo {
         options?: string | null;
         sourceBankId?: string | null;
         slot?: string | null;
+        citations?: { source: string; url: string; accessedAt: string }[] | null;
     }): Promise<{ id: string }>;
     update(
         matchId: string,
@@ -125,6 +127,7 @@ export const drizzleQuestionRepo: QuestionRepo = {
                 options: input.options,
                 sourceBankId: input.sourceBankId ?? null,
                 slot: input.slot ?? null,
+                citations: input.citations ?? [],
             })
             .returning({ id: questions.id });
         return result[0];
@@ -286,6 +289,7 @@ export function createInMemoryQuestionRepo(
                 isUsed: false,
                 sourceBankId: input.sourceBankId ?? null,
                 slot: input.slot ?? null,
+                citations: input.citations ?? [],
             };
             rows.push(row);
             return { id: row.id };

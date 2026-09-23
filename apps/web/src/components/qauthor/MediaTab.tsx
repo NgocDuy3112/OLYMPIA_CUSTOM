@@ -109,7 +109,7 @@ export const MediaTab = () => {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-xs text-gray-500">
-        Excel chỉ nhập text. Câu nào cần ảnh/audio/video thì upload ở đây, key tự
+        Câu nào cần ảnh/audio/video thì upload ở đây, key tự
         chèn vào bank/question.
       </p>
 
