@@ -1,0 +1,4 @@
+# Cron backup DB hàng ngày lúc 2h sáng (prod).
+# Cài: crontab scripts/backup.cron
+# Log: logs/backup-cron.log (tự tạo).
+0 2 * * * cd /opt/olympia-custom && ./scripts/backup.sh >> logs/backup-cron.log 2>&1

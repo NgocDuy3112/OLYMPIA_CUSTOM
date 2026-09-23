@@ -37,9 +37,7 @@ until podman exec oc-postgresql pg_isready -U "$DB_USER" -d "$DB_NAME" > /dev/nu
   sleep 2
 done
 
-for f in packages/db/migrations/*.sql; do
-  echo "Applying migration $f..."
-  podman exec -i oc-postgresql psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 < "$f"
-done
+# Fresh DB nên tracking rỗng — migrate.sh apply hết 001→003 có track.
+DB_CONTAINER=oc-postgresql DB_USER="$DB_USER" DB_NAME="$DB_NAME" ./scripts/migrate.sh
 
 echo "Migrations completed."

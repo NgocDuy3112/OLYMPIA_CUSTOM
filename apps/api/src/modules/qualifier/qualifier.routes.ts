@@ -13,7 +13,7 @@ import {
 
 const OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
 
-// 16 cau mau — mirror packages/db/migrations/013_seed_qualifier.sql.
+// 16 cau mau — mirror migrations/003_seed_qualifier.sql.
 // POST /qualifier/:code/seed inserts missing VL_01..VL_16 (idempotent).
 const SEED_QUESTIONS: Array<{
   questionCode: string;

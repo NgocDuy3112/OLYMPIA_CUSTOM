@@ -1,10 +1,14 @@
 #!/bin/bash
 set -e
 
-source "$(dirname "$0")/.env.scripts"
+# Optional local overrides (copy configs/.env.scripts.example).
+if [ -f "$(dirname "$0")/../configs/.env.scripts" ]; then
+  # shellcheck disable=SC1090
+  source "$(dirname "$0")/../configs/.env.scripts"
+fi
 
 
-BACKUP_DIR="${BACKUP_DIR}"
+BACKUP_DIR="${BACKUP_DIR:-./data/backups}"
 KEEP_DAYS="${KEEP_DAYS:-30}"
 CONTAINER="${DB_CONTAINER}"
 DB_USER="${DB_USER:-olympia}"

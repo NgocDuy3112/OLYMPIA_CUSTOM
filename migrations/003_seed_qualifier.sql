@@ -1,5 +1,5 @@
 -- ============================================================
--- 013 seed sample qualifier (16 questions, position 1-16)
+-- 003 seed sample qualifier (16 questions, position 1-16)
 -- ============================================================
 -- Template: copy + replace <TOURNAMENT_ID> with real tournament uuid.
 -- Safe to re-run per tournament (ON CONFLICT DO NOTHING on code).
@@ -7,7 +7,7 @@
 --
 -- Usage:
 --   psql -U <user> -d <database> -v tid='<TOURNAMENT_ID>' \
---     -f packages/db/migrations/013_seed_qualifier.sql
+--     -f migrations/003_seed_qualifier.sql
 -- ============================================================
 
 BEGIN;

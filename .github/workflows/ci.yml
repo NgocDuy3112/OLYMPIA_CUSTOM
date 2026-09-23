@@ -79,7 +79,7 @@ jobs:
         env:
           PGPASSWORD: olympia
         run: |
-          for f in packages/db/migrations/*.sql; do
+          for f in migrations/*.sql; do
             echo "Applying $f..."
             psql -h localhost -U olympia -d olympia_custom -v ON_ERROR_STOP=1 -f "$f"
           done
