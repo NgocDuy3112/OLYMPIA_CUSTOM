@@ -49,7 +49,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       ? [
           {
             label: "Live (Controller)",
-            path: "/controller/overview",
+            path: "/operator/controller/overview",
             icon: <Gamepad2 size={18} />,
             newTab: true,
           },

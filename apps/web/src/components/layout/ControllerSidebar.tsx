@@ -5,7 +5,6 @@ import {
   Play,
   ClipboardCheck,
   HelpCircle,
-  Users,
   ChevronRight,
   X,
 } from "lucide-react";
@@ -33,22 +32,22 @@ export const ControllerSidebar: React.FC<ControllerSidebarProps> = ({
   const items: SidebarItem[] = [
     {
       label: "Tổng quan live",
-      path: "/controller/overview",
+      path: "/operator/controller/overview",
       icon: <LayoutDashboard size={18} />,
     },
     {
       label: "Sảnh chờ",
-      path: matchCode ? `/controller/waiting/${matchCode}` : "/controller",
+      path: matchCode ? `/operator/controller/waiting/${matchCode}` : "/operator/controller",
       icon: <Play size={18} />,
     },
     {
       label: "Vòng loại",
-      path: "/controller/qualifier",
+      path: "/operator/controller/qualifier",
       icon: <HelpCircle size={18} />,
     },
     {
       label: "Duyệt điểm",
-      path: "/controller/reviews",
+      path: "/operator/controller/reviews",
       icon: <ClipboardCheck size={18} />,
     },
     {
@@ -56,7 +55,6 @@ export const ControllerSidebar: React.FC<ControllerSidebarProps> = ({
       path: "/operator/qauthor/bank",
       icon: <HelpCircle size={18} />,
     },
-    { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
   ];
 
   const isActive = (path: string) => location.pathname.startsWith(path);

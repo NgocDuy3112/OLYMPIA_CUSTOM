@@ -13,6 +13,7 @@ import {
 interface PublicSidebarProps {
   isAuthenticated?: boolean;
   userName?: string;
+  userRole?: string;
   onLogout?: () => void;
   isOpen?: boolean;
   onClose?: () => void;
@@ -24,21 +25,23 @@ interface SidebarItem {
   icon: React.ReactNode;
 }
 
-const SIDEBAR_ITEMS: SidebarItem[] = [
+const BASE_ITEMS: SidebarItem[] = [
   { label: "Giải đấu", path: "/", icon: <Swords size={18} /> },
   { label: "Luật chơi", path: "/info/rules", icon: <BookOpen size={18} /> },
-  { label: "Hồ sơ", path: "/profile", icon: <User size={18} /> },
 ];
 
 export const PublicSidebar: React.FC<PublicSidebarProps> = ({
   isAuthenticated = false,
   userName,
+  userRole,
   onLogout,
   isOpen = false,
   onClose,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  // Hồ sơ chỉ dành cho player/spectator.
+  const showProfile = userRole === "player" || userRole === "spectator";
 
   const isActive = (path: string) => {
     if (path === "/") return location.pathname === "/";
@@ -93,7 +96,12 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
 
         {/* Navigation */}
         <nav className="p-3 space-y-1 flex-1">
-          {SIDEBAR_ITEMS.map((item) => {
+          {[
+            ...BASE_ITEMS,
+            ...(showProfile
+              ? [{ label: "Hồ sơ", path: "/profile", icon: <User size={18} /> } as SidebarItem]
+              : []),
+          ].map((item) => {
             const active = isActive(item.path);
             return (
               <button
@@ -119,13 +127,20 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
         <div className="p-3 border-t border-white/10">
           {isAuthenticated ? (
             <div className="space-y-1">
-              <button
-                onClick={() => go("/profile")}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <User size={16} className="text-gray-400 shrink-0" />
-                <span className="text-sm text-white truncate">{userName}</span>
-              </button>
+              {showProfile ? (
+                <button
+                  onClick={() => go("/profile")}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                  <User size={16} className="text-gray-400 shrink-0" />
+                  <span className="text-sm text-white truncate">{userName}</span>
+                </button>
+              ) : (
+                <div className="w-full flex items-center gap-2 px-3 py-2">
+                  <User size={16} className="text-gray-400 shrink-0" />
+                  <span className="text-sm text-gray-400 truncate">{userName}</span>
+                </div>
+              )}
               <button
                 onClick={() => {
                   onLogout?.();

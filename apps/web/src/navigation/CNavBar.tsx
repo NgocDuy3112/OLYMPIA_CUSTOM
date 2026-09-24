@@ -36,7 +36,7 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
 
   const handleWaitingClick = () => {
     if (!matchCode) return;
-    const target = `/controller/waiting/${matchCode}`;
+    const target = `/operator/controller/waiting/${matchCode}`;
     void sendMessage({
       type: "navigate",
       user_code: "",
@@ -64,7 +64,7 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
 
       {/* Live overview button */}
       <button
-        onClick={() => navigate("/controller/overview")}
+        onClick={() => navigate("/operator/controller/overview")}
         className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors ${
           location.pathname.includes("/overview")
             ? "bg-white/20 text-white"

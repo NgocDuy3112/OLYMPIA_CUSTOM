@@ -41,7 +41,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
 
 const AdminRoutes = () => {
   // Management pages with AdminLayout — CRUD only.
-  // Live control moved to ControllerRoutes (/controller/*).
+  // Live control moved to ControllerRoutes (/operator/controller/*).
   return (
     <AuthGuard requiredRole="admin">
       <AdminLayout>

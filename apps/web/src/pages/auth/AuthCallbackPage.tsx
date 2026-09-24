@@ -47,7 +47,7 @@ const AuthCallbackPage: React.FC = () => {
             if (role === "admin") {
               navigate("/admin");
             } else if (role === "mc") {
-              navigate("/mc");
+              navigate("/operator/mc");
             } else {
               navigate("/player");
             }

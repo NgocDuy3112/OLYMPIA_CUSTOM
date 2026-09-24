@@ -69,8 +69,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             className={`absolute inset-0 bg-black/50 transition-opacity duration-200 ${open ? "opacity-100" : "opacity-0"}`}
         />
         <aside
-            className={`absolute right-0 top-0 h-full w-full ${wide ? "sm:w-1/2 sm:min-w-[560px]" : "sm:w-96"} bg-blue-950 border-l-4 shadow-2xl p-6 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out ${tone === "danger" ? "border-red-700" : "border-blue-600"
-                } ${open ? "translate-x-0" : "translate-x-full"}`}
+            className={`absolute right-0 top-0 h-full w-full ${wide ? "sm:w-1/2 sm:min-w-[560px]" : "sm:w-96"} bg-[#14122b] border-l border-white/10 shadow-2xl p-5 flex flex-col gap-4 overflow-y-auto transition-transform duration-200 ease-out ${open ? "translate-x-0" : "translate-x-full"}`}
             role="dialog"
             aria-modal="true"
             aria-label={title}
@@ -79,13 +78,13 @@ export const SidePanel: React.FC<SidePanelProps> = ({
         >
             <div className="flex items-center justify-between">
                 <h3
-                    className={`text-lg font-bold ${tone === "danger" ? "text-red-300" : "text-blue-200"}`}
+                    className={`text-base font-bold ${tone === "danger" ? "text-red-300" : "text-white"}`}
                 >
                     {title}
                 </h3>
                 <button
                     onClick={onClose}
-                    className="p-1 rounded hover:bg-blue-800 transition-colors"
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
                     aria-label="Đóng"
                 >
                     ✕

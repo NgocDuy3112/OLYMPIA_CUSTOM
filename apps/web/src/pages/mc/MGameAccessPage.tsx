@@ -13,7 +13,7 @@ const MGameAccessPage: React.FC = () => {
     try {
       window.dispatchEvent(new Event("oc3_matchCode_set"));
     } catch {}
-    navigate(`/mc/waiting/${matchCode}`);
+    navigate(`/operator/mc/waiting/${matchCode}`);
   };
 
   return (

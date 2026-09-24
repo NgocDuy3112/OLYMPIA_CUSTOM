@@ -41,7 +41,7 @@ const QAuthorRoutes = () => {
           <Route path="/import" element={<Navigate to="/operator/qauthor/bank" replace />} />
           <Route path="/media" element={<Navigate to="/operator/qauthor/bank" replace />} />
           <Route path="/questions" element={<Navigate to="/operator/qauthor/match" replace />} />
-          <Route path="/reviews" element={<Navigate to="/controller/reviews" replace />} />
+          <Route path="/reviews" element={<Navigate to="/operator/controller/reviews" replace />} />
           <Route path="*" element={<Navigate to="/operator/qauthor/bank" replace />} />
         </Routes>
       </QAuthorLayout>

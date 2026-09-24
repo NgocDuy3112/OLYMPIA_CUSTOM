@@ -35,7 +35,7 @@ const MCAutoNavigator: React.FC = () => {
     const msgType = message.type;
 
     if (msgType === "match_state") {
-      const target = matchCode ? `/mc/waiting/${matchCode}` : "/mc/waiting";
+      const target = matchCode ? `/operator/mc/waiting/${matchCode}` : "/operator/mc/waiting";
       if (location.pathname !== target) {
         navigate(target, { replace: true });
       }
@@ -51,13 +51,18 @@ const MCAutoNavigator: React.FC = () => {
 
     let mcPath: string | null = null;
     if (normalized.startsWith("/player/")) {
-      mcPath = normalized.replace("/player/", "/mc/");
-    } else if (normalized.startsWith("/mc/")) {
-      mcPath = normalized;
+      mcPath = normalized.replace("/player/", "/operator/mc/");
+    } else if (
+      normalized.startsWith("/operator/mc/") ||
+      normalized.startsWith("/mc/")
+    ) {
+      mcPath = normalized.startsWith("/mc/")
+        ? normalized.replace("/mc/", "/operator/mc/")
+        : normalized;
     }
     if (!mcPath) return;
 
-    const noParamsPaths = ["/mc/waiting"];
+    const noParamsPaths = ["/operator/mc/waiting"];
     const alreadyHasMatchCode = matchCode && mcPath.endsWith(`/${matchCode}`);
     const target =
       noParamsPaths.includes(mcPath) || alreadyHasMatchCode
@@ -80,7 +85,7 @@ const MCWebSocketWrapper: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const matchCode = useMatchCode({
-    defaultPath: "/mc/waiting",
+    defaultPath: "/operator/mc/waiting",
     defaultCode: "",
   });
 
@@ -104,7 +109,7 @@ const MCRoutes = () => {
     <AuthGuard requiredRole="operator" requiredScope="mc">
       <MCWebSocketWrapper>
         <Routes>
-          <Route path="/" element={<Navigate to="/mc/access" replace />} />
+          <Route path="/" element={<Navigate to="/operator/mc/access" replace />} />
           <Route path="/access" element={<MGameAccessPage />} />
           <Route path="/qualifier/:tournamentCode?" element={<MQualifierPage />} />
           <Route path="/waiting" element={<WaitingPage />} />
@@ -123,7 +128,7 @@ const MCRoutes = () => {
             element={<VeDichPickPage round={VeDichRound.RIENG} />}
           />
           <Route path="/vdr/:matchCode" element={<VeDichRiengPage />} />
-          <Route path="*" element={<Navigate to="/mc/access" replace />} />
+          <Route path="*" element={<Navigate to="/operator/mc/access" replace />} />
         </Routes>
       </MCWebSocketWrapper>
     </AuthGuard>

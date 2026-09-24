@@ -158,10 +158,10 @@ export async function userRoutes(
         typeof body.password === "string" ? body.password : "";
       const role = typeof body.role === "string" ? body.role : "player";
       const allowed = ["admin", "operator", "player", "spectator"];
-      if (!userName || !email) {
+      if (!userName) {
         return reply.code(400).send({
           status: "error",
-          message: "userName and email required",
+          message: "userName required",
           data: null,
         });
       }
@@ -194,7 +194,7 @@ export async function userRoutes(
           data: null,
         });
       }
-      const existing = await repo.findByEmail(email);
+      const existing = email ? await repo.findByEmail(email) : null;
       if (existing) {
         return reply.code(409).send({
           status: "error",
@@ -206,7 +206,7 @@ export async function userRoutes(
         const userCode = `OC_U_${String(Date.now()).slice(-6)}`;
         const passwordHash = await hashPassword(password);
         const created = await repo.create({
-          email,
+          email: email || `${userCode.toLowerCase()}@olympia.local`,
           userCode,
           userName: userName.slice(0, 100),
           role: role as UserRow["role"],

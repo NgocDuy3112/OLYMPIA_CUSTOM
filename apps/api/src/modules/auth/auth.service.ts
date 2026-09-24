@@ -114,6 +114,7 @@ function issueSessionCookie(
   reply: FastifyReply,
   sid: string,
   redirectUrl?: string,
+  data?: unknown,
 ) {
   const env = getEnv();
   reply.setCookie(COOKIE_NAME, sid, {
@@ -124,7 +125,7 @@ function issueSessionCookie(
     maxAge: SESSION_TTL,
   });
   if (redirectUrl) return reply.redirect(redirectUrl);
-  return reply.send({ status: "success", message: "OK", data: null });
+  return reply.send({ status: "success", message: "OK", data: data ?? null });
 }
 
 async function createUserSession(
@@ -505,59 +506,124 @@ export function login(
   };
 }
 
-// POST /auth/staff-login — username+password for pre-seeded admin/operator
+// POST /auth/staff-login — username+password for admin/operator.
+// Accepts seeded env credentials OR users table rows (email/user_code +
+// passwordHash). Optional body.expectRole ("admin" | "operator") — used by
+// split login pages to reject the wrong staff type early.
 export function staffLogin(app: FastifyInstance) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    const body = request.body as { username?: unknown; password?: unknown };
-    validateUsernamePassword(body.username, body.password);
-    const username = (body.username as string).trim().toLowerCase();
+    const body = request.body as {
+      username?: unknown;
+      password?: unknown;
+      expectRole?: unknown;
+    };
+    const rawUsername = typeof body.username === "string" ? body.username.trim() : "";
+    if (rawUsername.includes("@")) {
+      validateEmailPassword(rawUsername.toLowerCase(), body.password);
+    } else {
+      validateUsernamePassword(rawUsername, body.password);
+    }
+    const username = rawUsername.toLowerCase();
+    const expectRole =
+      body.expectRole === "admin" || body.expectRole === "operator"
+        ? (body.expectRole as string)
+        : null;
     const ip =
       (request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
       request.ip;
     const rateKey = `${ip}:staff:${username}`;
 
     await checkLoginRateLimit(app.valkey, rateKey);
+    const deny = async (): Promise<never> => {
+      await recordFailedLogin(app.valkey, rateKey);
+      throw new AppError(401, "Invalid username or password");
+    };
 
-    // Dev admin pair (ADMIN_USERNAME/ADMIN_PASSWORD) — precedence, plaintext.
+    // 1) Seeded credentials (STAFF_CREDENTIALS + env dev admin).
     const env = getEnv();
     const envAdmin = env.ADMIN_USERNAME.trim().toLowerCase();
     let cred = parseStaffCredentials().find((c) => c.username === username);
-    let ok = false;
+    let credRole: string | null = null;
+    let credScopes = "";
     if (envAdmin && username === envAdmin && env.ADMIN_PASSWORD) {
-      ok = body.password === env.ADMIN_PASSWORD;
-      cred = cred ?? {
-        username: envAdmin,
-        hash: "",
-        role: "admin",
-        scopes: "",
-      };
+      if (body.password !== env.ADMIN_PASSWORD) await deny();
+      cred = cred ?? { username: envAdmin, hash: "", role: "admin", scopes: "" };
+      credRole = "admin";
     } else if (cred) {
-      ok = await verifyPassword(body.password as string, cred.hash);
-    }
-    if (!cred || !ok) {
-      await recordFailedLogin(app.valkey, rateKey);
-      throw new AppError(401, "Invalid username or password");
+      if (!(await verifyPassword(body.password as string, cred.hash))) await deny();
+      credRole = cred.role;
+      credScopes = cred.scopes;
     }
 
+    if (cred) {
+      if (expectRole && credRole !== expectRole) {
+        return reply.code(403).send({
+          status: "error",
+          message:
+            expectRole === "admin"
+              ? "Tài khoản operator — dùng trang đăng nhập operator"
+              : "Tài khoản admin — dùng trang đăng nhập admin",
+          data: null,
+        });
+      }
+      await clearFailedLogins(app.valkey, rateKey);
+      void writeAudit({ actionType: "LOGIN", actorCode: cred.username.toUpperCase() });
+      const sid = await createSession(app.valkey, {
+        userId: `staff:${cred.username}`,
+        userCode: cred.username.toUpperCase(),
+        role: credRole ?? cred.role,
+        email: "",
+        userName: cred.username,
+        createdAt: Date.now(),
+        lastSeen: Date.now(),
+      });
+      // Stash scopes in session via operatorScopes lookup at guard time
+      await app.valkey.set(
+        `staff:scopes:${sid}`,
+        credScopes,
+        "EX",
+        SESSION_TTL,
+      );
+      return issueSessionCookie(reply, sid, undefined, {
+        role: credRole ?? cred.role,
+        operatorScopes: credScopes || null,
+      });
+    }
+
+    // 2) Users table fallback (email hoặc user_code + password).
+    const found = rawUsername.includes("@")
+      ? await drizzleUserRepo.findByEmail(username)
+      : await drizzleUserRepo.findByCode(rawUsername.toUpperCase());
+    if (!found || found.isDeleted) await deny();
+    const row = found as NonNullable<typeof found>;
+    if (row.role !== "admin" && row.role !== "operator") {
+      return reply.code(403).send({
+        status: "error",
+        message: "Tài khoản thí sinh/khán giả — dùng trang đăng nhập chính",
+        data: null,
+      });
+    }
+    if (!row.passwordHash) await deny();
+    if (!(await verifyPassword(body.password as string, row.passwordHash as string))) {
+      await deny();
+    }
+    if (expectRole && row.role !== expectRole) {
+      return reply.code(403).send({
+        status: "error",
+        message:
+          expectRole === "admin"
+            ? "Tài khoản operator — dùng trang đăng nhập operator"
+            : "Tài khoản admin — dùng trang đăng nhập admin",
+        data: null,
+      });
+    }
     await clearFailedLogins(app.valkey, rateKey);
-    void writeAudit({ actionType: "LOGIN", actorCode: cred.username.toUpperCase() });
-    const sid = await createSession(app.valkey, {
-      userId: `staff:${cred.username}`,
-      userCode: cred.username.toUpperCase(),
-      role: cred.role,
-      email: "",
-      userName: cred.username,
-      createdAt: Date.now(),
-      lastSeen: Date.now(),
+    void writeAudit({ actionType: "LOGIN", actorCode: row.userCode });
+    const sid = await createUserSession(app, row);
+    return issueSessionCookie(reply, sid, undefined, {
+      role: row.role,
+      operatorScopes: row.operatorScopes,
     });
-    // Stash scopes in session via operatorScopes lookup at guard time
-    await app.valkey.set(
-      `staff:scopes:${sid}`,
-      cred.scopes,
-      "EX",
-      SESSION_TTL,
-    );
-    return issueSessionCookie(reply, sid);
   };
 }
 

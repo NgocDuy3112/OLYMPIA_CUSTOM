@@ -22,11 +22,19 @@ export interface UserEditValue {
 
 export interface UserAddValue {
   name: string;
-  email: string;
   password: string;
   role: GlobalRole;
   scopes: OperatorScope[];
 }
+
+type StaffRole = "admin" | OperatorScope;
+
+const STAFF_ROLES: { value: StaffRole; label: string }[] = [
+  { value: "qauthor", label: "QAuthor — soạn câu hỏi" },
+  { value: "mc", label: "MC — dẫn trận" },
+  { value: "controller", label: "Controller — điều phối live" },
+  { value: "admin", label: "Admin — toàn quyền" },
+];
 
 export interface UserRoleValue {
   role: GlobalRole;
@@ -111,95 +119,80 @@ interface UserAddPanelProps {
   onCreate: (value: UserAddValue) => void | Promise<void>;
 }
 
-/** Panel thêm user (tên/email/mật khẩu/role/scopes) — AdminUsersPage. */
+/** Panel thêm user staff (tên/mật khẩu/vai trò) — AdminUsersPage. */
 export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelProps) {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<GlobalRole>("player");
-  const [scopes, setScopes] = useState<OperatorScope[]>([]);
+  const [staffRole, setStaffRole] = useState<StaffRole>("qauthor");
 
   // Reset form mỗi lần mở panel.
   useEffect(() => {
     if (!open) return;
     setName("");
-    setEmail("");
     setPassword("");
-    setRole("player");
-    setScopes([]);
-  }, [open]);
+    setStaffRole("qauthor");
+  }, [open ]);
+
+  const handleCreate = () => {
+    if (staffRole === "admin") {
+      void onCreate({ name, password, role: "admin", scopes: [] });
+    } else {
+      void onCreate({ name, password, role: "operator", scopes: [staffRole] });
+    }
+  };
 
   return (
     <SidePanel open={open} onClose={onClose} title="Thêm người dùng">
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">Tên người dùng</label>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">Email</label>
+        <label className="text-xs text-gray-400">Tên người dùng</label>
         <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="email@example.com"
-          className={inputClass}
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="VD: Nguyễn Văn A"
+          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">Mật khẩu</label>
+        <label className="text-xs text-gray-400">Mật khẩu</label>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Tối thiểu 8 ký tự"
           minLength={8}
-          className={inputClass}
+          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">Vai trò</label>
+        <label className="text-xs text-gray-400">Vai trò</label>
         <select
-          value={role}
-          onChange={(e) => setRole(e.target.value as GlobalRole)}
-          className={`${inputClass} placeholder-blue-400`}
+          value={staffRole}
+          onChange={(e) => setStaffRole(e.target.value as StaffRole)}
+          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
         >
-          <option value="player">Thí sinh (player)</option>
-          <option value="spectator">Khán giả (spectator)</option>
-          <option value="operator">Điều phối (operator)</option>
-          <option value="admin">Admin</option>
+          {STAFF_ROLES.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
         </select>
+        {staffRole !== "admin" && (
+          <p className="text-[11px] text-gray-500">
+            Tạo operator với scope {staffRole} — đăng nhập rồi vào đúng shell làm việc.
+          </p>
+        )}
       </div>
-      {role === "operator" && (
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Scopes (chọn 1+)</label>
-          <div className="flex gap-3 text-sm text-blue-100">
-            {OPERATOR_SCOPES.map((s) => (
-              <label key={s} className="flex items-center gap-1.5">
-                <input
-                  type="checkbox"
-                  checked={scopes.includes(s)}
-                  onChange={() => setScopes((prev) => toggleScope(prev, s))}
-                  className="accent-blue-500"
-                />
-                {s}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
       <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className={cancelClass}>
+        <button
+          onClick={onClose}
+          className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+        >
           Huỷ
         </button>
         <button
-          onClick={() => void onCreate({ name, email, password, role, scopes })}
-          disabled={
-            saving ||
-            !name.trim() ||
-            !email.trim() ||
-            password.length < 8 ||
-            (role === "operator" && scopes.length === 0)
-          }
+          onClick={handleCreate}
+          disabled={saving || !name.trim() || password.length < 8}
           className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
         >
           {saving ? "Đang tạo…" : "Tạo người dùng"}

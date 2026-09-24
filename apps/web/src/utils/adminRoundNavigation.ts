@@ -16,7 +16,7 @@ export async function endRoundAndReturnToWaiting({
   round,
   sendMessage,
 }: EndRoundAndReturnToWaitingOptions): Promise<void> {
-  const controllerPath = `/controller/waiting/${currentMatchCode}`;
+  const controllerPath = `/operator/controller/waiting/${currentMatchCode}`;
   const playerPath = `/player/waiting/${currentMatchCode}`;
 
   await Promise.all([

@@ -8,6 +8,7 @@ import { MatchScheduleForm } from "@/components/admin/MatchScheduleForm";
 import { emptyScheduleForm, type ScheduleFormValue } from "@/components/admin/scheduleFormState";
 import { isoToLocalInput } from "@/components/admin/scheduleUtils";
 import { QuestionsCard } from "@/components/admin/QuestionsCard";
+import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { EditMatchQuestionPanel, type MatchQuestionEditValue } from "@/components/admin/EditMatchQuestionPanel";
 import type { MatchData, QuestionData } from "@/components/admin/gameTypes";
 
@@ -505,20 +506,28 @@ const AdminGameManagingPage = () => {
         </div>
       </div>
 
-      {showForm && (
+      <SidePanel
+        open={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setEditingCode(null);
+        }}
+        title={editingCode ? "Sửa trận / lịch" : "Lên lịch trận mới"}
+        wide
+      >
         <MatchScheduleForm
           initial={formInitial}
           isEdit={editingCode !== null}
           saving={saving}
           tournaments={tournaments}
+          bare
           onSubmit={(v) => void handleSubmitForm(v)}
           onCancel={() => {
             setShowForm(false);
             setEditingCode(null);
           }}
         />
-      )}
-
+      </SidePanel>
       {/* Lịch theo ngày */}
       {loading && allMatches.length === 0 ? (
         <p className="text-gray-500 text-sm py-8 text-center">Đang tải lịch…</p>

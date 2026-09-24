@@ -11,6 +11,8 @@ interface MatchScheduleFormProps {
   tournaments: { tournamentCode: string; tournamentName: string }[];
   /** Khi có danh sách vòng (VD: tab phân nhánh) thì hiện select gán trận vào vòng. */
   phases?: { id: string; phaseName: string }[];
+  /** Render trần (dùng trong SidePanel) thay vì khung card. */
+  bare?: boolean;
   onSubmit: (v: ScheduleFormValue) => void;
   onCancel: () => void;
 }
@@ -22,6 +24,7 @@ export function MatchScheduleForm({
   saving,
   tournaments,
   phases,
+  bare = false,
   onSubmit,
   onCancel,
 }: MatchScheduleFormProps) {
@@ -40,10 +43,12 @@ export function MatchScheduleForm({
     });
 
   return (
-    <div className="rounded-xl bg-blue-600/[0.07] border border-blue-500/30 p-4 flex flex-col gap-3">
-      <p className="text-sm font-semibold text-gray-200">
-        {isEdit ? "Sửa trận / lịch" : "Lên lịch trận mới"}
-      </p>
+    <div className={bare ? "flex flex-col gap-3" : "rounded-xl bg-blue-600/[0.07] border border-blue-500/30 p-4 flex flex-col gap-3"}>
+      {!bare && (
+        <p className="text-sm font-semibold text-gray-200">
+          {isEdit ? "Sửa trận / lịch" : "Lên lịch trận mới"}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <input

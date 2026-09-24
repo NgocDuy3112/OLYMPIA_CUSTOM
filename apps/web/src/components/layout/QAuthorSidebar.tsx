@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Database, Swords, ListOrdered, Bot, Users, ChevronRight, X } from "lucide-react";
+import { Database, Swords, ListOrdered, Bot, ChevronRight, X } from "lucide-react";
 
 interface QAuthorSidebarProps {
   isOpen?: boolean;
@@ -34,7 +34,6 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     path: "/operator/qauthor/agent",
     icon: <Bot size={18} />,
   },
-  { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
 ];
 
 export const QAuthorSidebar: React.FC<QAuthorSidebarProps> = ({

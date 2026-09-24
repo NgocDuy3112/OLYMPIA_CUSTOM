@@ -100,7 +100,7 @@ const AdminVeDichRiengView = () => {
     }
   }, [urlMatchCode, storedMatchCode]);
   useEffect(() => {
-    if (!currentMatchCode) navigate("/controller/overview");
+    if (!currentMatchCode) navigate("/operator/controller/overview");
   }, [currentMatchCode, navigate]);
 
   const { lastMessage, sendMessage } = useGameWebSocket();
@@ -744,7 +744,7 @@ const AdminVeDichRiengView = () => {
         path: "/player/vdr/pick",
       }),
     ]);
-    if (currentMatchCode) navigate(`/controller/vdr/pick/${currentMatchCode}`);
+    if (currentMatchCode) navigate(`/operator/controller/vdr/pick/${currentMatchCode}`);
   }, [clearQuestion, currentMatchCode, navigate, sendMessage]);
 
   const handleEndRound = useCallback(async () => {
@@ -1125,7 +1125,7 @@ const AdminVeDichRiengView = () => {
         <>
           <CControlButton
             onClick={() =>
-              navigate(`/controller/vdr/pick/${currentMatchCode ?? ""}`)
+              navigate(`/operator/controller/vdr/pick/${currentMatchCode ?? ""}`)
             }
             disabled={isTimerRunning}
           >

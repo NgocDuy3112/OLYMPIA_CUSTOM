@@ -34,6 +34,7 @@ interface MatchRow {
 interface UserRow {
   userCode: string;
   role: string;
+  operatorScopes?: string | null;
 }
 
 interface AuditLog {
@@ -100,7 +101,7 @@ const StatCard = ({
 
 const BarRow = ({ label, value, max, color }: { label: string; value: number; max: number; color: string }) => (
   <div className="flex items-center gap-2">
-    <span className="w-24 shrink-0 text-[11px] text-gray-400 truncate" title={label}>{label}</span>
+    <span className="w-32 shrink-0 text-[11px] text-gray-400 truncate" title={label}>{label}</span>
     <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${max > 0 ? Math.round((value / max) * 100) : 0}%` }} />
     </div>
@@ -226,6 +227,12 @@ const AdminDashboardPage = () => {
   const liveMatches = state.matches.filter((m) => m.matchStatus !== "finished" && m.matchStatus !== "completed").length;
   const finishedMatches = state.matches.length - liveMatches;
   const roleCount = (role: string) => state.users.filter((u) => u.role === role).length;
+  const scopeCount = (scope: string) =>
+    state.users.filter(
+      (u) =>
+        u.role === "operator" &&
+        (u.operatorScopes ?? "").split(",").map((s) => s.trim()).includes(scope),
+    ).length;
   const recentMatches = state.matches.slice(0, 5);
   const recentTournaments = state.tournaments.slice(0, 4);
 
@@ -237,7 +244,14 @@ const AdminDashboardPage = () => {
     { label: "finished", value: statusCount("finished") + statusCount("completed") },
   ];
   const maxMatch = Math.max(1, ...matchBars.map((b) => b.value));
-  const roleBars = ["player", "spectator", "operator", "admin"].map((r) => ({ label: r, value: roleCount(r) }));
+  const roleBars = [
+    { label: "admin", value: roleCount("admin") },
+    { label: "operator/controller", value: scopeCount("controller") },
+    { label: "operator/qauthor", value: scopeCount("qauthor") },
+    { label: "operator/mc", value: scopeCount("mc") },
+    { label: "player", value: roleCount("player") },
+    { label: "spectator", value: roleCount("spectator") },
+  ];
   const maxRole = Math.max(1, ...roleBars.map((b) => b.value));
   const bankBars = [
     { label: "pending", value: state.pendingBank },
@@ -312,7 +326,7 @@ const AdminDashboardPage = () => {
           icon={<Users size={14} />}
           label="Người dùng"
           value={state.users.length}
-          sub={`${roleCount("player")} thí sinh · ${roleCount("admin")} admin · ${roleCount("operator")} operator`}
+          sub={`${roleCount("player")} thí sinh · ${roleCount("admin")} admin · C${scopeCount("controller")}/Q${scopeCount("qauthor")}/M${scopeCount("mc")}`}
           onClick={() => navigate("/admin/users")}
         />
         <StatCard

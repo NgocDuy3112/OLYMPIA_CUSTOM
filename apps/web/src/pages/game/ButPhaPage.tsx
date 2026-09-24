@@ -67,7 +67,7 @@ const AdminButPhaView = () => {
   }, [urlMatchCode]);
 
   useEffect(() => {
-    if (!matchCode) navigate("/controller/overview");
+    if (!matchCode) navigate("/operator/controller/overview");
   }, [matchCode, navigate]);
 
   const handleSelectQuestion = useCallback(

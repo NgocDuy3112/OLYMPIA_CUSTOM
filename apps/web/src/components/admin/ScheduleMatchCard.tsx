@@ -75,7 +75,7 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
   const handleEnter = (e: React.MouseEvent) => {
     e.stopPropagation();
     persistMatchCode(match.match_code);
-    navigate(`/controller/waiting/${match.match_code}`);
+    navigate(`/operator/controller/waiting/${match.match_code}`);
   };
 
   return (

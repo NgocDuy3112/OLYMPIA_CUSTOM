@@ -25,6 +25,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
       <PublicSidebar
         isAuthenticated={isAuthenticated}
         userName={user?.userName}
+        userRole={user?.role}
         onLogout={handleLogout}
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}

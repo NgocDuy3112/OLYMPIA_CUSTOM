@@ -93,7 +93,7 @@ const AdminGiaiMaView = () => {
     }
   }, [urlMatchCode, storedMatchCode]);
   useEffect(() => {
-    if (!currentMatchCode) navigate("/controller/overview");
+    if (!currentMatchCode) navigate("/operator/controller/overview");
   }, [currentMatchCode, navigate]);
 
   const { lastMessage, sendMessage } = useGameWebSocket();

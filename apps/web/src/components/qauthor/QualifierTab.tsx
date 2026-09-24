@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { Plus, Search, Trophy } from "lucide-react";
 import { RowActions } from "@/components/shared/RowActions";
+import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditQualifierPanel, type QualifierEditValue } from "./EditQualifierPanel";
@@ -67,6 +68,7 @@ export const QualifierTab = () => {
   const [standings, setStandings] = useState<Standing[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<Record<string, unknown> | null>(null);
@@ -185,6 +187,7 @@ export const QualifierTab = () => {
           (p) => p !== pos && !questions.some((q) => q.position === p),
         ) ?? 1;
         setForm({ ...emptyForm, position: String(next), questionCode: `VL_${String(next).padStart(2, "0")}` });
+        setShowForm(false);
         await fetchQuestions();
       } else {
         alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
@@ -301,6 +304,13 @@ export const QualifierTab = () => {
           >
             <Search size={14} /> Tải
           </button>
+          <button
+            onClick={() => setShowForm(true)}
+            disabled={!tournamentCode.trim()}
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium transition-colors"
+          >
+            <Plus size={14} /> Soạn câu
+          </button>
         </div>
         {tournamentCode.trim() && (
           <div className="flex items-center gap-2">
@@ -317,11 +327,10 @@ export const QualifierTab = () => {
         )}
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
+      <SidePanel open={showForm} onClose={() => setShowForm(false)} title="Soạn câu mới" wide>
+        <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
-            Soạn câu mới
-          </h3>
+          <p className="text-xs text-gray-500">Vị trí và nội dung</p>
           <span className="font-mono text-xs text-gray-400">
             {questions.length}/16 câu · còn trống {freePositions.length}
           </span>
@@ -406,6 +415,12 @@ export const QualifierTab = () => {
             Làm lại
           </button>
           <button
+            onClick={() => setShowForm(false)}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+          >
+            Huỷ
+          </button>
+          <button
             onClick={() => void createQuestion()}
             disabled={saving || !tournamentCode.trim()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
@@ -413,7 +428,8 @@ export const QualifierTab = () => {
             <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
           </button>
         </div>
-      </div>
+        </div>
+      </SidePanel>
 
       {closeResult && (
         <div className="bg-emerald-900/40 border border-emerald-600 rounded-xl p-4 text-sm">

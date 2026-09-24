@@ -13,55 +13,16 @@ import {
 } from "lucide-react";
 import { Card, Button } from "@/components/shared/ui";
 import { API_BASE_URL } from "@/configs";
+import { OVERLAYS, overlayUrl, type OverlayItem } from "./overlayList";
 
-interface OverlayItem {
-  id: string;
-  name: string;
-  description: string;
-  icon: React.ReactNode;
-  path: string;
-  defaultWidth: number;
-  defaultHeight: number;
-}
+const OVERLAY_ICONS: Record<string, React.ReactNode> = {
+  "player-bar": <Users size={20} />,
+  scoreboard: <Layout size={20} />,
+  timer: <Timer size={20} />,
+  question: <HelpCircle size={20} />,
+};
 
-const OVERLAYS: OverlayItem[] = [
-  {
-    id: "player-bar",
-    name: "Player Bar",
-    description: "Hiển thị tên và điểm các thí sinh",
-    icon: <Users size={20} />,
-    path: "player-bar",
-    defaultWidth: 700,
-    defaultHeight: 80,
-  },
-  {
-    id: "scoreboard",
-    name: "Scoreboard",
-    description: "Bảng xếp hạng theo thời gian thực",
-    icon: <Layout size={20} />,
-    path: "scoreboard",
-    defaultWidth: 320,
-    defaultHeight: 400,
-  },
-  {
-    id: "timer",
-    name: "Timer",
-    description: "Đồng hồ đếm giờ với vòng tròn tiến trình",
-    icon: <Timer size={20} />,
-    path: "timer",
-    defaultWidth: 140,
-    defaultHeight: 140,
-  },
-  {
-    id: "question",
-    name: "Question",
-    description: "Hiển thị câu hỏi hiện tại",
-    icon: <HelpCircle size={20} />,
-    path: "question",
-    defaultWidth: 700,
-    defaultHeight: 300,
-  },
-];
+const OVERLAYS_WITH_ICONS: OverlayItem[] = OVERLAYS;
 
 const OverlayPreviewPage: React.FC = () => {
   const { matchCode } = useParams<{ matchCode: string }>();
@@ -73,14 +34,17 @@ const OverlayPreviewPage: React.FC = () => {
 
     const fetchMatch = async () => {
       try {
-        const response = await fetch(
-          `${API_BASE_URL}/matches/${matchCode}`,
-          { credentials: "include" },
-        );
+        // Backend tra chi tiết theo slug — dùng list rồi tìm theo mã.
+        const response = await fetch(`${API_BASE_URL}/matches`, {
+          credentials: "include",
+        });
         if (response.ok) {
           const data = await response.json();
-          if (data.status === "success") {
-            setMatchInfo(data.data);
+          if (data.status === "success" && Array.isArray(data.data)) {
+            const found = (data.data as { matchCode: string; matchName: string }[]).find(
+              (m) => m.matchCode === matchCode,
+            );
+            if (found) setMatchInfo(found);
           }
         }
       } catch {
@@ -92,8 +56,8 @@ const OverlayPreviewPage: React.FC = () => {
   }, [matchCode]);
 
   const getOverlayUrl = (overlay: OverlayItem) => {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/overlay/${matchCode}/${overlay.path}`;
+    if (!matchCode) return "";
+    return overlayUrl(matchCode, overlay.path);
   };
 
   const handleCopyUrl = async (overlay: OverlayItem) => {
@@ -143,7 +107,7 @@ const OverlayPreviewPage: React.FC = () => {
 
         {/* Overlay Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {OVERLAYS.map((overlay, index) => (
+          {OVERLAYS_WITH_ICONS.map((overlay, index) => (
             <motion.div
               key={overlay.id}
               initial={{ opacity: 0, y: 20 }}
@@ -175,7 +139,7 @@ const OverlayPreviewPage: React.FC = () => {
                 <div className="p-4">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
-                      {overlay.icon}
+                      {OVERLAY_ICONS[overlay.id] ?? <Monitor size={20} />}
                     </div>
                     <div className="flex-1">
                       <h3 className="font-bold text-white">{overlay.name}</h3>

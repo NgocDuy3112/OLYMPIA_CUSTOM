@@ -12,16 +12,18 @@ interface PublicHeaderProps {
 export const PublicHeader: React.FC<PublicHeaderProps> = ({
   isAuthenticated = false,
   userName,
+  userRole,
   onLogout,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const showProfile = userRole === "player" || userRole === "spectator";
   const navLinks = [
     { label: "Giải đấu", path: "/" },
     { label: "Luật chơi", path: "/info/rules" },
-    { label: "Hồ sơ", path: "/profile" },
+    ...(showProfile ? [{ label: "Hồ sơ", path: "/profile" }] : []),
   ];
 
   const isActive = (path: string) => {
@@ -68,13 +70,15 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => navigate("/profile")}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <User size={16} className="text-gray-400" />
-                  <span className="text-sm text-white">{userName}</span>
-                </button>
+                {showProfile && (
+                  <button
+                    onClick={() => navigate("/profile")}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                  >
+                    <User size={16} className="text-gray-400" />
+                    <span className="text-sm text-white">{userName}</span>
+                  </button>
+                )}
                 <button
                   onClick={onLogout}
                   className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"

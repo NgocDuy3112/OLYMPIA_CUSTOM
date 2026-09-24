@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Lock, Plus, RefreshCw, Trash2, Trophy, XCircle } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
+import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 interface QualifierQuestion {
   id?: string;
@@ -155,7 +156,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
           <RefreshCw size={14} /> Làm mới
         </button>
         <button
-          onClick={() => setShowForm((v) => !v)}
+          onClick={() => setShowForm(true)}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition-colors"
         >
           <Plus size={14} /> Thêm câu
@@ -170,11 +171,11 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         )}
       </div>
 
-      {showForm && (
-        <div className="rounded-xl bg-blue-600/[0.07] border border-blue-500/30 p-4 flex flex-col gap-2.5">
-          <p className="text-sm font-semibold text-gray-200">Câu mới (vị trí trống đầu tiên)</p>
+      <SidePanel open={showForm} onClose={() => setShowForm(false)} title="Thêm câu vòng loại" wide>
+        <div className="flex flex-col gap-2.5">
+          <p className="text-xs text-gray-500">Câu mới vào vị trí trống đầu tiên.</p>
           <textarea
-            rows={2}
+            rows={3}
             placeholder="Nội dung câu hỏi *"
             value={form.content}
             onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
@@ -201,33 +202,46 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               </label>
             ))}
           </div>
-          <div className="flex gap-2 items-center">
-            <label className="text-xs text-gray-400">Đáp án đúng:</label>
-            <select
-              value={form.correct}
-              onChange={(e) => setForm((f) => ({ ...f, correct: e.target.value }))}
-              className="px-2 py-1.5 rounded-lg bg-black/30 border border-white/10 text-sm"
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-gray-500 uppercase tracking-wide">Đáp án đúng</span>
+              <select
+                value={form.correct}
+                onChange={(e) => setForm((f) => ({ ...f, correct: e.target.value }))}
+                className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm"
+              >
+                {["A", "B", "C", "D"].map((l) => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-gray-500 uppercase tracking-wide">Giải thích</span>
+              <input
+                placeholder="(tuỳ chọn)"
+                value={form.explanation}
+                onChange={(e) => setForm((f) => ({ ...f, explanation: e.target.value }))}
+                className={inputClass}
+              />
+            </label>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
             >
-              {["A", "B", "C", "D"].map((l) => (
-                <option key={l} value={l}>{l}</option>
-              ))}
-            </select>
-            <input
-              placeholder="Giải thích (tuỳ chọn)"
-              value={form.explanation}
-              onChange={(e) => setForm((f) => ({ ...f, explanation: e.target.value }))}
-              className={`${inputClass} flex-1`}
-            />
+              Huỷ
+            </button>
             <button
               onClick={() => void handleCreate()}
               disabled={saving}
               className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
             >
-              {saving ? "…" : "Lưu"}
+              {saving ? "Đang lưu…" : "Lưu câu hỏi"}
             </button>
           </div>
         </div>
-      )}
+      </SidePanel>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
         {byPosition.map((q, i) =>

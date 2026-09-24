@@ -51,6 +51,7 @@ const AdminUsersPage = () => {
   // Panel: xác nhận xoá
   const [deleteTarget, setDeleteTarget] = useState<UserData | null>(null);
   const [savingDelete, setSavingDelete] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const authHeaders = useCallback(
     (): HeadersInit => ({ "Content-Type": "application/json" }),
@@ -59,18 +60,29 @@ const AdminUsersPage = () => {
 
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch(`${API_BASE_URL}/users/`, {
         headers: authHeaders(),
+        credentials: "include",
       });
-      const json: ApiResponse = await res.json();
-      if (json.status === "success" && Array.isArray(json.data)) {
+      const json: ApiResponse = await res.json().catch(() => null);
+      if (res.ok && json?.status === "success" && Array.isArray(json.data)) {
         setUsers(json.data as unknown as UserData[]);
       } else {
-        logger.warn("Fetch users failed:", json.message);
+        const msg = `Tải danh sách thất bại (HTTP ${res.status}): ${json?.message ?? res.statusText}`;
+        logger.warn("Fetch users failed:", msg);
+        setFetchError(
+          res.status === 401
+            ? "Hết phiên đăng nhập — đăng nhập lại rồi tải lại trang."
+            : res.status === 403
+              ? "Tài khoản không có quyền admin."
+              : msg,
+        );
       }
     } catch (err) {
       logger.error("Error fetching users:", err);
+      setFetchError("Không kết nối được API — kiểm tra API có đang chạy không.");
     } finally {
       setUsersLoading(false);
     }
@@ -89,6 +101,7 @@ const AdminUsersPage = () => {
           {
             method: "PATCH",
             headers: authHeaders(),
+            credentials: "include",
             body: JSON.stringify(body),
           },
         );
@@ -113,15 +126,15 @@ const AdminUsersPage = () => {
 
   const createUser = useCallback(
     async (value: UserAddValue) => {
-      if (!value.name.trim() || !value.email.trim()) return;
+      if (!value.name.trim() || value.password.length < 8) return;
       setSavingAdd(true);
       try {
         const res = await fetch(`${API_BASE_URL}/users`, {
           method: "POST",
           headers: authHeaders(),
+          credentials: "include",
           body: JSON.stringify({
             userName: value.name.trim(),
-            email: value.email.trim(),
             password: value.password,
             role: value.role,
             scopes: value.role === "operator" ? value.scopes : undefined,
@@ -158,6 +171,7 @@ const AdminUsersPage = () => {
           {
             method: "PUT",
             headers: authHeaders(),
+            credentials: "include",
             body: JSON.stringify({ role: value.role }),
           },
         );
@@ -172,6 +186,7 @@ const AdminUsersPage = () => {
             {
               method: "PUT",
               headers: authHeaders(),
+              credentials: "include",
               body: JSON.stringify({ scopes: value.scopes }),
             },
           );
@@ -199,7 +214,7 @@ const AdminUsersPage = () => {
     try {
       const res = await fetch(
         `${API_BASE_URL}/users/${encodeURIComponent(deleteTarget.user_code)}`,
-        { method: "DELETE", headers: authHeaders() },
+        { method: "DELETE", headers: authHeaders(), credentials: "include" },
       );
       const json = await res.json();
       if (res.ok) {
@@ -285,10 +300,26 @@ const AdminUsersPage = () => {
       </div>
 
       <div className="overflow-x-auto">
-        {usersLoading && users.length === 0 ? (
+        {fetchError ? (
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-center">
+            <p className="text-red-300 text-sm mb-3">{fetchError}</p>
+            <button
+              onClick={() => void fetchUsers()}
+              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+            >
+              Thử lại
+            </button>
+          </div>
+        ) : usersLoading && users.length === 0 ? (
           <p className="text-gray-500 text-sm py-8 text-center">Đang tải…</p>
         ) : users.length === 0 ? (
-          <p className="text-gray-500 text-sm py-8 text-center">Không có người dùng nào.</p>
+          <div className="py-8 text-center">
+            <p className="text-gray-500 text-sm">Không có người dùng nào trong DB.</p>
+            <p className="text-gray-600 text-xs mt-1">
+              Tài khoản admin đăng nhập bằng env (ADMIN_USERNAME) không nằm trong DB —
+              bấm “Thêm người dùng” để tạo user đầu tiên.
+            </p>
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-black/40 backdrop-blur">

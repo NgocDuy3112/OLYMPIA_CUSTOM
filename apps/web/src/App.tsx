@@ -24,13 +24,18 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/tournament/*" replace />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/login/staffs" element={<StaffLoginPage />} />
+            <Route path="/login/admin" element={<StaffLoginPage mode="admin" />} />
+            <Route path="/login/operator" element={<StaffLoginPage mode="operator" />} />
+            <Route
+              path="/login/staffs"
+              element={<Navigate to="/login/admin" replace />}
+            />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/player/*" element={<PlayerRoutes />} />
             <Route path="/admin/*" element={<AdminRoutes />} />
-            <Route path="/controller/*" element={<ControllerRoutes />} />
+            <Route path="/operator/controller/*" element={<ControllerRoutes />} />
             <Route path="/operator/qauthor/*" element={<QAuthorRoutes />} />
-            <Route path="/mc/*" element={<MCRoutes />} />
+            <Route path="/operator/mc/*" element={<MCRoutes />} />
             <Route path="/info/rules" element={<RulesPage />} />
             <Route path="/tournament/*" element={<TournamentRoutes />} />
             <Route path="/profile" element={<ProfileRoutes />} />

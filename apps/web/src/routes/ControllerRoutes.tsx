@@ -39,14 +39,17 @@ const ControllerAutoNavigator: React.FC = () => {
       return;
 
     const path = msg.path.endsWith("/") ? msg.path.slice(0, -1) : msg.path;
-    // Controller shell owns /controller/*; map legacy /player/ and /admin/
-    // paths to controller paths so old broadcasts keep working.
-    const controllerPath = path.startsWith("/player/")
-      ? path.replace("/player/", "/controller/")
-      : path.startsWith("/admin/")
-        ? path.replace("/admin/", "/controller/")
-        : path.startsWith("/controller/")
-          ? path
+    // Operator controller shell owns /operator/controller/*; map legacy
+    // /player/, /admin/ and old /controller/ paths so old broadcasts keep working.
+    const normalized = path.startsWith("/controller/")
+      ? path.replace("/controller/", "/operator/controller/")
+      : path;
+    const controllerPath = normalized.startsWith("/player/")
+      ? normalized.replace("/player/", "/operator/controller/")
+      : normalized.startsWith("/admin/")
+        ? normalized.replace("/admin/", "/operator/controller/")
+        : normalized.startsWith("/operator/controller/")
+          ? normalized
           : null;
     if (!controllerPath) return;
 
@@ -107,7 +110,7 @@ const ControllerRoutes = () => {
           <Routes>
             <Route
               path="/"
-              element={<Navigate to="/controller/overview" replace />}
+              element={<Navigate to="/operator/controller/overview" replace />}
             />
             <Route path="/overview" element={<ControllerOverviewPage />} />
             <Route path="/qualifier" element={<CQualifierPage />} />
@@ -127,7 +130,7 @@ const ControllerRoutes = () => {
             <Route path="/vdc/:matchCode?" element={<VeDichChungPage />} />
             <Route path="/vdr/:matchCode?" element={<VeDichRiengPage />} />
             <Route path="/gm/:matchCode?" element={<GiaiMaPage />} />
-            <Route path="*" element={<Navigate to="/controller/overview" replace />} />
+            <Route path="*" element={<Navigate to="/operator/controller/overview" replace />} />
           </Routes>
         </GameWebSocketProvider>
       </ControllerLayout>

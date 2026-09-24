@@ -73,7 +73,7 @@ const AdminKhoiDongChungView = () => {
   }, [urlMatchCode]);
 
   useEffect(() => {
-    if (!matchCode) navigate("/controller/overview");
+    if (!matchCode) navigate("/operator/controller/overview");
   }, [matchCode, navigate]);
 
   // Auto-advance questions based on timer

@@ -39,6 +39,11 @@ const STATUS_OPTIONS = [
   { value: "archived", label: "Lưu trữ" },
 ];
 
+const inputClass =
+  "w-full px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm";
+
+const labelClass = "block text-[11px] text-gray-500 uppercase tracking-wide mb-1";
+
 const TournamentFormPage: React.FC = () => {
   const navigate = useNavigate();
   const { code } = useParams<{ code: string }>();
@@ -151,20 +156,19 @@ const TournamentFormPage: React.FC = () => {
   }
 
   return (
-    <div className="p-4 sm:p-6 max-w-3xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white max-w-2xl">
+      <div className="flex items-center gap-3">
         <button
           onClick={() => navigate("/admin/tournaments")}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
         >
-          <ArrowLeft size={20} className="text-white" />
+          <ArrowLeft size={18} />
         </button>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">
+          <h1 className="text-xl sm:text-2xl font-bold">
             {isEditing ? "Chỉnh sửa giải đấu" : "Tạo giải đấu mới"}
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-gray-400 text-sm mt-0.5">
             {isEditing
               ? "Cập nhật thông tin giải đấu"
               : "Điền thông tin để tạo giải đấu mới"}
@@ -172,181 +176,153 @@ const TournamentFormPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error message */}
       {error && (
-        <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-400 text-sm">
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
           {error}
         </div>
       )}
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="card p-6! space-y-6">
-        {/* Tournament Name */}
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">
-            Tên giải đấu <span className="text-red-400">*</span>
-          </label>
-          <input
-            type="text"
-            name="tournamentName"
-            value={formData.tournamentName}
-            onChange={handleChange}
-            placeholder="VD: Olympia Custom Season 1"
-            className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 touch-target"
-            required
-          />
-        </div>
-
-        {/* Description */}
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">
-            Mô tả
-          </label>
-          <textarea
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Mô tả về giải đấu..."
-            rows={3}
-            className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"
-          />
-        </div>
-
-        {/* Tournament Format */}
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">
-            Format giải đấu
-          </label>
-          <select
-            name="tournamentFormat"
-            value={formData.tournamentFormat}
-            onChange={handleChange}
-            className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-500 touch-target"
-          >
-            {TOURNAMENT_FORMATS.map((fmt) => (
-              <option key={fmt.value} value={fmt.value} className="bg-gray-800">
-                {fmt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Status (only when editing) */}
-        {isEditing && (
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <section className="flex flex-col gap-3">
+          <p className="text-xs font-medium text-gray-400">Cơ bản</p>
           <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Trạng thái
+            <label className={labelClass}>
+              Tên giải đấu <span className="text-red-400">*</span>
             </label>
-            <select
-              name="status"
-              value={formData.status}
+            <input
+              type="text"
+              name="tournamentName"
+              value={formData.tournamentName}
               onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-500 touch-target"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option
-                  key={opt.value}
-                  value={opt.value}
-                  className="bg-gray-800"
+              placeholder="VD: Olympia Custom Season 1"
+              className={inputClass}
+              required
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Mô tả</label>
+            <textarea
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              placeholder="Mô tả về giải đấu..."
+              rows={3}
+              className={`${inputClass} resize-none`}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Format giải đấu</label>
+              <select
+                name="tournamentFormat"
+                value={formData.tournamentFormat}
+                onChange={handleChange}
+                className={`${inputClass} bg-black/30`}
+              >
+                {TOURNAMENT_FORMATS.map((fmt) => (
+                  <option key={fmt.value} value={fmt.value}>
+                    {fmt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {isEditing && (
+              <div>
+                <label className={labelClass}>Trạng thái</label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className={`${inputClass} bg-black/30`}
                 >
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
-        )}
+        </section>
 
-        {/* Date range */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Ngày bắt đầu
-            </label>
-            <input
-              type="date"
-              name="startDate"
-              value={formData.startDate}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-500 touch-target"
-            />
+        <section className="flex flex-col gap-3">
+          <p className="text-xs font-medium text-gray-400">Thời gian & địa điểm</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className={labelClass}>Ngày bắt đầu</label>
+              <input
+                type="date"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
+                className={`${inputClass} text-gray-200`}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Ngày kết thúc</label>
+              <input
+                type="date"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleChange}
+                className={`${inputClass} text-gray-200`}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Số thí sinh tối đa</label>
+              <input
+                type="text"
+                name="maxPlayers"
+                value={formData.maxPlayers}
+                onChange={handleChange}
+                placeholder="VD: 16, 32"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Địa điểm</label>
+              <input
+                type="text"
+                name="venue"
+                value={formData.venue}
+                onChange={handleChange}
+                placeholder="VD: Trường ĐH Bách Khoa"
+                className={inputClass}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Ngày kết thúc
-            </label>
-            <input
-              type="date"
-              name="endDate"
-              value={formData.endDate}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-blue-500 touch-target"
-            />
-          </div>
-        </div>
+        </section>
 
-        {/* Max players & Venue */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Số thí sinh tối đa
-            </label>
-            <input
-              type="text"
-              name="maxPlayers"
-              value={formData.maxPlayers}
-              onChange={handleChange}
-              placeholder="VD: 16, 32"
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 touch-target"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">
-              Địa điểm
-            </label>
-            <input
-              type="text"
-              name="venue"
-              value={formData.venue}
-              onChange={handleChange}
-              placeholder="VD: Trường ĐH Bách Khoa"
-              className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 touch-target"
-            />
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label className="block text-sm font-medium text-white mb-2">
-            Ghi chú
-          </label>
+        <section className="flex flex-col gap-3">
+          <p className="text-xs font-medium text-gray-400">Ghi chú</p>
           <textarea
             name="notes"
             value={formData.notes}
             onChange={handleChange}
             placeholder="Ghi chú thêm..."
             rows={2}
-            className="w-full px-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 resize-none"
+            className={`${inputClass} resize-none`}
           />
-        </div>
+        </section>
 
-        {/* Submit button */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={() => navigate("/admin/tournaments")}
-            className="px-6 py-2.5 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors touch-target"
+            className="px-5 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-sm"
           >
             Hủy
           </button>
           <button
             type="submit"
             disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50 touch-target"
+            className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
           >
             {isSaving ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader2 size={15} className="animate-spin" />
             ) : (
-              <Save size={18} />
+              <Save size={15} />
             )}
             <span>{isEditing ? "Cập nhật" : "Tạo giải đấu"}</span>
           </button>

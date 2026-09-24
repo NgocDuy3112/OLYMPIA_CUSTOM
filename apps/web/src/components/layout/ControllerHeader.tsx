@@ -27,7 +27,7 @@ export const ControllerHeader: React.FC<ControllerHeaderProps> = ({
             <Menu size={20} />
           </button>
           <button
-            onClick={() => navigate("/controller/overview")}
+            onClick={() => navigate("/operator/controller/overview")}
             className="flex items-center gap-2"
           >
             <Gamepad2 size={18} className="text-orange-400" />
