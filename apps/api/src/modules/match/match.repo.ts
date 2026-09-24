@@ -16,6 +16,10 @@ export interface MatchRow {
     matchName: string;
     matchStatus: string;
     tournamentId: string | null;
+    scheduledAt?: Date | string | null;
+    venue?: string | null;
+    matchLabel?: string | null;
+    phaseId?: string | null;
 }
 
 export interface MatchPlayerRow {
@@ -34,6 +38,10 @@ export interface MatchRepo {
         matchName: string;
         tournamentCode?: string;
         createdBy: string;
+        scheduledAt?: string | Date | null;
+        venue?: string | null;
+        matchLabel?: string | null;
+        phaseId?: string | null;
     }): Promise<MatchRow>;
     update(
         slug: string,
@@ -44,6 +52,10 @@ export interface MatchRepo {
             tournamentFormat?: string;
             tournamentCode?: string | null;
             matchPin?: string;
+            scheduledAt?: string | Date | null;
+            venue?: string | null;
+            matchLabel?: string | null;
+            phaseId?: string | null;
         },
     ): Promise<MatchRow | null>;
     listPlayers(matchId: string): Promise<MatchPlayerRow[]>;
@@ -128,6 +140,10 @@ export const drizzleMatchRepo: MatchRepo = {
         matchName: string;
         tournamentCode?: string;
         createdBy: string;
+        scheduledAt?: string | Date | null;
+        venue?: string | null;
+        matchLabel?: string | null;
+        phaseId?: string | null;
     }): Promise<MatchRow> {
         let tournamentId: string | null = null;
         let ocNumber = "3";
@@ -149,6 +165,10 @@ export const drizzleMatchRepo: MatchRepo = {
                 matchName: input.matchName,
                 tournamentId,
                 createdBy: input.createdBy,
+                scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : undefined,
+                venue: input.venue?.slice(0, 200) ?? undefined,
+                matchLabel: input.matchLabel?.slice(0, 20) ?? undefined,
+                phaseId: input.phaseId ?? undefined,
             })
             .returning();
         return result[0] as MatchRow;
@@ -163,6 +183,10 @@ export const drizzleMatchRepo: MatchRepo = {
             tournamentFormat?: string;
             tournamentCode?: string | null;
             matchPin?: string;
+            scheduledAt?: string | Date | null;
+            venue?: string | null;
+            matchLabel?: string | null;
+            phaseId?: string | null;
         },
     ): Promise<MatchRow | null> {
         const values: Record<string, unknown> = { updatedAt: new Date() };
@@ -172,6 +196,11 @@ export const drizzleMatchRepo: MatchRepo = {
         if (updates.tournamentFormat)
             values.tournamentFormat = updates.tournamentFormat;
         if (updates.matchPin) values.matchPin = updates.matchPin;
+        if (updates.scheduledAt !== undefined)
+            values.scheduledAt = updates.scheduledAt ? new Date(updates.scheduledAt) : null;
+        if (updates.venue !== undefined) values.venue = updates.venue;
+        if (updates.matchLabel !== undefined) values.matchLabel = updates.matchLabel;
+        if (updates.phaseId !== undefined) values.phaseId = updates.phaseId;
         if (updates.tournamentCode !== undefined) {
             values.tournamentId =
                 updates.tournamentCode === null
@@ -275,6 +304,10 @@ export function createInMemoryMatchRepo(
                 matchName: input.matchName,
                 matchStatus: "setup",
                 tournamentId: null,
+                scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
+                venue: input.venue ?? null,
+                matchLabel: input.matchLabel ?? null,
+                phaseId: input.phaseId ?? null,
             };
             rows.push(row);
             return row;
@@ -282,7 +315,15 @@ export function createInMemoryMatchRepo(
         async update(slug, updates) {
             const row = rows.find((r) => r.matchSlug === slug);
             if (!row) return null;
-            Object.assign(row, updates);
+            Object.assign(row, {
+                ...updates,
+                scheduledAt:
+                    updates.scheduledAt !== undefined
+                        ? updates.scheduledAt
+                            ? new Date(updates.scheduledAt)
+                            : null
+                        : row.scheduledAt,
+            });
             return row;
         },
         async listPlayers() {

@@ -221,7 +221,7 @@ const AdminUsersPage = () => {
   }, [fetchUsers]);
 
   return (
-    <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
       <UserEditPanel
         item={editingUser}
         saving={savingEdit}
@@ -246,105 +246,102 @@ const AdminUsersPage = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
       />
-
-      <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4 overflow-hidden">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
-              <Users size={20} /> Người dùng
-            </h2>
-            <FilterSelect
-              value={userRoleFilter}
-              onChange={setUserRoleFilter}
-              aria-label="Lọc theo vai trò"
-            >
-              <option value="all">Tất cả</option>
-              <option value="admin">Admin</option>
-              <option value="operator">Operator</option>
-              <option value="player">Thí sinh</option>
-              <option value="spectator">Khán giả</option>
-            </FilterSelect>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm font-medium"
-            >
-              <Plus size={15} /> Thêm người dùng
-            </button>
-            <button
-              onClick={() => void fetchUsers()}
-              disabled={usersLoading}
-              className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
-              title="Làm mới"
-            >
-              <RefreshCw
-                size={16}
-                className={usersLoading ? "animate-spin" : ""}
-              />
-            </button>
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
+            <Users size={20} /> Người dùng
+          </h1>
+          <FilterSelect
+            value={userRoleFilter}
+            onChange={setUserRoleFilter}
+            aria-label="Lọc theo vai trò"
+          >
+            <option value="all">Tất cả</option>
+            <option value="admin">Admin</option>
+            <option value="operator">Operator</option>
+            <option value="player">Thí sinh</option>
+            <option value="spectator">Khán giả</option>
+          </FilterSelect>
         </div>
-
-        <div className="overflow-y-auto flex-1 -mr-2 pr-2">
-          {usersLoading && users.length === 0 ? (
-            <p className="text-gray-400 text-sm">Đang tải…</p>
-          ) : users.length === 0 ? (
-            <p className="text-gray-400 text-sm">Không có người dùng nào.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-blue-900">
-                <tr className="text-left text-blue-300 border-b border-blue-700">
-                  <th className="py-2 px-2">Mã người dùng</th>
-                  <th className="py-2 px-2">Tên người dùng</th>
-                  <th className="py-2 px-2">Email</th>
-                  <th className="py-2 px-2">Vai trò</th>
-                  <th className="py-2 px-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {users
-                  .filter(
-                    (u: UserData) =>
-                      userRoleFilter === "all" || u.role === userRoleFilter,
-                  )
-                  .slice()
-                  .reverse()
-                  .map((u: UserData) => (
-                    <tr
-                      key={u.user_code}
-                      className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors"
-                    >
-                      <td className="py-2 px-2 font-mono text-xs">
-                        {u.user_code}
-                      </td>
-                      <td className="py-2 px-2">{u.user_name}</td>
-                      <td className="py-2 px-2 text-xs text-blue-300">
-                        {u.email ?? (
-                          <span className="text-gray-500 italic">—</span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2">
-                        <span className="capitalize">{u.role}</span>
-                        {u.role === "operator" && u.operator_scopes && (
-                          <span className="block text-[11px] text-blue-300 font-mono">
-                            {u.operator_scopes}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-2 text-right">
-                        <UserRowActions
-                          onEdit={() => setEditingUser(u)}
-                          onChangeRole={() => setRoleUser(u)}
-                          onDelete={() => setDeleteTarget(u)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm font-medium"
+          >
+            <Plus size={15} /> Thêm người dùng
+          </button>
+          <button
+            onClick={() => void fetchUsers()}
+            disabled={usersLoading}
+            className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+            title="Làm mới"
+          >
+            <RefreshCw
+              size={16}
+              className={usersLoading ? "animate-spin" : ""}
+            />
+          </button>
         </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        {usersLoading && users.length === 0 ? (
+          <p className="text-gray-500 text-sm py-8 text-center">Đang tải…</p>
+        ) : users.length === 0 ? (
+          <p className="text-gray-500 text-sm py-8 text-center">Không có người dùng nào.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-black/40 backdrop-blur">
+              <tr className="text-left text-gray-500 border-b border-white/10">
+                <th className="py-2 px-2 font-medium">Mã người dùng</th>
+                <th className="py-2 px-2 font-medium">Tên người dùng</th>
+                <th className="py-2 px-2 font-medium">Email</th>
+                <th className="py-2 px-2 font-medium">Vai trò</th>
+                <th className="py-2 px-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {users
+                .filter(
+                  (u: UserData) =>
+                    userRoleFilter === "all" || u.role === userRoleFilter,
+                )
+                .slice()
+                .reverse()
+                .map((u: UserData) => (
+                  <tr
+                    key={u.user_code}
+                    className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                  >
+                    <td className="py-2 px-2 font-mono text-xs text-gray-300">
+                      {u.user_code}
+                    </td>
+                    <td className="py-2 px-2 text-white">{u.user_name}</td>
+                    <td className="py-2 px-2 text-xs text-gray-400">
+                      {u.email ?? (
+                        <span className="text-gray-600 italic">—</span>
+                      )}
+                    </td>
+                    <td className="py-2 px-2">
+                      <span className="capitalize text-gray-200">{u.role}</span>
+                      {u.role === "operator" && u.operator_scopes && (
+                        <span className="block text-[11px] text-gray-500 font-mono">
+                          {u.operator_scopes}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 px-2 text-right">
+                      <UserRowActions
+                        onEdit={() => setEditingUser(u)}
+                        onChangeRole={() => setRoleUser(u)}
+                        onDelete={() => setDeleteTarget(u)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

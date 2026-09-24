@@ -2,10 +2,10 @@ import { useState } from "react";
 import {
   Routes,
   Route,
-  Navigate,
 } from "react-router-dom";
 
 import AdminGameManagingPage from "@/pages/admin/AdminGameManagingPage";
+import AdminDashboardPage from "@/pages/admin/AdminDashboardPage";
 import AdminHealthPage from "@/pages/admin/AdminHealthPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminAuditPage from "@/pages/admin/AdminAuditPage";
@@ -48,10 +48,11 @@ const AdminRoutes = () => {
         <Routes>
           <Route
             path="/"
-            element={<Navigate to="/admin/manage" replace />}
+            element={<AdminDashboardPage />}
           />
           <Route path="/manage" element={<AdminGameManagingPage />} />
           <Route path="/game-managing" element={<AdminGameManagingPage />} />
+          <Route path="/schedule" element={<AdminGameManagingPage />} />
           <Route path="/users" element={<AdminUsersPage />} />
           <Route path="/bank-review" element={<AdminBankReviewPage />} />
           <Route path="/health" element={<AdminHealthPage />} />

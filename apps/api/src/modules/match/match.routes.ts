@@ -23,6 +23,10 @@ export async function matchRoutes(
       const body = request.body as {
         matchName: string;
         tournamentCode?: string;
+        scheduledAt?: string;
+        venue?: string;
+        matchLabel?: string;
+        phaseId?: string;
       };
       if (!body.matchName) {
         return reply
@@ -33,13 +37,35 @@ export async function matchRoutes(
             data: null,
           });
       }
+      if (body.scheduledAt && Number.isNaN(Date.parse(body.scheduledAt))) {
+        return reply
+          .code(400)
+          .send({
+            status: "error",
+            message: "scheduledAt must be a valid date-time",
+            data: null,
+          });
+      }
 
       const session = (request as any).session;
-      const created = await repo.create({
-        matchName: body.matchName,
-        tournamentCode: body.tournamentCode,
-        createdBy: session.userId,
-      });
+      let created;
+      try {
+        created = await repo.create({
+          matchName: body.matchName,
+          tournamentCode: body.tournamentCode,
+          createdBy: session.userId,
+          scheduledAt: body.scheduledAt ?? null,
+          venue: body.venue?.trim().slice(0, 200) || null,
+          matchLabel: body.matchLabel?.trim().toUpperCase().slice(0, 20) || null,
+          phaseId: body.phaseId?.trim() || null,
+        });
+      } catch (err) {
+        return reply.code(400).send({
+          status: "error",
+          message: err instanceof Error ? err.message : "Create failed",
+          data: null,
+        });
+      }
 
       const auditSession = session as { userCode?: string } | undefined;
       void writeAudit({
@@ -92,7 +118,20 @@ export async function matchRoutes(
         tournamentFormat?: string;
         tournamentCode?: string | null;
         matchPin?: string;
+        scheduledAt?: string | null;
+        venue?: string | null;
+        matchLabel?: string | null;
+        phaseId?: string | null;
       };
+      if (body.scheduledAt && Number.isNaN(Date.parse(body.scheduledAt))) {
+        return reply
+          .code(400)
+          .send({
+            status: "error",
+            message: "scheduledAt must be a valid date-time",
+            data: null,
+          });
+      }
       const updated = await repo.update(slug, {
         matchName: body.matchName,
         matchStatus: body.matchStatus,
@@ -100,6 +139,10 @@ export async function matchRoutes(
         tournamentFormat: body.tournamentFormat,
         tournamentCode: body.tournamentCode,
         matchPin: body.matchPin,
+        scheduledAt: body.scheduledAt === null ? null : (body.scheduledAt ?? undefined),
+        venue: body.venue === null ? null : body.venue?.trim().slice(0, 200),
+        matchLabel: body.matchLabel === null ? null : body.matchLabel?.trim().toUpperCase().slice(0, 20),
+        phaseId: body.phaseId === null ? null : (body.phaseId?.trim() || undefined),
       });
       if (!updated) {
         return reply

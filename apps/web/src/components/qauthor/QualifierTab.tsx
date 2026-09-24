@@ -68,7 +68,6 @@ export const QualifierTab = () => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   const [closing, setClosing] = useState<string | null>(null);
   const [closeResult, setCloseResult] = useState<Record<string, unknown> | null>(null);
   const [editing, setEditing] = useState<QualifierQuestion | null>(null);
@@ -131,11 +130,37 @@ export const QualifierTab = () => {
     return t.split("|").map((s) => s.trim()).filter(Boolean);
   };
 
+  const freePositions = [...Array(16)].map((_, i) => i + 1).filter(
+    (p) => !questions.some((q) => q.position === p),
+  );
+
+  const handlePositionChange = (pos: string) => {
+    setForm((p) => {
+      const n = Number(pos) || 1;
+      const auto = `VL_${String(n).padStart(2, "0")}`;
+      const code = !p.questionCode.trim() || /^VL_\d{2}$/.test(p.questionCode.trim()) ? auto : p.questionCode;
+      return { ...p, position: pos, questionCode: code };
+    });
+  };
+
   const createQuestion = useCallback(async () => {
     const code = tournamentCode.trim();
     const options = form.optionList.map((s) => s.trim());
     if (!code || !form.questionCode.trim() || !form.content.trim() || options.some((s) => !s)) {
-      alert("Nhập mã giải, mã câu, nội dung và đủ 4 phương án.");
+      alert("Nhập mã giải, mã câu, nội dung và đủ phương án.");
+      return;
+    }
+    if (!LETTERS.slice(0, options.length).includes(form.correctOption)) {
+      alert("Đáp án đúng phải nằm trong số phương án đã nhập.");
+      return;
+    }
+    const pos = Number(form.position);
+    if (!Number.isInteger(pos) || pos < 1 || pos > 16) {
+      alert("Vị trí phải từ 1 đến 16.");
+      return;
+    }
+    if (questions.some((q) => q.position === pos)) {
+      alert(`Vị trí ${pos} đã có câu hỏi.`);
       return;
     }
     setSaving(true);
@@ -151,12 +176,15 @@ export const QualifierTab = () => {
           correctOption: form.correctOption,
           explanation: form.explanation.trim() || undefined,
           mediaUrl: form.mediaUrl.trim() || undefined,
-          position: Number(form.position) || 1,
+          position: pos,
         }),
       });
       const json = await res.json();
       if (res.ok) {
-        setForm({ ...emptyForm, position: String(questions.length + 2) });
+        const next = [...Array(16)].map((_, i) => i + 1).find(
+          (p) => p !== pos && !questions.some((q) => q.position === p),
+        ) ?? 1;
+        setForm({ ...emptyForm, position: String(next), questionCode: `VL_${String(next).padStart(2, "0")}` });
         await fetchQuestions();
       } else {
         alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
@@ -167,7 +195,7 @@ export const QualifierTab = () => {
     } finally {
       setSaving(false);
     }
-  }, [base, fetchQuestions, form, questions.length, tournamentCode]);
+  }, [base, fetchQuestions, form, questions, tournamentCode]);
 
   const saveEdit = useCallback(async (value: QualifierEditValue) => {
     if (!editing) return;
@@ -273,29 +301,6 @@ export const QualifierTab = () => {
           >
             <Search size={14} /> Tải
           </button>
-          <button
-            onClick={() => {
-              const code = tournamentCode.trim();
-              if (!code) return;
-              setSeeding(true);
-              fetch(`${API_BASE_URL}${base()}/seed`, { method: "POST", credentials: "include" })
-                .then((r) => r.json().catch(() => null))
-                .then((json) => {
-                  if (!json || json.status !== "success") alert(`Seed thất bại: ${json?.message ?? "Lỗi không xác định"}`);
-                  return Promise.all([fetchQuestions(), fetchStandings()]);
-                })
-                .catch((err) => {
-                  logger.error("Error seeding qualifier:", err);
-                  alert("Lỗi kết nối khi seed");
-                })
-                .finally(() => setSeeding(false));
-            }}
-            disabled={seeding || !tournamentCode.trim()}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-sm text-white transition-colors"
-            title="Tạo nhanh 16 câu mẫu"
-          >
-            <Plus size={14} /> {seeding ? "…" : "Seed"}
-          </button>
         </div>
         {tournamentCode.trim() && (
           <div className="flex items-center gap-2">
@@ -312,61 +317,103 @@ export const QualifierTab = () => {
         )}
       </div>
 
-      <details className="bg-white/5 border border-white/10 rounded-xl px-5 py-3">
-        <summary className="text-sm text-gray-400 hover:text-white cursor-pointer select-none transition-colors">
-          Soạn câu tay (hoặc Seed 16 câu mẫu rồi sửa)
-        </summary>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-          <input
-            value={form.questionCode}
-            onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value }))}
-            placeholder="Mã câu (VD: VL_01)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
+            Soạn câu mới
+          </h3>
+          <span className="font-mono text-xs text-gray-400">
+            {questions.length}/16 câu · còn trống {freePositions.length}
+          </span>
+        </div>
+
+        {/* Bước 1 — vị trí + mã câu + nội dung */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-gray-400">1 · Vị trí và nội dung</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] text-gray-500">Vị trí</span>
+              <select
+                value={form.position}
+                onChange={(e) => handlePositionChange(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+              >
+                {[...Array(16)].map((_, i) => {
+                  const p = i + 1;
+                  const taken = questions.some((q) => q.position === p);
+                  return (
+                    <option key={p} value={String(p)} disabled={taken}>
+                      #{p}{taken ? " (đã có)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 col-span-1 sm:col-span-3">
+              <span className="text-[11px] text-gray-500">Mã câu</span>
+              <input
+                value={form.questionCode}
+                onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value.toUpperCase() }))}
+                placeholder="VL_01"
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+              />
+            </label>
+          </div>
+          <textarea
+            rows={3}
+            value={form.content}
+            onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
+            placeholder="Nội dung câu hỏi *"
+            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none"
           />
-          <div className="grid grid-cols-2 gap-2">
+        </div>
+
+        {/* Bước 2 — phương án (bấm chữ cái để chọn đáp án đúng) */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-gray-400">2 · Phương án — bấm chữ cái để chọn đáp án đúng</p>
+          <QualifierOptionsInput
+            options={form.optionList}
+            correct={form.correctOption}
+            onChange={(optionList) => setForm((p) => ({ ...p, optionList }))}
+            onCorrectChange={(correctOption) => setForm((p) => ({ ...p, correctOption }))}
+          />
+        </div>
+
+        {/* Bước 3 — bổ sung */}
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-medium text-gray-400">3 · Bổ sung (tuỳ chọn)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <input
-              value={form.position}
-              onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
-              placeholder="Vị trí 1-16"
+              value={form.explanation}
+              onChange={(e) => setForm((p) => ({ ...p, explanation: e.target.value }))}
+              placeholder="Giải thích"
+              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+            />
+            <input
+              value={form.mediaUrl}
+              onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
+              placeholder="Media URL"
               className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
             />
           </div>
-          <div className="md:col-span-2">
-            <QualifierOptionsInput
-              options={form.optionList}
-              correct={form.correctOption}
-              onChange={(optionList) => setForm((p) => ({ ...p, optionList }))}
-              onCorrectChange={(correctOption) => setForm((p) => ({ ...p, correctOption }))}
-            />
-          </div>
-          <textarea
-            rows={2}
-            value={form.content}
-            onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
-            placeholder="Nội dung câu hỏi"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none md:col-span-2"
-          />
-          <input
-            value={form.explanation}
-            onChange={(e) => setForm((p) => ({ ...p, explanation: e.target.value }))}
-            placeholder="Giải thích (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-          />
-          <input
-            value={form.mediaUrl}
-            onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
-            placeholder="Media URL (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
-          />
         </div>
-        <button
-          onClick={() => void createQuestion()}
-          disabled={saving}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
-        >
-          <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
-        </button>
-      </details>
+
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => setForm({ ...emptyForm, position: String(freePositions[0] ?? 1), questionCode: `VL_${String(freePositions[0] ?? 1).padStart(2, "0")}` })}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+          >
+            Làm lại
+          </button>
+          <button
+            onClick={() => void createQuestion()}
+            disabled={saving || !tournamentCode.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+          >
+            <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
+          </button>
+        </div>
+      </div>
 
       {closeResult && (
         <div className="bg-emerald-900/40 border border-emerald-600 rounded-xl p-4 text-sm">

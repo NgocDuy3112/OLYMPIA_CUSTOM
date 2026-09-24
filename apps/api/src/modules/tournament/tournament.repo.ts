@@ -1,9 +1,11 @@
-import { and, desc, eq, sql } from "@oc/db";
+import { and, desc, eq, inArray, or, sql } from "@oc/db";
 import {
   db,
+  bracketEdges,
   matches,
   records,
   tournaments,
+  tournamentPhases,
   tournamentPlayers,
   users,
 } from "@oc/db";
@@ -19,12 +21,41 @@ export interface TournamentRow {
 export interface TournamentMatchRow {
   id: string;
   matchSlug: string;
+  matchCode: string;
   matchPin: string;
   matchName: string;
   matchStatus: string;
   tournamentFormat: string;
   videoUrl: string | null;
+  scheduledAt: Date | null;
+  venue: string | null;
+  matchLabel: string | null;
   createdAt: Date | null;
+}
+
+export interface BracketPhaseRow {
+  id: string;
+  phaseNumber: number;
+  phaseName: string;
+  phaseType: string;
+}
+
+export interface BracketMatchRow {
+  id: string;
+  matchSlug: string;
+  matchCode: string;
+  matchName: string;
+  matchStatus: string;
+  matchLabel: string | null;
+  scheduledAt: Date | null;
+  venue: string | null;
+  phaseId: string | null;
+}
+
+export interface BracketEdgeRow {
+  fromMatchId: string;
+  rank: number;
+  toMatchId: string;
 }
 
 export interface TournamentMemberRow {
@@ -96,6 +127,11 @@ export interface TournamentRepo {
       rank: number;
     }>
   >;
+  bracket(tournamentId: string): Promise<{
+    phases: BracketPhaseRow[];
+    matches: BracketMatchRow[];
+    edges: BracketEdgeRow[];
+  }>;
 }
 
 export const drizzleTournamentRepo: TournamentRepo = {
@@ -210,11 +246,15 @@ export const drizzleTournamentRepo: TournamentRepo = {
       .select({
         id: matches.id,
         matchSlug: matches.matchSlug,
+        matchCode: matches.matchCode,
         matchPin: matches.matchPin,
         matchName: matches.matchName,
         matchStatus: matches.matchStatus,
         tournamentFormat: matches.tournamentFormat,
         videoUrl: matches.videoUrl,
+        scheduledAt: matches.scheduledAt,
+        venue: matches.venue,
+        matchLabel: matches.matchLabel,
         createdAt: matches.createdAt,
       })
       .from(matches)
@@ -226,6 +266,69 @@ export const drizzleTournamentRepo: TournamentRepo = {
       )
       .orderBy(desc(matches.createdAt));
     return rows;
+  },
+
+  async bracket(tournamentId: string): Promise<{
+    phases: BracketPhaseRow[];
+    matches: BracketMatchRow[];
+    edges: BracketEdgeRow[];
+  }> {
+    const phases = await db
+      .select({
+        id: tournamentPhases.id,
+        phaseNumber: tournamentPhases.phaseNumber,
+        phaseName: tournamentPhases.phaseName,
+        phaseType: tournamentPhases.phaseType,
+      })
+      .from(tournamentPhases)
+      .where(eq(tournamentPhases.tournamentId, tournamentId))
+      .orderBy(tournamentPhases.phaseNumber);
+    const bmatches = await db
+      .select({
+        id: matches.id,
+        matchSlug: matches.matchSlug,
+        matchCode: matches.matchCode,
+        matchName: matches.matchName,
+        matchStatus: matches.matchStatus,
+        matchLabel: matches.matchLabel,
+        scheduledAt: matches.scheduledAt,
+        venue: matches.venue,
+        phaseId: matches.phaseId,
+      })
+      .from(matches)
+      .where(
+        and(
+          eq(matches.tournamentId, tournamentId),
+          eq(matches.isDeleted, false),
+        ),
+      );
+    const ids = bmatches.map((m) => m.id);
+    const edges =
+      ids.length === 0
+        ? []
+        : await db
+            .select({
+              fromMatchId: bracketEdges.fromMatchId,
+              rank: bracketEdges.rank,
+              toMatchId: bracketEdges.toMatchId,
+            })
+            .from(bracketEdges)
+            .where(
+              or(
+                inArray(bracketEdges.fromMatchId, ids),
+                inArray(bracketEdges.toMatchId, ids),
+              ),
+            );
+    return {
+      phases: phases.map((p) => ({
+        id: p.id,
+        phaseNumber: p.phaseNumber,
+        phaseName: p.phaseName,
+        phaseType: p.phaseType ?? "group_stage",
+      })),
+      matches: bmatches,
+      edges,
+    };
   },
 
   async findMember(
@@ -479,6 +582,9 @@ export function createInMemoryTournamentRepo(
     },
     async standings() {
       return [];
+    },
+    async bracket() {
+      return { phases: [], matches: [], edges: [] };
     },
   };
 }

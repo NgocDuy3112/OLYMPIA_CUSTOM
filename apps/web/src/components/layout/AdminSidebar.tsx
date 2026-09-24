@@ -11,9 +11,18 @@ import {
   ClipboardCheck,
   Activity,
   ChevronRight,
+  ExternalLink,
   X,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+
+interface SidebarItem {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+  /** Mở browser tab mới thay vì điều hướng trong shell (cho shell khác). */
+  newTab?: boolean;
+}
 
 interface AdminSidebarProps {
   isOpen?: boolean;
@@ -33,20 +42,22 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   // Question content lives in the separate QAuthor shell — admin jumps
   // there via cross-link (admin bypasses qauthor guards backend-side).
   // Live control lives in the separate Controller shell.
-  const SIDEBAR_ITEMS = [
+  // Cả hai mở browser tab mới để không mất ngữ cảnh admin.
+  const SIDEBAR_ITEMS: SidebarItem[] = [
     { label: "Dashboard", path: "/admin", icon: <LayoutDashboard size={18} /> },
-    { label: "Hồ sơ", path: "/profile", icon: <Users size={18} /> },
     ...(isAdmin
       ? [
           {
             label: "Live (Controller)",
             path: "/controller/overview",
             icon: <Gamepad2 size={18} />,
+            newTab: true,
           },
           {
             label: "Câu hỏi (QAuthor)",
             path: "/operator/qauthor/overview",
             icon: <HelpCircle size={18} />,
+            newTab: true,
           },
         ]
       : []),
@@ -58,8 +69,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             icon: <Trophy size={18} />,
           },
           {
-            label: "Trận đấu",
-            path: "/admin/game-managing",
+            label: "Lịch thi đấu",
+            path: "/admin/schedule",
             icon: <Gamepad2 size={18} />,
           },
           { label: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
@@ -109,14 +120,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         {/* Navigation */}
         <nav className="p-3 space-y-1">
           {SIDEBAR_ITEMS.map((item) => {
-            const active = isActive(item.path);
+            const active = !item.newTab && isActive(item.path);
             return (
               <button
                 key={item.path}
                 onClick={() => {
-                  navigate(item.path);
-                  onClose?.();
+                  if (item.newTab) {
+                    window.open(item.path, "_blank", "noopener");
+                  } else {
+                    navigate(item.path);
+                    onClose?.();
+                  }
                 }}
+                title={item.newTab ? "Mở trong tab mới" : undefined}
                 className={`
                   w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
                   ${
@@ -130,7 +146,11 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                 <span className="flex-1 text-left text-sm font-medium">
                   {item.label}
                 </span>
-                {active && <ChevronRight size={16} className="text-blue-400" />}
+                {item.newTab ? (
+                  <ExternalLink size={14} className="text-gray-600" />
+                ) : (
+                  active && <ChevronRight size={16} className="text-blue-400" />
+                )}
               </button>
             );
           })}

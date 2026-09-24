@@ -66,92 +66,91 @@ const AdminAuditPage = () => {
   }, [fetchLogs]);
 
   return (
-    <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white">
-      <div className="bg-blue-900/60 ring-4 ring-blue-600 rounded-xl p-5 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-bold text-blue-300">
-            <ScrollText size={20} /> Nhật ký hệ thống ({total})
-          </h2>
-          <button
-            onClick={() => void fetchLogs()}
-            disabled={loading}
-            className="p-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 transition-colors"
-            title="Làm mới"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
-        </div>
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
+          <ScrollText size={20} /> Nhật ký hệ thống
+          <span className="font-mono text-sm font-normal text-gray-500">({total})</span>
+        </h1>
+        <button
+          onClick={() => void fetchLogs()}
+          disabled={loading}
+          className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+          title="Làm mới"
+        >
+          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+        </button>
+      </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <FilterSelect value={action} onChange={setAction} aria-label="Lọc hành động">
-            <option value="">Tất cả hành động</option>
-            {ACTIONS.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </FilterSelect>
-          <input
-            value={actor}
-            onChange={(e) => setActor(e.target.value)}
-            placeholder="Lọc actor code..."
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm font-mono"
-          />
-          <input
-            value={match}
-            onChange={(e) => setMatch(e.target.value)}
-            placeholder="Lọc match code..."
-            className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm font-mono"
-          />
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <FilterSelect value={action} onChange={setAction} aria-label="Lọc hành động">
+          <option value="">Tất cả hành động</option>
+          {ACTIONS.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </FilterSelect>
+        <input
+          value={actor}
+          onChange={(e) => setActor(e.target.value)}
+          placeholder="Lọc actor code..."
+          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 text-sm font-mono"
+        />
+        <input
+          value={match}
+          onChange={(e) => setMatch(e.target.value)}
+          placeholder="Lọc match code..."
+          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 text-sm font-mono"
+        />
+      </div>
 
-        <div className="overflow-y-auto flex-1 -mr-2 pr-2 max-h-[70vh]">
-          {loading && logs.length === 0 ? (
-            <p className="text-gray-400 text-sm">Đang tải…</p>
-          ) : logs.length === 0 ? (
-            <p className="text-gray-400 text-sm">Chưa có log nào.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-blue-900">
-                <tr className="text-left text-blue-300 border-b border-blue-700">
-                  <th className="py-2 px-2">Thời gian</th>
-                  <th className="py-2 px-2">Hành động</th>
-                  <th className="py-2 px-2">Actor</th>
-                  <th className="py-2 px-2">Match</th>
-                  <th className="py-2 px-2">Chi tiết</th>
+      <div className="overflow-x-auto">
+        {loading && logs.length === 0 ? (
+          <p className="text-gray-500 text-sm py-8 text-center">Đang tải…</p>
+        ) : logs.length === 0 ? (
+          <p className="text-gray-500 text-sm py-8 text-center">Chưa có log nào.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-black/40 backdrop-blur">
+              <tr className="text-left text-gray-500 border-b border-white/10">
+                <th className="py-2 px-2 font-medium">Thời gian</th>
+                <th className="py-2 px-2 font-medium">Hành động</th>
+                <th className="py-2 px-2 font-medium">Actor</th>
+                <th className="py-2 px-2 font-medium">Match</th>
+                <th className="py-2 px-2 font-medium">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log) => (
+                <tr
+                  key={log.id}
+                  className="border-b border-white/5 hover:bg-white/5 transition-colors align-top"
+                >
+                  <td className="py-2 px-2 text-xs text-gray-500 whitespace-nowrap">
+                    {log.createdAt
+                      ? new Date(log.createdAt).toLocaleString("vi-VN")
+                      : "—"}
+                  </td>
+                  <td className="py-2 px-2">
+                    <span className="px-2 py-0.5 rounded bg-white/10 text-gray-300 text-xs font-mono font-bold">
+                      {log.actionType}
+                    </span>
+                  </td>
+                  <td className="py-2 px-2 font-mono text-xs text-gray-400">
+                    {log.actorCode ?? "—"}
+                  </td>
+                  <td className="py-2 px-2 font-mono text-xs text-gray-400">
+                    {log.matchCode ?? "—"}
+                  </td>
+                  <td className="py-2 px-2 text-xs text-gray-500 max-w-xs truncate">
+                    {log.details ?? log.targetCode ?? "—"}
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {logs.map((log) => (
-                  <tr
-                    key={log.id}
-                    className="border-b border-blue-800/50 hover:bg-blue-800/40 transition-colors align-top"
-                  >
-                    <td className="py-2 px-2 text-xs text-gray-400 whitespace-nowrap">
-                      {log.createdAt
-                        ? new Date(log.createdAt).toLocaleString("vi-VN")
-                        : "—"}
-                    </td>
-                    <td className="py-2 px-2">
-                      <span className="px-2 py-0.5 rounded bg-blue-600/20 text-blue-300 border border-blue-500/50 text-xs font-mono font-bold">
-                        {log.actionType}
-                      </span>
-                    </td>
-                    <td className="py-2 px-2 font-mono text-xs">
-                      {log.actorCode ?? "—"}
-                    </td>
-                    <td className="py-2 px-2 font-mono text-xs">
-                      {log.matchCode ?? "—"}
-                    </td>
-                    <td className="py-2 px-2 text-xs text-gray-300 max-w-xs truncate">
-                      {log.details ?? log.targetCode ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

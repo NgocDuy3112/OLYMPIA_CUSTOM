@@ -4,6 +4,7 @@ import {
   drizzleTournamentRepo,
   type TournamentRepo,
 } from "./tournament.repo.js";
+import { drizzleMatchRepo } from "../match/match.repo.js";
 
 export async function tournamentRoutes(
   app: FastifyInstance,
@@ -464,6 +465,49 @@ export async function tournamentRoutes(
       });
     },
   );
+
+  // GET /tournaments/:code/bracket — phases + matches (kèm players) + edges
+  // để vẽ sơ đồ bracket. Public (giống trang detail).
+  app.get("/tournaments/:code/bracket", async (request, reply) => {
+    const { code } = request.params as { code: string };
+    const tournament = await repo.findByCode(code);
+    if (!tournament) {
+      return reply
+        .code(404)
+        .send({ status: "error", message: "Tournament not found", data: null });
+    }
+    const data = await repo.bracket(tournament.id);
+    const idToCode = new Map(data.matches.map((m) => [m.id, m.matchCode]));
+    const withPlayers = await Promise.all(
+      data.matches.map(async (m) => ({
+        id: m.id,
+        matchSlug: m.matchSlug,
+        matchCode: m.matchCode,
+        matchName: m.matchName,
+        matchStatus: m.matchStatus,
+        matchLabel: m.matchLabel,
+        scheduledAt: m.scheduledAt,
+        venue: m.venue,
+        phaseId: m.phaseId,
+        players: await drizzleMatchRepo.listPlayers(m.id),
+      })),
+    );
+    return reply.send({
+      status: "success",
+      message: "OK",
+      data: {
+        phases: data.phases,
+        matches: withPlayers,
+        edges: data.edges
+          .filter((e) => idToCode.has(e.fromMatchId) && idToCode.has(e.toMatchId))
+          .map((e) => ({
+            fromMatchCode: idToCode.get(e.fromMatchId),
+            rank: e.rank,
+            toMatchCode: idToCode.get(e.toMatchId),
+          })),
+      },
+    });
+  });
 
   // GET /tournaments/:code/standings — Get tournament standings
   app.get("/tournaments/:code/standings", async (request, reply) => {

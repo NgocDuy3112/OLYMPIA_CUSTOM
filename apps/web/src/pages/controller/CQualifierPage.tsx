@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ListOrdered, Play, Search, Trophy } from "lucide-react";
+import { ListOrdered, Search, Trophy } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode } from "@/utils/storage";
@@ -44,7 +44,6 @@ const CQualifierPage = () => {
   const [standings, setStandings] = useState<Standing[]>([]);
   const [loading, setLoading] = useState(false);
   const [closingAll, setClosingAll] = useState(false);
-  const [seeding, setSeeding] = useState(false);
 
   const base = useCallback(
     () => `/qualifier/${encodeURIComponent(tournamentCode.trim())}`,
@@ -84,25 +83,6 @@ const CQualifierPage = () => {
   useEffect(() => {
     void fetchAll();
   }, [fetchAll]);
-
-  const seed = useCallback(async () => {
-    if (!tournamentCode.trim()) return;
-    setSeeding(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}${base()}/seed`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const json: ApiResponse = await res.json().catch(() => ({ status: "error", message: "", data: null }));
-      if (!res.ok) alert(`Seed thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      await fetchAll();
-    } catch (err) {
-      logger.error("Error seeding qualifier:", err);
-      alert("Lỗi kết nối khi seed");
-    } finally {
-      setSeeding(false);
-    }
-  }, [base, fetchAll, tournamentCode]);
 
   const closeAll = useCallback(async () => {
     const open = questions.filter((q) => q.status === "open");
@@ -150,13 +130,6 @@ const CQualifierPage = () => {
         </button>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button
-          onClick={() => void seed()}
-          disabled={seeding || !tournamentCode.trim()}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold text-white"
-        >
-          <Play size={14} /> {seeding ? "Đang seed…" : "Seed 16 câu mẫu"}
-        </button>
         <button
           onClick={() => void closeAll()}
           disabled={closingAll || openCount === 0}
