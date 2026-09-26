@@ -11,6 +11,10 @@ import { API_BASE_URL } from "@/configs";
 import TournamentBracket from "@/components/admin/TournamentBracket";
 import QualifierManager from "@/components/admin/QualifierManager";
 import GroupStageManager from "@/components/admin/GroupStageManager";
+import {
+  TournamentFormPanel,
+  type TournamentFormValue,
+} from "@/components/admin/TournamentFormPanel";
 
 interface Tournament {
   id: string;
@@ -40,31 +44,61 @@ const TournamentDetailPage: React.FC = () => {
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [tab, setTab] = useState<"qualifier" | "groups" | "playoffs">("qualifier");
+  const [showEdit, setShowEdit] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const loadTournament = React.useCallback(async () => {
+    if (!code) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/tournaments/${code}`, {
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Tournament not found");
+      }
+
+      const data = await response.json();
+      if (data.status === "success" && data.data) {
+        setTournament(data.data);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [code]);
 
   useEffect(() => {
+    void loadTournament();
+  }, [loadTournament]);
+
+  const handleSaveEdit = async (v: TournamentFormValue) => {
     if (!code) return;
-
-    const fetchTournament = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/tournaments/${code}`, {
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          throw new Error("Tournament not found");
-        }
-
-        const data = await response.json();
-        if (data.status === "success" && data.data) {
-          setTournament(data.data);
-        }
-      } finally {
-        setIsLoading(false);
+    if (!v.tournamentName.trim()) {
+      setEditError("Tên giải đấu là bắt buộc");
+      return;
+    }
+    setSavingEdit(true);
+    setEditError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/tournaments/${code}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(v),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.message || "Failed to save tournament");
       }
-    };
-
-    fetchTournament();
-  }, [code]);
+      setShowEdit(false);
+      await loadTournament();
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to save tournament");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -84,6 +118,17 @@ const TournamentDetailPage: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6">
+      <TournamentFormPanel
+        open={showEdit}
+        initial={(tournament as unknown as TournamentFormValue | null) ?? null}
+        saving={savingEdit}
+        error={editError}
+        onClose={() => {
+          setShowEdit(false);
+          setEditError(null);
+        }}
+        onSubmit={handleSaveEdit}
+      />
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
         <button
@@ -108,7 +153,7 @@ const TournamentDetailPage: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => navigate(`/admin/tournaments/${code}/edit`)}
+          onClick={() => setShowEdit(true)}
           className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors touch-target"
         >
           <Edit size={16} />

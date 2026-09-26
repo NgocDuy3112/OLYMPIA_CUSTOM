@@ -378,7 +378,7 @@ const AdminDashboardPage = () => {
             icon={<Trophy size={16} />}
             label="Giải đấu mới"
             desc="Tạo giải, thêm thí sinh"
-            onClick={() => navigate("/admin/tournaments/create")}
+            onClick={() => navigate("/admin/tournaments")}
           />
           <QuickAction
             icon={<Gamepad2 size={16} />}

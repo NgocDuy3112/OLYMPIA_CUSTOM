@@ -12,7 +12,6 @@ import AdminAuditPage from "@/pages/admin/AdminAuditPage";
 import AdminCheckpointsPage from "@/pages/admin/AdminCheckpointsPage";
 import AdminBankReviewPage from "@/pages/admin/AdminBankReviewPage";
 import TournamentListPage from "@/pages/admin/tournament/TournamentListPage";
-import TournamentFormPage from "@/pages/admin/tournament/TournamentFormPage";
 import TournamentDetailPage from "@/pages/admin/tournament/TournamentDetailPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminHeader, AdminSidebar } from "@/components/layout";
@@ -60,12 +59,7 @@ const AdminRoutes = () => {
           <Route path="/checkpoints" element={<AdminCheckpointsPage />} />
           {/* Tournament management routes */}
           <Route path="/tournaments" element={<TournamentListPage />} />
-          <Route path="/tournaments/create" element={<TournamentFormPage />} />
           <Route path="/tournaments/:code" element={<TournamentDetailPage />} />
-          <Route
-            path="/tournaments/:code/edit"
-            element={<TournamentFormPage />}
-          />
         </Routes>
       </AdminLayout>
     </AuthGuard>
