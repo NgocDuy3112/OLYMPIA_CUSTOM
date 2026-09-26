@@ -20,7 +20,7 @@ interface CPlayerBarProps {
   disableReason?: string;
   onEditScore?: (playerCode: string, newScore: number) => void;
   matchCode?: string;
-  sendMessage?: (msg: WebSocketPayload) => void;
+  sendMessage?: (msg: any) => void;
   questionCode?: string;
   onReviewRequested?: (reviewId: string) => void;
 
