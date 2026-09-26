@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { Plus, Search, Trophy } from "lucide-react";
 import { RowActions } from "@/components/shared/RowActions";
+import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
@@ -70,7 +71,10 @@ export const QualifierTab = () => {
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<QualifierQuestion | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
   const [closing, setClosing] = useState<string | null>(null);
+  const [pendingClose, setPendingClose] = useState<QualifierQuestion | null>(null);
   const [closeResult, setCloseResult] = useState<Record<string, unknown> | null>(null);
   const [editing, setEditing] = useState<QualifierQuestion | null>(null);
 
@@ -235,16 +239,18 @@ export const QualifierTab = () => {
     }
   }, [base, editing, fetchQuestions]);
 
-  const deleteQuestion = useCallback(
-    async (q: QualifierQuestion) => {
-      if (!window.confirm(`Xoá ${q.questionCode}?`)) return;
+  const confirmDeleteQuestion = useCallback(
+    async () => {
+      if (!deleting) return;
+      setDeleteSaving(true);
       try {
         const res = await fetch(
-          `${API_BASE_URL}${base()}/questions/${encodeURIComponent(q.questionCode)}`,
+          `${API_BASE_URL}${base()}/questions/${encodeURIComponent(deleting.questionCode)}`,
           { method: "DELETE", credentials: "include" },
         );
         const json = await res.json();
         if (res.ok) {
+          setDeleting(null);
           await fetchQuestions();
         } else {
           alert(`Xoá thất bại: ${json.message ?? "Lỗi không xác định"}`);
@@ -252,24 +258,27 @@ export const QualifierTab = () => {
       } catch (err) {
         logger.error("Error deleting qualifier:", err);
         alert("Lỗi kết nối khi xoá câu hỏi");
+      } finally {
+        setDeleteSaving(false);
       }
     },
-    [base, fetchQuestions],
+    [base, deleting, fetchQuestions],
   );
 
-  const closeQuestion = useCallback(
-    async (q: QualifierQuestion) => {
-      if (!window.confirm(`Chốt + chấm ${q.questionCode}? Không sửa được sau khi chốt.`)) return;
-      setClosing(q.questionCode);
+  const confirmCloseQuestion = useCallback(
+    async () => {
+      if (!pendingClose) return;
+      setClosing(pendingClose.questionCode);
       setCloseResult(null);
       try {
         const res = await fetch(
-          `${API_BASE_URL}${base()}/questions/${encodeURIComponent(q.questionCode)}/close`,
+          `${API_BASE_URL}${base()}/questions/${encodeURIComponent(pendingClose.questionCode)}/close`,
           { method: "POST", credentials: "include" },
         );
         const json: ApiResponse = await res.json();
         if (res.ok) {
           setCloseResult((json.data as Record<string, unknown>) ?? null);
+          setPendingClose(null);
           await fetchQuestions();
           await fetchStandings();
         } else {
@@ -282,12 +291,34 @@ export const QualifierTab = () => {
         setClosing(null);
       }
     },
-    [base, fetchQuestions, fetchStandings],
+    [base, fetchQuestions, fetchStandings, pendingClose],
   );
 
   return (
     <div className="flex flex-col gap-4">
       <EditQualifierPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
+      <ConfirmActionPanel
+        open={pendingClose !== null}
+        title="Chốt + chấm?"
+        tone="danger"
+        itemCode={pendingClose?.questionCode}
+        message="Sau khi chốt sẽ công khai đáp án, tính điểm và không sửa được."
+        confirmLabel="Chốt + chấm"
+        saving={closing === pendingClose?.questionCode}
+        onClose={() => setPendingClose(null)}
+        onConfirm={confirmCloseQuestion}
+      />
+      <ConfirmActionPanel
+        open={deleting !== null}
+        title="Xoá câu vòng loại?"
+        tone="danger"
+        itemCode={deleting?.questionCode}
+        message={deleting ? `Xoá câu “${deleting.content}” khỏi ${tournamentCode.trim()}?` : ""}
+        confirmLabel="Xoá"
+        saving={deleteSaving}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDeleteQuestion}
+      />
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
@@ -327,7 +358,35 @@ export const QualifierTab = () => {
         )}
       </div>
 
-      <SidePanel open={showForm} onClose={() => setShowForm(false)} title="Soạn câu mới" wide>
+      <SidePanel
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title="Soạn câu mới"
+        wide
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setForm({ ...emptyForm, position: String(freePositions[0] ?? 1), questionCode: `VL_${String(freePositions[0] ?? 1).padStart(2, "0")}` })}
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+            >
+              Làm lại
+            </button>
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+            >
+              Huỷ
+            </button>
+            <button
+              onClick={() => void createQuestion()}
+              disabled={saving || !tournamentCode.trim()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+            >
+              <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
+            </button>
+          </div>
+        }
+      >
         <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-500">Vị trí và nội dung</p>
@@ -406,28 +465,6 @@ export const QualifierTab = () => {
             />
           </div>
         </div>
-
-        <div className="flex gap-2 justify-end">
-          <button
-            onClick={() => setForm({ ...emptyForm, position: String(freePositions[0] ?? 1), questionCode: `VL_${String(freePositions[0] ?? 1).padStart(2, "0")}` })}
-            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
-          >
-            Làm lại
-          </button>
-          <button
-            onClick={() => setShowForm(false)}
-            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
-          >
-            Huỷ
-          </button>
-          <button
-            onClick={() => void createQuestion()}
-            disabled={saving || !tournamentCode.trim()}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
-          >
-            <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
-          </button>
-        </div>
         </div>
       </SidePanel>
 
@@ -484,11 +521,11 @@ export const QualifierTab = () => {
                   )}
                   <RowActions
                     onEdit={q.status === "open" ? () => setEditing(q) : undefined}
-                    onDelete={q.status === "open" ? () => void deleteQuestion(q) : undefined}
+                    onDelete={q.status === "open" ? () => setDeleting(q) : undefined}
                   >
                     {q.status === "open" && (
                       <button
-                        onClick={() => void closeQuestion(q)}
+                        onClick={() => setPendingClose(q)}
                         disabled={closing === q.questionCode}
                         className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-xs text-white whitespace-nowrap"
                       >

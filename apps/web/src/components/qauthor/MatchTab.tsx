@@ -5,8 +5,9 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { normalizeQuestionRow } from "@/utils/questionMapper";
-import { RenderMedia } from "@/components/shared/RenderMedia";
+import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { EditQuestionPanel, type QuestionEditValue } from "./EditQuestionPanel";
+import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreatePanel";
 import { BANK_PAGE_SIZE, toBankData, type BankData } from "./bankTypes";
 
 const logger = createLogger("MatchTab");
@@ -69,16 +70,6 @@ interface ApiResponse {
   data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
-const emptyForm = {
-  questionCode: "",
-  content: "",
-  answer: "",
-  explanation: "",
-  hintText: "",
-  mediaUrl: "",
-  options: "",
-};
-
 export const MatchTab = () => {
   const [matchCode, setMatchCode] = useState(readStoredMatchCode());
   const [questions, setQuestions] = useState<QuestionData[]>([]);
@@ -90,9 +81,12 @@ export const MatchTab = () => {
   const [selSlot, setSelSlot] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState(emptyForm);
+  const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<QuestionData | null>(null);
+  const [deleting, setDeleting] = useState<QuestionData | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [pendingGmSet, setPendingGmSet] = useState<BankData | null>(null);
 
   const fetchQuestions = useCallback(async () => {
     const code = matchCode.trim();
@@ -119,9 +113,9 @@ export const MatchTab = () => {
     }
   }, [matchCode]);
 
-  const createQuestion = useCallback(async () => {
+  const createQuestion = useCallback(async (value: MatchQuestionCreateValue) => {
     const code = matchCode.trim();
-    if (!code || !form.questionCode.trim() || !form.content.trim() || !form.answer.trim()) {
+    if (!code || !value.questionCode.trim() || !value.content.trim() || !value.answer.trim()) {
       alert("Nhập mã trận, mã câu hỏi, nội dung và đáp án.");
       return;
     }
@@ -133,18 +127,18 @@ export const MatchTab = () => {
         credentials: "include",
         body: JSON.stringify({
           matchCode: code,
-          questionCode: form.questionCode.trim(),
-          content: form.content.trim(),
-          answer: form.answer.trim(),
-          explanation: form.explanation.trim() || undefined,
-          hintText: form.hintText.trim() || undefined,
-          mediaUrl: form.mediaUrl.trim() || undefined,
-          options: form.options.trim() || undefined,
+          questionCode: value.questionCode.trim(),
+          content: value.content.trim(),
+          answer: value.answer.trim(),
+          explanation: value.explanation.trim() || undefined,
+          hintText: value.hintText.trim() || undefined,
+          mediaUrl: value.mediaUrl.trim() || undefined,
+          options: value.options.trim() || undefined,
         }),
       });
       const json = await res.json();
       if (res.ok) {
-        setForm(emptyForm);
+        setShowCreate(false);
         await fetchQuestions();
       } else {
         alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
@@ -155,7 +149,7 @@ export const MatchTab = () => {
     } finally {
       setSaving(false);
     }
-  }, [fetchQuestions, form, matchCode]);
+  }, [fetchQuestions, matchCode]);
 
   const saveEdit = useCallback(async (value: QuestionEditValue) => {
     if (!editing) return;
@@ -190,16 +184,18 @@ export const MatchTab = () => {
     }
   }, [editing, fetchQuestions, matchCode]);
 
-  const deleteQuestion = useCallback(async (q: QuestionData) => {
+  const confirmDeleteQuestion = useCallback(async () => {
+    if (!deleting) return;
     const code = matchCode.trim();
-    if (!window.confirm(`Xoá câu hỏi ${q.question_code}?`)) return;
+    setDeleteSaving(true);
     try {
       const res = await fetch(
-        `${API_BASE_URL}/questions/${encodeURIComponent(code)}/${encodeURIComponent(q.question_code)}`,
+        `${API_BASE_URL}/questions/${encodeURIComponent(code)}/${encodeURIComponent(deleting.question_code)}`,
         { method: "DELETE", credentials: "include" },
       );
       const json = await res.json();
       if (res.ok) {
+        setDeleting(null);
         await fetchQuestions();
       } else {
         alert(`Xoá thất bại: ${json.message ?? "Lỗi không xác định"}`);
@@ -207,8 +203,10 @@ export const MatchTab = () => {
     } catch (err) {
       logger.error("Error deleting question:", err);
       alert("Lỗi kết nối khi xoá câu hỏi");
+    } finally {
+      setDeleteSaving(false);
     }
-  }, [fetchQuestions, matchCode]);
+  }, [deleting, fetchQuestions, matchCode]);
 
   const fetchBank = useCallback(async () => {
     setBankLoading(true);
@@ -281,18 +279,16 @@ export const MatchTab = () => {
     }
   }, [fetchQuestions, matchCode, pickRound, selSlot]);
 
-  // GM: pick cả set 9 qua POST /questions/pick-set (pick lẻ bị chặn 422).
-  const pickGmSet = useCallback(async (keyRow: BankData) => {
+  const confirmPickGmSet = useCallback(async () => {
     const code = matchCode.trim();
-    if (!code || !keyRow.set_code) return;
-    if (!window.confirm(`Pick cả set ${keyRow.set_code} (1 KEY + 8 hint) vào trận ${code}?`)) return;
-    setAddingId(keyRow.bank_code);
+    if (!code || !pendingGmSet?.set_code) return;
+    setAddingId(pendingGmSet.bank_code);
     try {
       const res = await fetch(`${API_BASE_URL}/questions/pick`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ matchCode: code, round: "GM", setCode: keyRow.set_code }),
+        body: JSON.stringify({ matchCode: code, round: "GM", setCode: pendingGmSet.set_code }),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
@@ -300,8 +296,9 @@ export const MatchTab = () => {
         return;
       }
       const created = (json?.data?.created ?? []) as { slot: string; questionCode: string }[];
-      setAddedCodes((prev) => new Set([...prev, keyRow.bank_code]));
-      alert(`Đã pick set ${keyRow.set_code} (${created.length} câu).`);
+      setAddedCodes((prev) => new Set([...prev, pendingGmSet.bank_code]));
+      setPendingGmSet(null);
+      alert(`Đã pick set ${pendingGmSet.set_code} (${created.length} câu).`);
       await fetchQuestions();
     } catch (err) {
       logger.error("Error picking GM set:", err);
@@ -309,7 +306,7 @@ export const MatchTab = () => {
     } finally {
       setAddingId(null);
     }
-  }, [fetchQuestions, matchCode]);
+  }, [fetchQuestions, matchCode, pendingGmSet]);
 
   const ROUND_TABS: { id: PickRound; label: string }[] = [
     { id: "KDC", label: "KĐ chung" },
@@ -338,6 +335,38 @@ export const MatchTab = () => {
   return (
     <div className="flex flex-col gap-4">
       <EditQuestionPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
+      <MatchQuestionCreatePanel
+        open={showCreate}
+        saving={saving}
+        onClose={() => setShowCreate(false)}
+        onCreate={(value) => void createQuestion(value)}
+      />
+      <ConfirmActionPanel
+        open={deleting !== null}
+        title="Xoá câu hỏi?"
+        tone="danger"
+        itemCode={deleting?.question_code}
+        message={deleting ? `Xoá câu hỏi “${deleting.content}” khỏi trận ${matchCode.trim()}?` : ""}
+        confirmLabel="Xoá"
+        saving={deleteSaving}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDeleteQuestion}
+      />
+      <ConfirmActionPanel
+        open={pendingGmSet !== null}
+        title="Pick cả set GM?"
+        itemCode={pendingGmSet?.set_code ?? undefined}
+        message={
+          pendingGmSet
+            ? `Pick 1 KEY + 8 hint vào trận ${matchCode.trim()}?`
+            : ""
+        }
+        note="GM chỉ pick cả set, không pick lẻ."
+        confirmLabel="Pick cả set"
+        saving={addingId === pendingGmSet?.bank_code}
+        onClose={() => setPendingGmSet(null)}
+        onConfirm={confirmPickGmSet}
+      />
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
@@ -353,6 +382,14 @@ export const MatchTab = () => {
             className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium transition-colors"
           >
             <Search size={14} /> Tải
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            disabled={!matchCode.trim()}
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium transition-colors"
+            title="Soạn câu tay trong sidebar phải"
+          >
+            <Plus size={14} /> Soạn câu
           </button>
           <button
             onClick={() => void fetchQuestions()}
@@ -382,72 +419,6 @@ export const MatchTab = () => {
           </div>
         )}
       </div>
-
-      <details className="bg-white/5 border border-white/10 rounded-xl px-5 py-3">
-        <summary className="text-sm text-gray-400 hover:text-white cursor-pointer select-none transition-colors">
-          Soạn câu tay (ít dùng — nên pick từ bank theo slot)
-        </summary>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
-          <input
-            value={form.questionCode}
-            onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value }))}
-            placeholder="Mã câu hỏi (VD: OC3_Q_KD_C_1)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
-          />
-          <input
-            value={form.answer}
-            onChange={(e) => setForm((p) => ({ ...p, answer: e.target.value }))}
-            placeholder="Đáp án"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-          />
-          <textarea
-            rows={2}
-            value={form.content}
-            onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
-            placeholder="Nội dung câu hỏi"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none md:col-span-2"
-          />
-          <input
-            value={form.explanation}
-            onChange={(e) => setForm((p) => ({ ...p, explanation: e.target.value }))}
-            placeholder="Giải thích (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-          />
-          <input
-            value={form.hintText}
-            onChange={(e) => setForm((p) => ({ ...p, hintText: e.target.value }))}
-            placeholder="Gợi ý GIAI_MA (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
-          />
-          <input
-            value={form.mediaUrl}
-            onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
-            placeholder="Media URL (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
-          />
-          <input
-            value={form.options}
-            onChange={(e) => setForm((p) => ({ ...p, options: e.target.value }))}
-            placeholder="Options JSON (tuỳ chọn)"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm md:col-span-2"
-          />
-        </div>
-        {form.mediaUrl.trim() && (
-          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
-            <p className="text-xs text-blue-300 mb-2">Preview media:</p>
-            <div className="max-h-64 overflow-hidden rounded">
-              <RenderMedia mediaUrl={form.mediaUrl.trim()} />
-            </div>
-          </div>
-        )}
-        <button
-          onClick={() => void createQuestion()}
-          disabled={saving}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
-        >
-          <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu hỏi"}
-        </button>
-      </details>
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
@@ -542,7 +513,7 @@ export const MatchTab = () => {
               </p>
               {pickRound === "GM" && q.hint_index === "KEY" && (
                 <button
-                  onClick={() => void pickGmSet(q)}
+                  onClick={() => setPendingGmSet(q)}
                   disabled={adding}
                   className="px-2 py-1 rounded text-xs text-white bg-blue-700 hover:bg-blue-600 disabled:opacity-50"
                 >
@@ -584,7 +555,7 @@ export const MatchTab = () => {
                     <span className="font-mono text-xs text-green-300 whitespace-nowrap">{q.slot ?? "—"}</span>
                     <p className="flex-1 truncate text-white">{q.content}</p>
                     <span className="font-semibold text-sm hidden sm:inline">{q.answer}</span>
-                    <RowActions onEdit={() => setEditing(q)} onDelete={() => void deleteQuestion(q)} />
+                    <RowActions onEdit={() => setEditing(q)} onDelete={() => setDeleting(q)} />
                   </div>
                 ))}
               </div>

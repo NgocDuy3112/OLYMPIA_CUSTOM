@@ -1,14 +1,16 @@
 import { useState } from "react";
-import { Database, Lightbulb, Zap, Flag } from "lucide-react";
+import { Database, Layers, Lightbulb, Zap, Flag } from "lucide-react";
 import { BankTab, type BankRoundGroup } from "@/components/qauthor/BankTab";
+import QAuthorSetsPage from "@/pages/qauthor/QAuthorSetsPage";
 
-type TabId = BankRoundGroup;
+type TabId = BankRoundGroup | "sets";
 
 const TABS: { id: TabId; label: string; sub: string; icon: React.ReactNode }[] = [
   { id: "kd", label: "Khởi động", sub: "KĐ chung + riêng", icon: <Zap size={20} /> },
   { id: "gm", label: "Giải mã", sub: "Set KEY + 8 hint", icon: <Lightbulb size={20} /> },
   { id: "bp", label: "Bứt phá", sub: "4 câu/trận", icon: <Flag size={20} /> },
   { id: "vd", label: "Về đích", sub: "6 lĩnh vực × 4 mức", icon: <Database size={20} /> },
+  { id: "sets", label: "Bộ đề", sub: "Preset theo trận", icon: <Layers size={20} /> },
 ];
 
 const QAuthorBankHubPage = () => {
@@ -23,7 +25,7 @@ const QAuthorBankHubPage = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -43,7 +45,11 @@ const QAuthorBankHubPage = () => {
         ))}
       </div>
 
-      <BankTab key={tab} initialGroup={tab} />
+      {tab === "sets" ? (
+        <QAuthorSetsPage />
+      ) : (
+        <BankTab key={tab} initialGroup={tab} />
+      )}
     </div>
   );
 };

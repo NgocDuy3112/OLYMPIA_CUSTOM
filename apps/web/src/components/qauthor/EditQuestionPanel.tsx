@@ -68,7 +68,27 @@ export function EditQuestionPanel({
     "px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm";
 
   return (
-    <SidePanel open={open} onClose={onClose} title="Sửa câu hỏi">
+    <SidePanel
+      open={open}
+      onClose={onClose}
+      title="Sửa câu hỏi"
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
+          >
+            Huỷ
+          </button>
+          <button
+            onClick={() => void onSave(value)}
+            className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm"
+          >
+            Lưu
+          </button>
+        </div>
+      }
+    >
       <p className="text-xs text-blue-400 font-mono -mt-2">
         {item?.question_code}
       </p>
@@ -105,20 +125,6 @@ export function EditQuestionPanel({
         onChange={set("options")}
         className={`${inputClass} font-mono`}
       />
-      <div className="flex gap-2 justify-end">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
-        >
-          Huỷ
-        </button>
-        <button
-          onClick={() => void onSave(value)}
-          className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm"
-        >
-          Lưu
-        </button>
-      </div>
     </SidePanel>
   );
 }

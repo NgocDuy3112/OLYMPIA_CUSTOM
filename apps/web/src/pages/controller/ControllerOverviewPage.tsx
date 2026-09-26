@@ -5,6 +5,7 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { OVERLAYS, overlayUrl } from "@/pages/overlay/overlayList";
+import { MatchSetPicker } from "@/components/controller/MatchSetPicker";
 
 const logger = createLogger("ControllerOverviewPage");
 
@@ -149,6 +150,9 @@ const ControllerOverviewPage = () => {
         Controller điều hành live. CRUD hệ thống nằm ở Admin. Soạn câu hỏi nằm
         ở QAuthor.
       </p>
+      {matchCode.trim() && (
+        <MatchSetPicker matchCode={matchCode.trim().toUpperCase()} onChanged={fetchStats} />
+      )}
 
       {matchCode.trim() && (
         <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2.5">

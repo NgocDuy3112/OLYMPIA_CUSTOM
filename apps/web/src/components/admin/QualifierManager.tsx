@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Lock, Plus, RefreshCw, Trash2, Trophy, XCircle } from "lucide-react";
+import { CheckCircle2, Lock, Pencil, Plus, RefreshCw, Trash2, Trophy, XCircle } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
+import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
+import { EditQualifierPanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierPanel";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 
 interface QualifierQuestion {
@@ -32,6 +34,12 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<QualifierQuestion | null>(null);
+  const [deleting, setDeleting] = useState<QualifierQuestion | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [pendingClose, setPendingClose] = useState<QualifierQuestion | null>(null);
+  const [closeSaving, setCloseSaving] = useState(false);
+  const [pendingCloseAll, setPendingCloseAll] = useState(false);
   const [form, setForm] = useState({ content: "", options: ["", "", "", ""], correct: "A", explanation: "" });
 
   const fetchAll = useCallback(async () => {
@@ -61,33 +69,96 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
 
   const openCount = questions.filter((q) => q.status === "open").length;
 
-  const handleCloseAll = async () => {
-    if (!confirm("Chấm TẤT CẢ câu đang mở?")) return;
-    await fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/close-all`, {
-      method: "POST",
-      credentials: "include",
-    });
-    await fetchAll();
+  const confirmCloseAll = async () => {
+    setCloseSaving(true);
+    try {
+      await fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/close-all`, {
+        method: "POST",
+        credentials: "include",
+      });
+      setPendingCloseAll(false);
+      await fetchAll();
+    } finally {
+      setCloseSaving(false);
+    }
   };
 
-  const handleClose = async (q: QualifierQuestion) => {
-    if (!confirm(`Chấm câu ${q.questionCode}? (công khai đáp án + tính điểm)`)) return;
-    const res = await fetch(
-      `${API_BASE_URL}/qualifier/${tournamentCode}/questions/${q.questionCode}/close`,
-      { method: "POST", credentials: "include" },
-    );
-    const json = await res.json().catch(() => null);
-    if (!res.ok) alert(`Lỗi: ${json?.message ?? "?"}`);
-    await fetchAll();
+  const confirmClose = async () => {
+    if (!pendingClose) return;
+    setCloseSaving(true);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/qualifier/${tournamentCode}/questions/${pendingClose.questionCode}/close`,
+        { method: "POST", credentials: "include" },
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) alert(`Lỗi: ${json?.message ?? "?"}`);
+      setPendingClose(null);
+      await fetchAll();
+    } finally {
+      setCloseSaving(false);
+    }
   };
 
-  const handleDelete = async (q: QualifierQuestion) => {
-    if (!confirm(`Xoá câu ${q.questionCode}?`)) return;
-    await fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/questions/${q.questionCode}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    await fetchAll();
+  const confirmDelete = async () => {
+    if (!deleting) return;
+    setDeleteSaving(true);
+    try {
+      await fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/questions/${deleting.questionCode}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      setDeleting(null);
+      await fetchAll();
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
+
+  const parseOptions = (raw: string): string[] | null => {
+    const t = raw.trim();
+    if (!t) return null;
+    try {
+      const arr = JSON.parse(t);
+      if (Array.isArray(arr)) return arr.map(String);
+    } catch {
+      // fall through
+    }
+    return t.split("|").map((s) => s.trim()).filter(Boolean);
+  };
+
+  const saveEdit = async (value: QualifierEditValue) => {
+    if (!editing) return;
+    const options = parseOptions(value.options);
+    if (!options || options.length < 4 || options.length > 6) {
+      alert("Options phải 4-6 phương án.");
+      return;
+    }
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/qualifier/${tournamentCode}/questions/${encodeURIComponent(editing.questionCode)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            content: value.content.trim() || undefined,
+            options,
+            correctOption: value.correctOption,
+            position: Number(value.position) || undefined,
+          }),
+        },
+      );
+      const json = await res.json();
+      if (res.ok) {
+        setEditing(null);
+        await fetchAll();
+      } else {
+        alert(`Lưu thất bại: ${json.message ?? "Lỗi không xác định"}`);
+      }
+    } catch {
+      alert("Lỗi kết nối khi sửa câu hỏi");
+    }
   };
 
   const handleCreate = async () => {
@@ -133,6 +204,39 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
 
   return (
     <div className="flex flex-col gap-4">
+      <EditQualifierPanel item={editing ? { ...editing, options: editing.options ?? [], correctOption: editing.correctOption ?? "A" } : null} onClose={() => setEditing(null)} onSave={saveEdit} />
+      <ConfirmActionPanel
+        open={deleting !== null}
+        title="Xoá câu vòng loại?"
+        tone="danger"
+        itemCode={deleting?.questionCode}
+        message={deleting ? `Xoá câu “${deleting.content}”?` : ""}
+        confirmLabel="Xoá"
+        saving={deleteSaving}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDelete}
+      />
+      <ConfirmActionPanel
+        open={pendingClose !== null}
+        title="Chấm câu vòng loại?"
+        tone="danger"
+        itemCode={pendingClose?.questionCode}
+        message="Chấm sẽ công khai đáp án và tính điểm."
+        confirmLabel="Chấm"
+        saving={closeSaving}
+        onClose={() => setPendingClose(null)}
+        onConfirm={confirmClose}
+      />
+      <ConfirmActionPanel
+        open={pendingCloseAll}
+        title="Chấm tất cả câu đang mở?"
+        tone="danger"
+        message="Chấm toàn bộ câu đang mở và công khai đáp án."
+        confirmLabel="Chấm tất cả"
+        saving={closeSaving}
+        onClose={() => setPendingCloseAll(false)}
+        onConfirm={confirmCloseAll}
+      />
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl bg-white/5 border border-white/10 p-3">
           <p className="text-[11px] text-gray-500 uppercase tracking-wide">Câu hỏi</p>
@@ -163,7 +267,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         </button>
         {openCount > 0 && (
           <button
-            onClick={() => void handleCloseAll()}
+            onClick={() => setPendingCloseAll(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-sm transition-colors"
           >
             <Lock size={14} /> Chấm tất cả
@@ -171,7 +275,29 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         )}
       </div>
 
-      <SidePanel open={showForm} onClose={() => setShowForm(false)} title="Thêm câu vòng loại" wide>
+      <SidePanel
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        title="Thêm câu vòng loại"
+        wide
+        footer={
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+            >
+              Huỷ
+            </button>
+            <button
+              onClick={() => void handleCreate()}
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
+            >
+              {saving ? "Đang lưu…" : "Lưu câu hỏi"}
+            </button>
+          </div>
+        }
+      >
         <div className="flex flex-col gap-2.5">
           <p className="text-xs text-gray-500">Câu mới vào vị trí trống đầu tiên.</p>
           <textarea
@@ -225,21 +351,6 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               />
             </label>
           </div>
-          <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
-            >
-              Huỷ
-            </button>
-            <button
-              onClick={() => void handleCreate()}
-              disabled={saving}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
-            >
-              {saving ? "Đang lưu…" : "Lưu câu hỏi"}
-            </button>
-          </div>
         </div>
       </SidePanel>
 
@@ -279,15 +390,24 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               </p>
               <div className="flex gap-1.5 mt-1">
                 {q.status !== "closed" && (
-                  <button
-                    onClick={() => void handleClose(q)}
-                    className="flex-1 px-2 py-1.5 rounded-lg bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-xs transition-colors"
-                  >
-                    Chấm
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setEditing({ ...q, options: q.options ?? [] })}
+                      className="px-2 py-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 text-xs transition-colors"
+                      title="Sửa"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => setPendingClose(q)}
+                      className="flex-1 px-2 py-1.5 rounded-lg bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-xs transition-colors"
+                    >
+                      Chấm
+                    </button>
+                  </>
                 )}
                 <button
-                  onClick={() => void handleDelete(q)}
+                  onClick={() => setDeleting(q)}
                   className="px-2 py-1.5 rounded-lg text-gray-500 hover:text-red-300 hover:bg-red-500/10 text-xs transition-colors"
                   title="Xoá"
                 >

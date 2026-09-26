@@ -209,6 +209,31 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
       onClose={onClose}
       wide
       title={mode === "create" ? `Tạo câu ${KIND_TITLE[kind]}` : `Sửa ${initial?.bank_code ?? ""}`}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => void checkDuplicate()}
+            disabled={checkingDup || saving}
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
+          >
+            <Search size={14} /> {checkingDup ? "Đang check…" : "Check trùng"}
+          </button>
+          <button
+            onClick={onClose}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
+          >
+            Huỷ
+          </button>
+          <button
+            onClick={() => void onSave(value)}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm"
+          >
+            {saving ? "Đang lưu…" : mode === "create" ? "Tạo câu" : "Lưu"}
+          </button>
+        </div>
+      }
     >
       {mode === "create" && (
         <p className="text-xs text-gray-500 font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
@@ -241,13 +266,6 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
           )}
         </div>
       </div>
-      <label className={labelClass}>Giải thích</label>
-      <textarea
-        rows={3}
-        value={value.explanation}
-        onChange={set("explanation")}
-        className={`${inputClass} resize-none`}
-      />
       {kind === "vd" && (
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
@@ -303,7 +321,14 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
           </div>
         </div>
       )}
-      <label className={labelClass}>Link nguồn (OCee tự đọc + check ngày sau)</label>
+      <label className={labelClass}>Giải thích (tuỳ chọn)</label>
+      <textarea
+        rows={3}
+        value={value.explanation}
+        onChange={set("explanation")}
+        className={`${inputClass} resize-none`}
+      />
+      <label className={labelClass}>Link nguồn (tuỳ chọn — OCee tự đọc + check ngày sau)</label>
       <input
         value={value.citationUrl}
         onChange={set("citationUrl")}
@@ -311,8 +336,16 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         className={`${inputClass} font-mono`}
       />
 
-      <label className={labelClass}>Media</label>
-      {value.mediaFile ? (
+      <details
+        key={value.mediaFile || (mode === "edit" && initial?.media_url && !value.removeMedia) ? "media-open" : "media-closed"}
+        open={value.mediaFile || (mode === "edit" && initial?.media_url && !value.removeMedia) ? true : undefined}
+        className="rounded-lg bg-blue-950/40 border border-blue-800 px-3 py-2"
+      >
+        <summary className="text-xs text-blue-300 cursor-pointer select-none">
+          Media (tuỳ chọn — bỏ qua được, chèn sau cũng được)
+        </summary>
+        <div className="pt-2">
+          {value.mediaFile ? (
         <div className="rounded-lg bg-blue-950 border border-blue-700 p-3 flex flex-col gap-2">
           <LocalPreview file={value.mediaFile} />
           <button
@@ -344,35 +377,14 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
             onChange={pickFile}
           />
         </label>
-      )}
+        )}
+        </div>
+      </details>
       {mode === "edit" && value.removeMedia && (
         <p className="text-xs text-amber-300">Sẽ xóa media khi lưu.</p>
       )}
 
       {dupNote && <p className="text-xs text-amber-300">{dupNote}</p>}
-      <div className="flex gap-2 justify-end mt-auto">
-        <button
-          onClick={() => void checkDuplicate()}
-          disabled={checkingDup || saving}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
-        >
-          <Search size={14} /> {checkingDup ? "Đang check…" : "Check trùng"}
-        </button>
-        <button
-          onClick={onClose}
-          disabled={saving}
-          className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
-        >
-          Huỷ
-        </button>
-        <button
-          onClick={() => void onSave(value)}
-          disabled={saving}
-          className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm"
-        >
-          {saving ? "Đang lưu…" : mode === "create" ? "Tạo câu" : "Lưu"}
-        </button>
-      </div>
     </SidePanel>
   );
 }

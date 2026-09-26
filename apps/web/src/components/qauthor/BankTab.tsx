@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { RowActions } from "@/components/shared/RowActions";
+import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditBankSidebar, genBankCode, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
@@ -54,6 +55,8 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   const [pages, setPages] = useState(1);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<BankData | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
   const [sidebar, setSidebar] = useState<{
     mode: "create" | "edit";
     kind: BankFormKind;
@@ -207,15 +210,17 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     }
   }, [sidebar, fetchBank, page]);
 
-  const deleteBank = useCallback(async (q: BankData) => {
-    if (!window.confirm(`Xoá bank ${q.bank_code}?`)) return;
+  const confirmDeleteBank = useCallback(async () => {
+    if (!deleting) return;
+    setDeleteSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(q.bank_id)}`, {
+      const res = await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(deleting.bank_id)}`, {
         method: "DELETE",
         credentials: "include",
       });
       const json = await res.json();
       if (res.ok) {
+        setDeleting(null);
         await fetchBank(page);
       } else {
         alert(`Xoá thất bại: ${json.message ?? "Lỗi không xác định"}`);
@@ -223,8 +228,10 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     } catch (err) {
       logger.error("Error deleting bank:", err);
       alert("Lỗi kết nối khi xoá bank");
+    } finally {
+      setDeleteSaving(false);
     }
-  }, [fetchBank, page]);
+  }, [deleting, fetchBank, page]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -239,6 +246,17 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
         onSave={saveSidebar}
       />
       {formError && <p className="text-xs text-red-300">{formError}</p>}
+      <ConfirmActionPanel
+        open={deleting !== null}
+        title="Xoá câu bank?"
+        tone="danger"
+        itemCode={deleting?.bank_code}
+        message={deleting ? `Xoá câu “${deleting.content}” khỏi bank?` : ""}
+        confirmLabel="Xoá"
+        saving={deleteSaving}
+        onClose={() => setDeleting(null)}
+        onConfirm={confirmDeleteBank}
+      />
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
         <div className="flex gap-2 flex-wrap">
@@ -420,7 +438,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                             : group === "bp" ? "bp" : "kd",
                           row: q,
                         })}
-                        onDelete={() => void deleteBank(q)}
+                        onDelete={() => setDeleting(q)}
                       />
                     </td>
                   </tr>
