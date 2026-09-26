@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth, requireAgentToken } from "../auth/auth.service.js";
+import { requireAuth, requireAgentToken, uuidOrNull } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleQuestionRepo, type QuestionRepo } from "./question.repo.js";
@@ -8,6 +8,7 @@ import {
   makeQuestionCode,
   ocPrefixFromCode,
 } from "@oc/shared";
+import { emitBankChanged } from "./bank-events.js";
 
 export async function questionRoutes(
   app: FastifyInstance,
@@ -965,8 +966,9 @@ export async function questionRoutes(
           setCode: (raw.setCode ?? raw.set_code)?.trim().toUpperCase() || null,
           hintIndex: (raw.hintIndex ?? raw.hint_index)?.trim().toUpperCase() || null,
           citations: normalizeCitations(raw.citations) ?? [],
-          createdBy: session.userId,
+          createdBy: uuidOrNull(session.userId),
         });
+        emitBankChanged();
         return reply.code(201).send({
           status: "success",
           message: "Bank question created",
@@ -1101,6 +1103,7 @@ export async function questionRoutes(
           details: "bank updated via agent",
         });
       }
+      emitBankChanged();
       return reply.send({
         status: "success",
         message: "Bank question updated",
@@ -1135,6 +1138,7 @@ export async function questionRoutes(
           data: null,
         });
       }
+      emitBankChanged();
       return reply.send({
         status: "success",
         message: "Bank question deleted",
@@ -1196,7 +1200,7 @@ export async function questionRoutes(
       const ok = await bankRepo.review(id, {
         status: decision,
         reviewNote: note || null,
-        reviewedBy: session.userId,
+        reviewedBy: uuidOrNull(session.userId),
       });
       if (!ok) {
         return reply.code(404).send({
@@ -1205,6 +1209,7 @@ export async function questionRoutes(
           data: null,
         });
       }
+      emitBankChanged();
       return reply.send({
         status: "success",
         message: `Bank question ${decision}`,

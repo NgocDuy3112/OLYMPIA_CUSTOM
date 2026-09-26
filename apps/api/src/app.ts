@@ -15,6 +15,7 @@ import { authRoutes } from "./modules/auth/auth.routes.js";
 import { userRoutes } from "./modules/user/user.routes.js";
 import { matchRoutes } from "./modules/match/match.routes.js";
 import { questionRoutes } from "./modules/question/question.routes.js";
+import { bankEventsRoutes } from "./modules/question/bank-events.js";
 import { answerRoutes } from "./modules/answer/answer.routes.js";
 import { recordRoutes } from "./modules/record/record.routes.js";
 import { scoreboardRoutes } from "./modules/scoreboard/scoreboard.routes.js";
@@ -27,6 +28,7 @@ import { discordRoutes } from "./modules/discord/discord.routes.js";
 import { checkpointRoutes } from "./modules/checkpoint/checkpoint.routes.js";
 import { auditRoutes } from "./modules/audit/audit.routes.js";
 import { qualifierRoutes } from "./modules/qualifier/qualifier.routes.js";
+import { questionSetRoutes } from "./modules/question-set/question-set.routes.js";
 import { metricsRoutes } from "./modules/metrics/metrics.routes.js";
 import { startCheckpointJob } from "./state/checkpoint.service.js";
 import { wsRoute } from "./modules/ws/ws.route.js";
@@ -67,6 +69,7 @@ export async function createApp() {
   await app.register(userRoutes, { prefix: "/api" });
   await app.register(matchRoutes, { prefix: "/api" });
   await app.register(questionRoutes, { prefix: "/api" });
+  await app.register(bankEventsRoutes, { prefix: "/api" });
   await app.register(answerRoutes, { prefix: "/api" });
   await app.register(recordRoutes, { prefix: "/api" });
   await app.register(scoreboardRoutes, { prefix: "/api" });
@@ -79,6 +82,7 @@ export async function createApp() {
   await app.register(checkpointRoutes, { prefix: "/api" });
   await app.register(auditRoutes, { prefix: "/api" });
   await app.register(qualifierRoutes, { prefix: "/api" });
+  await app.register(questionSetRoutes, { prefix: "/api" });
 
   // Background: snapshot Valkey match state every 30s
   const checkpointJob = startCheckpointJob(app);
