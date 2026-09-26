@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import type { Question } from "@/types/question";
+import type { WebSocketMessage } from "@/types/websocket";
 
 const emptyQuestion: Question = {
   questionCode: "",
@@ -32,7 +33,12 @@ export function useQuestionState(): QuestionStateWithIndex {
   const applyWsMessage = useCallback((raw: unknown) => {
     if (!raw || typeof raw !== "object") return;
 
-    const msg: any = "message" in (raw as any) ? (raw as any).message : raw;
+    const candidate =
+      "message" in raw
+        ? (raw as { message?: unknown }).message
+        : raw;
+    if (!candidate || typeof candidate !== "object") return;
+    const msg = candidate as WebSocketMessage;
 
     switch (msg?.type) {
       case "send_question": {

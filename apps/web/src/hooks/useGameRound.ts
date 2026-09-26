@@ -10,16 +10,25 @@ import { useGameWebSocket } from "./useGameWebSocket";
 import { usePlayerTelemetry } from "./usePlayerTelemetry";
 import { useQuestionTimerLock } from "./useQuestionTimerLock";
 import { createLogger } from "@/utils/logger";
-import { buildPlayersSnapshot } from "@/utils/playerHelpers";
+import {
+  buildPlayersSnapshot,
+  type RawPlayer,
+  type RawProfile,
+  type RawScore,
+} from "@/utils/playerHelpers";
 import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { getMatchCode } from "@/utils/storage";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
 import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
-import { mapQuestionApiPayload } from "@/utils/questionMapper";
+import {
+  mapQuestionApiPayload,
+  type QuestionApiPayload,
+} from "@/utils/questionMapper";
 import { API_BASE_URL } from "@/configs";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
+import type { WebSocketMessage } from "@/types/websocket";
 
 const logger = createLogger("useGameRound");
 
@@ -165,15 +174,19 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   }, [matchCode]);
 
   const applyPlayersSnapshot = useCallback(
-    (payload: { players?: any[]; scoreboard?: any[]; profiles?: any[] }) => {
+    (payload: {
+      players?: unknown;
+      scoreboard?: unknown;
+      profiles?: unknown;
+    }) => {
       const playersList = Array.isArray(payload?.players)
-        ? payload.players
+        ? (payload.players as RawPlayer[])
         : [];
       const scoreboardList = Array.isArray(payload?.scoreboard)
-        ? payload.scoreboard
+        ? (payload.scoreboard as RawScore[])
         : [];
       const profileList = Array.isArray(payload?.profiles)
-        ? payload.profiles
+        ? (payload.profiles as RawProfile[])
         : [];
       setPlayers((prev) =>
         buildPlayersSnapshot(playersList, scoreboardList, profileList, prev),
@@ -188,15 +201,15 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
       const snapshot = await loadPlayersState();
       if (!snapshot) return;
 
-      const mergedPlayers = (snapshot.players ?? []).map((p: any) => {
+      const mergedPlayers = (snapshot.players ?? []).map((p: RawPlayer) => {
         const userCode = String(p?.user_code ?? p?.playerCode ?? "");
         const profile =
           (snapshot.profiles ?? []).find(
-            (pr: any) => String(pr?.user_code) === userCode,
+            (pr: RawProfile) => String(pr?.user_code) === userCode,
           ) ?? {};
         const scoreEntry =
           (snapshot.scoreboard ?? []).find(
-            (s: any) => String(s?.user_code) === userCode,
+            (s: RawScore) => String(s?.user_code) === userCode,
           ) ?? {};
         const cumulativeScore =
           scoreEntry?.cumulative_score ?? scoreEntry?.total_score ?? 0;
@@ -238,18 +251,18 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
           return mapped;
         }
 
-        const data = await res.json();
-        let payload: any = null;
+        const data: { data?: unknown } = await res.json();
+        let payload: QuestionApiPayload | null = null;
 
         if (Array.isArray(data.data)) {
           payload =
-            data.data.find(
-              (q: any) => String(q?.question_code) === questionCode,
+            (data.data as QuestionApiPayload[]).find(
+              (q) => String(q?.question_code) === questionCode,
             ) ??
-            data.data[0] ??
+            (data.data[0] as QuestionApiPayload | undefined) ??
             null;
-        } else {
-          payload = data.data ?? null;
+        } else if (data.data && typeof data.data === "object") {
+          payload = data.data as QuestionApiPayload;
         }
 
         const mapped = mapQuestionApiPayload(payload, questionCode);
@@ -375,15 +388,15 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
       });
       const json = await res.json();
 
-      let scoreboardArr: any[] = [];
-      if (Array.isArray(json.data)) scoreboardArr = json.data;
+      let scoreboardArr: RawScore[] = [];
+      if (Array.isArray(json.data)) scoreboardArr = json.data as RawScore[];
       else if (Array.isArray(json.data?.scoreboard))
-        scoreboardArr = json.data.scoreboard;
+        scoreboardArr = json.data.scoreboard as RawScore[];
 
       setPlayers((prev) =>
         prev.map((player) => {
           const entry = scoreboardArr.find(
-            (item: any) => item.user_code === player.playerCode,
+            (item) => item.user_code === player.playerCode,
           );
           const updatedScore = entry?.cumulative_score ?? entry?.total_score;
           return typeof updatedScore === "number"
@@ -540,7 +553,7 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   // ── WebSocket message handling ──
   useEffect(() => {
     if (!lastMessage) return;
-    const msg: any = lastMessage;
+    const msg: WebSocketMessage = lastMessage;
 
     switch (msg?.type) {
       case "player_reconnected": {
@@ -597,11 +610,13 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
         break;
       }
       case "send_answers_to_players": {
-        const answers = Array.isArray(msg.answers) ? msg.answers : [];
+        const answers: WebSocketMessage[] = Array.isArray(msg.answers)
+          ? msg.answers
+          : [];
         setPlayers((prev) =>
           prev.map((player) => {
             const answer = answers.find(
-              (item: any) => item.user_code === player.playerCode,
+              (item) => item.user_code === player.playerCode,
             );
             if (!answer) return player;
             return {

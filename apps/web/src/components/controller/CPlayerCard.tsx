@@ -3,6 +3,7 @@ import { Mic, KeyRound, Pencil } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
+import type { WebSocketPayload } from "@/types/websocket";
 import CScoreEditModal from "@/components/controller/CScoreEditModal";
 
 interface CPlayerCardProps {
@@ -17,7 +18,7 @@ interface CPlayerCardProps {
   disabled?: boolean;
   onEditScore?: (playerCode: string, newScore: number) => void;
   matchCode?: string;
-  sendMessage?: (msg: any) => void;
+  sendMessage?: (msg: WebSocketPayload) => void;
   isHovered?: boolean;
   isDimmed?: boolean;
   onHover?: (playerCode: string | null) => void;
