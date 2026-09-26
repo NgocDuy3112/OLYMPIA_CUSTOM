@@ -33,6 +33,20 @@ interface ApiResponse {
   data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
+/** API trả camelCase — map về snake_case nội bộ trang Admin. */
+const toUserData = (r: Record<string, unknown>): UserData => ({
+  user_code: String(r.userCode ?? r.user_code ?? ""),
+  user_name: String(r.userName ?? r.user_name ?? ""),
+  email: (r.email as string | null) ?? null,
+  role: String(r.role ?? "player") as GlobalRole,
+  operator_scopes:
+    (r.operatorScopes as string | null) ??
+    (r.operator_scopes as string | null) ??
+    null,
+  created_at: String(r.createdAt ?? r.created_at ?? ""),
+  updated_at: String(r.updatedAt ?? r.updated_at ?? ""),
+});
+
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<UserData[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -62,13 +76,13 @@ const AdminUsersPage = () => {
     setUsersLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/users/`, {
+      const res = await fetch(`${API_BASE_URL}/users`, {
         headers: authHeaders(),
         credentials: "include",
       });
       const json: ApiResponse = await res.json().catch(() => null);
       if (res.ok && json?.status === "success" && Array.isArray(json.data)) {
-        setUsers(json.data as unknown as UserData[]);
+        setUsers((json.data as Record<string, unknown>[]).map(toUserData));
       } else {
         const msg = `Tải danh sách thất bại (HTTP ${res.status}): ${json?.message ?? res.statusText}`;
         logger.warn("Fetch users failed:", msg);
@@ -91,15 +105,20 @@ const AdminUsersPage = () => {
   const patchUser = useCallback(
     async (value: UserEditValue) => {
       if (!editingUser) return;
+      if (value.password && value.password.length < 8) {
+        alert("Mật khẩu mới tối thiểu 8 ký tự.");
+        return;
+      }
       setSavingEdit(true);
       try {
-        const body: Record<string, string | null> = {};
-        if (value.name.trim()) body.user_name = value.name.trim();
-        body.email = value.email.trim() || null;
+        const body: Record<string, string> = {};
+        if (value.name.trim()) body.userName = value.name.trim();
+        if (value.email.trim()) body.email = value.email.trim();
+        if (value.password) body.password = value.password;
         const res = await fetch(
           `${API_BASE_URL}/users/${editingUser.user_code}`,
           {
-            method: "PATCH",
+            method: "PUT",
             headers: authHeaders(),
             credentials: "include",
             body: JSON.stringify(body),
@@ -272,7 +291,6 @@ const AdminUsersPage = () => {
             aria-label="Lọc theo vai trò"
           >
             <option value="all">Tất cả</option>
-            <option value="admin">Admin</option>
             <option value="operator">Operator</option>
             <option value="player">Thí sinh</option>
             <option value="spectator">Khán giả</option>

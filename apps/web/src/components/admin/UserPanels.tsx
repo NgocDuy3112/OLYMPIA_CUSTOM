@@ -18,6 +18,8 @@ interface PanelUser {
 export interface UserEditValue {
   name: string;
   email: string;
+  /** Mật khẩu mới — chỉ dùng cho admin/operator, rỗng = giữ nguyên. */
+  password: string;
 }
 
 export interface UserAddValue {
@@ -65,49 +67,73 @@ interface UserEditPanelProps {
   onSave: (value: UserEditValue) => void | Promise<void>;
 }
 
-/** Panel sửa tên/email — AdminUsersPage. */
+/** Panel sửa user — AdminUsersPage.
+ *  Staff (admin/operator): Tên + Mật khẩu mới. Player/spectator: Tên + Email. */
 export function UserEditPanel({ item, saving, onClose, onSave }: UserEditPanelProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const open = item !== null;
+  const isStaff = item?.role === "admin" || item?.role === "operator";
 
   useEffect(() => {
     if (!open || !item) return;
     setName(item.user_name);
     setEmail(item.email ?? "");
+    setPassword("");
   }, [open, item]);
 
   return (
-    <SidePanel open={open} onClose={onClose} title="Sửa thông tin thí sinh">
+    <SidePanel
+      open={open}
+      onClose={onClose}
+      title={isStaff ? "Sửa thông tin vận hành" : "Sửa thông tin thí sinh"}
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className={cancelClass}>
+            Huỷ
+          </button>
+          <button
+            onClick={() => void onSave({ name, email, password })}
+            disabled={saving || !name.trim() || (isStaff && password !== "" && password.length < 8)}
+            className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+          >
+            {saving ? "Đang lưu…" : "Lưu thay đổi"}
+          </button>
+        </div>
+      }
+    >
       <p className="text-xs text-blue-400 font-mono -mt-2">
         Mã: {item?.user_code}
       </p>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">Tên thí sinh</label>
+        <label className="text-xs text-blue-300">{isStaff ? "Tên người dùng" : "Tên thí sinh"}</label>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </div>
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">Email</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="email@example.com"
-          className={inputClass}
-        />
-      </div>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className={cancelClass}>
-          Huỷ
-        </button>
-        <button
-          onClick={() => void onSave({ name, email })}
-          disabled={saving || !name.trim()}
-          className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm transition-colors"
-        >
-          {saving ? "Đang lưu…" : "Lưu thay đổi"}
-        </button>
-      </div>
+      {isStaff ? (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-blue-300">Mật khẩu mới</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Để trống = giữ nguyên (tối thiểu 8 ký tự)"
+            minLength={8}
+            className={inputClass}
+          />
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-blue-300">Email</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="email@example.com"
+            className={inputClass}
+          />
+        </div>
+      )}
     </SidePanel>
   );
 }
@@ -142,7 +168,28 @@ export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelPr
   };
 
   return (
-    <SidePanel open={open} onClose={onClose} title="Thêm người dùng">
+    <SidePanel
+      open={open}
+      onClose={onClose}
+      title="Thêm người dùng"
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+          >
+            Huỷ
+          </button>
+          <button
+            onClick={handleCreate}
+            disabled={saving || !name.trim() || password.length < 8}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+          >
+            {saving ? "Đang tạo…" : "Tạo người dùng"}
+          </button>
+        </div>
+      }
+    >
       <div className="flex flex-col gap-1">
         <label className="text-xs text-gray-400">Tên người dùng</label>
         <input
@@ -183,21 +230,6 @@ export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelPr
           </p>
         )}
       </div>
-      <div className="flex gap-2 justify-end">
-        <button
-          onClick={onClose}
-          className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
-        >
-          Huỷ
-        </button>
-        <button
-          onClick={handleCreate}
-          disabled={saving || !name.trim() || password.length < 8}
-          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
-        >
-          {saving ? "Đang tạo…" : "Tạo người dùng"}
-        </button>
-      </div>
     </SidePanel>
   );
 }
@@ -223,7 +255,25 @@ export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelPr
   }, [open, item]);
 
   return (
-    <SidePanel open={open} onClose={onClose} title="Đổi vai trò">
+    <SidePanel
+      open={open}
+      onClose={onClose}
+      title="Đổi vai trò"
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className={cancelClass}>
+            Huỷ
+          </button>
+          <button
+            onClick={() => void onSave({ role, scopes })}
+            disabled={saving || (role === "operator" && scopes.length === 0)}
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+          >
+            {saving ? "Đang lưu…" : "Lưu"}
+          </button>
+        </div>
+      }
+    >
       <p className="text-xs text-blue-400 font-mono -mt-2">
         {item?.user_name} · {item?.user_code}
       </p>
@@ -258,18 +308,6 @@ export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelPr
           </div>
         </div>
       )}
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className={cancelClass}>
-          Huủy
-        </button>
-        <button
-          onClick={() => void onSave({ role, scopes })}
-          disabled={saving || (role === "operator" && scopes.length === 0)}
-          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
-        >
-          {saving ? "Đang lưu…" : "Lưu"}
-        </button>
-      </div>
     </SidePanel>
   );
 }
@@ -286,24 +324,31 @@ export function UserDeletePanel({ item, saving, onClose, onConfirm }: UserDelete
   const open = item !== null;
 
   return (
-    <SidePanel open={open} onClose={onClose} title="Xoá người dùng?" tone="danger">
+    <SidePanel
+      open={open}
+      onClose={onClose}
+      title="Xoá người dùng?"
+      tone="danger"
+      footer={
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className={cancelClass}>
+            Huỷ
+          </button>
+          <button
+            onClick={() => void onConfirm()}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 font-semibold text-sm transition-colors"
+          >
+            {saving ? "Đang xoá…" : "Xoá"}
+          </button>
+        </div>
+      }
+    >
       <p className="text-sm text-blue-200">
         <span className="font-mono">{item?.user_code}</span> · {item?.user_name}
         <br />
         <span className="text-xs text-blue-400">Hành động này không thể hoàn tác.</span>
       </p>
-      <div className="flex gap-2 justify-end">
-        <button onClick={onClose} className={cancelClass}>
-          Huỷ
-        </button>
-        <button
-          onClick={() => void onConfirm()}
-          disabled={saving}
-          className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 font-semibold text-sm transition-colors"
-        >
-          {saving ? "Đang xoá…" : "Xoá"}
-        </button>
-      </div>
     </SidePanel>
   );
 }
