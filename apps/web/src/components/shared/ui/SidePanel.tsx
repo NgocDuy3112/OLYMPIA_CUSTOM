@@ -7,6 +7,8 @@ interface SidePanelProps {
     tone?: "default" | "danger";
     /** Rộng nửa màn hình cho form nhiều field. */
     wide?: boolean;
+    /** Thanh action dính đáy panel (Luưu/Xoá...) — nội dung giữa tự scroll. */
+    footer?: React.ReactNode;
     children: React.ReactNode;
 }
 
@@ -16,11 +18,32 @@ export const SidePanel: React.FC<SidePanelProps> = ({
     title,
     tone = "default",
     wide = false,
+    footer,
     children,
 }) => {
     const panelRef = useRef<HTMLElement>(null);
+    const wasOpen = useRef(false);
 
-    // Esc đóng panel + chặn scroll nền + focus-trap Tab.
+    // Focus + khoá scroll nền: chỉ chạy đúng lúc panel vừa mở,
+    // không chạy lại khi parent re-render (tránh giật focus khỏi input).
+    useEffect(() => {
+        if (open && !wasOpen.current) {
+            wasOpen.current = true;
+            const prevOverflow = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+            panelRef.current?.focus();
+            return () => {
+                wasOpen.current = false;
+                document.body.style.overflow = prevOverflow;
+            };
+        }
+        if (!open) {
+            wasOpen.current = false;
+        }
+        return undefined;
+    }, [open ]);
+
+    // Esc đóng panel + focus-trap Tab.
     useEffect(() => {
         if (!open) return;
         const onKey = (e: KeyboardEvent) => {
@@ -50,12 +73,8 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             }
         };
         document.addEventListener("keydown", onKey);
-        const prevOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-        panelRef.current?.focus();
         return () => {
             document.removeEventListener("keydown", onKey);
-            document.body.style.overflow = prevOverflow;
         };
     }, [open, onClose]);
 
@@ -76,7 +95,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
             ref={panelRef}
             tabIndex={-1}
         >
-            <div className="flex items-center justify-between">
+            <div className="sticky top-0 z-10 bg-[#14122b] pb-2 flex items-center justify-between">
                 <h3
                     className={`text-base font-bold ${tone === "danger" ? "text-red-300" : "text-white"}`}
                 >
@@ -91,6 +110,11 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                 </button>
             </div>
             <div className="flex flex-col gap-4 flex-1">{children}</div>
+            {footer && (
+                <div className="sticky bottom-0 z-10 bg-[#14122b] pt-2 pb-1 border-t border-white/10">
+                    {footer}
+                </div>
+            )}
         </aside>
     </div>
     );

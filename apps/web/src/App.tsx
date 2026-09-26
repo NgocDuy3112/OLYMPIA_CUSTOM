@@ -4,6 +4,7 @@ import LoginPage from "@/pages/auth/LoginPage";
 import StaffLoginPage from "@/pages/auth/StaffLoginPage";
 import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RulesPage from "@/pages/info/RulesPage";
+import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
 
 const PlayerRoutes = lazy(() => import("@/routes/PlayerRoutes"));
 const AdminRoutes = lazy(() => import("@/routes/AdminRoutes"));
@@ -21,6 +22,7 @@ function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-oc bg-cover bg-center bg-no-repeat">
         <Suspense fallback={null}>
+          <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Navigate to="/tournament/*" replace />} />
             <Route path="/login" element={<LoginPage />} />
@@ -43,6 +45,7 @@ function App() {
             <Route path="/spectator/*" element={<SpectatorRoutes />} />
             <Route path="/overlay/*" element={<OverlayRoutes />} />
           </Routes>
+          </ErrorBoundary>
         </Suspense>
       </div>
     </BrowserRouter>
