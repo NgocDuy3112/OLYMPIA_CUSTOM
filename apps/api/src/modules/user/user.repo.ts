@@ -17,7 +17,7 @@ export interface UserCreateInput {
 export type UserUpdateInput = Partial<
   Pick<
     UserRow,
-    "userName" | "role" | "avatarUrl" | "operatorScopes" | "googleId" | "passwordHash"
+    "email" | "userName" | "role" | "avatarUrl" | "operatorScopes" | "googleId" | "passwordHash"
   >
 >;
 

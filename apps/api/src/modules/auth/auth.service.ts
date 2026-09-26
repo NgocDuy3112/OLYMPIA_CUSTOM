@@ -20,6 +20,15 @@ const SESSION_PREFIX = "session:";
 const SESSION_TTL = 86400;
 const COOKIE_NAME = "sid";
 
+/** Seeded staff sessions có userId dạng `staff:<username>` — không phải uuid.
+ *  Dùng khi ghi cột FK uuid (created_by/reviewed_by): không phải uuid → null. */
+export function uuidOrNull(id: string | null | undefined): string | null {
+  return id &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ? id
+    : null;
+}
+
 // ── Password hashing (argon2id, 32MB / t=3 / p=1) ──
 
 const ARGON2_MEMORY_KIB = 32 * 1024;

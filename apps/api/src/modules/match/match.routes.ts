@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireRole, requireAuth, requireScope } from "../auth/auth.service.js";
+import { requireRole, requireAuth, requireScope, uuidOrNull } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleMatchRepo, type MatchRepo } from "./match.repo.js";
 
@@ -53,7 +53,7 @@ export async function matchRoutes(
         created = await repo.create({
           matchName: body.matchName,
           tournamentCode: body.tournamentCode,
-          createdBy: session.userId,
+          createdBy: uuidOrNull(session.userId),
           scheduledAt: body.scheduledAt ?? null,
           venue: body.venue?.trim().slice(0, 200) || null,
           matchLabel: body.matchLabel?.trim().toUpperCase().slice(0, 20) || null,

@@ -37,7 +37,7 @@ export interface MatchRepo {
     create(input: {
         matchName: string;
         tournamentCode?: string;
-        createdBy: string;
+        createdBy: string | null;
         scheduledAt?: string | Date | null;
         venue?: string | null;
         matchLabel?: string | null;
@@ -139,7 +139,7 @@ export const drizzleMatchRepo: MatchRepo = {
     async create(input: {
         matchName: string;
         tournamentCode?: string;
-        createdBy: string;
+        createdBy: string | null;
         scheduledAt?: string | Date | null;
         venue?: string | null;
         matchLabel?: string | null;

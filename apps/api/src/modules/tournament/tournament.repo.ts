@@ -74,14 +74,14 @@ export interface TournamentRepo {
   findByCode(code: string): Promise<TournamentRow | null>;
   create(input: {
     tournamentName: string;
-    description?: string;
+    description?: string | null;
     tournamentFormat?: string;
-    startDate?: string;
-    endDate?: string;
-    maxPlayers?: string;
-    venue?: string;
-    notes?: string;
-    createdBy: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    maxPlayers?: string | null;
+    venue?: string | null;
+    notes?: string | null;
+    createdBy: string | null;
   }): Promise<TournamentRow>;
   update(
     code: string,
@@ -160,14 +160,14 @@ export const drizzleTournamentRepo: TournamentRepo = {
 
   async create(input: {
     tournamentName: string;
-    description?: string;
+    description?: string | null;
     tournamentFormat?: string;
-    startDate?: string;
-    endDate?: string;
-    maxPlayers?: string;
-    venue?: string;
-    notes?: string;
-    createdBy: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    maxPlayers?: string | null;
+    venue?: string | null;
+    notes?: string | null;
+    createdBy: string | null;
   }): Promise<TournamentRow> {
     const ocNumber = ocNumberFromFormat(input.tournamentFormat);
     const tournamentCode = makeTournamentCode(

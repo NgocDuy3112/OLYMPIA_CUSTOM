@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireRole, requireAuth } from "../auth/auth.service.js";
+import { requireRole, requireAuth, uuidOrNull } from "../auth/auth.service.js";
 import {
   drizzleTournamentRepo,
   type TournamentRepo,
@@ -45,16 +45,20 @@ export async function tournamentRoutes(
 
       const session = (request as any).session;
 
+      // Chuỗi rỗng từ form → null, tránh lỗi `invalid input syntax for type date`.
+      const emptyToNull = (v: unknown): string | null =>
+        typeof v === "string" && v.trim() ? v.trim() : null;
+
       const created = await repo.create({
-        tournamentName: body.tournamentName,
-        description: body.description,
+        tournamentName: body.tournamentName.trim(),
+        description: emptyToNull(body.description),
         tournamentFormat: body.tournamentFormat || "oc3",
-        startDate: body.startDate,
-        endDate: body.endDate,
-        maxPlayers: body.maxPlayers,
-        venue: body.venue,
-        notes: body.notes,
-        createdBy: session.userId,
+        startDate: emptyToNull(body.startDate),
+        endDate: emptyToNull(body.endDate),
+        maxPlayers: emptyToNull(body.maxPlayers),
+        venue: emptyToNull(body.venue),
+        notes: emptyToNull(body.notes),
+        createdBy: uuidOrNull(session.userId),
       });
 
       return reply.code(201).send({
@@ -105,17 +109,19 @@ export async function tournamentRoutes(
       };
 
       const updates: Record<string, unknown> = {};
+      const emptyToNull = (v: unknown): string | null =>
+        typeof v === "string" && v.trim() ? v.trim() : null;
       if (body.tournamentName) updates.tournamentName = body.tournamentName;
       if (body.description !== undefined)
-        updates.description = body.description;
+        updates.description = emptyToNull(body.description);
       if (body.tournamentFormat)
         updates.tournamentFormat = body.tournamentFormat;
-      if (body.startDate !== undefined) updates.startDate = body.startDate;
-      if (body.endDate !== undefined) updates.endDate = body.endDate;
+      if (body.startDate !== undefined) updates.startDate = emptyToNull(body.startDate);
+      if (body.endDate !== undefined) updates.endDate = emptyToNull(body.endDate);
       if (body.status) updates.status = body.status;
-      if (body.maxPlayers !== undefined) updates.maxPlayers = body.maxPlayers;
-      if (body.venue !== undefined) updates.venue = body.venue;
-      if (body.notes !== undefined) updates.notes = body.notes;
+      if (body.maxPlayers !== undefined) updates.maxPlayers = emptyToNull(body.maxPlayers);
+      if (body.venue !== undefined) updates.venue = emptyToNull(body.venue);
+      if (body.notes !== undefined) updates.notes = emptyToNull(body.notes);
 
       const result = await repo.update(slug, updates);
 

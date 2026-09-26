@@ -232,13 +232,37 @@ export async function userRoutes(
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
       const { userCode } = request.params as { userCode: string };
-      const body = request.body as { userName?: string; role?: string };
+      const body = request.body as { userName?: string; email?: string; password?: string; role?: string };
       const updates: {
         userName?: string;
+        email?: string;
+        passwordHash?: string;
         role?: UserRow["role"];
         operatorScopes?: string | null;
       } = {};
       if (body.userName) updates.userName = body.userName;
+      if (typeof body.password === "string" && body.password) {
+        if (body.password.length < 8) {
+          return reply.code(400).send({
+            status: "error",
+            message: "password must be at least 8 characters",
+            data: null,
+          });
+        }
+        updates.passwordHash = await hashPassword(body.password);
+      }
+      if (typeof body.email === "string" && body.email.trim()) {
+        const email = body.email.trim().toLowerCase();
+        const taken = await repo.findByEmail(email);
+        if (taken && taken.userCode !== userCode) {
+          return reply.code(409).send({
+            status: "error",
+            message: "Email đã tồn tại",
+            data: null,
+          });
+        }
+        updates.email = email;
+      }
       if (body.role) {
         const allowed = ["admin", "operator", "player", "spectator"];
         if (!allowed.includes(body.role)) {
