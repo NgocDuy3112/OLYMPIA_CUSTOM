@@ -9,6 +9,7 @@ from fastapi import FastAPI, Header, HTTPException, Request, Response
 
 from app.adapters.bank_gateway import BankGatewayRepo
 from app.adapters.discord_gateway import DiscordGatewayRepo
+from app.adapters.jev_router import JevRouter
 from app.adapters.llm_http import build_llm_client
 from app.adapters.question_gateway import QuestionGatewayRepo
 from app.adapters.score_gateway import ScoreGatewayRepo
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
     )
     snapshot_repo = ValkeySnapshotRepo(redis_client)
     llm = build_llm_client()  # OpenAI-compatible qua LLM_BASE_URL
+    jev_router = JevRouter()
     app.state.agent = AgentService(
         llm=llm,
         snapshot_repo=snapshot_repo,
@@ -45,9 +47,11 @@ async def lifespan(app: FastAPI):
         bank_repo=BankGatewayRepo(),
         discord_repo=DiscordGatewayRepo(),
         cache=redis_client,
+        router=jev_router,
     )
     app.state.redis = redis_client
     yield
+    await jev_router.aclose()
     await redis_client.aclose()
 
 
