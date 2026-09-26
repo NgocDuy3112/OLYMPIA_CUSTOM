@@ -176,40 +176,6 @@ TOOL_SCHEMAS: list[dict] = [
         },
     },
     {
-        "name": "update_bank_question",
-        "description": (
-            "Sửa 1 câu bank (content/answer/explanation/round_hint). "
-            "Chỉ qauthor/controller. Write — cần duyệt trước khi apply."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "bank_code": {"type": "string"},
-                "content": {"type": "string"},
-                "answer": {"type": "string"},
-                "explanation": {"type": "string"},
-                "round_hint": {"type": "string"},
-            },
-            "required": ["bank_code"],
-        },
-    },
-    {
-        "name": "place_question_to_match",
-        "description": (
-            "Bỏ 1 câu bank vào trận (vd M17 vòng Bứt phá): copy bank -> "
-            "match qua POST /questions/pick. Chỉ qauthor/controller."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "bank_code": {"type": "string"},
-                "match_code": {"type": "string"},
-                "round": {"type": "string"},
-            },
-            "required": ["bank_code", "match_code", "round"],
-        },
-    },
-    {
         "name": "search_bank",
         "description": (
             "Tìm lại bank theo q/round_hint. Read-only, dùng cho "
@@ -237,21 +203,6 @@ TOOL_SCHEMAS: list[dict] = [
         },
     },
     {
-        "name": "propose_bank_edit",
-        "description": (
-            "Soạn proposal diff sửa bank từ yêu cầu (chưa write). "
-            "Node review duyệt rồi mới apply."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "bank_code": {"type": "string"},
-                "request": {"type": "string"},
-            },
-            "required": ["bank_code", "request"],
-        },
-    },
-    {
         "name": "suggest_bank_review",
         "description": (
             "Gợi ý duyệt 1 câu bank QB_*: trả nội dung, đáp án, câu tương tự, "
@@ -267,12 +218,23 @@ TOOL_SCHEMAS: list[dict] = [
 
 MAX_TOOL_ROUNDS = 3
 
+# Write tools đã gỡ khỏi scope Ocee — chặn tại execute_tool (guard 403),
+# không chỉ gỡ schema: LLM không thấy và code không gọi được.
+WRITE_TOOLS = frozenset(
+    {"update_bank_question", "place_question_to_match", "propose_bank_edit"}
+)
+
 
 async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
     from app.metrics import TOOL_ERRORS
 
     match_code = ctx.match_code  # set per-request by AgentService
     try:
+        if name in WRITE_TOOLS:
+            raise AgentError(
+                "Ocee read-only: ghi bank qua UI qauthor (sửa câu / bộ đề)",
+                status_code=403,
+            )
         return await _execute_tool_inner(name, args, ctx, match_code)
     except AgentError:
         TOOL_ERRORS.labels(tool=name).inc()
@@ -386,46 +348,6 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
             "note": "Đối chiếu với nguồn ngoài rồi verdict.",
         }
 
-    if name == "update_bank_question":
-        if ctx.bank_repo is None:
-            raise AgentError("Bank repo not configured", status_code=500)
-        _require_qauthor(ctx.role)
-        bank_code = str(args.get("bank_code", "")).strip().upper()
-        if not bank_code:
-            raise AgentError("bank_code required", status_code=400)
-        row = await ctx.bank_repo.get_bank_row(bank_code)
-        if row is None:
-            raise AgentError(f"Bank {bank_code} not found", status_code=404)
-        bank_id = str(row.get("id") or row.get("bank_id") or "")
-        updates = {
-            k: v
-            for k, v in {
-                "content": args.get("content"),
-                "answer": args.get("answer"),
-                "explanation": args.get("explanation"),
-                "roundHint": args.get("round_hint") or args.get("roundHint"),
-            }.items()
-            if isinstance(v, str) and v.strip()
-        }
-        if not updates:
-            raise AgentError("Nothing to update", status_code=400)
-        return await ctx.bank_repo.update_bank_row(bank_id, updates)
-
-    if name == "place_question_to_match":
-        if ctx.bank_repo is None:
-            raise AgentError("Bank repo not configured", status_code=500)
-        _require_qauthor(ctx.role)
-        bank_code = str(args.get("bank_code", "")).strip().upper()
-        match_code_arg = str(args.get("match_code", "")).strip()
-        round_arg = str(args.get("round", "")).strip().upper()
-        if not bank_code or not match_code_arg or not round_arg:
-            raise AgentError(
-                "bank_code, match_code, round required", status_code=400
-            )
-        return await ctx.bank_repo.place_to_match(
-            bank_code, match_code_arg, round_arg
-        )
-
     if name == "search_bank":
         if ctx.bank_repo is None:
             raise AgentError("Bank repo not configured", status_code=500)
@@ -441,30 +363,6 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
             raise AgentError("query required", status_code=400)
         # Stub: chưa gắn provider search thật. Swap Adapter sau, giữ Interface.
         return {"query": query[:200], "citations": [], "note": "stub — chưa gắn provider"}
-
-    if name == "propose_bank_edit":
-        if ctx.bank_repo is None:
-            raise AgentError("Bank repo not configured", status_code=500)
-        _require_qauthor(ctx.role)
-        bank_code = str(args.get("bank_code", "")).strip().upper()
-        request_text = str(args.get("request", "")).strip()
-        if not bank_code or not request_text:
-            raise AgentError("bank_code, request required", status_code=400)
-        row = await ctx.bank_repo.get_bank_row(bank_code)
-        if row is None:
-            raise AgentError(f"Bank {bank_code} not found", status_code=404)
-        return {
-            "bank_code": bank_code,
-            "bank_id": str(row.get("id") or row.get("bank_id") or ""),
-            "current": {
-                "content": row.get("content"),
-                "answer": row.get("answer"),
-                "explanation": row.get("explanation"),
-                "round_hint": row.get("roundHint") or row.get("round_hint"),
-            },
-            "request": request_text[:1000],
-            "note": "Draft chưa write — chờ review duyệt.",
-        }
 
     if name == "suggest_bank_review":
         if ctx.bank_repo is None:
@@ -507,11 +405,6 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
 def _require_staff(role: UserRole) -> None:
     if role not in ("controller", "mc"):
         raise AgentError("Forbidden: controller/mc role required", status_code=403)
-
-
-def _require_qauthor(role: UserRole) -> None:
-    if role not in ("qauthor", "controller"):
-        raise AgentError("Forbidden: qauthor/controller role required", status_code=403)
 
 
 def tool_result_message(name: str, result: Any) -> dict:

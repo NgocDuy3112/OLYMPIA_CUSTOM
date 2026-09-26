@@ -24,9 +24,6 @@ SYSTEM_PROMPT_VI = (
 
 CACHE_TTL_SECONDS = 3600
 
-# Task write không cache — multistep (duyệt, resume) phải chạy thật.
-NO_CACHE_TASKS = frozenset({"update", "place"})
-
 
 class AgentService:
 
@@ -39,6 +36,7 @@ class AgentService:
         bank_repo,
         discord_repo,
         cache=None,  # redis.asyncio.Redis | None
+        router=None,  # JevRouter | None — None → keyword fallback
     ) -> None:
         self._llm = llm
         self._snapshot_repo = snapshot_repo
@@ -47,6 +45,7 @@ class AgentService:
         self._bank_repo = bank_repo
         self._discord_repo = discord_repo
         self._cache = cache
+        self._router = router
 
     async def ask(
         self,
@@ -56,19 +55,20 @@ class AgentService:
     ) -> AgentResponse:
         import time
 
-        from app.graph import build_graph, route_task
-        from app.metrics import ASK_DURATION, ASK_TOTAL, REFLECT_ROUNDS
+        from app.graph import build_graph
+        from app.metrics import ASK_DURATION, ASK_TOTAL
 
-        task = route_task(question)
         started = time.perf_counter()
-        cacheable = task not in NO_CACHE_TASKS
-        cache_key = self._cache_key(match_code, question, role) if cacheable else None
-        if cacheable and self._cache is not None and cache_key is not None:
+        cache_key = self._cache_key(match_code, question, role)
+        if self._cache is not None:
             cached = await self._cache.get(cache_key)
             if cached:
                 response = AgentResponse.model_validate_json(cached)
                 response.cached = True
                 return response
+
+        # Route SAU cache: cache hit không tốn 1 call Jev.
+        task = await self._route(question, role)
 
         from app.observability import track_graph
 
@@ -78,7 +78,6 @@ class AgentService:
             "question": question,
             "role": role,
             "task": task,
-            "reflect_count": 0,
             "tools_used": [f"route:{task}"],
         }
         config = {
@@ -105,11 +104,10 @@ class AgentService:
             tools_used = list(dict.fromkeys(tools_used + llm_tools))
 
         ASK_DURATION.labels(task=task).observe(time.perf_counter() - started)
-        REFLECT_ROUNDS.labels(task=task).observe(float(final.get("reflect_count", 0) or 0))
         ASK_TOTAL.labels(task=task, status="ok").inc()
 
         response = AgentResponse(answer=answer, tools_used=tools_used)
-        if cacheable and self._cache is not None and cache_key is not None:
+        if self._cache is not None:
             await self._cache.set(
                 cache_key,
                 response.model_dump_json(),
@@ -117,12 +115,34 @@ class AgentService:
             )
         return response
 
+    async def _route(self, question: str, role: UserRole) -> str:
+        """Jev Choice (System One) → fallback route_task keyword.
+
+        Thiếu key / lỗi API / confidence dưới ngưỡng → keyword (fail-open).
+        """
+        from app.config import settings
+        from app.metrics import ROUTE_CONF, ROUTE_SRC
+
+        if self._router is not None:
+            decision = await self._router.route(question, role)
+            if decision is not None:
+                task, confidence = decision
+                if confidence >= settings.jev_min_confidence:
+                    ROUTE_SRC.labels(source="jev").inc()
+                    ROUTE_CONF.labels(task=task).observe(confidence)
+                    return task
+                ROUTE_SRC.labels(source="jev_low_conf").inc()
+        ROUTE_SRC.labels(source="keyword").inc()
+        from app.graph import route_task
+
+        return route_task(question)
+
     async def _synthesize(
         self, question: str, final: dict
     ) -> tuple[str, list[str]]:
 
         messages: list[dict] = [{"role": "user", "content": question}]
-        for key in ("bank_row", "citations", "proposal", "critique", "apply_result", "search_rows"):
+        for key in ("bank_row", "citations", "search_rows"):
             if final.get(key) is not None:
                 messages.append(tool_result_message(key, final[key]))
         for m in final.get("messages") or []:
@@ -150,24 +170,6 @@ class AgentService:
         q = question.lower()
         bank_code = AgentService._extract_bank_code(question)
         if task == "verify" and bank_code:
-            return [("verify_bank_question", {"bank_code": bank_code})]
-        if task == "update" and bank_code:
-            return [("verify_bank_question", {"bank_code": bank_code})]
-        if task == "place" and bank_code:
-            m = re.search(r"(OC\d+_[A-Za-z0-9_-]+)", question)
-            rnd = AgentService._extract_round(question)
-            if m and rnd:
-                return [
-                    ("verify_bank_question", {"bank_code": bank_code}),
-                    (
-                        "place_question_to_match",
-                        {
-                            "bank_code": bank_code,
-                            "match_code": m.group(1),
-                            "round": rnd,
-                        },
-                    ),
-                ]
             return [("verify_bank_question", {"bank_code": bank_code})]
         if task == "index" and bank_code:
             return [("verify_bank_question", {"bank_code": bank_code})]
@@ -201,17 +203,4 @@ class AgentService:
         m = re.search(r"\bQB_[A-Z0-9_]{1,20}\b", question.upper())
         return m.group(0) if m else None
 
-    @staticmethod
-    def _extract_round(question: str) -> str | None:
-        q = question.lower()
-        if "bứt phá" in q or "but pha" in q or re.search(r"\bbp\b", q):
-            return "BP"
-        if "khởi động chung" in q or "khoi dong chung" in q:
-            return "KD_C"
-        if "khởi động riêng" in q or "khoi dong rieng" in q:
-            return "KD_R"
-        if "về đích" in q or "ve dich" in q or re.search(r"\bvd\b", q):
-            return "VD"
-        if "giải mã" in q or "giai ma" in q or re.search(r"\bgm\b", q):
-            return "GM"
-        return None
+

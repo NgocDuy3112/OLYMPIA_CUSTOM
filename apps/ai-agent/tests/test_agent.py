@@ -315,22 +315,32 @@ async def test_verify_bank_question_returns_row():
 
 
 @pytest.mark.asyncio
-async def test_bank_write_requires_qauthor():
+async def test_write_tools_removed_read_only():
+    """Ocee read-only: mọi write tool chặn ở execute_tool, bất kể role."""
     from app.domain.models import AgentError
-    from app.tools.registry import execute_tool
+    from app.tools.registry import WRITE_TOOLS, execute_tool
 
     gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
-    ctx = _bank_ctx(gateway, role="mc")
-    with pytest.raises(AgentError):
-        await execute_tool(
-            "update_bank_question", {"bank_code": "QB_KDC_001", "answer": "Huế"}, ctx
-        )
-    with pytest.raises(AgentError):
-        await execute_tool(
+    cases = (
+        ("update_bank_question", {"bank_code": "QB_KDC_001", "answer": "Huế"}),
+        (
             "place_question_to_match",
             {"bank_code": "QB_KDC_001", "match_code": "OC3_M_1", "round": "BP"},
-            ctx,
-        )
+        ),
+        ("propose_bank_edit", {"bank_code": "QB_KDC_001", "request": "đổi đáp án"}),
+    )
+    for role in ("qauthor", "mc", "controller"):
+        ctx = _bank_ctx(gateway, role=role)
+        for name, args in cases:
+            with pytest.raises(AgentError) as exc:
+                await execute_tool(name, args, ctx)
+            assert "read-only" in str(exc.value)
+    assert "bank_update" not in gateway.calls
+    assert "bank_place" not in gateway.calls
+    # Schema cũng gỡ — LLM không thấy tool ghi.
+    from app.tools.registry import TOOL_SCHEMAS
+
+    assert not {t["name"] for t in TOOL_SCHEMAS} & WRITE_TOOLS
 
 
 @pytest.mark.asyncio
@@ -346,29 +356,25 @@ async def test_suggest_bank_review_returns_checklist():
 
 
 @pytest.mark.asyncio
-async def test_update_and_place_bank_tools():
-    from app.tools.registry import execute_tool
-
+async def test_refuse_write_request_answers_use_ui():
+    """Yêu cầu update → route:refuse, trả lời dùng UI, không bank write nào chạy."""
     gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
-    ctx = _bank_ctx(gateway)
-    updated = await execute_tool(
-        "update_bank_question", {"bank_code": "QB_KDC_001", "answer": "Hà Nội"}, ctx
+    service = make_service(SNAPSHOT, gateway)
+    response = await service.ask(
+        "BANK_REVIEW", "update QB_KDC_001 đáp án Hà Nội", "qauthor"
     )
-    assert updated["id"] == "bank-1"
-    placed = await execute_tool(
-        "place_question_to_match",
-        {"bank_code": "QB_KDC_001", "match_code": "OC3_M_1", "round": "BP"},
-        ctx,
-    )
-    assert placed["round"] == "BP"
+    assert "route:refuse" in response.tools_used
+    assert "qauthor" in response.answer
+    assert "bank_update" not in gateway.calls
+    assert "bank_place" not in gateway.calls
 
 
 def test_route_task_bank_kinds():
     from app.graph import route_task
 
     assert route_task("check QB_KDC_001 chính xác ko") == "verify"
-    assert route_task("update QB_KDC_001 đáp án Hà Nội") == "update"
-    assert route_task("bỏ QB_KDC_001 vào trận OC3_M_1 vòng Bứt phá") == "place"
+    assert route_task("update QB_KDC_001 đáp án Hà Nội") == "refuse"
+    assert route_task("bỏ QB_KDC_001 vào trận OC3_M_1 vòng Bứt phá") == "refuse"
     assert route_task("đánh index QB_KDC_001") == "index"
     assert route_task("ai đang dẫn đầu?") == "qa"
     assert route_task("cho ý kiến duyệt QB_KDC_001") == "assist"
