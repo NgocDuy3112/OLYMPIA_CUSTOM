@@ -86,17 +86,13 @@
     },
     {
       "id": 8,
-      "title": "OCee tool + LLM errors",
+      "title": "OCee tool errors",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
       "targets": [
         {
           "expr": "sum by (tool) (rate(ocee_tool_errors_total[5m]))",
           "legendFormat": "tool {{tool}}"
-        },
-        {
-          "expr": "sum (rate(ocee_llm_errors_total[5m]))",
-          "legendFormat": "llm"
         }
       ]
     }
