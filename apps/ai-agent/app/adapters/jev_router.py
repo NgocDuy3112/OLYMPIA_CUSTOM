@@ -1,8 +1,8 @@
-"""Jev router — TypeSafe System One (Choice) thay route_task keyword.
+"""Jev router — System One Choice qua OpenRouter Decisions API.
 
-Không thêm dependency mới: tự gọi HTTP API bằng httpx (cùng pattern
-llm_http.py). Fail-open: thiếu key / lỗi API / lựa chọn không hợp lệ
-→ None, caller dùng keyword fallback — ask không bao giờ chết vì router.
+Không thêm dependency mới: tự gọi HTTP bằng httpx. Fail-open: thiếu key /
+lỗi API / lựa chọn không hợp lệ → None, caller dùng keyword fallback —
+ask không bao giờ chết vì router.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-API_BASE_URL = "https://api.typesafe.ai"
+API_BASE_URL = "https://openrouter.ai/api"
 
 # Criteria map thẳng TaskKind — option name = giá trị code dùng.
 # Mô tả tách bạch theo docs Choice: mỗi option nói rõ nó là gì AND không là gì.
@@ -36,6 +36,10 @@ CRITERIA: dict[str, str] = {
         "Xin ý kiến/gợi ý xem có nên duyệt một câu bank QB_* — "
         "hỏi về review, không tự sửa"
     ),
+    "ops": (
+        "Điều phối Discord của giải: gán role/sync nickname thí sinh, "
+        "thông báo trước trận, khóa thí sinh trễ giờ — thao tác vận hành"
+    ),
     "refuse": (
         "Yêu cầu sửa nội dung/đáp án bank, bỏ hoặc chèn câu vào một trận — "
         "Ocee từ chối và chỉ dẫn dùng UI qauthor"
@@ -45,7 +49,7 @@ CRITERIA: dict[str, str] = {
 
 
 class JevRouter:
-    """POST /v1/systemone — Choice 1 câu hỏi, trả (task, confidence) | None."""
+    """POST /alpha/decisions — Choice 1 câu hỏi, trả (task, confidence) | None."""
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._client = client or httpx.AsyncClient(
@@ -55,7 +59,7 @@ class JevRouter:
 
     async def route(self, question: str, role: str) -> tuple[str, float] | None:
         """Trả (task, confidence) hoặc None (fail-open → keyword fallback)."""
-        if not settings.typesafe_api_key:
+        if not settings.openrouter_api_key:
             return None
         payload = {
             "model": settings.jev_model,
@@ -73,9 +77,9 @@ class JevRouter:
         }
         try:
             resp = await self._client.post(
-                "/v1/systemone",
+                "/alpha/decisions",
                 json=payload,
-                headers={"Authorization": f"Bearer {settings.typesafe_api_key}"},
+                headers={"Authorization": f"Bearer {settings.openrouter_api_key}"},
             )
             resp.raise_for_status()
             data = resp.json()

@@ -16,7 +16,8 @@ uvicorn app.main:app --reload --port 8100
 ```
 app/domain/     Pydantic models + Protocol ports
 app/adapters/   ValkeySnapshotRepo, ApiGatewayScoreRepo, LLMClient (stub)
-app/tools/      tool-loop: tool definitions + executor
+app/utils/      graph utils: state.py / nodes.py / tools.py
+app/agent.py    graph construction (build_graph)
 app/services/   AgentService orchestrator
 app/main.py     FastAPI wiring
 ```
@@ -33,5 +34,12 @@ Headers: `X-User-Code`, `X-User-Role` (controller|mc|qauthor|operator|admin — 
 Response: `{ "answer": "...", "tools_used": ["get_scoreboard"], "cached": false }`
 
 Env: `VALKEY_HOST`, `VALKEY_PORT`, `API_INTERNAL_URL`, `AGENT_SERVICE_TOKEN`,
-`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. Router: `TYPESAFE_API_KEY` (trống thì
-keyword fallback), `JEV_MODEL`, `JEV_TIMEOUT`, `JEV_MIN_CONFIDENCE` (default 0.6).
+`OPENROUTER_API_KEY`, `LLM_MODEL` (`<vendor/model>` trên OpenRouter) — LLM duy nhất
+qua `langchain-openrouter` ChatOpenRouter.
+Router: `OPENROUTER_API_KEY` (trống thì mặc định task `qa`), `JEV_MODEL`
+(default `typesafe/jev-1.13`), `JEV_TIMEOUT`, `JEV_MIN_CONFIDENCE` (default 0.6).
+Tracing (OTel → collector → Tempo + Phoenix): `PHOENIX_COLLECTOR_ENDPOINT` là URL ĐẦY ĐỦ
+`/v1/traces` (compose: `http://otel-collector:4318/v1/traces`; trỏ thẳng Phoenix:
+`http://localhost:6006/v1/traces`), `PHOENIX_PROJECT_NAME` (default `ocee`),
+`PHOENIX_API_KEY` (nếu bật auth); trống endpoint = tắt. Tempo: Grafana explore +
+exemplar traceID; Phoenix: LLM detail. Server: `PHOENIX_TELEMETRY_ENABLED=false`.

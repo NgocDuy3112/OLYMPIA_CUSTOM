@@ -1,5 +1,3 @@
-"""Domain models — shared shape with packages/shared (TS)."""
-
 from __future__ import annotations
 
 from typing import Literal

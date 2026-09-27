@@ -11,8 +11,12 @@ dependencies = [
     "redis>=5.0",
     "httpx>=0.27",
     "langgraph>=0.2",
+    "langchain>=1.4",
+    "langchain-openrouter>=0.2.9",
     "prometheus-client>=0.26.0",
-    "opik>=2.2.71",
+    "arize-phoenix-otel>=0.17",
+    "openinference-instrumentation-langchain>=0.1",
+    "opentelemetry-instrumentation-fastapi",
 ]
 
 [project.optional-dependencies]

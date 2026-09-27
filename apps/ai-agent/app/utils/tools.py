@@ -1,14 +1,11 @@
-"""Tool definitions + executor.
-
-Tools return JSON-serializable dicts — these strings go straight into the
-LLM context, so keep them compact.
-"""
-
 from __future__ import annotations
 
 import json
 from collections.abc import Awaitable, Callable
 from typing import Any
+
+from langchain_core.tools import StructuredTool
+from pydantic import create_model
 
 from app.domain.models import AgentError, UserRole
 from app.domain.ports import (
@@ -216,6 +213,37 @@ TOOL_SCHEMAS: list[dict] = [
     },
 ]
 
+# ── Schema nhóm — mỗi nhóm tools cho 1 scope (qa / bank / ops) ──
+QA_TOOL_NAMES = (
+    "get_scoreboard",
+    "get_match_info",
+    "get_questions",
+    "get_tournament_standings",
+    "lookup_player_by_discord",
+)
+BANK_TOOL_NAMES = (
+    "verify_bank_question",
+    "search_bank",
+    "suggest_bank_review",
+    "search_external",
+)
+OPS_TOOL_NAMES = (
+    "assign_tournament_role",
+    "sync_discord_nicknames",
+    "notify_prematch",
+    "lock_player_no_show",
+)
+
+
+def schemas_for(names: tuple[str, ...]) -> list[dict]:
+    wanted = set(names)
+    return [t for t in TOOL_SCHEMAS if t["name"] in wanted]
+
+
+QA_TOOLS = schemas_for(QA_TOOL_NAMES)
+BANK_TOOLS = schemas_for(BANK_TOOL_NAMES)
+OPS_TOOLS = schemas_for(OPS_TOOL_NAMES)
+
 MAX_TOOL_ROUNDS = 3
 
 # Write tools đã gỡ khỏi scope Ocee — chặn tại execute_tool (guard 403),
@@ -235,13 +263,13 @@ async def execute_tool(name: str, args: dict, ctx: ToolContext) -> Any:
                 "Ocee read-only: ghi bank qua UI qauthor (sửa câu / bộ đề)",
                 status_code=403,
             )
-        return await _execute_tool_inner(name, args, ctx, match_code)
+        return await execute_tool_inner(name, args, ctx, match_code)
     except AgentError:
         TOOL_ERRORS.labels(tool=name).inc()
         raise
 
 
-async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_code: str) -> Any:
+async def execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_code: str) -> Any:
 
     if name == "get_scoreboard":
         scores = await ctx.score_repo.get_scoreboard(match_code)
@@ -287,7 +315,7 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
     if name == "assign_tournament_role":
         if ctx.discord_repo is None:
             raise AgentError("Discord repo not configured", status_code=500)
-        _require_staff(ctx.role)
+        require_staff(ctx.role)
         return await ctx.discord_repo.assign_role(
             str(args.get("tournament_code", "")),
             str(args.get("user_code", "")),
@@ -296,7 +324,7 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
     if name == "sync_discord_nicknames":
         if ctx.discord_repo is None:
             raise AgentError("Discord repo not configured", status_code=500)
-        _require_staff(ctx.role)
+        require_staff(ctx.role)
         mapping = args.get("mapping", [])
         if not isinstance(mapping, list):
             raise AgentError("mapping must be a list", status_code=400)
@@ -307,7 +335,7 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
     if name == "notify_prematch":
         if ctx.discord_repo is None:
             raise AgentError("Discord repo not configured", status_code=500)
-        _require_staff(ctx.role)
+        require_staff(ctx.role)
         return await ctx.discord_repo.notify_prematch(
             str(args.get("tournament_code", "")),
             str(args.get("match_code", "") or match_code or None)
@@ -321,7 +349,7 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
     if name == "lock_player_no_show":
         if ctx.discord_repo is None:
             raise AgentError("Discord repo not configured", status_code=500)
-        _require_staff(ctx.role)
+        require_staff(ctx.role)
         return await ctx.discord_repo.lock_player(
             str(args.get("tournament_code", "")),
             str(args.get("user_code", "")),
@@ -402,7 +430,7 @@ async def _execute_tool_inner(name: str, args: dict, ctx: ToolContext, match_cod
     raise AgentError(f"Unknown tool: {name}", status_code=400)
 
 
-def _require_staff(role: UserRole) -> None:
+def require_staff(role: UserRole) -> None:
     if role not in ("controller", "mc"):
         raise AgentError("Forbidden: controller/mc role required", status_code=403)
 
@@ -413,3 +441,45 @@ def tool_result_message(name: str, result: Any) -> dict:
     except (TypeError, ValueError):
         content = str(result)
     return {"role": "tool", "name": name, "content": content}
+
+
+_ARGS_TYPES = {
+    "string": str,
+    "array": list,
+    "object": dict,
+    "integer": int,
+    "number": float,
+}
+
+
+def args_model(entry: dict, name: str) -> type:
+    """JSON schema tool → pydantic model (mọi field optional, default None)."""
+    props = (entry.get("parameters") or {}).get("properties") or {}
+    fields = {
+        key: (_ARGS_TYPES.get(str(spec.get("type", "")), Any), None)
+        for key, spec in props.items()
+    }
+    return create_model(f"{name.replace('.', '_')}Args", **fields)
+
+
+def lc_tools(schemas: list[dict], ctx: Any) -> list[StructuredTool]:
+    """Schema nhóm → StructuredTool bind ctx — lỗi trả {"error"} cho LLM thấy."""
+    tools: list[StructuredTool] = []
+    for entry in schemas:
+        name = str(entry["name"])
+
+        async def run(ctx: Any = ctx, name: str = name, **kwargs: Any) -> Any:
+            try:
+                return await execute_tool(name, kwargs, ctx)
+            except Exception as exc:  # noqa: BLE001 — lỗi → LLM thấy, không vỡ graph
+                return {"error": str(exc)}
+
+        tools.append(
+            StructuredTool.from_function(
+                coroutine=run,
+                name=name,
+                description=str(entry.get("description", "")),
+                args_schema=args_model(entry, name),
+            )
+        )
+    return tools

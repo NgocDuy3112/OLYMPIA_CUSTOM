@@ -1,5 +1,3 @@
-"""FastAPI entry — wiring thủ công, không DI framework."""
-
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -10,7 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, Request, Response
 from app.adapters.bank_gateway import BankGatewayRepo
 from app.adapters.discord_gateway import DiscordGatewayRepo
 from app.adapters.jev_router import JevRouter
-from app.adapters.llm_http import build_llm_client
+from app.adapters.llm_openrouter import build_llm_model
 from app.adapters.question_gateway import QuestionGatewayRepo
 from app.adapters.score_gateway import ScoreGatewayRepo
 from app.adapters.valkey_snapshot import ValkeySnapshotRepo
@@ -31,16 +29,19 @@ RATE_LIMIT_PER_MINUTE = 10
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.observability import setup
+
+    setup(app)
+
     redis_client = redis.Redis(
         host=settings.valkey_host,
         port=settings.valkey_port,
         decode_responses=True,
     )
     snapshot_repo = ValkeySnapshotRepo(redis_client)
-    llm = build_llm_client()  # OpenAI-compatible qua LLM_BASE_URL
+    model = build_llm_model()
     jev_router = JevRouter()
     app.state.agent = AgentService(
-        llm=llm,
         snapshot_repo=snapshot_repo,
         score_repo=ScoreGatewayRepo(),
         question_repo=QuestionGatewayRepo(),
@@ -48,9 +49,13 @@ async def lifespan(app: FastAPI):
         discord_repo=DiscordGatewayRepo(),
         cache=redis_client,
         router=jev_router,
+        model=model,
     )
     app.state.redis = redis_client
     yield
+    from app.observability import flush
+
+    flush()
     await jev_router.aclose()
     await redis_client.aclose()
 
@@ -58,7 +63,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="oc-ai-agent", lifespan=lifespan)
 
 
-def _check_service_token(request: Request) -> None:
+def check_service_token(request: Request) -> None:
     expected = settings.agent_service_token
     if not expected:
         return  # dev: gateway-local traffic, auth enforced by Fastify
@@ -66,7 +71,7 @@ def _check_service_token(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid agent token")
 
 
-async def _check_rate_limit(redis_client, user_code: str) -> None:
+async def check_rate_limit(redis_client, user_code: str) -> None:
     key = f"agent:rate:{user_code}:1m"
     count = await redis_client.incr(key)
     if count == 1:
@@ -82,12 +87,12 @@ async def agent_ask(
     x_user_code: str = Header(default="anonymous"),
     x_user_role: str = Header(default="operator"),
 ) -> AgentResponse:
-    _check_service_token(request)
+    check_service_token(request)
     role = ROLE_HEADER_ALIASES.get(x_user_role)
     if role is None:
         raise HTTPException(status_code=403, detail="OCee chỉ dành cho admin/operator")
 
-    await _check_rate_limit(request.app.state.redis, x_user_code)
+    await check_rate_limit(request.app.state.redis, x_user_code)
 
     try:
         return await request.app.state.agent.ask(

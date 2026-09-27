@@ -1,5 +1,3 @@
-"""Contract + scenario tests (no Valkey/HTTP needed — fakes only)."""
-
 from __future__ import annotations
 
 import json
@@ -9,6 +7,7 @@ import pytest
 from app.domain.models import PlayerScore
 from app.domain.ports import strip_answers_for_role
 from app.services.agent_service import AgentService
+from tests.fake_chat import FakeToolModel
 from tests.fake_redis import FakeRedis
 
 
@@ -62,6 +61,32 @@ class FakeGateway:
         self.calls.append("bank_place")
         return {"bankCode": bank_code, "matchCode": match_code, "round": round}
 
+    # ── DiscordRepo ──
+
+    async def lookup_players(self, tournament_code: str) -> list[dict]:
+        self.calls.append("discord_lookup")
+        return []
+
+    async def assign_role(self, tournament_code: str, user_code: str) -> dict:
+        self.calls.append("discord_assign")
+        return {"tournamentCode": tournament_code, "userCode": user_code}
+
+    async def sync_nicknames(self, tournament_code: str, mapping: list[dict]) -> dict:
+        self.calls.append("discord_sync")
+        return {"synced": len(mapping)}
+
+    async def notify_prematch(
+        self, tournament_code, match_code=None, starts_at=None
+    ) -> dict:
+        self.calls.append("discord_notify")
+        return {"notified": True}
+
+    async def lock_player(
+        self, tournament_code, user_code, match_code=None
+    ) -> dict:
+        self.calls.append("discord_lock")
+        return {"locked": True}
+
 
 SNAPSHOT = {
     "phase": "kdc",
@@ -71,36 +96,27 @@ SNAPSHOT = {
 }
 
 
-def make_service(snapshot, gateway, cache=None) -> AgentService:
+def make_service(snapshot, gateway, cache=None, router=None) -> AgentService:
     return AgentService(
-        llm=_EchoLLM(),
         snapshot_repo=FakeSnapshotRepo(snapshot),
         score_repo=gateway,
         question_repo=gateway,
         bank_repo=gateway,
         discord_repo=gateway,
         cache=cache,
+        router=router,
+        model=FakeToolModel(),
     )
 
 
-class _EchoLLM:
-    """Returns ALL tool results as one JSON list — deterministic, no network."""
+class StubRouter:
+    """Trả đúng 1 decision — thay Jev trong test (không network)."""
 
-    async def chat_with_tools(
-        self,
-        system: str,
-        messages: list[dict],
-        tools: list[dict],
-        max_tool_rounds: int = 3,
-    ) -> tuple[str, list[str]]:
-        tool_results = [m for m in messages if m.get("role") == "tool"]
-        if tool_results:
-            try:
-                payloads = [json.loads(m["content"]) for m in tool_results]
-            except (json.JSONDecodeError, TypeError):
-                payloads = [m["content"] for m in tool_results]
-            return json.dumps(payloads, ensure_ascii=False), []
-        return "[stub] Không có dữ liệu.", []
+    def __init__(self, decision) -> None:
+        self.decision = decision
+
+    async def route(self, question: str, role: str):
+        return self.decision
 
 
 @pytest.mark.asyncio
@@ -116,88 +132,28 @@ async def test_scoreboard_question_returns_scores():
     assert "get_scoreboard" in response.tools_used
     scoreboard_rows = [
         p
-        for p in _all_tool_results(response.answer)
+        for p in all_tool_results(response.answer)
         if isinstance(p, dict) and "userCode" in p
     ]
     assert any(p["userCode"] == "P1" for p in scoreboard_rows)
 
 
-@pytest.mark.asyncio
-async def test_http_llm_builds_payload_and_headers(monkeypatch):
-    import httpx
-
+def test_build_llm_model_requires_key(monkeypatch):
     from app import config as config_module
-    from app.adapters.llm_http import HttpLLMClient
-
-    monkeypatch.setattr(config_module.settings, "llm_model", "test-model")
-    seen: dict = {}
-
-    async def handler(request: httpx.Request) -> httpx.Response:
-        import json as _json
-
-        seen["auth"] = request.headers.get("authorization")
-        seen["body"] = _json.loads(request.content.decode())
-        return httpx.Response(
-            200,
-            json={"choices": [{"message": {"content": "ok-verdict"}}]},
-        )
-
-    transport = httpx.MockTransport(handler)
-    client = httpx.AsyncClient(
-        transport=transport,
-        base_url="http://llm.test/v1",
-        headers={"Content-Type": "application/json", "Authorization": "Bearer k"},
-    )
-    llm = HttpLLMClient(client=client)
-    text, _used = await llm.chat_with_tools(
-        "sys",
-        [{"role": "user", "content": "hi"}],
-        [{"name": "search_bank", "description": "d", "parameters": {"type": "object"}}],
-    )
-    assert text == "ok-verdict"
-    assert seen["auth"] == "Bearer k"
-    assert seen["body"]["model"] == "test-model"
-    assert seen["body"]["tools"][0]["function"]["name"] == "search_bank"
-
-
-@pytest.mark.asyncio
-async def test_http_llm_unauthorized_maps_502():
-    import httpx
-
-    from app.adapters.llm_http import HttpLLMClient
+    from app.adapters.llm_openrouter import build_llm_model
     from app.domain.models import AgentError
 
-    async def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(401, json={"error": "bad key"})
-
-    client = httpx.AsyncClient(
-        transport=httpx.MockTransport(handler), base_url="http://llm.test/v1"
-    )
-    llm = HttpLLMClient(client=client)
+    monkeypatch.setattr(config_module.settings, "openrouter_api_key", "")
     try:
-        await llm.chat_with_tools("sys", [{"role": "user", "content": "hi"}], [])
-    except AgentError as exc:
-        assert exc.status_code == 502
-    else:
-        raise AssertionError("expected AgentError")
-
-
-def test_build_llm_client_requires_base_url(monkeypatch):
-    from app import config as config_module
-    from app.adapters.llm_http import build_llm_client
-    from app.domain.models import AgentError
-
-    monkeypatch.setattr(config_module.settings, "llm_base_url", "")
-    try:
-        build_llm_client()
+        build_llm_model()
     except AgentError as exc:
         assert exc.status_code == 500
     else:
         raise AssertionError("expected AgentError")
 
 
-def _all_tool_results(answer: str) -> list:
-    """_EchoLLM returns tool results as a JSON list — flatten one level."""
+def all_tool_results(answer: str) -> list:
+    """FakeToolModel returns tool results as a JSON list — flatten one level."""
     try:
         data = json.loads(answer)
         if not isinstance(data, list):
@@ -256,7 +212,7 @@ async def test_cache_roundtrip():
 @pytest.mark.asyncio
 async def test_discord_write_requires_staff():
     from app.domain.models import AgentError
-    from app.tools.registry import ToolContext, execute_tool
+    from app.utils.tools import ToolContext, execute_tool
 
     gateway = FakeGateway()
     ctx = ToolContext(
@@ -287,8 +243,8 @@ BANK_ROW = {
 }
 
 
-def _bank_ctx(gateway, role="qauthor"):
-    from app.tools.registry import ToolContext as Ctx
+def bank_ctx(gateway, role="qauthor"):
+    from app.utils.tools import ToolContext as Ctx
 
     return Ctx(
         snapshot_repo=FakeSnapshotRepo(SNAPSHOT),
@@ -305,10 +261,10 @@ def _bank_ctx(gateway, role="qauthor"):
 
 @pytest.mark.asyncio
 async def test_verify_bank_question_returns_row():
-    from app.tools.registry import execute_tool
+    from app.utils.tools import execute_tool
 
     gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
-    ctx = _bank_ctx(gateway)
+    ctx = bank_ctx(gateway)
     result = await execute_tool("verify_bank_question", {"bank_code": "QB_KDC_001"}, ctx)
     assert result["answer"] == "Hà Nội"
     assert result["round_hint"] == "KD_C"
@@ -318,7 +274,7 @@ async def test_verify_bank_question_returns_row():
 async def test_write_tools_removed_read_only():
     """Ocee read-only: mọi write tool chặn ở execute_tool, bất kể role."""
     from app.domain.models import AgentError
-    from app.tools.registry import WRITE_TOOLS, execute_tool
+    from app.utils.tools import WRITE_TOOLS, execute_tool
 
     gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
     cases = (
@@ -330,7 +286,7 @@ async def test_write_tools_removed_read_only():
         ("propose_bank_edit", {"bank_code": "QB_KDC_001", "request": "đổi đáp án"}),
     )
     for role in ("qauthor", "mc", "controller"):
-        ctx = _bank_ctx(gateway, role=role)
+        ctx = bank_ctx(gateway, role=role)
         for name, args in cases:
             with pytest.raises(AgentError) as exc:
                 await execute_tool(name, args, ctx)
@@ -338,17 +294,17 @@ async def test_write_tools_removed_read_only():
     assert "bank_update" not in gateway.calls
     assert "bank_place" not in gateway.calls
     # Schema cũng gỡ — LLM không thấy tool ghi.
-    from app.tools.registry import TOOL_SCHEMAS
+    from app.utils.tools import TOOL_SCHEMAS
 
     assert not {t["name"] for t in TOOL_SCHEMAS} & WRITE_TOOLS
 
 
 @pytest.mark.asyncio
 async def test_suggest_bank_review_returns_checklist():
-    from app.tools.registry import execute_tool
+    from app.utils.tools import execute_tool
 
     gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
-    ctx = _bank_ctx(gateway)
+    ctx = bank_ctx(gateway)
     result = await execute_tool("suggest_bank_review", {"bank_code": "QB_KDC_001"}, ctx)
     assert result["bank_code"] == "QB_KDC_001"
     assert "similar" in result and "checklist" in result
@@ -359,7 +315,7 @@ async def test_suggest_bank_review_returns_checklist():
 async def test_refuse_write_request_answers_use_ui():
     """Yêu cầu update → route:refuse, trả lời dùng UI, không bank write nào chạy."""
     gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
-    service = make_service(SNAPSHOT, gateway)
+    service = make_service(SNAPSHOT, gateway, router=StubRouter(("refuse", 0.95)))
     response = await service.ask(
         "BANK_REVIEW", "update QB_KDC_001 đáp án Hà Nội", "qauthor"
     )
@@ -369,21 +325,10 @@ async def test_refuse_write_request_answers_use_ui():
     assert "bank_place" not in gateway.calls
 
 
-def test_route_task_bank_kinds():
-    from app.graph import route_task
-
-    assert route_task("check QB_KDC_001 chính xác ko") == "verify"
-    assert route_task("update QB_KDC_001 đáp án Hà Nội") == "refuse"
-    assert route_task("bỏ QB_KDC_001 vào trận OC3_M_1 vòng Bứt phá") == "refuse"
-    assert route_task("đánh index QB_KDC_001") == "index"
-    assert route_task("ai đang dẫn đầu?") == "qa"
-    assert route_task("cho ý kiến duyệt QB_KDC_001") == "assist"
-
-
 @pytest.mark.asyncio
 async def test_ask_verify_routes_bank_tool():
     gateway = FakeGateway(bank={"QB_KDC_001": BANK_ROW})
-    service = make_service(SNAPSHOT, gateway)
+    service = make_service(SNAPSHOT, gateway, router=StubRouter(("verify", 0.9)))
     response = await service.ask(
         "BANK_REVIEW", "check QB_KDC_001 chính xác ko", "qauthor"
     )

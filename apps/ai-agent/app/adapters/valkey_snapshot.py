@@ -1,9 +1,3 @@
-"""Adapter: hot match state from Valkey.
-
-Key contract MUST match apps/api/src/state/match-state.ts:
-- snapshot:{matchCode} hash, JSON-serialized fields, TTL 3h
-"""
-
 from __future__ import annotations
 
 import json

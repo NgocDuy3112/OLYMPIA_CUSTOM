@@ -1,5 +1,3 @@
-"""Stub cache for tests — no Valkey required."""
-
 from __future__ import annotations
 
 

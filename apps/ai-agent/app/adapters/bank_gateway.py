@@ -1,5 +1,3 @@
-"""Bank adapter — Seam BankRepo (QAuthor tools, agent token)."""
-
 from __future__ import annotations
 
 from app.adapters.transport import ApiGatewayTransport
@@ -13,7 +11,7 @@ class BankGatewayRepo(ApiGatewayTransport):
         if round_hint:
             params["round_hint"] = round_hint
         query = "&".join(f"{k}={v}" for k, v in params.items())
-        data = await self._get(f"/bank/search{('?' + query) if query else ''}")
+        data = await self.get(f"/bank/search{('?' + query) if query else ''}")
         rows = data.get("rows") or []
         return rows if isinstance(rows, list) else []
 
@@ -26,12 +24,12 @@ class BankGatewayRepo(ApiGatewayTransport):
         return None
 
     async def update_bank_row(self, bank_id: str, updates: dict) -> dict:
-        return await self._patch(f"/bank/{bank_id}", updates)
+        return await self.patch(f"/bank/{bank_id}", updates)
 
     async def place_to_match(
         self, bank_code: str, match_code: str, round: str
     ) -> dict:
-        return await self._post(
+        return await self.post(
             "/questions/pick",
             {"bankCode": bank_code, "matchCode": match_code, "round": round},
         )

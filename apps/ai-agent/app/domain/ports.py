@@ -1,24 +1,25 @@
-"""Ports — interfaces the tool layer depends on. Adapters implement these."""
-
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from app.domain.models import PlayerScore, UserRole
 
 
+@runtime_checkable
 class MatchStateRepo(Protocol):
     """Hot state — read straight from Valkey."""
 
     async def get_snapshot(self, match_code: str) -> dict | None: ...
 
 
+@runtime_checkable
 class ScoreRepo(Protocol):
     """DB-derived data, via Fastify internal endpoints."""
 
     async def get_scoreboard(self, match_code: str) -> list[PlayerScore]: ...
 
 
+@runtime_checkable
 class QuestionRepo(Protocol):
     async def get_questions(self, match_code: str, role: UserRole) -> list[dict]: ...
 
@@ -31,6 +32,7 @@ class MatchLookupRepo(Protocol):
     async def find_tournament_code(self, match_code: str) -> str | None: ...
 
 
+@runtime_checkable
 class BankRepo(Protocol):
     """Question bank — read + write qua Fastify internal endpoints."""
 
@@ -45,6 +47,7 @@ class BankRepo(Protocol):
     ) -> dict: ...
 
 
+@runtime_checkable
 class DiscordRepo(Protocol):
     """Discord identity + commands, via Fastify /discord endpoints."""
 
@@ -69,20 +72,6 @@ class DiscordRepo(Protocol):
         user_code: str,
         match_code: str | None = None,
     ) -> dict: ...
-
-
-class LLMClient(Protocol):
-    """Tool-calling loop provider. Swap adapters freely."""
-
-    async def chat_with_tools(
-        self,
-        system: str,
-        messages: list[dict],
-        tools: list[dict],
-        max_tool_rounds: int = 3,
-    ) -> tuple[str, list[str]]:
-        """Returns (final_text, tools_used)."""
-        ...
 
 
 def strip_answers_for_role(questions: list[dict], role: UserRole) -> list[dict]:

@@ -16,7 +16,7 @@ class ApiGatewayTransport:
             timeout=10,
         )
 
-    async def _post(self, path: str, body: dict) -> dict:
+    async def post(self, path: str, body: dict) -> dict:
         try:
             response = await self._client.post(path, json=body)
         except httpx.HTTPError as error:
@@ -34,7 +34,7 @@ class ApiGatewayTransport:
         data = payload.get("data") if isinstance(payload, dict) else payload
         return data if isinstance(data, dict) else {"result": data}
 
-    async def _patch(self, path: str, body: dict) -> dict:
+    async def patch(self, path: str, body: dict) -> dict:
         try:
             response = await self._client.patch(path, json=body)
         except httpx.HTTPError as error:
@@ -52,7 +52,7 @@ class ApiGatewayTransport:
         data = payload.get("data") if isinstance(payload, dict) else payload
         return data if isinstance(data, dict) else {"result": data}
 
-    async def _get(self, path: str) -> dict:
+    async def get(self, path: str) -> dict:
         try:
             response = await self._client.get(path)
         except httpx.HTTPError as error:
