@@ -18,6 +18,7 @@ import { createStatusCommand } from "./commands/status.js";
 import { startValkeyListener } from "./events/valkey-listener.js";
 import { handleReviewButton } from "./events/score-review.js";
 import { handleVerifyButton } from "./mcp/server.js";
+import { loginBot } from "./api-session.js";
 import { startExecutor } from "./executor.js";
 
 interface Command {
@@ -133,6 +134,17 @@ export async function startBot() {
   });
 
   await discordClient.login(env.BOT_TOKEN);
+
+  // Staff session cho API callbacks.
+  try {
+    await loginBot();
+    console.error("[Discord] API session ready");
+  } catch (err) {
+    console.error(
+      "[Discord] API session failed (callbacks sẽ 403):",
+      err instanceof Error ? err.message : err,
+    );
+  }
 
   // Internal HTTP executor for direct API commands (assign/remove/sync)
   const executor = startExecutor(discordClient);

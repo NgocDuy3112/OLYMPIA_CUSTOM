@@ -12,8 +12,10 @@ const envSchema = z.object({
   VALKEY_PASSWORD: z.string().optional(),
   VALKEY_USER: z.string().default("default"),
 
-  BOT_SERVICE_TOKEN: z.string().default(""),
   API_BASE_URL: z.string().default("http://localhost:8000/api"),
+  // Staff account cho bot (operator + controller) — session thay token riêng.
+  BOT_STAFF_USERNAME: z.string().default(""),
+  BOT_STAFF_PASSWORD: z.string().default(""),
 
   // ── MCP discord (stdio + HTTP) ──
   MCP_ALLOWED_CHANNELS: z.string().default(""),

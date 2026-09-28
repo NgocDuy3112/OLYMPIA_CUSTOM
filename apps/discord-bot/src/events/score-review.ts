@@ -30,16 +30,7 @@ interface ReviewState {
 }
 
 const states = new Map<string, ReviewState>();
-const API_BASE = process.env.API_BASE_URL ?? "http://localhost:8000/api";
-const BOT_TOKEN = process.env.BOT_SERVICE_TOKEN ?? "";
-
-function botHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (BOT_TOKEN) headers["X-Bot-Token"] = BOT_TOKEN;
-  return headers;
-}
+import { botFetch } from "../api-session.js";
 
 function shortLabel(label: string): string {
   return label.length > 20 ? label.slice(0, 19) + "…" : label;
@@ -107,9 +98,8 @@ function buildRows(state: ReviewState): ActionRowBuilder<ButtonBuilder>[] {
 }
 
 async function postDecision(reviewId: string, decisions: Record<string, string>, decidedBy: string) {
-  const resp = await fetch(`${API_BASE}/score-reviews/${reviewId}/decision`, {
+  const resp = await botFetch(`/score-reviews/${reviewId}/decision`, {
     method: "POST",
-    headers: botHeaders(),
     body: JSON.stringify({ decisions, decidedBy }),
   });
   if (!resp.ok) {
@@ -163,9 +153,8 @@ export async function handleReviewButton(interaction: ButtonInteraction): Promis
   if (action === "ocee") {
     await interaction.deferUpdate();
     try {
-      const resp = await fetch(`${API_BASE}/score-reviews/${reviewId}/ocee`, {
+      const resp = await botFetch(`/score-reviews/${reviewId}/ocee`, {
         method: "POST",
-        headers: botHeaders(),
       });
       const json = (await resp.json()) as { data?: { text?: string }; message?: string };
       if (!resp.ok) throw new Error(json.message ?? "OCee failed");

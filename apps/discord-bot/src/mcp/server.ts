@@ -308,12 +308,22 @@ export async function startDiscordMcp(client: Client): Promise<void> {
 }
 
 function httpTokens(): Set<string> {
-  return new Set(
-    getEnv()
-      .MCP_HTTP_TOKENS.split(";")
-      .map((s: string) => s.trim())
-      .filter(Boolean),
-  );
+  // Chung format MCP: "name:token:role:scopes;..." (role ⊂ admin,operator,agent).
+  // Discord chưa chia scope — token hợp lệ = full 4 tools.
+  // Legacy "tok1;tok2" → role agent.
+  const out = new Set<string>();
+  for (const entry of getEnv().MCP_HTTP_TOKENS.split(";")) {
+    const parts = entry.split(":").map((s: string) => s.trim());
+    if (parts.length === 4) {
+      const [, token, role] = parts;
+      if (token && (role === "admin" || role === "operator" || role === "agent")) {
+        out.add(token);
+      }
+    } else if (parts.length === 1 && parts[0]) {
+      out.add(parts[0]);
+    }
+  }
+  return out;
 }
 
 function readJson(req: IncomingMessage): Promise<unknown> {

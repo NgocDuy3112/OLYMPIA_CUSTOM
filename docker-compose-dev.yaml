@@ -54,11 +54,13 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_DB_USER}:${POSTGRES_DB_PASSWORD}@${POSTGRES_DB_HOST}:${POSTGRES_DB_PORT}/${POSTGRES_DB_NAME}
     ports:
       - "8000:8000"
+      - "8300:8300" # MCP api (chung image)
     volumes:
       - ./apps/api/src:/app/apps/api/src:ro
       - ./packages/db/src:/app/packages/db/src:ro
       - ./configs:/app/configs:ro
       - ./logs:/var/log/olympia
+      - ./data/app:/app/data # MCP tokens file (admin cấp qua UI)
     depends_on:
       postgresql:
         condition: service_healthy
@@ -99,7 +101,6 @@ services:
       VALKEY_HOST: ${VALKEY_HOST}
       VALKEY_PORT: ${VALKEY_PORT}
       API_INTERNAL_URL: http://app:8000/api
-      # Traces → OTel collector → fanout Tempo (Grafana/exemplar) + Phoenix (LLM detail)
       PHOENIX_COLLECTOR_ENDPOINT: http://otel-collector:4318/v1/traces
       OTEL_SERVICE_NAME: ocee-ai-agent
     ports:
@@ -146,8 +147,7 @@ services:
     volumes:
       - ./configs/otel-collector.yaml:/etc/otelcol/config.yaml:ro
     ports:
-      - "127.0.0.1:4317:4317" # OTLP gRPC (host dev)
-      - "127.0.0.1:4318:4318" # OTLP HTTP (host dev)
+      - "4318:4318" # OTLP HTTP (host dev)
     depends_on:
       - tempo
       - phoenix
@@ -201,7 +201,7 @@ services:
     environment:
       EXECUTOR_PORT: 8200
     ports:
-      - "127.0.0.1:8200:8200"
+      - "8200:8200"
     depends_on:
       - valkey
     networks:
