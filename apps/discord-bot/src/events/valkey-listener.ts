@@ -273,7 +273,7 @@ export function startValkeyListener(
       console.error("[Discord] Subscribe error:", err);
       return;
     }
-    console.log(`[Discord] Subscribed to ${VALKEY_CHANNEL}`);
+    console.error(`[Discord] Subscribed to ${VALKEY_CHANNEL}`);
   });
 
   subscriber.on("message", (_channel: string, message: string) => {

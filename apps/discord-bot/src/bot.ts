@@ -17,6 +17,7 @@ import { pingCommand } from "./commands/ping.js";
 import { createStatusCommand } from "./commands/status.js";
 import { startValkeyListener } from "./events/valkey-listener.js";
 import { handleReviewButton } from "./events/score-review.js";
+import { handleVerifyButton } from "./mcp/server.js";
 import { startExecutor } from "./executor.js";
 
 interface Command {
@@ -82,12 +83,12 @@ export async function startBot() {
 
   // ── Events ──
   discordClient.once(Events.ClientReady, (c) => {
-    console.log(`✅ Logged in as ${c.user.tag}`);
+    console.error(`✅ Logged in as ${c.user.tag}`);
 
     c.application.commands
       .set(commands.map((cmd) => cmd.data.toJSON()))
       .then(() => {
-        console.log("✅ Slash commands registered");
+        console.error("✅ Slash commands registered");
       })
       .catch(console.error);
 
@@ -104,6 +105,7 @@ export async function startBot() {
   discordClient.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton()) {
       try {
+        if (await handleVerifyButton(interaction)) return;
         const handled = await handleReviewButton(interaction);
         if (!handled) {
           await interaction.reply({ content: "Nút không còn hiệu lực.", ephemeral: true });
@@ -136,7 +138,7 @@ export async function startBot() {
   const executor = startExecutor(discordClient);
 
   const shutdown = () => {
-    console.log("Shutting down bot...");
+    console.error("Shutting down bot...");
     executor.close();
     valkeySub.disconnect();
     valkey.disconnect();

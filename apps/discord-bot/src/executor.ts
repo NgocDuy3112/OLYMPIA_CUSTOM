@@ -140,7 +140,7 @@ export function startExecutor(client: Client) {
   });
 
   server.listen(EXECUTOR_PORT, "127.0.0.1", () => {
-    console.log(`[Discord] Executor listening on 127.0.0.1:${EXECUTOR_PORT}`);
+    console.error(`[Discord] Executor listening on 127.0.0.1:${EXECUTOR_PORT}`);
   });
   return server;
 }

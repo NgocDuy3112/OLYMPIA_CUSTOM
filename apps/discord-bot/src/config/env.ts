@@ -14,6 +14,17 @@ const envSchema = z.object({
 
   BOT_SERVICE_TOKEN: z.string().default(""),
   API_BASE_URL: z.string().default("http://localhost:8000/api"),
+
+  // ── MCP discord (stdio + HTTP) ──
+  MCP_ALLOWED_CHANNELS: z.string().default(""),
+  VERIFY_TTL_SEC: z.coerce.number().default(3600),
+  VERIFY_REMIND_SEC: z.coerce.number().default(900),
+  VERIFY_MAX_REMIND: z.coerce.number().default(3),
+  VERIFY_ROLE_IDS: z.string().default(""),
+  MCP_HTTP_PORT: z.coerce.number().default(8301),
+  MCP_HTTP_HOST: z.string().default("0.0.0.0"),
+  // Bearer tokens cho POST /mcp ("tok1;tok2"). Rỗng = dev mở.
+  MCP_HTTP_TOKENS: z.string().default(""),
 });
 
 export type Env = z.infer<typeof envSchema>;

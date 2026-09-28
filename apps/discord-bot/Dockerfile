@@ -31,4 +31,6 @@ COPY --from=builder /app/pnpm-lock.yaml pnpm-lock.yaml
 RUN cd apps/discord-bot && pnpm install --prod --no-frozen-lockfile
 COPY --from=builder /app/apps/discord-bot/dist dist
 
-CMD ["node", "dist/index.js"]
+EXPOSE 8200 8301
+
+CMD ["node", "dist/index.js", "--http"]
