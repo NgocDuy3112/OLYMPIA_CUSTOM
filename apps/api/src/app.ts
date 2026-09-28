@@ -28,6 +28,7 @@ import { discordRoutes } from "./modules/discord/discord.routes.js";
 import { checkpointRoutes } from "./modules/checkpoint/checkpoint.routes.js";
 import { auditRoutes } from "./modules/audit/audit.routes.js";
 import { qualifierRoutes } from "./modules/qualifier/qualifier.routes.js";
+import { gradeRoutes } from "./modules/grade/grade.routes.js";
 import { questionSetRoutes } from "./modules/question-set/question-set.routes.js";
 import { metricsRoutes } from "./modules/metrics/metrics.routes.js";
 import { startCheckpointJob } from "./state/checkpoint.service.js";
@@ -82,6 +83,7 @@ export async function createApp() {
   await app.register(checkpointRoutes, { prefix: "/api" });
   await app.register(auditRoutes, { prefix: "/api" });
   await app.register(qualifierRoutes, { prefix: "/api" });
+  await app.register(gradeRoutes, { prefix: "/api" });
   await app.register(questionSetRoutes, { prefix: "/api" });
 
   // Background: snapshot Valkey match state every 30s
