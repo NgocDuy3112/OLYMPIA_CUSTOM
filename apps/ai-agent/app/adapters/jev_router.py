@@ -1,97 +1,87 @@
-"""Jev router — System One Choice qua OpenRouter Decisions API.
+"""JevRouter — route task bằng Jev Choice qua OpenRouter.
 
-Không thêm dependency mới: tự gọi HTTP bằng httpx. Fail-open: thiếu key /
-lỗi API / lựa chọn không hợp lệ → None, caller dùng keyword fallback —
-ask không bao giờ chết vì router.
+Contract (theo tests/test_router.py):
+- POST {base}/api/alpha/decisions, Bearer OPENROUTER_API_KEY
+- body.questions.task = Choice {type, criteria, state}
+- response.answers.task = {choice, confidence} → (task, confidence)
+- Lỗi/key trống → None (fail-open, route_node mặc định qa).
 """
 
 from __future__ import annotations
 
-import logging
-
 import httpx
 
-from app.config import settings
+DECISIONS_PATH = "/api/alpha/decisions"
+BASE_URL = "https://openrouter.ai/api"
 
-logger = logging.getLogger(__name__)
-
-API_BASE_URL = "https://openrouter.ai/api"
-
-# Criteria map thẳng TaskKind — option name = giá trị code dùng.
-# Mô tả tách bạch theo docs Choice: mỗi option nói rõ nó là gì AND không là gì.
 CRITERIA: dict[str, str] = {
-    "qa": (
-        "Hỏi thông tin chung: điểm số, thứ hạng, luật chơi, trạng thái trận, "
-        "BXH giải — không đụng một câu bank cụ thể nào"
-    ),
-    "verify": (
-        "Kiểm tra một câu bank cụ thể (mã QB_*) có chính xác không — "
-        "đối chiếu nội dung/đáp án, không sửa"
-    ),
-    "index": (
-        "Tìm lại hoặc tag ngân hàng câu hỏi: tìm câu theo nội dung "
-        "hoặc round_hint đã đánh index"
-    ),
-    "assist": (
-        "Xin ý kiến/gợi ý xem có nên duyệt một câu bank QB_* — "
-        "hỏi về review, không tự sửa"
-    ),
-    "ops": (
-        "Điều phối Discord của giải: gán role/sync nickname thí sinh, "
-        "thông báo trước trận, khóa thí sinh trễ giờ — thao tác vận hành"
-    ),
-    "refuse": (
-        "Yêu cầu sửa nội dung/đáp án bank, bỏ hoặc chèn câu vào một trận — "
-        "Ocee từ chối và chỉ dẫn dùng UI qauthor"
-    ),
-    "other": "Không khớp loại nào ở trên",
+    "verify": "Kiểm tra chất lượng một câu hỏi bank cụ thể (đúng/sai, đáp án, trích dẫn).",
+    "index": "Đánh index/gán metadata cho câu hỏi bank (round, domain, difficulty).",
+    "qa": "Hỏi đáp về trận đấu, điểm số, trạng thái live.",
+    "ops": "Vận hành trận đấu (mở/chốt câu, điều khiển live).",
+    "assist": "Hỗ trợ soạn câu hỏi mới cho qauthor.",
+    "refuse": "Từ chối: ngoài phạm vi hoặc thiếu quyền.",
+}
+
+from app.utils.state import TrackKind
+
+# Tier-2: track soạn/kiểm tra câu — Jev chọn theo nội dung, không hardcode domain.
+TRACK_CRITERIA: dict[TrackKind, str] = {
+    "reason": "Câu suy luận, tính toán nhiều bước, bẫy tư duy.",
+    "fact": "Câu ghi nhớ fact, lịch sử, đáp án ổn định.",
+    "fresh": "Câu cần nguồn cập nhật liên tục, số liệu thời sự.",
 }
 
 
 class JevRouter:
-    """POST /alpha/decisions — Choice 1 câu hỏi, trả (task, confidence) | None."""
-
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+        from app.config import settings
+
         self._client = client or httpx.AsyncClient(
-            base_url=API_BASE_URL,
-            timeout=settings.jev_timeout,
+            base_url=BASE_URL, timeout=settings.jev_timeout
         )
+        self._owned = client is None
 
     async def route(self, question: str, role: str) -> tuple[str, float] | None:
-        """Trả (task, confidence) hoặc None (fail-open → keyword fallback)."""
-        if not settings.openrouter_api_key:
+        return await self._choose("task", CRITERIA, question, role)
+
+    async def route_track(self, question: str) -> tuple[str, float] | None:
+        """Tier-2: chọn track soạn/kiểm tra (reason/fact/fresh)."""
+        return await self._choose("track", TRACK_CRITERIA, question, "")
+
+    async def _choose(
+        self, name: str, criteria: dict[str, str], question: str, role: str
+    ) -> tuple[str, float] | None:
+        from app.config import settings
+
+        key = settings.openrouter_api_key
+        if not key:
             return None
-        payload = {
-            "model": settings.jev_model,
-            "state": {"question": question, "role": role},
-            "questions": {
-                "task": {
-                    "type": "choice",
-                    "instructions": (
-                        "Nhiệm vụ chính của người dùng muốn OCee "
-                        "(trợ lý Olympia Custom) thực hiện là gì?"
-                    ),
-                    "criteria": CRITERIA,
-                }
-            },
-        }
         try:
             resp = await self._client.post(
-                "/alpha/decisions",
-                json=payload,
-                headers={"Authorization": f"Bearer {settings.openrouter_api_key}"},
+                DECISIONS_PATH,
+                headers={"Authorization": f"Bearer {key}"},
+                json={
+                    "model": settings.jev_model,
+                    "questions": {
+                        name: {
+                            "type": "choice",
+                            "criteria": criteria,
+                            "state": {"question": question, "role": role},
+                        }
+                    },
+                },
             )
             resp.raise_for_status()
-            data = resp.json()
-            answer = data["answers"]["task"]
-            choice = str(answer.get("choice", ""))
-            confidence = float(answer.get("confidence", 0.0))
-        except (httpx.HTTPError, KeyError, ValueError, TypeError, AttributeError) as exc:
-            logger.warning("Jev router lỗi, dùng keyword fallback: %s", exc)
+            ans = resp.json()["answers"][name]
+            choice = ans.get("choice")
+            confidence = float(ans.get("confidence", 0))
+            if choice not in criteria:
+                return None
+            return (choice, confidence)
+        except Exception:  # noqa: BLE001 — router không được làm ask chết
             return None
-        if choice not in CRITERIA or choice == "other":
-            return None
-        return choice, confidence
 
     async def aclose(self) -> None:
-        await self._client.aclose()
+        if self._owned:
+            await self._client.aclose()

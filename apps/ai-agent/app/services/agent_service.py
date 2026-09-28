@@ -14,23 +14,21 @@ class AgentService:
 
     def __init__(
         self,
-        snapshot_repo,
-        score_repo,
-        question_repo,
-        bank_repo,
-        discord_repo,
         cache=None,  # redis.asyncio.Redis | None
         router=None,  # JevRouter | None — None → keyword fallback
         model=None,  # BaseChatModel — prod ChatOpenRouter / test fake
+        models=None,  # dict[task, BaseChatModel] — model riêng từng subagent
+        mcp=None,  # shared FastMCP Client | None — None → agent không tools
     ) -> None:
-        self._snapshot_repo = snapshot_repo
-        self._score_repo = score_repo
-        self._question_repo = question_repo
-        self._bank_repo = bank_repo
-        self._discord_repo = discord_repo
         self._cache = cache
         self._router = router
         self._model = model
+        self._models = dict(models or {})
+        self._mcp = mcp
+
+    def model_for(self, task: str):
+        """Model của subagent — fallback model chung khi task không override."""
+        return self._models.get(task) or self._model
 
     async def ask(
         self,
@@ -63,12 +61,9 @@ class AgentService:
         from app.utils.state import AgentContext
 
         context = AgentContext(
-            snapshot_repo=self._snapshot_repo,
-            score_repo=self._score_repo,
-            question_repo=self._question_repo,
-            bank_repo=self._bank_repo,
-            discord_repo=self._discord_repo,
             model=self._model,
+            models=self._models,
+            mcp=self._mcp,
             router=self._router,
         )
         try:
@@ -117,7 +112,7 @@ class AgentService:
 
         from app.utils.nodes import scope_for_task
 
-        system, _schemas = scope_for_task(str(final.get("task") or "qa"))
+        system = scope_for_task(str(final.get("task") or "qa"))
         lc_messages = [SystemMessage(content=system)]
         for m in messages:
             content = m.get("content", "")
@@ -126,18 +121,13 @@ class AgentService:
 
                 content = json.dumps(content, ensure_ascii=False, default=str)
             lc_messages.append(HumanMessage(content=content))
-        result = await self._model.ainvoke(lc_messages)
+        result = await self.model_for(str(final.get("task") or "qa")).ainvoke(lc_messages)
         return str(result.content or ""), []
 
     def system_prompt(self) -> str:
         from app.utils.nodes import scope_for_task
 
-        return scope_for_task("qa")[0]
-
-    def tool_schemas(self) -> list[dict]:
-        from app.utils.tools import QA_TOOLS
-
-        return QA_TOOLS
+        return scope_for_task("qa")
 
     def cache_key(self, match_code: str, question: str, role: UserRole) -> str:
         digest = hashlib.sha256(

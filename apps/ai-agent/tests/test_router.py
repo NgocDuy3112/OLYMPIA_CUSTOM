@@ -3,24 +3,11 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from tests.fake_chat import FakeToolModel
-from tests.test_agent import SNAPSHOT, FakeGateway
+from tests.test_agent import make_service
 
 
-def build_service(gateway, router=None):
-    from app.services.agent_service import AgentService
-    from tests.test_agent import FakeSnapshotRepo
-
-    return AgentService(
-        snapshot_repo=FakeSnapshotRepo(SNAPSHOT),
-        score_repo=gateway,
-        question_repo=gateway,
-        bank_repo=gateway,
-        discord_repo=gateway,
-        cache=None,
-        router=router,
-        model=FakeToolModel(),
-    )
+def build_service(router=None):
+    return make_service(router=router)
 
 
 class _StubRouter:
@@ -121,8 +108,7 @@ async def test_jev_router_fails_open(monkeypatch):
 @pytest.mark.asyncio
 async def test_service_uses_jev_high_confidence():
     """Jev tự tin → dùng đúng task Jev trả về."""
-    gateway = FakeGateway(bank={})
-    service = build_service(gateway, router=_StubRouter(("assist", 0.95)))
+    service = build_service(router=_StubRouter(("assist", 0.95)))
     # Jev nói "assist" tự tin → dispatch bank_agent (assist)
     response = await service.ask("OC3_x", "đánh index QB_KDC_001", "qauthor")
     assert "route:assist" in response.tools_used
@@ -131,8 +117,7 @@ async def test_service_uses_jev_high_confidence():
 @pytest.mark.asyncio
 async def test_service_low_confidence_defaults_qa():
     """Confidence dưới ngưỡng (0.6) → mặc định qa, không heuristic."""
-    gateway = FakeGateway(bank={})
-    service = build_service(gateway, router=_StubRouter(("index", 0.4)))
+    service = build_service(router=_StubRouter(("index", 0.4)))
     response = await service.ask("OC3_x", "đánh index QB_KDC_001", "qauthor")
     assert "route:qa" in response.tools_used
 
@@ -140,7 +125,6 @@ async def test_service_low_confidence_defaults_qa():
 @pytest.mark.asyncio
 async def test_service_keyword_when_router_none():
     """Không có router (chưa set key) → mặc định task qa, không lỗi."""
-    gateway = FakeGateway(bank={})
-    service = build_service(gateway, router=None)
+    service = build_service(router=None)
     response = await service.ask("OC3_x", "ai đang dẫn đầu?", "controller")
     assert "route:qa" in response.tools_used

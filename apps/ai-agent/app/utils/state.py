@@ -4,15 +4,9 @@ from typing import Annotated, Any, Literal
 
 from typing_extensions import TypedDict
 
-from app.domain.ports import (
-    BankRepo,
-    DiscordRepo,
-    MatchStateRepo,
-    QuestionRepo,
-    ScoreRepo,
-)
-
 TaskKind = Literal["verify", "index", "qa", "ops", "assist", "refuse"]
+
+TrackKind = Literal["reason", "fact", "fresh"]
 
 
 def merge_list(left: list | None, right: list | None) -> list:
@@ -27,6 +21,7 @@ class AgentState(TypedDict, total=False):
     role: str
     user_code: str
     task: str
+    track: str
     subagent: str | None
     bank_code: str | None
     bank_row: dict | None
@@ -40,15 +35,12 @@ class AgentState(TypedDict, total=False):
 
 
 class AgentContext(TypedDict):
-    """Deps tĩnh 1 run — contract Fastify repos + model LLM.
+    """Deps tĩnh 1 run — model LLM + shared MCP + router.
 
     Nhập qua graph.ainvoke(state, context=...) — KHÔNG nằm trong state.
     """
 
-    snapshot_repo: MatchStateRepo
-    score_repo: ScoreRepo
-    question_repo: QuestionRepo
-    bank_repo: BankRepo
-    discord_repo: DiscordRepo
     model: Any | None
+    models: Any | None
+    mcp: Any | None
     router: Any | None

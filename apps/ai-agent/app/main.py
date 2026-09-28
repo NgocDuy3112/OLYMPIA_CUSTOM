@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 import redis.asyncio as redis
 from fastapi import FastAPI, Header, HTTPException, Request, Response
+from fastmcp.client import Client
 
-from app.adapters.bank_gateway import BankGatewayRepo
-from app.adapters.discord_gateway import DiscordGatewayRepo
 from app.adapters.jev_router import JevRouter
 from app.adapters.llm_openrouter import build_llm_model
-from app.adapters.question_gateway import QuestionGatewayRepo
-from app.adapters.score_gateway import ScoreGatewayRepo
-from app.adapters.valkey_snapshot import ValkeySnapshotRepo
 from app.config import settings
 from app.domain.models import AgentError, AgentRequest, AgentResponse, UserRole
 from app.services.agent_service import AgentService
@@ -33,26 +29,47 @@ async def lifespan(app: FastAPI):
 
     setup(app)
 
-    redis_client = redis.Redis(
-        host=settings.valkey_host,
-        port=settings.valkey_port,
-        decode_responses=True,
-    )
-    snapshot_repo = ValkeySnapshotRepo(redis_client)
-    model = build_llm_model()
-    jev_router = JevRouter()
-    app.state.agent = AgentService(
-        snapshot_repo=snapshot_repo,
-        score_repo=ScoreGatewayRepo(),
-        question_repo=QuestionGatewayRepo(),
-        bank_repo=BankGatewayRepo(),
-        discord_repo=DiscordGatewayRepo(),
-        cache=redis_client,
-        router=jev_router,
-        model=model,
-    )
-    app.state.redis = redis_client
-    yield
+    async with AsyncExitStack() as stack:
+        redis_client = redis.Redis(
+            host=settings.valkey_host,
+            port=settings.valkey_port,
+            decode_responses=True,
+        )
+        model = build_llm_model()
+        per_task = {}
+        for task, override in (
+            ("qa", settings.llm_model_qa),
+            ("verify", settings.llm_model_verify),
+            ("index", settings.llm_model_index),
+            ("assist", settings.llm_model_assist),
+            ("ops", settings.llm_model_ops),
+            ("reason", settings.llm_model_reason),
+            ("fact", settings.llm_model_fact),
+            ("fresh", settings.llm_model_fresh),
+        ):
+            if override and override != settings.llm_model:
+                per_task[task] = build_llm_model(override)
+        jev_router = JevRouter()
+        # 1 shared MCP connection cho cả process (adapter + tools).
+        # MCP chết lúc start → None, fail-open chạy snapshot/discord.
+        mcp_url = settings.mcp_base_url.rstrip("/") + "/mcp"
+        try:
+            mcp_shared = await stack.enter_async_context(
+                Client(mcp_url, auth=settings.mcp_token)
+                if settings.mcp_token
+                else Client(mcp_url)
+            )
+        except Exception:  # noqa: BLE001 — MCP chết lúc start thì fail-open
+            mcp_shared = None
+        app.state.agent = AgentService(
+            cache=redis_client,
+            router=jev_router,
+            model=model,
+            models=per_task,
+            mcp=mcp_shared,
+        )
+        app.state.redis = redis_client
+        yield
     from app.observability import flush
 
     flush()

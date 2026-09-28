@@ -15,7 +15,7 @@ uvicorn app.main:app --reload --port 8100
 
 ```
 app/domain/     Pydantic models + Protocol ports
-app/adapters/   ValkeySnapshotRepo, ApiGatewayScoreRepo, LLMClient (stub)
+app/adapters/   jev_router (route), llm_openrouter (model/task), MCP shared (data)
 app/utils/      graph utils: state.py / nodes.py / tools.py
 app/agent.py    graph construction (build_graph)
 app/services/   AgentService orchestrator
