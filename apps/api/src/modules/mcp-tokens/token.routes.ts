@@ -47,6 +47,7 @@ export async function mcpTokenRoutes(app: FastifyInstance) {
         }
       ).session;
       // Operator chỉ cấp ≤ quyền mình: role agent/operator, scopes ⊂ scopes mình.
+      // Mọi operator (kể cả mc) đều được dùng MCP.
       if (session?.role === "operator") {
         if (role === "admin") throw new AppError(403, "Không được cấp role admin");
         const mine = (session.operatorScopes ?? "").split(",").map((s) => s.trim());

@@ -10,6 +10,7 @@ import {
   HelpCircle,
   ClipboardCheck,
   Activity,
+  KeyRound,
   ChevronRight,
   ExternalLink,
   X,
@@ -76,6 +77,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           { label: "Người dùng", path: "/admin/users", icon: <Users size={18} /> },
           { label: "Duyệt bank", path: "/admin/bank-review", icon: <ClipboardCheck size={18} /> },
           { label: "Nhật ký", path: "/admin/audit", icon: <ScrollText size={18} /> },
+          { label: "MCP Tokens", path: "/admin/mcp-tokens", icon: <KeyRound size={18} /> },
           { label: "Checkpoints", path: "/admin/checkpoints", icon: <DatabaseBackup size={18} /> },
           { label: "Sức khỏe", path: "/admin/health", icon: <Activity size={18} /> },
         ]

@@ -5,6 +5,7 @@ import {
   Play,
   ClipboardCheck,
   HelpCircle,
+  KeyRound,
   ChevronRight,
   X,
 } from "lucide-react";
@@ -54,6 +55,11 @@ export const ControllerSidebar: React.FC<ControllerSidebarProps> = ({
       label: "Câu hỏi trận này",
       path: "/operator/qauthor/bank",
       icon: <HelpCircle size={18} />,
+    },
+    {
+      label: "MCP Tokens",
+      path: "/operator/mcp-tokens",
+      icon: <KeyRound size={18} />,
     },
   ];
 

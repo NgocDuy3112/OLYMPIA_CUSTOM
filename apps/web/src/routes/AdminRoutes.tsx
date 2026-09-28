@@ -11,6 +11,7 @@ import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminAuditPage from "@/pages/admin/AdminAuditPage";
 import AdminCheckpointsPage from "@/pages/admin/AdminCheckpointsPage";
 import AdminBankReviewPage from "@/pages/admin/AdminBankReviewPage";
+import AdminMcpTokensPage from "@/pages/admin/AdminMcpTokensPage";
 import TournamentListPage from "@/pages/admin/tournament/TournamentListPage";
 import TournamentDetailPage from "@/pages/admin/tournament/TournamentDetailPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -56,6 +57,7 @@ const AdminRoutes = () => {
           <Route path="/bank-review" element={<AdminBankReviewPage />} />
           <Route path="/health" element={<AdminHealthPage />} />
           <Route path="/audit" element={<AdminAuditPage />} />
+          <Route path="/mcp-tokens" element={<AdminMcpTokensPage />} />
           <Route path="/checkpoints" element={<AdminCheckpointsPage />} />
           {/* Tournament management routes */}
           <Route path="/tournaments" element={<TournamentListPage />} />

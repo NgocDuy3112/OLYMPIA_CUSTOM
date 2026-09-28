@@ -130,6 +130,19 @@ TRACK_SUBAGENT: dict[QuestionDomainKind, str] = {
 }
 
 
+# Tools Discord MCP theo task.
+TASK_DISCORD_TOOLS: dict[str, frozenset] = {
+    "qa": frozenset(),
+    "verify": frozenset({"verify_request", "verify_result", "verify_cancel"}),
+    "index": frozenset(),
+    "assist": frozenset({"verify_request", "verify_result", "verify_cancel"}),
+    "ops": frozenset({"send_text"}),
+    "reason": frozenset({"verify_request", "verify_result", "verify_cancel"}),
+    "fact": frozenset({"verify_request", "verify_result", "verify_cancel"}),
+    "fresh": frozenset({"verify_request", "verify_result", "verify_cancel"}),
+}
+
+
 async def mcp_tools_for(task: str, shared: Any | None = None) -> list:
     """Tools MCP cho task — shared connection có sẵn thì reuse (nested),
     không thì mở mới. MCP chết → [] (agent chạy chay, không tools)."""
@@ -140,6 +153,8 @@ async def mcp_tools_for(task: str, shared: Any | None = None) -> list:
 
     url = settings.mcp_base_url.rstrip("/") + "/mcp"
     allow = TASK_MCP_TOOLS.get(task, MCP_READ_TOOLS)
+    discord_allow = TASK_DISCORD_TOOLS.get(task, frozenset())
+    tools: list = []
     try:
         if shared is not None:
             adapter = MCPAdapter(shared)
@@ -148,8 +163,31 @@ async def mcp_tools_for(task: str, shared: Any | None = None) -> list:
         else:
             adapter = MCPAdapter(Client(url))
         async with adapter as entered:
-            tools = await entered.list_tools()
+            tools = [t for t in await entered.list_tools() if t.name in allow]
     except Exception:  # noqa: BLE001 — MCP chết thì fallback internal
+        tools = []
+    if discord_allow:
+        tools = [*tools, *(await discord_tools_for(discord_allow))]
+    return tools
+
+
+async def discord_tools_for(allow: frozenset) -> list:
+    """Tools Discord MCP — server riêng, token riêng. Chết → []."""
+    from fastmcp.client import Client
+    from langchain.mcp import MCPAdapter
+
+    from app.config import settings
+
+    url = settings.mcp_discord_url.rstrip("/") + "/mcp"
+    try:
+        client = (
+            Client(url, auth=settings.mcp_discord_token)
+            if settings.mcp_discord_token
+            else Client(url)
+        )
+        async with MCPAdapter(client) as adapter:
+            tools = await adapter.list_tools()
+    except Exception:  # noqa: BLE001 — Discord MCP chết thì bỏ qua
         return []
     return [t for t in tools if t.name in allow]
 

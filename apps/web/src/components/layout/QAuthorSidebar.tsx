@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Database, Swords, ListOrdered, Bot, ChevronRight, X } from "lucide-react";
+import { Database, Swords, ListOrdered, Bot, KeyRound, ChevronRight, X } from "lucide-react";
 
 interface QAuthorSidebarProps {
   isOpen?: boolean;
@@ -33,6 +33,11 @@ const SIDEBAR_ITEMS: SidebarItem[] = [
     label: "AI Agent",
     path: "/operator/qauthor/agent",
     icon: <Bot size={18} />,
+  },
+  {
+    label: "MCP Tokens",
+    path: "/operator/mcp-tokens",
+    icon: <KeyRound size={18} />,
   },
 ];
 
