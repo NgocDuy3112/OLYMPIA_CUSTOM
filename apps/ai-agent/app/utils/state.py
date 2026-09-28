@@ -1,12 +1,24 @@
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+from enum import Enum
+from typing import Annotated, Any
 
 from typing_extensions import TypedDict
 
-TaskKind = Literal["verify", "index", "qa", "ops", "assist", "refuse"]
 
-TrackKind = Literal["reason", "fact", "fresh"]
+class TaskKind(str, Enum):
+    VERIFY = "verify"
+    INDEX = "index"
+    QA = "qa"
+    OPS = "ops"
+    ASSIST = "assist"
+    REFUSE = "refuse"
+
+
+class QuestionDomainKind(str, Enum):
+    REASON = "reason"
+    FACT = "fact"
+    FRESH = "fresh"
 
 
 def merge_list(left: list | None, right: list | None) -> list:
@@ -14,33 +26,65 @@ def merge_list(left: list | None, right: list | None) -> list:
 
 
 class AgentState(TypedDict, total=False):
-    """Graph state — TypedDict; list field merge bằng reducer merge_list."""
-
-    match_code: str
-    question: str
-    role: str
-    user_code: str
-    task: str
-    track: str
+    task: TaskKind | str
+    track: QuestionDomainKind | str
     subagent: str | None
-    bank_code: str | None
-    bank_row: dict | None
-    citations: list
     messages: Annotated[list, merge_list]
     tools_used: Annotated[list, merge_list]
-    answer: str
-    search_rows: list
-    verify_error: str | None
-    search_error: str | None
+    response: str
+
+
+class AgentInput(TypedDict, total=False):
+    tools_used: list
+
+
+class AgentOutput(TypedDict, total=False):
+    task: TaskKind | str
+    track: QuestionDomainKind | str
+    response: str
+    tools_used: list
+
+
+# ── Contract I/O từng node — thêm field sau này sửa 1 chỗ, không sờ state chung.
+class RouteIn(TypedDict, total=False):
+    question: str
+    role: str
+
+
+class RouteOut(TypedDict, total=False):
+    task: TaskKind | str
+    subagent: str | None
+    tools_used: list
+
+
+class TrackIn(TypedDict, total=False):
+    question: str
+
+
+class TrackOut(TypedDict, total=False):
+    track: QuestionDomainKind | str
+    subagent: str | None
+    tools_used: list
+
+
+class AgentIn(TypedDict, total=False):
+    question: str
+    task: str
+
+
+class AgentOut(TypedDict, total=False):
+    messages: list
+    tools_used: list
+    response: str
+
+
+class RefuseOut(TypedDict, total=False):
+    response: str
 
 
 class AgentContext(TypedDict):
-    """Deps tĩnh 1 run — model LLM + shared MCP + router.
-
-    Nhập qua graph.ainvoke(state, context=...) — KHÔNG nằm trong state.
-    """
-
-    model: Any | None
+    question: str
+    role: str
     models: Any | None
     mcp: Any | None
     router: Any | None

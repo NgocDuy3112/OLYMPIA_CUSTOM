@@ -11,7 +11,7 @@ from app.utils.nodes import (
     route_node,
     track_node,
 )
-from app.utils.state import AgentContext, AgentState
+from app.utils.state import AgentContext, AgentInput, AgentOutput, AgentState
 
 TASK_SUBAGENT: dict[str, str | None] = {
     "qa": "qa_agent",
@@ -27,7 +27,10 @@ def build_graph(checkpointer: Any | None = None) -> Any:
     """Dựng StateGraph OCee. checkpointer=None → chạy không persist (test)."""
     from langgraph.graph import END, START, StateGraph
 
-    builder = StateGraph(AgentState, context_schema=AgentContext)
+    builder = StateGraph(
+        AgentState, context_schema=AgentContext,
+        input_schema=AgentInput, output_schema=AgentOutput,
+    )
     builder.add_node("route", route_node)
     builder.add_node("track", track_node)
     builder.add_node("agent", agent_node)

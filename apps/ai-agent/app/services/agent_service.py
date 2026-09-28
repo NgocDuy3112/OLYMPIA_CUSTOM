@@ -3,11 +3,15 @@ from __future__ import annotations
 import hashlib
 
 from app.domain.models import AgentError, AgentResponse, UserRole
-from app.utils.tools import (
-    tool_result_message,
-)
 
 CACHE_TTL_SECONDS = 3600
+
+
+def _thread_id(user_code: str, match_code: str) -> str:
+    """Thread memory key — hash để không lưu user_code thô."""
+    import hashlib
+
+    return hashlib.sha256(f"{user_code}:{match_code}".encode()).hexdigest()[:24]
 
 
 class AgentService:
@@ -19,22 +23,24 @@ class AgentService:
         model=None,  # BaseChatModel — prod ChatOpenRouter / test fake
         models=None,  # dict[task, BaseChatModel] — model riêng từng subagent
         mcp=None,  # shared FastMCP Client | None — None → agent không tools
+        checkpointer=None,  # PostgresSaver | None — None → MemorySaver RAM
     ) -> None:
         self._cache = cache
         self._router = router
-        self._model = model
-        self._models = dict(models or {})
+        self._models = {"default": model, **dict(models or {})}
         self._mcp = mcp
+        self._checkpointer = checkpointer
 
     def model_for(self, task: str):
-        """Model của subagent — fallback model chung khi task không override."""
-        return self._models.get(task) or self._model
+        """Model của subagent — fallback "default" khi task không override."""
+        return self._models.get(task) or self._models.get("default")
 
     async def ask(
         self,
         match_code: str,
         question: str,
         role: UserRole,
+        user_code: str = "anonymous",
     ) -> AgentResponse:
         import time
 
@@ -51,32 +57,37 @@ class AgentService:
                 return response
 
         # Route nằm trong graph (node "route") — cache hit không tốn call Jev.
-        graph = build_graph()
-        state = {
-            "match_code": match_code,
-            "question": question,
-            "role": role,
-            "tools_used": [],
-        }
+        # Short-term memory: thread theo user+trận, hội thoại cùng trận thấy nhau.
+        # Checkpointer Postgres (lifespan) hoặc MemorySaver fallback (giữ 1 cái).
+        if self._checkpointer is None:
+            from langgraph.checkpoint.memory import MemorySaver
+
+            self._checkpointer = MemorySaver()
+        graph = build_graph(self._checkpointer)
+        state = {"tools_used": []}
         from app.utils.state import AgentContext
 
         context = AgentContext(
-            model=self._model,
+            question=question,
+            role=role,
             models=self._models,
             mcp=self._mcp,
             router=self._router,
         )
+        thread_id = _thread_id(user_code, match_code)
         try:
-            final = await graph.ainvoke(state, context=context)
+            final = await graph.ainvoke(
+                state, context=context, config={"configurable": {"thread_id": thread_id}}
+            )
         except Exception as exc:
             ASK_TOTAL.labels(task="unknown", status="error").inc()
             raise AgentError(f"Graph failed: {exc}") from exc
 
         task = str(final.get("task") or "unknown")
-        answer = str(final.get("answer") or "")
+        response = str(final.get("response") or "")
         tools_used = list(final.get("tools_used") or [])
-        if not answer:
-            answer, llm_tools = await self.synthesize(question, final)
+        if not response:
+            response, llm_tools = await self.synthesize(question, final)
             tools_used = list(dict.fromkeys(tools_used + llm_tools))
 
         from app.observability import current_trace_id
@@ -88,7 +99,7 @@ class AgentService:
         )
         ASK_TOTAL.labels(task=task, status="ok").inc()
 
-        response = AgentResponse(answer=answer, tools_used=tools_used)
+        response = AgentResponse(answer=response, tools_used=tools_used)
         if self._cache is not None:
             await self._cache.set(
                 cache_key,
@@ -102,9 +113,6 @@ class AgentService:
     ) -> tuple[str, list[str]]:
 
         messages: list[dict] = [{"role": "user", "content": question}]
-        for key in ("bank_row", "citations", "search_rows"):
-            if final.get(key) is not None:
-                messages.append(tool_result_message(key, final[key]))
         for m in final.get("messages") or []:
             if isinstance(m, dict):
                 messages.append(m)

@@ -23,10 +23,10 @@ CRITERIA: dict[str, str] = {
     "refuse": "Từ chối: ngoài phạm vi hoặc thiếu quyền.",
 }
 
-from app.utils.state import TrackKind
+from app.utils.state import QuestionDomainKind
 
 # Tier-2: track soạn/kiểm tra câu — Jev chọn theo nội dung, không hardcode domain.
-TRACK_CRITERIA: dict[TrackKind, str] = {
+TRACK_CRITERIA: dict[QuestionDomainKind, str] = {
     "reason": "Câu suy luận, tính toán nhiều bước, bẫy tư duy.",
     "fact": "Câu ghi nhớ fact, lịch sử, đáp án ổn định.",
     "fresh": "Câu cần nguồn cập nhật liên tục, số liệu thời sự.",

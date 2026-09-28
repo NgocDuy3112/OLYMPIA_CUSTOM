@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 
@@ -7,9 +8,24 @@ from langchain.agents import create_agent
 from langchain_core.messages import AIMessage
 from langgraph.runtime import Runtime
 
-from app.utils.state import AgentContext, AgentState, TrackKind
+from app.utils.state import (
+    AgentContext,
+    AgentOut,
+    AgentState,
+    QuestionDomainKind,
+    RefuseOut,
+    RouteOut,
+    TrackOut,
+)
 
-PROMPTS_DIR = Path(__file__).resolve().parent.parent / "prompts"
+# ── Prompt ở prompts/ project root (không track git). PROMPTS_DIR override
+# cho container. rules.txt port từ RulesPage (web) — sửa web → sync lại.
+PROMPTS_DIR = Path(
+    os.environ.get(
+        "PROMPTS_DIR",
+        Path(__file__).resolve().parent.parent.parent.parent.parent / "prompts",
+    )
+)
 
 
 def load_prompt(name: str) -> str:
@@ -34,13 +50,13 @@ def scope_for_task(task: str) -> str:
     return QA_SYSTEM
 
 
-async def route_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+async def route_node(state: AgentState, runtime: Runtime[AgentContext]) -> RouteOut:
     from app.agent import TASK_SUBAGENT
     from app.config import settings
     from app.metrics import ROUTE_CONF, ROUTE_SRC
 
-    question = str(state.get("question", ""))
-    role = str(state.get("role", ""))
+    question = str((runtime.context or {}).get("question", ""))
+    role = str((runtime.context or {}).get("role", ""))
     router = (runtime.context or {}).get("router")
     task = None
     if router is None:
@@ -69,10 +85,10 @@ async def route_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
     }
 
 
-async def refuse_node(state: AgentState) -> dict:
+async def refuse_node(state: AgentState) -> RefuseOut:
     """Yêu cầu ghi (update/place) — Ocee read-only, chỉ dẫn dùng UI."""
     return {
-        "answer": (
+        "response": (
             "Ocee chỉ đọc dữ liệu — mình không sửa câu hay bỏ câu vào trận. "
             "Hãy dùng trang qauthor (panel sửa câu / bộ đề) để ghi thay đổi; "
             "mình có thể đối chiếu (verify) hay gợi ý duyệt (assist) giúp."
@@ -98,19 +114,16 @@ MCP_READ_TOOLS = frozenset(
 )
 TASK_MCP_TOOLS: dict[str, frozenset] = {
     "qa": MCP_READ_TOOLS,
-    # bank tasks: đọc + bank_create (soạn) + grade_llm (judge).
     "verify": MCP_READ_TOOLS | {"grade_llm"},
     "index": MCP_READ_TOOLS | {"bank_create"},
     "assist": MCP_READ_TOOLS | {"bank_create", "grade_llm"},
-    # ops: đọc + chấm/ghi điểm qua engine.
     "ops": MCP_READ_TOOLS | {"score_calculate", "score_adjust"},
-    # track soạn/kiểm tra — kế thừa read + bank/judge.
     "reason": MCP_READ_TOOLS | {"bank_create", "grade_llm"},
     "fact": MCP_READ_TOOLS | {"bank_create", "grade_llm"},
     "fresh": MCP_READ_TOOLS | {"bank_create", "grade_llm"},
 }
 
-TRACK_SUBAGENT: dict[TrackKind, str] = {
+TRACK_SUBAGENT: dict[QuestionDomainKind, str] = {
     "reason": "reason_agent",
     "fact": "fact_agent",
     "fresh": "fresh_agent",
@@ -141,18 +154,16 @@ async def mcp_tools_for(task: str, shared: Any | None = None) -> list:
     return [t for t in tools if t.name in allow]
 
 
-async def agent_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+async def agent_node(state: AgentState, runtime: Runtime[AgentContext]) -> AgentOut:
     """Chạy create_agent của task — prompt + tools MCP theo subagent."""
-    model = runtime.context["model"]
-    task = str(state.get("task") or "qa")
     per_task = runtime.context.get("models") or {}
-    if task in per_task:
-        model = per_task[task]
+    task = str(state.get("task") or "qa")
+    model = per_task.get(task) or per_task.get("default")
     if model is None:
         return {}
     system = scope_for_task(task)
     tools = await mcp_tools_for(task, runtime.context.get("mcp"))
-    question = str(state.get("question", ""))
+    question = str((runtime.context or {}).get("question", ""))
     return await _run_create_agent(model, system, tools, question, "")
 
 
@@ -162,14 +173,13 @@ async def _run_create_agent(
     tools: list,
     question: str,
     tag: str,
-) -> dict:
-    """Chạy 1 create_agent — dùng chung cho agent_node và 3 track nodes."""
+) -> AgentOut:
     if model is None:
         return {}
     agent = create_agent(model, tools=tools, system_prompt=system)
     result = await agent.ainvoke({"messages": [{"role": "user", "content": question}]})
     messages = list(result.get("messages") or [])
-    answer = ""
+    response = ""
     used: list[str] = [tag] if tag else []
     plain: list[dict] = []
     for m in messages:
@@ -182,18 +192,18 @@ async def _run_create_agent(
         for tc in getattr(m, "tool_calls", None) or []:
             used.append(str(tc.get("name") if isinstance(tc, dict) else tc.name))
         if isinstance(m, AIMessage) and str(m.content or "").strip():
-            answer = str(m.content)
+            response = str(m.content)
     # tools_used/messages có reducer — trả về CHỈ phần mới, không cộng lại.
-    return {"messages": plain, "tools_used": used, "answer": answer}
+    return {"messages": plain, "tools_used": used, "response": response}
 
 
-async def track_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+async def track_node(state: AgentState, runtime: Runtime[AgentContext]) -> TrackOut:
     """Tier-2: Jev chọn track (reason/fact/fresh) cho task verify/assist.
     Thiếu router/lỗi/dưới ngưỡng → bank_agent chung (fail-open)."""
     from app.config import settings
     from app.metrics import ROUTE_CONF, ROUTE_SRC
 
-    question = str(state.get("question", ""))
+    question = str((runtime.context or {}).get("question", ""))
     router = (runtime.context or {}).get("router")
     track = None
     if router is not None:
@@ -221,26 +231,26 @@ def _track_model(
     state: AgentState, runtime: Runtime[AgentContext], key: str
 ) -> tuple[Any | None, str]:
     per_task = runtime.context.get("models") or {}
-    return per_task.get(key) or runtime.context["model"], str(
-        state.get("question", "")
+    return per_task.get(key) or per_task.get("default"), str(
+        (runtime.context or {}).get("question", "")
     )
 
 
-async def reason_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+async def reason_node(state: AgentState, runtime: Runtime[AgentContext]) -> AgentOut:
     """Subagent track suy luận — create_agent riêng."""
     model, question = _track_model(state, runtime, "reason")
     tools = await mcp_tools_for("reason", runtime.context.get("mcp"))
     return await _run_create_agent(model, REASON_SYSTEM, tools, question, "agent:reason")
 
 
-async def fact_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+async def fact_node(state: AgentState, runtime: Runtime[AgentContext]) -> AgentOut:
     """Subagent track fact/lịch sử — create_agent riêng."""
     model, question = _track_model(state, runtime, "fact")
     tools = await mcp_tools_for("fact", runtime.context.get("mcp"))
     return await _run_create_agent(model, FACT_SYSTEM, tools, question, "agent:fact")
 
 
-async def fresh_node(state: AgentState, runtime: Runtime[AgentContext]) -> dict:
+async def fresh_node(state: AgentState, runtime: Runtime[AgentContext]) -> AgentOut:
     """Subagent track cập nhật nguồn — create_agent riêng."""
     model, question = _track_model(state, runtime, "fresh")
     tools = await mcp_tools_for("fresh", runtime.context.get("mcp"))

@@ -23,6 +23,13 @@ ROLE_HEADER_ALIASES: dict[str, UserRole] = {
 RATE_LIMIT_PER_MINUTE = 10
 
 
+def _hashed_identity(user_code: str, match_code: str = "") -> str:
+    """Hash user_code — Valkey/thread key không chứa PII thô."""
+    import hashlib
+
+    return hashlib.sha256(f"{user_code}:{match_code}".encode()).hexdigest()[:24]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.observability import setup
@@ -50,6 +57,20 @@ async def lifespan(app: FastAPI):
             if override and override != settings.llm_model:
                 per_task[task] = build_llm_model(override)
         jev_router = JevRouter()
+        # Checkpointer Postgres (memory dài hạn, survive restart).
+        # Không có URL/không nối được → None, service fallback MemorySaver.
+        checkpointer = None
+        if settings.postgres_url:
+            try:
+                from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+                checkpointer = await stack.enter_async_context(
+                    AsyncPostgresSaver.from_conn_string(settings.postgres_url)
+                )
+                await checkpointer.setup()
+            except Exception as exc:  # noqa: BLE001 — fail-open MemorySaver
+                print(f"Postgres checkpointer unavailable, using memory: {exc}")
+                checkpointer = None
         # 1 shared MCP connection cho cả process (adapter + tools).
         # MCP chết lúc start → None, fail-open chạy snapshot/discord.
         mcp_url = settings.mcp_base_url.rstrip("/") + "/mcp"
@@ -67,6 +88,7 @@ async def lifespan(app: FastAPI):
             model=model,
             models=per_task,
             mcp=mcp_shared,
+            checkpointer=checkpointer,
         )
         app.state.redis = redis_client
         yield
@@ -80,16 +102,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="oc-ai-agent", lifespan=lifespan)
 
 
-def check_service_token(request: Request) -> None:
-    expected = settings.agent_service_token
-    if not expected:
-        return  # dev: gateway-local traffic, auth enforced by Fastify
-    if request.headers.get("x-agent-token") != expected:
-        raise HTTPException(status_code=401, detail="Invalid agent token")
-
-
 async def check_rate_limit(redis_client, user_code: str) -> None:
-    key = f"agent:rate:{user_code}:1m"
+    key = f"agent:rate:{_hashed_identity(user_code)}:1m"
     count = await redis_client.incr(key)
     if count == 1:
         await redis_client.expire(key, 60)
@@ -104,7 +118,7 @@ async def agent_ask(
     x_user_code: str = Header(default="anonymous"),
     x_user_role: str = Header(default="operator"),
 ) -> AgentResponse:
-    check_service_token(request)
+    # Không token riêng — Fastify gateway gọi local, rate-limit + role đủ.
     role = ROLE_HEADER_ALIASES.get(x_user_role)
     if role is None:
         raise HTTPException(status_code=403, detail="OCee chỉ dành cho admin/operator")

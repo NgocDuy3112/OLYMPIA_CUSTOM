@@ -4,8 +4,6 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     valkey_host: str
     valkey_port: int
-    api_internal_url: str
-    agent_service_token: str
     openrouter_api_key: str
     llm_model: str
     llm_timeout: int
@@ -22,6 +20,8 @@ class Settings(BaseSettings):
     jev_min_confidence: float = 0.6
     mcp_base_url: str = "http://localhost:8300"
     mcp_token: str = ""
+    # Postgres checkpointer (memory dài hạn). Trống = MemorySaver RAM.
+    postgres_url: str = ""
 
     model_config = {"env_file": ".env", "env_prefix": ""}
 

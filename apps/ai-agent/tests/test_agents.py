@@ -7,24 +7,22 @@ from tests.test_agent import StubRouter, make_service
 
 def test_mcp_allowlist_covers_task_kinds():
     """Allowlist MCP chia theo subagent — mọi task (trừ refuse) đều có tools."""
-    from typing import get_args
 
     from app.utils.nodes import TASK_MCP_TOOLS
     from app.utils.state import TaskKind
 
-    assert set(TASK_MCP_TOOLS) >= set(get_args(TaskKind)) - {"refuse"}
+    assert set(TASK_MCP_TOOLS) >= {e.value for e in TaskKind} - {"refuse"}
     assert TASK_MCP_TOOLS["ops"] >= {"score_calculate", "score_adjust"}
     assert TASK_MCP_TOOLS["assist"] >= {"bank_create", "grade_llm"}
     assert TASK_MCP_TOOLS["reason"] >= {"bank_create", "grade_llm"}
 
 
 def test_task_subagent_map_covers_task_kinds():
-    from typing import get_args
 
     from app.agent import TASK_SUBAGENT
     from app.utils.state import TaskKind
 
-    assert set(TASK_SUBAGENT) == set(get_args(TaskKind))
+    assert set(TASK_SUBAGENT) == {e.value for e in TaskKind}
     assert TASK_SUBAGENT["qa"] == "qa_agent"
     assert TASK_SUBAGENT["verify"] == TASK_SUBAGENT["assist"] == "track_router"
     assert TASK_SUBAGENT["index"] == "bank_agent"
@@ -56,6 +54,45 @@ async def test_track_node_fail_open_without_router():
     assert out["subagent"] == "bank_agent"
     assert set(TRACK_SUBAGENT) == {"reason", "fact", "fresh"}
     assert TRACK_SUBAGENT["reason"] == "reason_agent"
+
+
+@pytest.mark.asyncio
+async def test_output_schema_hides_internals():
+    """ainvoke chỉ trả AgentOutput — messages/subagent bị lọc."""
+    from app.agent import build_graph
+
+    graph = build_graph()
+    out = await graph.ainvoke(
+        {"tools_used": []},
+        context={
+            "match_code": "OC3_x",
+            "question": "ping",
+            "role": "controller",
+            "models": {"default": None},
+            "mcp": None,
+            "router": None,
+        },
+    )
+    assert "messages" not in out and "subagent" not in out
+    assert out["task"] == "qa"
+
+
+@pytest.mark.asyncio
+async def test_memory_across_asks_same_thread():
+    """Cùng user+trận (1 thread) → checkpoint cộng dồn, response dedupe."""
+    import hashlib
+
+    from app.agent import build_graph
+
+    service = make_service()
+    await service.ask("OC3_x", "câu một?", "controller")
+    second = await service.ask("OC3_x", "câu hai?", "controller")
+    assert second.tools_used == ["route:qa"]  # response gọn, không trùng
+    tid = hashlib.sha256(b"anonymous:OC3_x").hexdigest()[:24]
+    stored = await build_graph(service._checkpointer).aget_state(
+        {"configurable": {"thread_id": tid}}
+    )
+    assert stored.values.get("tools_used") == ["route:qa", "route:qa"]
 
 
 @pytest.mark.asyncio

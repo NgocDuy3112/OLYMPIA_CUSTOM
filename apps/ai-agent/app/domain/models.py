@@ -1,19 +1,27 @@
 from __future__ import annotations
 
-from typing import Literal
+from enum import Enum
 
 from pydantic import BaseModel
 
-StaffRole = Literal["controller", "mc", "qauthor"]
-ApiRole = Literal["operator", "admin"]
-UserRole = Literal["controller", "mc", "qauthor", "operator", "admin"]
+
+class StaffRole(str, Enum):
+    CONTROLLER = "controller"
+    MC = "mc"
+    QAUTHOR = "qauthor"
 
 
-class PlayerScore(BaseModel):
-    userCode: str
-    userName: str
-    position: int | None = None
-    score: float
+class ApiRole(str, Enum):
+    OPERATOR = "operator"
+    ADMIN = "admin"
+
+
+class UserRole(str, Enum):
+    CONTROLLER = "controller"
+    MC = "mc"
+    QAUTHOR = "qauthor"
+    OPERATOR = "operator"
+    ADMIN = "admin"
 
 
 class MatchInfo(BaseModel):

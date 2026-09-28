@@ -33,7 +33,7 @@ Headers: `X-User-Code`, `X-User-Role` (controller|mc|qauthor|operator|admin — 
 
 Response: `{ "answer": "...", "tools_used": ["get_scoreboard"], "cached": false }`
 
-Env: `VALKEY_HOST`, `VALKEY_PORT`, `API_INTERNAL_URL`, `AGENT_SERVICE_TOKEN`,
+Env: `VALKEY_HOST`, `VALKEY_PORT`, `AGENT_SERVICE_TOKEN`,
 `OPENROUTER_API_KEY`, `LLM_MODEL` (`<vendor/model>` trên OpenRouter) — LLM duy nhất
 qua `langchain-openrouter` ChatOpenRouter.
 Router: `OPENROUTER_API_KEY` (trống thì mặc định task `qa`), `JEV_MODEL`

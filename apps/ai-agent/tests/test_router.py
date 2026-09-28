@@ -20,12 +20,11 @@ class _StubRouter:
 
 def test_router_criteria_cover_task_kinds():
     """Criteria chứa đủ mọi TaskKind — Jev không thể chọn task lạ."""
-    from typing import get_args
 
     from app.adapters.jev_router import CRITERIA
     from app.utils.state import TaskKind
 
-    assert set(get_args(TaskKind)) <= set(CRITERIA)
+    assert {e.value for e in TaskKind} <= set(CRITERIA)
 
 
 @pytest.mark.asyncio
