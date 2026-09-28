@@ -68,8 +68,7 @@ services:
         condition: service_started
     networks:
       - oc-network
-
-  # ── Frontend (Vite dev server) ───────────────────────────
+      - edge-network
   frontend:
     container_name: oc-frontend
     build:
@@ -85,6 +84,7 @@ services:
       - app
     networks:
       - oc-network
+      - edge-network
 
   # ── AI Agent (OCee — internal only) ───────────────────────
   ai-agent:
@@ -210,3 +210,5 @@ services:
 networks:
   oc-network:
     driver: bridge
+  edge-network:
+    external: true
