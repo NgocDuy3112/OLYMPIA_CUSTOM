@@ -14,12 +14,6 @@ def is_enabled() -> bool:
 
 
 def setup(app=None) -> None:
-    """Đăng ký OTel tracer → collector + auto-instrument LangChain/LangGraph.
-
-    Idempotent — gọi 1 lần lúc app start. Không set env = no-op (tests/dev).
-    `app` (FastAPI) truyền vào sẽ instrument server span — span đang mở lúc
-    handler chạy cho traceID gắn vào exemplar metric.
-    """
     global _SETUP_DONE
     if _SETUP_DONE or not is_enabled():
         return
@@ -36,9 +30,6 @@ def setup(app=None) -> None:
             verbose=False,
         )
     except AttributeError as exc:
-        # Bug arize-phoenix-otel 0.17.1 × otel exporter 1.45: _tracing_details()
-        # đọc exporter._headers (đã bỏ ở bản mới). Provider/processor +
-        # auto-instrument đã set TRƯỚC dòng đó → export vẫn chạy bình thường.
         logger.warning("phoenix.otel.register lỗi chi tiết (vẫn hoạt động): %s", exc)
     if app is not None:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
