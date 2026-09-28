@@ -155,16 +155,17 @@ export function registerTools(server: McpServer, allow: Set<string> | null = nul
   );
 
   reg(server, allow, "read", "grade_question",
-    "Chấm toàn bộ bài 1 câu (backend tự lấy đáp án gốc + bài thí sinh rồi chấm). Staff-only (API 403 nếu sai role).",
+    "Chấm toàn bộ bài 1 câu (backend tự lấy đáp án gốc + bài thí sinh rồi chấm). Staff-only. Mặc định ẩn danh TS1..n (anonymize=false để hiện userCode).",
     {
       matchCode: z.string(),
       questionCode: z.string(),
       mode: z.enum(["auto", "mcq"]).default("auto"),
+      anonymize: z.boolean().default(true),
     },
-    async ({ matchCode, questionCode, mode }) => {
+    async ({ matchCode, questionCode, mode, anonymize }) => {
       const data = await apiFetch("/api/grade/question", {
         method: "POST",
-        body: { match_code: matchCode, question_code: questionCode, mode },
+        body: { match_code: matchCode, question_code: questionCode, mode, anonymize },
       });
       return text(data);
     },

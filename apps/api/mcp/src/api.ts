@@ -31,8 +31,6 @@ export async function apiFetch<T = unknown>(
     headers: {
       ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}),
       ...(sid ? { Cookie: `sid=${encodeURIComponent(sid)}` } : {}),
-      ...(env.agentToken ? { "X-Agent-Token": env.agentToken } : {}),
-      ...(env.botToken ? { "X-Bot-Token": env.botToken } : {}),
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
@@ -51,7 +49,43 @@ export async function apiFetch<T = unknown>(
   return json as T;
 }
 
-/** Chuẩn hoá output tool: trả data gọn, giữ message khi lỗi logic. */
+/** Chuẩn hoá output tool: strip PII, trả data gọn, giữ message khi lỗi logic. */
 export function toToolText(payload: unknown): string {
-  return JSON.stringify(payload, null, 2).slice(0, 20000);
+  return JSON.stringify(stripPII(payload), null, 2).slice(0, 20000);
+}
+
+const PII_KEYS = new Set([
+  "usercode",
+  "user_code",
+  "userid",
+  "user_id",
+  "playerid",
+  "player_id",
+  "username",
+  "user_name",
+  "nickname",
+  "nick_name",
+  "displayname",
+  "display_name",
+  "globalname",
+  "email",
+]);
+
+/**
+ * Strip định danh khỏi mọi output MCP (userCode/id, tên, email).
+ * Agent trả kết quả cho controller tự thao tác — không cần biết ai là ai.
+ * Ngoại lệ: verdictBy (Discord) giữ để biết ai bấm duyệt.
+ * Sau này agent tự thao tác: thêm scope `identity` bypass strip theo token.
+ */
+export function stripPII<T>(value: T, keep: Set<string> = new Set(["verdictby"])): T {
+  if (Array.isArray(value)) return value.map((v) => stripPII(v, keep)) as T;
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      const low = k.toLowerCase();
+      if (!PII_KEYS.has(low) || keep.has(low)) out[k] = stripPII(v, keep);
+    }
+    return out as T;
+  }
+  return value;
 }

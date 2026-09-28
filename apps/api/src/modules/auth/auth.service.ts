@@ -331,8 +331,8 @@ export function googleCallback(
 
     if (found) {
       user = found;
-      // Staff accounts (admin/operator) must use username login only
-      if (user.role === "admin" || user.role === "operator") {
+      // Staff + machine accounts (admin/operator/agent) must use username login only
+      if (user.role === "admin" || user.role === "operator" || user.role === "agent") {
         throw new AppError(
           403,
           "Staff accounts must log in via username, not Google",
@@ -495,8 +495,8 @@ export function login(
     await checkLoginRateLimit(app.valkey, rateKey);
 
     const user = await repo.findByEmail(email);
-    // Staff accounts (admin/operator) use username login only — block email login
-    if (user && (user.role === "admin" || user.role === "operator")) {
+    // Staff + machine accounts (admin/operator/agent) use username login only — block email login
+    if (user && (user.role === "admin" || user.role === "operator" || user.role === "agent")) {
       await recordFailedLogin(app.valkey, rateKey);
       throw new AppError(401, "Invalid email or password");
     }
@@ -605,7 +605,7 @@ export function staffLogin(app: FastifyInstance) {
       : await drizzleUserRepo.findByCode(rawUsername.toUpperCase());
     if (!found || found.isDeleted) await deny();
     const row = found as NonNullable<typeof found>;
-    if (row.role !== "admin" && row.role !== "operator") {
+    if (row.role !== "admin" && row.role !== "operator" && row.role !== "agent") {
       return reply.code(403).send({
         status: "error",
         message: "Tài khoản thí sinh/khán giả — dùng trang đăng nhập chính",
@@ -637,6 +637,16 @@ export function staffLogin(app: FastifyInstance) {
 }
 
 // ── Guards ──
+
+/** Staff con người (admin/operator), chưa tính machine. */
+export function isStaffRole(role: string): boolean {
+  return role === "admin" || role === "operator";
+}
+
+/** Có quyền operator-like: operator người + agent máy (cùng cơ chế scopes). */
+export function isOperatorLike(role?: string | null): boolean {
+  return role === "operator" || role === "agent";
+}
 
 export function requireAuth(app: FastifyInstance) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -671,24 +681,6 @@ export function requireRole(app: FastifyInstance, ...roles: string[]) {
   };
 }
 
-// requireAgentToken — ai-agent internal calls present shared secret
-// (X-Agent-Token). Empty token = dev, allow through (same as bot).
-export function requireAgentToken(
-  request: FastifyRequest,
-  reply: FastifyReply,
-) {
-  const expected = getEnv().AGENT_SERVICE_TOKEN;
-  if (!expected) return;
-  const got = request.headers["x-agent-token"];
-  if (typeof got !== "string" || got !== expected) {
-    return reply.code(401).send({
-      status: "error",
-      message: "Invalid agent token",
-      data: null,
-    });
-  }
-}
-
 // requireScope — operator must hold a specific scope (controller/mc/qauthor).
 // Admin bypasses. Reads scopes from session, falls back to staff:scopes Valkey key.
 export function requireScope(app: FastifyInstance, ...scopes: string[]) {
@@ -708,7 +700,7 @@ export function requireScope(app: FastifyInstance, ...scopes: string[]) {
       }
     }
     const ok = scopes.some((s) => scopeList.includes(s));
-    if (session.role !== "operator" || !ok) {
+    if (!isOperatorLike(session.role) || !ok) {
       return reply.code(403).send({
         status: "error",
         message: `Missing required scope: ${scopes.join(" or ")}`,

@@ -2,7 +2,7 @@ import Fastify from "fastify";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpServer } from "./server.js";
-import { getMcpEnv } from "./env.js";
+import { getMcpEnv, readFileTokens } from "./env.js";
 
 async function runStdio(): Promise<void> {
   const env = getMcpEnv();
@@ -15,23 +15,22 @@ async function runStdio(): Promise<void> {
   console.error("[mcp] stdio ready");
 }
 
-/** Resolve scope từ Bearer. null = full access (dev mở hoặc service token). */
-function resolveHttpScope(
+/** Resolve scope từ Bearer. null = full access (dev mở hoặc service token).
+ * Gộp env tokens + file tokens (admin cấp qua UI, hiệu lực ngay). */
+async function resolveHttpScope(
   env: ReturnType<typeof getMcpEnv>,
   authorization: string | undefined,
-): Set<string> | null | undefined {
+): Promise<Set<string> | null | undefined> {
   const token = (authorization ?? "").startsWith("Bearer ")
     ? authorization!.slice(7)
     : "";
-  if (env.agentTokens.length > 0) {
+  const all = [...env.agentTokens, ...(await readFileTokens())];
+  if (all.length > 0 || env.mcpServiceToken) {
     // Strict mode: bắt buộc token hợp lệ.
-    const entry = env.agentTokens.find((t) => t.token === token);
+    const entry = all.find((t) => t.token === token);
     if (entry) return entry.scopes;
     if (env.mcpServiceToken && token === env.mcpServiceToken) return null;
     return undefined;
-  }
-  if (env.mcpServiceToken) {
-    if (token !== env.mcpServiceToken) return undefined;
   }
   return null;
 }
@@ -44,7 +43,7 @@ async function runHttp(): Promise<void> {
 
   // Stateless mode: mỗi POST /mcp là 1 session độc lập, khỏi lưu session store.
   app.post("/mcp", async (request, reply) => {
-    const allow = resolveHttpScope(env, request.headers.authorization);
+    const allow = await resolveHttpScope(env, request.headers.authorization);
     if (allow === undefined) {
       return reply.code(401).send({ error: "Unauthorized" });
     }

@@ -1,11 +1,9 @@
+import { existsSync, promises as fs, watch } from "node:fs";
+
 export interface McpEnv {
   apiBaseUrl: string;
   /** Session cookie `sid` của user đã login vào Fastify backend. Dùng cho stdio mode. */
   apiSid: string;
-  /** Passthrough cho các route X-Agent-Token (bank search/pick). */
-  agentToken: string;
-  /** Passthrough cho score-review bot callbacks. */
-  botToken: string;
   /** Bearer token full-access (legacy). Rỗng = không check (dev). */
   mcpServiceToken: string;
   /** Per-agent tokens. Rỗng = dev mở. */
@@ -66,12 +64,61 @@ export function getMcpEnv(): McpEnv {
   return {
     apiBaseUrl: (process.env.OC_API_BASE_URL ?? "http://localhost:8000").replace(/\/$/, ""),
     apiSid: process.env.OC_API_SID ?? "",
-    agentToken: process.env.OC_AGENT_SERVICE_TOKEN ?? process.env.AGENT_SERVICE_TOKEN ?? "",
-    botToken: process.env.OC_BOT_SERVICE_TOKEN ?? process.env.BOT_SERVICE_TOKEN ?? "",
     mcpServiceToken: process.env.MCP_SERVICE_TOKEN ?? "",
     agentTokens: parseAgentTokens(process.env.MCP_AGENT_TOKENS ?? ""),
     agentName: process.env.MCP_AGENT_NAME ?? "",
     mcpPort: Number(process.env.MCP_PORT ?? 8300),
     mcpHost: process.env.MCP_HOST ?? "0.0.0.0",
   };
+}
+
+interface FileEntry {
+  name?: unknown;
+  token?: unknown;
+  role?: unknown;
+  scopes?: unknown;
+  revoked?: unknown;
+}
+
+function tokensFilePath(): string {
+  return process.env.MCP_TOKENS_FILE ?? "/app/data/mcp-tokens.json";
+}
+
+/** Tokens admin cấp qua UI (file share cùng image). Đọc mỗi request. */
+export async function readFileTokens(): Promise<AgentToken[]> {
+  try {
+    if (!existsSync(tokensFilePath())) return [];
+    const raw = JSON.parse(await fs.readFile(tokensFilePath(), "utf8")) as unknown;
+    if (!Array.isArray(raw)) return [];
+    const out: AgentToken[] = [];
+    for (const e of raw as FileEntry[]) {
+      if (e.revoked) continue;
+      const name = typeof e.name === "string" ? e.name : "";
+      const token = typeof e.token === "string" ? e.token : "";
+      const role = typeof e.role === "string" ? e.role : "";
+      const scopes = new Set<string>();
+      if (Array.isArray(e.scopes)) {
+        for (const s of e.scopes) {
+          if (typeof s !== "string") continue;
+          if (s === "*") scopes.add("read").add("score").add("bank").add("judge");
+          else if (s) scopes.add(s);
+        }
+      }
+      if (name && token && ALLOWED_ROLES.has(role) && scopes.size > 0) {
+        out.push({ name, token, role: role as AgentRole, scopes });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+export function watchTokenFile(onChange: () => void): void {
+  try {
+    if (!existsSync(tokensFilePath())) return;
+    watch(tokensFilePath(), () => onChange());
+  } catch {
+    // Bỏ qua — env tokens vẫn chạy.
+  }
 }

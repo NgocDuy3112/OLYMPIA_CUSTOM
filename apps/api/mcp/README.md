@@ -39,8 +39,6 @@ curl -X POST localhost:8300/mcp -H 'Content-Type: application/json' \
 |---|---|---|
 | `OC_API_BASE_URL` | `http://localhost:8000` | Backend Fastify |
 | `OC_API_SID` | `""` | Cookie `sid` sau login (quyền tools = quyền user này) |
-| `OC_AGENT_SERVICE_TOKEN` | `""` | Passthrough `X-Agent-Token` (bank search) |
-| `OC_BOT_SERVICE_TOKEN` | `""` | Passthrough `X-Bot-Token` |
 | `MCP_SERVICE_TOKEN` | `""` | Bearer full-access legacy (dev rỗng = mở) |
 | `MCP_AGENT_TOKENS` | `""` | Per-agent: `"ocee:tok1:agent:read,judge;boss:tok2:admin:*"`. Role chỉ `admin,operator,agent` (khác bị loại). Scope ⊂ `read,score,bank,judge`, `*`=all. Set là bật strict mode (thiếu/sai token → 401) |
 | `MCP_AGENT_NAME` | `""` | stdio mode: giới hạn scope theo tên trong `MCP_AGENT_TOKENS` |

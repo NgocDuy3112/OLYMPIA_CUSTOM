@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { requireAuth, requireScope } from "../auth/auth.service.js";
-import { getEnv } from "../../config/env.js";
 import { AppError } from "../../utils/errors.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { manager } from "../ws/ws.manager.js";
@@ -14,18 +13,6 @@ import {
 import { drizzleQuestionRepo } from "../question/question.repo.js";
 
 const REVIEW_TTL_SECONDS = 10 * 60;
-
-// Bot callback auth: discord-bot has no user session, so it presents a
-// shared service token (BOT_SERVICE_TOKEN). Web users use cookie session
-// with controller scope or admin role. Empty token = dev, allow bot through.
-function hasBotToken(request: {
-  headers: Record<string, string | string[] | undefined>;
-}): boolean {
-  const expected = getEnv().BOT_SERVICE_TOKEN;
-  if (!expected) return true;
-  const got = request.headers["x-bot-token"];
-  return typeof got === "string" && got === expected;
-}
 
 function label(position: number | null, userName: string): string {
   return `[${position ?? "?"}] ${userName}`;
@@ -196,20 +183,13 @@ export async function scoreReviewRoutes(
   );
 
   // POST /score-reviews/:id/decision — qauthor verdict.
-  // Two callers: (1) discord-bot with X-Bot-Token service secret,
-  // (2) web controller with cookie session (controller scope/admin).
-  // Body: { decisions: { [userCode]: "dung" | "sai" }, decidedBy, oceeSuggestion? }
+  // Callers: discord-bot bằng staff session (operator + controller),
+  // web controller bằng cookie session. Không còn token riêng.
   app.post("/score-reviews/:id/decision", async (request, reply) => {
-    // Bot path: valid service token skips session. Otherwise require
-    // controller session (dev with empty token still needs session).
-    const botOk =
-      getEnv().BOT_SERVICE_TOKEN !== "" && hasBotToken(request);
-    if (!botOk) {
-      await requireAuth(app)(request, reply);
-      if (reply.sent) return;
-      await requireScope(app, "controller")(request, reply);
-      if (reply.sent) return;
-    }
+    await requireAuth(app)(request, reply);
+    if (reply.sent) return;
+    await requireScope(app, "controller")(request, reply);
+    if (reply.sent) return;
     const { id } = request.params as { id: string };
     const body = request.body as {
       decisions?: unknown;
@@ -281,17 +261,12 @@ export async function scoreReviewRoutes(
   });
 
   // POST /score-reviews/:id/ocee — qauthor asks OCee for suggestion.
-  // Same callers as decision: bot token or controller session.
-  // Proxies to ai-agent; result stored + returned for embed reference only.
+  // Same callers as decision (staff session). Proxies to ai-agent.
   app.post("/score-reviews/:id/ocee", async (request, reply) => {
-    const botOk =
-      getEnv().BOT_SERVICE_TOKEN !== "" && hasBotToken(request);
-    if (!botOk) {
-      await requireAuth(app)(request, reply);
-      if (reply.sent) return;
-      await requireScope(app, "controller")(request, reply);
-      if (reply.sent) return;
-    }
+    await requireAuth(app)(request, reply);
+    if (reply.sent) return;
+    await requireScope(app, "controller")(request, reply);
+    if (reply.sent) return;
     const { id } = request.params as { id: string };
     const review = await repo.findById(id);
     if (!review) {

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth, requireAgentToken, uuidOrNull } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, uuidOrNull } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleQuestionRepo, type QuestionRepo } from "./question.repo.js";
@@ -28,7 +28,7 @@ export async function questionRoutes(
     operatorScopes?: string | null;
   }): boolean {
     if (session.role === "admin") return true;
-    if (session.role !== "operator") return false;
+    if (!isOperatorLike(session.role)) return false;
     return getScopes(session).includes("qauthor");
   }
 
@@ -444,7 +444,7 @@ export async function questionRoutes(
       const scopes = getScopes(session);
       const isController =
         session.role === "admin" ||
-        (session.role === "operator" && scopes.includes("controller"));
+        (isOperatorLike(session.role) && scopes.includes("controller"));
       if (!isController) {
         const role = await repo.findTournamentRole(session.userId, matchId);
         if (role !== "controller") {
@@ -481,7 +481,6 @@ export async function questionRoutes(
   // GET /bank/search?q=...&round_hint=...&limit=...&page=...&used=...
   // Stable QB_* bank, searchable. Requires auth; answer visible to
   // question writers (admin/qauthor), stripped otherwise.
-  // Agent internal calls (X-Agent-Token) bypass session, see full rows.
   // used=only|unused filters by used-where (source_bank_id links);
   // response rows carry usedCount + usedIn [{matchCode, questionCode, isUsed}].
   // Paged: limit (default 20) + page (1-based) -> data {rows,total,limit,page,pages}.
@@ -489,12 +488,6 @@ export async function questionRoutes(
     "/bank/search",
     {
       preHandler: async (request, reply) => {
-        if (request.headers["x-agent-token"] !== undefined) {
-          await requireAgentToken(request, reply);
-          if (reply.sent) return;
-          (request as unknown as { agentCall?: boolean }).agentCall = true;
-          return;
-        }
         await requireAuth(app)(request, reply);
       },
     },
@@ -520,15 +513,12 @@ export async function questionRoutes(
             role: string;
             operatorScopes?: string | null;
           };
-          agentCall?: boolean;
         }
       ).session;
-      const agentCall = (request as unknown as { agentCall?: boolean }).agentCall;
       const canSee =
-        agentCall === true ||
         session?.role === "admin" ||
-        (session?.role === "operator" &&
-          getScopes(session).includes("qauthor"));
+        (isOperatorLike(session?.role) &&
+          getScopes(session ?? {}).includes("qauthor"));
       const pageSize = Math.min(Math.max(Number(limit) || 20, 1), 100);
       const pageNum = Math.max(Number(page) || 1, 1);
       const paged = await bankRepo.searchPaged({
@@ -611,18 +601,12 @@ export async function questionRoutes(
     }
     return null;
   }
-  // Allowed: admin, operator qauthor, tournament qauthor, or agent token
-  // (agent đã xác thực user qauthor ở gateway, audit ghi actor agent).
+  // Allowed: admin, operator qauthor, tournament qauthor. AI callers
+  // (MCP/agent) dùng session staff như mọi client khác.
   app.post(
     "/questions/pick",
     {
       preHandler: async (request, reply) => {
-        if (request.headers["x-agent-token"] !== undefined) {
-          await requireAgentToken(request, reply);
-          if (reply.sent) return;
-          (request as unknown as { agentCall?: boolean }).agentCall = true;
-          return;
-        }
         await requireAuth(app)(request, reply);
       },
     },
@@ -647,10 +631,8 @@ export async function questionRoutes(
             operatorScopes?: string | null;
             userCode?: string;
           };
-          agentCall?: boolean;
         }
       ).session;
-      const agentCall = (request as unknown as { agentCall?: boolean }).agentCall;
       const matchCode = raw.matchCode ?? raw.match_code ?? "";
       const round = String(raw.round ?? "").trim().toUpperCase();
       if (!matchCode || !round) {
@@ -667,31 +649,24 @@ export async function questionRoutes(
           data: null,
         });
       }
-      const actorCode =
-        agentCall === true
-          ? `AGENT:${String(request.headers["x-user-code"] ?? "qauthor")}`
-          : session?.userCode ?? null;
-      if (agentCall !== true) {
-        if (!session) {
-          return reply.code(401).send({
-            status: "error",
-            message: "Not authenticated",
-            data: null,
-          });
-        }
-        const check = await canWriteQuestions(session, matchCode);
-        if (!check.ok || !check.matchId) {
-          const status = check.message === "Match not found" ? 404 : 403;
-          return reply.code(status).send({
-            status: "error",
-            message: check.message ?? "Forbidden",
-            data: null,
-          });
-        }
+      const actorCode = session?.userCode ?? null;
+      if (!session) {
+        return reply.code(401).send({
+          status: "error",
+          message: "Not authenticated",
+          data: null,
+        });
       }
-      const matchId = agentCall === true
-        ? await resolveMatchId(app.valkey, matchCode)
-        : (await canWriteQuestions(session!, matchCode)).matchId;
+      const check = await canWriteQuestions(session, matchCode);
+      if (!check.ok || !check.matchId) {
+        const status = check.message === "Match not found" ? 404 : 403;
+        return reply.code(status).send({
+          status: "error",
+          message: check.message ?? "Forbidden",
+          data: null,
+        });
+      }
+      const matchId = (await canWriteQuestions(session, matchCode)).matchId;
       if (!matchId) {
         return reply.code(404).send({
           status: "error",
@@ -886,7 +861,7 @@ export async function questionRoutes(
   }): boolean {
     if (session.role === "admin") return true;
     return (
-      session.role === "operator" && getScopes(session).includes("qauthor")
+      isOperatorLike(session.role) && getScopes(session).includes("qauthor")
     );
   }
 
@@ -987,36 +962,27 @@ export async function questionRoutes(
   );
 
   // PATCH /bank/:id — QAuthor edits a bank row (kể cả chèn mediaUrl sau).
-  // Agent token cũng được (đã xác thực qauthor ở gateway).
   app.patch(
     "/bank/:id",
     {
       preHandler: async (request, reply) => {
-        if (request.headers["x-agent-token"] !== undefined) {
-          await requireAgentToken(request, reply);
-          if (reply.sent) return;
-          (request as unknown as { agentCall?: boolean }).agentCall = true;
-          return;
-        }
         await requireAuth(app)(request, reply);
       },
     },
     async (request, reply) => {
       const session = (
         request as unknown as {
-          session?: { role: string; operatorScopes?: string | null };
-          agentCall?: boolean;
+          session?: { role: string; operatorScopes?: string | null; userCode?: string };
         }
       ).session;
-      const agentCall = (request as unknown as { agentCall?: boolean }).agentCall;
-      if (agentCall !== true && !session) {
+      if (!session) {
         return reply.code(401).send({
           status: "error",
           message: "Not authenticated",
           data: null,
         });
       }
-      if (agentCall !== true && !isBankWriter(session!)) {
+      if (!isBankWriter(session)) {
         return reply.code(403).send({
           status: "error",
           message: "Only admin or qauthor can write bank",
@@ -1095,14 +1061,12 @@ export async function questionRoutes(
           reviewNote: "Tự động: nội dung thay đổi sau duyệt",
         });
       }
-      if (agentCall === true) {
-        void writeAudit({
-          actionType: "QUESTION_USED",
-          actorCode: `AGENT:${String(request.headers["x-user-code"] ?? "qauthor")}`,
-          targetCode: id,
-          details: "bank updated via agent",
-        });
-      }
+      void writeAudit({
+        actionType: "QUESTION_USED",
+        actorCode: session.userCode ?? null,
+        targetCode: id,
+        details: "bank updated",
+      });
       emitBankChanged();
       return reply.send({
         status: "success",

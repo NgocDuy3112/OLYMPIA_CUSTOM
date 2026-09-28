@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth, requireScope } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, requireScope } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { manager } from "../ws/ws.manager.js";
 import {
@@ -50,7 +50,7 @@ export async function qualifierRoutes(
   function isQAuthor(session: { role: string; operatorScopes?: string | null }) {
     if (session.role === "admin") return true;
     return (
-      session.role === "operator" && getScopes(session).includes("qauthor")
+      isOperatorLike(session.role) && getScopes(session).includes("qauthor")
     );
   }
 

@@ -4,7 +4,7 @@ import {
   isCorrectOption,
   normalizeMathAnswer,
 } from "@oc/engine";
-import { requireAuth } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { drizzleQuestionRepo } from "../question/question.repo.js";
 import { drizzleAnswerRepo } from "../answer/answer.repo.js";
@@ -16,7 +16,7 @@ function isStaffSession(session: {
   role: string;
   operatorScopes?: string | null;
 }): boolean {
-  return session.role === "admin" || session.role === "operator";
+  return session.role === "admin" || isOperatorLike(session.role);
 }
 function grade(candidate: string, expected: string, mode: GradeMode) {
   const correct =
@@ -77,11 +77,14 @@ export async function gradeRoutes(app: FastifyInstance) {
         match_code?: unknown;
         question_code?: unknown;
         mode?: unknown;
+        anonymize?: unknown;
       };
       if (typeof body.match_code !== "string" || typeof body.question_code !== "string") {
         throw new AppError(400, "match_code and question_code are required");
       }
       const mode: GradeMode = body.mode === "mcq" ? "mcq" : "auto";
+      // Agent chỉ quan tâm nội dung — ẩn user_code mặc định, thay label TS1..n.
+      const anonymize = body.anonymize !== false;
 
       const matchId = await resolveMatchId(app.valkey, body.match_code);
       if (!matchId) throw new AppError(404, "Match not found");
@@ -89,8 +92,10 @@ export async function gradeRoutes(app: FastifyInstance) {
       if (!question) throw new AppError(404, "Question not found");
 
       const rows = await drizzleAnswerRepo.listByQuestion(matchId, question.id);
-      const results = rows.map((r) => ({
-        userCode: r.userCode,
+      const results = rows.map((r, i) => ({
+        ...(anonymize
+          ? { label: `TS${i + 1}` }
+          : { userCode: r.userCode }),
         candidate: r.answerText ?? "",
         ...grade(r.answerText ?? "", question.answer, mode),
       }));

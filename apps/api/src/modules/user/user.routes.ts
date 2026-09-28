@@ -157,7 +157,7 @@ export async function userRoutes(
       const password =
         typeof body.password === "string" ? body.password : "";
       const role = typeof body.role === "string" ? body.role : "player";
-      const allowed = ["admin", "operator", "player", "spectator"];
+      const allowed = ["admin", "operator", "agent", "player", "spectator"];
       if (!userName) {
         return reply.code(400).send({
           status: "error",
@@ -181,16 +181,16 @@ export async function userRoutes(
       }
       const validScopes = ["qauthor", "controller", "mc"];
       const scopes =
-        role === "operator" && Array.isArray(body.scopes)
+        (role === "operator" || role === "agent") && Array.isArray(body.scopes)
           ? body.scopes.filter(
               (s): s is string =>
                 typeof s === "string" && validScopes.includes(s),
             )
           : [];
-      if (role === "operator" && scopes.length === 0) {
+      if ((role === "operator" || role === "agent") && scopes.length === 0) {
         return reply.code(400).send({
           status: "error",
-          message: `operator cần ít nhất 1 scope: ${validScopes.join(", ")}`,
+          message: `${role} cần ít nhất 1 scope: ${validScopes.join(", ")}`,
           data: null,
         });
       }
@@ -264,7 +264,7 @@ export async function userRoutes(
         updates.email = email;
       }
       if (body.role) {
-        const allowed = ["admin", "operator", "player", "spectator"];
+        const allowed = ["admin", "operator", "agent", "player", "spectator"];
         if (!allowed.includes(body.role)) {
           return reply.code(400).send({
             status: "error",
@@ -273,8 +273,10 @@ export async function userRoutes(
           });
         }
         updates.role = body.role as UserRow["role"];
-        // Clear scopes when leaving operator role
-        if (body.role !== "operator") updates.operatorScopes = null;
+        // Clear scopes when leaving operator/agent role
+        if (body.role !== "operator" && body.role !== "agent") {
+          updates.operatorScopes = null;
+        }
       }
       const result = await repo.updateByCode(userCode, updates);
       if (!result) {

@@ -6,7 +6,7 @@ import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
 import { manager } from "./ws.manager.js";
 import { handleWsMessage, handleReconnect } from "./ws.handler.js";
-import { getSession } from "../auth/auth.service.js";
+import { getSession, isOperatorLike } from "../auth/auth.service.js";
 import { drizzleMatchRepo } from "../match/match.repo.js";
 import { drizzleTournamentRepo } from "../tournament/tournament.repo.js";
 import type { TournamentFormat } from "@oc/shared";
@@ -118,7 +118,7 @@ export async function wsRoute(app: FastifyInstance) {
         gameRole = "controller";
       } else if (sessionScopes.includes("mc")) {
         gameRole = "mc";
-      } else if (session.role === "operator") {
+      } else if (isOperatorLike(session.role)) {
         // Operator without controller/mc scope stays player in game
         gameRole = "player";
       } else {

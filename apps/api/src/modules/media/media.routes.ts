@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth, requireRole } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, requireRole } from "../auth/auth.service.js";
 
 export async function mediaRoutes(app: FastifyInstance) {
   app.post(
@@ -87,7 +87,7 @@ export async function mediaRoutes(app: FastifyInstance) {
         .filter(Boolean);
       const allowed =
         session.role === "admin" ||
-        (session.role === "operator" && scopes.includes("qauthor"));
+        (isOperatorLike(session.role) && scopes.includes("qauthor"));
       if (!allowed) {
         return reply.code(403).send({
           status: "error",

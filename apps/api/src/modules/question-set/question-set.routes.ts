@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth, requireScope } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, requireScope } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleQuestionRepo } from "../question/question.repo.js";
@@ -27,7 +27,7 @@ interface Session {
 
 function canEditSets(session: Session): boolean {
   if (session.role === "admin") return true;
-  if (session.role !== "operator") return false;
+  if (!isOperatorLike(session.role)) return false;
   return (session.operatorScopes ?? "").split(",").map((s) => s.trim()).includes("qauthor");
 }
 

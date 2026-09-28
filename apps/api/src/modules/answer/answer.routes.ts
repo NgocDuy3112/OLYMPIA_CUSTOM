@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireAuth } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth } from "../auth/auth.service.js";
 import { resolveBuzzIds, resolveMatchId } from "../../state/id-cache.js";
 import { drizzleAnswerRepo, type AnswerRepo } from "./answer.repo.js";
 
@@ -39,7 +39,7 @@ export async function answerRoutes(
         .filter(Boolean);
       const isStaff =
         session.role === "admin" ||
-        (session.role === "operator" &&
+        (isOperatorLike(session.role) &&
           (scopes.includes("controller") || scopes.includes("qauthor")));
       // Non-staff must submit as themselves; ignore spoofed user_code.
       const effectiveUserCode =
@@ -115,7 +115,7 @@ export async function answerRoutes(
         .filter(Boolean);
       const isStaff =
         session.role === "admin" ||
-        (session.role === "operator" &&
+        (isOperatorLike(session.role) &&
           (scopes.includes("controller") ||
             scopes.includes("qauthor") ||
             scopes.includes("mc")));
@@ -156,7 +156,7 @@ export async function answerRoutes(
         .filter(Boolean);
       const isStaff =
         session.role === "admin" ||
-        (session.role === "operator" &&
+        (isOperatorLike(session.role) &&
           (scopes.includes("controller") ||
             scopes.includes("qauthor") ||
             scopes.includes("mc")));
