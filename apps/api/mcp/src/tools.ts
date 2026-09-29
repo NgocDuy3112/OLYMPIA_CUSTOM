@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { apiFetch, toToolText } from "./api.js";
 
 /** Scope cho từng tool. Agent token map tới tập scope trong env. */
-export const SCOPES = ["read", "score", "bank", "judge"] as const;
+export const SCOPES = ["read", "bank", "judge"] as const;
 export type Scope = (typeof SCOPES)[number];
 
 const text = (payload: unknown) => ({
@@ -211,51 +211,6 @@ export function registerTools(server: McpServer, allow: Set<string> | null = nul
   );
 
   // ── Write (API vẫn enforce role, thiếu quyền → 401/403) ──
-
-  reg(server, allow, "score", "score_calculate",
-    "Tính điểm 1 câu qua engine + lưu records. Cần scope controller. action: kdc_correct|kdr_correct|kdr_wrong|gm_clue_correct|gm_keyword_correct|vdr_correct|vdr_wrong|vdc_resolve|bp_resolve.",
-    {
-      match_code: z.string(),
-      question_code: z.string(),
-      action: z.enum([
-        "kdc_correct",
-        "kdr_correct",
-        "kdr_wrong",
-        "gm_clue_correct",
-        "gm_keyword_correct",
-        "vdr_correct",
-        "vdr_wrong",
-        "vdc_resolve",
-        "bp_resolve",
-      ]),
-      user_codes: z.array(z.string()).min(1).max(8),
-    },
-    async ({ match_code, question_code, action, user_codes }) => {
-      const data = await apiFetch("/api/scoreboard/calculate", {
-        method: "POST",
-        body: { match_code, question_code, action, user_codes },
-      });
-      return text(data);
-    },
-  );
-
-  reg(server, allow, "score", "score_adjust",
-    "Controller sửa điểm thủ công. Per-question: truyền question_code + points (bội số 5). Total: truyền new_score (bội số 5).",
-    {
-      match_code: z.string(),
-      user_code: z.string(),
-      question_code: z.string().optional(),
-      points: z.number().optional(),
-      new_score: z.number().optional(),
-    },
-    async ({ match_code, user_code, question_code, points, new_score }) => {
-      const data = await apiFetch("/api/scoreboard/controller-adjust", {
-        method: "PATCH",
-        body: { match_code, user_code, question_code, points, new_score },
-      });
-      return text(data);
-    },
-  );
 
   reg(server, allow, "bank", "bank_create",
     "Thêm câu vào bank. Cần quyền qauthor (admin/operator-qauthor). bankCode format QB_[A-Z0-9_].",

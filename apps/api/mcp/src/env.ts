@@ -50,7 +50,7 @@ export function parseAgentTokens(raw: string): AgentToken[] {
     for (const s of scopePart.split(",")) {
       const scope = s.trim();
       if (scope === "*") {
-        scopes.add("read").add("score").add("bank").add("judge");
+        scopes.add("read").add("bank").add("judge");
       } else if (scope) {
         scopes.add(scope);
       }
@@ -100,7 +100,7 @@ export async function readFileTokens(): Promise<AgentToken[]> {
       if (Array.isArray(e.scopes)) {
         for (const s of e.scopes) {
           if (typeof s !== "string") continue;
-          if (s === "*") scopes.add("read").add("score").add("bank").add("judge");
+          if (s === "*") scopes.add("read").add("bank").add("judge");
           else if (s) scopes.add(s);
         }
       }
