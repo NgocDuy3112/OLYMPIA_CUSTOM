@@ -15,7 +15,7 @@ interface McpTokenMeta {
 }
 
 const ROLES = ["agent", "operator", "admin"];
-const SCOPES = ["read", "bank", "judge"];
+const SCOPES = ["read", "bank"];
 
 const AdminMcpTokensPage = () => {
   const [tokens, setTokens] = useState<McpTokenMeta[]>([]);

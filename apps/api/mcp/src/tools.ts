@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { apiFetch, toToolText } from "./api.js";
 
 /** Scope cho từng tool. Agent token map tới tập scope trong env. */
-export const SCOPES = ["read", "bank", "judge"] as const;
+export const SCOPES = ["read", "bank"] as const;
 export type Scope = (typeof SCOPES)[number];
 
 const text = (payload: unknown) => ({
@@ -168,45 +168,6 @@ export function registerTools(server: McpServer, allow: Set<string> | null = nul
         body: { match_code: matchCode, question_code: questionCode, mode, anonymize },
       });
       return text(data);
-    },
-  );
-
-  reg(server, allow, "judge", "grade_llm",
-    "LLM judge chấm tương đương ngữ nghĩa (paraphrase engine không bắt được, vd Sài Gòn vs TP.HCM). Gọi POST /api/agent/ask, cần sid qauthor/controller, rate-limit 10/phút. Engine đúng → khỏi gọi.",
-    {
-      candidate: z.string().describe("Đáp án thí sinh"),
-      expected: z.string().describe("Đáp án gốc"),
-      question: z.string().optional().describe("Nội dung câu hỏi làm context"),
-      matchCode: z.string().optional().describe("Mã trận, trống = BANK_REVIEW"),
-    },
-    async ({ candidate, expected, question, matchCode }) => {
-      const prompt = [
-        "Bạn là giám khảo. Chỉ trả lời đúng 1 JSON: {\"correct\": true|false, \"reason\": \"<ngắn gọn>\"}.",
-        `Câu hỏi: ${question?.trim() || "(không có)"}`,
-        `Đáp án gốc: ${expected}`,
-        `Bài thí sinh: ${candidate}`,
-        "Đúng khi cùng thực thể/sự vật/giá trị, kể cả paraphrase, tên gọi khác, thứ tự từ khác.",
-      ].join("\n");
-      const res = (await apiFetch("/api/agent/ask", {
-        method: "POST",
-        body: { match_code: matchCode?.trim() || undefined, question: prompt },
-      })) as { data?: { answer?: unknown; tools_used?: unknown } };
-      const raw = typeof res.data?.answer === "string" ? res.data.answer : "";
-      const m = raw.match(/\{[\s\S]*\}/);
-      let verdict: unknown = null;
-      if (m) {
-        try {
-          verdict = JSON.parse(m[0]);
-        } catch {
-          verdict = null;
-        }
-      }
-      return text({
-        verdict,
-        parsed: verdict !== null,
-        raw: raw.slice(0, 2000),
-        tools_used: res.data?.tools_used ?? null,
-      });
     },
   );
 

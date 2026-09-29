@@ -40,21 +40,19 @@ curl -X POST localhost:8300/mcp -H 'Content-Type: application/json' \
 | `OC_API_BASE_URL` | `http://localhost:8000` | Backend Fastify |
 | `OC_API_SID` | `""` | Cookie `sid` sau login (quyền tools = quyền user này) |
 | `MCP_SERVICE_TOKEN` | `""` | Bearer full-access legacy (dev rỗng = mở) |
-| `MCP_AGENT_TOKENS` | `""` | Per-agent: `"ocee:tok1:agent:read,judge;boss:tok2:admin:*"`. Role chỉ `admin,operator,agent` (khác bị loại). Scope ⊂ `read,bank,judge`, `*`=all. Set là bật strict mode (thiếu/sai token → 401) |
+| `MCP_AGENT_TOKENS` | `""` | Per-agent: `"ocee:tok1:agent:read,bank;boss:tok2:admin:*"`. Role chỉ `admin,operator,agent` (khác bị loại). Scope ⊂ `read,bank`, `*`=all. Set là bật strict mode (thiếu/sai token → 401) |
 | `MCP_AGENT_NAME` | `""` | stdio mode: giới hạn scope theo tên trong `MCP_AGENT_TOKENS` |
 | `MCP_PORT` / `MCP_HOST` | `8300` / `0.0.0.0` | HTTP mode |
 
 Lấy `sid`: login `POST /api/auth/login` (player) hoặc `/api/auth/staff-login`
 (admin/operator), copy cookie `sid`.
 
-## Tools (14)
+## Tools (13)
 
 Read (scope `read`): `list_matches`, `get_match`, `get_scoreboard`,
 `list_questions`, `get_question`, `list_answers`, `get_question_answers`,
 `search_bank`, `list_tournaments`, `get_tournament`, `get_standings`,
 `grade_question`.
-
-Judge (scope `judge`): `grade_llm`.
 
 Write (scope `bank`, API vẫn enforce role, thiếu quyền → 401/403):
 `bank_create` (qauthor).

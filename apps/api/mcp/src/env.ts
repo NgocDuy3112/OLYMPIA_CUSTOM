@@ -26,7 +26,7 @@ export interface AgentToken {
 const ALLOWED_ROLES: ReadonlySet<string> = new Set(["admin", "operator", "agent"]);
 
 /**
- * Format: "name:token:role:scopes;..." vd "ocee:tok1:agent:read,judge".
+ * Format: "name:token:role:scopes;..." vd "ocee:tok1:agent:read,bank".
  * Legacy 3 phần "name:token:scopes" → role=agent.
  * Role ngoài admin/operator/agent bị loại (MCP chỉ phục vụ 3 đối tượng này).
  */
@@ -50,7 +50,7 @@ export function parseAgentTokens(raw: string): AgentToken[] {
     for (const s of scopePart.split(",")) {
       const scope = s.trim();
       if (scope === "*") {
-        scopes.add("read").add("bank").add("judge");
+        scopes.add("read").add("bank");
       } else if (scope) {
         scopes.add(scope);
       }
@@ -100,7 +100,7 @@ export async function readFileTokens(): Promise<AgentToken[]> {
       if (Array.isArray(e.scopes)) {
         for (const s of e.scopes) {
           if (typeof s !== "string") continue;
-          if (s === "*") scopes.add("read").add("bank").add("judge");
+          if (s === "*") scopes.add("read").add("bank");
           else if (s) scopes.add(s);
         }
       }

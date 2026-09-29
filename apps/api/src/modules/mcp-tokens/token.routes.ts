@@ -9,7 +9,7 @@ import {
 } from "./token-store.js";
 
 const ROLES = ["admin", "operator", "agent"];
-const SCOPES = ["read", "bank", "judge"];
+const SCOPES = ["read", "bank"];
 
 /** Admin quản lý MCP tokens cho người dùng (tab web). Token hiện 1 lần. */
 export async function mcpTokenRoutes(app: FastifyInstance) {
