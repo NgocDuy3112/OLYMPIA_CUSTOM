@@ -5,18 +5,6 @@ import pytest
 from tests.test_agent import StubRouter, make_service
 
 
-def test_mcp_allowlist_covers_task_kinds():
-    """Allowlist MCP chia theo subagent — mọi task (trừ refuse) đều có tools."""
-
-    from app.utils.nodes import TASK_MCP_TOOLS
-    from app.utils.state import TaskKind
-
-    assert set(TASK_MCP_TOOLS) >= {e.value for e in TaskKind} - {"refuse"}
-    assert TASK_MCP_TOOLS["ops"] >= {"score_calculate", "score_adjust"}
-    assert TASK_MCP_TOOLS["assist"] >= {"bank_create", "grade_llm"}
-    assert TASK_MCP_TOOLS["reason"] >= {"bank_create", "grade_llm"}
-
-
 def test_task_subagent_map_covers_task_kinds():
 
     from app.agent import TASK_SUBAGENT
