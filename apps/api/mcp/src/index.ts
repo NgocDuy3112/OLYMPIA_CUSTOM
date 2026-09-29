@@ -3,24 +3,26 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpServer } from "./server.js";
 import { getMcpEnv, readFileTokens } from "./env.js";
+import { runWithIdentity, setStaticIdentity } from "./identity.js";
 
 async function runStdio(): Promise<void> {
   const env = getMcpEnv();
-  // Giới hạn scope theo MCP_AGENT_NAME khi có cấu hình.
+  // stdio: 1 identity cho process — chọn entry theo MCP_AGENT_NAME.
+  // Không có tên → fallback OC_API_SID (dev).
   const entry = env.agentTokens.find((t) => t.name === env.agentName);
-  const allow = env.agentName ? (entry?.scopes ?? new Set<string>()) : null;
-  const server = createMcpServer({ allow });
+  setStaticIdentity(env.agentName ? (entry?.userCode ?? null) : null);
+  const server = createMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("[mcp] stdio ready");
 }
 
-/** Resolve scope từ Bearer. null = full access (dev mở hoặc service token).
+/** Resolve identity từ Bearer. null = legacy full-access (dev mở hoặc MCP_SERVICE_TOKEN).
  * Gộp env tokens + file tokens (admin cấp qua UI, hiệu lực ngay). */
-async function resolveHttpScope(
+async function resolveIdentity(
   env: ReturnType<typeof getMcpEnv>,
   authorization: string | undefined,
-): Promise<Set<string> | null | undefined> {
+): Promise<{ userCode: string } | null | undefined> {
   const token = (authorization ?? "").startsWith("Bearer ")
     ? authorization!.slice(7)
     : "";
@@ -28,7 +30,7 @@ async function resolveHttpScope(
   if (all.length > 0 || env.mcpServiceToken) {
     // Strict mode: bắt buộc token hợp lệ.
     const entry = all.find((t) => t.token === token);
-    if (entry) return entry.scopes;
+    if (entry) return { userCode: entry.userCode };
     if (env.mcpServiceToken && token === env.mcpServiceToken) return null;
     return undefined;
   }
@@ -43,16 +45,19 @@ async function runHttp(): Promise<void> {
 
   // Stateless mode: mỗi POST /mcp là 1 session độc lập, khỏi lưu session store.
   app.post("/mcp", async (request, reply) => {
-    const allow = await resolveHttpScope(env, request.headers.authorization);
-    if (allow === undefined) {
+    const identity = await resolveIdentity(env, request.headers.authorization);
+    if (identity === undefined) {
       return reply.code(401).send({ error: "Unauthorized" });
     }
-    const server = createMcpServer({ allow });
+    const server = createMcpServer();
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });
     await server.connect(transport);
-    await transport.handleRequest(request.raw, reply.raw, request.body);
+    // ALS bọc request → tool handlers mint/sid theo identity của token này.
+    await runWithIdentity(identity?.userCode ?? null, () =>
+      transport.handleRequest(request.raw, reply.raw, request.body),
+    );
   });
 
   app.get("/mcp", async (_req, reply) =>

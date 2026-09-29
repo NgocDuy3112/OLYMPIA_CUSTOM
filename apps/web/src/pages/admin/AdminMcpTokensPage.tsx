@@ -7,22 +7,25 @@ const logger = createLogger("AdminMcpTokensPage");
 
 interface McpTokenMeta {
   name: string;
-  role: string;
-  scopes: string[];
+  userCode: string;
   createdBy?: string | null;
   createdAt?: string;
   revoked?: boolean;
 }
 
-const ROLES = ["agent", "operator", "admin"];
-const SCOPES = ["read", "bank"];
+/** Identity khả dụng — user thật role operator/admin (check lúc mint server-side). */
+interface Identity {
+  userCode: string;
+  userName: string;
+  role: string;
+}
 
 const AdminMcpTokensPage = () => {
   const [tokens, setTokens] = useState<McpTokenMeta[]>([]);
+  const [identities, setIdentities] = useState<Identity[]>([]);
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
-  const [role, setRole] = useState("agent");
-  const [scopes, setScopes] = useState<string[]>(["read"]);
+  const [userCode, setUserCode] = useState("");
   const [freshToken, setFreshToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,13 +48,26 @@ const AdminMcpTokensPage = () => {
     }
   }, []);
 
+  const fetchIdentities = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/mcp-tokens/identities`, {
+        credentials: "include",
+      });
+      const json = await res.json();
+      if (res.ok && json.status === "success") {
+        setIdentities(json.data ?? []);
+      } else {
+        logger.warn("Fetch identities failed:", json.message);
+      }
+    } catch (err) {
+      logger.error("Error fetching identities:", err);
+    }
+  }, []);
+
   useEffect(() => {
     void fetchTokens();
-  }, [fetchTokens]);
-
-  const toggleScope = (s: string) => {
-    setScopes((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
-  };
+    void fetchIdentities();
+  }, [fetchTokens, fetchIdentities]);
 
   const createToken = async () => {
     setError(null);
@@ -61,12 +77,13 @@ const AdminMcpTokensPage = () => {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), role, scopes }),
+        body: JSON.stringify({ name: name.trim(), userCode }),
       });
       const json = await res.json();
       if (res.ok && json.status === "success") {
         setFreshToken(json.data.token);
         setName("");
+        setUserCode("");
         void fetchTokens();
       } else {
         setError(json.message ?? "Tạo token thất bại");
@@ -102,6 +119,11 @@ const AdminMcpTokensPage = () => {
     }
   };
 
+  const identityLabel = (u: string) => {
+    const id = identities.find((i) => i.userCode === u);
+    return id ? `${id.userName} · ${id.role}` : u;
+  };
+
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -134,42 +156,33 @@ const AdminMcpTokensPage = () => {
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Role
+            Identity (userCode — role operator/admin)
             <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 outline-none"
+              value={userCode}
+              onChange={(e) => setUserCode(e.target.value)}
+              className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 outline-none focus:border-blue-500 min-w-64"
             >
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {r}
+              <option value="">— chọn user —</option>
+              {identities.map((id) => (
+                <option key={id.userCode} value={id.userCode}>
+                  {id.userName} · {id.userCode} · {id.role}
                 </option>
               ))}
             </select>
           </label>
-          <div className="flex flex-col gap-1 text-sm">
-            Scopes
-            <div className="flex gap-2">
-              {SCOPES.map((s) => (
-                <label key={s} className="flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={scopes.includes(s)}
-                    onChange={() => toggleScope(s)}
-                  />
-                  <span className="font-mono text-xs">{s}</span>
-                </label>
-              ))}
-            </div>
-          </div>
           <button
             onClick={() => void createToken()}
-            disabled={!name.trim() || scopes.length === 0}
+            disabled={!name.trim() || !userCode}
             className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors"
           >
             Cấp
           </button>
         </div>
+        {identities.length === 0 && (
+          <p className="text-xs text-yellow-400/80">
+            Chưa có user role operator/admin — tạo user trước.
+          </p>
+        )}
         {error && <p className="text-sm text-red-400">{error}</p>}
         {freshToken && (
           <div className="rounded-lg bg-green-950/50 border border-green-500/30 p-3 flex flex-col gap-2">
@@ -196,8 +209,7 @@ const AdminMcpTokensPage = () => {
           <thead>
             <tr className="text-left text-gray-400 border-b border-white/10">
               <th className="px-3 py-2">Tên</th>
-              <th className="px-3 py-2">Role</th>
-              <th className="px-3 py-2">Scopes</th>
+              <th className="px-3 py-2">Identity</th>
               <th className="px-3 py-2">Người cấp</th>
               <th className="px-3 py-2">Ngày cấp</th>
               <th className="px-3 py-2"></th>
@@ -207,8 +219,10 @@ const AdminMcpTokensPage = () => {
             {tokens.map((t) => (
               <tr key={t.name} className="border-b border-white/5 hover:bg-white/5">
                 <td className="px-3 py-2 font-mono">{t.name}</td>
-                <td className="px-3 py-2 font-mono text-xs">{t.role}</td>
-                <td className="px-3 py-2 font-mono text-xs">{t.scopes.join(", ")}</td>
+                <td className="px-3 py-2 font-mono text-xs">
+                  {t.userCode}
+                  <span className="text-gray-500"> · {identityLabel(t.userCode)}</span>
+                </td>
                 <td className="px-3 py-2 font-mono text-xs">{t.createdBy ?? "-"}</td>
                 <td className="px-3 py-2 font-mono text-xs">
                   {t.createdAt ? new Date(t.createdAt).toLocaleString("vi-VN") : "-"}
@@ -226,7 +240,7 @@ const AdminMcpTokensPage = () => {
             ))}
             {tokens.length === 0 && !loading && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-gray-500">
+                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
                   Chưa có token nào
                 </td>
               </tr>

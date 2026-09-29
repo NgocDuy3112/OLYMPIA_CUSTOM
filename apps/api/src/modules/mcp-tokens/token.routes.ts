@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../auth/auth.service.js";
 import { AppError } from "../../utils/errors.js";
+import { drizzleUserRepo, type UserRepo } from "../user/user.repo.js";
 import {
   newToken,
   readTokenFile,
@@ -8,11 +9,21 @@ import {
   type McpTokenEntry,
 } from "./token-store.js";
 
-const ROLES = ["admin", "operator", "agent"];
-const SCOPES = ["read", "bank"];
+/**
+ * Admin/operator quản lý MCP tokens (tab web). Token hiện 1 lần.
+ * Token gắn identity: `userCode` user thật trong DB — MCP server tự mint sid
+ * (role operator/admin check lúc mint, POST /auth/service/session).
+ * Không còn scope/role trong token — quyền = quyền backend của identity.
+ */
 
-/** Admin quản lý MCP tokens cho người dùng (tab web). Token hiện 1 lần. */
-export async function mcpTokenRoutes(app: FastifyInstance) {
+const ROLE_RANK: Record<string, number> = { operator: 1, admin: 2 };
+
+export async function mcpTokenRoutes(
+  app: FastifyInstance,
+  opts: { repo?: UserRepo } = {},
+) {
+  const repo = opts.repo ?? drizzleUserRepo;
+
   // GET /mcp-tokens — list metadata (không trả token).
   app.get(
     "/mcp-tokens",
@@ -27,35 +38,59 @@ export async function mcpTokenRoutes(app: FastifyInstance) {
     },
   );
 
-  // POST /mcp-tokens — tạo token mới. Body {name!, role?, scopes?}.
+  // GET /mcp-tokens/identities — user thật (operator/admin) làm identity cho token.
+  app.get(
+    "/mcp-tokens/identities",
+    { preHandler: [requireRole(app, "admin", "operator")] },
+    async (_request, reply) => {
+      const rows = await repo.list();
+      const data = rows
+        .filter((r) => !r.isDeleted && ROLE_RANK[r.role] !== undefined)
+        .map((r) => ({
+          userCode: r.userCode,
+          userName: r.userName,
+          role: r.role,
+        }));
+      return reply.send({ status: "success", message: "OK", data });
+    },
+  );
+
+  // POST /mcp-tokens — tạo token mới. Body {name!, userCode!}.
   app.post(
     "/mcp-tokens",
     { preHandler: [requireRole(app, "admin", "operator")] },
     async (request, reply) => {
-      const body = request.body as { name?: unknown; role?: unknown; scopes?: unknown };
-      const name = typeof body.name === "string" ? body.name.trim().slice(0, 50) : "";
+      const body = request.body as { name?: unknown; userCode?: unknown };
+      const name =
+        typeof body.name === "string" ? body.name.trim().slice(0, 50) : "";
       if (!name) throw new AppError(400, "name is required");
-      const role = typeof body.role === "string" ? body.role : "agent";
-      if (!ROLES.includes(role)) throw new AppError(400, "role invalid");
-      const scopes = Array.isArray(body.scopes)
-        ? body.scopes.filter((s): s is string => typeof s === "string" && SCOPES.includes(s))
-        : ["read"];
-      if (scopes.length === 0) throw new AppError(400, "scopes required");
+      const userCode =
+        typeof body.userCode === "string" ? body.userCode.trim() : "";
+      if (!userCode) throw new AppError(400, "userCode is required");
+
+      const user = await repo.findByCode(userCode);
+      if (!user || user.isDeleted) {
+        throw new AppError(404, "userCode không tồn tại");
+      }
+      const identityRank = ROLE_RANK[user.role];
+      if (identityRank === undefined) {
+        throw new AppError(400, "Identity phải là operator hoặc admin");
+      }
+
       const session = (
         request as unknown as {
-          session?: { userCode?: string; role?: string; operatorScopes?: string | null };
+          session?: { userCode?: string; role?: string };
         }
       ).session;
-      // Operator chỉ cấp ≤ quyền mình: role agent/operator, scopes ⊂ scopes mình.
-      // Mọi operator (kể cả mc) đều được dùng MCP.
-      if (session?.role === "operator") {
-        if (role === "admin") throw new AppError(403, "Không được cấp role admin");
-        const mine = (session.operatorScopes ?? "").split(",").map((s) => s.trim());
-        const over = scopes.filter((s) => !mine.includes(s));
-        if (over.length > 0) {
-          throw new AppError(403, `Scope vượt quyền: ${over.join(", ")}`);
-        }
+      // Người tạo ≥ role identity: operator chỉ cấp identity operator, admin cấp mọi thứ.
+      const creatorRank = ROLE_RANK[session?.role ?? ""] ?? 0;
+      if (creatorRank < identityRank) {
+        throw new AppError(
+          403,
+          "Không được cấp token cho identity role cao hơn mình",
+        );
       }
+
       const entries = await readTokenFile();
       if (entries.some((e) => e.name === name && !e.revoked)) {
         throw new AppError(409, "Token name đã tồn tại");
@@ -63,15 +98,16 @@ export async function mcpTokenRoutes(app: FastifyInstance) {
       const entry: McpTokenEntry = {
         name,
         token: newToken(),
-        role,
-        scopes,
+        userCode: user.userCode,
         createdBy: session?.userCode ?? null,
         createdAt: new Date().toISOString(),
         revoked: false,
       };
       entries.push(entry);
       await writeTokenFile(entries);
-      return reply.code(201).send({ status: "success", message: "OK", data: entry });
+      return reply
+        .code(201)
+        .send({ status: "success", message: "OK", data: entry });
     },
   );
 

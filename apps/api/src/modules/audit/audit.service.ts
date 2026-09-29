@@ -20,6 +20,7 @@ const VALID_ACTIONS = [
   "MATCH_CREATED",
   "MATCH_DELETED",
   "AGENT_ASK",
+  "MCP_SESSION_MINT",
 ] as const;
 
 export type AuditAction = (typeof VALID_ACTIONS)[number];

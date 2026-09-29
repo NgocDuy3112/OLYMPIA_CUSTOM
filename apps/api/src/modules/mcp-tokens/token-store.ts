@@ -4,14 +4,15 @@ import { randomBytes } from "node:crypto";
 /**
  * MCP tokens file — backend (admin UI) ghi, MCP server watch + reload.
  * Cùng image api+mcp nên share filesystem, không cần restart.
- * Format: [{ name, token, role, scopes, createdBy, createdAt, revoked }]
+ * Format: [{ name, token, userCode, createdBy, createdAt, revoked }]
+ * `userCode` = identity thật trong DB (role operator/admin check lúc mint).
+ * Entry thiếu userCode (token cũ format scope) bị bỏ qua khi đọc.
  */
 
 export interface McpTokenEntry {
   name: string;
   token: string;
-  role: string;
-  scopes: string[];
+  userCode: string;
   createdBy: string | null;
   createdAt: string;
   revoked: boolean;
@@ -29,7 +30,9 @@ export async function readTokenFile(): Promise<McpTokenEntry[]> {
     if (!Array.isArray(raw)) return [];
     return raw.filter(
       (e): e is McpTokenEntry =>
-        !!e && typeof (e as McpTokenEntry).token === "string",
+        !!e &&
+        typeof (e as McpTokenEntry).token === "string" &&
+        typeof (e as McpTokenEntry).userCode === "string",
     );
   } catch {
     return [];

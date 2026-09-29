@@ -2,60 +2,41 @@ import { existsSync, promises as fs, watch } from "node:fs";
 
 export interface McpEnv {
   apiBaseUrl: string;
-  /** Session cookie `sid` của user đã login vào Fastify backend. Dùng cho stdio mode. */
+  /** Session `sid` dev fallback — chỉ dùng khi không có token identity (dev mở / stdio không MCP_AGENT_NAME). */
   apiSid: string;
-  /** Bearer token full-access (legacy). Rỗng = không check (dev). */
+  /** Secret chung MCP→API: mint sid từ userCode (POST /api/auth/service/session). */
   mcpServiceToken: string;
   /** Per-agent tokens. Rỗng = dev mở. */
   agentTokens: AgentToken[];
-  /** stdio mode: chọn entry trong MCP_AGENT_TOKENS theo tên. Rỗng = full. */
+  /** stdio mode: chọn entry trong MCP_AGENT_TOKENS theo tên. Rỗng = fallback OC_API_SID. */
   agentName: string;
   mcpPort: number;
   mcpHost: string;
 }
 
-export type AgentRole = "admin" | "operator" | "agent";
-
+/**
+ * Token gắn identity: `name` chỉ để quản lý, `userCode` = user thật trong DB
+ * (role operator/admin check lúc mint). Client chỉ thấy `token` opaque.
+ */
 export interface AgentToken {
   name: string;
   token: string;
-  role: AgentRole;
-  scopes: Set<string>;
+  userCode: string;
 }
 
-const ALLOWED_ROLES: ReadonlySet<string> = new Set(["admin", "operator", "agent"]);
-
 /**
- * Format: "name:token:role:scopes;..." vd "ocee:tok1:agent:read,bank".
- * Legacy 3 phần "name:token:scopes" → role=agent.
- * Role ngoài admin/operator/agent bị loại (MCP chỉ phục vụ 3 đối tượng này).
+ * Format: "name:token:userCode;..." vd "ocee:tok1:OC_U_17270001".
+ * Sai format (sai số phần) → bỏ qua entry.
+ * Token cũ format role/scopes không đọc được → cấp lại qua UI.
  */
 export function parseAgentTokens(raw: string): AgentToken[] {
   const out: AgentToken[] = [];
   for (const entry of raw.split(";")) {
     const parts = entry.split(":").map((s) => s.trim());
-    let name: string;
-    let token: string;
-    let role = "agent";
-    let scopePart: string;
-    if (parts.length === 4) {
-      [name, token, role, scopePart] = parts as [string, string, string, string];
-    } else if (parts.length === 3) {
-      [name, token, scopePart] = parts as [string, string, string];
-    } else {
-      continue;
-    }
-    if (!name || !token || !ALLOWED_ROLES.has(role)) continue;
-    const scopes = new Set<string>();
-    for (const s of scopePart.split(",")) {
-      const scope = s.trim();
-      if (scope === "*") {
-        scopes.add("read").add("bank");
-      } else if (scope) {
-        scopes.add(scope);
-      }
-    }
-    out.push({ name, token, role: role as AgentRole, scopes });
+    if (parts.length !== 3) continue;
+    const [name, token, userCode] = parts as [string, string, string];
+    if (!name || !token || !userCode) continue;
+    out.push({ name, token, userCode });
   }
   return out;
 }
@@ -75,8 +56,7 @@ export function getMcpEnv(): McpEnv {
 interface FileEntry {
   name?: unknown;
   token?: unknown;
-  role?: unknown;
-  scopes?: unknown;
+  userCode?: unknown;
   revoked?: unknown;
 }
 
@@ -95,18 +75,8 @@ export async function readFileTokens(): Promise<AgentToken[]> {
       if (e.revoked) continue;
       const name = typeof e.name === "string" ? e.name : "";
       const token = typeof e.token === "string" ? e.token : "";
-      const role = typeof e.role === "string" ? e.role : "";
-      const scopes = new Set<string>();
-      if (Array.isArray(e.scopes)) {
-        for (const s of e.scopes) {
-          if (typeof s !== "string") continue;
-          if (s === "*") scopes.add("read").add("bank");
-          else if (s) scopes.add(s);
-        }
-      }
-      if (name && token && ALLOWED_ROLES.has(role) && scopes.size > 0) {
-        out.push({ name, token, role: role as AgentRole, scopes });
-      }
+      const userCode = typeof e.userCode === "string" ? e.userCode : "";
+      if (name && token && userCode) out.push({ name, token, userCode });
     }
     return out;
   } catch {

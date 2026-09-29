@@ -29,6 +29,9 @@ const envSchema = z.object({
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   GOOGLE_REDIRECT_URI: z.string().url(),
+  // Secret chung MCP→API: MCP server đổi userCode → sid
+  // qua POST /api/auth/service/session (rỗng = endpoint từ chối mọi request).
+  MCP_SERVICE_TOKEN: z.string().default(""),
 
   // ── Seeded staff accounts (admin/operator login via username+password) ──
   // Plaintext admin pair for dev (takes precedence over STAFF_CREDENTIALS).

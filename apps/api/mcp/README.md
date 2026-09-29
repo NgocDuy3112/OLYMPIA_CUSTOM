@@ -38,28 +38,40 @@ curl -X POST localhost:8300/mcp -H 'Content-Type: application/json' \
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
 | `OC_API_BASE_URL` | `http://localhost:8000` | Backend Fastify |
-| `OC_API_SID` | `""` | Cookie `sid` sau login (quyền tools = quyền user này) |
-| `MCP_SERVICE_TOKEN` | `""` | Bearer full-access legacy (dev rỗng = mở) |
-| `MCP_AGENT_TOKENS` | `""` | Per-agent: `"ocee:tok1:agent:read,bank;boss:tok2:admin:*"`. Role chỉ `admin,operator,agent` (khác bị loại). Scope ⊂ `read,bank`, `*`=all. Set là bật strict mode (thiếu/sai token → 401) |
-| `MCP_AGENT_NAME` | `""` | stdio mode: giới hạn scope theo tên trong `MCP_AGENT_TOKENS` |
+| `OC_API_SID` | `""` | Dev/stdio fallback khi request không có token identity (quyền = user này) |
+| `MCP_SERVICE_TOKEN` | `""` | Secret chung MCP→API: MCP mint sid từ identity (`POST /api/auth/service/session`). Trùng giá trị với env của `apps/api`. Trong strict mode, Bearer này = legacy full-access (dùng `OC_API_SID`) |
+| `MCP_AGENT_TOKENS` | `""` | Per-agent: `"ocee:tok1:OC_U_17270001;boss:tok2:OC_U_17270002"` — format `name:token:userCode`. `userCode` phải là user role `operator`/`admin` (mint từ chối khác). Set là bật strict mode (thiếu/sai token → 401) |
+| `MCP_AGENT_NAME` | `""` | stdio mode: chọn identity theo tên trong `MCP_AGENT_TOKENS` |
 | `MCP_PORT` / `MCP_HOST` | `8300` / `0.0.0.0` | HTTP mode |
 
-Lấy `sid`: login `POST /api/auth/login` (player) hoặc `/api/auth/staff-login`
-(admin/operator), copy cookie `sid`.
+Dev fallback lấy `sid`: login `POST /api/auth/login` (player) hoặc
+`/api/auth/staff-login` (admin/operator), copy cookie `sid` vào `OC_API_SID`.
+Có token identity thì khỏi cần — MCP tự mint sid server-side.
+
+## Identity flow (token → sid)
+
+```
+Bearer <token> → token record → userCode → POST /api/auth/service/session
+  (guard Bearer MCP_SERVICE_TOKEN, role operator/admin) → sid TTL 24h
+  → cache in-memory → API call Cookie sid=<sid> → 401 → mint lại 1 lần
+```
+
+Client (ChatGPT / Claude Code) chỉ cấu hình URL + Bearer token như cũ —
+không thấy sid, không cần tạo lại token khi sid hết hạn.
 
 ## Tools (13)
 
-Read (scope `read`): `list_matches`, `get_match`, `get_scoreboard`,
+Read: `list_matches`, `get_match`, `get_scoreboard`,
 `list_questions`, `get_question`, `list_answers`, `get_question_answers`,
 `search_bank`, `list_tournaments`, `get_tournament`, `get_standings`,
 `grade_question`.
 
-Write (scope `bank`, API vẫn enforce role, thiếu quyền → 401/403):
+Write (API vẫn enforce role, thiếu quyền → 401/403):
 `bank_create` (qauthor).
 
 ## Giới hạn
 
-- Single-identity: mọi tool dùng chung `OC_API_SID` của server.
-  Multi-user thật cần nhúng `/mcp` vào `apps/api` để reuse session
-  per-request (xem Grilling notes).
+- Gỡ hết tool gating: mọi token hợp lệ nhận đủ 13 tool — quyền do backend
+  chốt theo identity (role `operator`/`admin` check lúc mint).
+- Dev/stdin không token: fallback `OC_API_SID` (single-identity cũ).
 - WS (`/ws/:matchCode`) và SSE bank-events không expose qua MCP.

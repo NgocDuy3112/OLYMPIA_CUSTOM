@@ -153,6 +153,46 @@ async function createUserSession(
   });
 }
 
+/**
+ * MCP server đổi userCode → sid (server-to-server):
+ * `Authorization: Bearer <MCP_SERVICE_TOKEN>`, body `{ userCode }`.
+ * Cách B: role phải operator/admin — không phải → 403, identity không xài được.
+ * Trả `{ sid, expiresIn }` (TTL 86400s). Không set cookie — client không thấy.
+ */
+export function serviceSession(
+  app: FastifyInstance,
+  repo: UserRepo = drizzleUserRepo,
+) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const auth = request.headers.authorization ?? "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+    const env = getEnv();
+    if (!env.MCP_SERVICE_TOKEN || token !== env.MCP_SERVICE_TOKEN) {
+      throw new AppError(403, "Service token invalid");
+    }
+    const body = (request.body ?? {}) as { userCode?: unknown };
+    const userCode =
+      typeof body.userCode === "string" ? body.userCode.trim() : "";
+    if (!userCode) throw new AppError(400, "userCode is required");
+    const user = await repo.findByCode(userCode);
+    if (!user) throw new AppError(404, "User not found");
+    if (user.role !== "operator" && user.role !== "admin") {
+      throw new AppError(403, "Identity phải là operator hoặc admin");
+    }
+    const sid = await createUserSession(app, user);
+    void writeAudit({
+      actionType: "MCP_SESSION_MINT",
+      actorCode: user.userCode,
+      details: `role=${user.role}`,
+    });
+    return reply.send({
+      status: "success",
+      message: "OK",
+      data: { sid, expiresIn: SESSION_TTL },
+    });
+  };
+}
+
 // ── Login rate-limit (Valkey, per IP+email) ──
 
 const LOGIN_MAX_ATTEMPTS = 10;

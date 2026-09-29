@@ -1,4 +1,5 @@
 import { getMcpEnv } from "./env.js";
+import { currentIdentity, getSid, refreshSid } from "./identity.js";
 
 export interface ApiCallOptions {
   method?: string;
@@ -19,14 +20,12 @@ function buildUrl(path: string, query?: ApiCallOptions["query"]): string {
   return url.toString();
 }
 
-/** Fetch wrapper tới Fastify backend, giữ nguyên envelope {status,message,data}. */
-export async function apiFetch<T = unknown>(
+async function doFetch(
   path: string,
-  opts: ApiCallOptions = {},
-): Promise<T> {
-  const env = getMcpEnv();
-  const sid = opts.sid ?? env.apiSid;
-  const res = await fetch(buildUrl(path, opts.query), {
+  opts: ApiCallOptions,
+  sid: string,
+): Promise<Response> {
+  return fetch(buildUrl(path, opts.query), {
     method: opts.method ?? "GET",
     headers: {
       ...(opts.body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -34,6 +33,22 @@ export async function apiFetch<T = unknown>(
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
+}
+
+/** Fetch wrapper tới Fastify backend, giữ nguyên envelope {status,message,data}.
+ * Sid lấy từ identity (token → mint sid, cache), fallback OC_API_SID khi dev.
+ * API trả 401 (sid hết hạn 24h) → mint lại 1 lần rồi retry. */
+export async function apiFetch<T = unknown>(
+  path: string,
+  opts: ApiCallOptions = {},
+): Promise<T> {
+  const env = getMcpEnv();
+  const identity = currentIdentity();
+  const sid = opts.sid ?? (identity ? await getSid(identity) : env.apiSid);
+  let res = await doFetch(path, opts, sid);
+  if (res.status === 401 && !opts.sid && identity) {
+    res = await doFetch(path, opts, await refreshSid(identity));
+  }
   const text = await res.text();
   let json: unknown = null;
   try {
