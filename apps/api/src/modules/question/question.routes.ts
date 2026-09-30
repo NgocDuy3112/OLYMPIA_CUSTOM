@@ -907,10 +907,10 @@ export async function questionRoutes(
         citations?: unknown;
       };
       const bankCode = String(raw.bankCode ?? "").trim().toUpperCase();
-      if (!/^QB_[A-Z0-9_]{1,20}$/.test(bankCode)) {
+      if (!/^QB_[A-Z0-9_]{1,47}$/.test(bankCode)) {
         return reply.code(400).send({
           status: "error",
-          message: "bankCode must match QB_* (A-Z/0-9/_, max 20 chars)",
+          message: "bankCode must match QB_* (A-Z/0-9/_, max 50 chars)",
           data: null,
         });
       }

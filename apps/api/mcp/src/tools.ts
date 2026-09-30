@@ -151,7 +151,7 @@ export function registerTools(server: McpServer): void {
   reg(server, "bank_create",
     "Thêm câu vào bank. Cần quyền qauthor (admin/operator-qauthor). bankCode format QB_[A-Z0-9_].",
     {
-      bankCode: z.string().regex(/^QB_[A-Z0-9_]{1,20}$/),
+      bankCode: z.string().regex(/^QB_[A-Z0-9_]{1,47}$/),
       content: z.string().min(1),
       answer: z.string().min(1),
       explanation: z.string().optional(),
