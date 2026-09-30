@@ -59,15 +59,17 @@ Bearer <token> → token record → userCode → POST /api/auth/service/session
 Client (ChatGPT / Claude Code) chỉ cấu hình URL + Bearer token như cũ —
 không thấy sid, không cần tạo lại token khi sid hết hạn.
 
-## Tools (13)
+## Tools (7)
 
-Read: `list_matches`, `get_match`, `get_scoreboard`,
-`list_questions`, `get_question`, `list_answers`, `get_question_answers`,
-`search_bank`, `list_tournaments`, `get_tournament`, `get_standings`,
-`grade_question`.
+Read: `match_overview`, `tournament_overview`, `match_questions`,
+`match_answers`, `bank_search`.
 
-Write (API vẫn enforce role, thiếu quyền → 401/403):
+Write (API vẫn enforce role, thiếu quyền → 401/403): `grade_question`,
 `bank_create` (qauthor).
+
+Tool gộp theo intent (không endpoint =1 tool): không identifier → list,
+có identifier → detail; `match_overview` kèm `includeScoreboard`,
+`tournament_overview` kèm `view:"standings"`.
 
 ## Giới hạn
 

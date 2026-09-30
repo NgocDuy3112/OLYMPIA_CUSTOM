@@ -21,87 +21,98 @@ function reg(
 }
 
 /** Gỡ hết gating: mọi tool đăng ký cho mọi token hợp lệ —
- *  quyền do backend chốt theo identity (role operator/admin lúc mint). */
+ *  quyền do backend chốt theo identity (role operator/admin lúc mint).
+ *  Tool gộp theo intent: không identifier → list, có → detail (xem description). */
 export function registerTools(server: McpServer): void {
   // ── Read ──
 
-  reg(server, "list_matches",
-    "Liệt kê matches. Filter theo tournamentCode nếu có. (GET /api/matches, public)",
-    { tournamentCode: z.string().optional().describe("Mã giải, vd OC_T_...") },
-    async ({ tournamentCode }) => {
-      const data = await apiFetch("/api/matches", {
-        query: { tournamentCode },
-      });
-      return text(data);
+  reg(server, "match_overview",
+    "Trạng thái trận đấu. Không slug → danh sách matches (lọc tournamentCode?). Có slug (matchSlug|matchCode) → chi tiết match + players; includeScoreboard=true → kèm bảng điểm. (GET /api/matches, /api/matches/:slug, /api/scoreboard/:matchCode)",
+    {
+      slug: z.string().optional().describe("matchSlug hoặc matchCode — trống = list"),
+      tournamentCode: z.string().optional().describe("Mã giải filter khi list, vd OC_T_..."),
+      includeScoreboard: z.boolean().default(false).describe("Kèm bảng điểm (chỉ khi có slug)"),
     },
-  );
-
-  reg(server, "get_match",
-    "Chi tiết 1 match + players theo slug/code. (GET /api/matches/:slug, public)",
-    { slug: z.string().describe("matchSlug hoặc matchCode") },
-    async ({ slug }) => {
-      const data = await apiFetch(`/api/matches/${encodeURIComponent(slug)}`);
-      return text(data);
-    },
-  );
-
-  reg(server, "get_scoreboard",
-    "Bảng điểm của match. (GET /api/scoreboard/:matchCode, public)",
-    { matchCode: z.string() },
-    async ({ matchCode }) => {
-      const data = await apiFetch(
+    async ({ slug, tournamentCode, includeScoreboard }) => {
+      if (!slug) {
+        const data = await apiFetch("/api/matches", {
+          query: { tournamentCode },
+        });
+        return text(data);
+      }
+      const detail = (await apiFetch(
+        `/api/matches/${encodeURIComponent(slug)}`,
+      )) as Record<string, unknown>;
+      if (!includeScoreboard) return text(detail);
+      const matchCode = (detail as { data?: { matchCode?: string } })?.data
+        ?.matchCode;
+      if (!matchCode) {
+        return text({
+          ...detail,
+          scoreboard: null,
+          note: "Không lấy được matchCode từ detail — bỏ qua scoreboard",
+        });
+      }
+      const scoreboard = await apiFetch(
         `/api/scoreboard/${encodeURIComponent(matchCode)}`,
       );
+      return text({ ...detail, scoreboard });
+    },
+  );
+
+  reg(server, "tournament_overview",
+    "Giải đấu. Không code → danh sách giải. Có code → chi tiết giải + players + matches; view=\"standings\" → bảng xếp hạng. (GET /api/tournaments, /:code, /:code/standings)",
+    {
+      code: z.string().optional().describe("Mã giải, vd OC_T_... — trống = list"),
+      view: z.enum(["detail", "standings"]).default("detail")
+        .describe("Chỉ có ý nghĩa khi có code"),
+    },
+    async ({ code, view }) => {
+      if (!code) {
+        const data = await apiFetch("/api/tournaments");
+        return text(data);
+      }
+      const path =
+        view === "standings"
+          ? `/api/tournaments/${encodeURIComponent(code)}/standings`
+          : `/api/tournaments/${encodeURIComponent(code)}`;
+      const data = await apiFetch(path);
       return text(data);
     },
   );
 
-  reg(server, "list_questions",
-    "Danh sách câu hỏi của match. Cần login (sid). Non-staff bị strip answer/explanation.",
-    { matchCode: z.string() },
-    async ({ matchCode }) => {
-      const data = await apiFetch(
-        `/api/questions/${encodeURIComponent(matchCode)}`,
-      );
-      return text(data);
+  reg(server, "match_questions",
+    "Câu hỏi của match. Không questionCode → danh sách; có → chi tiết 1 câu. Cần login; non-staff bị strip answer/explanation. (GET /api/questions/:matchCode[/:questionCode])",
+    {
+      matchCode: z.string(),
+      questionCode: z.string().optional(),
     },
-  );
-
-  reg(server, "get_question",
-    "Chi tiết 1 câu hỏi. Cần login. Non-staff bị strip answer/explanation.",
-    { matchCode: z.string(), questionCode: z.string() },
     async ({ matchCode, questionCode }) => {
+      const base = `/api/questions/${encodeURIComponent(matchCode)}`;
       const data = await apiFetch(
-        `/api/questions/${encodeURIComponent(matchCode)}/${encodeURIComponent(questionCode)}`,
+        questionCode ? `${base}/${encodeURIComponent(questionCode)}` : base,
       );
       return text(data);
     },
   );
 
-  reg(server, "list_answers",
-    "Đáp án thí sinh trong match. Cần login. Staff thấy all, player chỉ thấy bài mình.",
-    { matchCode: z.string() },
-    async ({ matchCode }) => {
-      const data = await apiFetch(
-        `/api/answers/${encodeURIComponent(matchCode)}`,
-      );
-      return text(data);
+  reg(server, "match_answers",
+    "Bài nộp (đáp án) thí sinh của match. Không questionCode → toàn bộ (staff thấy all, player chỉ bài mình); có → đáp án 1 câu (staff-only, 403 nếu không phải staff). (GET /api/answers/:matchCode[/:questionCode])",
+    {
+      matchCode: z.string(),
+      questionCode: z.string().optional(),
     },
-  );
-
-  reg(server, "get_question_answers",
-    "Đáp án thí sinh cho 1 câu. Staff-only (API trả 403 nếu không phải staff). Controller dùng để HIỆN TRẢ LỜI.",
-    { matchCode: z.string(), questionCode: z.string() },
     async ({ matchCode, questionCode }) => {
+      const base = `/api/answers/${encodeURIComponent(matchCode)}`;
       const data = await apiFetch(
-        `/api/answers/${encodeURIComponent(matchCode)}/${encodeURIComponent(questionCode)}`,
+        questionCode ? `${base}/${encodeURIComponent(questionCode)}` : base,
       );
       return text(data);
     },
   );
 
-  reg(server, "search_bank",
-    "Tìm ngân hàng câu hỏi. Cần login hoặc agent token. Non-qauthor bị ẩn answer.",
+  reg(server, "bank_search",
+    "Tìm ngân hàng câu hỏi. Cần login hoặc agent token. Non-qauthor bị ẩn answer. (GET /api/bank/search)",
     {
       q: z.string().optional(),
       round_hint: z.string().optional(),
@@ -118,36 +129,7 @@ export function registerTools(server: McpServer): void {
     },
   );
 
-  reg(server, "list_tournaments",
-    "Liệt kê giải đấu. (GET /api/tournaments, public)",
-    {},
-    async () => {
-      const data = await apiFetch("/api/tournaments");
-      return text(data);
-    },
-  );
-
-  reg(server, "get_tournament",
-    "Chi tiết giải + players + matches. (GET /api/tournaments/:code, public)",
-    { code: z.string() },
-    async ({ code }) => {
-      const data = await apiFetch(
-        `/api/tournaments/${encodeURIComponent(code)}`,
-      );
-      return text(data);
-    },
-  );
-
-  reg(server, "get_standings",
-    "Bảng xếp hạng giải. (GET /api/tournaments/:code/standings, public)",
-    { code: z.string() },
-    async ({ code }) => {
-      const data = await apiFetch(
-        `/api/tournaments/${encodeURIComponent(code)}/standings`,
-      );
-      return text(data);
-    },
-  );
+  // ── Write (API vẫn enforce role, thiếu quyền → 401/403) ──
 
   reg(server, "grade_question",
     "Chấm toàn bộ bài 1 câu (backend tự lấy đáp án gốc + bài thí sinh rồi chấm). Staff-only. Mặc định ẩn danh TS1..n (anonymize=false để hiện userCode).",
@@ -165,8 +147,6 @@ export function registerTools(server: McpServer): void {
       return text(data);
     },
   );
-
-  // ── Write (API vẫn enforce role, thiếu quyền → 401/403) ──
 
   reg(server, "bank_create",
     "Thêm câu vào bank. Cần quyền qauthor (admin/operator-qauthor). bankCode format QB_[A-Z0-9_].",
