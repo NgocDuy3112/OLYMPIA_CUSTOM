@@ -49,7 +49,7 @@ export const questionSetItems = pgTable(
     // KDC_1..6 | KDR{1..4}_1..6 | GM_KEY/GM_H1..H8 | BP_1..4 |
     // VD_<DOMAIN>_<20|30|40|50>.
     slot: varchar("slot", { length: 25 }).notNull(),
-    bankCode: varchar("bank_code", { length: 50 }).notNull(),
+    bankCode: varchar("bank_code", { length: 25 }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => [

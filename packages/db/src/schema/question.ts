@@ -62,7 +62,7 @@ export const questionBank = pgTable(
   "question_bank",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    bankCode: varchar("bank_code", { length: 50 }).notNull().unique(),
+    bankCode: varchar("bank_code", { length: 25 }).notNull().unique(),
     content: varchar("content").notNull(),
     answer: varchar("answer").notNull(),
     mediaUrl: varchar("media_url"),
