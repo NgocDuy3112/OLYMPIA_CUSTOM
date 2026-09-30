@@ -54,11 +54,6 @@ const EMPTY: BankFormValue = {
   removeMedia: false,
 };
 
-/** Mã set GM tự sinh, nhóm 1 KEY + 8 hint. */
-export function genSetCode(): string {
-  return `SET_${Date.now().toString(36).toUpperCase()}`;
-}
-
 const KIND_TITLE: Record<BankFormKind, string> = {
   kd: "Khởi động",
   bp: "Bứt phá",
@@ -138,7 +133,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         citationUrl: c0?.url ?? "",
       });
     } else if (kind === "gm-key") {
-      setValue({ ...EMPTY, roundHint: "GM", setCode: genSetCode(), hintIndex: "KEY" });
+      setValue({ ...EMPTY, roundHint: "GM", setCode: "", hintIndex: "KEY" });
     } else {
       setValue({
         ...EMPTY,
@@ -300,7 +295,12 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Set GM</label>
-            <input value={value.setCode} readOnly className={`${inputClass} font-mono opacity-70`} />
+            <input
+              value={value.setCode}
+              readOnly
+              placeholder="server tự gen S1, S2, ... khi tạo KEY"
+              className={`${inputClass} font-mono opacity-70`}
+            />
           </div>
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Vị trí *</label>

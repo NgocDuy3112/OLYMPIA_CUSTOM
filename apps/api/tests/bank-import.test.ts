@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assignAutoCodes,
   autoCodePrefixes,
+  nextSequentialSetCode,
   normalizeRows,
   stripAccents,
   validateGmSets,
@@ -276,5 +277,21 @@ describe("validateGmSets — GIAI_MA gom set theo hợp đồng pick-gm-set", ()
       item("BUT_PHA", 2, { "Câu hỏi": "Q", "Đáp án": "A" }),
     ]);
     expect(validateGmSets(rows)).toHaveLength(0);
+  });
+});
+
+describe("nextSequentialSetCode — S tăng tiến, không hash", () => {
+  it("trống → S1", () => {
+    expect(nextSequentialSetCode([])).toBe("S1");
+  });
+
+  it("MAX +1, bỏ qua SET_<hash> cũ", () => {
+    expect(
+      nextSequentialSetCode(["S1", "S3", "SET_1Z9KQQ", "S09"]),
+    ).toBe("S10");
+  });
+
+  it("chỉ nhận S<digits>", () => {
+    expect(nextSequentialSetCode(["SET_XX", "SX", "S2a"])).toBe("S1");
   });
 });

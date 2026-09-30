@@ -13,6 +13,7 @@ import {
   assignAutoCodes,
   autoCodePrefixes,
   MAX_IMPORT_ROWS,
+  nextSequentialSetCode,
   normalizeRows,
   validateGmSets,
   validateRow,
@@ -938,6 +939,18 @@ export async function questionRoutes(
         : typeof raw.options === "string"
           ? raw.options
           : null;
+      const roundHint =
+        (raw.roundHint ?? raw.round_hint)?.trim().toUpperCase() || null;
+      const hintIndex =
+        (raw.hintIndex ?? raw.hint_index)?.trim().toUpperCase() || null;
+      let setCode =
+        (raw.setCode ?? raw.set_code)?.trim().toUpperCase() || null;
+      // GM KEY mở set mới: gen tuần tự S<max+1> khi để trống (không hash).
+      if (!setCode && roundHint === "GM" && hintIndex === "KEY") {
+        setCode = nextSequentialSetCode(
+          await bankRepo.listCodesByPrefix("S"),
+        );
+      }
       try {
         const result = await bankRepo.create({
           bankCode,
@@ -947,11 +960,11 @@ export async function questionRoutes(
           hintText: (raw.hintText ?? raw.hint_text)?.trim() || null,
           mediaUrl: (raw.mediaUrl ?? raw.media_url)?.trim() || null,
           options,
-          roundHint: (raw.roundHint ?? raw.round_hint)?.trim().toUpperCase() || null,
+          roundHint,
           domain: raw.domain?.trim().toUpperCase() || null,
           difficulty: raw.difficulty ?? null,
-          setCode: (raw.setCode ?? raw.set_code)?.trim().toUpperCase() || null,
-          hintIndex: (raw.hintIndex ?? raw.hint_index)?.trim().toUpperCase() || null,
+          setCode,
+          hintIndex,
           citations: normalizeCitations(raw.citations) ?? [],
           createdBy: uuidOrNull(session.userId),
         });

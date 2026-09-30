@@ -391,6 +391,17 @@ function roundToken(roundHint: string | undefined): string {
   return (t || "IM").slice(0, 10);
 }
 
+/** setCode tuần tự `S<n>` kế từ MAX hiện có — thay hashing
+ *  `SET_<base36>` (web trước đây). Chỉ tính `S<digits>`, bỏ qua SET_ cũ. */
+export function nextSequentialSetCode(existing: string[]): string {
+  let max = 0;
+  for (const code of existing) {
+    const m = /^S(\d+)$/.exec(code);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `S${max + 1}`;
+}
+
 /** Prefix `QB_<TOKEN>_<DDMMYYYY>_` cho các rows THIẾU bankCode —
  *  route dùng để query listCodesByPrefix trước khi assignAutoCodes. */
 export function autoCodePrefixes(
