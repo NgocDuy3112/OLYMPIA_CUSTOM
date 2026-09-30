@@ -14,6 +14,7 @@ import {
   autoCodePrefixes,
   MAX_IMPORT_ROWS,
   normalizeRows,
+  validateGmSets,
   validateRow,
   vnDate,
   type MediaWarning,
@@ -1039,6 +1040,12 @@ export async function questionRoutes(
       // Lỗi theo dòng (normalize gộp + validate)
       const normalizeByKey = new Map<string, RowIssue[]>();
       for (const is of issues) {
+        const k = `${is.sheet ?? ""}#${is.row}`;
+        normalizeByKey.set(k, [...(normalizeByKey.get(k) ?? []), is]);
+      }
+      // GM: validate cấp set (thiếu/trùng KEY+H1..H8) — issue gắn vào từng row
+      // của set → import chặn CẢ SET khi set vi phạm.
+      for (const is of validateGmSets(rows)) {
         const k = `${is.sheet ?? ""}#${is.row}`;
         normalizeByKey.set(k, [...(normalizeByKey.get(k) ?? []), is]);
       }

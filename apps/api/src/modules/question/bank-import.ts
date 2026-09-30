@@ -307,6 +307,83 @@ export function validateRow(
   return out;
 }
 
+// ── Set GM (GIAI_MA) ─────────────────────────────────────────────
+
+/** KEY + H1..H8 — ĐỒNG HỢP với GM_ORDER trong question-set.routes.ts
+ *  (bên đó không export, không import chung được — đổi bên này nếu đổi bên kia). */
+const GM_SET_REQUIRED = [
+  "KEY",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "H7",
+  "H8",
+] as const;
+
+/**
+ * Gom set + validate cấp SET cho GM (hành vi riêng của sheet GIAI_MA):
+ * - Mỗi setCode phải có ĐÚNG 1 KEY + đủ H1..H8 (pick-gm-set trả 422 nếu thiếu,
+ *   `Map<hintIndex>` overwrite im lặng nếu trùng).
+ * - Vi phạm set → issue cho TỪNG row của set → import chặn cả set (atomic),
+ *   không để setHalf-broken lọt vào DB.
+ */
+export function validateGmSets(rows: NormalizedRow[]): RowIssue[] {
+  const out: RowIssue[] = [];
+  const gm = rows.filter((r) => r.fields.roundHint === "GM");
+  if (gm.length === 0) return out;
+
+  // Row-level: thiếu cột
+  for (const r of gm.filter((r) => !r.fields.hintIndex)) {
+    out.push({
+      row: r.row,
+      sheet: r.sheet,
+      field: "hintIndex",
+      msg: "GM cần cột Mã gợi ý (KEY hoặc H1..H8)",
+    });
+  }
+  for (const r of gm.filter((r) => !r.fields.setCode)) {
+    out.push({
+      row: r.row,
+      sheet: r.sheet,
+      field: "setCode",
+      msg: "GM cần cột Bộ gợi ý để gom set",
+    });
+  }
+
+  // Set-level
+  const bySet = new Map<string, NormalizedRow[]>();
+  for (const r of gm) {
+    if (!r.fields.setCode) continue;
+    bySet.set(r.fields.setCode, [...(bySet.get(r.fields.setCode) ?? []), r]);
+  }
+  for (const [set, list] of bySet) {
+    const problems: string[] = [];
+    const seen = new Set<string>();
+    const dup = new Set<string>();
+    for (const r of list) {
+      const h = r.fields.hintIndex;
+      if (!h) continue;
+      if (seen.has(h)) dup.add(h);
+      seen.add(h);
+    }
+    if (dup.size > 0) problems.push(`trùng ${[...dup].join(",")}`);
+    if (!seen.has("KEY")) problems.push("thiếu KEY");
+    const missing = GM_SET_REQUIRED.filter((h) => !seen.has(h));
+    if (missing.length > 0) problems.push(`thiếu ${missing.join(",")}`);
+
+    if (problems.length > 0) {
+      const msg = `set ${set}: ${problems.join("; ")} — pick-gm-set cần đủ KEY+H1..H8`;
+      for (const r of list) {
+        out.push({ row: r.row, sheet: r.sheet, field: "setCode", msg });
+      }
+    }
+  }
+  return out;
+}
+
 // ── Auto-gen bankCode: QB_<ROUND>_<DDMMYYYY>_<NN> ───────────────────
 
 function roundToken(roundHint: string | undefined): string {

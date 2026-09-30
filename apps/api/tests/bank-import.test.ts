@@ -4,6 +4,7 @@ import {
   autoCodePrefixes,
   normalizeRows,
   stripAccents,
+  validateGmSets,
   validateRow,
   vnDate,
   type RawItem,
@@ -194,5 +195,86 @@ describe("assignAutoCodes — QB_<ROUND>_<DDMMYYYY>_<NN>", () => {
 
   it("vnDate =8 chữ số", () => {
     expect(vnDate()).toMatch(/^\d{8}$/);
+  });
+});
+
+describe("validateGmSets — GIAI_MA gom set theo hợp đồng pick-gm-set", () => {
+  function gmRows(spec: Array<{ hint: string; set?: string }>): RawItem[] {
+    return spec.map((s, i) =>
+      item("GIAI_MA", 2 + i, {
+        "Mã gợi ý": s.hint,
+        ...(s.set !== undefined ? { "Bộ gợi ý": s.set } : {}),
+        "Câu hỏi": s.hint === "KEY" ? "Từ khoá" : `Q ${s.hint}`,
+        "Đáp án câu hỏi": "A",
+      }),
+    );
+  }
+  const FULL = ["KEY", "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"];
+
+  it("set đủ KEY + H1..H8 →0 issue", () => {
+    const { rows } = normalizeRows(gmRows(FULL.map((h) => ({ hint: h, set: "S1" }))));
+    expect(validateGmSets(rows)).toHaveLength(0);
+  });
+
+  it("thiếu H5 → issue cho TỪNG row của set (chặn cả set)", () => {
+    const { rows } = normalizeRows(
+      gmRows(FULL.filter((h) => h !== "H5").map((h) => ({ hint: h, set: "S1" }))),
+    );
+    const issues = validateGmSets(rows);
+    expect(issues).toHaveLength(8); // mọi row của set đều dính
+    expect(issues[0].msg).toContain("thiếu H5");
+  });
+
+  it("trùng H2 → issue cả set (Map overwrite-im lặng được chặn)", () => {
+    const { rows } = normalizeRows(
+      gmRows([...FULL, "H2"].map((h) => ({ hint: h, set: "S2" }))),
+    );
+    const issues = validateGmSets(rows);
+    expect(issues).toHaveLength(10);
+    expect(issues[0].msg).toContain("trùng H2");
+  });
+
+  it("thiếu KEY → issue cả set", () => {
+    const { rows } = normalizeRows(
+      gmRows(FULL.filter((h) => h !== "KEY").map((h) => ({ hint: h, set: "S3" }))),
+    );
+    const issues = validateGmSets(rows);
+    expect(issues).toHaveLength(8);
+    expect(issues[0].msg).toContain("thiếu KEY");
+  });
+
+  it("thiếu Bộ gợi ý / Mã gợi ý → lỗi row-level", () => {
+    const { rows } = normalizeRows([
+      // có set, thiếu Mã gợi ý
+      item("GIAI_MA", 2, {
+        "Bộ gợi ý": "S9",
+        "Câu hỏi": "Q1",
+        "Đáp án câu hỏi": "A1",
+      }),
+      // thiếu cả2
+      item("GIAI_MA", 3, { "Câu hỏi": "Q2", "Đáp án câu hỏi": "A2" }),
+    ]);
+    const fields = validateGmSets(rows).map((i) => i.field);
+    expect(fields).toContain("hintIndex"); // thiếu Mã gợi ý
+    expect(fields).toContain("setCode"); // thiếu Bộ gợi ý
+  });
+
+  it("set khác không liên quan vấn đề của nhau", () => {
+    const { rows } = normalizeRows(
+      gmRows([
+        ...FULL.map((h) => ({ hint: h, set: "OK" })),
+        { hint: "KEY", set: "BROKEN" },
+      ]),
+    );
+    const issues = validateGmSets(rows);
+    expect(issues).toHaveLength(1); // chỉ row của BROKEN (thiếu H1..H8)
+    expect(issues[0].msg).toContain("set BROKEN");
+  });
+
+  it("không có row GM →0 issue", () => {
+    const { rows } = normalizeRows([
+      item("BUT_PHA", 2, { "Câu hỏi": "Q", "Đáp án": "A" }),
+    ]);
+    expect(validateGmSets(rows)).toHaveLength(0);
   });
 });
