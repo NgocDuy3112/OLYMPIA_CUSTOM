@@ -16,7 +16,7 @@ class Task(str, Enum):
 
 class QuestionSubAgent(str, Enum):
     REASON = "reason_subagent"
-    FACT = "fact_subgent"
+    FACT = "fact_subagent"
     FRESH = "fresh_subagent"
     
 
