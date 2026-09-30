@@ -69,6 +69,8 @@ export interface BankRepo {
     ): Promise<BankSearchResult<BankRowWithUsage>>;
     findByCode(bankCode: string): Promise<BankRow | null>;
     findById(id: string): Promise<BankRow | null>;
+    /** Mọi bankCode bắt đầu bằng prefix — dùng tính NN cho bankCode tự sinh. */
+    listCodesByPrefix(prefix: string): Promise<string[]>;
     update(
         id: string,
         updates: {
@@ -280,6 +282,19 @@ export const drizzleBankRepo: BankRepo = {
         return rows[0] ? toBankRow(rows[0]) : null;
     },
 
+    async listCodesByPrefix(prefix): Promise<string[]> {
+        const rows = await db
+            .select({ bankCode: questionBank.bankCode })
+            .from(questionBank)
+            .where(
+                and(
+                    ilike(questionBank.bankCode, `${prefix}%`),
+                    eq(questionBank.isDeleted, false),
+                ),
+            );
+        return rows.map((r) => r.bankCode);
+    },
+
     async create(input): Promise<{ id: string }> {
         const result = await db
             .insert(questionBank)
@@ -449,6 +464,11 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
         },
         async findById(id) {
             return rows.find((r) => r.id === id) ?? null;
+        },
+        async listCodesByPrefix(prefix) {
+            return rows
+                .filter((r) => r.bankCode.startsWith(prefix))
+                .map((r) => r.bankCode);
         },
         async create(input) {
             const row: BankRow = {

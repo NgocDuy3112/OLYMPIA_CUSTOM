@@ -65,7 +65,11 @@ Read: `match_overview`, `tournament_overview`, `match_questions`,
 `match_answers`, `bank_search`.
 
 Write (API vẫn enforce role, thiếu quyền → 401/403): `grade_question`,
-`bank_create` (qauthor).
+`bank_create` (qauthor). `bank_create` có3 nguồn, CHỈ1 mỗi lần:
+(1) fields =1 câu, `bankCode` bắt buộc tự sinh `QB_<ROUND>_<DDMMYYYY>_<NN>`;
+(2) `rows` ≤100 bulk — server gen code, trả report `{total, created,
+failed, results, warnings}` (warnings = cột media là tên file, upload sau);
+(3) `path` = file Excel local theo template OC_BANK — **chỉ stdio**, HTTP mode không thấy param này. Mapping cột tiếng Việt sống1 chỗ ở API (`bank-import.ts`).
 
 Tool gộp theo intent (không endpoint =1 tool): không identifier → list,
 có identifier → detail; `match_overview` kèm `includeScoreboard`,

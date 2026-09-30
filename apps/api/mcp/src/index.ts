@@ -11,7 +11,8 @@ async function runStdio(): Promise<void> {
   // Không có tên → fallback OC_API_SID (dev).
   const entry = env.agentTokens.find((t) => t.name === env.agentName);
   setStaticIdentity(env.agentName ? (entry?.userCode ?? null) : null);
-  const server = createMcpServer();
+  // stdio = chạy trên máy user → bank_create thêm param `path` (file local).
+  const server = createMcpServer({ localFiles: true });
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("[mcp] stdio ready");

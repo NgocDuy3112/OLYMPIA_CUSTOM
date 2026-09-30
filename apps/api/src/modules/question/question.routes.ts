@@ -9,6 +9,17 @@ import {
   ocPrefixFromCode,
 } from "@oc/shared";
 import { emitBankChanged } from "./bank-events.js";
+import {
+  assignAutoCodes,
+  autoCodePrefixes,
+  MAX_IMPORT_ROWS,
+  normalizeRows,
+  validateRow,
+  vnDate,
+  type MediaWarning,
+  type RawItem,
+  type RowIssue,
+} from "./bank-import.js";
 
 export async function questionRoutes(
   app: FastifyInstance,
@@ -958,6 +969,191 @@ export async function questionRoutes(
           data: null,
         });
       }
+    },
+  );
+
+  // POST /bank/import — import hàng loạt (Excel raw items hoặc field-name rows).
+  // Partial import có chủ đích: dòng sai không chặn dòng đúng, trả report.
+  app.post(
+    "/bank/import",
+    { preHandler: [requireAuth(app)] },
+    async (request, reply) => {
+      const session = (
+        request as unknown as {
+          session: {
+            userId: string;
+            role: string;
+            operatorScopes?: string | null;
+          };
+        }
+      ).session;
+      if (!isBankWriter(session)) {
+        return reply.code(403).send({
+          status: "error",
+          message: "Only admin or qauthor can write bank",
+          data: null,
+        });
+      }
+
+      const body = request.body as { items?: unknown; rows?: unknown };
+      let items: RawItem[] = [];
+      if (Array.isArray(body.items)) {
+        items = body.items.slice(0, MAX_IMPORT_ROWS).map((it, i) => {
+          const o = (it ?? {}) as Partial<RawItem>;
+          return {
+            sheet: typeof o.sheet === "string" ? o.sheet : undefined,
+            row: Number(o.row) || i + 1,
+            cells:
+              o.cells && typeof o.cells === "object"
+                ? (o.cells as Record<string, unknown>)
+                : {},
+          };
+        });
+      } else if (Array.isArray(body.rows)) {
+        items = body.rows.slice(0, MAX_IMPORT_ROWS).map((r, i) => ({
+          row: i + 1,
+          cells:
+            r && typeof r === "object"
+              ? (r as Record<string, unknown>)
+              : {},
+        }));
+      } else {
+        return reply.code(400).send({
+          status: "error",
+          message: `items (raw Excel) hoặc rows (field-name) required, tối đa ${MAX_IMPORT_ROWS} dòng`,
+          data: null,
+        });
+      }
+      if (items.length === 0) {
+        return reply.code(400).send({
+          status: "error",
+          message: "Không có dòng nào để import",
+          data: null,
+        });
+      }
+
+      const { rows, issues } = normalizeRows(items);
+      const key = (r: { row: number; sheet?: string }) =>
+        `${r.sheet ?? ""}#${r.row}`;
+
+      // Lỗi theo dòng (normalize gộp + validate)
+      const normalizeByKey = new Map<string, RowIssue[]>();
+      for (const is of issues) {
+        const k = `${is.sheet ?? ""}#${is.row}`;
+        normalizeByKey.set(k, [...(normalizeByKey.get(k) ?? []), is]);
+      }
+
+      type Result = {
+        row: number;
+        sheet?: string;
+        status: "created" | "failed";
+        bankCode?: string;
+        errors?: Array<{ field?: string; msg: string }>;
+      };
+      const results: Result[] = [];
+      const valid: typeof rows = [];
+      const reported = new Set<string>();
+
+      for (const r of rows) {
+        reported.add(key(r));
+        const errs = [...(normalizeByKey.get(key(r)) ?? []), ...validateRow(r)];
+        if (errs.length > 0) {
+          results.push({
+            row: r.row,
+            sheet: r.sheet,
+            status: "failed",
+            errors: errs.map((e) => ({ field: e.field, msg: e.msg })),
+          });
+        } else {
+          valid.push(r);
+        }
+      }
+      // Dòng bị normalize bỏ (sheet lạ...) chưa từng report
+      for (const [k, errs] of normalizeByKey) {
+        if (reported.has(k)) continue;
+        results.push({
+          row: errs[0].row,
+          sheet: errs[0].sheet,
+          status: "failed",
+          errors: errs.map((e) => ({ field: e.field, msg: e.msg })),
+        });
+      }
+
+      // Auto-gen bankCode: query prefix1 lần/prefix (NN bắt đầu sau MAX hiện có)
+      const missing = valid.filter((r) => !r.fields.bankCode);
+      if (missing.length > 0) {
+        const today = vnDate();
+        const existing: string[] = [];
+        for (const prefix of autoCodePrefixes(missing, today)) {
+          existing.push(...(await bankRepo.listCodesByPrefix(prefix)));
+        }
+        assignAutoCodes(missing, existing, today);
+      }
+
+      // Insert — partial: lỗi1 dòng không chặn dòng khác
+      let created = 0;
+      for (const r of valid) {
+        try {
+          await bankRepo.create({
+            bankCode: r.fields.bankCode as string,
+            content: (r.fields.content as string).trim(),
+            answer: (r.fields.answer as string).trim(),
+            explanation: r.fields.explanation?.trim() || null,
+            hintText: r.fields.hintText?.trim() || null,
+            mediaUrl: r.fields.mediaUrl ?? null,
+            options: r.fields.options
+              ? JSON.stringify(r.fields.options)
+              : null,
+            roundHint: r.fields.roundHint ?? null,
+            domain: r.fields.domain ?? null,
+            difficulty: r.fields.difficulty ?? null,
+            setCode: r.fields.setCode ?? null,
+            hintIndex: r.fields.hintIndex ?? null,
+            citations: [],
+            createdBy: uuidOrNull(session.userId),
+          });
+          created += 1;
+          results.push({
+            row: r.row,
+            sheet: r.sheet,
+            status: "created",
+            bankCode: r.fields.bankCode,
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Create failed";
+          results.push({
+            row: r.row,
+            sheet: r.sheet,
+            status: "failed",
+            errors: [
+              {
+                field: "bankCode",
+                msg: /unique|duplicate/i.test(msg)
+                  ? `bankCode ${r.fields.bankCode} đã tồn tại`
+                  : msg,
+              },
+            ],
+          });
+        }
+      }
+
+      if (created > 0) emitBankChanged();
+      results.sort((a, b) => a.row - b.row);
+      const warnings: MediaWarning[] = rows
+        .map((r) => r.mediaWarning)
+        .filter((w): w is MediaWarning => Boolean(w));
+
+      return reply.send({
+        status: "success",
+        message: "OK",
+        data: {
+          total: items.length,
+          created,
+          failed: results.filter((r) => r.status === "failed").length,
+          results,
+          warnings,
+        },
+      });
     },
   );
 
