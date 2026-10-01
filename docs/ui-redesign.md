@@ -156,7 +156,29 @@ QualifierManager, CScoreEditModal, QAuthorSetsPage + 14 input toolbar còn lại
 Cũ đã xoá: `const labelClass = "text-xs text-brand"`, `const inputClass = "px-3 py-2 …"`,
 hint `text-xs text-primary -mt-2` (text-primary trên nền tối fail contrast → muted-foreground).
 
-## 9. Tài liệu đọc thêm
+## 9. DataTable — mọi bảng dùng chung 1 component (2026-10)
+
+`components/shared/data-table.tsx` — shadcn DataTable block trên `@tanstack/react-table` v9
+(`tableFeatures` + `useTable` + `FlexRender`), features: **sort cột, pagination client/server,
+loading/empty state**. Props: `columns/data/loading/emptyText/pageSize/serverPagination/
+onRowClick/rowClassName/bare`.
+
+```mermaid
+flowchart LR
+    A["Page định nghĩa columns<br/>(createDataTableColumns&lt;T&gt;())"] --> B[DataTable]
+    B --> C["sort: click header"]
+    B --> D["pagination client pageSize<br/>hoặc serverPagination page/pageCount"]
+    B --> E["loading → 'Đang tải…'<br/>empty → emptyText"]
+```
+
+Đã convert 8 bảng: BankTab (serverPager), AdminBankReview (serverPager + row click chọn dòng),
+AdminAudit/AdminUsers/AdminMcpTokens/AdminCheckpoints (clientPager), StandingsTable,
+SetFillPanel (`bare` — bảng mini trong panel, sort tắt).
+
+**RulesPage** tách khỏi DataTable: bảng luật đổi UI riêng — `PointMatrix` (card điểm theo hạng,
+tone màu great/good/mid/low) + `DurationList` (timeline thời gian vòng, thanh tỉ lệ /60s).
+
+## 10. Tài liệu đọc thêm
 
 - `design-system/olympia-custom/MASTER.md` — design system gốc (lưu ý: palette/font trong này đã cũ, code ghi đè)
 - [WCAG 2.2 — Contrast (Minimum) 4.5:1](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)

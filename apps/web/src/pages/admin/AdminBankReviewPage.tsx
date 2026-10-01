@@ -11,13 +11,9 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  createDataTableColumns,
+} from "@/components/shared/data-table";
 
 const logger = createLogger("AdminBankReviewPage");
 
@@ -68,6 +64,71 @@ const STATUS_VN: Record<StatusFilter, string> = {
   approved: "ĐÃ DUYỆT",
   rejected: "KHÔNG DUYỆT",
 };
+
+const helper = createDataTableColumns<BankRow>();
+
+const columns = helper.columns([
+  helper.accessor("bankCode", {
+    header: "Mã",
+    cell: (info) => (
+      <span className="whitespace-nowrap font-mono text-xs">
+        {info.getValue()}
+        {info.row.original.roundHint && (
+          <span className="ml-1 text-muted-foreground">
+            · {info.row.original.roundHint}
+          </span>
+        )}
+      </span>
+    ),
+  }),
+  helper.accessor("content", {
+    header: "Nội dung",
+    cell: (info) => (
+      <span className="block max-w-xs truncate">{info.getValue()}</span>
+    ),
+  }),
+  helper.accessor("answer", {
+    header: "Đáp án",
+    cell: (info) => <span className="font-semibold">{info.getValue()}</span>,
+  }),
+  helper.accessor("status", {
+    header: "Duyệt",
+    cell: (info) => {
+      const st = info.getValue();
+      if (st === "approved") {
+        return (
+          <span className="rounded-full bg-success/20 px-2 py-0.5 text-xs text-success">
+            Đã duyệt
+          </span>
+        );
+      }
+      if (st === "rejected") {
+        return (
+          <span className="rounded-full bg-destructive/20 px-2 py-0.5 text-xs text-destructive">
+            Không duyệt
+          </span>
+        );
+      }
+      return (
+        <span className="rounded-full bg-warning/20 px-2 py-0.5 text-xs text-warning">
+          Chờ duyệt
+        </span>
+      );
+    },
+  }),
+  helper.accessor("mediaUrl", {
+    header: "Media",
+    enableSorting: false,
+    cell: (info) =>
+      info.getValue() ? (
+        <span className="font-mono text-xs text-success" title={info.getValue()!}>
+          Có media
+        </span>
+      ) : (
+        <span className="font-mono text-xs text-muted-foreground">Chưa có</span>
+      ),
+  }),
+]);
 
 interface SetCard {
   setCode: string;
@@ -317,80 +378,24 @@ const AdminBankReviewPage = () => {
         </div>
       ) : (
       <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-4">
-        {loading && rows.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Đang tải…</p>
-        ) : rows.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Chưa có câu nào — danh sách tự cập nhật.</p>
-        ) : (
-          <>
-            <Table className="w-full text-sm">
-              <TableHeader>
-                <TableRow className="border-b border-border hover:bg-transparent">
-                  <TableHead className="py-2 px-2 text-success">Mã</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Nội dung</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Đáp án</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Duyệt</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Media</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((r) => (
-                  <TableRow
-                    key={r.id}
-                    onClick={() => { setSelected(r); setNote(r.reviewNote ?? ""); setOceeOpinion(""); }}
-                    className={`border-b border-border/50 align-top cursor-pointer hover:bg-accent/50 ${
-                      selected?.id === r.id ? "bg-success/10" : ""
-                    }`}
-                  >
-                    <TableCell className="py-2 px-2 font-mono text-xs whitespace-nowrap">
-                      {r.bankCode}
-                      {r.roundHint && <span className="ml-1 text-muted-foreground">· {r.roundHint}</span>}
-                    </TableCell>
-                    <TableCell className="py-2 px-2 max-w-xs truncate">{r.content}</TableCell>
-                    <TableCell className="py-2 px-2 font-semibold">{r.answer}</TableCell>
-                    <TableCell className="py-2 px-2 whitespace-nowrap">
-                      {r.status === "approved" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success">Đã duyệt</span>
-                      ) : r.status === "rejected" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-destructive/20 text-destructive">Không duyệt</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-warning/20 text-warning">Chờ duyệt</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2 px-2 font-mono text-xs max-w-48 truncate">
-                      {r.mediaUrl ? (
-                        <span className="text-success" title={r.mediaUrl}>Có media</span>
-                      ) : (
-                        <span className="text-muted-foreground">Chưa có</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-muted-foreground">Trang {page}/{pages} · {total} câu</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => void fetchRows(page - 1)}
-                  disabled={loading || page <= 1}
-                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
-                >
-                  ← Trước
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => void fetchRows(page + 1)}
-                  disabled={loading || page >= pages}
-                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
-                >
-                  Sau →
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+        <p className="text-xs text-muted-foreground">{total} câu</p>
+        <DataTable
+          columns={columns}
+          data={rows}
+          loading={loading}
+          emptyText="Chưa có câu nào — danh sách tự cập nhật."
+          serverPagination={{
+            page: page - 1,
+            pageCount: pages,
+            onPageChange: (p) => void fetchRows(p + 1),
+          }}
+          onRowClick={(r) => {
+            setSelected(r);
+            setNote(r.reviewNote ?? "");
+            setOceeOpinion("");
+          }}
+          rowClassName={(r) => (selected?.id === r.id ? "bg-success/10" : undefined)}
+        />
       </div>
       )}
 

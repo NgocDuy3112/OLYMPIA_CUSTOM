@@ -5,13 +5,9 @@ import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  createDataTableColumns,
+} from "@/components/shared/data-table";
 
 const logger = createLogger("AdminCheckpointsPage");
 
@@ -20,6 +16,43 @@ interface Checkpoint {
   matchCode: string;
   createdAt?: string;
 }
+
+const helper = createDataTableColumns<Checkpoint>();
+
+const columns = helper.columns([
+  helper.accessor("id", {
+    header: "ID",
+    cell: (info) => (
+      <span className="flex items-center font-mono text-xs text-foreground/80">
+        {info.getValue().slice(0, 8)}…
+        {info.row.index === 0 && (
+          <span className="ml-2 rounded bg-success/20 px-2 py-0.5 text-[11px] font-bold text-success">
+            MỚI NHẤT
+          </span>
+        )}
+      </span>
+    ),
+  }),
+  helper.accessor("matchCode", {
+    header: "Match",
+    cell: (info) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {info.getValue()}
+      </span>
+    ),
+  }),
+  helper.accessor("createdAt", {
+    header: "Thời gian",
+    enableSorting: false,
+    cell: (info) => (
+      <span className="text-xs text-muted-foreground">
+        {info.getValue()
+          ? new Date(info.getValue()!).toLocaleString("vi-VN")
+          : "—"}
+      </span>
+    ),
+  }),
+]);
 
 const AdminCheckpointsPage = () => {
   const [matchCode, setMatchCode] = useState("");
@@ -113,45 +146,12 @@ const AdminCheckpointsPage = () => {
         </Button>
       </div>
 
-      {checkpoints.length === 0 ? (
-        <p className="text-muted-foreground text-sm py-8 text-center">
-          Nhập match code rồi bấm tải. Job snapshot chạy mỗi 30s, giữ 10 bản
-          mới nhất.
-        </p>
-      ) : (
-        <Table className="w-full text-sm">
-          <TableHeader>
-            <TableRow className="border-b border-border hover:bg-transparent">
-              <TableHead className="py-2 px-2 font-medium text-muted-foreground">ID</TableHead>
-              <TableHead className="py-2 px-2 font-medium text-muted-foreground">Match</TableHead>
-              <TableHead className="py-2 px-2 font-medium text-muted-foreground">Thời gian</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {checkpoints.map((c, idx) => (
-              <TableRow
-                key={c.id}
-                className="border-b border-border/50 hover:bg-accent/50"
-              >
-                <TableCell className="py-2 px-2 font-mono text-xs text-foreground/80">
-                  {c.id.slice(0, 8)}…
-                  {idx === 0 && (
-                    <span className="ml-2 px-2 py-0.5 rounded bg-success/20 text-success text-[11px] font-bold">
-                      MỚI NHẤT
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="py-2 px-2 font-mono text-xs text-muted-foreground">{c.matchCode}</TableCell>
-                <TableCell className="py-2 px-2 text-xs text-muted-foreground">
-                  {c.createdAt
-                    ? new Date(c.createdAt).toLocaleString("vi-VN")
-                    : "—"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      <DataTable
+        columns={columns}
+        data={checkpoints}
+        loading={loading}
+        emptyText="Nhập match code rồi bấm tải. Job snapshot chạy mỗi 30s, giữ 10 bản mới nhất."
+      />
     </div>
   );
 };

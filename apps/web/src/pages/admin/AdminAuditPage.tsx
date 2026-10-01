@@ -6,13 +6,9 @@ import { FilterSelect } from "@/components/shared/FilterSelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  createDataTableColumns,
+} from "@/components/shared/data-table";
 
 const logger = createLogger("AdminAuditPage");
 
@@ -25,6 +21,54 @@ interface AuditLog {
   details?: string | null;
   createdAt?: string;
 }
+
+const helper = createDataTableColumns<AuditLog>();
+
+const columns = helper.columns([
+  helper.accessor("createdAt", {
+    header: "Thời gian",
+    cell: (info) => (
+      <span className="whitespace-nowrap text-xs text-muted-foreground">
+        {info.getValue()
+          ? new Date(info.getValue()!).toLocaleString("vi-VN")
+          : "—"}
+      </span>
+    ),
+  }),
+  helper.accessor("actionType", {
+    header: "Hành động",
+    cell: (info) => (
+      <span className="rounded bg-accent px-2 py-0.5 font-mono text-xs font-bold text-foreground/80">
+        {info.getValue()}
+      </span>
+    ),
+  }),
+  helper.accessor("actorCode", {
+    header: "Actor",
+    cell: (info) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {info.getValue() ?? "—"}
+      </span>
+    ),
+  }),
+  helper.accessor("matchCode", {
+    header: "Match",
+    cell: (info) => (
+      <span className="font-mono text-xs text-muted-foreground">
+        {info.getValue() ?? "—"}
+      </span>
+    ),
+  }),
+  helper.accessor("details", {
+    header: "Chi tiết",
+    enableSorting: false,
+    cell: (info) => (
+      <span className="block max-w-xs truncate text-xs text-muted-foreground">
+        {info.getValue() ?? info.row.original.targetCode ?? "—"}
+      </span>
+    ),
+  }),
+]);
 
 const ACTIONS = [
   "LOGIN",
@@ -117,53 +161,13 @@ const AdminAuditPage = () => {
         />
       </div>
 
-      <div className="overflow-x-auto">
-        {loading && logs.length === 0 ? (
-          <p className="text-muted-foreground text-sm py-8 text-center">Đang tải…</p>
-        ) : logs.length === 0 ? (
-          <p className="text-muted-foreground text-sm py-8 text-center">Chưa có log nào.</p>
-        ) : (
-          <Table className="w-full text-sm">
-            <TableHeader>
-              <TableRow className="border-b border-border hover:bg-transparent">
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Thời gian</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Hành động</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Actor</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Match</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Chi tiết</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.map((log) => (
-                <TableRow
-                  key={log.id}
-                  className="border-b border-border/50 hover:bg-accent/50 align-top"
-                >
-                  <TableCell className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">
-                    {log.createdAt
-                      ? new Date(log.createdAt).toLocaleString("vi-VN")
-                      : "—"}
-                  </TableCell>
-                  <TableCell className="py-2 px-2">
-                    <span className="px-2 py-0.5 rounded bg-accent text-foreground/80 text-xs font-mono font-bold">
-                      {log.actionType}
-                    </span>
-                  </TableCell>
-                  <TableCell className="py-2 px-2 font-mono text-xs text-muted-foreground">
-                    {log.actorCode ?? "—"}
-                  </TableCell>
-                  <TableCell className="py-2 px-2 font-mono text-xs text-muted-foreground">
-                    {log.matchCode ?? "—"}
-                  </TableCell>
-                  <TableCell className="py-2 px-2 text-xs text-muted-foreground max-w-xs truncate">
-                    {log.details ?? log.targetCode ?? "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      <DataTable
+        columns={columns}
+        data={logs}
+        loading={loading}
+        emptyText="Chưa có log nào."
+        pageSize={20}
+      />
     </div>
   );
 };

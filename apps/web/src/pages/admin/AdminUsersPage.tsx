@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Plus, RefreshCw, Users } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  createDataTableColumns,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import {
   UserEditPanel,
   UserAddPanel,
@@ -263,6 +260,67 @@ const AdminUsersPage = () => {
     void fetchUsers();
   }, [fetchUsers]);
 
+  const visibleUsers = React.useMemo(
+    () =>
+      users
+        .filter(
+          (u: UserData) => userRoleFilter === "all" || u.role === userRoleFilter,
+        )
+        .slice()
+        .reverse(),
+    [users, userRoleFilter],
+  );
+
+  const columns: DataTableColumn<UserData>[] = React.useMemo(() => {
+    const h = createDataTableColumns<UserData>();
+    return [
+      h.accessor("user_code", {
+        header: "Mã người dùng",
+        cell: (info) => (
+          <span className="font-mono text-xs text-foreground/80">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      h.accessor("user_name", {
+        header: "Tên người dùng",
+        cell: (info) => <span className="text-foreground">{info.getValue()}</span>,
+      }),
+      h.accessor("email", {
+        header: "Email",
+        cell: (info) =>
+          info.getValue() ? (
+            <span className="text-xs text-muted-foreground">{info.getValue()}</span>
+          ) : (
+            <span className="text-muted-foreground/70 italic">—</span>
+          ),
+      }),
+      h.accessor("role", {
+        header: "Vai trò",
+        cell: (info) => (
+          <span className="capitalize text-foreground/90">{info.getValue()}</span>
+        ),
+      }),
+      h.display({
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => {
+          const u = info.row.original;
+          return (
+            <span className="flex justify-end">
+              <UserRowActions
+                onEdit={() => setEditingUser(u)}
+                onChangeRole={() => setRoleUser(u)}
+                onDelete={() => setDeleteTarget(u)}
+              />
+            </span>
+          );
+        },
+      }),
+    ];
+  }, []);
+
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <UserEditPanel
@@ -329,82 +387,26 @@ const AdminUsersPage = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        {fetchError ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-center">
-            <p className="text-destructive text-sm mb-3">{fetchError}</p>
-            <Button
-              variant="destructive"
-              onClick={() => void fetchUsers()}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-sm font-medium"
-            >
-              Thử lại
-            </Button>
-          </div>
-        ) : usersLoading && users.length === 0 ? (
-          <p className="text-muted-foreground text-sm py-8 text-center">Đang tải…</p>
-        ) : users.length === 0 ? (
-          <div className="py-8 text-center">
-            <p className="text-muted-foreground text-sm">Không có người dùng nào trong DB.</p>
-            <p className="text-muted-foreground/70 text-xs mt-1">
-              Tài khoản admin đăng nhập bằng env (ADMIN_USERNAME) không nằm trong DB —
-              bấm “Thêm người dùng” để tạo user đầu tiên.
-            </p>
-          </div>
-        ) : (
-          <Table className="w-full text-sm">
-            <TableHeader>
-              <TableRow className="border-b border-border hover:bg-transparent">
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Mã người dùng</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Tên người dùng</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Email</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Vai trò</TableHead>
-                <TableHead className="py-2 px-2"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users
-                .filter(
-                  (u: UserData) =>
-                    userRoleFilter === "all" || u.role === userRoleFilter,
-                )
-                .slice()
-                .reverse()
-                .map((u: UserData) => (
-                  <TableRow
-                    key={u.user_code}
-                    className="border-b border-border/50 hover:bg-accent/50"
-                  >
-                    <TableCell className="py-2 px-2 font-mono text-xs text-foreground/80">
-                      {u.user_code}
-                    </TableCell>
-                    <TableCell className="py-2 px-2 text-foreground">{u.user_name}</TableCell>
-                    <TableCell className="py-2 px-2 text-xs text-muted-foreground">
-                      {u.email ?? (
-                        <span className="text-muted-foreground/70 italic">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2 px-2">
-                      <span className="capitalize text-foreground/90">{u.role}</span>
-                      {u.role === "operator" && u.operator_scopes && (
-                        <span className="block text-[11px] text-muted-foreground font-mono">
-                          {u.operator_scopes}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2 px-2 text-right">
-                      <UserRowActions
-                        onEdit={() => setEditingUser(u)}
-                        onChangeRole={() => setRoleUser(u)}
-                        onDelete={() => setDeleteTarget(u)}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      {fetchError ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-center">
+          <p className="text-destructive text-sm mb-3">{fetchError}</p>
+          <Button
+            variant="destructive"
+            onClick={() => void fetchUsers()}
+            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-sm font-medium"
+          >
+            Thử lại
+          </Button>
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={visibleUsers}
+          loading={usersLoading}
+          emptyText="Không có người dùng nào trong DB. Tài khoản admin env (ADMIN_USERNAME) không nằm trong DB — bấm “Thêm người dùng” để tạo user đầu tiên."
+          pageSize={20}
+        />
+      )}
     </div>
   );
 };

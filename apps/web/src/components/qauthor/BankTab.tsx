@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
@@ -14,15 +14,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  createDataTableColumns,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 
 const logger = createLogger("BankTab");
+
+const helper = createDataTableColumns<BankData>();
+
 
 /** Citation: chỉ cần link (tùy chọn). Ngày do OCee đọc link + check sau. */
 function citationErrorOf(v: BankFormValue): string {
@@ -188,6 +188,85 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   }, [sidebar, fetchBank]);
 
 
+  const columns: DataTableColumn<BankData>[] = React.useMemo(() => {
+    const h = helper;
+    return [
+      h.accessor("bank_code", {
+        header: "Mã",
+        cell: (info) => {
+          const q = info.row.original;
+          return (
+            <span className="whitespace-nowrap font-mono text-xs">
+              {q.bank_code}
+              {q.round_hint && (
+                <span className="ml-1 text-muted-foreground">· {q.round_hint}</span>
+              )}
+              {group === "vd" && q.domain && (
+                <span className="ml-1 text-brand">
+                  · {q.domain}
+                  {q.difficulty ? `_${q.difficulty}` : ""}
+                </span>
+              )}
+              {group === "gm" && q.hint_index && (
+                <span className="ml-1 text-warning">· {q.hint_index}</span>
+              )}
+            </span>
+          );
+        },
+      }),
+      h.accessor("content", {
+        header: "Nội dung",
+        cell: (info) => (
+          <span className="block max-w-xs truncate">{info.getValue()}</span>
+        ),
+      }),
+      h.accessor("answer", {
+        header: "Đáp án",
+        cell: (info) => <span className="font-semibold">{info.getValue()}</span>,
+      }),
+      h.accessor("status", {
+        header: "Duyệt",
+        cell: (info) => {
+          const st = info.getValue();
+          if (st === "approved") {
+            return (
+              <span className="whitespace-nowrap rounded-full bg-success/20 px-2 py-0.5 text-xs text-success">
+                Đã duyệt
+              </span>
+            );
+          }
+          if (st === "rejected") {
+            return (
+              <span className="whitespace-nowrap rounded-full bg-destructive/20 px-2 py-0.5 text-xs text-destructive">
+                Không duyệt
+              </span>
+            );
+          }
+          return (
+            <span className="whitespace-nowrap rounded-full bg-warning/20 px-2 py-0.5 text-xs text-warning">
+              Chờ duyệt
+            </span>
+          );
+        },
+      }),
+      h.accessor("media_url", {
+        header: "Media",
+        enableSorting: false,
+        cell: (info) =>
+          info.getValue() ? (
+            <span
+              className="font-mono text-xs text-success"
+              title={info.getValue()!}
+            >
+              Có media
+            </span>
+          ) : (
+            <span className="font-mono text-xs text-muted-foreground">Chưa có</span>
+          ),
+      }),
+    ];
+  }, [group]);
+
   return (
     <div className="flex flex-col gap-4">
       <EditBankSidebar
@@ -329,80 +408,18 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             })}
           </div>
         )}
-        {loading ? (
-          <p className="text-muted-foreground text-sm">Đang tải…</p>
-        ) : rows.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Chưa có dữ liệu bank. Bấm Tìm để tải.</p>
-        ) : (
-          <>
-            <Table className="w-full text-sm">
-              <TableHeader>
-                <TableRow className="border-b border-border hover:bg-transparent">
-                  <TableHead className="py-2 px-2 text-success">Mã</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Nội dung</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Đáp án</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Duyệt</TableHead>
-                  <TableHead className="py-2 px-2 text-success">Media</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((q) => (
-                  <TableRow key={q.bank_id} className="border-b border-border/50 align-top hover:bg-transparent">
-                    <TableCell className="py-2 px-2 font-mono text-xs whitespace-nowrap">
-                      {q.bank_code}
-                      {q.round_hint && <span className="ml-1 text-muted-foreground">· {q.round_hint}</span>}
-                      {group === "vd" && q.domain && (
-                        <span className="ml-1 text-brand">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>
-                      )}
-                      {group === "gm" && q.hint_index && (
-                        <span className="ml-1 text-warning">· {q.hint_index}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2 px-2 max-w-xs truncate">{q.content}</TableCell>
-                    <TableCell className="py-2 px-2 font-semibold">{q.answer}</TableCell>
-                    <TableCell className="py-2 px-2 whitespace-nowrap">
-                      {q.status === "approved" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success">Đã duyệt</span>
-                      ) : q.status === "rejected" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-destructive/20 text-destructive">Không duyệt</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-warning/20 text-warning">Chờ duyệt</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="py-2 px-2 font-mono text-xs max-w-48 truncate">
-                      {q.media_url ? (
-                        <span className="text-success" title={q.media_url}>Có media</span>
-                      ) : (
-                        <span className="text-muted-foreground">Chưa có</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-muted-foreground">Trang {page}/{pages} · {total} câu</p>
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => void fetchBank(page - 1)}
-                  disabled={loading || page <= 1}
-                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
-                >
-                  ← Trước
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => void fetchBank(page + 1)}
-                  disabled={loading || page >= pages}
-                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
-                >
-                  Sau →
-                </Button>
-              </div>
-            </div>
-          </>
-        )}
+        <p className="text-xs text-muted-foreground">{total} câu</p>
+        <DataTable
+          columns={columns}
+          data={rows}
+          loading={loading}
+          emptyText="Chưa có dữ liệu bank. Bấm Tìm để tải."
+          serverPagination={{
+            page: page - 1,
+            pageCount: pages,
+            onPageChange: (p) => void fetchBank(p + 1),
+          }}
+        />
       </div>
     </div>
   );

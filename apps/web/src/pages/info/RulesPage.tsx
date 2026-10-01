@@ -2,14 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   ArrowLeft,
   Zap,
   Brain,
@@ -22,59 +14,99 @@ import {
 } from "lucide-react";
 import { PublicLayout } from "@/components/layout";
 
-/* ────────────────────────── Score table primitive ────────────────────────── */
+/* ───────────────── Score visuals (card điểm + timeline) ───────────────── */
 
 type Tone = "great" | "good" | "mid" | "low" | "neutral";
 
-const TONE_CLASS: Record<Tone, string> = {
+interface ScoreCell {
+  text: string;
+  tone?: Tone;
+}
+
+interface ScoreRow {
+  label: string;
+  cells: ScoreCell[];
+}
+
+const TONE_TEXT: Record<Tone, string> = {
   great: "text-success",
   good: "text-warning",
-  mid: "text-orange-400",
-  low: "text-slate-400",
-  neutral: "text-foreground/80",
+  mid: "text-brand",
+  low: "text-muted-foreground",
+  neutral: "text-foreground",
 };
 
-const ScoreTable: React.FC<{
-  headers: string[];
-  rows: { label: string; cells: { text: string; tone?: Tone }[] }[];
-}> = ({ headers, rows }) => (
-  <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-[#171243]/60">
-    <Table className="w-full text-sm">
-      <TableHeader>
-        <TableRow className="border-b border-border bg-primary/70/20 hover:bg-transparent">
-          {headers.map((h) => (
-            <TableHead
-              key={h}
-              className="whitespace-nowrap py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-brand"
-            >
-              {h}
-            </TableHead>
-          ))}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow
-            key={row.label}
-            className="border-b border-border/50 last:border-0 hover:bg-accent/50"
-          >
-            <TableCell className="py-2.5 px-4 font-medium text-foreground whitespace-nowrap">
-              {row.label}
-            </TableCell>
+const TONE_BG: Record<Tone, string> = {
+  great: "bg-success/10 border-success/30",
+  good: "bg-warning/10 border-warning/30",
+  mid: "bg-brand/10 border-brand/30",
+  low: "bg-accent border-border",
+  neutral: "bg-accent border-border",
+};
+
+/** Ma trận điểm chuông: 1 card/ứng hạng, số điểm theo khung giờ. */
+const PointMatrix: React.FC<{ headers: string[]; rows: ScoreRow[] }> = ({
+  headers,
+  rows,
+}) => (
+  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+    {rows.map((row) => {
+      const tone = row.cells[0]?.tone ?? "neutral";
+      return (
+        <div key={row.label} className={`rounded-xl border p-4 ${TONE_BG[tone]}`}>
+          <p className="font-display text-lg font-bold text-foreground">
+            {row.label}
+          </p>
+          <div className="mt-2 flex flex-col gap-1.5">
             {row.cells.map((cell, i) => (
-              <TableCell
+              <div
                 key={i}
-                className={`py-2.5 px-4 font-mono font-bold ${
-                  TONE_CLASS[cell.tone ?? "neutral"]
-                }`}
+                className="flex items-center justify-between gap-3"
               >
-                {cell.text}
-              </TableCell>
+                <span className="text-xs text-muted-foreground">
+                  {headers[i + 1]}
+                </span>
+                <span
+                  className={`font-mono font-bold ${TONE_TEXT[cell.tone ?? "neutral"]}`}
+                >
+                  {cell.text}
+                  <span className="text-xs font-normal">đ</span>
+                </span>
+              </div>
             ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+/** Thời gian vòng: timeline 1 dòng/vòng, thanh tỉ lệ so với 60s. */
+const DurationList: React.FC<{ rows: ScoreRow[] }> = ({ rows }) => (
+  <div className="mt-4 flex flex-col gap-2">
+    {rows.map((row) => {
+      const sec = parseInt(row.cells[0]?.text ?? "", 10) || 0;
+      const pct = Math.min(100, Math.round((sec / 60) * 100));
+      return (
+        <div
+          key={row.label}
+          className="flex items-center gap-3 rounded-xl border border-border bg-[#171243]/60 px-4 py-2.5"
+        >
+          <span className="flex-1 text-sm font-medium text-foreground">
+            {row.label}
+          </span>
+          <span className="hidden h-2 w-28 overflow-hidden rounded-full bg-accent sm:block">
+            <span
+              className="block h-full rounded-full bg-brand"
+              style={{ width: `${pct}%` }}
+            />
+          </span>
+          <span className="min-w-28 text-right font-mono text-sm font-bold text-brand">
+            {row.cells[0]?.text}
+          </span>
+        </div>
+      );
+    })}
   </div>
 );
 
@@ -199,7 +231,7 @@ const SECTIONS = [
             <strong>thời gian trả lời</strong>:
           </Rule>
         </ul>
-        <ScoreTable
+        <PointMatrix
           headers={["Thứ tự bấm", "≤ 10 giây", "≤ 20 giây", "> 20 giây"]}
           rows={[
             {
@@ -284,8 +316,7 @@ const SECTIONS = [
     title: "Thời Gian",
     icon: Timer,
     content: (
-      <ScoreTable
-        headers={["Vòng", "Thời gian"]}
+      <DurationList
         rows={[
           { label: "Khởi Động Chung", cells: [{ text: "60 giây" }] },
           { label: "Khởi Động Cá Nhân", cells: [{ text: "30 giây" }] },

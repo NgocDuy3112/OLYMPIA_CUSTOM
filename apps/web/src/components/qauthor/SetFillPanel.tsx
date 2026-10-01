@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
@@ -13,7 +13,12 @@ import {
 import { toBankData, type BankData } from "./bankTypes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import {
+  DataTable,
+  createDataTableColumns,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
+
 
 const logger = createLogger("SetFillPanel");
 
@@ -35,6 +40,10 @@ export interface SetDetailView {
   items: SetItemView[];
   rounds: { round: string; expected: number; filled: number; missing: string[] }[];
 }
+
+type SlotRow = { slot: string; item: SetItemView | undefined };
+
+const helper = createDataTableColumns<SlotRow>();
 
 interface SetFillPanelProps {
   setCode: string | null;
@@ -231,6 +240,79 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
 
   const itemBySlot = new Map((detail?.items ?? []).map((i) => [i.slot, i]));
   const isDraft = detail?.status === "draft";
+
+  const columns: DataTableColumn<SlotRow>[] = React.useMemo(
+    () => [
+      helper.accessor("slot", {
+        header: "Slot",
+        enableSorting: false,
+        cell: (info) => (
+          <span className="block w-24 whitespace-nowrap font-mono text-xs text-brand">
+            {info.getValue()}
+          </span>
+        ),
+      }),
+      helper.accessor("item", {
+        id: "content",
+        header: "Nội dung",
+        enableSorting: false,
+        cell: (info) => {
+          const item = info.row.original.item;
+          if (!item) {
+            return (
+              <span className="text-xs italic text-muted-foreground/70">Trống</span>
+            );
+          }
+          return (
+            <>
+              <p className="truncate text-foreground">
+                <span className="font-mono text-[11px] text-success">
+                  {item.bankCode}
+                </span>{" "}
+                {item.content}
+              </p>
+              {item.bankMissing && (
+                <p className="text-[11px] text-destructive">
+                  Câu bank không còn dùng được — gỡ rồi pick lại.
+                </p>
+              )}
+            </>
+          );
+        },
+      }),
+      helper.display({
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => {
+          const { slot, item } = info.row.original;
+          if (!isDraft) return null;
+          return item ? (
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => setConfirm({ kind: "remove-item", slot })}
+              className="bg-destructive/70 hover:bg-destructive text-destructive-foreground"
+              title="Gỡ khỏi bộ"
+            >
+              <Trash2 size={13} />
+            </Button>
+          ) : (
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => setPickSlot(slot)}
+              className="bg-success/70 hover:bg-success text-success-foreground"
+              title={`Thêm vào ${slot}`}
+            >
+              <Plus size={13} />
+            </Button>
+          );
+        },
+      }),
+    ],
+    [isDraft],
+  );
   const gmGroups = (() => {
     const acc = new Map<string, BankData[]>();
     for (const r of gmRows) {
@@ -476,58 +558,14 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
               .map((g) => (
               <div key={g.label || "all"} className="flex flex-col gap-1">
                 {g.label && <p className="text-xs font-semibold text-muted-foreground">{g.label}</p>}
-                <Table className="w-full text-sm">
-                  <TableBody>
-                    {g.slots.map((s) => {
-                      const item = itemBySlot.get(s);
-                      return (
-                        <TableRow key={s} className="border-b border-border/50 align-top hover:bg-transparent">
-                          <TableCell className="py-1.5 pr-2 font-mono text-xs text-brand whitespace-nowrap w-24">{s}</TableCell>
-                          <TableCell className="py-1.5 pr-2">
-                            {item ? (
-                              <>
-                                <p className="text-foreground truncate">
-                                  <span className="font-mono text-[11px] text-success">{item.bankCode}</span>{" "}
-                                  {item.content}
-                                </p>
-                                {item.bankMissing && (
-                                  <p className="text-[11px] text-destructive">Câu bank không còn dùng được — gỡ rồi pick lại.</p>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-muted-foreground/70 text-xs italic">Trống</p>
-                            )}
-                          </TableCell>
-                          <TableCell className="py-1.5 text-right whitespace-nowrap w-20">
-                            {isDraft && (
-                              item ? (
-                                <Button
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  onClick={() => setConfirm({ kind: "remove-item", slot: s })}
-                                  className="bg-destructive/70 hover:bg-destructive text-destructive-foreground"
-                                  title="Gỡ khỏi bộ"
-                                >
-                                  <Trash2 size={13} />
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="icon-sm"
-                                  variant="ghost"
-                                  onClick={() => setPickSlot(s)}
-                                  className="bg-success/70 hover:bg-success text-success-foreground"
-                                  title={`Thêm vào ${s}`}
-                                >
-                                  <Plus size={13} />
-                                </Button>
-                              )
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <DataTable
+                  bare
+                  columns={columns}
+                  data={g.slots.map((slot) => ({
+                    slot,
+                    item: itemBySlot.get(slot),
+                  }))}
+                />
               </div>
             ))}
             </>

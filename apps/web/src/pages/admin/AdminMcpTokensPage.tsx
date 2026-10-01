@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { KeyRound, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
@@ -6,13 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DataTable,
+  createDataTableColumns,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 
 const logger = createLogger("AdminMcpTokensPage");
 
@@ -23,6 +20,8 @@ interface McpTokenMeta {
   createdAt?: string;
   revoked?: boolean;
 }
+
+const helper = createDataTableColumns<McpTokenMeta>();
 
 /** Identity khả dụng — user thật role operator/admin (check lúc mint server-side). */
 interface Identity {
@@ -130,10 +129,66 @@ const AdminMcpTokensPage = () => {
     }
   };
 
-  const identityLabel = (u: string) => {
-    const id = identities.find((i) => i.userCode === u);
-    return id ? `${id.userName} · ${id.role}` : u;
-  };
+  const columns: DataTableColumn<McpTokenMeta>[] = React.useMemo(
+    () => [
+      helper.accessor("name", {
+        header: "Tên",
+        cell: (info) => <span className="font-mono">{info.getValue()}</span>,
+      }),
+      helper.accessor("userCode", {
+        header: "Identity",
+        cell: (info) => {
+          const u = info.getValue();
+          const id = identities.find((i) => i.userCode === u);
+          return (
+            <span className="font-mono text-xs">
+              {u}
+              <span className="text-muted-foreground">
+                {" "}
+                · {id ? `${id.userName} · ${id.role}` : u}
+              </span>
+            </span>
+          );
+        },
+      }),
+      helper.accessor("createdBy", {
+        header: "Người cấp",
+        cell: (info) => (
+          <span className="font-mono text-xs">{info.getValue() ?? "-"}</span>
+        ),
+      }),
+      helper.accessor("createdAt", {
+        header: "Ngày cấp",
+        cell: (info) => (
+          <span className="font-mono text-xs">
+            {info.getValue()
+              ? new Date(info.getValue()!).toLocaleString("vi-VN")
+              : "-"}
+          </span>
+        ),
+      }),
+      helper.display({
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => (
+          <span className="flex justify-end">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              onClick={() => void revokeToken(info.row.original.name)}
+              className="text-destructive hover:bg-destructive/10"
+              title="Thu hồi"
+            >
+              <Trash2 size={16} />
+            </Button>
+          </span>
+        ),
+      }),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [identities],
+  );
 
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
@@ -219,52 +274,12 @@ const AdminMcpTokensPage = () => {
         )}
       </div>
 
-      <div className="rounded-xl bg-accent/50 border border-border overflow-hidden">
-        <Table className="w-full text-sm">
-          <TableHeader>
-            <TableRow className="border-b border-border hover:bg-transparent">
-              <TableHead className="px-3 py-2 text-muted-foreground">Tên</TableHead>
-              <TableHead className="px-3 py-2 text-muted-foreground">Identity</TableHead>
-              <TableHead className="px-3 py-2 text-muted-foreground">Người cấp</TableHead>
-              <TableHead className="px-3 py-2 text-muted-foreground">Ngày cấp</TableHead>
-              <TableHead className="px-3 py-2"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tokens.map((t) => (
-              <TableRow key={t.name} className="border-b border-border/50 hover:bg-accent/50">
-                <TableCell className="px-3 py-2 font-mono">{t.name}</TableCell>
-                <TableCell className="px-3 py-2 font-mono text-xs">
-                  {t.userCode}
-                  <span className="text-muted-foreground"> · {identityLabel(t.userCode)}</span>
-                </TableCell>
-                <TableCell className="px-3 py-2 font-mono text-xs">{t.createdBy ?? "-"}</TableCell>
-                <TableCell className="px-3 py-2 font-mono text-xs">
-                  {t.createdAt ? new Date(t.createdAt).toLocaleString("vi-VN") : "-"}
-                </TableCell>
-                <TableCell className="px-3 py-2 text-right">
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    onClick={() => void revokeToken(t.name)}
-                    className="text-destructive hover:bg-destructive/10"
-                    title="Thu hồi"
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {tokens.length === 0 && !loading && (
-              <TableRow>
-                <TableCell colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
-                  Chưa có token nào
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={columns}
+        data={tokens}
+        loading={loading}
+        emptyText="Chưa có token nào"
+      />
     </div>
   );
 };
