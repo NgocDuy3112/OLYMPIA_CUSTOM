@@ -56,28 +56,28 @@ const SReplayMatchPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 sm:p-4 bg-black/50">
+      <div className="flex items-center justify-between p-3 sm:p-4 bg-background/50">
         <Button
           variant="ghost"
           onClick={() => navigate("/spectator")}
-          className="gap-1 touch-target text-white hover:text-blue-400"
+          className="gap-1 touch-target text-foreground hover:text-brand"
         >
           <ArrowLeft size={18} />
           <span className="hidden sm:inline">Quay lại</span>
         </Button>
         <div className="text-center flex-1 min-w-0 px-2">
-          <h1 className="text-base sm:text-xl font-bold text-white truncate">
+          <h1 className="text-base sm:text-xl font-bold text-foreground truncate">
             {matchInfo?.matchName || matchCode}
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400">Xem lại trận đấu</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Xem lại trận đấu</p>
         </div>
         <div className="w-16 sm:w-20" /> {/* Spacer for alignment */}
       </div>
@@ -94,26 +94,26 @@ const SReplayMatchPage: React.FC = () => {
             />
           </div>
         ) : (
-          <div className="w-full max-w-5xl aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500 text-sm sm:text-base">
+          <div className="w-full max-w-5xl aspect-video bg-background/80 rounded-lg flex items-center justify-center">
+            <p className="text-muted-foreground text-sm sm:text-base">
               Không có video replay
             </p>
           </div>
         )}
 
         {/* Info */}
-        <div className="w-full max-w-5xl bg-black/30 rounded-lg p-3 sm:p-4">
-          <h2 className="text-base sm:text-lg font-bold text-white mb-2">
+        <div className="w-full max-w-5xl bg-background/30 rounded-lg p-3 sm:p-4">
+          <h2 className="text-base sm:text-lg font-bold text-foreground mb-2">
             Thông tin trận đấu
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
             <div>
-              <span className="text-gray-400">Mã trận:</span>
-              <span className="ml-2 text-white font-mono">{matchCode}</span>
+              <span className="text-muted-foreground">Mã trận:</span>
+              <span className="ml-2 text-foreground font-mono">{matchCode}</span>
             </div>
             <div>
-              <span className="text-gray-400">Trạng thái:</span>
-              <span className="ml-2 text-green-400">Hoàn thành</span>
+              <span className="text-muted-foreground">Trạng thái:</span>
+              <span className="ml-2 text-success">Hoàn thành</span>
             </div>
           </div>
         </div>

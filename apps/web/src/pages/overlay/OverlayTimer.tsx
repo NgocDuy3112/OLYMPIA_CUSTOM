@@ -35,9 +35,9 @@ const OverlayTimer: React.FC = () => {
 
   // Get color based on time remaining
   const getColor = (t: number) => {
-    if (t <= 5) return { text: "text-red-400", ring: "stroke-red-500", bg: "bg-red-500/20" };
-    if (t <= 10) return { text: "text-yellow-400", ring: "stroke-yellow-500", bg: "bg-yellow-500/20" };
-    return { text: "text-white", ring: "stroke-blue-500", bg: "bg-blue-500/20" };
+    if (t <= 5) return { text: "text-destructive", ring: "stroke-destructive", bg: "bg-destructive/20" };
+    if (t <= 10) return { text: "text-warning", ring: "stroke-warning", bg: "bg-warning/20" };
+    return { text: "text-foreground", ring: "stroke-brand", bg: "bg-primary/20" };
   };
 
   const colors = getColor(timer);
@@ -53,7 +53,7 @@ const OverlayTimer: React.FC = () => {
         {/* Background circle */}
         <div className={`
           w-24 h-24 sm:w-28 sm:h-28 rounded-full backdrop-blur-md
-          ${colors.bg} border border-white/10 shadow-xl
+          ${colors.bg} border border-border shadow-xl
           flex items-center justify-center
         `}>
           {/* Timer text */}

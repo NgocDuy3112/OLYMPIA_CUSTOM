@@ -113,7 +113,7 @@ const CQualifierPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-white">
+      <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
         <ListOrdered size={20} /> Vòng loại — điều phối live
       </h1>
       <div className="flex gap-2">
@@ -121,13 +121,13 @@ const CQualifierPage = () => {
           value={tournamentCode}
           onChange={(e) => setTournamentCode(e.target.value)}
           placeholder="Mã giải đấu (VD: OC3_T_...)"
-          className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
         />
         <Button
           variant="default"
           onClick={() => void fetchAll()}
           disabled={loading || !tournamentCode.trim()}
-          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-foreground"
         >
           <Search size={14} /> Tải
         </Button>
@@ -137,18 +137,18 @@ const CQualifierPage = () => {
           variant="default"
           onClick={() => void closeAll()}
           disabled={closingAll || openCount === 0}
-          className="gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm font-semibold text-white"
+          className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-foreground"
         >
           {closingAll ? "Đang chốt…" : `Chốt + chấm ${openCount} câu mở`}
         </Button>
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         {loading
           ? "Đang tải…"
           : `${questions.length}/16 câu · ${closedCount} đã chốt · ${openCount} đang mở`}
       </p>
       {questions.length > 0 && (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+        <div className="rounded-xl bg-accent/50 border border-border p-4">
           <div className="flex gap-1.5 flex-wrap">
             {questions.map((q) => (
               <span
@@ -156,8 +156,8 @@ const CQualifierPage = () => {
                 title={`${q.questionCode}: ${q.content}`}
                 className={`min-w-9 min-h-9 px-2 flex items-center justify-center rounded-lg text-xs font-bold font-mono ${
                   q.status === "closed"
-                    ? "bg-emerald-600/30 text-emerald-300"
-                    : "bg-yellow-600/20 text-yellow-300"
+                    ? "bg-success/30 text-success"
+                    : "bg-warning/20 text-warning"
                 }`}
               >
                 {q.position}
@@ -166,26 +166,26 @@ const CQualifierPage = () => {
           </div>
         </div>
       )}
-      <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+      <div className="rounded-xl bg-accent/50 border border-border p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-orange-300 uppercase tracking-wide mb-3">
           <Trophy size={16} /> Top 16
         </h3>
         {standings.length === 0 ? (
-          <p className="text-gray-400 text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>
+          <p className="text-muted-foreground text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>
         ) : (
-          <ol className="flex flex-col gap-1 text-sm text-white">
+          <ol className="flex flex-col gap-1 text-sm text-foreground">
             {standings.map((s) => (
-              <li key={s.playerId} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
-                <span className="font-mono text-gray-400 w-6">{s.rank}</span>
+              <li key={s.playerId} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/50">
+                <span className="font-mono text-muted-foreground w-6">{s.rank}</span>
                 <span className="flex-1 truncate">{s.userName}</span>
                 <span className="font-bold">{s.totalPoints}đ</span>
-                <span className="text-gray-400 text-xs">{s.correctCount} đúng</span>
+                <span className="text-muted-foreground text-xs">{s.correctCount} đúng</span>
               </li>
             ))}
           </ol>
         )}
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Controller điều phối live. Soạn đề chi tiết nằm ở QAuthor.
       </p>
     </div>

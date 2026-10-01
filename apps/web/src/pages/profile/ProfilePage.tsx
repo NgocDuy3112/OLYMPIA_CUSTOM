@@ -164,7 +164,7 @@ const ProfilePage: React.FC = () => {
   if (error || !profile) {
     return (
       <PublicLayout>
-        <p className="text-red-400 text-center py-12">
+        <p className="text-destructive text-center py-12">
           {error ?? "Không tìm thấy hồ sơ"}
         </p>
       </PublicLayout>
@@ -181,18 +181,18 @@ const ProfilePage: React.FC = () => {
                 <img
                   src={profile.avatarUrl}
                   alt={profile.userName}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-blue-500"
+                  className="w-16 h-16 rounded-full object-cover border-2 border-primary"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold text-white">
+                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-foreground">
                   {profile.userName.charAt(0).toUpperCase()}
                 </div>
               )}
               <label
-                className="absolute -bottom-1 -right-1 p-1.5 bg-blue-600 hover:bg-blue-500 rounded-full cursor-pointer transition-colors"
+                className="absolute -bottom-1 -right-1 p-1.5 bg-primary hover:bg-primary/90 rounded-full cursor-pointer transition-colors"
                 title="Đổi avatar"
               >
-                <Camera size={14} className="text-white" />
+                <Camera size={14} className="text-foreground" />
                 <input
                   type="file"
                   accept="image/*"
@@ -211,20 +211,20 @@ const ProfilePage: React.FC = () => {
                 <Input
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-lg font-bold"
+                  className="w-full px-3 py-2 rounded-lg bg-accent border border-border text-foreground text-lg font-bold"
                   maxLength={100}
                 />
               ) : (
-                <h1 className="text-xl font-bold text-white truncate">
+                <h1 className="text-xl font-bold text-foreground truncate">
                   {profile.userName}
                 </h1>
               )}
-              <p className="text-sm text-gray-400 font-mono">
+              <p className="text-sm text-muted-foreground font-mono">
                 {profile.userCode}
               </p>
-              <p className="text-sm text-gray-400">{profile.email}</p>
+              <p className="text-sm text-muted-foreground">{profile.email}</p>
             </div>
-            <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-bold uppercase">
+            <span className="px-3 py-1 rounded-full bg-warning/20 text-warning border border-warning/50 text-xs font-bold uppercase">
               {profile.role}
             </span>
           </div>
@@ -271,14 +271,14 @@ const ProfilePage: React.FC = () => {
         </Card>
 
         <Card className="px-4">
-          <div className="flex items-center gap-2 text-white font-bold">
-            <Trophy size={18} className="text-amber-400" />
+          <div className="flex items-center gap-2 text-foreground font-bold">
+            <Trophy size={18} className="text-warning" />
             <span>Giải đấu đã tham gia</span>
           </div>
           {tournamentsLoading ? (
-            <p className="text-sm text-gray-400 mt-2">Đang tải...</p>
+            <p className="text-sm text-muted-foreground mt-2">Đang tải...</p>
           ) : tournaments.length === 0 ? (
-            <p className="text-sm text-gray-400 mt-2">
+            <p className="text-sm text-muted-foreground mt-2">
               Bạn chưa tham gia giải đấu nào.
             </p>
           ) : (
@@ -288,18 +288,18 @@ const ProfilePage: React.FC = () => {
                   variant="ghost"
                   key={t.tournamentCode}
                   onClick={() => navigate(`/tournament/${t.tournamentCode}`)}
-                  className="h-auto items-center gap-3 bg-white/5 px-3 py-2.5 text-left hover:bg-white/10"
+                  className="h-auto items-center gap-3 bg-accent/50 px-3 py-2.5 text-left hover:bg-accent"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">
+                    <p className="text-sm font-bold text-foreground truncate">
                       {t.tournamentName}
                     </p>
-                    <p className="text-xs text-gray-400 font-mono">
+                    <p className="text-xs text-muted-foreground font-mono">
                       {t.tournamentCode} · {t.tournamentFormat.toUpperCase()} ·{" "}
                       {t.status}
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-blue-600/20 text-blue-300 border border-blue-500/50 text-xs font-bold uppercase shrink-0">
+                  <span className="px-2 py-0.5 rounded-full bg-primary/20 text-brand border border-primary/50 text-xs font-bold uppercase shrink-0">
                     {t.role}
                     {t.groupNumber ? ` · ${t.groupNumber}` : ""}
                   </span>

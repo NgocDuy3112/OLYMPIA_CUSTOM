@@ -26,7 +26,7 @@ const MGameAccessPage: React.FC = () => {
             OLYMPIA CUSTOM 3
           </h1>
           <h2 className="text-xl font-bold mb-1">Màn hình MC</h2>
-          <p className="text-sm text-white/60 mb-5">Nhập mã trận để theo dõi</p>
+          <p className="text-sm text-foreground/60 mb-5">Nhập mã trận để theo dõi</p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
@@ -35,7 +35,7 @@ const MGameAccessPage: React.FC = () => {
               type="text"
               value={matchCode}
               onChange={(e) => setMatchCode(e.target.value)}
-              className="w-full px-3 py-2 rounded bg-white text-black border border-(--oc-border) focus:outline-none focus:border-(--oc-border)"
+              className="w-full px-3 py-2 rounded bg-white text-background border border-(--oc-border) focus:outline-none focus:border-(--oc-border)"
             />
           </div>
           <Button type="submit" variant="default" className="btn-primary-full mt-4">

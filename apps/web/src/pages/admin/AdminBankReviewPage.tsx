@@ -208,8 +208,8 @@ const AdminBankReviewPage = () => {
   }, [selected, note, fetchRows, page]);
 
   return (
-    <div className="flex flex-col gap-4 min-h-screen text-white">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-green-300">
+    <div className="flex flex-col gap-4 min-h-screen text-foreground">
+      <h1 className="flex items-center gap-2 text-xl font-bold text-success">
         <ClipboardCheck size={20} /> Duyệt câu bank
       </h1>
 
@@ -229,8 +229,8 @@ const AdminBankReviewPage = () => {
             onClick={() => { setGroup(group === t.id ? "all" : t.id); setSelected(null); }}
             className={`h-auto flex-col items-start gap-0.5 rounded-xl border px-4 py-3 text-left ${
               group === t.id
-                ? "bg-green-600/20 border-green-600/50 text-green-300"
-                : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
+                ? "bg-success/20 border-success/50 text-success"
+                : "bg-accent/50 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
           >
             <span className="block text-base font-semibold">{t.label}</span>
@@ -253,13 +253,13 @@ const AdminBankReviewPage = () => {
           value={query}
           onChange={(e) => { setQuery(e.target.value); queryRef.current = e.target.value; }}
           placeholder="Tìm theo mã / nội dung / đáp án…"
-          className="min-w-40 flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+          className="min-w-40 flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground text-sm"
         />
         <Button
           variant="default"
           onClick={() => void fetchRows(1)}
           disabled={loading}
-          className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-success/80 hover:bg-success disabled:opacity-50 text-sm text-foreground"
         >
           <Search size={14} /> {loading ? "Đang tải…" : "Tìm"}
         </Button>
@@ -270,67 +270,67 @@ const AdminBankReviewPage = () => {
       {group === "sets" ? (
         <div className="flex flex-col gap-2">
           {loading && sets.length === 0 ? (
-            <p className="text-gray-400 text-sm py-8 text-center">Đang tải…</p>
+            <p className="text-muted-foreground text-sm py-8 text-center">Đang tải…</p>
           ) : sets.length === 0 ? (
-            <p className="text-gray-400 text-sm">Chưa có bộ đề nào.</p>
+            <p className="text-muted-foreground text-sm">Chưa có bộ đề nào.</p>
           ) : (
             sets.map((s) => (
               <Button
                 key={s.setCode}
                 variant="ghost"
                 onClick={() => setOpenSetCode(s.setCode)}
-                className="h-auto flex-col items-stretch px-4 py-3.5 text-left rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/5 hover:border-white/20"
+                className="h-auto flex-col items-stretch px-4 py-3.5 text-left rounded-xl bg-accent/25 border border-border hover:bg-accent/50 hover:border-border"
               >
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-white">{s.setName}</span>
+                  <span className="font-semibold text-foreground">{s.setName}</span>
                   <span
                     className={`px-2 py-0.5 rounded-full text-[11px] ${
-                      s.status === "ready" ? "bg-green-600/20 text-green-300" : "bg-yellow-600/20 text-yellow-300"
+                      s.status === "ready" ? "bg-success/20 text-success" : "bg-warning/20 text-warning"
                     }`}
                   >
                     {s.status === "ready" ? "Sẵn sàng" : "Nháp"}
                   </span>
                   {s.activeMatchCode && (
-                    <span className="px-2 py-0.5 rounded-full text-[11px] bg-blue-600/20 text-blue-300">
+                    <span className="px-2 py-0.5 rounded-full text-[11px] bg-primary/20 text-brand">
                       Live {s.activeMatchCode}
                     </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mt-2">
-                  <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-emerald-500 transition-all"
+                      className="h-full rounded-full bg-success transition-all"
                       style={{ width: `${s.expected ? Math.min((s.filled / s.expected) * 100, 100) : 0}%` }}
                     />
                   </div>
-                  <span className="font-mono text-xs text-gray-400 whitespace-nowrap">
+                  <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
                     {s.filled}/{s.expected}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   <span className="font-mono">{s.setCode}</span> · Trận:{" "}
-                  <span className="font-mono text-gray-300">{s.matchCode ?? "— chưa gán —"}</span>
+                  <span className="font-mono text-foreground/80">{s.matchCode ?? "— chưa gán —"}</span>
                 </p>
               </Button>
             ))
           )}
         </div>
       ) : (
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
+      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-4">
         {loading && rows.length === 0 ? (
-          <p className="text-gray-400 text-sm">Đang tải…</p>
+          <p className="text-muted-foreground text-sm">Đang tải…</p>
         ) : rows.length === 0 ? (
-          <p className="text-gray-400 text-sm">Chưa có câu nào — danh sách tự cập nhật.</p>
+          <p className="text-muted-foreground text-sm">Chưa có câu nào — danh sách tự cập nhật.</p>
         ) : (
           <>
             <Table className="w-full text-sm">
               <TableHeader>
-                <TableRow className="border-b border-white/10 hover:bg-transparent">
-                  <TableHead className="py-2 px-2 text-green-300">Mã</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Nội dung</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Đáp án</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Duyệt</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Media</TableHead>
+                <TableRow className="border-b border-border hover:bg-transparent">
+                  <TableHead className="py-2 px-2 text-success">Mã</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Nội dung</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Đáp án</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Duyệt</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Media</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -338,30 +338,30 @@ const AdminBankReviewPage = () => {
                   <TableRow
                     key={r.id}
                     onClick={() => { setSelected(r); setNote(r.reviewNote ?? ""); setOceeOpinion(""); }}
-                    className={`border-b border-white/5 align-top cursor-pointer hover:bg-white/5 ${
-                      selected?.id === r.id ? "bg-green-600/10" : ""
+                    className={`border-b border-border/50 align-top cursor-pointer hover:bg-accent/50 ${
+                      selected?.id === r.id ? "bg-success/10" : ""
                     }`}
                   >
                     <TableCell className="py-2 px-2 font-mono text-xs whitespace-nowrap">
                       {r.bankCode}
-                      {r.roundHint && <span className="ml-1 text-gray-500">· {r.roundHint}</span>}
+                      {r.roundHint && <span className="ml-1 text-muted-foreground">· {r.roundHint}</span>}
                     </TableCell>
                     <TableCell className="py-2 px-2 max-w-xs truncate">{r.content}</TableCell>
                     <TableCell className="py-2 px-2 font-semibold">{r.answer}</TableCell>
                     <TableCell className="py-2 px-2 whitespace-nowrap">
                       {r.status === "approved" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-green-600/20 text-green-300">Đã duyệt</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success">Đã duyệt</span>
                       ) : r.status === "rejected" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-red-600/20 text-red-300">Không duyệt</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-destructive/20 text-destructive">Không duyệt</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300">Chờ duyệt</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-warning/20 text-warning">Chờ duyệt</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2 px-2 font-mono text-xs max-w-48 truncate">
                       {r.mediaUrl ? (
-                        <span className="text-green-300" title={r.mediaUrl}>Có media</span>
+                        <span className="text-success" title={r.mediaUrl}>Có media</span>
                       ) : (
-                        <span className="text-gray-500">Chưa có</span>
+                        <span className="text-muted-foreground">Chưa có</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -369,13 +369,13 @@ const AdminBankReviewPage = () => {
               </TableBody>
             </Table>
             <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-gray-500">Trang {page}/{pages} · {total} câu</p>
+              <p className="text-xs text-muted-foreground">Trang {page}/{pages} · {total} câu</p>
               <div className="flex gap-2">
                 <Button
                   variant="secondary"
                   onClick={() => void fetchRows(page - 1)}
                   disabled={loading || page <= 1}
-                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
                 >
                   ← Trước
                 </Button>
@@ -383,7 +383,7 @@ const AdminBankReviewPage = () => {
                   variant="secondary"
                   onClick={() => void fetchRows(page + 1)}
                   disabled={loading || page >= pages}
-                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
                 >
                   Sau →
                 </Button>
@@ -405,7 +405,7 @@ const AdminBankReviewPage = () => {
               variant="secondary"
               onClick={() => void askOcee()}
               disabled={askingOcee || saving}
-              className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+              className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
             >
               {askingOcee ? "Đang hỏi…" : "Nhờ OCee kiểm tra"}
             </Button>
@@ -413,7 +413,7 @@ const AdminBankReviewPage = () => {
               variant="destructive"
               onClick={() => void review("rejected")}
               disabled={saving}
-              className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-sm font-semibold"
+              className="bg-destructive hover:bg-destructive/90 disabled:opacity-50 text-sm font-semibold"
             >
               {saving ? "…" : "Không duyệt"}
             </Button>
@@ -421,7 +421,7 @@ const AdminBankReviewPage = () => {
               variant="default"
               onClick={() => void review("approved")}
               disabled={saving}
-              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm font-semibold"
+              className="bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold"
             >
               {saving ? "…" : "Đã duyệt"}
             </Button>
@@ -430,39 +430,39 @@ const AdminBankReviewPage = () => {
       >
         {selected && (
         <>
-          <p className="font-mono text-sm text-green-300 -mt-2">
+          <p className="font-mono text-sm text-success -mt-2">
             {selected.bankCode}
-            {selected.roundHint && <span className="ml-1 text-gray-500">· {selected.roundHint}</span>}
+            {selected.roundHint && <span className="ml-1 text-muted-foreground">· {selected.roundHint}</span>}
           </p>
           <p className="text-sm">{selected.content}</p>
           <p className="text-sm font-semibold">Đáp án: {selected.answer}</p>
-          {selected.explanation && <p className="text-xs text-gray-400">{selected.explanation}</p>}
+          {selected.explanation && <p className="text-xs text-muted-foreground">{selected.explanation}</p>}
           {selected.citations.length > 0 && (
             <div className="flex flex-col gap-1">
-              <p className="text-xs text-gray-400">Nguồn:</p>
+              <p className="text-xs text-muted-foreground">Nguồn:</p>
               {selected.citations.map((c, i) => (
-                <p key={i} className="text-xs text-gray-300 font-mono break-all">
-                  {c.source} · {formatVnDate(c.accessedAt)}{c.url && <> · <a href={c.url} target="_blank" rel="noreferrer" className="text-blue-300 underline">{c.url}</a></>}
+                <p key={i} className="text-xs text-foreground/80 font-mono break-all">
+                  {c.source} · {formatVnDate(c.accessedAt)}{c.url && <> · <a href={c.url} target="_blank" rel="noreferrer" className="text-brand underline">{c.url}</a></>}
                 </p>
               ))}
             </div>
           )}
           {selected.mediaUrl && (
-            <div className="rounded-lg bg-black/30 border border-white/10 p-3 max-h-64 overflow-hidden">
+            <div className="rounded-lg bg-background/60 border border-border p-3 max-h-64 overflow-hidden">
               <RenderMedia mediaUrl={selected.mediaUrl} />
             </div>
           )}
-          <label className="text-xs text-gray-400">Chú thích người duyệt * (bắt buộc khi từ chối)</label>
+          <label className="text-xs text-muted-foreground">Chú thích người duyệt * (bắt buộc khi từ chối)</label>
           <Textarea
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none"
+            className="px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground text-sm resize-none"
           />
           {oceeOpinion && (
-            <div className="rounded-lg bg-blue-950/60 border border-blue-700 p-3">
-              <p className="text-xs text-blue-300 mb-1">Ý kiến OCee:</p>
-              <p className="text-xs text-gray-200 whitespace-pre-wrap">{oceeOpinion}</p>
+            <div className="rounded-lg bg-background/60 border border-primary/70 p-3">
+              <p className="text-xs text-brand mb-1">Ý kiến OCee:</p>
+              <p className="text-xs text-foreground/90 whitespace-pre-wrap">{oceeOpinion}</p>
             </div>
           )}
         </>

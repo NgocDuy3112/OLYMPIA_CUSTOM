@@ -27,25 +27,25 @@ import { PublicLayout } from "@/components/layout";
 type Tone = "great" | "good" | "mid" | "low" | "neutral";
 
 const TONE_CLASS: Record<Tone, string> = {
-  great: "text-green-400",
-  good: "text-yellow-300",
+  great: "text-success",
+  good: "text-warning",
   mid: "text-orange-400",
   low: "text-slate-400",
-  neutral: "text-blue-200",
+  neutral: "text-foreground/80",
 };
 
 const ScoreTable: React.FC<{
   headers: string[];
   rows: { label: string; cells: { text: string; tone?: Tone }[] }[];
 }> = ({ headers, rows }) => (
-  <div className="mt-4 overflow-x-auto rounded-xl border border-white/10 bg-[#171243]/60">
+  <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-[#171243]/60">
     <Table className="w-full text-sm">
       <TableHeader>
-        <TableRow className="border-b border-white/10 bg-blue-700/20 hover:bg-transparent">
+        <TableRow className="border-b border-border bg-primary/70/20 hover:bg-transparent">
           {headers.map((h) => (
             <TableHead
               key={h}
-              className="whitespace-nowrap py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-blue-300"
+              className="whitespace-nowrap py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-brand"
             >
               {h}
             </TableHead>
@@ -56,9 +56,9 @@ const ScoreTable: React.FC<{
         {rows.map((row) => (
           <TableRow
             key={row.label}
-            className="border-b border-white/5 last:border-0 hover:bg-white/5"
+            className="border-b border-border/50 last:border-0 hover:bg-accent/50"
           >
-            <TableCell className="py-2.5 px-4 font-medium text-white whitespace-nowrap">
+            <TableCell className="py-2.5 px-4 font-medium text-foreground whitespace-nowrap">
               {row.label}
             </TableCell>
             {row.cells.map((cell, i) => (
@@ -82,14 +82,14 @@ const ScoreTable: React.FC<{
 
 const Rule: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <li className="flex gap-2.5">
-    <ChevronRight size={14} className="mt-1 shrink-0 text-blue-400" aria-hidden />
+    <ChevronRight size={14} className="mt-1 shrink-0 text-brand" aria-hidden />
     <span>{children}</span>
   </li>
 );
 
 const SubHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h4 className="mt-5 mb-2.5 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-blue-300">
-    <span className="h-px w-4 bg-blue-400/60" aria-hidden />
+  <h4 className="mt-5 mb-2.5 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-brand">
+    <span className="h-px w-4 bg-brand/60" aria-hidden />
     {children}
   </h4>
 );
@@ -361,7 +361,7 @@ const RulesPage: React.FC = () => {
           <Button
             variant="ghost"
             onClick={() => navigate(-1)}
-            className="mb-5 cursor-pointer gap-2 px-0 text-sm text-blue-400 hover:text-blue-300"
+            className="mb-5 cursor-pointer gap-2 px-0 text-sm text-brand hover:text-brand"
           >
             <ArrowLeft size={16} aria-hidden />
             <span>Quay lại</span>
@@ -369,18 +369,18 @@ const RulesPage: React.FC = () => {
 
           <div className="card card-wide relative overflow-hidden p-6! sm:p-8!">
             <div
-              className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-blue-500/20 blur-3xl"
+              className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-primary/20 blur-3xl"
               aria-hidden
             />
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-blue-300">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-brand">
               <Star size={11} aria-hidden /> Format OC3
             </span>
-            <h1 className="font-display mt-3 text-4xl font-bold text-white sm:text-5xl">
+            <h1 className="font-display mt-3 text-4xl font-bold text-foreground sm:text-5xl">
               Luật Chơi
             </h1>
-            <p className="mt-2 max-w-xl text-sm text-gray-300 sm:text-base">
+            <p className="mt-2 max-w-xl text-sm text-foreground/80 sm:text-base">
               Toàn bộ thể lệ các vòng thi của{" "}
-              <span className="text-blue-300">Olympia Custom</span> — điểm số,
+              <span className="text-brand">Olympia Custom</span> — điểm số,
               thời gian và luật chung.
             </p>
 
@@ -393,12 +393,12 @@ const RulesPage: React.FC = () => {
               ].map(([n, label]) => (
                 <div
                   key={label}
-                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-center"
+                  className="rounded-xl border border-border bg-accent/50 px-3 py-2.5 text-center"
                 >
-                  <div className="font-display text-2xl font-bold text-blue-300">
+                  <div className="font-display text-2xl font-bold text-brand">
                     {n}
                   </div>
-                  <div className="text-[11px] uppercase tracking-wider text-gray-400">
+                  <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
                     {label}
                   </div>
                 </div>
@@ -412,7 +412,7 @@ const RulesPage: React.FC = () => {
           {/* Desktop TOC */}
           <aside className="hidden lg:block">
             <nav className="card card-wide sticky top-8 p-4!" aria-label="Mục lục">
-              <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-widest text-blue-300">
+              <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-widest text-brand">
                 Mục lục
               </h2>
               <ul className="space-y-1">
@@ -425,13 +425,13 @@ const RulesPage: React.FC = () => {
                         onClick={() => scrollTo(section.id)}
                         className={`w-full cursor-pointer justify-start gap-2.5 rounded-lg px-3 py-2 text-sm ${
                           active
-                            ? "bg-blue-600/25 font-medium text-white"
-                            : "text-gray-300 hover:bg-white/5 hover:text-white"
+                            ? "bg-primary/25 font-medium text-foreground"
+                            : "text-foreground/80 hover:bg-accent/50 hover:text-foreground"
                         }`}
                       >
                         <section.icon
                           size={15}
-                          className={active ? "text-blue-300" : "text-blue-400"}
+                          className={active ? "text-brand" : "text-brand"}
                           aria-hidden
                         />
                         <span>{section.title}</span>
@@ -455,11 +455,11 @@ const RulesPage: React.FC = () => {
                     onClick={() => scrollTo(section.id)}
                     className={`cursor-pointer gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs ${
                       active
-                        ? "border-blue-400/50 bg-blue-600/25 text-white"
-                        : "border-white/10 bg-white/5 text-gray-300 hover:text-white"
+                        ? "border-brand/50 bg-primary/25 text-foreground"
+                        : "border-border bg-accent/50 text-foreground/80 hover:text-foreground"
                     }`}
                   >
-                    <section.icon size={13} className="text-blue-400" aria-hidden />
+                    <section.icon size={13} className="text-brand" aria-hidden />
                     {section.title}
                   </Button>
                 );
@@ -477,17 +477,17 @@ const RulesPage: React.FC = () => {
                   className="card card-wide scroll-mt-6 p-5! sm:p-7!"
                 >
                   <div className="mb-4 flex items-center gap-3.5">
-                    <div className="relative rounded-xl bg-blue-600/20 p-2.5">
-                      <section.icon size={20} className="text-blue-300" aria-hidden />
-                      <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                    <div className="relative rounded-xl bg-primary/20 p-2.5">
+                      <section.icon size={20} className="text-brand" aria-hidden />
+                      <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-foreground">
                         {index + 1}
                       </span>
                     </div>
-                    <h2 className="font-display text-2xl font-bold text-white sm:text-3xl">
+                    <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
                       {section.title}
                     </h2>
                   </div>
-                  <div className="space-y-3 leading-relaxed text-gray-300 [&_strong]:text-white [&_p]:leading-relaxed">
+                  <div className="space-y-3 leading-relaxed text-foreground/80 [&_strong]:text-foreground [&_p]:leading-relaxed">
                     {section.content}
                   </div>
                 </section>
@@ -495,7 +495,7 @@ const RulesPage: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <p className="mb-4 mt-10 text-center text-xs text-gray-500">
+            <p className="mb-4 mt-10 text-center text-xs text-muted-foreground">
               Luật chơi có thể được cập nhật. Phiên bản hiện tại áp dụng cho giải
               đấu Olympia Custom.
             </p>

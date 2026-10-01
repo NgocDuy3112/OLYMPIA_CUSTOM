@@ -28,11 +28,11 @@ const StatCard = ({
   value: number | string;
   accent: string;
 }) => (
-  <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex items-center gap-3">
+  <div className="rounded-xl bg-accent/50 border border-border p-4 flex items-center gap-3">
     <div className={`p-2.5 rounded-lg ${accent}`}>{icon}</div>
     <div>
-      <p className="text-2xl font-bold text-white">{value}</p>
-      <p className="text-xs text-gray-400">{label}</p>
+      <p className="text-2xl font-bold text-foreground">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   </div>
 );
@@ -105,19 +105,19 @@ const ControllerOverviewPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-white">Tổng quan live</h1>
+      <h1 className="text-xl font-bold text-foreground">Tổng quan live</h1>
       <div className="flex gap-2">
         <Input
           value={matchCode}
           onChange={(e) => setCode(e.target.value)}
           placeholder="Mã trận đấu"
-          className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
         />
         <Button
           variant="default"
           onClick={() => void fetchStats()}
           disabled={loading || !matchCode.trim()}
-          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-foreground"
         >
           <Search size={14} /> Tải
         </Button>
@@ -125,7 +125,7 @@ const ControllerOverviewPage = () => {
           variant="default"
           onClick={enterLive}
           disabled={!matchCode.trim()}
-          className="gap-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-sm font-semibold text-white"
+          className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-foreground"
         >
           <Play size={14} /> Vào live
         </Button>
@@ -138,19 +138,19 @@ const ControllerOverviewPage = () => {
           accent="bg-orange-600/20"
         />
         <StatCard
-          icon={<Clock size={20} className="text-yellow-400" />}
+          icon={<Clock size={20} className="text-warning" />}
           label="Review chờ duyệt"
           value={stats.pending}
-          accent="bg-yellow-600/20"
+          accent="bg-warning/20"
         />
         <StatCard
-          icon={<CheckCircle2 size={20} className="text-blue-400" />}
+          icon={<CheckCircle2 size={20} className="text-brand" />}
           label="Câu hỏi trận này"
           value={stats.questions}
-          accent="bg-blue-600/20"
+          accent="bg-primary/20"
         />
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Controller điều hành live. CRUD hệ thống nằm ở Admin. Soạn câu hỏi nằm
         ở QAuthor.
       </p>
@@ -159,10 +159,10 @@ const ControllerOverviewPage = () => {
       )}
 
       {matchCode.trim() && (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2.5">
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-300">
-              <Monitor size={15} className="text-blue-400" /> Overlay lên sóng
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground/80">
+              <Monitor size={15} className="text-brand" /> Overlay lên sóng
             </h2>
             <Button
               variant="ghost"
@@ -172,12 +172,12 @@ const ControllerOverviewPage = () => {
                   "_blank",
                 )
               }
-              className="gap-1 px-0 text-xs text-blue-400 hover:text-blue-300"
+              className="gap-1 px-0 text-xs text-brand hover:text-brand"
             >
               Trang preview <ExternalLink size={12} />
             </Button>
           </div>
-          <p className="text-[11px] text-gray-500">
+          <p className="text-[11px] text-muted-foreground">
             Nhập mã trận ở trên là ra URL — paste vào OBS làm Browser Source, không cần gõ tay.
           </p>
           <div className="flex flex-col gap-1.5">
@@ -187,22 +187,22 @@ const ControllerOverviewPage = () => {
               return (
                 <div
                   key={o.id}
-                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-black/30 border border-white/10"
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-background/60 border border-border"
                 >
-                  <span className="w-24 shrink-0 text-xs font-medium text-gray-300 truncate" title={o.description}>
+                  <span className="w-24 shrink-0 text-xs font-medium text-foreground/80 truncate" title={o.description}>
                     {o.name}
                   </span>
-                  <code className="flex-1 min-w-0 truncate text-[11px] font-mono text-gray-500">
+                  <code className="flex-1 min-w-0 truncate text-[11px] font-mono text-muted-foreground">
                     {url}
                   </code>
                   <Button
                     variant="secondary"
                     size="xs"
                     onClick={() => void copyOverlayUrl(o.id, url)}
-                    className="shrink-0 gap-1 bg-white/10 hover:bg-white/15 text-xs"
+                    className="shrink-0 gap-1 bg-accent hover:bg-accent/80 text-xs"
                     title="Copy URL cho OBS"
                   >
-                    {copied ? <Check size={13} className="text-green-400" /> : <Copy size={13} />}
+                    {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
                     {copied ? "Đã copy" : "Copy"}
                   </Button>
                 </div>

@@ -32,10 +32,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-500",
-  active: "bg-green-500",
-  completed: "bg-blue-500",
-  archived: "bg-purple-500",
+  draft: "bg-muted-foreground",
+  active: "bg-success",
+  completed: "bg-primary",
+  archived: "bg-purple",
 };
 
 const TournamentDetailPage: React.FC = () => {
@@ -104,7 +104,7 @@ const TournamentDetailPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -112,7 +112,7 @@ const TournamentDetailPage: React.FC = () => {
   if (!tournament) {
     return (
       <div className="flex justify-center items-center h-64">
-        <p className="text-gray-400">Không tìm thấy giải đấu</p>
+        <p className="text-muted-foreground">Không tìm thấy giải đấu</p>
       </div>
     );
   }
@@ -136,29 +136,29 @@ const TournamentDetailPage: React.FC = () => {
           size="icon"
           variant="ghost"
           onClick={() => navigate("/admin/tournaments")}
-          className="hover:bg-white/10"
+          className="hover:bg-accent"
         >
-          <ArrowLeft size={20} className="text-white" />
+          <ArrowLeft size={20} className="text-foreground" />
         </Button>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">
               {tournament.tournamentName}
             </h1>
             <span
-              className={`px-2 py-0.5 rounded text-xs font-medium text-white ${STATUS_COLORS[tournament.status] || "bg-gray-500"}`}
+              className={`px-2 py-0.5 rounded text-xs font-medium text-foreground ${STATUS_COLORS[tournament.status] || "bg-muted-foreground"}`}
             >
               {STATUS_LABELS[tournament.status] || tournament.status}
             </span>
           </div>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             {tournament.tournamentCode}
           </p>
         </div>
         <Button
           variant="secondary"
           onClick={() => setShowEdit(true)}
-          className="gap-2 bg-gray-600 hover:bg-gray-500 text-white touch-target"
+          className="gap-2 bg-accent hover:bg-accent/80 text-foreground touch-target"
         >
           <Edit size={16} />
           <span className="hidden sm:inline">Chỉnh sửa</span>
@@ -166,12 +166,12 @@ const TournamentDetailPage: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 rounded-lg bg-white/5 border border-white/10 w-fit max-w-full overflow-x-auto">
+      <div className="flex gap-1 mb-6 p-1 rounded-lg bg-accent/50 border border-border w-fit max-w-full overflow-x-auto">
         <Button
           variant="ghost"
           onClick={() => setTab("qualifier")}
           className={`gap-1.5 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap ${
-            tab === "qualifier" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"
+            tab === "qualifier" ? "bg-primary text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <ListChecks size={15} /> Vòng loại
@@ -180,7 +180,7 @@ const TournamentDetailPage: React.FC = () => {
           variant="ghost"
           onClick={() => setTab("groups")}
           className={`gap-1.5 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap ${
-            tab === "groups" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"
+            tab === "groups" ? "bg-primary text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <GitBranch size={15} /> Vòng phân nhánh
@@ -189,7 +189,7 @@ const TournamentDetailPage: React.FC = () => {
           variant="ghost"
           onClick={() => setTab("playoffs")}
           className={`gap-1.5 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap ${
-            tab === "playoffs" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"
+            tab === "playoffs" ? "bg-primary text-foreground" : "text-muted-foreground hover:text-foreground"
           }`}
         >
           <Network size={15} /> Playoffs & Chung kết

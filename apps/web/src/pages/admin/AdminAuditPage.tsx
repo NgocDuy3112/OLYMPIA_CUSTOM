@@ -76,18 +76,18 @@ const AdminAuditPage = () => {
   }, [fetchLogs]);
 
   return (
-    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
           <ScrollText size={20} /> Nhật ký hệ thống
-          <span className="font-mono text-sm font-normal text-gray-500">({total})</span>
+          <span className="font-mono text-sm font-normal text-muted-foreground">({total})</span>
         </h1>
         <Button
           size="icon"
           variant="secondary"
           onClick={() => void fetchLogs()}
           disabled={loading}
-          className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
+          className="bg-accent/50 border border-border hover:bg-accent disabled:opacity-50"
           title="Làm mới"
         >
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
@@ -107,55 +107,55 @@ const AdminAuditPage = () => {
           value={actor}
           onChange={(e) => setActor(e.target.value)}
           placeholder="Lọc actor code..."
-          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 text-sm font-mono"
+          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground text-sm font-mono"
         />
         <Input
           value={match}
           onChange={(e) => setMatch(e.target.value)}
           placeholder="Lọc match code..."
-          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 text-sm font-mono"
+          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground text-sm font-mono"
         />
       </div>
 
       <div className="overflow-x-auto">
         {loading && logs.length === 0 ? (
-          <p className="text-gray-500 text-sm py-8 text-center">Đang tải…</p>
+          <p className="text-muted-foreground text-sm py-8 text-center">Đang tải…</p>
         ) : logs.length === 0 ? (
-          <p className="text-gray-500 text-sm py-8 text-center">Chưa có log nào.</p>
+          <p className="text-muted-foreground text-sm py-8 text-center">Chưa có log nào.</p>
         ) : (
           <Table className="w-full text-sm">
             <TableHeader>
-              <TableRow className="border-b border-white/10 hover:bg-transparent">
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Thời gian</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Hành động</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Actor</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Match</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Chi tiết</TableHead>
+              <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Thời gian</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Hành động</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Actor</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Match</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Chi tiết</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {logs.map((log) => (
                 <TableRow
                   key={log.id}
-                  className="border-b border-white/5 hover:bg-white/5 align-top"
+                  className="border-b border-border/50 hover:bg-accent/50 align-top"
                 >
-                  <TableCell className="py-2 px-2 text-xs text-gray-500 whitespace-nowrap">
+                  <TableCell className="py-2 px-2 text-xs text-muted-foreground whitespace-nowrap">
                     {log.createdAt
                       ? new Date(log.createdAt).toLocaleString("vi-VN")
                       : "—"}
                   </TableCell>
                   <TableCell className="py-2 px-2">
-                    <span className="px-2 py-0.5 rounded bg-white/10 text-gray-300 text-xs font-mono font-bold">
+                    <span className="px-2 py-0.5 rounded bg-accent text-foreground/80 text-xs font-mono font-bold">
                       {log.actionType}
                     </span>
                   </TableCell>
-                  <TableCell className="py-2 px-2 font-mono text-xs text-gray-400">
+                  <TableCell className="py-2 px-2 font-mono text-xs text-muted-foreground">
                     {log.actorCode ?? "—"}
                   </TableCell>
-                  <TableCell className="py-2 px-2 font-mono text-xs text-gray-400">
+                  <TableCell className="py-2 px-2 font-mono text-xs text-muted-foreground">
                     {log.matchCode ?? "—"}
                   </TableCell>
-                  <TableCell className="py-2 px-2 text-xs text-gray-500 max-w-xs truncate">
+                  <TableCell className="py-2 px-2 text-xs text-muted-foreground max-w-xs truncate">
                     {log.details ?? log.targetCode ?? "—"}
                   </TableCell>
                 </TableRow>

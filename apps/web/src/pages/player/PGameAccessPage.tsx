@@ -133,17 +133,17 @@ const PGameAccessPage: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-black/30 backdrop-blur-sm border-b border-white/10">
+      <header className="sticky top-0 z-40 bg-background/30 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
-            className="gap-2 text-gray-400 hover:text-white"
+            className="gap-2 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft size={18} />
             <span className="text-sm">Quay lại</span>
           </Button>
-          <span className="text-sm font-bold text-white">OLYMPIA CUSTOM</span>
+          <span className="text-sm font-bold text-foreground">OLYMPIA CUSTOM</span>
           <div className="w-20" /> {/* Spacer for centering */}
         </div>
       </header>
@@ -153,10 +153,10 @@ const PGameAccessPage: React.FC = () => {
         <div className="w-full max-w-md">
           {/* Title */}
           <div className="text-center mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
               Vào Phòng Thi
             </h1>
-            <p className="text-gray-400 text-sm">
+            <p className="text-muted-foreground text-sm">
               Nhập mã PIN 6 chữ số từ MC hoặc admin
             </p>
           </div>
@@ -180,11 +180,11 @@ const PGameAccessPage: React.FC = () => {
                   disabled={isLoading}
                   className={`
                     h-14 w-12 sm:h-16 sm:w-14 text-center text-2xl font-bold
-                    bg-white/10 border-2 rounded-lg
-                    focus:outline-none focus:border-blue-500
+                    bg-accent border-2 rounded-lg
+                    focus:outline-none focus:border-ring
                     disabled:opacity-50
-                    ${error ? "border-red-500" : "border-white/20"}
-                    ${digit ? "text-white" : "text-gray-500"}
+                    ${error ? "border-destructive" : "border-border"}
+                    ${digit ? "text-foreground" : "text-muted-foreground"}
                   `}
                 />
               ))}
@@ -192,7 +192,7 @@ const PGameAccessPage: React.FC = () => {
 
             {/* Error message */}
             {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-400 text-sm text-center">
+              <div className="mb-4 p-3 bg-destructive/20 border border-destructive rounded-lg text-destructive text-sm text-center">
                 {error}
               </div>
             )}
@@ -203,7 +203,7 @@ const PGameAccessPage: React.FC = () => {
                 variant="secondary"
                 onClick={handleClear}
                 disabled={isLoading || pin.every((d) => d === "")}
-                className="flex-1 bg-white/10 hover:bg-white/20 text-white"
+                className="flex-1 bg-accent hover:bg-accent text-foreground"
               >
                 Xóa
               </Button>
@@ -211,7 +211,7 @@ const PGameAccessPage: React.FC = () => {
                 variant="default"
                 onClick={() => handleSubmit()}
                 disabled={isLoading || pin.some((d) => d === "")}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white"
+                className="flex-1 bg-primary hover:bg-primary/90 text-foreground"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -226,7 +226,7 @@ const PGameAccessPage: React.FC = () => {
           </div>
 
           {/* Help text */}
-          <div className="mt-6 text-center text-xs text-gray-500">
+          <div className="mt-6 text-center text-xs text-muted-foreground">
             <p>
               Nếu bạn không có mã PIN, liên hệ MC hoặc admin để được cung cấp.
             </p>

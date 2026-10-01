@@ -1530,8 +1530,8 @@ const PlayerVeDichRiengView = () => {
         </div>
       </PQuestionBoard>
       {powerWindowOpen && !usedPowers[playerCode] && (
-        <div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-4 flex flex-col items-center gap-3">
-          <p className="text-white font-bold text-lg">
+        <div className="bg-primary/40 border-2 border-brand rounded-xl p-4 flex flex-col items-center gap-3">
+          <p className="text-foreground font-bold text-lg">
             Chọn quyền năng ({powerWindowCountdown}s)
           </p>
           <div className="flex gap-4">
@@ -1539,7 +1539,7 @@ const PlayerVeDichRiengView = () => {
               variant="ghost"
               onClick={() => void handleSelectPower("star")}
               disabled={currentPoints === 20}
-              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "star" ? "bg-yellow-500 text-blue-900" : "bg-yellow-500/20 text-yellow-300 border-2 border-yellow-500/50"} ${currentPoints === 20 ? "opacity-40" : ""}`}
+              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "star" ? "bg-warning text-background" : "bg-warning/20 text-warning border-2 border-warning/50"} ${currentPoints === 20 ? "opacity-40" : ""}`}
             >
               <Star size={20} />
               <span>Ngôi Sao Hy Vọng</span>
@@ -1548,7 +1548,7 @@ const PlayerVeDichRiengView = () => {
               variant="ghost"
               onClick={() => void handleSelectPower("shield")}
               disabled={currentPoints === 50}
-              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "shield" ? "bg-blue-500 text-blue-900" : "bg-blue-500/20 text-blue-300 border-2 border-blue-500/50"} ${currentPoints === 50 ? "opacity-40" : ""}`}
+              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "shield" ? "bg-primary text-background" : "bg-primary/20 text-brand border-2 border-primary/50"} ${currentPoints === 50 ? "opacity-40" : ""}`}
             >
               <Shield size={20} />
               <span>Bảo Hộ Miễn Trừ</span>
@@ -1560,22 +1560,22 @@ const PlayerVeDichRiengView = () => {
         <PSubmitButton isEnabled={!isPingDisabled} onSubmit={handlePing} />
       </div>
       {activePower && (
-        <div className="mx-3 mt-2 p-3 bg-blue-800 border-2 border-blue-400 rounded-xl flex items-center gap-3">
+        <div className="mx-3 mt-2 p-3 bg-primary/60 border-2 border-brand rounded-xl flex items-center gap-3">
           {activePower === "star" ? (
             <>
-              <Star size={20} className="text-yellow-400 shrink-0" />
-              <span className="font-bold text-yellow-300">
+              <Star size={20} className="text-warning shrink-0" />
+              <span className="font-bold text-warning">
                 Ngôi sao hy vọng
               </span>
-              <span className="text-yellow-200 text-sm">
+              <span className="text-warning text-sm">
                 Đúng: +150% · Sai: -100%
               </span>
             </>
           ) : (
             <>
-              <Shield size={20} className="text-blue-400 shrink-0" />
-              <span className="font-bold text-blue-300">Bảo hộ miễn trừ</span>
-              <span className="text-blue-200 text-sm">
+              <Shield size={20} className="text-brand shrink-0" />
+              <span className="font-bold text-brand">Bảo hộ miễn trừ</span>
+              <span className="text-foreground/80 text-sm">
                 Đúng: +50% · Sai: không trừ
               </span>
             </>

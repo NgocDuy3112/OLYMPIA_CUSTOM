@@ -90,24 +90,24 @@ const StatCard = ({
   <Button
     variant="ghost"
     onClick={onClick}
-    className="h-auto flex-col items-start gap-1 rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10"
+    className="h-auto flex-col items-start gap-1 rounded-xl bg-accent/50 border border-border p-4 hover:bg-accent"
   >
-    <div className="flex items-center gap-2 text-gray-400 text-xs font-medium uppercase tracking-wide">
+    <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium uppercase tracking-wide">
       {icon}
       {label}
     </div>
-    <p className="text-2xl font-bold text-white">{value}</p>
-    {sub && <p className="text-xs text-gray-500">{sub}</p>}
+    <p className="text-2xl font-bold text-foreground">{value}</p>
+    {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
   </Button>
 );
 
 const BarRow = ({ label, value, max, color }: { label: string; value: number; max: number; color: string }) => (
   <div className="flex items-center gap-2">
-    <span className="w-32 shrink-0 text-[11px] text-gray-400 truncate" title={label}>{label}</span>
-    <div className="flex-1 h-2 rounded-full bg-white/10 overflow-hidden">
+    <span className="w-32 shrink-0 text-[11px] text-muted-foreground truncate" title={label}>{label}</span>
+    <div className="flex-1 h-2 rounded-full bg-accent overflow-hidden">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${max > 0 ? Math.round((value / max) * 100) : 0}%` }} />
     </div>
-    <span className="w-8 text-right text-[11px] font-mono text-gray-300">{value}</span>
+    <span className="w-8 text-right text-[11px] font-mono text-foreground/80">{value}</span>
   </div>
 );
 const QuickAction = ({
@@ -124,12 +124,12 @@ const QuickAction = ({
   <Button
     variant="ghost"
     onClick={onClick}
-    className="h-auto items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3 hover:bg-white/10 hover:border-blue-500/50 text-left"
+    className="h-auto items-center gap-3 rounded-xl bg-accent/50 border border-border p-3 hover:bg-accent hover:border-primary/50 text-left"
   >
-    <span className="p-2 rounded-lg bg-blue-600/20 text-blue-300">{icon}</span>
+    <span className="p-2 rounded-lg bg-primary/20 text-brand">{icon}</span>
     <span>
-      <span className="block text-sm font-semibold text-white">{label}</span>
-      <span className="block text-xs text-gray-500">{desc}</span>
+      <span className="block text-sm font-semibold text-foreground">{label}</span>
+      <span className="block text-xs text-muted-foreground">{desc}</span>
     </span>
   </Button>
 );
@@ -273,11 +273,11 @@ const AdminDashboardPage = () => {
     needsAttention.push({ label: "Có service lỗi — xem Sức khỏe", path: "/admin/health" });
 
   return (
-    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Dashboard</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-muted-foreground text-sm mt-0.5">
             Tổng quan vận hành — số liệu trực tiếp từ API.
           </p>
         </div>
@@ -285,7 +285,7 @@ const AdminDashboardPage = () => {
           variant="secondary"
           onClick={() => void fetchAll()}
           disabled={loading}
-          className="gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 text-sm"
+          className="gap-1.5 bg-accent/50 border border-border hover:bg-accent disabled:opacity-50 text-sm"
         >
           <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           {loading ? "Đang tải…" : "Làm mới"}
@@ -294,15 +294,15 @@ const AdminDashboardPage = () => {
 
       {/* Việc cần làm */}
       {needsAttention.length > 0 && (
-        <div className="rounded-xl bg-amber-600/10 border border-amber-500/30 p-4">
-          <p className="text-sm font-semibold text-amber-300 mb-2">Cần xử lý</p>
+        <div className="rounded-xl bg-warning/10 border border-warning/30 p-4">
+          <p className="text-sm font-semibold text-warning mb-2">Cần xử lý</p>
           <div className="flex flex-wrap gap-2">
             {needsAttention.map((n) => (
               <Button
                 key={n.label}
                 variant="secondary"
                 onClick={() => navigate(n.path)}
-                className="bg-amber-600/20 border border-amber-500/40 text-amber-200 text-sm hover:bg-amber-600/30"
+                className="bg-warning/20 border border-warning/40 text-warning text-sm hover:bg-warning/30"
               >
                 {n.label} →
               </Button>
@@ -345,31 +345,31 @@ const AdminDashboardPage = () => {
 
       {/* Biểu đồ phân bố */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2">
-          <p className="text-sm font-semibold text-gray-300">Trận theo trạng thái</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-foreground/80">Trận theo trạng thái</p>
           {matchBars.map((b) => (
-            <BarRow key={b.label} label={b.label} value={b.value} max={maxMatch} color="bg-blue-500" />
+            <BarRow key={b.label} label={b.label} value={b.value} max={maxMatch} color="bg-primary" />
           ))}
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2">
-          <p className="text-sm font-semibold text-gray-300">User theo vai trò</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-foreground/80">User theo vai trò</p>
           {roleBars.map((b) => (
-            <BarRow key={b.label} label={b.label} value={b.value} max={maxRole} color="bg-emerald-500" />
+            <BarRow key={b.label} label={b.label} value={b.value} max={maxRole} color="bg-success" />
           ))}
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2">
-          <p className="text-sm font-semibold text-gray-300">Bank theo duyệt</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-foreground/80">Bank theo duyệt</p>
           {bankBars.map((b) => (
-            <BarRow key={b.label} label={b.label} value={b.value} max={maxBank} color="bg-amber-500" />
+            <BarRow key={b.label} label={b.label} value={b.value} max={maxBank} color="bg-warning" />
           ))}
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2">
-          <p className="text-sm font-semibold text-gray-300">Audit theo hành động (100 mới nhất)</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-foreground/80">Audit theo hành động (100 mới nhất)</p>
           {state.actionCounts.length === 0 ? (
-            <p className="text-xs text-gray-500">Chưa có log.</p>
+            <p className="text-xs text-muted-foreground">Chưa có log.</p>
           ) : (
             state.actionCounts.map((a) => (
-              <BarRow key={a.action} label={a.action} value={a.count} max={maxAction} color="bg-purple-500" />
+              <BarRow key={a.action} label={a.action} value={a.count} max={maxAction} color="bg-purple" />
             ))
           )}
         </div>
@@ -377,8 +377,8 @@ const AdminDashboardPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         {/* Tác vụ nhanh */}
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2">
-          <p className="text-sm font-semibold text-gray-300 mb-1">Tác vụ nhanh</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-foreground/80 mb-1">Tác vụ nhanh</p>
           <QuickAction
             icon={<Trophy size={16} />}
             label="Giải đấu mới"
@@ -406,35 +406,35 @@ const AdminDashboardPage = () => {
         </div>
 
         {/* Trận gần đây */}
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+        <div className="rounded-xl bg-accent/50 border border-border p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-gray-300">Trận gần đây</p>
+            <p className="text-sm font-semibold text-foreground/80">Trận gần đây</p>
             <Button
               variant="ghost"
               onClick={() => navigate("/admin/game-managing")}
-              className="px-0 text-xs text-blue-400 hover:text-blue-300"
+              className="px-0 text-xs text-brand hover:text-brand"
             >
               Xem tất cả →
             </Button>
           </div>
           {recentMatches.length === 0 ? (
-            <p className="text-xs text-gray-500">Chưa có trận nào.</p>
+            <p className="text-xs text-muted-foreground">Chưa có trận nào.</p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {recentMatches.map((m) => (
                 <div
                   key={m.id ?? m.matchCode}
-                  className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5"
+                  className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm text-white truncate">{m.matchName}</p>
-                    <p className="text-[11px] text-gray-500 font-mono">{m.matchCode}</p>
+                    <p className="text-sm text-foreground truncate">{m.matchName}</p>
+                    <p className="text-[11px] text-muted-foreground font-mono">{m.matchCode}</p>
                   </div>
                   <span
                     className={`shrink-0 px-2 py-0.5 rounded text-[11px] font-medium ${
                       m.matchStatus === "finished" || m.matchStatus === "completed"
-                        ? "bg-green-600/20 text-green-300"
-                        : "bg-blue-600/20 text-blue-300"
+                        ? "bg-success/20 text-success"
+                        : "bg-primary/20 text-brand"
                     }`}
                   >
                     {m.matchStatus}
@@ -445,7 +445,7 @@ const AdminDashboardPage = () => {
           )}
           {recentTournaments.length > 0 && (
             <>
-              <p className="text-sm font-semibold text-gray-300 mt-4 mb-2">Giải gần đây</p>
+              <p className="text-sm font-semibold text-foreground/80 mt-4 mb-2">Giải gần đây</p>
               <div className="flex flex-col gap-1.5">
                 {recentTournaments.map((t) => (
                   <Button
@@ -454,8 +454,8 @@ const AdminDashboardPage = () => {
                     onClick={() => navigate(`/admin/tournaments/${t.tournamentCode}`)}
                     className="h-auto justify-between gap-2 px-2 py-1.5 text-left"
                   >
-                    <span className="text-sm text-white truncate">{t.tournamentName}</span>
-                    <span className="shrink-0 text-[11px] text-gray-500">{t.status}</span>
+                    <span className="text-sm text-foreground truncate">{t.tournamentName}</span>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">{t.status}</span>
                   </Button>
                 ))}
               </div>
@@ -464,34 +464,34 @@ const AdminDashboardPage = () => {
         </div>
 
         {/* Nhật ký gần đây */}
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4">
+        <div className="rounded-xl bg-accent/50 border border-border p-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">
               <ScrollText size={14} /> Nhật ký ({state.totalLogs})
             </p>
             <Button
               variant="ghost"
               onClick={() => navigate("/admin/audit")}
-              className="px-0 text-xs text-blue-400 hover:text-blue-300"
+              className="px-0 text-xs text-brand hover:text-brand"
             >
               Xem tất cả →
             </Button>
           </div>
           {state.recentLogs.length === 0 ? (
-            <p className="text-xs text-gray-500">Chưa có log nào.</p>
+            <p className="text-xs text-muted-foreground">Chưa có log nào.</p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {state.recentLogs.map((log) => (
-                <div key={log.id} className="px-2 py-1.5 rounded-lg hover:bg-white/5">
+                <div key={log.id} className="px-2 py-1.5 rounded-lg hover:bg-accent/50">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded bg-white/10 text-[11px] font-mono font-bold text-gray-300">
+                    <span className="px-1.5 py-0.5 rounded bg-accent text-[11px] font-mono font-bold text-foreground/80">
                       {log.actionType}
                     </span>
                     {log.matchCode && (
-                      <span className="text-[11px] font-mono text-gray-500">{log.matchCode}</span>
+                      <span className="text-[11px] font-mono text-muted-foreground">{log.matchCode}</span>
                     )}
                   </div>
-                  <p className="text-[11px] text-gray-500 mt-0.5">
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
                     {log.actorCode ?? "—"}
                     {log.createdAt ? ` · ${new Date(log.createdAt).toLocaleString("vi-VN")}` : ""}
                   </p>

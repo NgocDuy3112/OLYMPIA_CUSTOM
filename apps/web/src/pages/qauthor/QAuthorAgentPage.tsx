@@ -89,14 +89,14 @@ const QAuthorAgentPage = () => {
   return (
     <div className="flex flex-col gap-3 h-[calc(100vh-8rem)]">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-white">
-          <Bot size={20} className="text-green-400" /> AI Agent — kiểm tra câu hỏi
+        <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
+          <Bot size={20} className="text-success" /> AI Agent — kiểm tra câu hỏi
         </h1>
         <Button
           variant="secondary"
           size="xs"
           onClick={() => setMessages((prev) => prev.slice(0, 1))}
-          className="gap-1 bg-white/10 hover:bg-white/15 text-xs text-gray-300"
+          className="gap-1 bg-accent hover:bg-accent/80 text-xs text-foreground/80"
         >
           <Trash2 size={13} /> Xoá hội thoại
         </Button>
@@ -107,48 +107,48 @@ const QAuthorAgentPage = () => {
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận (tuỳ chọn — để trống khi hỏi về bank)"
-          className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
         {messages.map((m) => (
           <div
             key={m.id}
             className={`flex gap-2 ${m.role === "user" ? "justify-end" : "justify-start"}`}
           >
             {m.role === "agent" && (
-              <div className="p-1.5 rounded-full bg-green-600/20 h-fit shrink-0">
-                <Bot size={14} className="text-green-400" />
+              <div className="p-1.5 rounded-full bg-success/20 h-fit shrink-0">
+                <Bot size={14} className="text-success" />
               </div>
             )}
             <div
               className={`max-w-[80%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
                 m.role === "user"
-                  ? "bg-green-600/30 text-white"
-                  : "bg-white/10 text-gray-100"
+                  ? "bg-success/30 text-foreground"
+                  : "bg-accent text-foreground"
               }`}
             >
               {m.text}
               {m.tools && m.tools.length > 0 && (
-                <p className="mt-1 text-[11px] text-gray-400 font-mono">
+                <p className="mt-1 text-[11px] text-muted-foreground font-mono">
                   tools: {m.tools.join(", ")}
                 </p>
               )}
             </div>
             {m.role === "user" && (
-              <div className="p-1.5 rounded-full bg-white/10 h-fit shrink-0">
-                <User size={14} className="text-gray-300" />
+              <div className="p-1.5 rounded-full bg-accent h-fit shrink-0">
+                <User size={14} className="text-foreground/80" />
               </div>
             )}
           </div>
         ))}
         {sending && (
           <div className="flex gap-2 justify-start">
-            <div className="p-1.5 rounded-full bg-green-600/20 h-fit">
-              <Bot size={14} className="text-green-400" />
+            <div className="p-1.5 rounded-full bg-success/20 h-fit">
+              <Bot size={14} className="text-success" />
             </div>
-            <div className="bg-white/10 rounded-xl px-3 py-2 text-sm text-gray-400 animate-pulse">
+            <div className="bg-accent rounded-xl px-3 py-2 text-sm text-muted-foreground animate-pulse">
               OCee đang nghĩ…
             </div>
           </div>
@@ -168,18 +168,18 @@ const QAuthorAgentPage = () => {
             }
           }}
           placeholder="Dán câu hỏi + đáp án… (Enter để gửi, Shift+Enter xuống dòng)"
-          className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground text-sm resize-none"
         />
         <Button
           variant="default"
           onClick={() => void send()}
           disabled={sending || !input.trim()}
-          className="gap-1.5 self-end rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-50 font-semibold text-sm text-white py-2"
+          className="gap-1.5 self-end rounded-lg bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm text-foreground py-2"
         >
           <SendHorizonal size={15} /> Gửi
         </Button>
       </div>
-      <p className="text-[11px] text-gray-500">
+      <p className="text-[11px] text-muted-foreground">
         Khung chat trước — logic kiểm tra (2 đáp án, độ khó, gợi ý lộ đáp án…) bàn kỹ sau.
       </p>
     </div>

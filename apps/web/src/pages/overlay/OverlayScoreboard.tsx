@@ -10,11 +10,11 @@ interface PlayerScore {
 }
 
 const RANK_COLORS = [
-  "from-yellow-400 to-yellow-600",  // Gold
+  "from-warning to-warning/80",  // Gold
   "from-gray-300 to-gray-500",      // Silver
   "from-orange-400 to-orange-600",  // Bronze
-  "from-blue-400 to-blue-600",      // Blue
-  "from-purple-400 to-purple-600",  // Purple
+  "from-brand to-primary",      // Blue
+  "from-purple to-purple/80",  // Purple
   "from-pink-400 to-pink-600",      // Pink
 ];
 
@@ -52,10 +52,10 @@ const OverlayScoreboard: React.FC = () => {
         #root { background: transparent !important; }
       `}</style>
 
-      <div className="backdrop-blur-md bg-black/30 rounded-2xl border border-white/10 p-4 shadow-2xl">
+      <div className="backdrop-blur-md bg-background/30 rounded-2xl border border-border p-4 shadow-2xl">
         {/* Header */}
         <div className="text-center mb-4">
-          <span className="text-xs font-semibold text-white/60 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-foreground/60 uppercase tracking-wider">
             Scoreboard
           </span>
         </div>
@@ -77,7 +77,7 @@ const OverlayScoreboard: React.FC = () => {
                 <div
                   className={`
                     w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center
-                    text-xs font-bold text-white shadow-lg
+                    text-xs font-bold text-foreground shadow-lg
                     ${RANK_COLORS[index] || RANK_COLORS[3]}
                   `}
                 >
@@ -86,7 +86,7 @@ const OverlayScoreboard: React.FC = () => {
 
                 {/* Name */}
                 <div className="flex-1 truncate">
-                  <span className="text-sm sm:text-base font-semibold text-white">
+                  <span className="text-sm sm:text-base font-semibold text-foreground">
                     {player.userName}
                   </span>
                 </div>
@@ -96,7 +96,7 @@ const OverlayScoreboard: React.FC = () => {
                   key={`${player.userCode}-${player.score}`}
                   initial={{ scale: 1.2, color: "#60A5FA" }}
                   animate={{ scale: 1, color: "#FFFFFF" }}
-                  className="text-lg sm:text-xl font-bold tabular-nums text-white"
+                  className="text-lg sm:text-xl font-bold tabular-nums text-foreground"
                 >
                   {player.score.toLocaleString()}
                 </motion.div>

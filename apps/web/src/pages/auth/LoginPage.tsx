@@ -49,7 +49,7 @@ const LoginPage: React.FC = () => {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
               required
-              className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+              className="px-4 py-2.5 rounded-lg bg-accent border border-border text-foreground placeholder-gray-400 text-sm"
             />
             <Input
               type="password"
@@ -58,14 +58,14 @@ const LoginPage: React.FC = () => {
               placeholder="Mật khẩu"
               required
               minLength={8}
-              className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+              className="px-4 py-2.5 rounded-lg bg-accent border border-border text-foreground placeholder-gray-400 text-sm"
             />
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            {error && <p className="text-xs text-destructive">{error}</p>}
             <Button
               type="submit"
               variant="default"
               disabled={loading}
-              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium"
+              className="bg-purple hover:bg-purple/90 disabled:opacity-50 text-foreground text-sm font-medium"
             >
               {loading ? "Đang đăng nhập..." : "Đăng nhập"}
             </Button>
@@ -74,7 +74,7 @@ const LoginPage: React.FC = () => {
         <Button
           variant="ghost"
           onClick={handleGoogleLogin}
-          className="w-full touch-target justify-center gap-3 rounded-lg bg-white px-6 py-3 font-semibold text-gray-800 shadow-md transition-all duration-200 hover:scale-105 hover:bg-white hover:shadow-lg"
+          className="w-full touch-target justify-center gap-3 rounded-lg bg-white px-6 py-3 font-semibold text-background shadow-md transition-all duration-200 hover:scale-105 hover:bg-white hover:shadow-lg"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -97,11 +97,11 @@ const LoginPage: React.FC = () => {
             Đăng nhập với Google
           </Button>
 
-        <div className="w-full border-t border-gray-600 my-2" />
+        <div className="w-full border-t border-border my-2" />
 
         <a
           href="/spectator"
-          className="flex items-center gap-2 px-4 py-2.5 bg-transparent border border-gray-600 text-gray-300 font-medium rounded-lg hover:bg-gray-800 hover:text-white transition-all duration-200 w-full justify-center touch-target text-sm"
+          className="flex items-center gap-2 px-4 py-2.5 bg-transparent border border-border text-foreground/80 font-medium rounded-lg hover:bg-accent hover:text-foreground transition-all duration-200 w-full justify-center touch-target text-sm"
         >
           <svg
             className="w-4 h-4"

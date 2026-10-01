@@ -96,7 +96,7 @@ const QAuthorSetsPage = () => {
             <Button
               variant="ghost"
               onClick={() => setShowCreate(false)}
-              className="bg-blue-800 hover:bg-blue-700 text-sm"
+              className="bg-accent/50 hover:bg-accent text-sm"
             >
               Huỷ
             </Button>
@@ -104,7 +104,7 @@ const QAuthorSetsPage = () => {
               variant="default"
               onClick={() => void createSet()}
               disabled={creating || !name.trim()}
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+              className="gap-1.5 bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm"
             >
               <Plus size={15} /> {creating ? "Đang tạo…" : "Tạo bộ"}
             </Button>
@@ -112,32 +112,32 @@ const QAuthorSetsPage = () => {
         }
       >
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Tên bộ đề *</label>
+          <label className="text-xs text-brand">Tên bộ đề *</label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="VD: Bộ đề 1"
-            className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-brand focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Mã trận</label>
+          <label className="text-xs text-brand">Mã trận</label>
           <Input
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value.toUpperCase())}
             placeholder="VD: OC4_M01T (gán sau cũng được)"
-            className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
+            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-brand focus:outline-none focus:ring-2 focus:ring-ring text-sm font-mono"
           />
         </div>
-        <p className="text-xs text-gray-500">1 bộ thuộc đúng 1 mã trận.</p>
+        <p className="text-xs text-muted-foreground">1 bộ thuộc đúng 1 mã trận.</p>
       </SidePanel>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-white">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
             <Layers size={20} /> Bộ đề
           </h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-muted-foreground text-sm mt-0.5">
             Mỗi bộ thuộc 1 trận · pick từ bank đã duyệt, không soạn tay · {sets.length} bộ
           </p>
         </div>
@@ -147,7 +147,7 @@ const QAuthorSetsPage = () => {
             variant="secondary"
             onClick={() => void fetchSets()}
             disabled={loading}
-            className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
+            className="bg-accent/50 border border-border hover:bg-accent disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
@@ -155,7 +155,7 @@ const QAuthorSetsPage = () => {
           <Button
             variant="default"
             onClick={() => setShowCreate(true)}
-            className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
+            className="gap-1.5 bg-success hover:bg-success/90 text-sm font-medium"
           >
             <Plus size={15} /> Tạo bộ đề
           </Button>
@@ -163,11 +163,11 @@ const QAuthorSetsPage = () => {
       </div>
 
       {loading && sets.length === 0 ? (
-        <p className="text-gray-500 text-sm py-8 text-center">Đang tải…</p>
+        <p className="text-muted-foreground text-sm py-8 text-center">Đang tải…</p>
       ) : sets.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
-          <Layers size={36} className="mx-auto text-gray-600 mb-3" />
-          <p className="text-gray-400 text-sm">Chưa có bộ đề nào.</p>
+        <div className="rounded-xl border border-dashed border-border p-10 text-center">
+          <Layers size={36} className="mx-auto text-muted-foreground/70 mb-3" />
+          <p className="text-muted-foreground text-sm">Chưa có bộ đề nào.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
@@ -176,37 +176,37 @@ const QAuthorSetsPage = () => {
               key={s.setCode}
               variant="ghost"
               onClick={() => setOpenCode(s.setCode)}
-              className="h-auto flex-col items-stretch gap-2 rounded-xl bg-white/[0.03] border border-white/10 p-4 text-left hover:bg-white/5 hover:border-white/20"
+              className="h-auto flex-col items-stretch gap-2 rounded-xl bg-accent/25 border border-border p-4 text-left hover:bg-accent/50 hover:border-border"
             >
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-white">{s.setName}</span>
+                <span className="font-semibold text-foreground">{s.setName}</span>
                 <span
                   className={`px-2 py-0.5 rounded-full text-[11px] ${
-                    s.status === "ready" ? "bg-green-600/20 text-green-300" : "bg-yellow-600/20 text-yellow-300"
+                    s.status === "ready" ? "bg-success/20 text-success" : "bg-warning/20 text-warning"
                   }`}
                 >
                   {s.status === "ready" ? "Sẵn sàng" : "Nháp"}
                 </span>
                 {s.activeMatchCode && (
-                  <span className="px-2 py-0.5 rounded-full text-[11px] bg-blue-600/20 text-blue-300">
+                  <span className="px-2 py-0.5 rounded-full text-[11px] bg-primary/20 text-brand">
                     Live {s.activeMatchCode}
                   </span>
                 )}
               </div>
-              <p className="font-mono text-xs text-gray-500">{s.setCode}</p>
+              <p className="font-mono text-xs text-muted-foreground">{s.setCode}</p>
               <div className="flex items-center gap-2">
-                <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-emerald-500 transition-all"
+                    className="h-full rounded-full bg-success transition-all"
                     style={{ width: `${s.expected ? Math.min((s.filled / s.expected) * 100, 100) : 0}%` }}
                   />
                 </div>
-                <span className="font-mono text-xs text-gray-400 whitespace-nowrap">
+                <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
                   {s.filled}/{s.expected}
                 </span>
               </div>
-              <p className="text-xs text-gray-500">
-                Trận: <span className="font-mono text-gray-300">{s.matchCode ?? "— chưa gán —"}</span>
+              <p className="text-xs text-muted-foreground">
+                Trận: <span className="font-mono text-foreground/80">{s.matchCode ?? "— chưa gán —"}</span>
               </p>
             </Button>
           ))}

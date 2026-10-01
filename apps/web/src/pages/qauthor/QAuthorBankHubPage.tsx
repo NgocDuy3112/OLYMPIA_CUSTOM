@@ -20,8 +20,8 @@ const QAuthorBankHubPage = () => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-xl font-bold text-white">Ngân hàng câu hỏi</h1>
-        <p className="text-xs text-gray-500">
+        <h1 className="text-xl font-bold text-foreground">Ngân hàng câu hỏi</h1>
+        <p className="text-xs text-muted-foreground">
           Soạn câu theo vòng thi
         </p>
       </div>
@@ -34,8 +34,8 @@ const QAuthorBankHubPage = () => {
             onClick={() => setTab(t.id)}
             className={`h-auto items-start gap-3 rounded-xl border px-4 py-3.5 text-left ${
               tab === t.id
-                ? "bg-green-600/20 border-green-600/50 text-green-300"
-                : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
+                ? "bg-success/20 border-success/50 text-success"
+                : "bg-accent/50 border-border text-muted-foreground hover:text-foreground hover:bg-accent"
             }`}
           >
             {t.icon}

@@ -129,7 +129,7 @@ const CReviewsPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-white">
+      <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
         <ClipboardCheck size={20} className="text-orange-400" /> Duyệt điểm
       </h1>
       <div className="flex gap-2">
@@ -137,7 +137,7 @@ const CReviewsPage = () => {
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận đấu"
-          className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
         />
         <NativeSelect
           value={status}
@@ -151,13 +151,13 @@ const CReviewsPage = () => {
           variant="default"
           onClick={() => void fetchReviews()}
           disabled={loading || !matchCode.trim()}
-          className="gap-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-sm text-foreground"
         >
           {loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />} Tải
         </Button>
       </div>
       {reviews.length === 0 && (
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           {status === "pending" ? "Không có review chờ duyệt." : status === "decided" ? "Chưa có review đã chốt." : "Chưa có review."}
         </p>
       )}
@@ -165,16 +165,16 @@ const CReviewsPage = () => {
         const d = decisions[r.id] ?? r.decisions ?? {};
         const isDecided = r.status !== "pending";
         return (
-          <div key={r.id} className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
+          <div key={r.id} className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="font-mono text-sm text-orange-300">{r.questionCode}</p>
-              <p className="text-xs text-gray-500">{r.status}</p>
+              <p className="text-xs text-muted-foreground">{r.status}</p>
             </div>
             {r.candidates.map((c) => {
               const v = d[c.userCode];
               return (
                 <div key={c.userCode} className="flex items-center gap-2">
-                  <p className="flex-1 text-sm text-white">
+                  <p className="flex-1 text-sm text-foreground">
                     {v === "dung" ? "✅ " : v === "sai" ? "❌ " : "⏳ "}
                     <span className="font-semibold">{label(c)}</span>: {c.answerText || "(trống)"}
                   </p>
@@ -182,7 +182,7 @@ const CReviewsPage = () => {
                     size="icon-sm"
                     variant="ghost"
                     onClick={() => setDecision(r.id, c.userCode, "dung")}
-                    className={`rounded-lg ${v === "dung" ? "bg-green-600 text-white" : "bg-white/10 text-gray-400 hover:text-white"}`}
+                    className={`rounded-lg ${v === "dung" ? "bg-success text-foreground" : "bg-accent text-muted-foreground hover:text-foreground"}`}
                     title="Đúng"
                   >
                     <Check size={16} />
@@ -191,7 +191,7 @@ const CReviewsPage = () => {
                     size="icon-sm"
                     variant="ghost"
                     onClick={() => setDecision(r.id, c.userCode, "sai")}
-                    className={`rounded-lg ${v === "sai" ? "bg-red-600 text-white" : "bg-white/10 text-gray-400 hover:text-white"}`}
+                    className={`rounded-lg ${v === "sai" ? "bg-destructive text-foreground" : "bg-accent text-muted-foreground hover:text-foreground"}`}
                     title="Sai"
                   >
                     <X size={16} />
@@ -200,7 +200,7 @@ const CReviewsPage = () => {
               );
             })}
             {(ocee[r.id] || r.oceeSuggestion?.text) && (
-              <p className="text-xs text-gray-400 bg-white/5 rounded-lg p-2">
+              <p className="text-xs text-muted-foreground bg-accent/50 rounded-lg p-2">
                 🤖 OCee: {ocee[r.id] ?? r.oceeSuggestion?.text}
               </p>
             )}
@@ -209,7 +209,7 @@ const CReviewsPage = () => {
                 variant="secondary"
                 onClick={() => void askOcee(r.id)}
                 disabled={isDecided}
-                className="gap-1 bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                className="gap-1 bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
               >
                 <Bot size={14} /> Nhờ OCee
               </Button>
@@ -217,7 +217,7 @@ const CReviewsPage = () => {
                 variant="default"
                 onClick={() => void submit(r)}
                 disabled={saving === r.id || isDecided}
-                className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-xs font-semibold text-white"
+                className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-xs font-semibold text-foreground"
               >
                 {saving === r.id ? "Đang chốt..." : isDecided ? "Đã chốt" : "Xác nhận"}
               </Button>

@@ -71,7 +71,7 @@ const AuthCallbackPage: React.FC = () => {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen p-4">
         <div className="card text-center w-full max-w-sm">
-          <div className="animate-spin w-10 h-10 sm:w-12 sm:h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
+          <div className="animate-spin w-10 h-10 sm:w-12 sm:h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-base sm:text-lg font-semibold">Đang xác thực...</p>
         </div>
       </div>
@@ -82,14 +82,14 @@ const AuthCallbackPage: React.FC = () => {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen p-4">
         <div className="card text-center w-full max-w-sm">
-          <p className="text-lg sm:text-xl font-bold text-red-500 mb-2">
+          <p className="text-lg sm:text-xl font-bold text-destructive mb-2">
             Đăng nhập thất bại
           </p>
-          <p className="text-gray-400 text-sm mb-4">{error}</p>
+          <p className="text-muted-foreground text-sm mb-4">{error}</p>
           <Button
             variant="default"
             onClick={() => navigate("/login")}
-            className="bg-blue-600 text-white hover:bg-blue-700 touch-target"
+            className="bg-primary text-foreground hover:bg-primary/70 touch-target"
           >
             Thử lại
           </Button>
@@ -101,11 +101,11 @@ const AuthCallbackPage: React.FC = () => {
   return (
     <div className="flex flex-col justify-center items-center min-h-screen p-4">
       <div className="card text-center w-full max-w-sm">
-        <div className="text-green-500 text-4xl sm:text-5xl mb-4">✓</div>
+        <div className="text-success text-4xl sm:text-5xl mb-4">✓</div>
         <p className="text-base sm:text-lg font-semibold">
           Đăng nhập thành công!
         </p>
-        <p className="text-gray-400 text-sm">Đang chuyển trang...</p>
+        <p className="text-muted-foreground text-sm">Đang chuyển trang...</p>
       </div>
     </div>
   );

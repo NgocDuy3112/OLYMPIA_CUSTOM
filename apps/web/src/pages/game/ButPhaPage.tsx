@@ -106,8 +106,8 @@ const AdminButPhaView = () => {
             onClick={() => handleSelectQuestion(idx + 1)}
             className={`h-10 w-10 items-center justify-center rounded-md text-sm font-bold ${
               isActive
-                ? "bg-blue-300 text-blue-900 border border-blue-200"
-                : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"
+                ? "bg-brand text-background border border-brand"
+                : "bg-transparent border border-primary text-foreground hover:bg-primary/70"
             } disabled:opacity-50`}
           >
             {idx + 1}

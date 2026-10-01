@@ -77,7 +77,7 @@ const OverlayPreviewPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="px-4 text-center">
-          <p className="text-gray-400">Cần match code để xem preview</p>
+          <p className="text-muted-foreground">Cần match code để xem preview</p>
         </Card>
       </div>
     );
@@ -92,14 +92,14 @@ const OverlayPreviewPage: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
             Overlay Preview
           </h1>
-          <p className="text-gray-400">
+          <p className="text-muted-foreground">
             Xem trước và copy URL để thêm vào OBS
           </p>
           {matchInfo && (
-            <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+            <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
               <Monitor size={14} />
               <span>Match: {matchInfo.matchName || matchCode}</span>
             </div>
@@ -117,7 +117,7 @@ const OverlayPreviewPage: React.FC = () => {
             >
               <Card className="p-0 overflow-hidden">
                 {/* Preview area */}
-                <div className="relative h-40 bg-gray-950 flex items-center justify-center border-b border-white/10">
+                <div className="relative h-40 bg-background flex items-center justify-center border-b border-border">
                   <iframe
                     src={getOverlayUrl(overlay)}
                     className="absolute inset-0 w-full h-full pointer-events-none"
@@ -130,7 +130,7 @@ const OverlayPreviewPage: React.FC = () => {
 
                   {/* Overlay info */}
                   <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-muted-foreground">
                       {overlay.defaultWidth} × {overlay.defaultHeight}
                     </span>
                   </div>
@@ -139,12 +139,12 @@ const OverlayPreviewPage: React.FC = () => {
                 {/* Content */}
                 <div className="p-4">
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+                    <div className="p-2 bg-primary/20 rounded-lg text-brand">
                       {OVERLAY_ICONS[overlay.id] ?? <Monitor size={20} />}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-white">{overlay.name}</h3>
-                      <p className="text-sm text-gray-400">
+                      <h3 className="font-bold text-foreground">{overlay.name}</h3>
+                      <p className="text-sm text-muted-foreground">
                         {overlay.description}
                       </p>
                     </div>
@@ -187,26 +187,26 @@ const OverlayPreviewPage: React.FC = () => {
           className="mt-8"
         >
           <Card className="px-4">
-            <h3 className="font-bold text-white mb-3">Hướng dẫn sử dụng</h3>
-            <ol className="space-y-2 text-sm text-gray-400">
+            <h3 className="font-bold text-foreground mb-3">Hướng dẫn sử dụng</h3>
+            <ol className="space-y-2 text-sm text-muted-foreground">
               <li className="flex gap-2">
-                <span className="text-blue-400 font-bold">1.</span>
+                <span className="text-brand font-bold">1.</span>
                 Mở OBS Studio
               </li>
               <li className="flex gap-2">
-                <span className="text-blue-400 font-bold">2.</span>
+                <span className="text-brand font-bold">2.</span>
                 Thêm Browser Source (Sources → Add → Browser)
               </li>
               <li className="flex gap-2">
-                <span className="text-blue-400 font-bold">3.</span>
+                <span className="text-brand font-bold">3.</span>
                 Paste URL đã copy vào ô URL
               </li>
               <li className="flex gap-2">
-                <span className="text-blue-400 font-bold">4.</span>
+                <span className="text-brand font-bold">4.</span>
                 Đặt Width/Height theo gợi ý (hoặc tuỳ chỉnh)
               </li>
               <li className="flex gap-2">
-                <span className="text-blue-400 font-bold">5.</span>
+                <span className="text-brand font-bold">5.</span>
                 Bỏ tick "Shutdown source when not visible" để overlay luôn
                 chạy
               </li>

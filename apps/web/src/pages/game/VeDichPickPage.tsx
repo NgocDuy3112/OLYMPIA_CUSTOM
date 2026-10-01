@@ -575,10 +575,10 @@ const AdminVeDichPickView = () => {
       bottomActionButtons={
         <>
           {isLoading && questions.length === 0 && (
-            <p className="text-blue-600 font-semibold">Đang tải câu hỏi...</p>
+            <p className="text-brand font-semibold">Đang tải câu hỏi...</p>
           )}
           {questions.length > 0 && (
-            <p className="text-green-600 font-semibold">
+            <p className="text-success font-semibold">
               ✓ Đã tải {questions.length} câu hỏi
             </p>
           )}
@@ -587,12 +587,12 @@ const AdminVeDichPickView = () => {
       statusMessages={
         <>
           {errorMessage && (
-            <div className="text-blue-600 font-semibold text-center">
+            <div className="text-brand font-semibold text-center">
               {errorMessage}
             </div>
           )}
           {successMessage && (
-            <div className="text-blue-600 font-semibold text-center">
+            <div className="text-brand font-semibold text-center">
               {successMessage}
             </div>
           )}
@@ -722,23 +722,23 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
 
   return (
     <PBasePageLayout players={players} currentPlayerCode={playerCode}>
-      <div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 w-full">
+      <div className="p-5 rounded-xl flex flex-col bg-primary/40 border-2 border-primary shadow-xl gap-4 w-full">
         <div className="flex items-center gap-4 pb-1">
           {(() => {
             const parts = title.split(" - ");
             if (parts.length >= 2)
               return (
                 <div className="flex flex-col leading-tight shrink-0">
-                  <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                  <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
                     {parts[0]}
                   </span>
-                  <span className="text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                  <span className="text-2xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
                     {parts.slice(1).join(" - ")}
                   </span>
                 </div>
               );
             return (
-              <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
+              <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase shrink-0">
                 {title}
               </span>
             );
@@ -778,7 +778,7 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
             })}
           </div>
         </div>
-        <div className="border-t border-blue-700" />
+        <div className="border-t border-primary/70" />
         <div
           className="grid gap-4"
           style={{

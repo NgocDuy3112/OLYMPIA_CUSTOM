@@ -57,7 +57,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
       />
 
       {/* Player bar */}
-      <div className="flex gap-1 sm:gap-2 lg:gap-4 max-w-7xl w-full justify-center p-2 sm:p-3 lg:p-4 bg-black/20 shrink-0 overflow-x-auto">
+      <div className="flex gap-1 sm:gap-2 lg:gap-4 max-w-7xl w-full justify-center p-2 sm:p-3 lg:p-4 bg-background/20 shrink-0 overflow-x-auto">
         {players.map((p) =>
           role === "mc" ? (
             <PlayerPanel

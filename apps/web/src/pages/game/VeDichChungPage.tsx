@@ -1242,8 +1242,8 @@ const PlayerVeDichChungView = () => {
         }
       />
       {powerWindowOpen && !usedPowers[playerCode] && (
-        <div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-4 flex flex-col items-center gap-3">
-          <p className="text-white font-bold text-lg">
+        <div className="bg-primary/40 border-2 border-brand rounded-xl p-4 flex flex-col items-center gap-3">
+          <p className="text-foreground font-bold text-lg">
             Chọn quyền năng ({powerWindowCountdown}s)
           </p>
           <div className="flex gap-4">
@@ -1251,7 +1251,7 @@ const PlayerVeDichChungView = () => {
               variant="ghost"
               onClick={() => void handleSelectPower("star")}
               disabled={currentPoints === 20}
-              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "star" ? "bg-yellow-500 text-blue-900 ring-2 ring-yellow-300" : "bg-yellow-500/20 text-yellow-300 border-2 border-yellow-500/50 hover:bg-yellow-500/40"} ${currentPoints === 20 ? "opacity-40 cursor-not-allowed" : ""}`}
+              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "star" ? "bg-warning text-background ring-2 ring-warning" : "bg-warning/20 text-warning border-2 border-warning/50 hover:bg-warning/40"} ${currentPoints === 20 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               <Star size={20} />
               <span>Ngôi Sao Hy Vọng</span>
@@ -1260,19 +1260,19 @@ const PlayerVeDichChungView = () => {
               variant="ghost"
               onClick={() => void handleSelectPower("shield")}
               disabled={currentPoints === 50}
-              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "shield" ? "bg-blue-500 text-blue-900 ring-2 ring-blue-300" : "bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40"} ${currentPoints === 50 ? "opacity-40 cursor-not-allowed" : ""}`}
+              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "shield" ? "bg-primary text-background ring-2 ring-brand" : "bg-primary/20 text-brand border-2 border-primary/50 hover:bg-primary/40"} ${currentPoints === 50 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               <Shield size={20} />
               <span>Bảo Hộ Miễn Trừ</span>
             </Button>
           </div>
-          <p className="text-blue-300 text-sm">
+          <p className="text-brand text-sm">
             Chỉ được dùng 1 lần xuyên suốt VĐC & VĐR
           </p>
         </div>
       )}
       {!powerWindowOpen && usedPowers[playerCode] && (
-        <div className="bg-blue-900/60 border-2 border-blue-400 rounded-xl p-3 flex items-center gap-2 font-bold text-sm text-blue-100">
+        <div className="bg-primary/60 border-2 border-brand rounded-xl p-3 flex items-center gap-2 font-bold text-sm text-foreground/80">
           {usedPowers[playerCode] === "star" ? (
             <Star size={18} className="shrink-0" />
           ) : (

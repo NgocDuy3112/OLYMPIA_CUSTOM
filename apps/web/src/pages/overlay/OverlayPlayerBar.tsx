@@ -81,16 +81,16 @@ const OverlayPlayerBar: React.FC = () => {
                 backdrop-blur-md border transition-all duration-300
                 ${
                   player.status === "buzzed"
-                    ? "bg-yellow-500/90 text-black border-yellow-400 shadow-lg shadow-yellow-500/30"
+                    ? "bg-warning/90 text-background border-warning shadow-lg shadow-warning/30"
                     : player.status === "online"
-                      ? "bg-white/15 text-white border-white/20 shadow-lg shadow-black/20"
-                      : "bg-white/5 text-white/40 border-white/10"
+                      ? "bg-foreground/15 text-foreground border-border shadow-lg shadow-background/20"
+                      : "bg-accent/50 text-foreground/40 border-border"
                 }
               `}
             >
               {/* Score badge */}
               {player.score !== undefined && player.score > 0 && (
-                <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full font-bold">
+                <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-primary text-foreground text-xs rounded-full font-bold">
                   {player.score}
                 </span>
               )}
@@ -103,7 +103,7 @@ const OverlayPlayerBar: React.FC = () => {
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: [0, 1.2, 1] }}
-                  className="absolute -top-1 -left-1 w-3 h-3 bg-yellow-400 rounded-full"
+                  className="absolute -top-1 -left-1 w-3 h-3 bg-warning rounded-full"
                 />
               )}
             </motion.div>

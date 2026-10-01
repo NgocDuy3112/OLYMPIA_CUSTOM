@@ -77,7 +77,7 @@ const StaffLoginPage: React.FC<{ mode: StaffMode }> = ({ mode }) => {
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder={copy.placeholder}
                         required
-                        className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+                        className="px-4 py-2.5 rounded-lg bg-accent border border-border text-foreground placeholder-gray-400 text-sm"
                     />
                     <Input
                         type="password"
@@ -86,14 +86,14 @@ const StaffLoginPage: React.FC<{ mode: StaffMode }> = ({ mode }) => {
                         placeholder="Mật khẩu"
                         required
                         minLength={8}
-                        className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
+                        className="px-4 py-2.5 rounded-lg bg-accent border border-border text-foreground placeholder-gray-400 text-sm"
                     />
-                    {error && <p className="text-xs text-red-400">{error}</p>}
+                    {error && <p className="text-xs text-destructive">{error}</p>}
                     <Button
                         type="submit"
                         variant="default"
                         disabled={loading}
-                        className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium"
+                        className="bg-purple hover:bg-purple/90 disabled:opacity-50 text-foreground text-sm font-medium"
                     >
                         {loading ? "Đang đăng nhập..." : copy.button}
                     </Button>

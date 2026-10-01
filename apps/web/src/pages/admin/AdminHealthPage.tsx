@@ -20,7 +20,7 @@ const OPIK_URL = import.meta.env.VITE_OPIK_URL ?? "http://localhost:5173";
 const HealthDot = ({ ok }: { ok: boolean | null }) => (
   <span
     className={`inline-block w-2.5 h-2.5 rounded-full ${
-      ok === null ? "bg-gray-500" : ok ? "bg-green-500" : "bg-red-500"
+      ok === null ? "bg-muted-foreground" : ok ? "bg-success" : "bg-destructive"
     }`}
   />
 );
@@ -80,14 +80,14 @@ const AdminHealthPage = () => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-white">
-          <Activity size={20} className="text-blue-400" /> Sức khỏe hệ thống
+        <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
+          <Activity size={20} className="text-brand" /> Sức khỏe hệ thống
         </h1>
         <Button
           variant="default"
           onClick={() => void check()}
           disabled={checking}
-          className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-xs text-white"
+          className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-xs text-foreground"
         >
           {checking ? "Đang kiểm tra…" : "Kiểm tra lại"}
         </Button>
@@ -96,16 +96,16 @@ const AdminHealthPage = () => {
       <div
         className={`rounded-xl border p-4 flex items-center gap-3 ${
           allOk
-            ? "bg-green-600/10 border-green-600/20"
-            : "bg-yellow-600/10 border-yellow-600/20"
+            ? "bg-success/10 border-success/20"
+            : "bg-warning/10 border-warning/20"
         }`}
       >
         {allOk ? (
-          <CheckCircle2 size={20} className="text-green-400" />
+          <CheckCircle2 size={20} className="text-success" />
         ) : (
-          <AlertTriangle size={20} className="text-yellow-400" />
+          <AlertTriangle size={20} className="text-warning" />
         )}
-        <p className="text-sm text-white">
+        <p className="text-sm text-foreground">
           {allOk
             ? "Mọi service phản hồi tốt."
             : "Có service cần xem — chi tiết số liệu ở Grafana, trace agent ở Opik."}
@@ -116,14 +116,14 @@ const AdminHealthPage = () => {
         {rows.map((r) => (
           <div
             key={r.name}
-            className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2"
+            className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2"
           >
             <div className="flex items-center gap-2">
               <HealthDot ok={r.ok} />
-              <p className="font-semibold text-white">{r.name}</p>
+              <p className="font-semibold text-foreground">{r.name}</p>
             </div>
-            <p className="text-xs text-gray-500 font-mono break-all">{r.url}</p>
-            <p className="text-xs text-gray-400 font-mono break-all">{r.detail}</p>
+            <p className="text-xs text-muted-foreground font-mono break-all">{r.url}</p>
+            <p className="text-xs text-muted-foreground font-mono break-all">{r.detail}</p>
           </div>
         ))}
       </div>
@@ -133,14 +133,14 @@ const AdminHealthPage = () => {
           href={`${GRAFANA_URL}/d/olympia-ops`}
           target="_blank"
           rel="noreferrer"
-          className="rounded-xl bg-white/5 border border-white/10 p-4 flex items-center gap-3 hover:bg-white/10"
+          className="rounded-xl bg-accent/50 border border-border p-4 flex items-center gap-3 hover:bg-accent"
         >
           <Activity size={18} className="text-orange-400" />
           <div>
-            <p className="text-sm font-semibold text-white flex items-center gap-1">
+            <p className="text-sm font-semibold text-foreground flex items-center gap-1">
               Grafana <ExternalLink size={12} />
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Charts vận hành: latency, error, WS, agent calls
             </p>
           </div>
@@ -149,20 +149,20 @@ const AdminHealthPage = () => {
           href={OPIK_URL}
           target="_blank"
           rel="noreferrer"
-          className="rounded-xl bg-white/5 border border-white/10 p-4 flex items-center gap-3 hover:bg-white/10"
+          className="rounded-xl bg-accent/50 border border-border p-4 flex items-center gap-3 hover:bg-accent"
         >
-          <Activity size={18} className="text-purple-400" />
+          <Activity size={18} className="text-purple" />
           <div>
-            <p className="text-sm font-semibold text-white flex items-center gap-1">
+            <p className="text-sm font-semibold text-foreground flex items-center gap-1">
               Opik <ExternalLink size={12} />
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Trace OCee: node, tool, vòng reflect từng conversation
             </p>
           </div>
         </a>
       </div>
-      <p className="text-[11px] text-gray-500">
+      <p className="text-[11px] text-muted-foreground">
         Quy ước: Grafana chỉ số vận hành, Opik chỉ trace agent — không duplicate
         charts giữa hai nơi.
       </p>

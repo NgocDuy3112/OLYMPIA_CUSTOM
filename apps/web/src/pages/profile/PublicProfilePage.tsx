@@ -49,7 +49,7 @@ const PublicProfilePage: React.FC = () => {
   if (error || !profile) {
     return (
       <PublicLayout>
-        <p className="text-red-400 text-center py-12">
+        <p className="text-destructive text-center py-12">
           {error ?? "Không tìm thấy người dùng"}
         </p>
       </PublicLayout>
@@ -65,22 +65,22 @@ const PublicProfilePage: React.FC = () => {
               <img
                 src={profile.avatarUrl}
                 alt={profile.userName}
-                className="w-16 h-16 rounded-full object-cover border-2 border-blue-500"
+                className="w-16 h-16 rounded-full object-cover border-2 border-primary"
               />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-2xl font-bold text-white">
+              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-foreground">
                 {profile.userName.charAt(0).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="text-xl font-bold text-white truncate">
+              <h1 className="text-xl font-bold text-foreground truncate">
                 {profile.userName}
               </h1>
-              <p className="text-sm text-gray-400 font-mono">
+              <p className="text-sm text-muted-foreground font-mono">
                 {profile.userCode}
               </p>
             </div>
-            <span className="ml-auto px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/50 text-xs font-bold uppercase">
+            <span className="ml-auto px-3 py-1 rounded-full bg-warning/20 text-warning border border-warning/50 text-xs font-bold uppercase">
               {profile.role}
             </span>
           </div>

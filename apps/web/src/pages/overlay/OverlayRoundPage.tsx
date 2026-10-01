@@ -49,7 +49,7 @@ const OverlayRoundPage: React.FC = () => {
       default:
         return (
           <div className="min-h-screen flex items-center justify-center p-4">
-            <p className="text-white/60 text-sm">
+            <p className="text-foreground/60 text-sm">
               Vòng không hợp lệ — chọn: {ROUND_KEYS.join(", ")}
             </p>
           </div>

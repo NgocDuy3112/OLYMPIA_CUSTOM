@@ -75,7 +75,7 @@ const CVeDichPickLayout = ({
         {}
         <div className="flex flex-col flex-3 gap-4 xl:gap-6">
           {}
-          <div className="p-3 xl:p-4 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 xl:gap-3">
+          <div className="p-3 xl:p-4 rounded-xl flex flex-col bg-primary/40 border-2 border-primary shadow-xl gap-2 xl:gap-3">
             {}
             <div className="flex items-center gap-4 pb-1">
               {(() => {
@@ -83,17 +83,17 @@ const CVeDichPickLayout = ({
                 if (parts.length >= 2) {
                   return (
                     <div className="flex flex-col leading-tight shrink-0">
-                      <span className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                      <span className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
                         {parts[0]}
                       </span>
-                      <span className="text-xl xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+                      <span className="text-xl xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
                         {parts.slice(1).join(" - ")}
                       </span>
                     </div>
                   );
                 }
                 return (
-                  <span className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
+                  <span className="text-2xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase shrink-0">
                     {title}
                   </span>
                 );
@@ -154,7 +154,7 @@ const CVeDichPickLayout = ({
             </div>
 
             {}
-            <div className="border-t border-blue-700" />
+            <div className="border-t border-primary/70" />
 
             {}
             <div

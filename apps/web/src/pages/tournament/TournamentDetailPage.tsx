@@ -164,7 +164,7 @@ const TournamentDetailPage: React.FC = () => {
       <PublicLayout>
         <div className="flex justify-center items-center p-4">
           <div className="card text-center w-full max-w-md">
-            <p className="text-gray-400 mb-4">Không tìm thấy giải đấu</p>
+            <p className="text-muted-foreground mb-4">Không tìm thấy giải đấu</p>
             <Button onClick={() => navigate("/")}>Về trang chủ</Button>
           </div>
         </div>
@@ -178,30 +178,30 @@ const TournamentDetailPage: React.FC = () => {
           {/* Header */}
           <div className="mb-6">
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h1 className="text-3xl sm:text-4xl font-bold text-white">
+              <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
                 {tournament.tournamentName}
               </h1>
               <TournamentStatusBadge status={tournament.status} />
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
-                <Trophy size={14} className="text-blue-400" />
+                <Trophy size={14} className="text-brand" />
                 {tournament.tournamentFormat.toUpperCase()}
               </span>
               <span className="flex items-center gap-1">
-                <Calendar size={14} className="text-blue-400" />
+                <Calendar size={14} className="text-brand" />
                 {tournament.startDate || "Chưa đặt"} -{" "}
                 {tournament.endDate || "Chưa đặt"}
               </span>
               {tournament.venue && (
                 <span className="flex items-center gap-1">
-                  <MapPin size={14} className="text-blue-400" />
+                  <MapPin size={14} className="text-brand" />
                   {tournament.venue}
                 </span>
               )}
               <span className="flex items-center gap-1">
-                <Users size={14} className="text-blue-400" />
+                <Users size={14} className="text-brand" />
                 {players.length} thí sinh
               </span>
             </div>
@@ -209,16 +209,16 @@ const TournamentDetailPage: React.FC = () => {
 
           {/* Error message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-destructive/20 border border-destructive rounded-lg text-destructive text-sm">
               {error}
             </div>
           )}
 
           {/* My role badge */}
           {myMembership && (
-            <div className="mb-4 p-3 bg-green-500/20 border border-green-500 rounded-lg flex items-center gap-2">
-              <CheckCircle size={16} className="text-green-400" />
-              <span className="text-green-300">
+            <div className="mb-4 p-3 bg-success/20 border border-success rounded-lg flex items-center gap-2">
+              <CheckCircle size={16} className="text-success" />
+              <span className="text-success">
                 Bạn là:{" "}
                 <span className="font-bold">
                   {myMembership.role === "operator"
@@ -229,7 +229,7 @@ const TournamentDetailPage: React.FC = () => {
                 </span>
               </span>
               {myMembership.groupNumber && (
-                <span className="text-green-400/70">
+                <span className="text-success/70">
                   · Nhóm {myMembership.groupNumber}
                 </span>
               )}
@@ -244,7 +244,7 @@ const TournamentDetailPage: React.FC = () => {
             {activeTab === "standings" ? (
               /* Standings Tab */
               <Card className="px-4">
-                <h2 className="text-lg font-bold text-white mb-4">
+                <h2 className="text-lg font-bold text-foreground mb-4">
                   Bảng xếp hạng
                 </h2>
                 <StandingsTable
@@ -263,8 +263,8 @@ const TournamentDetailPage: React.FC = () => {
                 {/* Description */}
                 {tournament.description && (
                   <Card className="px-4">
-                    <h2 className="text-lg font-bold text-white mb-3">Giới thiệu</h2>
-                    <p className="text-gray-300 text-sm leading-relaxed">
+                    <h2 className="text-lg font-bold text-foreground mb-3">Giới thiệu</h2>
+                    <p className="text-foreground/80 text-sm leading-relaxed">
                       {tournament.description}
                     </p>
                   </Card>
@@ -275,11 +275,11 @@ const TournamentDetailPage: React.FC = () => {
               <div className="lg:col-span-2 space-y-6">
                 {/* Matches */}
                 <Card className="px-4">
-                  <h2 className="text-lg font-bold text-white mb-4">
+                  <h2 className="text-lg font-bold text-foreground mb-4">
                     Trận đấu ({matches.length})
                   </h2>
                   {matches.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
+                    <div className="text-center py-8 text-muted-foreground">
                       <p>Chưa có trận đấu nào</p>
                     </div>
                   ) : (
@@ -301,7 +301,7 @@ const TournamentDetailPage: React.FC = () => {
 
                 {/* Players */}
                 <Card className="px-4">
-                  <h2 className="text-lg font-bold text-white mb-4">
+                  <h2 className="text-lg font-bold text-foreground mb-4">
                     Danh sách thí sinh ({players.length})
                   </h2>
                   <PlayerGrid players={players} />
@@ -309,7 +309,7 @@ const TournamentDetailPage: React.FC = () => {
                   {/* Role Manager - only visible to controllers */}
                   {(myMembership?.role === "operator" ||
                     myMembership?.role === "controller") && (
-                    <div className="mt-6 pt-6 border-t border-white/10">
+                    <div className="mt-6 pt-6 border-t border-border">
                       <RoleManager
                         tournamentCode={tournament.tournamentCode}
                         players={players}
@@ -331,10 +331,10 @@ const TournamentDetailPage: React.FC = () => {
               <div className="space-y-6">
                 {/* Register / Actions */}
                 <Card className="px-4">
-                  <h2 className="text-lg font-bold text-white mb-4">Tham gia</h2>
+                  <h2 className="text-lg font-bold text-foreground mb-4">Tham gia</h2>
                   {!isAuthenticated ? (
                     <div className="space-y-3">
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-muted-foreground text-sm">
                         Đăng nhập để đăng ký tham gia giải đấu
                       </p>
                       <Button
@@ -346,7 +346,7 @@ const TournamentDetailPage: React.FC = () => {
                     </div>
                   ) : myMembership ? (
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-green-400">
+                      <div className="flex items-center gap-2 text-success">
                         <CheckCircle size={18} />
                         <span>Bạn đã đăng ký</span>
                       </div>
@@ -362,7 +362,7 @@ const TournamentDetailPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <p className="text-gray-400 text-sm">
+                      <p className="text-muted-foreground text-sm">
                         Đăng ký để tham gia giải đấu này
                       </p>
                       <Button
@@ -378,7 +378,7 @@ const TournamentDetailPage: React.FC = () => {
 
                 {/* Quick links */}
                 <Card className="px-4">
-                  <h2 className="text-lg font-bold text-white mb-4">Liên kết</h2>
+                  <h2 className="text-lg font-bold text-foreground mb-4">Liên kết</h2>
                   <Button
                     variant="secondary"
                     className="w-full"
@@ -391,17 +391,17 @@ const TournamentDetailPage: React.FC = () => {
 
                 {/* Stats */}
                 <Card className="px-4">
-                  <h2 className="text-lg font-bold text-white mb-4">Thống kê</h2>
+                  <h2 className="text-lg font-bold text-foreground mb-4">Thống kê</h2>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between text-gray-300">
+                    <div className="flex justify-between text-foreground/80">
                       <span>Số thí sinh:</span>
-                      <span className="font-bold text-white">
+                      <span className="font-bold text-foreground">
                         {players.length}
                       </span>
                     </div>
-                    <div className="flex justify-between text-gray-300">
+                    <div className="flex justify-between text-foreground/80">
                       <span>Số trận đấu:</span>
-                      <span className="font-bold text-white">
+                      <span className="font-bold text-foreground">
                         {matches.length}
                       </span>
                     </div>

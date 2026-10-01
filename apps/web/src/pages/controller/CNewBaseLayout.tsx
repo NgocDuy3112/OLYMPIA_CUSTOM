@@ -63,7 +63,7 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
         {/* Main content */}
         <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-y-auto min-w-0">
           {/* Title */}
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white text-center uppercase tracking-wide">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground text-center uppercase tracking-wide">
             {title}
           </h1>
 

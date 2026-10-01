@@ -124,8 +124,8 @@ const MQualifierPage = () => {
   const closedCount = questions.filter((q) => q.status === "closed").length;
 
   return (
-    <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-white max-w-4xl mx-auto w-full">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-purple-300">
+    <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-foreground max-w-4xl mx-auto w-full">
+      <h1 className="flex items-center gap-2 text-xl font-bold text-purple">
         <Mic size={20} /> Dẫn vòng loại
       </h1>
       <div className="flex gap-2">
@@ -133,23 +133,23 @@ const MQualifierPage = () => {
           value={tournamentCode}
           onChange={(e) => setTournamentCode(e.target.value)}
           placeholder="Mã giải đấu (VD: OC3_T_...)"
-          className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
         />
         <Button
           variant="default"
           onClick={() => void fetchAll()}
           disabled={loading || !tournamentCode.trim()}
-          className="gap-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-purple/80 hover:bg-purple disabled:opacity-50 text-sm text-foreground"
         >
           <Search size={14} /> Tải
         </Button>
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         {loading ? "Đang tải…" : `${questions.length}/16 câu · ${closedCount} đã chốt`}
       </p>
 
       {current ? (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
+        <div className="rounded-xl bg-accent/50 border border-border p-5 flex flex-col gap-4">
           <div className="flex gap-1.5 flex-wrap" role="tablist" aria-label="Danh sách câu">
             {questions.map((q, i) => (
               <Button
@@ -161,20 +161,20 @@ const MQualifierPage = () => {
                 onClick={() => { setIndex(i); setReveal(false); }}
                 className={`min-h-11 min-w-11 rounded-lg px-2 text-sm font-bold ${
                   i === index
-                    ? "bg-purple-500 text-white"
+                    ? "bg-purple text-foreground"
                     : q.status === "closed"
-                      ? "bg-emerald-700 text-white"
-                      : "bg-white/10 text-gray-300 hover:bg-white/20"
+                      ? "bg-success/80 text-foreground"
+                      : "bg-accent text-foreground/80 hover:bg-accent"
                 }`}
               >
                 {q.position}
               </Button>
             ))}
           </div>
-          <p className="text-xs text-gray-500 font-mono">
+          <p className="text-xs text-muted-foreground font-mono">
             Câu {current.position}/{questions.length} · {current.questionCode}
             {current.status === "closed" && (
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-300">Đã chốt</span>
+              <span className="ml-2 px-2 py-0.5 rounded-full bg-success/20 text-success">Đã chốt</span>
             )}
           </p>
           <h2 className="text-2xl font-bold leading-snug">{current.content}</h2>
@@ -182,7 +182,7 @@ const MQualifierPage = () => {
             {current.options.map((opt, i) => (
               <li
                 key={LETTERS[i] ?? i}
-                className="min-h-11 px-4 py-3 rounded-lg bg-white/10 text-base flex gap-3"
+                className="min-h-11 px-4 py-3 rounded-lg bg-accent text-base flex gap-3"
               >
                 <span className="font-bold font-mono">{LETTERS[i]}.</span>
                 <span>{reveal ? opt : "• • •"}</span>
@@ -193,26 +193,26 @@ const MQualifierPage = () => {
             type="button"
             variant="secondary"
             onClick={() => setReveal((v) => !v)}
-            className="min-h-11 self-start bg-white/10 hover:bg-white/20 px-4 py-2 text-sm"
+            className="min-h-11 self-start bg-accent hover:bg-accent px-4 py-2 text-sm"
           >
             {reveal ? "Ẩn phương án" : "Hiện phương án để đọc"}
           </Button>
         </div>
       ) : (
-        !loading && <p className="text-gray-400 text-sm">Chưa có câu hỏi. Nhập mã giải rồi bấm Tải.</p>
+        !loading && <p className="text-muted-foreground text-sm">Chưa có câu hỏi. Nhập mã giải rồi bấm Tải.</p>
       )}
 
-      <div className="rounded-xl bg-white/5 border border-white/10 p-5">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-purple-300 uppercase tracking-wide mb-3">
+      <div className="rounded-xl bg-accent/50 border border-border p-5">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-purple uppercase tracking-wide mb-3">
           <Trophy size={16} /> Top 16
         </h3>
         {standings.length === 0 ? (
-          <p className="text-gray-400 text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>
+          <p className="text-muted-foreground text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>
         ) : (
           <ol className="flex flex-col gap-1 text-sm">
             {standings.map((s) => (
-              <li key={s.playerId} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
-                <span className="font-mono text-gray-400 w-6">{s.rank}</span>
+              <li key={s.playerId} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/50">
+                <span className="font-mono text-muted-foreground w-6">{s.rank}</span>
                 <span className="flex-1 truncate text-lg font-semibold">{s.userName}</span>
                 <span className="font-bold">{s.totalPoints}đ</span>
               </li>
@@ -220,7 +220,7 @@ const MQualifierPage = () => {
           </ol>
         )}
       </div>
-      <p className="flex items-center gap-2 text-xs text-gray-500">
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <ListOrdered size={14} /> MC chỉ đọc câu + top 16. Chấm câu do QAuthor/Controller.
       </p>
     </div>

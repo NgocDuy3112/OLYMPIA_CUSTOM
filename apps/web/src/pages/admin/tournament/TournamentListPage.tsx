@@ -39,10 +39,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-gray-600/20 text-gray-300",
-  active: "bg-green-600/20 text-green-300",
-  completed: "bg-blue-600/20 text-blue-300",
-  archived: "bg-purple-600/20 text-purple-300",
+  draft: "bg-muted/20 text-foreground/80",
+  active: "bg-success/20 text-success",
+  completed: "bg-primary/20 text-brand",
+  archived: "bg-purple/20 text-purple",
 };
 
 const TournamentListPage: React.FC = () => {
@@ -136,13 +136,13 @@ const TournamentListPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <TournamentFormPanel
         open={showCreate}
         initial={null}
@@ -157,7 +157,7 @@ const TournamentListPage: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Giải đấu</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-muted-foreground text-sm mt-0.5">
             Quản lý các giải đấu · {tournaments.length} giải
           </p>
         </div>
@@ -166,7 +166,7 @@ const TournamentListPage: React.FC = () => {
             size="icon"
             variant="secondary"
             onClick={() => void fetchTournaments()}
-            className="bg-white/5 border border-white/10 hover:bg-white/10"
+            className="bg-accent/50 border border-border hover:bg-accent"
             title="Làm mới"
           >
             <RefreshCw size={15} />
@@ -174,7 +174,7 @@ const TournamentListPage: React.FC = () => {
           <Button
             variant="default"
             onClick={() => setShowCreate(true)}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
+            className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
           >
             <Plus size={15} /> Tạo giải đấu
           </Button>
@@ -182,19 +182,19 @@ const TournamentListPage: React.FC = () => {
       </div>
 
       {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
+        <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-sm">
           {error}
         </div>
       )}
 
       {tournaments.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
-          <Trophy size={36} className="mx-auto text-gray-600 mb-3" />
-          <p className="text-gray-400 text-sm mb-4">Chưa có giải đấu nào</p>
+        <div className="rounded-xl border border-dashed border-border p-10 text-center">
+          <Trophy size={36} className="mx-auto text-muted-foreground/70 mb-3" />
+          <p className="text-muted-foreground text-sm mb-4">Chưa có giải đấu nào</p>
           <Button
             variant="default"
             onClick={() => setShowCreate(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"
+            className="bg-primary hover:bg-primary/90 text-foreground text-sm font-medium"
           >
             Tạo giải đấu đầu tiên
           </Button>
@@ -204,7 +204,7 @@ const TournamentListPage: React.FC = () => {
           {tournaments.map((tournament) => (
             <div
               key={tournament.id}
-              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/5 hover:border-white/20 transition-colors"
+              className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-accent/25 border border-border hover:bg-accent/50 hover:border-border transition-colors"
             >
               <div
                 className="flex-1 min-w-0 cursor-pointer"
@@ -213,16 +213,16 @@ const TournamentListPage: React.FC = () => {
                 }
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-semibold text-white truncate">
+                  <h3 className="font-semibold text-foreground truncate">
                     {tournament.tournamentName}
                   </h3>
                   <span
-                    className={`px-2 py-0.5 rounded text-[11px] font-medium ${STATUS_STYLES[tournament.status] || "bg-gray-600/20 text-gray-300"}`}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium ${STATUS_STYLES[tournament.status] || "bg-muted/20 text-foreground/80"}`}
                   >
                     {STATUS_LABELS[tournament.status] || tournament.status}
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500 mt-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
                   <span className="font-mono">{tournament.tournamentCode}</span>
                   <span className="flex items-center gap-1">
                     <Calendar size={12} />
@@ -240,7 +240,7 @@ const TournamentListPage: React.FC = () => {
                   </span>
                 </div>
                 {tournament.description && (
-                  <p className="text-gray-500 text-xs mt-1 truncate">
+                  <p className="text-muted-foreground text-xs mt-1 truncate">
                     {tournament.description}
                   </p>
                 )}
@@ -253,7 +253,7 @@ const TournamentListPage: React.FC = () => {
                   onClick={() =>
                     navigate(`/admin/tournaments/${tournament.tournamentCode}/edit`)
                   }
-                  className="text-gray-500 hover:text-white hover:bg-white/10"
+                  className="text-muted-foreground hover:text-foreground hover:bg-accent"
                   title="Sửa"
                 >
                   <Pencil size={15} />
@@ -262,7 +262,7 @@ const TournamentListPage: React.FC = () => {
                   size="icon-sm"
                   variant="ghost"
                   onClick={() => void handleDelete(tournament.tournamentCode)}
-                  className="text-gray-500 hover:text-red-300 hover:bg-red-500/10"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   title="Xóa"
                 >
                   <Trash2 size={15} />

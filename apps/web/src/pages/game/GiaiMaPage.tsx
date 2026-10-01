@@ -987,10 +987,10 @@ const AdminGiaiMaView = () => {
     const base =
       "flex-1 h-24 sm:h-28 lg:h-36 xl:h-44 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
     const styles: Record<ClueState, string> = {
-      idle: "bg-blue-900 border-blue-600 text-white hover:bg-blue-700 shadow",
+      idle: "bg-primary/40 border-primary text-foreground hover:bg-primary/70 shadow",
       active:
-        "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
-      used: "bg-blue-700 border-blue-500 text-white cursor-default",
+        "bg-primary border-brand text-foreground shadow-lg ring-2 ring-brand",
+      used: "bg-primary/70 border-primary text-foreground cursor-default",
     };
     const showHint =
       (state === "active" || state === "used") &&
@@ -1030,7 +1030,7 @@ const AdminGiaiMaView = () => {
         type="button"
         variant="ghost"
         onClick={() => setKeywordPhaseActive((prev) => !prev)}
-        className={`w-full rounded-xl px-3 sm:px-6 py-3 sm:py-6 text-center font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-5xl font-bold text-white uppercase shadow border-2 transition-colors duration-200 cursor-pointer select-none ${keywordPhaseActive ? "bg-blue-500 border-blue-300 ring-2 ring-blue-300" : "bg-blue-900 border-blue-600 hover:bg-blue-800"}`}
+        className={`w-full rounded-xl px-3 sm:px-6 py-3 sm:py-6 text-center font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-5xl font-bold text-foreground uppercase shadow border-2 transition-colors duration-200 cursor-pointer select-none ${keywordPhaseActive ? "bg-primary border-brand ring-2 ring-brand" : "bg-primary/40 border-primary hover:bg-primary/60"}`}
       >
         {keywordAnswerRevealed && keywordQuestion?.questionAnswer
           ? `${keywordQuestion.questionAnswer}`
@@ -1661,10 +1661,10 @@ const PlayerGiaiMaView = () => {
     hintContent?: RevealedHint;
   }> = ({ index, state, hintContent }) => {
     const styles: Record<ClueState, string> = {
-      idle: "bg-blue-900 border-blue-600 text-white",
+      idle: "bg-primary/40 border-primary text-foreground",
       active:
-        "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
-      used: "bg-blue-700 border-blue-500 text-white",
+        "bg-primary border-brand text-foreground shadow-lg ring-2 ring-brand",
+      used: "bg-primary/70 border-primary text-foreground",
     };
     const showHint =
       (state === "active" || state === "used") &&
@@ -1694,7 +1694,7 @@ const PlayerGiaiMaView = () => {
 
   const clueGrid = (
     <div className="flex flex-col gap-2 sm:gap-3 w-full mb-2 sm:mb-3 px-1 sm:px-3">
-      <div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-white uppercase shadow">
+      <div className="w-full bg-primary/40 border-2 border-primary rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-foreground uppercase shadow">
         {keywordAnswer || keywordBanner}
       </div>
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">
@@ -1753,29 +1753,29 @@ const PlayerGiaiMaView = () => {
         showKeyIcon
       />
       {showKeywordConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-blue-900 border-2 border-blue-400 rounded-xl p-6 sm:p-8 flex flex-col gap-4 max-w-sm w-full mx-4">
-            <p className="text-white font-bold text-xl text-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60">
+          <div className="bg-primary/40 border-2 border-brand rounded-xl p-6 sm:p-8 flex flex-col gap-4 max-w-sm w-full mx-4">
+            <p className="text-foreground font-bold text-xl text-center">
               Xác nhận nộp Từ khoá
             </p>
-            <p className="text-blue-200 text-center text-sm">
+            <p className="text-foreground/80 text-center text-sm">
               Bạn chỉ được nộp <strong>1 lần</strong>. Không thể thay đổi.
             </p>
-            <p className="text-white font-bold text-center text-lg">
+            <p className="text-foreground font-bold text-center text-lg">
               "{keywordToConfirm}"
             </p>
             <div className="flex gap-4 justify-center">
               <Button
                 variant="secondary"
                 onClick={() => setShowKeywordConfirm(false)}
-                className="bg-slate-600 text-white font-bold hover:bg-slate-500"
+                className="bg-slate-600 text-foreground font-bold hover:bg-slate-500"
               >
                 HỦY
               </Button>
               <Button
                 variant="default"
                 onClick={() => void handleConfirmKeyword()}
-                className="bg-blue-500 text-white font-bold hover:bg-blue-400"
+                className="bg-primary text-foreground font-bold hover:bg-primary/90"
               >
                 XÁC NHẬN
               </Button>

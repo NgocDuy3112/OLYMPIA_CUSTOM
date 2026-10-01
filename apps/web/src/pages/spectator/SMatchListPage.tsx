@@ -65,7 +65,7 @@ const SMatchListPage: React.FC = () => {
       <PublicLayout>
         <div className="flex justify-center items-center p-4">
           <div className="card text-center w-full max-w-md">
-            <p className="text-red-500 mb-4">{error}</p>
+            <p className="text-destructive mb-4">{error}</p>
             <Button
               onClick={() => window.location.reload()}
             >
@@ -82,20 +82,20 @@ const SMatchListPage: React.FC = () => {
         <div className="max-w-4xl mx-auto">
           {/* Hero */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
+            <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
               OLYMPIA CUSTOM
             </h1>
-            <p className="text-blue-300 text-sm sm:text-base">
+            <p className="text-brand text-sm sm:text-base">
               Nền tảng thi đấu trực tuyến
             </p>
           </div>
 
           {/* Tournament List */}
           <div>
-            <h2 className="text-xl font-bold text-white mb-4">Giải đấu</h2>
+            <h2 className="text-xl font-bold text-foreground mb-4">Giải đấu</h2>
             {tournaments.length === 0 ? (
               <div className="card text-center py-12">
-                <p className="text-gray-400">Chưa có giải đấu nào</p>
+                <p className="text-muted-foreground">Chưa có giải đấu nào</p>
               </div>
             ) : (
               <div className="grid gap-4">

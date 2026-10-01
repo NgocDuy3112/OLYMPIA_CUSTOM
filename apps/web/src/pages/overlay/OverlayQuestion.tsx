@@ -50,18 +50,18 @@ const OverlayQuestion: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
           transition={{ duration: 0.3 }}
-          className="backdrop-blur-md bg-black/40 rounded-2xl border border-white/10 p-5 sm:p-6 shadow-2xl"
+          className="backdrop-blur-md bg-background/40 rounded-2xl border border-border p-5 sm:p-6 shadow-2xl"
         >
           {/* Category & Points badges */}
           {(question.category || question.points) && (
             <div className="flex items-center gap-2 mb-3">
               {question.category && (
-                <span className="px-3 py-1 bg-blue-500/20 text-blue-300 text-xs font-semibold rounded-full border border-blue-500/30">
+                <span className="px-3 py-1 bg-primary/20 text-brand text-xs font-semibold rounded-full border border-primary/30">
                   {question.category}
                 </span>
               )}
               {question.points && (
-                <span className="px-3 py-1 bg-green-500/20 text-green-300 text-xs font-semibold rounded-full border border-green-500/30">
+                <span className="px-3 py-1 bg-success/20 text-success text-xs font-semibold rounded-full border border-success/30">
                   {question.points} điểm
                 </span>
               )}
@@ -69,7 +69,7 @@ const OverlayQuestion: React.FC = () => {
           )}
 
           {/* Question content */}
-          <div className="text-xl sm:text-2xl md:text-3xl font-semibold text-white leading-relaxed">
+          <div className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground leading-relaxed">
             {question.content}
           </div>
 
@@ -78,9 +78,9 @@ const OverlayQuestion: React.FC = () => {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="mt-4 flex items-center gap-2 text-sm text-white/50"
+              className="mt-4 flex items-center gap-2 text-sm text-foreground/50"
             >
-              <div className="w-2 h-2 bg-white/30 rounded-full animate-pulse" />
+              <div className="w-2 h-2 bg-foreground/30 rounded-full animate-pulse" />
               <span>Đang hiển thị media</span>
             </motion.div>
           )}

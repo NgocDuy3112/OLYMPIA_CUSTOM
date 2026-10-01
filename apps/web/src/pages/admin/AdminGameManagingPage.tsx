@@ -430,11 +430,11 @@ const AdminGameManagingPage = () => {
   const unscheduledCount = allMatches.filter((m) => !dayKeyOf(m.scheduled_at)).length;
 
   return (
-    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Lịch thi đấu</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <p className="text-muted-foreground text-sm mt-0.5">
             Mỗi ô là một trận — 4 slot thí sinh. Bấm card để sửa lịch / xem câu hỏi.
           </p>
         </div>
@@ -444,7 +444,7 @@ const AdminGameManagingPage = () => {
             variant="secondary"
             onClick={() => void fetchAll()}
             disabled={loading}
-            className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
+            className="bg-accent/50 border border-border hover:bg-accent disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
@@ -452,7 +452,7 @@ const AdminGameManagingPage = () => {
           <Button
             variant="default"
             onClick={handleNew}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
+            className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
           >
             <Plus size={15} /> Lên lịch
           </Button>
@@ -460,29 +460,29 @@ const AdminGameManagingPage = () => {
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Tổng trận</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Tổng trận</p>
           <p className="text-xl font-bold">{allMatches.length}</p>
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Chưa xong</p>
-          <p className="text-xl font-bold text-amber-300">{liveCount}</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Chưa xong</p>
+          <p className="text-xl font-bold text-warning">{liveCount}</p>
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Chưa xếp lịch</p>
-          <p className="text-xl font-bold text-purple-300">{unscheduledCount}</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Chưa xếp lịch</p>
+          <p className="text-xl font-bold text-purple">{unscheduledCount}</p>
         </div>
       </div>
 
       {/* Bộ lọc */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm mã / tên / nhãn / địa điểm…"
-            className="w-full pl-8 pr-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            className="w-full pl-8 pr-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
           />
         </div>
         <NativeSelect
@@ -496,7 +496,7 @@ const AdminGameManagingPage = () => {
             </option>
           ))}
         </NativeSelect>
-        <div className="flex rounded-lg overflow-hidden border border-white/10 text-sm">
+        <div className="flex rounded-lg overflow-hidden border border-border text-sm">
           {(["all", "live", "done"] as const).map((f) => (
             <Button
               key={f}
@@ -504,7 +504,7 @@ const AdminGameManagingPage = () => {
               variant="ghost"
               onClick={() => setStatusFilter(f)}
               className={`rounded-none px-3 py-2 ${
-                statusFilter === f ? "bg-blue-600/30 text-blue-200" : "text-gray-500 hover:text-gray-300"
+                statusFilter === f ? "bg-primary/30 text-foreground/80" : "text-muted-foreground hover:text-foreground/80"
               }`}
             >
               {f === "all" ? "Tất cả" : f === "live" ? "Live" : "Xong"}
@@ -537,21 +537,21 @@ const AdminGameManagingPage = () => {
       </SidePanel>
       {/* Lịch theo ngày */}
       {loading && allMatches.length === 0 ? (
-        <p className="text-gray-500 text-sm py-8 text-center">Đang tải lịch…</p>
+        <p className="text-muted-foreground text-sm py-8 text-center">Đang tải lịch…</p>
       ) : groups.length === 0 ? (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-8 text-center">
-          <CalendarDays size={32} className="mx-auto text-gray-600 mb-2" />
-          <p className="text-gray-400 text-sm">Chưa có trận nào. Bấm “Lên lịch” để tạo trận đầu tiên.</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-8 text-center">
+          <CalendarDays size={32} className="mx-auto text-muted-foreground/70 mb-2" />
+          <p className="text-muted-foreground text-sm">Chưa có trận nào. Bấm “Lên lịch” để tạo trận đầu tiên.</p>
         </div>
       ) : (
         groups.map((g) => (
           <section key={g.key} className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-gray-300">{g.title}</h2>
-              <span className="px-1.5 py-0.5 rounded bg-white/10 text-[11px] font-mono text-gray-400">
+              <h2 className="text-sm font-semibold text-foreground/80">{g.title}</h2>
+              <span className="px-1.5 py-0.5 rounded bg-accent text-[11px] font-mono text-muted-foreground">
                 {g.items.length}
               </span>
-              <div className="flex-1 border-t border-white/10" />
+              <div className="flex-1 border-t border-border" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
               {g.items.map((m) => (
@@ -573,10 +573,10 @@ const AdminGameManagingPage = () => {
       {selectedCode && (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-gray-300">
-              Câu hỏi — <span className="font-mono text-blue-300">{selectedCode}</span>
+            <h2 className="text-sm font-semibold text-foreground/80">
+              Câu hỏi — <span className="font-mono text-brand">{selectedCode}</span>
             </h2>
-            <div className="flex-1 border-t border-white/10" />
+            <div className="flex-1 border-t border-border" />
           </div>
           <QuestionsCard
             matchCode={selectedCode}

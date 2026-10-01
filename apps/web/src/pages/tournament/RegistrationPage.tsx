@@ -176,7 +176,7 @@ const RegistrationPage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 size={32} className="animate-spin text-blue-500" />
+        <Loader2 size={32} className="animate-spin text-brand" />
       </div>
     );
   }
@@ -186,7 +186,7 @@ const RegistrationPage: React.FC = () => {
       <PublicLayout>
         <div className="flex items-center justify-center p-4">
           <Card className="px-4 text-center">
-            <p className="text-gray-400 mb-4">Không tìm thấy giải đấu</p>
+            <p className="text-muted-foreground mb-4">Không tìm thấy giải đấu</p>
             <Button onClick={() => navigate("/")}>Về trang chủ</Button>
           </Card>
         </div>
@@ -210,14 +210,14 @@ const RegistrationPage: React.FC = () => {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4"
+                className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-4"
               >
-                <CheckCircle size={32} className="text-green-400" />
+                <CheckCircle size={32} className="text-success" />
               </motion.div>
-              <h2 className="text-xl font-bold text-white mb-2">
+              <h2 className="text-xl font-bold text-foreground mb-2">
                 Bạn đã đăng ký rồi!
               </h2>
-              <p className="text-gray-400 mb-6">
+              <p className="text-muted-foreground mb-6">
                 Bạn đã đăng ký tham gia giải đấu này.
               </p>
               <Button onClick={() => navigate(`/tournament/${code}`)}>
@@ -246,15 +246,15 @@ const RegistrationPage: React.FC = () => {
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-                className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4"
+                className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-4"
               >
-                <CheckCircle size={32} className="text-green-400" />
+                <CheckCircle size={32} className="text-success" />
               </motion.div>
               <motion.h2
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-xl font-bold text-white mb-2"
+                className="text-xl font-bold text-foreground mb-2"
               >
                 Đăng ký thành công!
               </motion.h2>
@@ -262,7 +262,7 @@ const RegistrationPage: React.FC = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.6 }}
-                className="text-gray-400 mb-6"
+                className="text-muted-foreground mb-6"
               >
                 Bạn đã đăng ký tham gia giải đấu {tournament.tournamentName}
               </motion.p>
@@ -298,15 +298,15 @@ const RegistrationPage: React.FC = () => {
         exit="exit"
       >
         <Card className="px-4">
-          <h3 className="text-lg font-bold text-white mb-4">
+          <h3 className="text-lg font-bold text-foreground mb-4">
             Đăng ký cá nhân
           </h3>
-          <p className="text-gray-400 text-sm mb-6">
+          <p className="text-muted-foreground text-sm mb-6">
             Bạn sẽ tham gia thi đấu với tư cách cá nhân.
           </p>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded text-red-400 text-sm">
+            <div className="mb-4 p-3 bg-destructive/20 border border-destructive rounded text-destructive text-sm">
               {error}
             </div>
           )}
@@ -336,12 +336,12 @@ const RegistrationPage: React.FC = () => {
             className="text-center mb-8"
           >
             <motion.div variants={itemVariants}>
-              <Trophy size={48} className="text-yellow-400 mx-auto mb-4" />
+              <Trophy size={48} className="text-warning mx-auto mb-4" />
             </motion.div>
 
             <motion.h1
               variants={itemVariants}
-              className="text-3xl sm:text-4xl font-bold text-white mb-2"
+              className="text-3xl sm:text-4xl font-bold text-foreground mb-2"
             >
               {tournament.tournamentName}
             </motion.h1>
@@ -352,21 +352,21 @@ const RegistrationPage: React.FC = () => {
 
             <motion.div
               variants={itemVariants}
-              className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-400"
+              className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground"
             >
               <span className="flex items-center gap-1">
-                <Calendar size={14} className="text-blue-400" />
+                <Calendar size={14} className="text-brand" />
                 {tournament.startDate || "Chưa đặt"} -{" "}
                 {tournament.endDate || "Chưa đặt"}
               </span>
               {tournament.venue && (
                 <span className="flex items-center gap-1">
-                  <MapPin size={14} className="text-blue-400" />
+                  <MapPin size={14} className="text-brand" />
                   {tournament.venue}
                 </span>
               )}
               <span className="flex items-center gap-1">
-                <Users size={14} className="text-blue-400" />
+                <Users size={14} className="text-brand" />
                 {tournament.tournamentFormat.toUpperCase()}
               </span>
             </motion.div>
@@ -374,7 +374,7 @@ const RegistrationPage: React.FC = () => {
             {tournament.description && (
               <motion.p
                 variants={itemVariants}
-                className="mt-4 text-gray-400 max-w-lg mx-auto"
+                className="mt-4 text-muted-foreground max-w-lg mx-auto"
               >
                 {tournament.description}
               </motion.p>

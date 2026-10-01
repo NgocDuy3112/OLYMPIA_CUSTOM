@@ -264,7 +264,7 @@ const AdminUsersPage = () => {
   }, [fetchUsers]);
 
   return (
-    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <UserEditPanel
         item={editingUser}
         saving={savingEdit}
@@ -309,7 +309,7 @@ const AdminUsersPage = () => {
           <Button
             variant="default"
             onClick={() => setShowAdd(true)}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
+            className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
           >
             <Plus size={15} /> Thêm người dùng
           </Button>
@@ -318,7 +318,7 @@ const AdminUsersPage = () => {
             variant="secondary"
             onClick={() => void fetchUsers()}
             disabled={usersLoading}
-            className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
+            className="bg-accent/50 border border-border hover:bg-accent disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw
@@ -331,22 +331,22 @@ const AdminUsersPage = () => {
 
       <div className="overflow-x-auto">
         {fetchError ? (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-center">
-            <p className="text-red-300 text-sm mb-3">{fetchError}</p>
+          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-center">
+            <p className="text-destructive text-sm mb-3">{fetchError}</p>
             <Button
               variant="destructive"
               onClick={() => void fetchUsers()}
-              className="bg-red-600 hover:bg-red-500 text-white text-sm font-medium"
+              className="bg-destructive hover:bg-destructive/90 text-foreground text-sm font-medium"
             >
               Thử lại
             </Button>
           </div>
         ) : usersLoading && users.length === 0 ? (
-          <p className="text-gray-500 text-sm py-8 text-center">Đang tải…</p>
+          <p className="text-muted-foreground text-sm py-8 text-center">Đang tải…</p>
         ) : users.length === 0 ? (
           <div className="py-8 text-center">
-            <p className="text-gray-500 text-sm">Không có người dùng nào trong DB.</p>
-            <p className="text-gray-600 text-xs mt-1">
+            <p className="text-muted-foreground text-sm">Không có người dùng nào trong DB.</p>
+            <p className="text-muted-foreground/70 text-xs mt-1">
               Tài khoản admin đăng nhập bằng env (ADMIN_USERNAME) không nằm trong DB —
               bấm “Thêm người dùng” để tạo user đầu tiên.
             </p>
@@ -354,11 +354,11 @@ const AdminUsersPage = () => {
         ) : (
           <Table className="w-full text-sm">
             <TableHeader>
-              <TableRow className="border-b border-white/10 hover:bg-transparent">
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Mã người dùng</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Tên người dùng</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Email</TableHead>
-                <TableHead className="py-2 px-2 font-medium text-gray-500">Vai trò</TableHead>
+              <TableRow className="border-b border-border hover:bg-transparent">
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Mã người dùng</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Tên người dùng</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Email</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-muted-foreground">Vai trò</TableHead>
                 <TableHead className="py-2 px-2"></TableHead>
               </TableRow>
             </TableHeader>
@@ -373,21 +373,21 @@ const AdminUsersPage = () => {
                 .map((u: UserData) => (
                   <TableRow
                     key={u.user_code}
-                    className="border-b border-white/5 hover:bg-white/5"
+                    className="border-b border-border/50 hover:bg-accent/50"
                   >
-                    <TableCell className="py-2 px-2 font-mono text-xs text-gray-300">
+                    <TableCell className="py-2 px-2 font-mono text-xs text-foreground/80">
                       {u.user_code}
                     </TableCell>
-                    <TableCell className="py-2 px-2 text-white">{u.user_name}</TableCell>
-                    <TableCell className="py-2 px-2 text-xs text-gray-400">
+                    <TableCell className="py-2 px-2 text-foreground">{u.user_name}</TableCell>
+                    <TableCell className="py-2 px-2 text-xs text-muted-foreground">
                       {u.email ?? (
-                        <span className="text-gray-600 italic">—</span>
+                        <span className="text-muted-foreground/70 italic">—</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2 px-2">
-                      <span className="capitalize text-gray-200">{u.role}</span>
+                      <span className="capitalize text-foreground/90">{u.role}</span>
                       {u.role === "operator" && u.operator_scopes && (
-                        <span className="block text-[11px] text-gray-500 font-mono">
+                        <span className="block text-[11px] text-muted-foreground font-mono">
                           {u.operator_scopes}
                         </span>
                       )}

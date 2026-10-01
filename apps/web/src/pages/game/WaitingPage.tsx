@@ -251,10 +251,10 @@ const AdminWaitingView = () => {
     <div className="flex flex-col h-screen overflow-hidden">
       <ControllerGameplayNavBar onNavigateToWaiting={handleNavigateToWaiting} />
       <div className="flex flex-col flex-1 items-center gap-6 p-6 overflow-y-auto">
-        <h1 className="font-[SVN-Gratelos_Display] text-4xl xl:text-5xl font-bold text-white uppercase tracking-wide text-center">
+        <h1 className="font-[SVN-Gratelos_Display] text-4xl xl:text-5xl font-bold text-foreground uppercase tracking-wide text-center">
           Sảnh Chờ
         </h1>
-        <p className="text-blue-300 text-sm">
+        <p className="text-brand text-sm">
           Mã trận: <strong>{currentMatchCode}</strong>
         </p>
         {players.length > 0 && (
@@ -318,7 +318,7 @@ const AdminWaitingView = () => {
             <CControlButton
               onClick={handleFinishMatch}
               disabled={isFinishingMatch || !currentMatchCode || matchFinished}
-              className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center bg-green-600 hover:bg-green-500 disabled:bg-green-800"
+              className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center bg-success hover:bg-success/90 disabled:bg-success/80"
             >
               <CheckCircle size={18} />
               {isFinishingMatch
@@ -330,7 +330,7 @@ const AdminWaitingView = () => {
           </div>
         </div>
         <div className="flex flex-col gap-4 w-full max-w-7xl">
-          <p className="text-white/60 text-xs uppercase tracking-widest text-center">
+          <p className="text-foreground/60 text-xs uppercase tracking-widest text-center">
             Vòng chơi
           </p>
           <div

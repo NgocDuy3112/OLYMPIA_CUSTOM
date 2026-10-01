@@ -143,22 +143,22 @@ const SLiveMatchPage: React.FC = () => {
     : null;
 
   return (
-    <div className="min-h-screen bg-gray-900">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between p-3 sm:p-4 bg-black/50">
+      <div className="flex items-center justify-between p-3 sm:p-4 bg-background/50">
         <Button
           variant="ghost"
           onClick={() => navigate("/spectator")}
-          className="gap-1 touch-target text-white hover:text-blue-400"
+          className="gap-1 touch-target text-foreground hover:text-brand"
         >
           <ArrowLeft size={18} />
           <span className="hidden sm:inline">Quay lại</span>
         </Button>
         <div className="text-center flex-1 min-w-0 px-2">
-          <h1 className="text-base sm:text-xl font-bold text-white truncate">
+          <h1 className="text-base sm:text-xl font-bold text-foreground truncate">
             {matchInfo?.matchName || matchCode}
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             {currentPhase && PHASE_NAMES[currentPhase]
               ? PHASE_NAMES[currentPhase]
               : "Đang tải..."}
@@ -166,9 +166,9 @@ const SLiveMatchPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-1.5">
           <div
-            className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
+            className={`w-2 h-2 rounded-full ${isConnected ? "bg-success" : "bg-destructive"}`}
           />
-          <span className="text-xs text-gray-400 hidden sm:inline">
+          <span className="text-xs text-muted-foreground hidden sm:inline">
             {isConnected ? "Trực tiếp" : "Mất kết nối"}
           </span>
         </div>
@@ -188,8 +188,8 @@ const SLiveMatchPage: React.FC = () => {
               />
             </div>
           ) : (
-            <div className="aspect-video bg-gray-800 rounded-lg flex items-center justify-center">
-              <p className="text-gray-500 text-sm sm:text-base">
+            <div className="aspect-video bg-background/80 rounded-lg flex items-center justify-center">
+              <p className="text-muted-foreground text-sm sm:text-base">
                 Không có video stream
               </p>
             </div>
@@ -197,34 +197,34 @@ const SLiveMatchPage: React.FC = () => {
 
           {/* Current question */}
           {question && (
-            <div className="bg-blue-900 border-2 border-blue-600 rounded-lg p-3 sm:p-4">
+            <div className="bg-primary/40 border-2 border-primary rounded-lg p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-blue-300 font-bold text-xs sm:text-sm">
+                <span className="text-brand font-bold text-xs sm:text-sm">
                   Câu hỏi hiện tại
                 </span>
                 {timer !== null && (
                   <span
-                    className={`text-xl sm:text-2xl font-bold font-mono ${timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : "text-white"}`}
+                    className={`text-xl sm:text-2xl font-bold font-mono ${timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : "text-foreground"}`}
                   >
                     {timer}
                   </span>
                 )}
               </div>
-              <p className="text-white text-sm sm:text-lg">{question}</p>
+              <p className="text-foreground text-sm sm:text-lg">{question}</p>
             </div>
           )}
 
           {/* Action feed */}
           {actions.length > 0 && (
-            <div className="bg-black/30 rounded-lg p-3">
-              <h3 className="text-xs sm:text-sm text-gray-400 mb-2">
+            <div className="bg-background/30 rounded-lg p-3">
+              <h3 className="text-xs sm:text-sm text-muted-foreground mb-2">
                 Diễn biến mới nhất
               </h3>
               <div className="space-y-1">
                 {actions.map((action, i) => (
                   <div
                     key={action.timestamp + i}
-                    className="text-xs sm:text-sm text-white/80"
+                    className="text-xs sm:text-sm text-foreground/80"
                   >
                     • {action.text}
                   </div>
@@ -235,13 +235,13 @@ const SLiveMatchPage: React.FC = () => {
         </div>
 
         {/* Sidebar: Scoreboard */}
-        <div className="w-full lg:w-72 xl:w-80 bg-black/30 rounded-lg p-3 sm:p-4">
-          <h2 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4 flex items-center gap-2">
+        <div className="w-full lg:w-72 xl:w-80 bg-background/30 rounded-lg p-3 sm:p-4">
+          <h2 className="text-base sm:text-lg font-bold text-foreground mb-3 sm:mb-4 flex items-center gap-2">
             <span>🏆</span> Bảng xếp hạng
           </h2>
 
           {scores.length === 0 ? (
-            <p className="text-gray-400 text-xs sm:text-sm">
+            <p className="text-muted-foreground text-xs sm:text-sm">
               Chưa có dữ liệu điểm
             </p>
           ) : (
@@ -249,7 +249,7 @@ const SLiveMatchPage: React.FC = () => {
               {scores.map((player, index) => (
                 <div
                   key={player.userCode}
-                  className="flex items-center justify-between p-2 bg-white/5 rounded"
+                  className="flex items-center justify-between p-2 bg-accent/50 rounded"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm sm:text-lg">
@@ -261,11 +261,11 @@ const SLiveMatchPage: React.FC = () => {
                             ? "🥉"
                             : `${index + 1}.`}
                     </span>
-                    <span className="text-white font-medium text-xs sm:text-sm truncate">
+                    <span className="text-foreground font-medium text-xs sm:text-sm truncate">
                       {player.userName}
                     </span>
                   </div>
-                  <span className="text-blue-400 font-bold tabular-nums text-sm sm:text-base ml-2">
+                  <span className="text-brand font-bold tabular-nums text-sm sm:text-base ml-2">
                     {player.score}
                   </span>
                 </div>

@@ -136,25 +136,25 @@ const AdminMcpTokensPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-4 p-1 sm:p-2 text-white">
+    <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
           <KeyRound size={20} /> MCP Tokens
-          <span className="font-mono text-sm font-normal text-gray-500">({tokens.length})</span>
+          <span className="font-mono text-sm font-normal text-muted-foreground">({tokens.length})</span>
         </h1>
         <Button
           size="icon"
           variant="secondary"
           onClick={() => void fetchTokens()}
           disabled={loading}
-          className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
+          className="bg-accent/50 border border-border hover:bg-accent disabled:opacity-50"
           title="Làm mới"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
         </Button>
       </div>
 
-      <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
+      <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-3">
         <h2 className="font-semibold flex items-center gap-2">
           <Plus size={16} /> Cấp token mới
         </h2>
@@ -165,7 +165,7 @@ const AdminMcpTokensPage = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="vd qauthor-a"
-              className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 outline-none focus:border-blue-500"
+              className="px-3 py-2 rounded-lg bg-background/60 border border-border outline-none focus:border-ring"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -187,30 +187,30 @@ const AdminMcpTokensPage = () => {
             variant="default"
             onClick={() => void createToken()}
             disabled={!name.trim() || !userCode}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50"
+            className="bg-primary hover:bg-primary/90 disabled:opacity-50"
           >
             Cấp
           </Button>
         </div>
         {identities.length === 0 && (
-          <p className="text-xs text-yellow-400/80">
+          <p className="text-xs text-warning/80">
             Chưa có user role operator/admin — tạo user trước.
           </p>
         )}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         {freshToken && (
-          <div className="rounded-lg bg-green-950/50 border border-green-500/30 p-3 flex flex-col gap-2">
-            <p className="text-sm text-green-300">
+          <div className="rounded-lg bg-success/10 border border-success/30 p-3 flex flex-col gap-2">
+            <p className="text-sm text-success">
               Token hiện 1 lần duy nhất — copy ngay:
             </p>
             <div className="flex gap-2 items-center">
-              <code className="flex-1 break-all font-mono text-xs bg-black/40 rounded px-2 py-2">
+              <code className="flex-1 break-all font-mono text-xs bg-background/40 rounded px-2 py-2">
                 {freshToken}
               </code>
               <Button
                 variant="default"
                 onClick={() => void copyToken()}
-                className="bg-green-700 hover:bg-green-600 text-sm"
+                className="bg-success/80 hover:bg-success text-sm"
               >
                 Copy
               </Button>
@@ -219,24 +219,24 @@ const AdminMcpTokensPage = () => {
         )}
       </div>
 
-      <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden">
+      <div className="rounded-xl bg-accent/50 border border-border overflow-hidden">
         <Table className="w-full text-sm">
           <TableHeader>
-            <TableRow className="border-b border-white/10 hover:bg-transparent">
-              <TableHead className="px-3 py-2 text-gray-400">Tên</TableHead>
-              <TableHead className="px-3 py-2 text-gray-400">Identity</TableHead>
-              <TableHead className="px-3 py-2 text-gray-400">Người cấp</TableHead>
-              <TableHead className="px-3 py-2 text-gray-400">Ngày cấp</TableHead>
+            <TableRow className="border-b border-border hover:bg-transparent">
+              <TableHead className="px-3 py-2 text-muted-foreground">Tên</TableHead>
+              <TableHead className="px-3 py-2 text-muted-foreground">Identity</TableHead>
+              <TableHead className="px-3 py-2 text-muted-foreground">Người cấp</TableHead>
+              <TableHead className="px-3 py-2 text-muted-foreground">Ngày cấp</TableHead>
               <TableHead className="px-3 py-2"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {tokens.map((t) => (
-              <TableRow key={t.name} className="border-b border-white/5 hover:bg-white/5">
+              <TableRow key={t.name} className="border-b border-border/50 hover:bg-accent/50">
                 <TableCell className="px-3 py-2 font-mono">{t.name}</TableCell>
                 <TableCell className="px-3 py-2 font-mono text-xs">
                   {t.userCode}
-                  <span className="text-gray-500"> · {identityLabel(t.userCode)}</span>
+                  <span className="text-muted-foreground"> · {identityLabel(t.userCode)}</span>
                 </TableCell>
                 <TableCell className="px-3 py-2 font-mono text-xs">{t.createdBy ?? "-"}</TableCell>
                 <TableCell className="px-3 py-2 font-mono text-xs">
@@ -247,7 +247,7 @@ const AdminMcpTokensPage = () => {
                     size="icon-sm"
                     variant="ghost"
                     onClick={() => void revokeToken(t.name)}
-                    className="text-red-400 hover:bg-red-500/10"
+                    className="text-destructive hover:bg-destructive/10"
                     title="Thu hồi"
                   >
                     <Trash2 size={16} />
@@ -257,7 +257,7 @@ const AdminMcpTokensPage = () => {
             ))}
             {tokens.length === 0 && !loading && (
               <TableRow>
-                <TableCell colSpan={5} className="px-3 py-6 text-center text-gray-500">
+                <TableCell colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
                   Chưa có token nào
                 </TableCell>
               </TableRow>
