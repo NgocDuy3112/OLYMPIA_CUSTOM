@@ -1,5 +1,12 @@
-import React, { useEffect } from "react";
-import { X } from "lucide-react";
+import React from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/shared/ui/Button";
+import { cn } from "cn";
 
 interface ModalProps {
   isOpen: boolean;
@@ -10,10 +17,11 @@ interface ModalProps {
   showCloseButton?: boolean;
 }
 
+// shadcn DialogContent mặc định `sm:max-w-sm` — size cần override theo sm variant.
 const SIZE_STYLES = {
-  sm: "max-w-md",
-  md: "max-w-lg",
-  lg: "max-w-2xl",
+  sm: "sm:max-w-md",
+  md: "sm:max-w-lg",
+  lg: "sm:max-w-2xl",
 };
 
 export const Modal: React.FC<ModalProps> = ({
@@ -24,63 +32,27 @@ export const Modal: React.FC<ModalProps> = ({
   size = "md",
   showCloseButton = true,
 }) => {
-  // Close on escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-
-    if (isOpen) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    }
-
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Modal content */}
-      <div
-        className={`
-          relative w-full ${SIZE_STYLES[size]}
-          bg-[#12102e] border border-blue-600/30 rounded-xl
-          shadow-2xl
-          animate-in fade-in zoom-in-95 duration-200
-        `}
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent
+        className={cn(SIZE_STYLES[size])}
+        showCloseButton={showCloseButton}
       >
-        {/* Header */}
-        {(title || showCloseButton) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-            {title && (
-              <h2 className="text-lg font-bold text-white">{title}</h2>
-            )}
-            {showCloseButton && (
-              <button
-                onClick={onClose}
-                className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <X size={18} />
-              </button>
-            )}
-          </div>
+        {title ? (
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">{title}</DialogTitle>
+          </DialogHeader>
+        ) : (
+          <DialogTitle className="sr-only">Thông báo</DialogTitle>
         )}
-
-        {/* Body */}
-        <div className="px-6 py-4">{children}</div>
-      </div>
-    </div>
+        <div>{children}</div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -110,30 +82,18 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="sm">
-      <p className="text-gray-300 mb-6">{message}</p>
+      <p className="text-muted-foreground mb-6">{message}</p>
       <div className="flex justify-end gap-3">
-        <button
-          onClick={onClose}
-          disabled={isLoading}
-          className="px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-        >
+        <Button variant="ghost" onClick={onClose} disabled={isLoading}>
           {cancelLabel}
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={variant === "danger" ? "danger" : "primary"}
           onClick={onConfirm}
           disabled={isLoading}
-          className={`
-            px-4 py-2 text-sm font-medium text-white rounded-lg
-            transition-colors disabled:opacity-50
-            ${
-              variant === "danger"
-                ? "bg-red-600 hover:bg-red-500"
-                : "bg-blue-600 hover:bg-blue-500"
-            }
-          `}
         >
           {isLoading ? "Đang xử lý..." : confirmLabel}
-        </button>
+        </Button>
       </div>
     </Modal>
   );

@@ -1,4 +1,6 @@
 import React from "react";
+import { Card as ShadcnCard } from "@/components/ui/card";
+import { cn } from "cn";
 
 interface CardProps {
   children: React.ReactNode;
@@ -8,11 +10,12 @@ interface CardProps {
   onClick?: () => void;
 }
 
+// `!` (important, Tailwind v4 syntax) để đè padding mặc định của shadcn Card.
 const PADDING_STYLES = {
-  none: "",
-  sm: "!p-3",
-  md: "!p-4 sm:!p-5",
-  lg: "!p-5 sm:!p-6",
+  none: "p-0!",
+  sm: "p-3!",
+  md: "p-4! sm:p-5!",
+  lg: "p-5! sm:p-6!",
 };
 
 export const Card: React.FC<CardProps> = ({
@@ -23,17 +26,18 @@ export const Card: React.FC<CardProps> = ({
   onClick,
 }) => {
   return (
-    <div
-      className={`
-        card
-        ${PADDING_STYLES[padding]}
-        ${hover ? "hover:border-blue-500 transition-colors cursor-pointer" : ""}
-        ${onClick ? "cursor-pointer" : ""}
-        ${className}
-      `}
+    <ShadcnCard
+      className={cn(
+        PADDING_STYLES[padding],
+        hover
+          ? "hover:ring-blue-500 transition-colors cursor-pointer"
+          : "",
+        onClick ? "cursor-pointer" : "",
+        className
+      )}
       onClick={onClick}
     >
       {children}
-    </div>
+    </ShadcnCard>
   );
 };

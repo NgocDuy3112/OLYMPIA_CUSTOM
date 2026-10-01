@@ -1,4 +1,7 @@
 import React from "react";
+import { Button as ShadcnButton } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "cn";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost" | "success";
 type ButtonSize = "sm" | "md" | "lg";
@@ -12,18 +15,23 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-const VARIANT_STYLES: Record<ButtonVariant, string> = {
-  primary: "bg-blue-600 hover:bg-blue-500 text-white",
-  secondary: "bg-white/10 hover:bg-white/20 text-white",
-  danger: "bg-red-600 hover:bg-red-500 text-white",
-  ghost: "bg-transparent hover:bg-white/10 text-white",
-  success: "bg-green-600 hover:bg-green-500 text-white",
+// Map variant cũ sang shadcn buttonVariants + màu brand còn thiếu.
+const VARIANT_MAP: Record<
+  ButtonVariant,
+  { variant?: "default" | "secondary" | "destructive" | "ghost"; className?: string }
+> = {
+  primary: { variant: "default" },
+  // secondary cũ là nền trắng mờ — outline gần nhất trong shadcn.
+  secondary: { variant: "secondary", className: "bg-white/10 text-white hover:bg-white/20 border-transparent" },
+  danger: { variant: "destructive" },
+  ghost: { variant: "ghost" },
+  success: { className: "bg-green-600 text-white hover:bg-green-500" },
 };
 
-const SIZE_STYLES: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-sm",
-  md: "px-4 py-2.5 text-sm",
-  lg: "px-6 py-3 text-base",
+const SIZE_MAP: Record<ButtonSize, "sm" | "default" | "lg"> = {
+  sm: "sm",
+  md: "default",
+  lg: "lg",
 };
 
 export const Button: React.FC<ButtonProps> = ({
@@ -38,28 +46,23 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   ...props
 }) => {
+  const map = VARIANT_MAP[variant];
   return (
-    <button
-      className={`
-        inline-flex items-center justify-center gap-2
-        font-medium rounded-lg
-        transition-colors touch-target
-        disabled:opacity-50 disabled:cursor-not-allowed
-        ${VARIANT_STYLES[variant]}
-        ${SIZE_STYLES[size]}
-        ${fullWidth ? "w-full" : ""}
-        ${className}
-      `}
+    <ShadcnButton
+      variant={map.variant}
+      size={SIZE_MAP[size]}
+      className={cn(
+        "touch-target",
+        fullWidth && "w-full",
+        map.className,
+        className
+      )}
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? (
-        <div className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
-      ) : (
-        leftIcon
-      )}
+      {isLoading ? <Spinner /> : leftIcon}
       {children}
       {!isLoading && rightIcon}
-    </button>
+    </ShadcnButton>
   );
 };

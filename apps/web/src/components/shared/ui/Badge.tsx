@@ -1,4 +1,6 @@
 import React from "react";
+import { Badge as ShadcnBadge } from "@/components/ui/badge";
+import { cn } from "cn";
 
 type BadgeVariant = "default" | "success" | "warning" | "danger" | "info" | "purple";
 
@@ -9,18 +11,19 @@ interface BadgeProps {
   className?: string;
 }
 
+// Giữ nguyên màu cũ — className đè lớp nền mặc định của shadcn Badge.
 const VARIANT_STYLES: Record<BadgeVariant, string> = {
-  default: "bg-gray-500",
-  success: "bg-green-500",
-  warning: "bg-yellow-500",
-  danger: "bg-red-500",
-  info: "bg-blue-500",
-  purple: "bg-purple-500",
+  default: "bg-gray-500 text-white",
+  success: "bg-green-500 text-white",
+  warning: "bg-yellow-500 text-white",
+  danger: "bg-red-500 text-white",
+  info: "bg-blue-500 text-white",
+  purple: "bg-purple-500 text-white",
 };
 
 const SIZE_STYLES = {
-  sm: "px-1.5 py-0.5 text-xs",
-  md: "px-2 py-0.5 text-xs",
+  sm: "h-4 px-1.5 text-[10px]",
+  md: "h-5 px-2",
 };
 
 export const Badge: React.FC<BadgeProps> = ({
@@ -30,16 +33,11 @@ export const Badge: React.FC<BadgeProps> = ({
   className = "",
 }) => {
   return (
-    <span
-      className={`
-        inline-flex items-center rounded font-medium text-white
-        ${VARIANT_STYLES[variant]}
-        ${SIZE_STYLES[size]}
-        ${className}
-      `}
+    <ShadcnBadge
+      className={cn(VARIANT_STYLES[variant], SIZE_STYLES[size], className)}
     >
       {children}
-    </span>
+    </ShadcnBadge>
   );
 };
 

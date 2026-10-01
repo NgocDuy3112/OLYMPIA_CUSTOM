@@ -8,3 +8,5 @@ export {
 } from "./Badge";
 export { Modal, ConfirmModal } from "./Modal";
 export { Loading, PageLoading, InlineLoading } from "./Loading";
+export { SidePanel } from "./SidePanel";
+export { ConfirmActionPanel } from "./ConfirmActionPanel";

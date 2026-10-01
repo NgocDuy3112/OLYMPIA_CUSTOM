@@ -1,4 +1,5 @@
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { Button } from "@/components/shared/ui/Button";
 
 interface ConfirmActionPanelProps {
   open: boolean;
@@ -34,23 +35,16 @@ export function ConfirmActionPanel({
       tone={tone}
       footer={
         <div className="flex gap-2 justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
-          >
+          <Button variant="ghost" onClick={onClose}>
             Huỷ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={tone === "danger" ? "danger" : "success"}
             onClick={() => void onConfirm()}
             disabled={saving}
-            className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 ${
-              tone === "danger"
-                ? "bg-red-700 hover:bg-red-600"
-                : "bg-emerald-600 hover:bg-emerald-500"
-            }`}
           >
             {saving ? "Đang xử lý…" : confirmLabel}
-          </button>
+          </Button>
         </div>
       }
     >

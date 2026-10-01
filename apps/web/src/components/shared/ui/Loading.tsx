@@ -1,4 +1,6 @@
 import React from "react";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "cn";
 
 interface LoadingProps {
   size?: "sm" | "md" | "lg";
@@ -6,10 +8,11 @@ interface LoadingProps {
   text?: string;
 }
 
+// Spinner shadcn là lucide Loader2Icon (`size-4`) — size cũ override qua className.
 const SIZE_STYLES = {
-  sm: "w-6 h-6 border-2",
-  md: "w-8 h-8 border-4",
-  lg: "w-12 h-12 border-4",
+  sm: "size-6",
+  md: "size-8",
+  lg: "size-12",
 };
 
 export const Loading: React.FC<LoadingProps> = ({
@@ -19,13 +22,8 @@ export const Loading: React.FC<LoadingProps> = ({
 }) => {
   const spinner = (
     <div className="flex flex-col items-center gap-3">
-      <div
-        className={`
-          animate-spin rounded-full border-blue-500 border-t-transparent
-          ${SIZE_STYLES[size]}
-        `}
-      />
-      {text && <p className="text-sm text-gray-400">{text}</p>}
+      <Spinner className={cn(SIZE_STYLES[size])} />
+      {text && <p className="text-sm text-muted-foreground">{text}</p>}
     </div>
   );
 
