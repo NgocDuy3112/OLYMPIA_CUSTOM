@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Database, Layers, Lightbulb, Zap, Flag } from "lucide-react";
 import { BankTab, type BankRoundGroup } from "@/components/qauthor/BankTab";
 import QAuthorSetsPage from "@/pages/qauthor/QAuthorSetsPage";
+import { Button } from "@/components/ui/button";
 
 type TabId = BankRoundGroup | "sets";
 
@@ -27,10 +28,11 @@ const QAuthorBankHubPage = () => {
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
         {TABS.map((t) => (
-          <button
+          <Button
             key={t.id}
+            variant="ghost"
             onClick={() => setTab(t.id)}
-            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-colors ${
+            className={`h-auto items-start gap-3 rounded-xl border px-4 py-3.5 text-left ${
               tab === t.id
                 ? "bg-green-600/20 border-green-600/50 text-green-300"
                 : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
@@ -41,7 +43,7 @@ const QAuthorBankHubPage = () => {
               <span className="block text-base font-semibold">{t.label}</span>
               <span className="block text-xs opacity-70">{t.sub}</span>
             </span>
-          </button>
+          </Button>
         ))}
       </div>
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ListOrdered, Mic, Search, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { API_BASE_URL, WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { parseWebSocketMessage } from "@/types/websocket";
@@ -127,19 +129,20 @@ const MQualifierPage = () => {
         <Mic size={20} /> Dẫn vòng loại
       </h1>
       <div className="flex gap-2">
-        <input
+        <Input
           value={tournamentCode}
           onChange={(e) => setTournamentCode(e.target.value)}
           placeholder="Mã giải đấu (VD: OC3_T_...)"
           className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
         />
-        <button
+        <Button
+          variant="default"
           onClick={() => void fetchAll()}
           disabled={loading || !tournamentCode.trim()}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 text-sm text-white"
         >
           <Search size={14} /> Tải
-        </button>
+        </Button>
       </div>
       <p className="text-xs text-gray-500">
         {loading ? "Đang tải…" : `${questions.length}/16 câu · ${closedCount} đã chốt`}
@@ -149,13 +152,14 @@ const MQualifierPage = () => {
         <div className="rounded-xl bg-white/5 border border-white/10 p-5 flex flex-col gap-4">
           <div className="flex gap-1.5 flex-wrap" role="tablist" aria-label="Danh sách câu">
             {questions.map((q, i) => (
-              <button
+              <Button
                 key={q.id}
                 type="button"
+                variant="ghost"
                 role="tab"
                 aria-selected={i === index}
                 onClick={() => { setIndex(i); setReveal(false); }}
-                className={`min-w-11 min-h-11 px-2 rounded-lg text-sm font-bold transition-colors ${
+                className={`min-h-11 min-w-11 rounded-lg px-2 text-sm font-bold ${
                   i === index
                     ? "bg-purple-500 text-white"
                     : q.status === "closed"
@@ -164,7 +168,7 @@ const MQualifierPage = () => {
                 }`}
               >
                 {q.position}
-              </button>
+              </Button>
             ))}
           </div>
           <p className="text-xs text-gray-500 font-mono">
@@ -185,13 +189,14 @@ const MQualifierPage = () => {
               </li>
             ))}
           </ol>
-          <button
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => setReveal((v) => !v)}
-            className="self-start px-4 py-2 min-h-11 rounded-lg bg-white/10 hover:bg-white/20 text-sm"
+            className="min-h-11 self-start bg-white/10 hover:bg-white/20 px-4 py-2 text-sm"
           >
             {reveal ? "Ẩn phương án" : "Hiện phương án để đọc"}
-          </button>
+          </Button>
         </div>
       ) : (
         !loading && <p className="text-gray-400 text-sm">Chưa có câu hỏi. Nhập mã giải rồi bấm Tải.</p>

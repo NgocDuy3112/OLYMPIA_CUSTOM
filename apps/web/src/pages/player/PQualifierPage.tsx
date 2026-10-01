@@ -6,6 +6,7 @@ import { createLogger } from "@/utils/logger";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { getPlayerCode } from "@/utils/storage";
+import { Button } from "@/components/ui/button";
 import { parseWebSocketMessage } from "@/types/websocket";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
@@ -268,14 +269,15 @@ const PQualifierPage = () => {
                     const letter = LETTERS[i] ?? String(i + 1);
                     const active = currentLetter === letter;
                     return (
-                      <button
+                      <Button
                         key={letter}
                         type="button"
+                        variant="ghost"
                         role="radio"
                         aria-checked={active}
                         disabled={currentDone || current.status === "closed" || currentTimedOut}
                         onClick={() => setSelected((p) => ({ ...p, [current.questionCode]: letter }))}
-                        className={`min-h-11 px-4 py-3 rounded-lg text-left text-sm transition-colors flex gap-3 items-start disabled:opacity-60 ${
+                        className={`min-h-11 flex-1 items-start gap-3 rounded-lg px-4 py-3 text-left text-sm ${
                           active
                             ? "bg-blue-600 text-white"
                             : "bg-white/10 text-gray-200 hover:bg-white/20"
@@ -283,16 +285,17 @@ const PQualifierPage = () => {
                       >
                         <span className="font-bold font-mono shrink-0">{letter}.</span>
                         <span>{opt}</span>
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
                 <div className="flex gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="default"
                     onClick={() => currentLetter && void submit(current.questionCode, currentLetter)}
                     disabled={!currentLetter || currentDone || submitting || current.status === "closed" || currentTimedOut}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 min-h-11 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+                    className="flex-1 justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-4 py-2 min-h-11 font-semibold text-sm"
                   >
                     {currentDone ? (
                       <>
@@ -303,7 +306,7 @@ const PQualifierPage = () => {
                         <Send size={16} /> {submitting ? "Đang nộp…" : "Nộp đáp án"}
                       </>
                     )}
-                  </button>
+                  </Button>
                 </div>
                 <p className="text-xs text-gray-500">
                   Đúng/sai chỉ lộ sau khi chốt câu. Bỏ qua = 0 điểm.
@@ -318,13 +321,14 @@ const PQualifierPage = () => {
             <h3 className="flex items-center gap-2 text-sm font-semibold text-blue-300 uppercase tracking-wide">
               <Trophy size={16} /> Top 16
             </h3>
-            <button
+            <Button
               type="button"
+              variant="secondary"
               onClick={() => void fetchStandings()}
-              className="px-3 py-1.5 min-h-9 rounded-lg bg-white/10 hover:bg-white/20 text-xs"
+              className="min-h-9 bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs"
             >
               Làm mới
-            </button>
+            </Button>
           </div>
           {standings.length === 0 ? (
             <p className="text-gray-400 text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>

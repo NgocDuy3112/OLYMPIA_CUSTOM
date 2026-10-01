@@ -21,6 +21,7 @@ import CControlButton from "@/components/controller/CControlButton";
 import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
+import { Button } from "@/components/ui/button";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SButPhaPage } from "@/components/shared/SButPhaPage";
 
@@ -97,19 +98,20 @@ const AdminButPhaView = () => {
       {Array.from({ length: MAX_QUESTION_INDEX }).map((_, idx) => {
         const isActive = currentQuestionIndex === idx + 1;
         return (
-          <button
+          <Button
             key={idx}
             type="button"
+            variant="ghost"
             disabled={isTimerRunning}
             onClick={() => handleSelectQuestion(idx + 1)}
-            className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors ${
+            className={`h-10 w-10 items-center justify-center rounded-md text-sm font-bold ${
               isActive
                 ? "bg-blue-300 text-blue-900 border border-blue-200"
                 : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"
             } disabled:opacity-50`}
           >
             {idx + 1}
-          </button>
+          </Button>
         );
       })}
     </div>

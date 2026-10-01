@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
 import { setMatchCode, setPlayerCode } from "@/utils/storage";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const PIN_LENGTH = 6;
 
@@ -133,13 +135,14 @@ const PGameAccessPage: React.FC = () => {
       {/* Header */}
       <header className="sticky top-0 z-40 bg-black/30 backdrop-blur-sm border-b border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            className="gap-2 text-gray-400 hover:text-white"
           >
             <ArrowLeft size={18} />
             <span className="text-sm">Quay lại</span>
-          </button>
+          </Button>
           <span className="text-sm font-bold text-white">OLYMPIA CUSTOM</span>
           <div className="w-20" /> {/* Spacer for centering */}
         </div>
@@ -162,7 +165,7 @@ const PGameAccessPage: React.FC = () => {
           <div className="card !p-6">
             <div className="flex justify-center gap-2 sm:gap-3 mb-6">
               {pin.map((digit, index) => (
-                <input
+                <Input
                   key={index}
                   ref={(el) => {
                     inputRefs.current[index] = el;
@@ -176,7 +179,7 @@ const PGameAccessPage: React.FC = () => {
                   onPaste={handlePaste}
                   disabled={isLoading}
                   className={`
-                    w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-bold
+                    h-14 w-12 sm:h-16 sm:w-14 text-center text-2xl font-bold
                     bg-white/10 border-2 rounded-lg
                     focus:outline-none focus:border-blue-500
                     disabled:opacity-50
@@ -196,17 +199,19 @@ const PGameAccessPage: React.FC = () => {
 
             {/* Buttons */}
             <div className="flex gap-3">
-              <button
+              <Button
+                variant="secondary"
                 onClick={handleClear}
                 disabled={isLoading || pin.every((d) => d === "")}
-                className="flex-1 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors disabled:opacity-50"
+                className="flex-1 bg-white/10 hover:bg-white/20 text-white"
               >
                 Xóa
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="default"
                 onClick={() => handleSubmit()}
                 disabled={isLoading || pin.some((d) => d === "")}
-                className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors disabled:opacity-50"
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">
@@ -216,7 +221,7 @@ const PGameAccessPage: React.FC = () => {
                 ) : (
                   "Vào phòng"
                 )}
-              </button>
+              </Button>
             </div>
           </div>
 

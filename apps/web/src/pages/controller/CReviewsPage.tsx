@@ -3,6 +3,9 @@ import { Bot, Check, ClipboardCheck, RefreshCw, Search, X } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const logger = createLogger("CReviewsPage");
 
@@ -130,28 +133,28 @@ const CReviewsPage = () => {
         <ClipboardCheck size={20} className="text-orange-400" /> Duyệt điểm
       </h1>
       <div className="flex gap-2">
-        <input
+        <Input
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận đấu"
           className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
         />
-        <select
+        <NativeSelect
           value={status}
           onChange={(e) => setStatus(e.target.value as "pending" | "decided" | "all")}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
         >
           <option value="pending">Chờ duyệt</option>
           <option value="decided">Đã chốt</option>
           <option value="all">Tất cả</option>
-        </select>
-        <button
+        </NativeSelect>
+        <Button
+          variant="default"
           onClick={() => void fetchReviews()}
           disabled={loading || !matchCode.trim()}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-sm text-white"
         >
           {loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />} Tải
-        </button>
+        </Button>
       </div>
       {reviews.length === 0 && (
         <p className="text-sm text-gray-500">
@@ -175,20 +178,24 @@ const CReviewsPage = () => {
                     {v === "dung" ? "✅ " : v === "sai" ? "❌ " : "⏳ "}
                     <span className="font-semibold">{label(c)}</span>: {c.answerText || "(trống)"}
                   </p>
-                  <button
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
                     onClick={() => setDecision(r.id, c.userCode, "dung")}
-                    className={`p-1.5 rounded-lg ${v === "dung" ? "bg-green-600 text-white" : "bg-white/10 text-gray-400 hover:text-white"}`}
+                    className={`rounded-lg ${v === "dung" ? "bg-green-600 text-white" : "bg-white/10 text-gray-400 hover:text-white"}`}
                     title="Đúng"
                   >
                     <Check size={16} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
                     onClick={() => setDecision(r.id, c.userCode, "sai")}
-                    className={`p-1.5 rounded-lg ${v === "sai" ? "bg-red-600 text-white" : "bg-white/10 text-gray-400 hover:text-white"}`}
+                    className={`rounded-lg ${v === "sai" ? "bg-red-600 text-white" : "bg-white/10 text-gray-400 hover:text-white"}`}
                     title="Sai"
                   >
                     <X size={16} />
-                  </button>
+                  </Button>
                 </div>
               );
             })}
@@ -198,20 +205,22 @@ const CReviewsPage = () => {
               </p>
             )}
             <div className="flex gap-2 justify-end">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => void askOcee(r.id)}
                 disabled={isDecided}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                className="gap-1 bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
               >
                 <Bot size={14} /> Nhờ OCee
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="default"
                 onClick={() => void submit(r)}
                 disabled={saving === r.id || isDecided}
-                className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-xs font-semibold text-white"
+                className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-xs font-semibold text-white"
               >
                 {saving === r.id ? "Đang chốt..." : isDecided ? "Đã chốt" : "Xác nhận"}
-              </button>
+              </Button>
             </div>
           </div>
         );

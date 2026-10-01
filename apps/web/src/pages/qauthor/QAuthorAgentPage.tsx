@@ -3,6 +3,9 @@ import { Bot, SendHorizonal, Trash2, User } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 const logger = createLogger("QAuthorAgentPage");
 
@@ -89,16 +92,18 @@ const QAuthorAgentPage = () => {
         <h1 className="flex items-center gap-2 text-xl font-bold text-white">
           <Bot size={20} className="text-green-400" /> AI Agent — kiểm tra câu hỏi
         </h1>
-        <button
+        <Button
+          variant="secondary"
+          size="xs"
           onClick={() => setMessages((prev) => prev.slice(0, 1))}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs text-gray-300"
+          className="gap-1 bg-white/10 hover:bg-white/15 text-xs text-gray-300"
         >
           <Trash2 size={13} /> Xoá hội thoại
-        </button>
+        </Button>
       </div>
 
       <div className="flex gap-2">
-        <input
+        <Input
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận (tuỳ chọn — để trống khi hỏi về bank)"
@@ -152,7 +157,7 @@ const QAuthorAgentPage = () => {
       </div>
 
       <div className="flex gap-2">
-        <textarea
+        <Textarea
           rows={2}
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -165,13 +170,14 @@ const QAuthorAgentPage = () => {
           placeholder="Dán câu hỏi + đáp án… (Enter để gửi, Shift+Enter xuống dòng)"
           className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none"
         />
-        <button
+        <Button
+          variant="default"
           onClick={() => void send()}
           disabled={sending || !input.trim()}
-          className="flex items-center gap-1.5 px-4 rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-50 font-semibold text-sm text-white self-end py-2"
+          className="gap-1.5 self-end rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-50 font-semibold text-sm text-white py-2"
         >
           <SendHorizonal size={15} /> Gửi
-        </button>
+        </Button>
       </div>
       <p className="text-[11px] text-gray-500">
         Khung chat trước — logic kiểm tra (2 đáp án, độ khó, gợi ý lộ đáp án…) bàn kỹ sau.

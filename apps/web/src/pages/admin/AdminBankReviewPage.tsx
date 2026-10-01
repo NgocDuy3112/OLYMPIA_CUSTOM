@@ -6,6 +6,18 @@ import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { SetFillPanel } from "@/components/qauthor/SetFillPanel";
 import { useBankEvents } from "@/hooks/useBankEvents";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const logger = createLogger("AdminBankReviewPage");
 
@@ -211,10 +223,11 @@ const AdminBankReviewPage = () => {
             { id: "sets", label: "Bộ đề", sub: "Preset theo trận" },
           ] as const
         ).map((t) => (
-          <button
+          <Button
             key={t.id}
+            variant="ghost"
             onClick={() => { setGroup(group === t.id ? "all" : t.id); setSelected(null); }}
-            className={`px-4 py-3 rounded-xl border text-left transition-colors ${
+            className={`h-auto flex-col items-start gap-0.5 rounded-xl border px-4 py-3 text-left ${
               group === t.id
                 ? "bg-green-600/20 border-green-600/50 text-green-300"
                 : "bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10"
@@ -222,34 +235,34 @@ const AdminBankReviewPage = () => {
           >
             <span className="block text-base font-semibold">{t.label}</span>
             <span className="block text-xs opacity-70">{t.sub}</span>
-          </button>
+          </Button>
         ))}
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        <select
+        <NativeSelect
           value={status}
           onChange={(e) => { setStatus(e.target.value as StatusFilter); setSelected(null); }}
-          className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           aria-label="Lọc theo trạng thái duyệt"
         >
           {(["", "pending", "approved", "rejected"] as StatusFilter[]).map((s) => (
             <option key={s} value={s}>{STATUS_VN[s]}</option>
           ))}
-        </select>
-        <input
+        </NativeSelect>
+        <Input
           value={query}
           onChange={(e) => { setQuery(e.target.value); queryRef.current = e.target.value; }}
           placeholder="Tìm theo mã / nội dung / đáp án…"
-          className="flex-1 min-w-40 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+          className="min-w-40 flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
         />
-        <button
+        <Button
+          variant="default"
           onClick={() => void fetchRows(1)}
           disabled={loading}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
         >
           <Search size={14} /> {loading ? "Đang tải…" : "Tìm"}
-        </button>
+        </Button>
       </div>
 
       <SetFillPanel setCode={openSetCode} onClose={() => setOpenSetCode(null)} onChanged={fetchRows} />
@@ -262,10 +275,11 @@ const AdminBankReviewPage = () => {
             <p className="text-gray-400 text-sm">Chưa có bộ đề nào.</p>
           ) : (
             sets.map((s) => (
-              <button
+              <Button
                 key={s.setCode}
+                variant="ghost"
                 onClick={() => setOpenSetCode(s.setCode)}
-                className="text-left px-4 py-3.5 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/5 hover:border-white/20 transition-colors"
+                className="h-auto flex-col items-stretch px-4 py-3.5 text-left rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/5 hover:border-white/20"
               >
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-white">{s.setName}</span>
@@ -297,7 +311,7 @@ const AdminBankReviewPage = () => {
                   <span className="font-mono">{s.setCode}</span> · Trận:{" "}
                   <span className="font-mono text-gray-300">{s.matchCode ?? "— chưa gán —"}</span>
                 </p>
-              </button>
+              </Button>
             ))
           )}
         </div>
@@ -309,32 +323,32 @@ const AdminBankReviewPage = () => {
           <p className="text-gray-400 text-sm">Chưa có câu nào — danh sách tự cập nhật.</p>
         ) : (
           <>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-green-300 border-b border-white/10">
-                  <th className="py-2 px-2">Mã</th>
-                  <th className="py-2 px-2">Nội dung</th>
-                  <th className="py-2 px-2">Đáp án</th>
-                  <th className="py-2 px-2">Duyệt</th>
-                  <th className="py-2 px-2">Media</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-sm">
+              <TableHeader>
+                <TableRow className="border-b border-white/10 hover:bg-transparent">
+                  <TableHead className="py-2 px-2 text-green-300">Mã</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Nội dung</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Đáp án</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Duyệt</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Media</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rows.map((r) => (
-                  <tr
+                  <TableRow
                     key={r.id}
                     onClick={() => { setSelected(r); setNote(r.reviewNote ?? ""); setOceeOpinion(""); }}
                     className={`border-b border-white/5 align-top cursor-pointer hover:bg-white/5 ${
                       selected?.id === r.id ? "bg-green-600/10" : ""
                     }`}
                   >
-                    <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">
+                    <TableCell className="py-2 px-2 font-mono text-xs whitespace-nowrap">
                       {r.bankCode}
                       {r.roundHint && <span className="ml-1 text-gray-500">· {r.roundHint}</span>}
-                    </td>
-                    <td className="py-2 px-2 max-w-xs truncate">{r.content}</td>
-                    <td className="py-2 px-2 font-semibold">{r.answer}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">
+                    </TableCell>
+                    <TableCell className="py-2 px-2 max-w-xs truncate">{r.content}</TableCell>
+                    <TableCell className="py-2 px-2 font-semibold">{r.answer}</TableCell>
+                    <TableCell className="py-2 px-2 whitespace-nowrap">
                       {r.status === "approved" ? (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-green-600/20 text-green-300">Đã duyệt</span>
                       ) : r.status === "rejected" ? (
@@ -342,35 +356,37 @@ const AdminBankReviewPage = () => {
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300">Chờ duyệt</span>
                       )}
-                    </td>
-                    <td className="py-2 px-2 font-mono text-xs max-w-48 truncate">
+                    </TableCell>
+                    <TableCell className="py-2 px-2 font-mono text-xs max-w-48 truncate">
                       {r.mediaUrl ? (
                         <span className="text-green-300" title={r.mediaUrl}>Có media</span>
                       ) : (
                         <span className="text-gray-500">Chưa có</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-gray-500">Trang {page}/{pages} · {total} câu</p>
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => void fetchRows(page - 1)}
                   disabled={loading || page <= 1}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
                 >
                   ← Trước
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => void fetchRows(page + 1)}
                   disabled={loading || page >= pages}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
                 >
                   Sau →
-                </button>
+                </Button>
               </div>
             </div>
           </>
@@ -385,27 +401,30 @@ const AdminBankReviewPage = () => {
         wide
         footer={
           <div className="flex gap-2 justify-end">
-            <button
+            <Button
+              variant="secondary"
               onClick={() => void askOcee()}
               disabled={askingOcee || saving}
-              className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+              className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
             >
               {askingOcee ? "Đang hỏi…" : "Nhờ OCee kiểm tra"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="destructive"
               onClick={() => void review("rejected")}
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 text-sm font-semibold"
+              className="bg-red-700 hover:bg-red-600 disabled:opacity-50 text-sm font-semibold"
             >
               {saving ? "…" : "Không duyệt"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="default"
               onClick={() => void review("approved")}
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm font-semibold"
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm font-semibold"
             >
               {saving ? "…" : "Đã duyệt"}
-            </button>
+            </Button>
           </div>
         }
       >
@@ -434,7 +453,7 @@ const AdminBankReviewPage = () => {
             </div>
           )}
           <label className="text-xs text-gray-400">Chú thích người duyệt * (bắt buộc khi từ chối)</label>
-          <textarea
+          <Textarea
             rows={2}
             value={note}
             onChange={(e) => setNote(e.target.value)}

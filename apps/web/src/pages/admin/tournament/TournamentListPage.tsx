@@ -5,6 +5,7 @@ import {
   TournamentFormPanel,
   type TournamentFormValue,
 } from "@/components/admin/TournamentFormPanel";
+import { Button } from "@/components/ui/button";
 import {
   Plus,
   Calendar,
@@ -161,19 +162,22 @@ const TournamentListPage: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button
+          <Button
+            size="icon"
+            variant="secondary"
             onClick={() => void fetchTournaments()}
-            className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+            className="bg-white/5 border border-white/10 hover:bg-white/10"
             title="Làm mới"
           >
             <RefreshCw size={15} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors text-sm font-medium"
+            className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
           >
             <Plus size={15} /> Tạo giải đấu
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -187,12 +191,13 @@ const TournamentListPage: React.FC = () => {
         <div className="rounded-xl border border-dashed border-white/15 p-10 text-center">
           <Trophy size={36} className="mx-auto text-gray-600 mb-3" />
           <p className="text-gray-400 text-sm mb-4">Chưa có giải đấu nào</p>
-          <button
+          <Button
+            variant="default"
             onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm font-medium"
+            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"
           >
             Tạo giải đấu đầu tiên
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -242,22 +247,26 @@ const TournamentListPage: React.FC = () => {
               </div>
 
               <div className="flex gap-1.5 shrink-0">
-                <button
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
                   onClick={() =>
                     navigate(`/admin/tournaments/${tournament.tournamentCode}/edit`)
                   }
-                  className="p-2 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors"
+                  className="text-gray-500 hover:text-white hover:bg-white/10"
                   title="Sửa"
                 >
                   <Pencil size={15} />
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
                   onClick={() => void handleDelete(tournament.tournamentCode)}
-                  className="p-2 rounded-lg text-gray-500 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                  className="text-gray-500 hover:text-red-300 hover:bg-red-500/10"
                   title="Xóa"
                 >
                   <Trash2 size={15} />
-                </button>
+                </Button>
               </div>
             </div>
           ))}

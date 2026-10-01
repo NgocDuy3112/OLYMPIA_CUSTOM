@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { API_BASE_URL } from "@/configs";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PlayerScore {
   userCode: string;
@@ -145,13 +146,14 @@ const SLiveMatchPage: React.FC = () => {
     <div className="min-h-screen bg-gray-900">
       {/* Header */}
       <div className="flex items-center justify-between p-3 sm:p-4 bg-black/50">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => navigate("/spectator")}
-          className="flex items-center gap-1 sm:gap-2 text-white hover:text-blue-400 touch-target"
+          className="gap-1 touch-target text-white hover:text-blue-400"
         >
           <ArrowLeft size={18} />
           <span className="hidden sm:inline">Quay lại</span>
-        </button>
+        </Button>
         <div className="text-center flex-1 min-w-0 px-2">
           <h1 className="text-base sm:text-xl font-bold text-white truncate">
             {matchInfo?.matchName || matchCode}

@@ -4,6 +4,8 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { SetFillPanel } from "@/components/qauthor/SetFillPanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const logger = createLogger("QAuthorSetsPage");
 
@@ -91,25 +93,27 @@ const QAuthorSetsPage = () => {
         title="Tạo bộ đề"
         footer={
           <div className="flex gap-2 justify-end">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setShowCreate(false)}
-              className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+              className="bg-blue-800 hover:bg-blue-700 text-sm"
             >
               Huỷ
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="default"
               onClick={() => void createSet()}
               disabled={creating || !name.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+              className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
             >
               <Plus size={15} /> {creating ? "Đang tạo…" : "Tạo bộ"}
-            </button>
+            </Button>
           </div>
         }
       >
         <div className="flex flex-col gap-1">
           <label className="text-xs text-blue-300">Tên bộ đề *</label>
-          <input
+          <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="VD: Bộ đề 1"
@@ -118,7 +122,7 @@ const QAuthorSetsPage = () => {
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-blue-300">Mã trận</label>
-          <input
+          <Input
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value.toUpperCase())}
             placeholder="VD: OC4_M01T (gán sau cũng được)"
@@ -138,20 +142,23 @@ const QAuthorSetsPage = () => {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button
+          <Button
+            size="icon"
+            variant="secondary"
             onClick={() => void fetchSets()}
             disabled={loading}
-            className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+            className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 transition-colors text-sm font-medium"
+            className="gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-sm font-medium"
           >
             <Plus size={15} /> Tạo bộ đề
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -165,10 +172,11 @@ const QAuthorSetsPage = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2.5">
           {sets.map((s) => (
-            <button
+            <Button
               key={s.setCode}
+              variant="ghost"
               onClick={() => setOpenCode(s.setCode)}
-              className="text-left p-4 rounded-xl bg-white/[0.03] border border-white/10 hover:bg-white/5 hover:border-white/20 transition-colors flex flex-col gap-2"
+              className="h-auto flex-col items-stretch gap-2 rounded-xl bg-white/[0.03] border border-white/10 p-4 text-left hover:bg-white/5 hover:border-white/20"
             >
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-white">{s.setName}</span>
@@ -200,7 +208,7 @@ const QAuthorSetsPage = () => {
               <p className="text-xs text-gray-500">
                 Trận: <span className="font-mono text-gray-300">{s.matchCode ?? "— chưa gán —"}</span>
               </p>
-            </button>
+            </Button>
           ))}
         </div>
       )}

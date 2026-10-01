@@ -56,6 +56,7 @@ import CPlayerBar from "@/components/controller/CPlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
+import { Button } from "@/components/ui/button";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SVeDichPage } from "@/components/shared/SVeDichPage";
 
@@ -1246,22 +1247,24 @@ const PlayerVeDichChungView = () => {
             Chọn quyền năng ({powerWindowCountdown}s)
           </p>
           <div className="flex gap-4">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => void handleSelectPower("star")}
               disabled={currentPoints === 20}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all ${selectedPower === "star" ? "bg-yellow-500 text-blue-900 ring-2 ring-yellow-300" : "bg-yellow-500/20 text-yellow-300 border-2 border-yellow-500/50 hover:bg-yellow-500/40"} ${currentPoints === 20 ? "opacity-40 cursor-not-allowed" : ""}`}
+              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "star" ? "bg-yellow-500 text-blue-900 ring-2 ring-yellow-300" : "bg-yellow-500/20 text-yellow-300 border-2 border-yellow-500/50 hover:bg-yellow-500/40"} ${currentPoints === 20 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               <Star size={20} />
               <span>Ngôi Sao Hy Vọng</span>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => void handleSelectPower("shield")}
               disabled={currentPoints === 50}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all ${selectedPower === "shield" ? "bg-blue-500 text-blue-900 ring-2 ring-blue-300" : "bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40"} ${currentPoints === 50 ? "opacity-40 cursor-not-allowed" : ""}`}
+              className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "shield" ? "bg-blue-500 text-blue-900 ring-2 ring-blue-300" : "bg-blue-500/20 text-blue-300 border-2 border-blue-500/50 hover:bg-blue-500/40"} ${currentPoints === 50 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               <Shield size={20} />
               <span>Bảo Hộ Miễn Trừ</span>
-            </button>
+            </Button>
           </div>
           <p className="text-blue-300 text-sm">
             Chỉ được dùng 1 lần xuyên suốt VĐC & VĐR

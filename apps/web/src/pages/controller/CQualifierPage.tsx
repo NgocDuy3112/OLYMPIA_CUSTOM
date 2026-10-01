@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ListOrdered, Search, Trophy } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { getMatchCode } from "@/utils/storage";
 
 const logger = createLogger("CQualifierPage");
@@ -115,28 +117,30 @@ const CQualifierPage = () => {
         <ListOrdered size={20} /> Vòng loại — điều phối live
       </h1>
       <div className="flex gap-2">
-        <input
+        <Input
           value={tournamentCode}
           onChange={(e) => setTournamentCode(e.target.value)}
           placeholder="Mã giải đấu (VD: OC3_T_...)"
           className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
         />
-        <button
+        <Button
+          variant="default"
           onClick={() => void fetchAll()}
           disabled={loading || !tournamentCode.trim()}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-white"
         >
           <Search size={14} /> Tải
-        </button>
+        </Button>
       </div>
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
+          variant="default"
           onClick={() => void closeAll()}
           disabled={closingAll || openCount === 0}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm font-semibold text-white"
+          className="gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm font-semibold text-white"
         >
           {closingAll ? "Đang chốt…" : `Chốt + chấm ${openCount} câu mở`}
-        </button>
+        </Button>
       </div>
       <p className="text-xs text-gray-500">
         {loading

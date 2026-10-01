@@ -10,6 +10,9 @@ import { isoToLocalInput } from "@/components/admin/scheduleUtils";
 import { QuestionsCard } from "@/components/admin/QuestionsCard";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { EditMatchQuestionPanel, type MatchQuestionEditValue } from "@/components/admin/EditMatchQuestionPanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import type { MatchData, QuestionData } from "@/components/admin/gameTypes";
 
 const logger = createLogger("AdminSchedule");
@@ -436,20 +439,23 @@ const AdminGameManagingPage = () => {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button
+          <Button
+            size="icon"
+            variant="secondary"
             onClick={() => void fetchAll()}
             disabled={loading}
-            className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+            className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={handleNew}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm font-medium"
+            className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
           >
             <Plus size={15} /> Lên lịch
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -472,17 +478,16 @@ const AdminGameManagingPage = () => {
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
+          <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm mã / tên / nhãn / địa điểm…"
             className="w-full pl-8 pr-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
-        <select
+        <NativeSelect
           value={tournamentFilter}
           onChange={(e) => setTournamentFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm"
         >
           <option value="">Mọi giải đấu</option>
           {tournaments.map((t) => (
@@ -490,18 +495,20 @@ const AdminGameManagingPage = () => {
               {t.tournamentName}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         <div className="flex rounded-lg overflow-hidden border border-white/10 text-sm">
           {(["all", "live", "done"] as const).map((f) => (
-            <button
+            <Button
               key={f}
+              size="sm"
+              variant="ghost"
               onClick={() => setStatusFilter(f)}
-              className={`px-3 py-2 transition-colors ${
+              className={`rounded-none px-3 py-2 ${
                 statusFilter === f ? "bg-blue-600/30 text-blue-200" : "text-gray-500 hover:text-gray-300"
               }`}
             >
               {f === "all" ? "Tất cả" : f === "live" ? "Live" : "Xong"}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

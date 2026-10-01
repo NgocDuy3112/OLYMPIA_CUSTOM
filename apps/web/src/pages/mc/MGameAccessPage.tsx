@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { setMatchCode as persistMatchCode } from "@/utils/storage";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const MGameAccessPage: React.FC = () => {
   const [matchCode, setMatchCode] = useState("");
@@ -29,16 +31,16 @@ const MGameAccessPage: React.FC = () => {
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="block mb-1 font-medium">Mã trận đấu</label>
-            <input
+            <Input
               type="text"
               value={matchCode}
               onChange={(e) => setMatchCode(e.target.value)}
               className="w-full px-3 py-2 rounded bg-white text-black border border-(--oc-border) focus:outline-none focus:border-(--oc-border)"
             />
           </div>
-          <button type="submit" className="mt-4 btn-primary-full">
+          <Button type="submit" variant="default" className="btn-primary-full mt-4">
             Vào trận đấu
-          </button>
+          </Button>
         </form>
       </div>
     </div>

@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   ArrowLeft,
   Zap,
@@ -30,42 +39,42 @@ const ScoreTable: React.FC<{
   rows: { label: string; cells: { text: string; tone?: Tone }[] }[];
 }> = ({ headers, rows }) => (
   <div className="mt-4 overflow-x-auto rounded-xl border border-white/10 bg-[#171243]/60">
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-white/10 bg-blue-700/20">
+    <Table className="w-full text-sm">
+      <TableHeader>
+        <TableRow className="border-b border-white/10 bg-blue-700/20 hover:bg-transparent">
           {headers.map((h) => (
-            <th
+            <TableHead
               key={h}
-              className="whitespace-nowrap text-left py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-blue-300"
+              className="whitespace-nowrap py-2.5 px-4 text-xs font-semibold uppercase tracking-wider text-blue-300"
             >
               {h}
-            </th>
+            </TableHead>
           ))}
-        </tr>
-      </thead>
-      <tbody>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {rows.map((row) => (
-          <tr
+          <TableRow
             key={row.label}
-            className="border-b border-white/5 last:border-0 transition-colors hover:bg-white/5"
+            className="border-b border-white/5 last:border-0 hover:bg-white/5"
           >
-            <td className="py-2.5 px-4 font-medium text-white whitespace-nowrap">
+            <TableCell className="py-2.5 px-4 font-medium text-white whitespace-nowrap">
               {row.label}
-            </td>
+            </TableCell>
             {row.cells.map((cell, i) => (
-              <td
+              <TableCell
                 key={i}
                 className={`py-2.5 px-4 font-mono font-bold ${
                   TONE_CLASS[cell.tone ?? "neutral"]
                 }`}
               >
                 {cell.text}
-              </td>
+              </TableCell>
             ))}
-          </tr>
+          </TableRow>
         ))}
-      </tbody>
-    </table>
+      </TableBody>
+    </Table>
   </div>
 );
 
@@ -349,13 +358,14 @@ const RulesPage: React.FC = () => {
       <div className="max-w-5xl mx-auto">
         {/* Hero */}
         <div className="mb-8 sm:mb-10">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => navigate(-1)}
-            className="mb-5 flex cursor-pointer items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            className="mb-5 cursor-pointer gap-2 px-0 text-sm text-blue-400 hover:text-blue-300"
           >
             <ArrowLeft size={16} aria-hidden />
             <span>Quay lại</span>
-          </button>
+          </Button>
 
           <div className="card card-wide relative overflow-hidden p-6! sm:p-8!">
             <div
@@ -410,9 +420,10 @@ const RulesPage: React.FC = () => {
                   const active = activeId === section.id;
                   return (
                     <li key={section.id}>
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={() => scrollTo(section.id)}
-                        className={`flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                        className={`w-full cursor-pointer justify-start gap-2.5 rounded-lg px-3 py-2 text-sm ${
                           active
                             ? "bg-blue-600/25 font-medium text-white"
                             : "text-gray-300 hover:bg-white/5 hover:text-white"
@@ -424,7 +435,7 @@ const RulesPage: React.FC = () => {
                           aria-hidden
                         />
                         <span>{section.title}</span>
-                      </button>
+                      </Button>
                     </li>
                   );
                 })}
@@ -438,10 +449,11 @@ const RulesPage: React.FC = () => {
               {SECTIONS.map((section) => {
                 const active = activeId === section.id;
                 return (
-                  <button
+                  <Button
                     key={section.id}
+                    variant="ghost"
                     onClick={() => scrollTo(section.id)}
-                    className={`flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs transition-colors ${
+                    className={`cursor-pointer gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs ${
                       active
                         ? "border-blue-400/50 bg-blue-600/25 text-white"
                         : "border-white/10 bg-white/5 text-gray-300 hover:text-white"
@@ -449,7 +461,7 @@ const RulesPage: React.FC = () => {
                   >
                     <section.icon size={13} className="text-blue-400" aria-hidden />
                     {section.title}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

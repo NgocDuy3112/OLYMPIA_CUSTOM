@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
 import { setUserCode, setUserName, setUserRole } from "@/utils/storage";
+import { Button } from "@/components/ui/button";
 
 type AuthState = "loading" | "success" | "error";
 
@@ -85,12 +86,13 @@ const AuthCallbackPage: React.FC = () => {
             Đăng nhập thất bại
           </p>
           <p className="text-gray-400 text-sm mb-4">{error}</p>
-          <button
+          <Button
+            variant="default"
             onClick={() => navigate("/login")}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 touch-target"
+            className="bg-blue-600 text-white hover:bg-blue-700 touch-target"
           >
             Thử lại
-          </button>
+          </Button>
         </div>
       </div>
     );

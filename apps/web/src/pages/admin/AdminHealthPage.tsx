@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Activity, AlertTriangle, CheckCircle2, ExternalLink } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { Button } from "@/components/ui/button";
 
 const logger = createLogger("AdminHealthPage");
 
@@ -82,13 +83,14 @@ const AdminHealthPage = () => {
         <h1 className="flex items-center gap-2 text-xl font-bold text-white">
           <Activity size={20} className="text-blue-400" /> Sức khỏe hệ thống
         </h1>
-        <button
+        <Button
+          variant="default"
           onClick={() => void check()}
           disabled={checking}
-          className="px-3 py-1.5 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-xs text-white"
+          className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-xs text-white"
         >
           {checking ? "Đang kiểm tra…" : "Kiểm tra lại"}
-        </button>
+        </Button>
       </div>
 
       <div

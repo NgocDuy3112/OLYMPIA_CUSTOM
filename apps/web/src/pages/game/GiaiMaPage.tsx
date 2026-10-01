@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { Button } from "@/components/ui/button";
 import { usePlayerRound } from "@/hooks/usePlayerRound";
 import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { useRoleSession } from "@/hooks/useRoleSession";
@@ -995,8 +996,9 @@ const AdminGiaiMaView = () => {
       (state === "active" || state === "used") &&
       !!(hintContent?.text || hintContent?.mediaUrl);
     return (
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={state === "used" || disabled ? undefined : onClick}
         disabled={disabled && state !== "active"}
         className={`${base} ${styles[state]}`}
@@ -1018,21 +1020,22 @@ const AdminGiaiMaView = () => {
             {index}
           </span>
         )}
-      </button>
+      </Button>
     );
   };
 
   const clueGrid = (
     <div className="flex flex-col gap-2 sm:gap-3 w-full">
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={() => setKeywordPhaseActive((prev) => !prev)}
         className={`w-full rounded-xl px-3 sm:px-6 py-3 sm:py-6 text-center font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-5xl font-bold text-white uppercase shadow border-2 transition-colors duration-200 cursor-pointer select-none ${keywordPhaseActive ? "bg-blue-500 border-blue-300 ring-2 ring-blue-300" : "bg-blue-900 border-blue-600 hover:bg-blue-800"}`}
       >
         {keywordAnswerRevealed && keywordQuestion?.questionAnswer
           ? `${keywordQuestion.questionAnswer}`
           : keyInfo}
-      </button>
+      </Button>
       <div className="grid grid-cols-4 gap-2 sm:gap-3 w-full">
         {Array.from({ length: CLUE_COUNT }, (_, i) => (
           <AdminClueCard
@@ -1762,18 +1765,20 @@ const PlayerGiaiMaView = () => {
               "{keywordToConfirm}"
             </p>
             <div className="flex gap-4 justify-center">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => setShowKeywordConfirm(false)}
-                className="px-5 py-2 rounded-lg bg-slate-600 text-white font-bold hover:bg-slate-500"
+                className="bg-slate-600 text-white font-bold hover:bg-slate-500"
               >
                 HỦY
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="default"
                 onClick={() => void handleConfirmKeyword()}
-                className="px-5 py-2 rounded-lg bg-blue-500 text-white font-bold hover:bg-blue-400"
+                className="bg-blue-500 text-white font-bold hover:bg-blue-400"
               >
                 XÁC NHẬN
-              </button>
+              </Button>
             </div>
           </div>
         </div>

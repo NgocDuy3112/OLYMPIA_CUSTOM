@@ -11,6 +11,7 @@ import { API_BASE_URL } from "@/configs";
 import TournamentBracket from "@/components/admin/TournamentBracket";
 import QualifierManager from "@/components/admin/QualifierManager";
 import GroupStageManager from "@/components/admin/GroupStageManager";
+import { Button } from "@/components/ui/button";
 import {
   TournamentFormPanel,
   type TournamentFormValue,
@@ -131,12 +132,14 @@ const TournamentDetailPage: React.FC = () => {
       />
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <button
+        <Button
+          size="icon"
+          variant="ghost"
           onClick={() => navigate("/admin/tournaments")}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          className="hover:bg-white/10"
         >
           <ArrowLeft size={20} className="text-white" />
-        </button>
+        </Button>
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-bold text-white truncate">
@@ -152,41 +155,45 @@ const TournamentDetailPage: React.FC = () => {
             {tournament.tournamentCode}
           </p>
         </div>
-        <button
+        <Button
+          variant="secondary"
           onClick={() => setShowEdit(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors touch-target"
+          className="gap-2 bg-gray-600 hover:bg-gray-500 text-white touch-target"
         >
           <Edit size={16} />
           <span className="hidden sm:inline">Chỉnh sửa</span>
-        </button>
+        </Button>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 p-1 rounded-lg bg-white/5 border border-white/10 w-fit max-w-full overflow-x-auto">
-        <button
+        <Button
+          variant="ghost"
           onClick={() => setTab("qualifier")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`gap-1.5 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap ${
             tab === "qualifier" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"
           }`}
         >
           <ListChecks size={15} /> Vòng loại
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           onClick={() => setTab("groups")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`gap-1.5 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap ${
             tab === "groups" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"
           }`}
         >
           <GitBranch size={15} /> Vòng phân nhánh
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
           onClick={() => setTab("playoffs")}
-          className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+          className={`gap-1.5 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap ${
             tab === "playoffs" ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white"
           }`}
         >
           <Network size={15} /> Playoffs & Chung kết
-        </button>
+        </Button>
       </div>
 
       {tab === "qualifier" ? (

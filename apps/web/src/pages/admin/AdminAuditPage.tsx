@@ -3,6 +3,16 @@ import { RefreshCw, ScrollText } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { FilterSelect } from "@/components/shared/FilterSelect";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const logger = createLogger("AdminAuditPage");
 
@@ -72,14 +82,16 @@ const AdminAuditPage = () => {
           <ScrollText size={20} /> Nhật ký hệ thống
           <span className="font-mono text-sm font-normal text-gray-500">({total})</span>
         </h1>
-        <button
+        <Button
+          size="icon"
+          variant="secondary"
           onClick={() => void fetchLogs()}
           disabled={loading}
-          className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+          className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
           title="Làm mới"
         >
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -91,13 +103,13 @@ const AdminAuditPage = () => {
             </option>
           ))}
         </FilterSelect>
-        <input
+        <Input
           value={actor}
           onChange={(e) => setActor(e.target.value)}
           placeholder="Lọc actor code..."
           className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 text-sm font-mono"
         />
-        <input
+        <Input
           value={match}
           onChange={(e) => setMatch(e.target.value)}
           placeholder="Lọc match code..."
@@ -111,45 +123,45 @@ const AdminAuditPage = () => {
         ) : logs.length === 0 ? (
           <p className="text-gray-500 text-sm py-8 text-center">Chưa có log nào.</p>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-black/40 backdrop-blur">
-              <tr className="text-left text-gray-500 border-b border-white/10">
-                <th className="py-2 px-2 font-medium">Thời gian</th>
-                <th className="py-2 px-2 font-medium">Hành động</th>
-                <th className="py-2 px-2 font-medium">Actor</th>
-                <th className="py-2 px-2 font-medium">Match</th>
-                <th className="py-2 px-2 font-medium">Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow className="border-b border-white/10 hover:bg-transparent">
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Thời gian</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Hành động</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Actor</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Match</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Chi tiết</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {logs.map((log) => (
-                <tr
+                <TableRow
                   key={log.id}
-                  className="border-b border-white/5 hover:bg-white/5 transition-colors align-top"
+                  className="border-b border-white/5 hover:bg-white/5 align-top"
                 >
-                  <td className="py-2 px-2 text-xs text-gray-500 whitespace-nowrap">
+                  <TableCell className="py-2 px-2 text-xs text-gray-500 whitespace-nowrap">
                     {log.createdAt
                       ? new Date(log.createdAt).toLocaleString("vi-VN")
                       : "—"}
-                  </td>
-                  <td className="py-2 px-2">
+                  </TableCell>
+                  <TableCell className="py-2 px-2">
                     <span className="px-2 py-0.5 rounded bg-white/10 text-gray-300 text-xs font-mono font-bold">
                       {log.actionType}
                     </span>
-                  </td>
-                  <td className="py-2 px-2 font-mono text-xs text-gray-400">
+                  </TableCell>
+                  <TableCell className="py-2 px-2 font-mono text-xs text-gray-400">
                     {log.actorCode ?? "—"}
-                  </td>
-                  <td className="py-2 px-2 font-mono text-xs text-gray-400">
+                  </TableCell>
+                  <TableCell className="py-2 px-2 font-mono text-xs text-gray-400">
                     {log.matchCode ?? "—"}
-                  </td>
-                  <td className="py-2 px-2 text-xs text-gray-500 max-w-xs truncate">
+                  </TableCell>
+                  <TableCell className="py-2 px-2 text-xs text-gray-500 max-w-xs truncate">
                     {log.details ?? log.targetCode ?? "—"}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

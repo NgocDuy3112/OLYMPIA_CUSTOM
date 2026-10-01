@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, RefreshCw, Users } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   UserEditPanel,
   UserAddPanel,
@@ -297,23 +306,26 @@ const AdminUsersPage = () => {
           </FilterSelect>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="default"
             onClick={() => setShowAdd(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors text-sm font-medium"
+            className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
           >
             <Plus size={15} /> Thêm người dùng
-          </button>
-          <button
+          </Button>
+          <Button
+            size="icon"
+            variant="secondary"
             onClick={() => void fetchUsers()}
             disabled={usersLoading}
-            className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+            className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw
               size={16}
               className={usersLoading ? "animate-spin" : ""}
             />
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -321,12 +333,13 @@ const AdminUsersPage = () => {
         {fetchError ? (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-center">
             <p className="text-red-300 text-sm mb-3">{fetchError}</p>
-            <button
+            <Button
+              variant="destructive"
               onClick={() => void fetchUsers()}
-              className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-medium transition-colors"
+              className="bg-red-600 hover:bg-red-500 text-white text-sm font-medium"
             >
               Thử lại
-            </button>
+            </Button>
           </div>
         ) : usersLoading && users.length === 0 ? (
           <p className="text-gray-500 text-sm py-8 text-center">Đang tải…</p>
@@ -339,17 +352,17 @@ const AdminUsersPage = () => {
             </p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-black/40 backdrop-blur">
-              <tr className="text-left text-gray-500 border-b border-white/10">
-                <th className="py-2 px-2 font-medium">Mã người dùng</th>
-                <th className="py-2 px-2 font-medium">Tên người dùng</th>
-                <th className="py-2 px-2 font-medium">Email</th>
-                <th className="py-2 px-2 font-medium">Vai trò</th>
-                <th className="py-2 px-2"></th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow className="border-b border-white/10 hover:bg-transparent">
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Mã người dùng</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Tên người dùng</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Email</TableHead>
+                <TableHead className="py-2 px-2 font-medium text-gray-500">Vai trò</TableHead>
+                <TableHead className="py-2 px-2"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {users
                 .filter(
                   (u: UserData) =>
@@ -358,38 +371,38 @@ const AdminUsersPage = () => {
                 .slice()
                 .reverse()
                 .map((u: UserData) => (
-                  <tr
+                  <TableRow
                     key={u.user_code}
-                    className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                    className="border-b border-white/5 hover:bg-white/5"
                   >
-                    <td className="py-2 px-2 font-mono text-xs text-gray-300">
+                    <TableCell className="py-2 px-2 font-mono text-xs text-gray-300">
                       {u.user_code}
-                    </td>
-                    <td className="py-2 px-2 text-white">{u.user_name}</td>
-                    <td className="py-2 px-2 text-xs text-gray-400">
+                    </TableCell>
+                    <TableCell className="py-2 px-2 text-white">{u.user_name}</TableCell>
+                    <TableCell className="py-2 px-2 text-xs text-gray-400">
                       {u.email ?? (
                         <span className="text-gray-600 italic">—</span>
                       )}
-                    </td>
-                    <td className="py-2 px-2">
+                    </TableCell>
+                    <TableCell className="py-2 px-2">
                       <span className="capitalize text-gray-200">{u.role}</span>
                       {u.role === "operator" && u.operator_scopes && (
                         <span className="block text-[11px] text-gray-500 font-mono">
                           {u.operator_scopes}
                         </span>
                       )}
-                    </td>
-                    <td className="py-2 px-2 text-right">
+                    </TableCell>
+                    <TableCell className="py-2 px-2 text-right">
                       <UserRowActions
                         onEdit={() => setEditingUser(u)}
                         onChangeRole={() => setRoleUser(u)}
                         onDelete={() => setDeleteTarget(u)}
                       />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
     </div>

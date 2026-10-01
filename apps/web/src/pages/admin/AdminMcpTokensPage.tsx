@@ -2,6 +2,17 @@ import { useCallback, useEffect, useState } from "react";
 import { KeyRound, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const logger = createLogger("AdminMcpTokensPage");
 
@@ -131,14 +142,16 @@ const AdminMcpTokensPage = () => {
           <KeyRound size={20} /> MCP Tokens
           <span className="font-mono text-sm font-normal text-gray-500">({tokens.length})</span>
         </h1>
-        <button
+        <Button
+          size="icon"
+          variant="secondary"
           onClick={() => void fetchTokens()}
           disabled={loading}
-          className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+          className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
           title="Làm mới"
         >
           <RefreshCw size={18} className={loading ? "animate-spin" : ""} />
-        </button>
+        </Button>
       </div>
 
       <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3">
@@ -148,7 +161,7 @@ const AdminMcpTokensPage = () => {
         <div className="flex flex-wrap gap-3 items-end">
           <label className="flex flex-col gap-1 text-sm">
             Tên (ai dùng)
-            <input
+            <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="vd qauthor-a"
@@ -157,10 +170,10 @@ const AdminMcpTokensPage = () => {
           </label>
           <label className="flex flex-col gap-1 text-sm">
             Identity (userCode — role operator/admin)
-            <select
+            <NativeSelect
               value={userCode}
               onChange={(e) => setUserCode(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 outline-none focus:border-blue-500 min-w-64"
+              className="min-w-64"
             >
               <option value="">— chọn user —</option>
               {identities.map((id) => (
@@ -168,15 +181,16 @@ const AdminMcpTokensPage = () => {
                   {id.userName} · {id.userCode} · {id.role}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
-          <button
+          <Button
+            variant="default"
             onClick={() => void createToken()}
             disabled={!name.trim() || !userCode}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition-colors"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50"
           >
             Cấp
-          </button>
+          </Button>
         </div>
         {identities.length === 0 && (
           <p className="text-xs text-yellow-400/80">
@@ -193,60 +207,63 @@ const AdminMcpTokensPage = () => {
               <code className="flex-1 break-all font-mono text-xs bg-black/40 rounded px-2 py-2">
                 {freshToken}
               </code>
-              <button
+              <Button
+                variant="default"
                 onClick={() => void copyToken()}
-                className="px-3 py-2 rounded-lg bg-green-700 hover:bg-green-600 text-sm"
+                className="bg-green-700 hover:bg-green-600 text-sm"
               >
                 Copy
-              </button>
+              </Button>
             </div>
           </div>
         )}
       </div>
 
       <div className="rounded-xl bg-white/5 border border-white/10 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-400 border-b border-white/10">
-              <th className="px-3 py-2">Tên</th>
-              <th className="px-3 py-2">Identity</th>
-              <th className="px-3 py-2">Người cấp</th>
-              <th className="px-3 py-2">Ngày cấp</th>
-              <th className="px-3 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="w-full text-sm">
+          <TableHeader>
+            <TableRow className="border-b border-white/10 hover:bg-transparent">
+              <TableHead className="px-3 py-2 text-gray-400">Tên</TableHead>
+              <TableHead className="px-3 py-2 text-gray-400">Identity</TableHead>
+              <TableHead className="px-3 py-2 text-gray-400">Người cấp</TableHead>
+              <TableHead className="px-3 py-2 text-gray-400">Ngày cấp</TableHead>
+              <TableHead className="px-3 py-2"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {tokens.map((t) => (
-              <tr key={t.name} className="border-b border-white/5 hover:bg-white/5">
-                <td className="px-3 py-2 font-mono">{t.name}</td>
-                <td className="px-3 py-2 font-mono text-xs">
+              <TableRow key={t.name} className="border-b border-white/5 hover:bg-white/5">
+                <TableCell className="px-3 py-2 font-mono">{t.name}</TableCell>
+                <TableCell className="px-3 py-2 font-mono text-xs">
                   {t.userCode}
                   <span className="text-gray-500"> · {identityLabel(t.userCode)}</span>
-                </td>
-                <td className="px-3 py-2 font-mono text-xs">{t.createdBy ?? "-"}</td>
-                <td className="px-3 py-2 font-mono text-xs">
+                </TableCell>
+                <TableCell className="px-3 py-2 font-mono text-xs">{t.createdBy ?? "-"}</TableCell>
+                <TableCell className="px-3 py-2 font-mono text-xs">
                   {t.createdAt ? new Date(t.createdAt).toLocaleString("vi-VN") : "-"}
-                </td>
-                <td className="px-3 py-2 text-right">
-                  <button
+                </TableCell>
+                <TableCell className="px-3 py-2 text-right">
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
                     onClick={() => void revokeToken(t.name)}
-                    className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10"
+                    className="text-red-400 hover:bg-red-500/10"
                     title="Thu hồi"
                   >
                     <Trash2 size={16} />
-                  </button>
-                </td>
-              </tr>
+                  </Button>
+                </TableCell>
+              </TableRow>
             ))}
             {tokens.length === 0 && !loading && (
-              <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-gray-500">
+              <TableRow>
+                <TableCell colSpan={5} className="px-3 py-6 text-center text-gray-500">
                   Chưa có token nào
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

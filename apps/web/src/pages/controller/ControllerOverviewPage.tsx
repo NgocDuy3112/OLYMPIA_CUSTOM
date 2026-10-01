@@ -6,6 +6,8 @@ import { createLogger } from "@/utils/logger";
 import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { OVERLAYS, overlayUrl } from "@/pages/overlay/overlayList";
 import { MatchSetPicker } from "@/components/controller/MatchSetPicker";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const logger = createLogger("ControllerOverviewPage");
 
@@ -105,26 +107,28 @@ const ControllerOverviewPage = () => {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold text-white">Tổng quan live</h1>
       <div className="flex gap-2">
-        <input
+        <Input
           value={matchCode}
           onChange={(e) => setCode(e.target.value)}
           placeholder="Mã trận đấu"
           className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
         />
-        <button
+        <Button
+          variant="default"
           onClick={() => void fetchStats()}
           disabled={loading || !matchCode.trim()}
-          className="flex items-center gap-1 px-3 py-2 rounded-lg bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-white"
+          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-white"
         >
           <Search size={14} /> Tải
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="default"
           onClick={enterLive}
           disabled={!matchCode.trim()}
-          className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 disabled:opacity-50 text-sm font-semibold text-white"
+          className="gap-1 bg-green-600 hover:bg-green-500 disabled:opacity-50 text-sm font-semibold text-white"
         >
           <Play size={14} /> Vào live
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
@@ -160,17 +164,18 @@ const ControllerOverviewPage = () => {
             <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-300">
               <Monitor size={15} className="text-blue-400" /> Overlay lên sóng
             </h2>
-            <button
+            <Button
+              variant="ghost"
               onClick={() =>
                 window.open(
                   `${window.location.origin}/overlay/${encodeURIComponent(matchCode.trim())}`,
                   "_blank",
                 )
               }
-              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"
+              className="gap-1 px-0 text-xs text-blue-400 hover:text-blue-300"
             >
               Trang preview <ExternalLink size={12} />
-            </button>
+            </Button>
           </div>
           <p className="text-[11px] text-gray-500">
             Nhập mã trận ở trên là ra URL — paste vào OBS làm Browser Source, không cần gõ tay.
@@ -190,14 +195,16 @@ const ControllerOverviewPage = () => {
                   <code className="flex-1 min-w-0 truncate text-[11px] font-mono text-gray-500">
                     {url}
                   </code>
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="xs"
                     onClick={() => void copyOverlayUrl(o.id, url)}
-                    className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs transition-colors"
+                    className="shrink-0 gap-1 bg-white/10 hover:bg-white/15 text-xs"
                     title="Copy URL cho OBS"
                   >
                     {copied ? <Check size={13} className="text-green-400" /> : <Copy size={13} />}
                     {copied ? "Đã copy" : "Copy"}
-                  </button>
+                  </Button>
                 </div>
               );
             })}

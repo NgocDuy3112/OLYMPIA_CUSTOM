@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
 import { API_BASE_URL } from "@/configs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 type StaffMode = "admin" | "operator";
 
@@ -70,14 +72,14 @@ const StaffLoginPage: React.FC<{ mode: StaffMode }> = ({ mode }) => {
         <BaseAuthLayout title="OLYMPIA CUSTOM" subtitle={copy.subtitle}>
             <div className="flex flex-col gap-4 items-center">
                 <form onSubmit={(e) => void handleStaffLogin(e)} className="flex flex-col gap-3 w-full">
-                    <input
+                    <Input
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder={copy.placeholder}
                         required
                         className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
                     />
-                    <input
+                    <Input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -87,13 +89,14 @@ const StaffLoginPage: React.FC<{ mode: StaffMode }> = ({ mode }) => {
                         className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
                     />
                     {error && <p className="text-xs text-red-400">{error}</p>}
-                    <button
+                    <Button
                         type="submit"
+                        variant="default"
                         disabled={loading}
-                        className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                        className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium"
                     >
                         {loading ? "Đang đăng nhập..." : copy.button}
-                    </button>
+                    </Button>
                 </form>
             </div>
         </BaseAuthLayout>

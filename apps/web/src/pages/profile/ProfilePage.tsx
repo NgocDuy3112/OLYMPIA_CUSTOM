@@ -4,6 +4,7 @@ import { Pencil, LogOut, Trophy, Camera } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { PublicLayout } from "@/components/layout";
 import { Button, Card, PageLoading } from "@/components/shared/ui";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 
 interface MeProfile {
@@ -200,7 +201,7 @@ const ProfilePage: React.FC = () => {
             </div>
             <div className="flex-1 min-w-0">
               {editing ? (
-                <input
+                <Input
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-lg font-bold"
@@ -277,10 +278,11 @@ const ProfilePage: React.FC = () => {
           ) : (
             <div className="flex flex-col gap-2 mt-3">
               {tournaments.map((t) => (
-                <button
+                <Button
+                  variant="ghost"
                   key={t.tournamentCode}
                   onClick={() => navigate(`/tournament/${t.tournamentCode}`)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-left cursor-pointer"
+                  className="h-auto items-center gap-3 bg-white/5 px-3 py-2.5 text-left hover:bg-white/10"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-white truncate">
@@ -295,7 +297,7 @@ const ProfilePage: React.FC = () => {
                     {t.role}
                     {t.groupNumber ? ` · ${t.groupNumber}` : ""}
                   </span>
-                </button>
+                </Button>
               ))}
             </div>
           )}

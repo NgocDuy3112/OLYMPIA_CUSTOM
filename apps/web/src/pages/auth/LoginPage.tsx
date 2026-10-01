@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
 import { API_BASE_URL } from "@/configs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -41,7 +43,7 @@ const LoginPage: React.FC = () => {
     <BaseAuthLayout title="OLYMPIA CUSTOM" subtitle="Đăng nhập">
       <div className="flex flex-col gap-4 items-center">
         <form onSubmit={(e) => void handlePlayerLogin(e)} className="flex flex-col gap-3 w-full">
-            <input
+            <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -49,7 +51,7 @@ const LoginPage: React.FC = () => {
               required
               className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
             />
-            <input
+            <Input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -59,18 +61,20 @@ const LoginPage: React.FC = () => {
               className="px-4 py-2.5 rounded-lg bg-white/10 border border-gray-600 text-white placeholder-gray-400 text-sm"
             />
             {error && <p className="text-xs text-red-400">{error}</p>}
-            <button
+            <Button
               type="submit"
+              variant="default"
               disabled={loading}
-              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+              className="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-sm font-medium"
             >
               {loading ? "Đang đăng nhập..." : "Đăng nhập"}
-            </button>
+            </Button>
           </form>
 
-        <button
+        <Button
+          variant="ghost"
           onClick={handleGoogleLogin}
-            className="flex items-center gap-3 px-6 py-3 bg-white text-gray-800 font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 w-full justify-center touch-target"
+          className="w-full touch-target justify-center gap-3 rounded-lg bg-white px-6 py-3 font-semibold text-gray-800 shadow-md transition-all duration-200 hover:scale-105 hover:bg-white hover:shadow-lg"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24">
               <path
@@ -91,7 +95,7 @@ const LoginPage: React.FC = () => {
               />
             </svg>
             Đăng nhập với Google
-          </button>
+          </Button>
 
         <div className="w-full border-t border-gray-600 my-2" />
 

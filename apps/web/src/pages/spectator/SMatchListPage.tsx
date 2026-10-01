@@ -3,6 +3,7 @@ import { API_BASE_URL } from "@/configs";
 import { PublicLayout } from "@/components/layout";
 import { TournamentCard } from "@/components/tournament";
 import { PageLoading } from "@/components/shared/ui";
+import { Button } from "@/components/ui/button";
 
 interface Tournament {
   id: string;
@@ -61,12 +62,13 @@ const SMatchListPage: React.FC = () => {
         <div className="flex justify-center items-center p-4">
           <div className="card text-center w-full max-w-md">
             <p className="text-red-500 mb-4">{error}</p>
-            <button
+            <Button
+              variant="default"
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+              className="bg-blue-600 text-white"
             >
               Thử lại
-            </button>
+            </Button>
           </div>
         </div>
       </PublicLayout>

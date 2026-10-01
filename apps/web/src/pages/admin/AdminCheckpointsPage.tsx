@@ -2,6 +2,16 @@ import { useCallback, useState } from "react";
 import { DatabaseBackup, RefreshCw, RotateCcw } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const logger = createLogger("AdminCheckpointsPage");
 
@@ -76,28 +86,31 @@ const AdminCheckpointsPage = () => {
       </h1>
 
       <div className="flex gap-2">
-        <input
+        <Input
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Nhập match code..."
           className="flex-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 font-mono text-sm"
         />
-        <button
+        <Button
+          size="icon"
+          variant="secondary"
           onClick={() => void fetchCheckpoints()}
           disabled={loading || !matchCode.trim()}
-          className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 transition-colors"
+          className="bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50"
           title="Tải checkpoints"
         >
           <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="default"
           onClick={() => void handleRestore()}
           disabled={restoring || !matchCode.trim() || checkpoints.length === 0}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+          className="gap-2 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 font-semibold text-sm"
         >
           <RotateCcw size={16} />
           {restoring ? "Đang khôi phục…" : "Khôi phục"}
-        </button>
+        </Button>
       </div>
 
       {checkpoints.length === 0 ? (
@@ -106,38 +119,38 @@ const AdminCheckpointsPage = () => {
           mới nhất.
         </p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-gray-500 border-b border-white/10">
-              <th className="py-2 px-2 font-medium">ID</th>
-              <th className="py-2 px-2 font-medium">Match</th>
-              <th className="py-2 px-2 font-medium">Thời gian</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="w-full text-sm">
+          <TableHeader>
+            <TableRow className="border-b border-white/10 hover:bg-transparent">
+              <TableHead className="py-2 px-2 font-medium text-gray-500">ID</TableHead>
+              <TableHead className="py-2 px-2 font-medium text-gray-500">Match</TableHead>
+              <TableHead className="py-2 px-2 font-medium text-gray-500">Thời gian</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {checkpoints.map((c, idx) => (
-              <tr
+              <TableRow
                 key={c.id}
-                className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                className="border-b border-white/5 hover:bg-white/5"
               >
-                <td className="py-2 px-2 font-mono text-xs text-gray-300">
+                <TableCell className="py-2 px-2 font-mono text-xs text-gray-300">
                   {c.id.slice(0, 8)}…
                   {idx === 0 && (
                     <span className="ml-2 px-2 py-0.5 rounded bg-green-600/20 text-green-300 text-[11px] font-bold">
                       MỚI NHẤT
                     </span>
                   )}
-                </td>
-                <td className="py-2 px-2 font-mono text-xs text-gray-400">{c.matchCode}</td>
-                <td className="py-2 px-2 text-xs text-gray-500">
+                </TableCell>
+                <TableCell className="py-2 px-2 font-mono text-xs text-gray-400">{c.matchCode}</TableCell>
+                <TableCell className="py-2 px-2 text-xs text-gray-500">
                   {c.createdAt
                     ? new Date(c.createdAt).toLocaleString("vi-VN")
                     : "—"}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
     </div>
   );

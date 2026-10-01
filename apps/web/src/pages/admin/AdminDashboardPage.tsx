@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
+import { Button } from "@/components/ui/button";
 
 const logger = createLogger("AdminDashboardPage");
 
@@ -86,9 +87,10 @@ const StatCard = ({
   sub?: string;
   onClick?: () => void;
 }) => (
-  <button
+  <Button
+    variant="ghost"
     onClick={onClick}
-    className="text-left rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-1 hover:bg-white/10 transition-colors"
+    className="h-auto flex-col items-start gap-1 rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10"
   >
     <div className="flex items-center gap-2 text-gray-400 text-xs font-medium uppercase tracking-wide">
       {icon}
@@ -96,7 +98,7 @@ const StatCard = ({
     </div>
     <p className="text-2xl font-bold text-white">{value}</p>
     {sub && <p className="text-xs text-gray-500">{sub}</p>}
-  </button>
+  </Button>
 );
 
 const BarRow = ({ label, value, max, color }: { label: string; value: number; max: number; color: string }) => (
@@ -119,16 +121,17 @@ const QuickAction = ({
   desc: string;
   onClick: () => void;
 }) => (
-  <button
+  <Button
+    variant="ghost"
     onClick={onClick}
-    className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3 hover:bg-white/10 hover:border-blue-500/50 transition-colors text-left"
+    className="h-auto items-center gap-3 rounded-xl bg-white/5 border border-white/10 p-3 hover:bg-white/10 hover:border-blue-500/50 text-left"
   >
     <span className="p-2 rounded-lg bg-blue-600/20 text-blue-300">{icon}</span>
     <span>
       <span className="block text-sm font-semibold text-white">{label}</span>
       <span className="block text-xs text-gray-500">{desc}</span>
     </span>
-  </button>
+  </Button>
 );
 
 /** Tổng quan vận hành cho admin: số liệu + việc cần làm + lối tắt. */
@@ -278,14 +281,15 @@ const AdminDashboardPage = () => {
             Tổng quan vận hành — số liệu trực tiếp từ API.
           </p>
         </div>
-        <button
+        <Button
+          variant="secondary"
           onClick={() => void fetchAll()}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 text-sm"
+          className="gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 text-sm"
         >
           <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
           {loading ? "Đang tải…" : "Làm mới"}
-        </button>
+        </Button>
       </div>
 
       {/* Việc cần làm */}
@@ -294,13 +298,14 @@ const AdminDashboardPage = () => {
           <p className="text-sm font-semibold text-amber-300 mb-2">Cần xử lý</p>
           <div className="flex flex-wrap gap-2">
             {needsAttention.map((n) => (
-              <button
+              <Button
                 key={n.label}
+                variant="secondary"
                 onClick={() => navigate(n.path)}
-                className="px-3 py-1.5 rounded-lg bg-amber-600/20 border border-amber-500/40 text-amber-200 text-sm hover:bg-amber-600/30 transition-colors"
+                className="bg-amber-600/20 border border-amber-500/40 text-amber-200 text-sm hover:bg-amber-600/30"
               >
                 {n.label} →
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -404,12 +409,13 @@ const AdminDashboardPage = () => {
         <div className="rounded-xl bg-white/5 border border-white/10 p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-semibold text-gray-300">Trận gần đây</p>
-            <button
+            <Button
+              variant="ghost"
               onClick={() => navigate("/admin/game-managing")}
-              className="text-xs text-blue-400 hover:text-blue-300"
+              className="px-0 text-xs text-blue-400 hover:text-blue-300"
             >
               Xem tất cả →
-            </button>
+            </Button>
           </div>
           {recentMatches.length === 0 ? (
             <p className="text-xs text-gray-500">Chưa có trận nào.</p>
@@ -442,14 +448,15 @@ const AdminDashboardPage = () => {
               <p className="text-sm font-semibold text-gray-300 mt-4 mb-2">Giải gần đây</p>
               <div className="flex flex-col gap-1.5">
                 {recentTournaments.map((t) => (
-                  <button
+                  <Button
                     key={t.id}
+                    variant="ghost"
                     onClick={() => navigate(`/admin/tournaments/${t.tournamentCode}`)}
-                    className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 text-left"
+                    className="h-auto justify-between gap-2 px-2 py-1.5 text-left"
                   >
                     <span className="text-sm text-white truncate">{t.tournamentName}</span>
                     <span className="shrink-0 text-[11px] text-gray-500">{t.status}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             </>
@@ -462,12 +469,13 @@ const AdminDashboardPage = () => {
             <p className="text-sm font-semibold text-gray-300 flex items-center gap-1.5">
               <ScrollText size={14} /> Nhật ký ({state.totalLogs})
             </p>
-            <button
+            <Button
+              variant="ghost"
               onClick={() => navigate("/admin/audit")}
-              className="text-xs text-blue-400 hover:text-blue-300"
+              className="px-0 text-xs text-blue-400 hover:text-blue-300"
             >
               Xem tất cả →
-            </button>
+            </Button>
           </div>
           {state.recentLogs.length === 0 ? (
             <p className="text-xs text-gray-500">Chưa có log nào.</p>
