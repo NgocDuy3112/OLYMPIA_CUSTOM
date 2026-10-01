@@ -516,7 +516,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 variant="default"
                       onClick={() => void searchBank()}
                       disabled={bankLoading}
-                      className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 text-sm"
+                      className="disabled:opacity-50 text-sm"
                     >
                       <Search size={14} /> Tìm
                     </InputGroupButton>

@@ -336,9 +336,11 @@ export const MatchTab = () => {
         onConfirm={confirmPickGmSet}
       />
 
-      <div className="bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
-        <div className="flex gap-2">
-          <InputGroup className="h-9 flex-1">
+      {/* Header: tiêu đề + mã trận + thao tác — thay box input trống chiếm chỗ */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-bold text-foreground">Câu hỏi trận</h1>
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-none sm:justify-end">
+          <InputGroup className="h-9 min-w-0 flex-1 sm:w-80 sm:flex-none">
             <InputGroupInput
               value={matchCode}
               onChange={(e) => setMatchCode(e.target.value)}
@@ -350,7 +352,7 @@ export const MatchTab = () => {
                 variant="default"
                 onClick={() => void fetchQuestions()}
                 disabled={loading || !matchCode.trim()}
-                className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
+                className="disabled:opacity-50 text-sm font-medium"
               >
                 <Search size={14} /> {loading ? "Đang tải…" : "Tải"}
               </InputGroupButton>
@@ -360,7 +362,7 @@ export const MatchTab = () => {
             variant="default"
             onClick={() => setShowCreate(true)}
             disabled={!matchCode.trim()}
-            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
+            className="gap-1 disabled:opacity-50 text-sm font-medium"
             title="Soạn câu tay trong sidebar phải"
           >
             <Plus size={14} /> Soạn câu
@@ -368,186 +370,269 @@ export const MatchTab = () => {
         </div>
       </div>
 
-      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-success uppercase tracking-wide">
+      <div className="flex flex-col gap-4 rounded-xl border border-border bg-accent/50 p-5">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-success">
           Pick từ bank vào trận (theo slot)
         </h3>
-        <div className="flex gap-1.5 flex-wrap">
-          {ROUND_TABS.map((t) => {
-            const prog = roundProgress(t.id);
-            const [done, total] = prog.split("/");
-            return (
-              <Button
-                key={t.id}
-                variant="ghost"
-                onClick={() => { setPickRound(t.id); setSelSlot(null); }}
-                className={`px-3 py-1.5 text-xs font-medium ${
-                  pickRound === t.id ? "bg-success/20 text-success" : "text-muted-foreground hover:text-foreground bg-accent/50"
-                }`}
-              >
-                {t.label} <span className={`font-mono ${done === total && total !== "0" ? "text-success" : "opacity-70"}`}>{prog}</span>
-              </Button>
-            );
-          })}
-        </div>
-        {pickRound === "KDR" && (
-          <p className="text-xs text-muted-foreground">Lượt i = thí sinh vị trí i trong trận (tự map lúc pick).</p>
-        )}
-        {(pickRound === "KDR" || pickRound === "VD" ? (
-          pickRound === "KDR"
-            ? [1, 2, 3, 4].map((t) => ({ label: `Lượt ${t}`, slots: slotsFor(pickRound).filter((s) => s.startsWith(`KDR${t}_`)) }))
-            : ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"].map((d) => ({ label: d, slots: slotsFor(pickRound).filter((s) => s.startsWith(`VD_${d}_`)) }))
-        ) : (
-          [{ label: "", slots: slotsFor(pickRound) }]
-        )).map((grp) => (
-          <div key={grp.label || "all"} className="flex flex-col gap-1.5">
-            {grp.label && <p className="text-xs font-semibold text-muted-foreground">{grp.label}</p>}
+
+        <div className="grid grid-cols-1 gap-x-8 gap-y-5 lg:grid-cols-2">
+          {/* TRÁI — vòng thi + lưới slot + chi tiết slot */}
+          <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-wrap gap-1.5">
-              {grp.slots.map((s) => {
-            const filled = questions.find((q) => q.slot === s);
-            const active = selSlot === s;
-            const short = s.startsWith("KDR")
-              ? `L${s[3]}·${s.slice(5)}`
-              : s.replace(/^(KDC_|GM_|BP_|VD_)/, "");
-            return (
-              <Button
-                key={s}
-                variant="ghost"
-                onClick={() => setSelSlot(active ? null : s)}
-                title={filled ? filled.question_code : s}
-                className={`font-mono text-xs border ${
-                  filled
-                    ? "bg-success/20 border-success text-success"
-                    : active
-                      ? "bg-primary/30 border-primary text-brand"
-                      : "bg-accent/50 border-border text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {short}
-              </Button>
-            );
-          })}
+              {ROUND_TABS.map((t) => {
+                const prog = roundProgress(t.id);
+                const [done, total] = prog.split("/");
+                return (
+                  <Button
+                    key={t.id}
+                    variant="ghost"
+                    onClick={() => {
+                      setPickRound(t.id);
+                      setSelSlot(null);
+                    }}
+                    className={`px-3 py-1.5 text-xs font-medium ${
+                      pickRound === t.id
+                        ? "bg-success/20 text-success"
+                        : "bg-accent/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t.label}{" "}
+                    <span
+                      className={`font-mono ${done === total && total !== "0" ? "text-success" : "opacity-70"}`}
+                    >
+                      {prog}
+                    </span>
+                  </Button>
+                );
+              })}
             </div>
-          </div>
-        ))}
-        {/* Chi tiết slot đang chọn — thay cho box "Danh sách" cũ */}
-        {selSlot &&
-          (() => {
-            const filled = questions.find((q) => q.slot === selSlot);
-            if (!filled) {
-              return (
-                <p className="text-xs text-muted-foreground">
-                  Slot <span className="font-mono text-brand">{selSlot}</span> trống — tìm bank
-                  bên dưới rồi bấm &quot;Vào {selSlot}&quot;.
-                </p>
-              );
-            }
-            return (
-              <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-mono text-xs text-success">
-                    {filled.slot} · {filled.question_code}
-                  </p>
-                  <p className="text-sm text-foreground">{filled.content}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Đáp án:{" "}
-                    <span className="font-semibold text-foreground">{filled.answer}</span>
-                  </p>
-                </div>
-                <Button
-                  size="xs"
-                  variant="destructive"
-                  onClick={() => setDeleting(filled)}
-                  className="shrink-0"
-                >
-                  Gỡ khỏi slot
-                </Button>
-              </div>
-            );
-          })()}
-        {/* Câu chưa xếp slot (soạn tay) — chỉ hiển thị, không sửa/xoá ở tab này */}
-        {questions.some((q) => !q.slot) && (
-          <div className="rounded-lg border border-border bg-background/40 p-3 flex flex-col gap-1">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-              Chưa xếp ({questions.filter((q) => !q.slot).length})
-            </p>
-            {questions
-              .filter((q) => !q.slot)
-              .map((q) => (
-                <p key={q.question_code} className="text-sm truncate">
-                  <span className="font-mono text-xs text-success">{q.question_code}</span>{" "}
-                  <span className="text-foreground">{q.content}</span>
-                </p>
-              ))}
-          </div>
-        )}
-        {pickRound === "GM" && (
-          <p className="text-xs text-muted-foreground">
-            Chọn dòng KEY bên dưới rồi Pick cả set (chặn cứng nếu set thiếu 1 KEY + 8 hint đã duyệt).
-          </p>
-        )}
-        <InputGroup className="h-9">
-          <InputGroupInput
-            value={bankQuery}
-            onChange={(e) => setBankQuery(e.target.value)}
-            placeholder={selSlot ? `Tìm bank cho slot ${selSlot}…` : "Chọn slot trước, rồi tìm bank…"}
-            className="text-sm"
-          />
-          <InputGroupAddon align="inline-end">
-            <InputGroupButton
-                variant="default"
-              onClick={() => void fetchBank()}
-              disabled={bankLoading}
-              className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm"
-            >
-              <Search size={14} /> Tìm
-            </InputGroupButton>
-          </InputGroupAddon>
-        </InputGroup>
-        {bankLoading ? (
-          <p className="text-muted-foreground text-sm">Đang tải bank đã duyệt…</p>
-        ) : bankQuestions.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {selSlot
-              ? `Chưa có bank khớp ${selSlot} — thử từ khóa khác hoặc chọn slot khác.`
-              : "Chọn 1 slot trống rồi bấm Tìm để xem bank đã duyệt."}
-          </p>
-        ) : null}
-        {bankQuestions.map((q) => {
-          const added = addedCodes.has(q.bank_code);
-          const adding = addingId === q.bank_code;
-          return (
-            <div key={q.bank_id} className="flex items-center gap-2 text-sm">
-              <p className="flex-1 truncate">
-                <span className="font-mono text-xs text-success">{q.bank_code}</span>{" "}
-                <span className="text-foreground">{q.content}</span>
-                {q.hint_index && <span className="ml-1 font-mono text-xs text-warning">· {q.hint_index}</span>}
-                {q.domain && <span className="ml-1 font-mono text-xs text-brand">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>}
+            {pickRound === "KDR" && (
+              <p className="text-xs text-muted-foreground">
+                Lượt i = thí sinh vị trí i trong trận (tự map lúc pick).
               </p>
-              {pickRound === "GM" && q.hint_index === "KEY" && (
-                <Button
-                  size="xs"
-                  variant="secondary"
-                  onClick={() => setPendingGmSet(q)}
-                  disabled={adding}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
+            )}
+            {(pickRound === "KDR" || pickRound === "VD"
+              ? pickRound === "KDR"
+                ? [1, 2, 3, 4].map((t) => ({
+                    label: `Lượt ${t}`,
+                    slots: slotsFor(pickRound).filter((s) =>
+                      s.startsWith(`KDR${t}_`),
+                    ),
+                  }))
+                : ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"].map((d) => ({
+                    label: d,
+                    slots: slotsFor(pickRound).filter((s) =>
+                      s.startsWith(`VD_${d}_`),
+                    ),
+                  }))
+              : [{ label: "", slots: slotsFor(pickRound) }]
+            ).map((grp) => (
+              <div key={grp.label || "all"} className="flex flex-col gap-1.5">
+                {grp.label && (
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {grp.label}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {grp.slots.map((s) => {
+                    const filled = questions.find((q) => q.slot === s);
+                    const active = selSlot === s;
+                    const short = s.startsWith("KDR")
+                      ? `L${s[3]}·${s.slice(5)}`
+                      : s.replace(/^(KDC_|GM_|BP_|VD_)/, "");
+                    return (
+                      <Button
+                        key={s}
+                        variant="ghost"
+                        onClick={() => setSelSlot(active ? null : s)}
+                        title={filled ? filled.question_code : s}
+                        className={`border font-mono text-xs ${
+                          filled
+                            ? "border-success bg-success/20 text-success"
+                            : active
+                              ? "border-primary bg-primary/30 text-brand"
+                              : "border-border bg-accent/50 text-muted-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {short}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {/* Chi tiết slot đang chọn */}
+            {selSlot &&
+              (() => {
+                const filled = questions.find((q) => q.slot === selSlot);
+                if (!filled) {
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      Slot{" "}
+                      <span className="font-mono text-brand">{selSlot}</span>{" "}
+                      trống — tìm trong Bank đã duyệt rồi bấm &quot;Vào{" "}
+                      {selSlot}&quot;.
+                    </p>
+                  );
+                }
+                return (
+                  <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-xs text-success">
+                        {filled.slot} · {filled.question_code}
+                      </p>
+                      <p className="text-sm text-foreground">{filled.content}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Đáp án:{" "}
+                        <span className="font-semibold text-foreground">
+                          {filled.answer}
+                        </span>
+                      </p>
+                    </div>
+                    <Button
+                      size="xs"
+                      variant="destructive"
+                      onClick={() => setDeleting(filled)}
+                      className="shrink-0"
+                    >
+                      Gỡ khỏi slot
+                    </Button>
+                  </div>
+                );
+              })()}
+            {/* Câu chưa xếp slot (soạn tay) */}
+            {questions.some((q) => !q.slot) && (
+              <div className="flex flex-col gap-1 rounded-lg border border-border bg-background/40 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Chưa xếp ({questions.filter((q) => !q.slot).length})
+                </p>
+                {questions
+                  .filter((q) => !q.slot)
+                  .map((q) => (
+                    <p key={q.question_code} className="truncate text-sm">
+                      <span className="font-mono text-xs text-success">
+                        {q.question_code}
+                      </span>{" "}
+                      <span className="text-foreground">{q.content}</span>
+                    </p>
+                  ))}
+              </div>
+            )}
+            {pickRound === "GM" && (
+              <p className="text-xs text-muted-foreground">
+                Chọn dòng KEY ở cột Bank rồi Pick cả set (chặn cứng nếu set thiếu
+                1 KEY + 8 hint đã duyệt).
+              </p>
+            )}
+          </div>
+
+          {/* PHẢI — ngân hàng để pick */}
+          <div className="flex min-w-0 flex-col gap-3 lg:border-l lg:border-border/60 lg:pl-8">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Bank đã duyệt{selSlot ? ` · ${selSlot}` : ""}
+            </p>
+            <InputGroup className="h-9">
+              <InputGroupInput
+                value={bankQuery}
+                onChange={(e) => setBankQuery(e.target.value)}
+                placeholder={
+                  selSlot
+                    ? `Tìm bank cho slot ${selSlot}…`
+                    : "Chọn slot trước, rồi tìm bank…"
+                }
+                className="text-sm"
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  variant="default"
+                  onClick={() => void fetchBank()}
+                  disabled={bankLoading}
+                  className="disabled:opacity-50 text-sm"
                 >
-                  {adding ? "…" : "Pick cả set"}
-                </Button>
-              )}
-              <Button
-                size="xs"
-                variant="secondary"
-                onClick={() => void reuseFromBank(q)}
-                disabled={adding || added || !selSlot || pickRound === "GM"}
-                title={pickRound === "GM" ? "GM chỉ pick cả set" : undefined}
-                className="bg-success hover:bg-success/90 text-success-foreground disabled:opacity-50"
-              >
-                {adding ? "Đang thêm…" : added ? "Đã thêm" : pickRound === "GM" ? "Chỉ pick set" : selSlot ? `Vào ${selSlot}` : "Chọn slot"}
-              </Button>
-            </div>
-          );
-        })}
+                  <Search size={14} /> Tìm
+                </InputGroupButton>
+              </InputGroupAddon>
+            </InputGroup>
+            {bankLoading ? (
+              <p className="text-sm text-muted-foreground">
+                Đang tải bank đã duyệt…
+              </p>
+            ) : bankQuestions.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-background/30 px-4 py-8 text-center">
+                <Search size={24} className="text-muted-foreground/70" aria-hidden />
+                <p className="text-sm text-muted-foreground">
+                  {selSlot
+                    ? `Chưa có bank khớp ${selSlot} — thử từ khóa khác hoặc chọn slot khác.`
+                    : "Chọn 1 slot trống rồi bấm Tìm để xem bank đã duyệt."}
+                </p>
+              </div>
+            ) : (
+              <div className="flex max-h-[26rem] flex-col gap-1.5 overflow-y-auto pr-1">
+                {bankQuestions.map((q) => {
+                  const added = addedCodes.has(q.bank_code);
+                  const adding = addingId === q.bank_code;
+                  return (
+                    <div
+                      key={q.bank_id}
+                      className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/30 px-3 py-2 transition-colors hover:bg-accent/40"
+                    >
+                      <p className="min-w-0 flex-1 truncate text-sm">
+                        <span className="font-mono text-xs text-success">
+                          {q.bank_code}
+                        </span>{" "}
+                        <span className="text-foreground">{q.content}</span>
+                        {q.hint_index && (
+                          <span className="ml-1 font-mono text-xs text-warning">
+                            · {q.hint_index}
+                          </span>
+                        )}
+                        {q.domain && (
+                          <span className="ml-1 font-mono text-xs text-brand">
+                            · {q.domain}
+                            {q.difficulty ? `_${q.difficulty}` : ""}
+                          </span>
+                        )}
+                      </p>
+                      {pickRound === "GM" && q.hint_index === "KEY" && (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          onClick={() => setPendingGmSet(q)}
+                          disabled={adding}
+                          className="shrink-0 disabled:opacity-50"
+                        >
+                          {adding ? "…" : "Pick cả set"}
+                        </Button>
+                      )}
+                      <Button
+                        size="xs"
+                        variant="default"
+                        onClick={() => void reuseFromBank(q)}
+                        disabled={adding || added || !selSlot || pickRound === "GM"}
+                        title={
+                          pickRound === "GM"
+                            ? "GM chỉ pick cả set"
+                            : undefined
+                        }
+                        className="shrink-0 disabled:opacity-50"
+                      >
+                        {adding
+                          ? "Đang thêm…"
+                          : added
+                            ? "Đã thêm"
+                            : pickRound === "GM"
+                              ? "Chỉ pick set"
+                              : selSlot
+                                ? `Vào ${selSlot}`
+                                : "Chọn slot"}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -133,7 +133,7 @@ const CQualifierPage = () => {
                 variant="default"
             onClick={() => void fetchAll()}
             disabled={loading || !tournamentCode.trim()}
-            className="bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
+            className="disabled:opacity-50 text-sm"
           >
             <Search size={14} /> Tải
           </InputGroupButton>

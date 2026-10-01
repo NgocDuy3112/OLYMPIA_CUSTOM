@@ -145,7 +145,7 @@ const MQualifierPage = () => {
                 variant="default"
             onClick={() => void fetchAll()}
             disabled={loading || !tournamentCode.trim()}
-            className="bg-purple/80 hover:bg-purple disabled:opacity-50 text-sm text-purple-foreground"
+            className="disabled:opacity-50 text-sm"
           >
             <Search size={14} /> Tải
           </InputGroupButton>

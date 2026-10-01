@@ -347,7 +347,7 @@ export const QualifierTab = () => {
                   void fetchStandings();
                 }}
                 disabled={loading || !tournamentCode.trim()}
-                className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
+                className="disabled:opacity-50 text-sm font-medium"
               >
                 <Search size={14} /> Tải
               </InputGroupButton>

@@ -336,7 +336,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                 variant="default"
                 onClick={() => void fetchBank(1)}
                 disabled={loading}
-                className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm"
+                className="disabled:opacity-50 text-sm"
               >
                 <Search size={14} /> Tìm
               </InputGroupButton>
