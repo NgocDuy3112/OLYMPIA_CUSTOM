@@ -118,6 +118,12 @@ trống chiếm chỗ); vùng Pick chia 2 cột desktop: **trái** = vòng + lư
 **phải** = "Bank đã duyệt · {slot}" + ô tìm + kết quả dạng card cuộn (`max-h-26rem`) + empty state
 icon; stack 1 cột trên mobile, separator `border-l` chỉ ≥1024px.
 
+**Update 20:11 — bỏ tabs, ma trận toàn cục:** vòng thi không còn ẩn sau tabs. Cột trái hiện đủ5 vòng
+(KĐ chung/riêng, Giải mã, Bứt phá, Về đích) với progress từng vòng; mỗi slot là ô 48×44px có trạng thái
+thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang chọn) + legend. Click ô bất kỳ →
+`setPickRound(roundOfSlot(slot))` → bank bên phải tự lọc đúng vòng của ô đó. `tileLabel` rút gọn
+(KDR `1..6`, GM `KEY/H1..H8`, VD `20..50`).
+
 ## 7. Sidebar — shadcn Sidebar block (2026-10)
 
 4 sidebar gộp về 1 component `ShellSidebar` theo block pattern (sidebar-01/07):
