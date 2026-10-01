@@ -244,7 +244,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm theo mã / nội dung / đáp án…"
-            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm"
+            className="flex-1 h-9 text-foreground text-sm"
           />
           <NativeSelect
             value={used}

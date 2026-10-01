@@ -22,7 +22,7 @@ interface QuestionsCardProps {
 }
 
 const inputClass =
-  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
+  "h-9 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
 /** Danh sách câu hỏi của trận — GET /questions?match_code, PATCH /questions/:match/:q. */
 export function QuestionsCard({

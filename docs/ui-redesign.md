@@ -135,7 +135,28 @@ flowchart TD
 - User menu chuyển từ header xuống footer (header chỉ còn trigger + tên + chip vai trò — `ShellHeader`)
 - Item `newTab` (admin → controller/qauthor) có title "Mở trong tab mới"
 
-## 8. Tài liệu đọc thêm
+## 8. Form trong panel edit — chuẩn hoá (2026-10)
+
+Nguồn chung: `components/shared/ui/form.tsx`
+
+| Token | Class | Dùng cho |
+|---|---|---|
+| `FormField` | bọc shadcn `Field`/`FieldLabel`/`FieldDescription`/`FieldError` | mọi field trong SidePanel |
+| `formLabelClass` | `text-xs font-medium text-brand` | label (+ `*` destructive khi required) |
+| `formHintClass` | `text-xs text-muted-foreground` | dòng gợi ý dưới input |
+| `formSectionClass` | `text-xs font-semibold uppercase tracking-wide text-muted-foreground` | tiêu đề nhóm ("Cơ bản", "Thời gian…") |
+| `formInputClass` | `h-9` | Input/NativeSelect 36px, bỏ lớp `bg-background/60 …` tự viết |
+| `FormSection` | wrapper `formSectionClass` | tiêu đề nhóm field |
+
+Đã áp: EditBankSidebar, EditQuestionPanel, EditQualifierPanel, MatchQuestionCreatePanel,
+EditMatchQuestionPanel, TournamentFormPanel, MatchScheduleForm, UserPanels,
+QualifierManager, CScoreEditModal, QAuthorSetsPage + 14 input toolbar còn lại
+(BankTab/MatchTab/QualifierTab/SetFillPanel/AdminAudit/...).
+
+Cũ đã xoá: `const labelClass = "text-xs text-brand"`, `const inputClass = "px-3 py-2 …"`,
+hint `text-xs text-primary -mt-2` (text-primary trên nền tối fail contrast → muted-foreground).
+
+## 9. Tài liệu đọc thêm
 
 - `design-system/olympia-custom/MASTER.md` — design system gốc (lưu ý: palette/font trong này đã cũ, code ghi đè)
 - [WCAG 2.2 — Contrast (Minimum) 4.5:1](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)

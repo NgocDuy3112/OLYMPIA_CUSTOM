@@ -337,7 +337,7 @@ export const MatchTab = () => {
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value)}
             placeholder="Mã trận đấu"
-            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
+            className="flex-1 h-9 text-foreground font-mono text-sm"
           />
           <Button
             variant="default"
@@ -482,7 +482,7 @@ export const MatchTab = () => {
             value={bankQuery}
             onChange={(e) => setBankQuery(e.target.value)}
             placeholder={selSlot ? `Tìm bank cho slot ${selSlot}…` : "Chọn slot trước, rồi tìm bank…"}
-            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm"
+            className="flex-1 h-9 text-foreground text-sm"
           />
           <Button
             variant="default"

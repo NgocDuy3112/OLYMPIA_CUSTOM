@@ -90,7 +90,7 @@ const AdminCheckpointsPage = () => {
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Nhập match code..."
-          className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground font-mono text-sm"
+          className="flex-1 h-9 text-foreground placeholder:text-muted-foreground font-mono text-sm"
         />
         <Button
           size="icon"

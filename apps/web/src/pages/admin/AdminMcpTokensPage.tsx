@@ -165,7 +165,7 @@ const AdminMcpTokensPage = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="vd qauthor-a"
-              className="px-3 py-2 rounded-lg bg-background/60 border border-border outline-none focus:border-ring"
+              className="h-9 outline-none focus:border-ring"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -58,9 +59,6 @@ const parseScopes = (raw?: string | null): OperatorScope[] =>
       OPERATOR_SCOPES.includes(s as OperatorScope),
     );
 
-const inputClass =
-  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
-
 const cancelClass =
   "px-4 py-2 rounded-lg bg-accent/50 hover:bg-accent text-sm transition-colors";
 
@@ -111,34 +109,34 @@ export function UserEditPanel({ item, saving, onClose, onSave }: UserEditPanelPr
         </div>
       }
     >
-      <p className="text-xs text-primary font-mono -mt-2">
+      <p className="text-xs text-muted-foreground font-mono">
         Mã: {item?.user_code}
       </p>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-brand">{isStaff ? "Tên người dùng" : "Tên thí sinh"}</label>
-        <Input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+        <label className={formLabelClass}>{isStaff ? "Tên người dùng" : "Tên thí sinh"}</label>
+        <Input type="text" value={name} onChange={(e) => setName(e.target.value)} className={formInputClass} />
       </div>
       {isStaff ? (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Mật khẩu mới</label>
+          <label className={formLabelClass}>Mật khẩu mới</label>
           <Input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Để trống = giữ nguyên (tối thiểu 8 ký tự)"
             minLength={8}
-            className={inputClass}
+            className={formInputClass}
           />
         </div>
       ) : (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Email</label>
+          <label className={formLabelClass}>Email</label>
           <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="email@example.com"
-            className={inputClass}
+            className={formInputClass}
           />
         </div>
       )}
@@ -201,28 +199,28 @@ export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelPr
       }
     >
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Tên người dùng</label>
+        <label className={formLabelClass}>Tên người dùng</label>
         <Input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="VD: Nguyễn Văn A"
-          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+          className={formInputClass}
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Mật khẩu</label>
+        <label className={formLabelClass}>Mật khẩu</label>
         <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Tối thiểu 8 ký tự"
           minLength={8}
-          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+          className={formInputClass}
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted-foreground">Vai trò</label>
+        <label className={formLabelClass}>Vai trò</label>
         <NativeSelect
           value={staffRole}
           onChange={(e) => setStaffRole(e.target.value as StaffRole)}
@@ -285,11 +283,11 @@ export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelPr
         </div>
       }
     >
-      <p className="text-xs text-primary font-mono -mt-2">
+      <p className="text-xs text-muted-foreground font-mono">
         {item?.user_name} · {item?.user_code}
       </p>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-brand">Vai trò</label>
+        <label className={formLabelClass}>Vai trò</label>
         <NativeSelect
           value={role}
           onChange={(e) => setRole(e.target.value as GlobalRole)}
@@ -303,7 +301,7 @@ export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelPr
       </div>
       {role === "operator" && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Scopes</label>
+          <label className={formLabelClass}>Scopes</label>
           <div className="flex gap-3 text-sm text-foreground">
             {OPERATOR_SCOPES.map((s) => (
               <label key={s} className="flex items-center gap-1.5">

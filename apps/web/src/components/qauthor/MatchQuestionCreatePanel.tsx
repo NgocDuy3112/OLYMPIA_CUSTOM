@@ -1,6 +1,11 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { Plus } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import {
+  FormField,
+  formInputClass,
+  formSectionClass,
+} from "@/components/shared/ui/form";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,8 +56,6 @@ export function MatchQuestionCreatePanel({
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setValue((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const inputClass =
-    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm";
   const canSave =
     value.questionCode.trim() !== "" &&
     value.content.trim() !== "" &&
@@ -84,62 +87,67 @@ export function MatchQuestionCreatePanel({
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground -mt-2">
+      <p className="text-xs text-muted-foreground">
         Ít dùng — nên pick từ bank đã duyệt theo slot.
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-brand">Mã câu hỏi *</span>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="Mã câu hỏi" required>
           <Input
             value={value.questionCode}
             onChange={set("questionCode")}
             placeholder="OC3_Q_KD_C_1"
-            className={`${inputClass} font-mono`}
+            className={`${formInputClass} font-mono`}
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-brand">Đáp án *</span>
-          <Input value={value.answer} onChange={set("answer")} className={inputClass} />
-        </label>
+        </FormField>
+        <FormField label="Đáp án" required>
+          <Input
+            value={value.answer}
+            onChange={set("answer")}
+            className={formInputClass}
+          />
+        </FormField>
       </div>
-      <label className="flex flex-col gap-1">
-        <span className="text-xs text-brand">Nội dung *</span>
+      <FormField label="Nội dung" required>
         <Textarea
           rows={3}
           value={value.content}
           onChange={set("content")}
-          className={`${inputClass} resize-none`}
+          className="resize-none"
         />
-      </label>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-brand">Giải thích</span>
-          <Input value={value.explanation} onChange={set("explanation")} className={inputClass} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-brand">Gợi ý GIAI_MA</span>
-          <Input value={value.hintText} onChange={set("hintText")} className={inputClass} />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-brand">Media URL</span>
+      </FormField>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="Giải thích">
+          <Input
+            value={value.explanation}
+            onChange={set("explanation")}
+            className={formInputClass}
+          />
+        </FormField>
+        <FormField label="Gợi ý GIAI_MA">
+          <Input
+            value={value.hintText}
+            onChange={set("hintText")}
+            className={formInputClass}
+          />
+        </FormField>
+        <FormField label="Media URL">
           <Input
             value={value.mediaUrl}
             onChange={set("mediaUrl")}
-            className={`${inputClass} font-mono`}
+            className={`${formInputClass} font-mono`}
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-xs text-brand">Options JSON</span>
+        </FormField>
+        <FormField label="Options JSON" hint="A|B|C hoặc JSON array">
           <Input
             value={value.options}
             onChange={set("options")}
-            className={`${inputClass} font-mono`}
+            className={`${formInputClass} font-mono`}
           />
-        </label>
+        </FormField>
       </div>
       {value.mediaUrl.trim() && (
         <div className="rounded-lg bg-accent/50 border border-border p-3">
-          <p className="text-xs text-brand mb-2">Preview media:</p>
+          <p className={formSectionClass}>Preview media</p>
           <div className="max-h-64 overflow-hidden rounded">
             <RenderMedia mediaUrl={value.mediaUrl.trim()} />
           </div>

@@ -4,6 +4,7 @@ import { API_BASE_URL } from "@/configs";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { EditQualifierPanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierPanel";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -28,8 +29,6 @@ interface StandingRow {
   rank?: number;
 }
 
-const inputClass =
-  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm w-full";
 
 /** Tab Vòng loại: 16 slot câu hỏi VL + chấm + bảng xếp hạng. */
 export function QualifierManager({ tournamentCode }: { tournamentCode: string }) {
@@ -314,7 +313,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
             placeholder="Nội dung câu hỏi *"
             value={form.content}
             onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-            className={`${inputClass} resize-none`}
+            className={`${formInputClass} resize-none`}
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {form.options.map((o, i) => (
@@ -332,14 +331,14 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
                       return { ...f, options: next };
                     })
                   }
-                  className={`${inputClass} pl-8`}
+                  className={`${formInputClass} pl-8`}
                 />
               </label>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Đáp án đúng</span>
+              <span className={formLabelClass}>Đáp án đúng</span>
               <NativeSelect
                 value={form.correct}
                 onChange={(e) => setForm((f) => ({ ...f, correct: e.target.value }))}
@@ -352,12 +351,12 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               </NativeSelect>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Giải thích</span>
+              <span className={formLabelClass}>Giải thích</span>
               <Input
                 placeholder="(tuỳ chọn)"
                 value={form.explanation}
                 onChange={(e) => setForm((f) => ({ ...f, explanation: e.target.value }))}
-                className={inputClass}
+                className={formInputClass}
               />
             </label>
           </div>

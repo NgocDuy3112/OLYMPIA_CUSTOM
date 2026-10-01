@@ -330,7 +330,7 @@ export const QualifierTab = () => {
             value={tournamentCode}
             onChange={(e) => setTournamentCode(e.target.value)}
             placeholder="Mã giải đấu (VD: OC3_T_...)"
-            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
+            className="flex-1 h-9 text-foreground font-mono text-sm"
           />
           <Button
             variant="default"
@@ -432,7 +432,7 @@ export const QualifierTab = () => {
                 value={form.questionCode}
                 onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value.toUpperCase() }))}
                 placeholder="VL_01"
-                className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
+                className="h-9 text-foreground font-mono text-sm"
               />
             </label>
           </div>
@@ -441,7 +441,7 @@ export const QualifierTab = () => {
             value={form.content}
             onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
             placeholder="Nội dung câu hỏi *"
-            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm resize-none"
+            className="h-9 text-foreground text-sm resize-none"
           />
         </div>
 
@@ -464,13 +464,13 @@ export const QualifierTab = () => {
               value={form.explanation}
               onChange={(e) => setForm((p) => ({ ...p, explanation: e.target.value }))}
               placeholder="Giải thích"
-              className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm"
+              className="h-9 text-foreground text-sm"
             />
             <Input
               value={form.mediaUrl}
               onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
               placeholder="Media URL"
-              className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
+              className="h-9 text-foreground font-mono text-sm"
             />
           </div>
         </div>

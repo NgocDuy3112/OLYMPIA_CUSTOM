@@ -1,5 +1,9 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import {
+  FormField,
+  formInputClass,
+} from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,9 +71,6 @@ export function EditQuestionPanel({
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setValue((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const inputClass =
-    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm";
-
   return (
     <SidePanel
       open={open}
@@ -94,42 +95,55 @@ export function EditQuestionPanel({
         </div>
       }
     >
-      <p className="text-xs text-primary font-mono -mt-2">
+      <p className="text-xs text-muted-foreground font-mono">
         {item?.question_code}
       </p>
-      <label className="text-xs text-brand">Nội dung</label>
-      <Textarea
-        rows={3}
-        value={value.content}
-        onChange={set("content")}
-        className={`${inputClass} resize-none`}
-      />
-      <label className="text-xs text-brand">Đáp án</label>
-      <Input value={value.answer} onChange={set("answer")} className={inputClass} />
-      <label className="text-xs text-brand">Giải thích</label>
-      <Input
-        value={value.explanation}
-        onChange={set("explanation")}
-        className={inputClass}
-      />
-      <label className="text-xs text-brand">Gợi ý GIAI_MA</label>
-      <Input
-        value={value.hintText}
-        onChange={set("hintText")}
-        className={inputClass}
-      />
-      <label className="text-xs text-brand">Media URL</label>
-      <Input
-        value={value.mediaUrl}
-        onChange={set("mediaUrl")}
-        className={`${inputClass} font-mono`}
-      />
-      <label className="text-xs text-brand">Options (JSON hoặc A|B|C)</label>
-      <Input
-        value={value.options}
-        onChange={set("options")}
-        className={`${inputClass} font-mono`}
-      />
+      <FormField label="Nội dung">
+        <Textarea
+          rows={3}
+          value={value.content}
+          onChange={set("content")}
+          className="resize-none"
+        />
+      </FormField>
+      <FormField label="Đáp án">
+        <Input
+          value={value.answer}
+          onChange={set("answer")}
+          className={formInputClass}
+        />
+      </FormField>
+      <FormField label="Giải thích">
+        <Input
+          value={value.explanation}
+          onChange={set("explanation")}
+          className={formInputClass}
+        />
+      </FormField>
+      <FormField label="Gợi ý GIAI_MA">
+        <Input
+          value={value.hintText}
+          onChange={set("hintText")}
+          className={formInputClass}
+        />
+      </FormField>
+      <FormField label="Media URL">
+        <Input
+          value={value.mediaUrl}
+          onChange={set("mediaUrl")}
+          className={`${formInputClass} font-mono`}
+        />
+      </FormField>
+      <FormField
+        label="Options"
+        hint="JSON array hoặc phân cách bằng | (VD: A|B|C)"
+      >
+        <Input
+          value={value.options}
+          onChange={set("options")}
+          className={`${formInputClass} font-mono`}
+        />
+      </FormField>
     </SidePanel>
   );
 }

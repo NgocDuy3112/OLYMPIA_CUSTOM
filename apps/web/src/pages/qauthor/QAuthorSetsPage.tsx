@@ -3,6 +3,7 @@ import { Layers, Plus, RefreshCw } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { SetFillPanel } from "@/components/qauthor/SetFillPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,21 +113,21 @@ const QAuthorSetsPage = () => {
         }
       >
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Tên bộ đề *</label>
+          <label className={formLabelClass}>Tên bộ đề <span className="text-destructive">*</span></label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="VD: Bộ đề 1"
-            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-brand focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className={formInputClass}
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Mã trận</label>
+          <label className={formLabelClass}>Mã trận</label>
           <Input
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value.toUpperCase())}
             placeholder="VD: OC4_M01T (gán sau cũng được)"
-            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-brand focus:outline-none focus:ring-2 focus:ring-ring text-sm font-mono"
+            className={`${formInputClass} font-mono`}
           />
         </div>
         <p className="text-xs text-muted-foreground">1 bộ thuộc đúng 1 mã trận.</p>

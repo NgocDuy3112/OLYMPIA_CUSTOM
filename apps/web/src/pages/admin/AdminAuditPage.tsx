@@ -107,13 +107,13 @@ const AdminAuditPage = () => {
           value={actor}
           onChange={(e) => setActor(e.target.value)}
           placeholder="Lọc actor code..."
-          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground text-sm font-mono"
+          className="h-9 text-foreground placeholder:text-muted-foreground text-sm font-mono"
         />
         <Input
           value={match}
           onChange={(e) => setMatch(e.target.value)}
           placeholder="Lọc match code..."
-          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground text-sm font-mono"
+          className="h-9 text-foreground placeholder:text-muted-foreground text-sm font-mono"
         />
       </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { FormField, formInputClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,9 +66,6 @@ export function EditMatchQuestionPanel({
     }
   }, [open, item, matchCode, mediaUrl, mediaFile]);
 
-  const inputClass =
-    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
-
   const handlePickFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !item) return;
@@ -105,78 +103,71 @@ export function EditMatchQuestionPanel({
         </div>
       }
     >
-      <p className="text-xs text-primary font-mono -mt-2">
+      <p className="text-xs text-muted-foreground font-mono">
         {item?.question_code}
       </p>
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Nội dung</label>
-          <Textarea
-            rows={3}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className={`${inputClass} resize-none`}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Đáp án</label>
+      <FormField label="Nội dung">
+        <Textarea
+          rows={3}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="resize-none"
+        />
+      </FormField>
+      <FormField label="Đáp án">
+        <Input
+          type="text"
+          value={answer}
+          onChange={(e) => setAnswer(e.target.value)}
+          className={formInputClass}
+        />
+      </FormField>
+      <FormField label="Giải thích" hint="Tuỳ chọn">
+        <Input
+          type="text"
+          value={explanation}
+          onChange={(e) => setExplanation(e.target.value)}
+          className={formInputClass}
+        />
+      </FormField>
+      <FormField label="Media URL / S3 key">
+        <div className="flex flex-col gap-2">
           <Input
             type="text"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            className={inputClass}
+            value={mediaUrl}
+            onChange={(e) => setMediaUrl(e.target.value)}
+            placeholder="OC3_M01T/OC3_Q_... (VD: OC<number>_M_*/OC<number>_Q_*)"
+            className={`${formInputClass} font-mono`}
           />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Giải thích</label>
-          <Input
-            type="text"
-            value={explanation}
-            onChange={(e) => setExplanation(e.target.value)}
-            placeholder="(tuỳ chọn)"
-            className={`${inputClass} placeholder:text-muted-foreground`}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-brand">Media URL / S3 key</label>
-          <div className="flex flex-col gap-2">
-            <Input
-              type="text"
-              value={mediaUrl}
-              onChange={(e) => setMediaUrl(e.target.value)}
-              placeholder="OC3_M01T/OC3_Q_... (VD: OC<number>_M_*/OC<number>_Q_*)"
-              className={`${inputClass} font-mono`}
+          <div className="flex items-center gap-2">
+            <input
+              ref={mediaInputRef}
+              type="file"
+              accept="image/*,audio/*,video/*"
+              className="hidden"
+              onChange={handlePickFile}
             />
-            <div className="flex items-center gap-2">
-              <input
-                ref={mediaInputRef}
-                type="file"
-                accept="image/*,audio/*,video/*"
-                className="hidden"
-                onChange={handlePickFile}
-              />
-              <Button
-                variant="secondary"
-                onClick={() => mediaInputRef.current?.click()}
-                className="flex-1 bg-accent/50 hover:bg-accent text-foreground text-sm truncate"
-                title="Upload file mới"
-              >
-                {mediaFile ? mediaFile.name : "Chọn file mới"}
-              </Button>
-              {mediaFile && (
-                <span className="text-xs text-success whitespace-nowrap">
-                  Sẽ upload khi lưu
-                </span>
-              )}
-            </div>
-            {mediaUrl && (
-              <div className="text-xs text-brand">
-                S3 key: <span className="font-mono">{mediaUrl}</span>
-              </div>
+            <Button
+              variant="secondary"
+              onClick={() => mediaInputRef.current?.click()}
+              className="flex-1 bg-accent/50 hover:bg-accent text-foreground text-sm truncate"
+              title="Upload file mới"
+            >
+              {mediaFile ? mediaFile.name : "Chọn file mới"}
+            </Button>
+            {mediaFile && (
+              <span className="text-xs text-success whitespace-nowrap">
+                Sẽ upload khi lưu
+              </span>
             )}
           </div>
+          {mediaUrl && (
+            <div className="text-xs text-muted-foreground">
+              S3 key: <span className="font-mono">{mediaUrl}</span>
+            </div>
+          )}
         </div>
-      </div>
+      </FormField>
     </SidePanel>
   );
 }

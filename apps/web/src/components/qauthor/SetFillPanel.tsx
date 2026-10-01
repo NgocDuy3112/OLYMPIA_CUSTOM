@@ -43,7 +43,7 @@ interface SetFillPanelProps {
 }
 
 const inputClass =
-  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
+  "h-9 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
 /** Sidebar Excel điền bộ đề: dòng template slot, pick từ bank đã duyệt. */
 export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps) {

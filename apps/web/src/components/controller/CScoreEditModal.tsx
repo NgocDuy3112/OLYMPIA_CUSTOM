@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -108,7 +109,7 @@ export default function CScoreEditModal({
           {playerName} ({playerCode})
         </p>
         <div className="flex flex-col gap-3">
-          <label className="text-xs text-brand">Câu hỏi</label>
+          <label className={formLabelClass}>Câu hỏi</label>
           <NativeSelect
             value={questionCode}
             onChange={(event) => setQuestionCode(event.target.value)}
@@ -124,7 +125,7 @@ export default function CScoreEditModal({
               </option>
             ))}
           </NativeSelect>
-          <label className="text-xs text-brand">
+          <label className={formLabelClass}>
             Điểm câu (bội số của 5)
           </label>
           <Input
@@ -132,10 +133,10 @@ export default function CScoreEditModal({
             step={5}
             value={points}
             onChange={(event) => setPoints(event.target.value)}
-            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground"
+            className={formInputClass}
             autoFocus
           />
-          <p className="text-xs text-brand">
+          <p className="text-xs text-muted-foreground">
             Tổng điểm hiện tại: {currentScore}
           </p>
         </div>

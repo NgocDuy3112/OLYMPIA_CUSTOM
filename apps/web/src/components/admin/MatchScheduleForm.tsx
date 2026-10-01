@@ -3,9 +3,7 @@ import type { ScheduleFormValue } from "./scheduleFormState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-
-const inputClass =
-  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm w-full";
+import { FormField, formInputClass } from "@/components/shared/ui/form";
 
 interface MatchScheduleFormProps {
   initial: ScheduleFormValue;
@@ -53,65 +51,70 @@ export function MatchScheduleForm({
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <Input
-          placeholder="Tên trận đấu *"
-          value={form.matchName}
-          onChange={(e) => set({ matchName: e.target.value })}
-          className={`${inputClass} sm:col-span-2`}
-        />
-        <NativeSelect
-          value={form.tournamentCode}
-          onChange={(e) => set({ tournamentCode: e.target.value })}
-          className="w-full"
-        >
-          <option value="">Không thuộc giải nào</option>
-          {tournaments.map((t) => (
-            <option key={t.tournamentCode} value={t.tournamentCode}>
-              {t.tournamentName} ({t.tournamentCode})
-            </option>
-          ))}
-        </NativeSelect>
-        <Input
-          placeholder="Nhãn (VD: BK1, CK…)"
-          value={form.matchLabel}
-          onChange={(e) => set({ matchLabel: e.target.value.toUpperCase() })}
-          className={`${inputClass} font-mono`}
-          maxLength={20}
-        />
-        {phases && phases.length > 0 && (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <FormField label="Tên trận đấu" required className="sm:col-span-2">
+          <Input
+            placeholder="VD: Chung kết…"
+            value={form.matchName}
+            onChange={(e) => set({ matchName: e.target.value })}
+            className={formInputClass}
+          />
+        </FormField>
+        <FormField label="Giải đấu">
           <NativeSelect
-            value={form.phaseId}
-            onChange={(e) => set({ phaseId: e.target.value })}
-            className="w-full sm:col-span-2"
+            value={form.tournamentCode}
+            onChange={(e) => set({ tournamentCode: e.target.value })}
+            className={formInputClass}
           >
-            <option value="">Không gán vòng nào</option>
-            {phases.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.phaseName}
+            <option value="">Không thuộc giải nào</option>
+            {tournaments.map((t) => (
+              <option key={t.tournamentCode} value={t.tournamentCode}>
+                {t.tournamentName} ({t.tournamentCode})
               </option>
             ))}
           </NativeSelect>
+        </FormField>
+        <FormField label="Nhãn" hint="VD: BK1, CK…">
+          <Input
+            value={form.matchLabel}
+            onChange={(e) => set({ matchLabel: e.target.value.toUpperCase() })}
+            className={`${formInputClass} font-mono`}
+            maxLength={20}
+          />
+        </FormField>
+        {phases && phases.length > 0 && (
+          <FormField label="Vòng" className="sm:col-span-2">
+            <NativeSelect
+              value={form.phaseId}
+              onChange={(e) => set({ phaseId: e.target.value })}
+              className={formInputClass}
+            >
+              <option value="">Không gán vòng nào</option>
+              {phases.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.phaseName}
+                </option>
+              ))}
+            </NativeSelect>
+          </FormField>
         )}
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Giờ thi đấu</span>
+        <FormField label="Giờ thi đấu">
           <Input
             type="datetime-local"
             value={form.scheduledAt}
             onChange={(e) => set({ scheduledAt: e.target.value })}
-            className={`${inputClass} text-foreground`}
+            className={`${formInputClass} text-foreground`}
           />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Địa điểm</span>
+        </FormField>
+        <FormField label="Địa điểm">
           <Input
             placeholder="Hội trường A…"
             value={form.venue}
             onChange={(e) => set({ venue: e.target.value })}
-            className={inputClass}
+            className={formInputClass}
             maxLength={200}
           />
-        </label>
+        </FormField>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -124,7 +127,7 @@ export function MatchScheduleForm({
               placeholder="userCode"
               value={code}
               onChange={(e) => setPlayer(i, e.target.value)}
-              className={`${inputClass} pl-8 font-mono text-xs`}
+              className={`${formInputClass} pl-8 font-mono text-xs`}
             />
           </label>
         ))}

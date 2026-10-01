@@ -1,5 +1,6 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { FormField, formInputClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,9 +64,6 @@ export function EditQualifierPanel({
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setValue((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const inputClass =
-    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm";
-
   return (
     <SidePanel
       open={open}
@@ -97,33 +95,34 @@ export function EditQualifierPanel({
         </div>
       }
     >
-      <p className="text-xs text-primary font-mono -mt-2">
+      <p className="text-xs text-muted-foreground font-mono">
         {item?.questionCode}
       </p>
-      <label className="text-xs text-brand">Nội dung</label>
-      <Textarea
-        rows={3}
-        value={value.content}
-        onChange={set("content")}
-        className={`${inputClass} resize-none`}
-      />
-      <label className="text-xs text-brand">Phương án (bấm để chọn đáp án đúng)</label>
-      <QualifierOptionsInput
-        options={optionList}
-        correct={value.correctOption}
-        onChange={setOptionList}
-        onCorrectChange={(correctOption) => setValue((prev) => ({ ...prev, correctOption }))}
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-xs text-brand">Vị trí 1-16</label>
-          <Input
-            value={value.position}
-            onChange={set("position")}
-            className={`w-full ${inputClass} font-mono`}
-          />
-        </div>
-      </div>
+      <FormField label="Nội dung">
+        <Textarea
+          rows={3}
+          value={value.content}
+          onChange={set("content")}
+          className="resize-none"
+        />
+      </FormField>
+      <FormField label="Phương án" hint="Bấm phương án để chọn đáp án đúng">
+        <QualifierOptionsInput
+          options={optionList}
+          correct={value.correctOption}
+          onChange={setOptionList}
+          onCorrectChange={(correctOption) =>
+            setValue((prev) => ({ ...prev, correctOption }))
+          }
+        />
+      </FormField>
+      <FormField label="Vị trí 1-16" className="max-w-40">
+        <Input
+          value={value.position}
+          onChange={set("position")}
+          className={`${formInputClass} font-mono`}
+        />
+      </FormField>
     </SidePanel>
   );
 }

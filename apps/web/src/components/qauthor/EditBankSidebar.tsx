@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Search } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { FormField, formInputClass } from "@/components/shared/ui/form";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -170,10 +171,6 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
     }
   };
 
-  const inputClass =
-    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm";
-  const labelClass = "text-xs text-brand";
-
   return (
     <SidePanel
       open={open}
@@ -212,82 +209,85 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
       {mode === "create" && (
         <p className="text-xs text-muted-foreground font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
       )}
-      <label className={labelClass}>Nội dung *</label>
-      <Textarea
-        rows={4}
-        value={value.content}
-        onChange={set("content")}
-        className={`${inputClass} resize-none`}
-      />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>Đáp án *</label>
-          <Input value={value.answer} onChange={set("answer")} className={inputClass} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className={labelClass}>Round</label>
+      <FormField label="Nội dung" required>
+        <Textarea
+          rows={4}
+          value={value.content}
+          onChange={set("content")}
+          className="resize-none"
+        />
+      </FormField>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormField label="Đáp án" required>
+          <Input
+            value={value.answer}
+            onChange={set("answer")}
+            className={formInputClass}
+          />
+        </FormField>
+        <FormField label="Round">
           {kind === "kd" && mode === "create" ? (
             <NativeSelect
               value={value.roundHint}
               onChange={(e) => setValue((prev) => ({ ...prev, roundHint: e.target.value }))}
-              className="w-full font-mono"
+              className={`${formInputClass} w-full font-mono`}
             >
               <option value="KD_C">KĐ chung</option>
               <option value="KD_R">KĐ riêng</option>
             </NativeSelect>
           ) : (
-            <Input value={value.roundHint} readOnly className={`${inputClass} font-mono opacity-70`} />
+            <Input
+              value={value.roundHint}
+              readOnly
+              className={`${formInputClass} font-mono opacity-70`}
+            />
           )}
-        </div>
+        </FormField>
       </div>
       {kind === "vd" && (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1">
-            <label className={labelClass}>Lĩnh vực *</label>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="Lĩnh vực" required>
             <NativeSelect
               value={value.domain}
               onChange={(e) => setValue((prev) => ({ ...prev, domain: e.target.value }))}
-              className="w-full font-mono"
+              className={`${formInputClass} w-full font-mono`}
             >
               <option value="">— chọn —</option>
               {VD_DOMAINS.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </NativeSelect>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className={labelClass}>Độ khó *</label>
+          </FormField>
+          <FormField label="Độ khó" required>
             <NativeSelect
               value={value.difficulty}
               onChange={(e) => setValue((prev) => ({ ...prev, difficulty: e.target.value }))}
-              className="w-full font-mono"
+              className={`${formInputClass} w-full font-mono`}
             >
               <option value="">— chọn —</option>
               {VD_LEVELS.map((l) => (
                 <option key={l} value={String(l)}>{l}</option>
               ))}
             </NativeSelect>
-          </div>
+          </FormField>
         </div>
       )}
       {(kind === "gm-key" || kind === "gm-hint") && (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1">
-            <label className={labelClass}>Set GM</label>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="Set GM">
             <Input
               value={value.setCode}
               readOnly
               placeholder="server tự gen S1, S2, ... khi tạo KEY"
-              className={`${inputClass} font-mono opacity-70`}
+              className={`${formInputClass} font-mono opacity-70`}
             />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className={labelClass}>Vị trí *</label>
+          </FormField>
+          <FormField label="Vị trí" required>
             {kind === "gm-hint" && mode === "create" ? (
               <NativeSelect
                 value={value.hintIndex}
                 onChange={(e) => setValue((prev) => ({ ...prev, hintIndex: e.target.value }))}
-                className="w-full font-mono"
+                className={`${formInputClass} w-full font-mono`}
               >
                 <option value="">— chọn —</option>
                 {GM_HINTS.map((h) => (
@@ -295,25 +295,34 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
                 ))}
               </NativeSelect>
             ) : (
-              <Input value={value.hintIndex} readOnly className={`${inputClass} font-mono opacity-70`} />
+              <Input
+                value={value.hintIndex}
+                readOnly
+                className={`${formInputClass} font-mono opacity-70`}
+              />
             )}
-          </div>
+          </FormField>
         </div>
       )}
-      <label className={labelClass}>Giải thích (tuỳ chọn)</label>
-      <Textarea
-        rows={3}
-        value={value.explanation}
-        onChange={set("explanation")}
-        className={`${inputClass} resize-none`}
-      />
-      <label className={labelClass}>Link nguồn (tuỳ chọn — OCee tự đọc + check ngày sau)</label>
-      <Input
-        value={value.citationUrl}
-        onChange={set("citationUrl")}
-        placeholder="https://…"
-        className={`${inputClass} font-mono`}
-      />
+      <FormField label="Giải thích" hint="Tuỳ chọn">
+        <Textarea
+          rows={3}
+          value={value.explanation}
+          onChange={set("explanation")}
+          className="resize-none"
+        />
+      </FormField>
+      <FormField
+        label="Link nguồn"
+        hint="Tuỳ chọn — OCee tự đọc + check ngày sau"
+      >
+        <Input
+          value={value.citationUrl}
+          onChange={set("citationUrl")}
+          placeholder="https://…"
+          className={`${formInputClass} font-mono`}
+        />
+      </FormField>
 
       <details
         key={value.mediaFile || (mode === "edit" && initial?.media_url && !value.removeMedia) ? "media-open" : "media-closed"}

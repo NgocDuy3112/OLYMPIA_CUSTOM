@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import {
+  FormField,
+  FormSection,
+  formInputClass,
+} from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -23,10 +28,6 @@ const STATUS_OPTIONS = [
   { value: "completed", label: "Hoàn thành" },
   { value: "archived", label: "Lưu trữ" },
 ];
-
-const inputClass =
-  "w-full px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
-const labelClass = "block text-[11px] text-brand uppercase tracking-wide mb-1";
 
 interface TournamentFormPanelProps {
   open: boolean;
@@ -94,37 +95,32 @@ export function TournamentFormPanel({
           {error}
         </div>
       )}
-      <section className="flex flex-col gap-3">
-        <p className="text-xs font-medium text-muted-foreground">Cơ bản</p>
-        <div>
-          <label className={labelClass}>
-            Tên giải đấu <span className="text-destructive">*</span>
-          </label>
+      <section className="flex flex-col gap-4">
+        <FormSection>Cơ bản</FormSection>
+        <FormField label="Tên giải đấu" required>
           <Input
             type="text"
             value={form.tournamentName}
             onChange={(e) => set({ tournamentName: e.target.value })}
             placeholder="VD: Olympia Custom Season 1"
-            className={inputClass}
+            className={formInputClass}
           />
-        </div>
-        <div>
-          <label className={labelClass}>Mô tả</label>
+        </FormField>
+        <FormField label="Mô tả">
           <Textarea
             value={form.description}
             onChange={(e) => set({ description: e.target.value })}
             placeholder="Mô tả về giải đấu..."
             rows={3}
-            className={`${inputClass} resize-none`}
+            className="resize-none"
           />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Format giải đấu</label>
+        </FormField>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="Format giải đấu">
             <NativeSelect
               value={form.tournamentFormat}
               onChange={(e) => set({ tournamentFormat: e.target.value })}
-              className="w-full"
+              className={formInputClass}
             >
               {TOURNAMENT_FORMATS.map((fmt) => (
                 <option key={fmt.value} value={fmt.value}>
@@ -132,14 +128,13 @@ export function TournamentFormPanel({
                 </option>
               ))}
             </NativeSelect>
-          </div>
+          </FormField>
           {isEdit && (
-            <div>
-              <label className={labelClass}>Trạng thái</label>
+            <FormField label="Trạng thái">
               <NativeSelect
                 value={form.status}
                 onChange={(e) => set({ status: e.target.value })}
-                className="w-full"
+                className={formInputClass}
               >
                 {STATUS_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -147,64 +142,62 @@ export function TournamentFormPanel({
                   </option>
                 ))}
               </NativeSelect>
-            </div>
+            </FormField>
           )}
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <p className="text-xs font-medium text-muted-foreground">Thời gian & địa điểm</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className={labelClass}>Ngày bắt đầu</label>
+      <section className="flex flex-col gap-4">
+        <FormSection>Thời gian &amp; địa điểm</FormSection>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="Ngày bắt đầu">
             <Input
               type="date"
               value={form.startDate}
               onChange={(e) => set({ startDate: e.target.value })}
-              className={`${inputClass} text-foreground`}
+              className={`${formInputClass} text-foreground`}
             />
-          </div>
-          <div>
-            <label className={labelClass}>Ngày kết thúc</label>
+          </FormField>
+          <FormField label="Ngày kết thúc">
             <Input
               type="date"
               value={form.endDate}
               onChange={(e) => set({ endDate: e.target.value })}
-              className={`${inputClass} text-foreground`}
+              className={`${formInputClass} text-foreground`}
             />
-          </div>
-          <div>
-            <label className={labelClass}>Số thí sinh tối đa</label>
+          </FormField>
+          <FormField label="Số thí sinh tối đa">
             <Input
               type="text"
               value={form.maxPlayers}
               onChange={(e) => set({ maxPlayers: e.target.value })}
               placeholder="VD: 16, 32"
-              className={inputClass}
+              className={formInputClass}
             />
-          </div>
-          <div>
-            <label className={labelClass}>Địa điểm</label>
+          </FormField>
+          <FormField label="Địa điểm">
             <Input
               type="text"
               value={form.venue}
               onChange={(e) => set({ venue: e.target.value })}
               placeholder="VD: Trường ĐH Bách Khoa"
-              className={inputClass}
+              className={formInputClass}
             />
-          </div>
+          </FormField>
         </div>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <p className="text-xs font-medium text-muted-foreground">Ghi chú</p>
-        <Textarea
-          value={form.notes}
-          onChange={(e) => set({ notes: e.target.value })}
-          placeholder="Ghi chú thêm..."
-          rows={2}
-          className={`${inputClass} resize-none`}
-        />
+      <section className="flex flex-col gap-4">
+        <FormSection>Ghi chú</FormSection>
+        <FormField label="Ghi chú">
+          <Textarea
+            value={form.notes}
+            onChange={(e) => set({ notes: e.target.value })}
+            placeholder="Ghi chú thêm..."
+            rows={2}
+            className="resize-none"
+          />
+        </FormField>
       </section>
     </SidePanel>
   );
