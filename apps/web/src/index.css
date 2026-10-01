@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 /* Tailwind v4 CSS-first theme — replaces the dead v3 tailwind.config.cjs */
 @theme {
@@ -10,6 +11,32 @@
   --color-bg-base: #4416d9;
   --color-surface: rgb(255 255 255 / 0.12);
   --color-text-primary: #e6eef5;
+
+  /* shadcn semantic tokens (base-nova registry components use these) */
+  --color-background: #12102e;
+  --color-foreground: #e6eef5;
+  --color-card: #231a7a;
+  --color-card-foreground: #e6eef5;
+  --color-popover: #231a7a;
+  --color-popover-foreground: #e6eef5;
+  --color-primary-foreground: #ffffff;
+  --color-secondary-foreground: #12102e;
+  --color-muted-foreground: #94a3b8;
+  --color-accent: rgb(255 255 255 / 0.12);
+  --color-accent-foreground: #e6eef5;
+  --color-destructive: #dc2626;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #5226e8;
+  --color-input: #5226e8;
+  --color-ring: #7a61f5;
+
+  /* Sidebar tokens (shadcn Sidebar components) */
+  --color-sidebar: #12102e;
+  --color-sidebar-foreground: #e6eef5;
+  --color-sidebar-accent: rgb(255 255 255 / 0.08);
+  --color-sidebar-accent-foreground: #ffffff;
+  --color-sidebar-border: rgb(255 255 255 / 0.10);
+  --color-sidebar-ring: #7a61f5;
 
   /* Override default blue palette so bg-blue / text-blue classes follow brand */
   --color-blue-50: #eae7ff;
