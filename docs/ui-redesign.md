@@ -89,7 +89,31 @@ flowchart LR
   (trắng trên xanh #16a34a chỉ 3.3:1, trắng trên amber 2.1:1 → đều fail WCAG)
 - Visual: login + public shell kiểm tra bằng Chrome DevTools ở 375px và 1440px, không lỗi JS console (chỉ 401/500 do preview không có backend)
 
-## 6. Tài liệu đọc thêm
+## 6. Tab "Câu hỏi trận" — tinh chỉnh (2026-10)
+
+Quyết định: bỏ box Danh sách (thông tin chuyển vào card slot), bỏ nút Sửa/Xoá rời rạc,
+chỉ giữ "Gỡ khỏi slot" — vì `POST /questions/pick` trả 409 khi slot đã có câu.
+
+```mermaid
+flowchart TD
+    A[Chọn vòng: KĐ chung / ĐR / GM / BP / VĐ] --> B[Lưới slot]
+    B -->|slot trống| C["Hint: tìm bank bên dưới"]
+    B -->|slot đã có câu| D[Card slot: code + nội dung + đáp án]
+    D -->|Gỡ khỏi slot| E[Confirm DELETE /questions/:match/:code]
+    E --> F[slot trống → quay lại C]
+    C --> G[Search bank đã duyệt status=approved]
+    G -->|bấm Vào slot| H[POST /questions/pick]
+    H -->|409 already filled| I[alert lỗi — phải gỡ trước]
+    H -->|ok| B
+    G -->|GM: Pick cả set| H
+    J[Câu chưa xếp slot — hiển thị riêng] -.->|không sửa/xoá| J
+```
+
+Cũng trong lần này: tự tải câu hỏi khi mount (nếu có mã trận lưu sẵn), gộp 2 nút Tải/trùng
+thành 1 (có trạng thái "Đang tải…"), thêm loading/empty state cho bank list, bỏ pills progress
+trùng lặp ở box header (progress sống ở tabs vòng của zone Pick).
+
+## 7. Tài liệu đọc thêm
 
 - `design-system/olympia-custom/MASTER.md` — design system gốc (lưu ý: palette/font trong này đã cũ, code ghi đè)
 - [WCAG 2.2 — Contrast (Minimum) 4.5:1](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)

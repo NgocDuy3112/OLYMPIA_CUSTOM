@@ -1,12 +1,10 @@
-import { useCallback, useState } from "react";
-import { Plus, RefreshCw, Search } from "lucide-react";
-import { RowActions } from "@/components/shared/RowActions";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus, Search } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { normalizeQuestionRow } from "@/utils/questionMapper";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
-import { EditQuestionPanel, type QuestionEditValue } from "./EditQuestionPanel";
 import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreatePanel";
 import { BANK_PAGE_SIZE, toBankData, type BankData } from "./bankTypes";
 import { Button } from "@/components/ui/button";
@@ -85,7 +83,6 @@ export const MatchTab = () => {
   const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState<QuestionData | null>(null);
   const [deleting, setDeleting] = useState<QuestionData | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [pendingGmSet, setPendingGmSet] = useState<BankData | null>(null);
@@ -114,6 +111,14 @@ export const MatchTab = () => {
       setLoading(false);
     }
   }, [matchCode]);
+
+  // Tự tải 1 lần khi mount nếu đã có mã trận lưu sẵn (trước: phải bấm Tải thủ công).
+  const bootstrapped = useRef(false);
+  useEffect(() => {
+    if (bootstrapped.current) return;
+    bootstrapped.current = true;
+    if (matchCode.trim()) void fetchQuestions();
+  }, [fetchQuestions, matchCode]);
 
   const createQuestion = useCallback(async (value: MatchQuestionCreateValue) => {
     const code = matchCode.trim();
@@ -152,39 +157,6 @@ export const MatchTab = () => {
       setSaving(false);
     }
   }, [fetchQuestions, matchCode]);
-
-  const saveEdit = useCallback(async (value: QuestionEditValue) => {
-    if (!editing) return;
-    const code = matchCode.trim();
-    try {
-      const res = await fetch(
-        `${API_BASE_URL}/questions/${encodeURIComponent(code)}/${encodeURIComponent(editing.question_code)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            content: value.content.trim() || null,
-            answer: value.answer.trim() || null,
-            explanation: value.explanation.trim() || null,
-            hint_text: value.hintText.trim() || null,
-            media_url: value.mediaUrl.trim() || null,
-            options: value.options.trim() || null,
-          }),
-        },
-      );
-      const json = await res.json();
-      if (res.ok) {
-        setEditing(null);
-        await fetchQuestions();
-      } else {
-        alert(`Lưu thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
-    } catch (err) {
-      logger.error("Error patching question:", err);
-      alert("Lỗi kết nối khi sửa câu hỏi");
-    }
-  }, [editing, fetchQuestions, matchCode]);
 
   const confirmDeleteQuestion = useCallback(async () => {
     if (!deleting) return;
@@ -324,19 +296,8 @@ export const MatchTab = () => {
     return `${n}/${slots.length}`;
   };
 
-  const roundOfSlot = (slot: string | null): string => {
-    if (!slot) return "Chưa xếp";
-    if (slot.startsWith("KDC")) return "KĐ chung";
-    if (slot.startsWith("KDR")) return "KĐ riêng";
-    if (slot.startsWith("GM")) return "Giải mã";
-    if (slot.startsWith("BP")) return "Bứt phá";
-    if (slot.startsWith("VD")) return "Về đích";
-    return "Khác";
-  };
-
   return (
     <div className="flex flex-col gap-4">
-      <EditQuestionPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
       <MatchQuestionCreatePanel
         open={showCreate}
         saving={saving}
@@ -345,11 +306,11 @@ export const MatchTab = () => {
       />
       <ConfirmActionPanel
         open={deleting !== null}
-        title="Xoá câu hỏi?"
+        title="Gỡ khỏi slot?"
         tone="danger"
-        itemCode={deleting?.question_code}
-        message={deleting ? `Xoá câu hỏi “${deleting.content}” khỏi trận ${matchCode.trim()}?` : ""}
-        confirmLabel="Xoá"
+        itemCode={`${deleting?.question_code}${deleting?.slot ? ` · ${deleting.slot}` : ""}`}
+        message={deleting ? `Gỡ “${deleting.content}” khỏi trận ${matchCode.trim()}? Slot sẽ trống để pick lại.` : ""}
+        confirmLabel="Gỡ"
         saving={deleteSaving}
         onClose={() => setDeleting(null)}
         onConfirm={confirmDeleteQuestion}
@@ -384,7 +345,7 @@ export const MatchTab = () => {
             disabled={loading || !matchCode.trim()}
             className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
           >
-            <Search size={14} /> Tải
+            <Search size={14} /> {loading ? "Đang tải…" : "Tải"}
           </Button>
           <Button
             variant="default"
@@ -395,35 +356,7 @@ export const MatchTab = () => {
           >
             <Plus size={14} /> Soạn câu
           </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            onClick={() => void fetchQuestions()}
-            disabled={loading}
-            className="bg-accent hover:bg-accent/80 disabled:opacity-50"
-            title="Làm mới"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </Button>
         </div>
-        {matchCode.trim() && (
-          <div className="flex gap-1.5 flex-wrap">
-            {ROUND_TABS.map((t) => {
-              const [done, total] = roundProgress(t.id).split("/");
-              const full = done === total;
-              return (
-                <span
-                  key={t.id}
-                  className={`px-2 py-1 rounded-full text-xs font-mono ${
-                    full ? "bg-success/20 text-success" : "bg-accent/50 text-muted-foreground"
-                  }`}
-                >
-                  {t.label} {done}/{total}
-                </span>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-3">
@@ -488,6 +421,57 @@ export const MatchTab = () => {
             </div>
           </div>
         ))}
+        {/* Chi tiết slot đang chọn — thay cho box "Danh sách" cũ */}
+        {selSlot &&
+          (() => {
+            const filled = questions.find((q) => q.slot === selSlot);
+            if (!filled) {
+              return (
+                <p className="text-xs text-muted-foreground">
+                  Slot <span className="font-mono text-brand">{selSlot}</span> trống — tìm bank
+                  bên dưới rồi bấm &quot;Vào {selSlot}&quot;.
+                </p>
+              );
+            }
+            return (
+              <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-mono text-xs text-success">
+                    {filled.slot} · {filled.question_code}
+                  </p>
+                  <p className="text-sm text-foreground">{filled.content}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Đáp án:{" "}
+                    <span className="font-semibold text-foreground">{filled.answer}</span>
+                  </p>
+                </div>
+                <Button
+                  size="xs"
+                  variant="destructive"
+                  onClick={() => setDeleting(filled)}
+                  className="shrink-0"
+                >
+                  Gỡ khỏi slot
+                </Button>
+              </div>
+            );
+          })()}
+        {/* Câu chưa xếp slot (soạn tay) — chỉ hiển thị, không sửa/xoá ở tab này */}
+        {questions.some((q) => !q.slot) && (
+          <div className="rounded-lg border border-border bg-background/40 p-3 flex flex-col gap-1">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Chưa xếp ({questions.filter((q) => !q.slot).length})
+            </p>
+            {questions
+              .filter((q) => !q.slot)
+              .map((q) => (
+                <p key={q.question_code} className="text-sm truncate">
+                  <span className="font-mono text-xs text-success">{q.question_code}</span>{" "}
+                  <span className="text-foreground">{q.content}</span>
+                </p>
+              ))}
+          </div>
+        )}
         {pickRound === "GM" && (
           <p className="text-xs text-muted-foreground">
             Chọn dòng KEY bên dưới rồi Pick cả set (chặn cứng nếu set thiếu 1 KEY + 8 hint đã duyệt).
@@ -509,6 +493,15 @@ export const MatchTab = () => {
             <Search size={14} /> Tìm
           </Button>
         </div>
+        {bankLoading ? (
+          <p className="text-muted-foreground text-sm">Đang tải bank đã duyệt…</p>
+        ) : bankQuestions.length === 0 ? (
+          <p className="text-muted-foreground text-sm">
+            {selSlot
+              ? `Chưa có bank khớp ${selSlot} — thử từ khóa khác hoặc chọn slot khác.`
+              : "Chọn 1 slot trống rồi bấm Tìm để xem bank đã duyệt."}
+          </p>
+        ) : null}
         {bankQuestions.map((q) => {
           const added = addedCodes.has(q.bank_code);
           const adding = addingId === q.bank_code;
@@ -544,37 +537,6 @@ export const MatchTab = () => {
             </div>
           );
         })}
-      </div>
-
-      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-4">
-        <h3 className="text-sm font-semibold text-success uppercase tracking-wide">
-          Danh sách ({questions.length})
-        </h3>
-        {loading ? (
-          <p className="text-muted-foreground text-sm">Đang tải…</p>
-        ) : questions.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Chưa có câu hỏi. Nhập mã trận rồi bấm Tải.</p>
-        ) : (
-          ["KĐ chung", "KĐ riêng", "Giải mã", "Bứt phá", "Về đích", "Chưa xếp", "Khác"].map((g) => {
-            const groupQs = questions.filter((q) => roundOfSlot(q.slot) === g);
-            if (groupQs.length === 0) return null;
-            return (
-              <div key={g} className="flex flex-col gap-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">
-                  {g} ({groupQs.length})
-                </p>
-                {groupQs.map((q) => (
-                  <div key={q.question_code} className="flex items-center gap-2 text-sm py-1.5 border-b border-border/50">
-                    <span className="font-mono text-xs text-success whitespace-nowrap">{q.slot ?? "—"}</span>
-                    <p className="flex-1 truncate text-foreground">{q.content}</p>
-                    <span className="font-semibold text-sm hidden sm:inline">{q.answer}</span>
-                    <RowActions onEdit={() => setEditing(q)} onDelete={() => setDeleting(q)} />
-                  </div>
-                ))}
-              </div>
-            );
-          })
-        )}
       </div>
     </div>
   );
