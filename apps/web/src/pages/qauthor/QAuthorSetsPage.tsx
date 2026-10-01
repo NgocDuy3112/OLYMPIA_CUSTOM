@@ -104,7 +104,7 @@ const QAuthorSetsPage = () => {
               variant="default"
               onClick={() => void createSet()}
               disabled={creating || !name.trim()}
-              className="gap-1.5 bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm"
+              className="gap-1.5 bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm text-success-foreground"
             >
               <Plus size={15} /> {creating ? "Đang tạo…" : "Tạo bộ"}
             </Button>
@@ -155,7 +155,7 @@ const QAuthorSetsPage = () => {
           <Button
             variant="default"
             onClick={() => setShowCreate(true)}
-            className="gap-1.5 bg-success hover:bg-success/90 text-sm font-medium"
+            className="gap-1.5 bg-success hover:bg-success/90 text-sm font-medium text-success-foreground"
           >
             <Plus size={15} /> Tạo bộ đề
           </Button>

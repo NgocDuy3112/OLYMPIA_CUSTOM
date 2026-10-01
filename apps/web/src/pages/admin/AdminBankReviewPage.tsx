@@ -259,7 +259,7 @@ const AdminBankReviewPage = () => {
           variant="default"
           onClick={() => void fetchRows(1)}
           disabled={loading}
-          className="gap-1 bg-success/80 hover:bg-success disabled:opacity-50 text-sm text-foreground"
+          className="gap-1 bg-success/80 hover:bg-success disabled:opacity-50 text-sm text-success-foreground"
         >
           <Search size={14} /> {loading ? "Đang tải…" : "Tìm"}
         </Button>
@@ -421,7 +421,7 @@ const AdminBankReviewPage = () => {
               variant="default"
               onClick={() => void review("approved")}
               disabled={saving}
-              className="bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold"
+              className="bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-success-foreground"
             >
               {saving ? "…" : "Đã duyệt"}
             </Button>

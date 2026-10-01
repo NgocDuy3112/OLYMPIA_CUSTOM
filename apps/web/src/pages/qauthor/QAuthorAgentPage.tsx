@@ -174,7 +174,7 @@ const QAuthorAgentPage = () => {
           variant="default"
           onClick={() => void send()}
           disabled={sending || !input.trim()}
-          className="gap-1.5 self-end rounded-lg bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm text-foreground py-2"
+          className="gap-1.5 self-end rounded-lg bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm text-success-foreground py-2"
         >
           <SendHorizonal size={15} /> Gửi
         </Button>

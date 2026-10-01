@@ -73,21 +73,21 @@ export const OverviewStats = () => {
         <div className="rounded-lg bg-success/10 border border-success/20 p-2.5 flex items-center gap-2">
           <HelpCircle size={16} className="text-success shrink-0" />
           <div>
-            <p className="text-lg font-bold text-white leading-none">{stats.questions}</p>
+            <p className="text-lg font-bold text-foreground leading-none">{stats.questions}</p>
             <p className="text-[11px] text-muted-foreground">Câu hỏi</p>
           </div>
         </div>
         <div className="rounded-lg bg-warning/10 border border-warning/20 p-2.5 flex items-center gap-2">
           <Clock size={16} className="text-warning shrink-0" />
           <div>
-            <p className="text-lg font-bold text-white leading-none">{stats.pending}</p>
+            <p className="text-lg font-bold text-foreground leading-none">{stats.pending}</p>
             <p className="text-[11px] text-muted-foreground">Chờ duyệt</p>
           </div>
         </div>
         <div className="rounded-lg bg-primary/10 border border-primary/20 p-2.5 flex items-center gap-2">
           <CheckCircle2 size={16} className="text-brand shrink-0" />
           <div>
-            <p className="text-lg font-bold text-white leading-none">{stats.decided}</p>
+            <p className="text-lg font-bold text-foreground leading-none">{stats.decided}</p>
             <p className="text-[11px] text-muted-foreground">Đã chốt</p>
           </div>
         </div>

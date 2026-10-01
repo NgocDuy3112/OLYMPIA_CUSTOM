@@ -115,7 +115,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
       case 0:
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white mb-4">
+            <h3 className="text-lg font-bold text-foreground mb-4">
               Chọn Format Giải Đấu
             </h3>
             {isLoading ? (
@@ -143,7 +143,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-bold text-white">
+                          <h4 className="font-bold text-foreground">
                             {template.templateName}
                           </h4>
                         </div>
@@ -175,14 +175,14 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
       case 1:
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white mb-4">
+            <h3 className="text-lg font-bold text-foreground mb-4">
               Cấu Hình Giải Đấu
             </h3>
             {selectedTemplate && (
               <Card className="px-4">
                 <div className="space-y-4">
                   <div>
-                    <h4 className="font-medium text-white mb-2">
+                    <h4 className="font-medium text-foreground mb-2">
                       {selectedTemplate.templateName}
                     </h4>
                     <p className="text-sm text-muted-foreground">
@@ -200,7 +200,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                           key={i}
                           className="flex items-center justify-between p-2 bg-accent/50 rounded"
                         >
-                          <span className="text-white text-sm">
+                          <span className="text-foreground text-sm">
                             {phase.name}
                           </span>
                           <span className="text-muted-foreground text-sm">
@@ -240,7 +240,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
       case 2:
         return (
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-white mb-4">
+            <h3 className="text-lg font-bold text-foreground mb-4">
               Xác Nhận
             </h3>
             {selectedTemplate && (
@@ -251,7 +251,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                       <Check size={20} className="text-success" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-white">
+                      <h4 className="font-bold text-foreground">
                         Sẵn sàng áp dụng
                       </h4>
                       <p className="text-sm text-muted-foreground">

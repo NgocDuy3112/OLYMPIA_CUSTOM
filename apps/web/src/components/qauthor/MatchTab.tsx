@@ -516,7 +516,7 @@ export const MatchTab = () => {
             <div key={q.bank_id} className="flex items-center gap-2 text-sm">
               <p className="flex-1 truncate">
                 <span className="font-mono text-xs text-success">{q.bank_code}</span>{" "}
-                <span className="text-white">{q.content}</span>
+                <span className="text-foreground">{q.content}</span>
                 {q.hint_index && <span className="ml-1 font-mono text-xs text-warning">· {q.hint_index}</span>}
                 {q.domain && <span className="ml-1 font-mono text-xs text-brand">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>}
               </p>
@@ -566,7 +566,7 @@ export const MatchTab = () => {
                 {groupQs.map((q) => (
                   <div key={q.question_code} className="flex items-center gap-2 text-sm py-1.5 border-b border-border/50">
                     <span className="font-mono text-xs text-success whitespace-nowrap">{q.slot ?? "—"}</span>
-                    <p className="flex-1 truncate text-white">{q.content}</p>
+                    <p className="flex-1 truncate text-foreground">{q.content}</p>
                     <span className="font-semibold text-sm hidden sm:inline">{q.answer}</span>
                     <RowActions onEdit={() => setEditing(q)} onDelete={() => setDeleting(q)} />
                   </div>

@@ -213,7 +213,7 @@ const PlayerKhoiDongRiengView = () => {
         }}
       >
         {hasPlayerWithSecondAttempt && (
-          <div className="bg-warning text-foreground px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+          <div className="bg-warning text-warning-foreground px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
             Trả lời lần 2
           </div>
         )}

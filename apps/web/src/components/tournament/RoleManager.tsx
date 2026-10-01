@@ -76,7 +76,7 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
         <UserCog size={18} className="text-brand" />
-        <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
+        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
           Quản lý quyền
         </h3>
       </div>
@@ -98,7 +98,7 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
                 {player.userName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-medium text-white truncate">
+                <div className="text-sm font-medium text-foreground truncate">
                   {player.userName}
                 </div>
                 <div className="text-xs text-muted-foreground">{player.userCode}</div>

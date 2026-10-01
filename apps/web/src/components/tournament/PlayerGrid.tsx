@@ -45,7 +45,7 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-white truncate">
+            <div className="font-medium text-foreground truncate">
               {player.userName}
             </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">

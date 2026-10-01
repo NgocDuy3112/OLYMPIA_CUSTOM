@@ -32,7 +32,7 @@ export class ErrorBoundary extends React.Component<
   render(): React.ReactNode {
     if (this.state.error) {
       return (
-        <div className="flex justify-center items-start min-h-screen p-6 text-white">
+        <div className="flex justify-center items-start min-h-screen p-6 text-foreground">
           <div className="w-full max-w-2xl rounded-xl bg-destructive/10 border border-destructive/40 p-5 flex flex-col gap-3">
             <p className="font-bold text-destructive">
               Trang gặp lỗi — gửi đoạn này cho dev

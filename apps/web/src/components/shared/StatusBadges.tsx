@@ -11,7 +11,7 @@ type BadgeTone =
 
 // Màu chỉ đến từ semantic tokens trong index.css.
 const TONE_CLASS: Record<BadgeTone, string> = {
-  default: "bg-muted text-white",
+  default: "bg-muted text-foreground",
   success: "bg-success text-success-foreground",
   warning: "bg-warning text-warning-foreground",
   danger: "bg-destructive text-destructive-foreground",

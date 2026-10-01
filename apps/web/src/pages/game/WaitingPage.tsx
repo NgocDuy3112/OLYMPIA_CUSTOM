@@ -312,7 +312,7 @@ const AdminWaitingView = () => {
             <CControlButton
               onClick={handleFinishMatch}
               disabled={isFinishingMatch || !currentMatchCode || matchFinished}
-              className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center bg-success hover:bg-success/90 disabled:bg-success/80"
+              className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center bg-success hover:bg-success/90 disabled:bg-success/80 text-success-foreground"
             >
               <CheckCircle size={18} />
               {isFinishingMatch

@@ -54,7 +54,7 @@ export function ConfirmActionPanel({
       {itemCode && (
         <p className="text-xs text-blue-400 font-mono -mt-2">{itemCode}</p>
       )}
-      <p className="text-sm text-white">{message}</p>
+      <p className="text-sm text-foreground">{message}</p>
       <p className="text-xs text-muted-foreground">{note}</p>
     </SidePanel>
   );

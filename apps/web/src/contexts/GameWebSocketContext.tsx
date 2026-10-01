@@ -128,7 +128,7 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
         <button
           type="button"
           onClick={unlock}
-          className="fixed bottom-3 left-3 z-50 rounded-lg bg-blue-700 px-3 py-2 text-sm font-bold text-white shadow-lg"
+          className="fixed bottom-3 left-3 z-50 rounded-lg bg-info px-3 py-2 text-sm font-bold text-info-foreground shadow-lg"
         >
           Bật âm thanh
         </button>

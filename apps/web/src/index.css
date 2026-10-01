@@ -40,11 +40,13 @@
 
   /* Semantic state tokens (stock shadcn has no success/warning/info/purple) */
   --color-success: #16a34a;
-  --color-success-foreground: #ffffff;
+  /* Dark text trên nền xanh — trắng trên #16a34a chỉ 3.3:1 (WCAG fail) */
+  --color-success-foreground: #052e16;
   --color-warning: #f59e0b;
   --color-warning-foreground: #12102e;
   --color-info: #3b82f6;
-  --color-info-foreground: #ffffff;
+  /* Đậm chữ trên nền xanh dương — trắng trên #3b82f6 chỉ 3.7:1 */
+  --color-info-foreground: #0b1220;
   --color-purple: #8b5cf6;
   --color-purple-foreground: #ffffff;
   --color-border: rgb(255 255 255 / 0.10);

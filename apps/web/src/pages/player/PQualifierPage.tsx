@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, ListOrdered, Send, Trophy } from "lucide-react";
 import { API_BASE_URL, WS_BASE_URL } from "@/configs";
@@ -65,7 +65,8 @@ const PQualifierPage = () => {
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const openedAtRef = useRef<Record<string, number>>({});
+  /** Thời điểm mở từng câu — state (không phải ref) để render đọc được khi tính countdown. */
+  const [openedAt, setOpenedAt] = useState<Record<string, number>>({});
 
   // Tick 250ms de countdown 10s moi cau.
   useEffect(() => {
@@ -86,11 +87,18 @@ const PQualifierPage = () => {
         const rows = (json.data as Record<string, unknown>[]).map(toQuestion);
         setQuestions(rows);
         const now = Date.now();
-        for (const q of rows) {
-          if (!(q.questionCode in openedAtRef.current)) {
-            openedAtRef.current[q.questionCode] = now;
+        // Chỉ set lần đầu — câu đã mở trước đó giữ nguyên thời điểm cũ.
+        setOpenedAt((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          for (const q of rows) {
+            if (!(q.questionCode in next)) {
+              next[q.questionCode] = now;
+              changed = true;
+            }
           }
-        }
+          return changed ? next : prev;
+        });
       } else {
         setQuestions([]);
       }
@@ -161,7 +169,7 @@ const PQualifierPage = () => {
   const currentDone = current ? submitted[current.questionCode] : false;
   // Moi cau 10s (QUALIFIER_TIME_LIMIT_MS). Het gio → khoa, tinh nhu bo qua.
   const currentElapsedMs = current
-    ? Math.max(0, nowMs - (openedAtRef.current[current.questionCode] ?? nowMs))
+    ? Math.max(0, nowMs - (openedAt[current.questionCode] ?? nowMs))
     : 0;
   const currentLeftSec = current
     ? Math.max(0, Math.ceil((10_000 - currentElapsedMs) / 1000))
@@ -172,8 +180,8 @@ const PQualifierPage = () => {
   const submit = useCallback(
     async (questionCode: string, letter: string) => {
       if (!code || submitted[questionCode]) return;
-      const openedAt = openedAtRef.current[questionCode] ?? Date.now();
-      const responseTimeMs = Math.max(0, Date.now() - openedAt);
+      const openedAtMs = openedAt[questionCode] ?? Date.now();
+      const responseTimeMs = Math.max(0, Date.now() - openedAtMs);
       // Chan client-side: qua 10s thi khoa, khong gui.
       if (responseTimeMs > 10_000) return;
       setSubmitting(true);
@@ -200,7 +208,7 @@ const PQualifierPage = () => {
         setSubmitting(false);
       }
     },
-    [code, submitted],
+    [code, submitted, openedAt],
   );
 
   const players: PlayerStatus[] = [];
@@ -295,7 +303,7 @@ const PQualifierPage = () => {
                     variant="default"
                     onClick={() => currentLetter && void submit(current.questionCode, currentLetter)}
                     disabled={!currentLetter || currentDone || submitting || current.status === "closed" || currentTimedOut}
-                    className="flex-1 justify-center gap-2 bg-success hover:bg-success/90 disabled:opacity-50 px-4 py-2 min-h-11 font-semibold text-sm"
+                    className="flex-1 justify-center gap-2 bg-success hover:bg-success/90 disabled:opacity-50 px-4 py-2 min-h-11 font-semibold text-sm text-success-foreground"
                   >
                     {currentDone ? (
                       <>

@@ -139,7 +139,7 @@ const MQualifierPage = () => {
           variant="default"
           onClick={() => void fetchAll()}
           disabled={loading || !tournamentCode.trim()}
-          className="gap-1 bg-purple/80 hover:bg-purple disabled:opacity-50 text-sm text-foreground"
+          className="gap-1 bg-purple/80 hover:bg-purple disabled:opacity-50 text-sm text-purple-foreground"
         >
           <Search size={14} /> Tải
         </Button>
@@ -161,7 +161,7 @@ const MQualifierPage = () => {
                 onClick={() => { setIndex(i); setReveal(false); }}
                 className={`min-h-11 min-w-11 rounded-lg px-2 text-sm font-bold ${
                   i === index
-                    ? "bg-purple text-foreground"
+                    ? "bg-purple text-purple-foreground"
                     : q.status === "closed"
                       ? "bg-success/80 text-foreground"
                       : "bg-accent text-foreground/80 hover:bg-accent"

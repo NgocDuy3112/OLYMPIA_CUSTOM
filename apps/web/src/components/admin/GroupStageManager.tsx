@@ -370,7 +370,7 @@ export function GroupStageManager({
                       key={m.matchCode}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/25 border border-border/50 text-sm"
                     >
-                      <span className="flex-1 text-white truncate">{m.matchName}</span>
+                      <span className="flex-1 text-foreground truncate">{m.matchName}</span>
                       <span className="text-[11px] font-mono text-muted-foreground">{m.matchCode}</span>
                       {!done && (
                         <Button
@@ -401,7 +401,7 @@ export function GroupStageManager({
             {standings.slice(0, 10).map((s) => (
               <div key={s.userCode} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 text-sm">
                 <span className="w-6 text-xs font-bold text-muted-foreground">{s.rank}</span>
-                <span className="flex-1 text-white truncate">{s.userName || s.userCode}</span>
+                <span className="flex-1 text-foreground truncate">{s.userName || s.userCode}</span>
                 <span className="text-[11px] text-muted-foreground">{s.matchesPlayed} trận</span>
                 <span className="font-mono text-xs text-foreground w-14 text-right">{s.totalPoints}đ</span>
               </div>

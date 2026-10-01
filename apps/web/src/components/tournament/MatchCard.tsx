@@ -28,7 +28,7 @@ export const MatchCard: React.FC<MatchCardProps> = ({
     <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg hover:bg-accent transition-colors">
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-1">
-          <span className="font-medium text-white truncate">{matchName}</span>
+          <span className="font-medium text-foreground truncate">{matchName}</span>
           <MatchStatusBadge status={matchStatus} />
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">

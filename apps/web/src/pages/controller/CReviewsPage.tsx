@@ -182,7 +182,7 @@ const CReviewsPage = () => {
                     size="icon-sm"
                     variant="ghost"
                     onClick={() => setDecision(r.id, c.userCode, "dung")}
-                    className={`rounded-lg ${v === "dung" ? "bg-success text-foreground" : "bg-accent text-muted-foreground hover:text-foreground"}`}
+                    className={`rounded-lg ${v === "dung" ? "bg-success text-success-foreground" : "bg-accent text-muted-foreground hover:text-foreground"}`}
                     title="Đúng"
                   >
                     <Check size={16} />
@@ -191,7 +191,7 @@ const CReviewsPage = () => {
                     size="icon-sm"
                     variant="ghost"
                     onClick={() => setDecision(r.id, c.userCode, "sai")}
-                    className={`rounded-lg ${v === "sai" ? "bg-destructive text-foreground" : "bg-accent text-muted-foreground hover:text-foreground"}`}
+                    className={`rounded-lg ${v === "sai" ? "bg-destructive text-destructive-foreground" : "bg-accent text-muted-foreground hover:text-foreground"}`}
                     title="Sai"
                   >
                     <X size={16} />

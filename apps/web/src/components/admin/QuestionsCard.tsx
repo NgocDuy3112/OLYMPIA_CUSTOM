@@ -141,7 +141,7 @@ export function QuestionsCard({
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-white truncate mt-0.5">{q.content}</p>
+                  <p className="text-sm text-foreground truncate mt-0.5">{q.content}</p>
                   <p className="text-xs text-muted-foreground truncate">
                     Đáp án: <span className="text-foreground font-medium">{q.answer}</span>
                     {q.explanation && <span className="text-muted-foreground/70"> · {q.explanation}</span>}

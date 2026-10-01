@@ -41,7 +41,7 @@ export function WaitingView({
       ) : null}
 
       <div className="mt-8 text-center">
-        <h1 className="font-display text-5xl font-bold text-white uppercase tracking-wide">
+        <h1 className="font-display text-5xl font-bold text-foreground uppercase tracking-wide">
           OLYMPIA CUSTOM 3
         </h1>
         {loaded && matchName ? (

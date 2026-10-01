@@ -78,7 +78,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
               <div className="flex items-center">{getRankIcon(standing.rank)}</div>
             </TableCell>
             <TableCell className="py-3 px-3">
-              <span className="font-medium text-white">
+              <span className="font-medium text-foreground">
                 {standing.userName}
               </span>
             </TableCell>

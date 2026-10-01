@@ -55,8 +55,8 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
         }
         className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors ${
           location.pathname.includes("/waiting")
-            ? "bg-white/20 text-white"
-            : "text-white/80 hover:text-white hover:bg-white/10"
+            ? "bg-accent text-foreground"
+            : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
         }`}
       >
         Sảnh Chờ
@@ -67,8 +67,8 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
         onClick={() => navigate("/operator/controller/overview")}
         className={`px-2 py-1.5 sm:px-3 sm:py-2 rounded text-xs sm:text-sm font-medium transition-colors ${
           location.pathname.includes("/overview")
-            ? "bg-white/20 text-white"
-            : "text-white/80 hover:text-white hover:bg-white/10"
+            ? "bg-accent text-foreground"
+            : "text-foreground/80 hover:text-foreground hover:bg-accent/50"
         }`}
       >
         Tổng quan

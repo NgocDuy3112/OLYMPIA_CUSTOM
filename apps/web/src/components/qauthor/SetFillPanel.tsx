@@ -385,7 +385,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   <div key={setCodeG} className="rounded-lg bg-background/40 border border-border p-3 flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono text-sm text-warning">{setCodeG}</span>
-                      {key && <span className="text-sm text-white truncate">KEY: {key.answer}</span>}
+                      {key && <span className="text-sm text-foreground truncate">KEY: {key.answer}</span>}
                       <span className="text-xs text-muted-foreground">
                         {rows.length}/9{missing.length > 0 && ` · thiếu ${missing.join(",")}`}
                       </span>
@@ -438,7 +438,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   <div key={q.bank_id} className="flex items-center gap-2 text-sm">
                     <p className="flex-1 truncate">
                       <span className="font-mono text-xs text-success">{q.bank_code}</span>{" "}
-                      <span className="text-white">{q.content}</span>
+                      <span className="text-foreground">{q.content}</span>
                     </p>
                     <Button
                       size="xs"
@@ -486,7 +486,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                           <TableCell className="py-1.5 pr-2">
                             {item ? (
                               <>
-                                <p className="text-white truncate">
+                                <p className="text-foreground truncate">
                                   <span className="font-mono text-[11px] text-success">{item.bankCode}</span>{" "}
                                   {item.content}
                                 </p>

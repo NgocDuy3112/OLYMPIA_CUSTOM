@@ -125,7 +125,7 @@ const ControllerOverviewPage = () => {
           variant="default"
           onClick={enterLive}
           disabled={!matchCode.trim()}
-          className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-foreground"
+          className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-success-foreground"
         >
           <Play size={14} /> Vào live
         </Button>

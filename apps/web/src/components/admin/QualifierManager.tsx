@@ -393,7 +393,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
                   </span>
                 )}
               </div>
-              <p className="text-sm text-white line-clamp-2">{q.content}</p>
+              <p className="text-sm text-foreground line-clamp-2">{q.content}</p>
               <p className="text-[11px] text-muted-foreground">
                 {q.options?.length ?? 0} đáp án · Đúng:{" "}
                 <span className="font-bold text-foreground">{q.correctOption || "?"}</span>
@@ -443,7 +443,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
             {standings.slice(0, 8).map((s, i) => (
               <div key={s.userCode} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 text-sm">
                 <span className="w-6 text-xs font-bold text-muted-foreground">{i + 1}</span>
-                <span className="flex-1 text-white truncate">{s.userName || s.userCode}</span>
+                <span className="flex-1 text-foreground truncate">{s.userName || s.userCode}</span>
                 <span className="font-mono text-xs text-muted-foreground">
                   {s.totalPoints ?? s.correctCount ?? ""}đ
                 </span>

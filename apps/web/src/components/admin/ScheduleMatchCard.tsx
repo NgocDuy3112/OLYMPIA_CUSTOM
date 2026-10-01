@@ -49,7 +49,7 @@ function Slot({ position, player }: { position: number; player?: SlotPlayer }) {
         {position}
       </span>
       <span className="min-w-0">
-        <span className="block text-xs text-white truncate">{name}</span>
+        <span className="block text-xs text-foreground truncate">{name}</span>
         {player.userName && (
           <span className="block text-[10px] text-muted-foreground font-mono truncate">{player.userCode}</span>
         )}
@@ -100,7 +100,7 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
         <span className="text-[11px] text-muted-foreground/70 font-mono shrink-0">{match.match_code}</span>
       </div>
 
-      <p className="font-semibold text-white leading-snug">{match.match_name}</p>
+      <p className="font-semibold text-foreground leading-snug">{match.match_name}</p>
 
       <div className="flex flex-col gap-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">

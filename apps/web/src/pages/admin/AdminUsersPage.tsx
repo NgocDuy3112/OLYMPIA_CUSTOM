@@ -336,7 +336,7 @@ const AdminUsersPage = () => {
             <Button
               variant="destructive"
               onClick={() => void fetchUsers()}
-              className="bg-destructive hover:bg-destructive/90 text-foreground text-sm font-medium"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-sm font-medium"
             >
               Thử lại
             </Button>

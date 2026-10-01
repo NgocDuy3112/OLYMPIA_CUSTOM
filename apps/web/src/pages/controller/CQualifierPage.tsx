@@ -137,7 +137,7 @@ const CQualifierPage = () => {
           variant="default"
           onClick={() => void closeAll()}
           disabled={closingAll || openCount === 0}
-          className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-foreground"
+          className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-success-foreground"
         >
           {closingAll ? "Đang chốt…" : `Chốt + chấm ${openCount} câu mở`}
         </Button>

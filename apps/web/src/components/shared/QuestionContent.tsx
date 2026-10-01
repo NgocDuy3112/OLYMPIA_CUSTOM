@@ -24,7 +24,7 @@ export const QuestionContent: React.FC<QuestionContentProps> = ({
     return (
       <div className="w-full overflow-y-auto min-h-0">
         <p
-          className={`${textSizeClass} font-bold text-white leading-relaxed text-left break-words`}
+          className={`${textSizeClass} font-bold text-foreground leading-relaxed text-left break-words`}
         >
           <MathText text={question.questionText} />
         </p>
@@ -35,7 +35,7 @@ export const QuestionContent: React.FC<QuestionContentProps> = ({
     <>
       <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
         <p
-          className={`${textSizeClass} font-bold text-white leading-relaxed text-left break-words`}
+          className={`${textSizeClass} font-bold text-foreground leading-relaxed text-left break-words`}
         >
           <MathText text={question.questionText} />
         </p>

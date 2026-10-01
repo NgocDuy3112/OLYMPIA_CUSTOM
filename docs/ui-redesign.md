@@ -83,8 +83,10 @@ flowchart LR
 ## 5. Kiểm chứng
 
 - `pnpm typecheck` (turbo toàn repo): 10/10 pass
-- `pnpm build` (apps/web): pass — `✓ built in 7.90s`
-- `pnpm lint` (apps/web): 5 problems — **cũ, không thuộc redesign** (2 lỗi `react-hooks/refs` ở `PQualifierPage.tsx:164`, 3 warning exhaustive-deps ở `BankTab`/`VeDich*`)
+- `pnpm build` (apps/web): pass — `✓ built in 6.27s`
+- `pnpm lint` (apps/web): **exit 0** — 0 lỗi, 3 warning exhaustive-deps cũ (BankTab + VeDich×2, không phải lỗi)
+- Sweep contrast: 0 chỗ `text-white` còn lại; nút success/warning/info đổi sang `*-foreground` tương ứng
+  (trắng trên xanh #16a34a chỉ 3.3:1, trắng trên amber 2.1:1 → đều fail WCAG)
 - Visual: login + public shell kiểm tra bằng Chrome DevTools ở 375px và 1440px, không lỗi JS console (chỉ 401/500 do preview không có backend)
 
 ## 6. Tài liệu đọc thêm

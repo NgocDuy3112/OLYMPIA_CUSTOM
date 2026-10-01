@@ -106,7 +106,7 @@ const AdminCheckpointsPage = () => {
           variant="default"
           onClick={() => void handleRestore()}
           disabled={restoring || !matchCode.trim() || checkpoints.length === 0}
-          className="gap-2 bg-warning hover:bg-warning/90 disabled:opacity-50 font-semibold text-sm"
+          className="gap-2 bg-warning hover:bg-warning/90 disabled:opacity-50 font-semibold text-sm text-warning-foreground"
         >
           <RotateCcw size={16} />
           {restoring ? "Đang khôi phục…" : "Khôi phục"}

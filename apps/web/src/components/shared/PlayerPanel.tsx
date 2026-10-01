@@ -67,7 +67,7 @@ export function PlayerPanel(
               setCameraRequested(next);
               props.onCameraControl?.(props.player.playerCode, next);
             }}
-            className={`absolute bottom-2 right-2 text-foreground ${cameraRequested ? "bg-success/80 hover:bg-success" : "bg-destructive/80 hover:bg-destructive"}`}
+            className={`absolute bottom-2 right-2 ${cameraRequested ? "bg-success/80 hover:bg-success text-success-foreground" : "bg-destructive/80 hover:bg-destructive text-destructive-foreground"}`}
             title={cameraRequested ? "Yêu cầu tắt camera" : "Yêu cầu bật camera"}
           >
             {cameraRequested ? <Camera size={16} /> : <CameraOff size={16} />}

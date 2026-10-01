@@ -522,7 +522,7 @@ export const QualifierTab = () => {
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-mono text-xs text-muted-foreground w-6">#{q.position}</span>
                   <span className="font-mono text-xs text-success">{q.questionCode}</span>
-                  <p className="flex-1 truncate text-white">{q.content}</p>
+                  <p className="flex-1 truncate text-foreground">{q.content}</p>
                   {q.status === "closed" ? (
                     <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success whitespace-nowrap">Đã chốt</span>
                   ) : (
@@ -599,11 +599,11 @@ export const QualifierTab = () => {
               >
                 {s.rank}
               </span>
-              <p className="flex-1 text-white">
+              <p className="flex-1 text-foreground">
                 {s.userName} <span className="text-muted-foreground font-mono text-xs">· {s.userCode}</span>
               </p>
               <span className="font-mono text-xs text-muted-foreground hidden sm:inline">{s.correctCount} đúng</span>
-              <span className="font-bold text-white font-mono">{s.totalPoints}đ</span>
+              <span className="font-bold text-foreground font-mono">{s.totalPoints}đ</span>
             </div>
           ))
         )}

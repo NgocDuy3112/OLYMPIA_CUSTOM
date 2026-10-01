@@ -381,7 +381,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                 <div key={setCode} className="rounded-lg bg-background/40 border border-border p-3 flex flex-col gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono text-sm text-warning">{setCode}</span>
-                    {key && <span className="text-sm text-white">KEY: {key.answer}</span>}
+                    {key && <span className="text-sm text-foreground">KEY: {key.answer}</span>}
                     <span className="text-xs text-muted-foreground">{hints.length}/8 hint{missing.length > 0 && ` · thiếu ${missing.join(",")}`}</span>
                     <Button
                       size="xs"
