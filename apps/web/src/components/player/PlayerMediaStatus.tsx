@@ -49,8 +49,8 @@ export const PlayerMediaStatus: React.FC<PlayerMediaStatusProps> = ({
           flex items-center justify-center rounded-full
           ${
             cameraEnabled
-              ? "bg-green-500/20 text-green-400"
-              : "bg-red-500/20 text-red-400"
+              ? "bg-success/20 text-success"
+              : "bg-destructive/20 text-destructive"
           }
           ${showControls ? "cursor-pointer hover:opacity-80" : ""}
           ${styles.button}
@@ -74,8 +74,8 @@ export const PlayerMediaStatus: React.FC<PlayerMediaStatusProps> = ({
           flex items-center justify-center rounded-full
           ${
             micEnabled
-              ? "bg-green-500/20 text-green-400"
-              : "bg-red-500/20 text-red-400"
+              ? "bg-success/20 text-success"
+              : "bg-destructive/20 text-destructive"
           }
           ${showControls ? "cursor-pointer hover:opacity-80" : ""}
           ${styles.button}

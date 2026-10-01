@@ -36,13 +36,13 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
     >
       <TabsList
         variant="line"
-        className="w-full h-auto justify-start gap-0 overflow-x-auto scrollbar-hide rounded-none border-b border-white/10 bg-transparent p-0"
+        className="w-full h-auto justify-start gap-0 overflow-x-auto scrollbar-hide rounded-none border-b border-border bg-transparent p-0"
       >
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.path}
             value={tab.path}
-            className="flex items-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium text-gray-400 transition-colors hover:border-white/20 hover:text-white data-[active=true]:border-blue-500 data-[active=true]:bg-transparent data-[active=true]:text-white data-[active=true]:shadow-none"
+            className="flex items-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[active=true]:border-brand data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:shadow-none"
           >
             {tab.icon}
             {tab.label}

@@ -38,7 +38,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   const displayPhase = phaseName || (phase ? PHASE_NAMES[phase] : null);
 
   return (
-    <header className="sticky top-0 z-40 bg-black/40 backdrop-blur-sm border-b border-white/10">
+    <header className="sticky top-0 z-40 bg-background/40 backdrop-blur-sm border-b border-border">
       <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5">
         {/* Left: Back button + match info */}
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0">
@@ -47,14 +47,14 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
               variant="ghost"
               size="icon"
               onClick={() => navigate(backTo)}
-              className="text-gray-400"
+              className="text-muted-foreground"
               title={backLabel}
             >
               <ArrowLeft size={18} />
             </Button>
           )}
           <div className="flex items-center gap-2">
-            <Trophy size={16} className="text-blue-400 hidden sm:block" />
+            <Trophy size={16} className="text-brand hidden sm:block" />
             <div className="min-w-0">
               {matchName && (
                 <h1 className="text-sm sm:text-base font-bold text-white truncate">
@@ -62,7 +62,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
                 </h1>
               )}
               {matchCode && (
-                <span className="text-xs text-gray-400 font-mono">
+                <span className="text-xs text-muted-foreground font-mono">
                   {matchCode}
                 </span>
               )}
@@ -73,8 +73,8 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
         {/* Center: Phase */}
         {displayPhase && (
           <div className="hidden sm:flex items-center gap-2">
-            <span className="text-sm text-white/70">•</span>
-            <span className="text-sm text-blue-300 font-medium">
+            <span className="text-sm text-foreground/70">•</span>
+            <span className="text-sm text-brand font-medium">
               {displayPhase}
             </span>
           </div>
@@ -85,7 +85,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
           {rightContent}
           <div
             className={`flex items-center gap-1.5 text-xs ${
-              isConnected ? "text-green-400" : "text-red-400"
+              isConnected ? "text-success" : "text-destructive"
             }`}
           >
             {isConnected ? (
@@ -106,7 +106,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
       {/* Mobile phase indicator */}
       {displayPhase && (
         <div className="sm:hidden px-3 pb-2">
-          <span className="text-xs text-blue-300 font-medium">
+          <span className="text-xs text-brand font-medium">
             {displayPhase}
           </span>
         </div>

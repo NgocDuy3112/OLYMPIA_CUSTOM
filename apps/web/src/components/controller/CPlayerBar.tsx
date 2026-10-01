@@ -53,8 +53,8 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
   const borderClass = isCurrent
     ? "border-white"
     : shouldShowPingIcon
-      ? "border-blue-500"
-      : "border-blue-600";
+      ? "border-primary"
+      : "border-primary";
   const handleClick = () => {
     if (disabled) return;
     onClick?.(player.playerCode);
@@ -104,7 +104,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
         onClick={disabled ? undefined : handleClick}
         onKeyDown={disabled ? undefined : handleKeyDown}
         aria-disabled={disabled ?? false}
-        className={`flex justify-between ${isActive ? "bg-blue-600" : "bg-blue-900"} border-2 ${borderClass} rounded-xl text-white shadow-md px-3 py-2 xl:px-4 xl:py-3 w-full ${disabled ? "opacity-60 pointer-events-none" : "cursor-pointer"} focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400`}
+        className={`flex justify-between ${isActive ? "bg-primary" : "bg-primary/40"} border-2 ${borderClass} rounded-xl text-foreground shadow-md px-3 py-2 xl:px-4 xl:py-3 w-full ${disabled ? "opacity-60 pointer-events-none" : "cursor-pointer"} focus:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
       >
         <div className="flex flex-col flex-1">
           <p className="font-extrabold uppercase leading-tight">
@@ -119,24 +119,24 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
                 <span className="font-[SVN-Gratelos_Display] uppercase text-[14px] tablet:text-[16px] xl:text-[24px] font-extrabold flex items-center gap-2">
                   {player.playerName}
                   {player.playerAfk && (
-                    <span className="rounded bg-amber-500/25 px-1.5 py-0.5 text-[10px] font-bold text-amber-200">
+                    <span className="rounded bg-warning/25 px-1.5 py-0.5 text-[10px] font-bold text-warning">
                       AFK
                     </span>
                   )}
                   {playerPower === "star" && (
-                    <Star size={16} className="text-white-400 shrink-0" />
+                    <Star size={16} className="text-foreground-400 shrink-0" />
                   )}
                   {playerPower === "shield" && (
-                    <Shield size={16} className="text-white-400 shrink-0" />
+                    <Shield size={16} className="text-foreground-400 shrink-0" />
                   )}
                   {isCurrent && (
-                    <Mic size={16} className="text-white shrink-0" />
+                    <Mic size={16} className="text-foreground shrink-0" />
                   )}
                   {hasKeywordSubmission && (
                     <>
-                      <KeyRound size={16} className="text-white-400 shrink-0" />
+                      <KeyRound size={16} className="text-foreground-400 shrink-0" />
                       {showClueCount && typeof cluesOpened === "number" && (
-                        <span className="text-[16px] tablet:text-[18px] xl:text-[22px] font-normal text-white">
+                        <span className="text-[16px] tablet:text-[18px] xl:text-[22px] font-normal text-foreground">
                           {cluesOpened}
                         </span>
                       )}
@@ -150,7 +150,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
 
               {player.playerTimestamp != null &&
                 player.playerTimestamp != 0 && (
-                  <span className="text-[11px] tablet:text-[13px] xl:text-[16px] font-normal text-white">
+                  <span className="text-[11px] tablet:text-[13px] xl:text-[16px] font-normal text-foreground">
                     {player.playerTimestamp.toFixed(3)}
                   </span>
                 )}
@@ -160,7 +160,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
             {player.playerLastAnswer?.toUpperCase() ?? ""}
           </p>
           {hasTieBreaker && (
-            <p className="text-[12px] mt-1 text-blue-200 font-normal">
+            <p className="text-[12px] mt-1 text-foreground/80 font-normal">
               {player.playerCorrectScore != null && (
                 <span>Đúng: {player.playerCorrectScore} điểm</span>
               )}
@@ -191,7 +191,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
                   afk: !player.playerAfk,
                 });
               }}
-              className={`rounded px-2 py-1 text-[10px] font-bold ${player.playerAfk ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-amber-600 hover:bg-amber-500 text-white"}`}
+              className={`rounded px-2 py-1 text-[10px] font-bold ${player.playerAfk ? "bg-success hover:bg-success/90 text-success-foreground" : "bg-warning hover:bg-warning/90 text-warning-foreground"}`}
             >
               {player.playerAfk ? "BẬT LẠI" : "AFK"}
             </Button>
@@ -201,7 +201,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
               size="icon-sm"
               variant="ghost"
               onClick={handleEditScoreClick}
-              className="rounded hover:bg-blue-700 text-blue-300 hover:text-white"
+              className="rounded hover:bg-accent text-brand hover:text-foreground"
               title="Sửa điểm"
               type="button"
             >
@@ -214,7 +214,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
               variant="ghost"
               onClick={(e) => void handleRequestReview(e)}
               disabled={isRequestingReview}
-              className="rounded hover:bg-amber-600 text-amber-300 hover:text-white disabled:opacity-50"
+              className="rounded hover:bg-warning/30 text-warning hover:text-foreground disabled:opacity-50"
               title="Gửi duyệt đáp án qua Discord"
               type="button"
             >

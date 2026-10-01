@@ -13,7 +13,7 @@ export default function CControlButton({
   return (
     <Button
       variant="ghost"
-      className={`rounded-none bg-blue-900 ring-blue-600 ring-3 min-w-24 h-9 tablet:min-w-28 tablet:h-10 xl:min-w-40 xl:h-15 text-xs tablet:text-sm flex text-white items-center justify-center transition transform duration-200 hover:bg-blue-700 hover:scale-105 hover:shadow-lg disabled:opacity-50${className ? ` ${className}` : ""}`}
+      className={`rounded-none bg-primary/40 ring-primary ring-3 min-w-24 h-9 tablet:min-w-28 tablet:h-10 xl:min-w-40 xl:h-15 text-xs tablet:text-sm flex text-foreground items-center justify-center transition transform duration-200 hover:bg-primary/70 hover:scale-105 hover:shadow-lg disabled:opacity-50${className ? ` ${className}` : ""}`}
       {...props}
     >
       {children}

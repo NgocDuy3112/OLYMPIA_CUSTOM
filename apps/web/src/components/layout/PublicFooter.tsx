@@ -6,14 +6,14 @@ export const PublicFooter: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-white/10 bg-[#0d0a22]/90 backdrop-blur-sm lg:left-64">
+    <footer className="fixed bottom-0 left-0 right-0 z-20 border-t border-border bg-background/90 backdrop-blur-sm lg:left-64">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               © {new Date().getFullYear()} Olympia Custom
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Nền tảng thi đấu trực tuyến
             </p>
           </div>
@@ -22,7 +22,7 @@ export const PublicFooter: React.FC = () => {
             <Button
               variant="ghost"
               onClick={() => navigate("/info/rules")}
-              className="px-0 text-sm text-gray-400 hover:text-white"
+              className="px-0 text-sm text-muted-foreground hover:text-foreground"
             >
               Luật chơi
             </Button>
@@ -30,7 +30,7 @@ export const PublicFooter: React.FC = () => {
               href="https://github.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm text-gray-400 hover:text-white transition-colors"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               GitHub
             </a>

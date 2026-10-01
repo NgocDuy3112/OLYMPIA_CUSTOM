@@ -32,7 +32,7 @@ const PAnswerBox: React.FC<PAnswerBoxProps> = ({
   return (
     <div className="relative w-full">
       {showKeyIcon && (
-        <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-blue-600 pointer-events-none" />
+        <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-brand pointer-events-none" />
       )}
       <Input
         type="text"
@@ -46,10 +46,10 @@ const PAnswerBox: React.FC<PAnswerBoxProps> = ({
             : "Bạn không thể nhập đáp án tại thời điểm này")
         }
         disabled={isDisabled}
-        className={`p-3 rounded-lg text-lg text-black text-center shadow-sm transition duration-150 border-blue-500 border-4 bg-white disabled:bg-blue-900 disabled:cursor-not-allowed disabled:text-blue-300 ${showKeyIcon ? "pr-12" : ""}`}
+        className={`p-3 rounded-lg text-lg text-background text-center shadow-sm transition duration-150 border-primary border-4 bg-foreground disabled:bg-primary/40 disabled:cursor-not-allowed disabled:text-brand ${showKeyIcon ? "pr-12" : ""}`}
       />
       {showKeyIcon && (
-        <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-blue-600 pointer-events-none" />
+        <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-brand pointer-events-none" />
       )}
     </div>
   );

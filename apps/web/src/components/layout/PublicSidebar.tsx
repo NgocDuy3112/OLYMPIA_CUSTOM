@@ -63,14 +63,14 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
   };
 
   return (
-    <Sidebar collapsible="offcanvas" className="border-r border-white/10">
-      <SidebarHeader className="border-b border-white/10 px-5 py-5">
+    <Sidebar collapsible="offcanvas" className="border-r border-border">
+      <SidebarHeader className="border-b border-border px-5 py-5">
         <Button
           variant="ghost"
           onClick={() => go("/")}
           className="gap-2 px-2"
         >
-          <Trophy size={22} className="text-blue-400" />
+          <Trophy size={22} className="text-brand" />
           <span className="text-base font-bold text-white tracking-wide">
             OLYMPIA CUSTOM
           </span>
@@ -93,7 +93,7 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
                     <SidebarMenuButton
                       isActive={active}
                       tooltip={item.label}
-                      className="data-[active=true]:bg-blue-600/20 data-[active=true]:text-blue-400"
+                      className="data-[active=true]:bg-primary/20 data-[active=true]:text-brand"
                       onClick={() => go(item.path)}
                     >
                       {item.icon}
@@ -107,7 +107,7 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-white/10 p-3">
+      <SidebarFooter className="border-t border-border p-3">
         {isAuthenticated ? (
           <div className="space-y-1">
             {showProfile ? (
@@ -116,13 +116,13 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
                 className="w-full justify-start gap-2"
                 onClick={() => go("/profile")}
               >
-                <User size={16} className="text-gray-400 shrink-0" />
+                <User size={16} className="text-muted-foreground shrink-0" />
                 <span className="text-sm text-white truncate">{userName}</span>
               </Button>
             ) : (
               <div className="w-full flex items-center gap-2 px-3 py-2">
-                <User size={16} className="text-gray-400 shrink-0" />
-                <span className="text-sm text-gray-400 truncate">{userName}</span>
+                <User size={16} className="text-muted-foreground shrink-0" />
+                <span className="text-sm text-muted-foreground truncate">{userName}</span>
               </div>
             )}
             <Button

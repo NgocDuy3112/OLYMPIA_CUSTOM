@@ -63,10 +63,10 @@ export const QAuthorSidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <Sidebar collapsible="offcanvas" className="border-r border-white/10">
-      <SidebarHeader className="border-b border-white/10 px-4 py-3">
+    <Sidebar collapsible="offcanvas" className="border-r border-border">
+      <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <HelpCircle size={18} className="text-green-400" />
+          <HelpCircle size={18} className="text-success" />
           <span className="text-sm font-bold text-white">QAUTHOR</span>
         </div>
       </SidebarHeader>
@@ -81,7 +81,7 @@ export const QAuthorSidebar: React.FC = () => {
                     <SidebarMenuButton
                       isActive={active}
                       tooltip={item.label}
-                      className="data-[active=true]:bg-green-600/20 data-[active=true]:text-green-400"
+                      className="data-[active=true]:bg-success/20 data-[active=true]:text-success"
                       onClick={() => {
                         navigate(item.path);
                         if (isMobile) setOpenMobile(false);
@@ -90,7 +90,7 @@ export const QAuthorSidebar: React.FC = () => {
                       {item.icon}
                       <span className="flex-1 text-left">{item.label}</span>
                       {active && (
-                        <ChevronRight size={16} className="text-green-400" />
+                        <ChevronRight size={16} className="text-success" />
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>

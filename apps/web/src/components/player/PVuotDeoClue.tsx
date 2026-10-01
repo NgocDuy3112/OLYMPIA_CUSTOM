@@ -47,12 +47,12 @@ const PVuotDeoClue: React.FC<PVuotDeoClueProps> = ({
 
   const bgClass =
     status === "idle"
-      ? "bg-blue-900"
+      ? "bg-primary/40"
       : status === "selected"
-        ? "bg-blue-600"
+        ? "bg-primary"
         : status === "incorrect"
           ? "bg-black-900"
-          : "bg-blue-600";
+          : "bg-primary";
 
   return (
     <>
@@ -61,7 +61,7 @@ const PVuotDeoClue: React.FC<PVuotDeoClueProps> = ({
         tabIndex={0}
         onClick={handleClick}
         onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && handleClick()}
-        className={`p-4 rounded-xl w-20 h-20 flex items-center justify-center text-white font-bold cursor-pointer shadow ${bgClass}`}
+        className={`p-4 rounded-xl w-20 h-20 flex items-center justify-center text-foreground font-bold cursor-pointer shadow ${bgClass}`}
         aria-pressed={status !== "idle"}
       >
         {status === "incorrect" ? (
@@ -74,14 +74,14 @@ const PVuotDeoClue: React.FC<PVuotDeoClueProps> = ({
       {showPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-background/60"
             onClick={() => setShowPopup(false)}
           />
           <div className="relative bg-white rounded-xl p-6 max-w-lg w-full shadow-lg">
             <Button
               size="icon-sm"
               variant="ghost"
-              className="absolute top-3 right-3 text-gray-600"
+              className="absolute top-3 right-3 text-muted-foreground/70"
               onClick={() => setShowPopup(false)}
               aria-label="Close clue"
             >
@@ -93,7 +93,7 @@ const PVuotDeoClue: React.FC<PVuotDeoClueProps> = ({
                 <RenderMedia mediaUrl={question.questionMediaURL} />
               </div>
             ) : (
-              <div className="text-gray-800">
+              <div className="text-foreground">
                 {question.questionExplanation ?? "No clue available."}
               </div>
             )}

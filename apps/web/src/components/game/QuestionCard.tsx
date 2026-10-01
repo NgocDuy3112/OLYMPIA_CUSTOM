@@ -45,7 +45,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             className={`
             font-[SVN-Gratelos_Display] font-extrabold uppercase truncate
             ${isOverlay ? "text-2xl sm:text-3xl" : "text-base sm:text-lg md:text-xl xl:text-4xl"}
-            ${isOverlay ? "text-white" : "text-blue-300"}
+            ${isOverlay ? "text-foreground" : "text-brand"}
           `}
           >
             {parts[0]}
@@ -54,7 +54,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             className={`
             font-[SVN-Gratelos_Display] font-extrabold uppercase truncate
             ${isOverlay ? "text-lg sm:text-xl" : "text-xs sm:text-sm md:text-base xl:text-2xl"}
-            ${isOverlay ? "text-white/80" : "text-blue-300"}
+            ${isOverlay ? "text-foreground/80" : "text-brand"}
           `}
           >
             {parts.slice(1).join(" - ")}
@@ -67,7 +67,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         className={`
         font-[SVN-Gratelos_Display] font-extrabold uppercase truncate
         ${isOverlay ? "text-2xl sm:text-3xl" : "text-base sm:text-lg md:text-xl xl:text-4xl"}
-        ${isOverlay ? "text-white" : "text-blue-300"}
+        ${isOverlay ? "text-foreground" : "text-brand"}
       `}
       >
         {t}
@@ -82,7 +82,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       ${
         isOverlay
           ? "bg-transparent"
-          : "bg-blue-900 border-2 border-blue-600 shadow-xl"
+          : "bg-primary/40 border-2 border-primary shadow-xl"
       }
       ${className}
     `}
@@ -109,8 +109,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               transition-colors duration-500 text-center shrink-0
               ${
                 isOverlay
-                  ? "text-4xl sm:text-5xl text-white w-16 sm:w-20"
-                  : "text-2xl sm:text-3xl md:text-4xl xl:text-5xl text-white w-10 sm:w-12 md:w-16 xl:w-20"
+                  ? "text-4xl sm:text-5xl text-foreground w-16 sm:w-20"
+                  : "text-2xl sm:text-3xl md:text-4xl xl:text-5xl text-foreground w-10 sm:w-12 md:w-16 xl:w-20"
               }
             `}
             >
@@ -135,8 +135,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 font-bold leading-relaxed text-left break-words
                 ${
                   isOverlay
-                    ? "text-lg sm:text-xl md:text-2xl text-white"
-                    : "text-xs sm:text-sm md:text-base lg:text-lg xl:text-[20px] text-white"
+                    ? "text-lg sm:text-xl md:text-2xl text-foreground"
+                    : "text-xs sm:text-sm md:text-base lg:text-lg xl:text-[20px] text-foreground"
                 }
               `}
               >
@@ -167,8 +167,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               font-bold leading-relaxed text-left break-words
               ${
                 isOverlay
-                  ? "text-xl sm:text-2xl md:text-3xl text-white"
-                  : "text-xs sm:text-sm md:text-base lg:text-lg xl:text-[20px] text-white"
+                  ? "text-xl sm:text-2xl md:text-3xl text-foreground"
+                  : "text-xs sm:text-sm md:text-base lg:text-lg xl:text-[20px] text-foreground"
               }
             `}
             >
@@ -180,8 +180,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* Answer (only for admin/mc when showAnswer is true) */}
       {showAnswer && question.questionAnswer && mode !== "overlay" && (
-        <div className="mt-2 sm:mt-4 p-2 sm:p-3 bg-green-600/20 border border-green-500 rounded-lg">
-          <p className="text-green-400 font-bold text-xs sm:text-sm">
+        <div className="mt-2 sm:mt-4 p-2 sm:p-3 bg-success/20 border border-success rounded-lg">
+          <p className="text-success font-bold text-xs sm:text-sm">
             Đáp án: <MathText text={question.questionAnswer} />
           </p>
         </div>

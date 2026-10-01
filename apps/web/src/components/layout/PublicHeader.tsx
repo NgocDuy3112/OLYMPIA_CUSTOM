@@ -34,11 +34,11 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
 
   const navItemClass = (active: boolean) =>
     active
-      ? "text-white bg-white/10"
-      : "text-gray-300 hover:text-white hover:bg-white/5";
+      ? "text-foreground bg-accent"
+      : "text-foreground/80 hover:text-foreground hover:bg-accent/50";
 
   return (
-    <header className="sticky top-0 z-40 bg-black/30 backdrop-blur-sm border-b border-white/10">
+    <header className="sticky top-0 z-40 bg-background/30 backdrop-blur-sm border-b border-border">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
@@ -47,7 +47,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
             onClick={() => navigate("/")}
             className="gap-2 px-2 shrink-0"
           >
-            <Trophy size={20} className="text-blue-400" />
+            <Trophy size={20} className="text-brand" />
             <span className="text-sm sm:text-lg font-bold text-white tracking-wide">
               OLYMPIA CUSTOM
             </span>
@@ -77,7 +77,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                     onClick={() => navigate("/profile")}
                     className="gap-2"
                   >
-                    <User size={16} className="text-gray-400" />
+                    <User size={16} className="text-muted-foreground" />
                     <span className="text-sm text-white">{userName}</span>
                   </Button>
                 )}
@@ -94,7 +94,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
               <Button
                 variant="default"
                 onClick={() => navigate("/login")}
-                className="gap-2 bg-blue-600 hover:bg-blue-500"
+                className="gap-2 bg-primary hover:bg-primary/90"
               >
                 <LogIn size={16} />
                 <span>Đăng nhập</span>
@@ -116,7 +116,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
 
       {/* Mobile menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-white/10 bg-black/50 backdrop-blur-sm">
+        <div className="md:hidden border-t border-border bg-background/50 backdrop-blur-sm">
           <div className="px-4 py-3 space-y-1">
             {navLinks.map((link) => (
               <Button
@@ -132,10 +132,10 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
               </Button>
             ))}
 
-            <div className="pt-2 mt-2 border-t border-white/10">
+            <div className="pt-2 mt-2 border-t border-border">
               {isAuthenticated ? (
                 <>
-                  <div className="px-3 py-2 text-sm text-gray-400">
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
                     {userName}
                   </div>
                   <Button
@@ -144,7 +144,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                       onLogout?.();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="block w-full justify-start text-left text-red-400 hover:text-red-300 hover:bg-white/5"
+                    className="block w-full justify-start text-left text-destructive hover:text-destructive/80 hover:bg-accent/50"
                   >
                     Đăng xuất
                   </Button>
@@ -156,7 +156,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                     navigate("/login");
                     setIsMobileMenuOpen(false);
                   }}
-                  className="block w-full justify-start text-left text-blue-400 hover:text-blue-300 hover:bg-white/5"
+                  className="block w-full justify-start text-left text-brand hover:text-brand/80 hover:bg-accent/50"
                 >
                   Đăng nhập
                 </Button>

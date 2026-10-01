@@ -21,7 +21,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   };
 
   return (
-    <SidebarProvider className="min-h-screen bg-black/20">
+    <SidebarProvider className="min-h-screen bg-background/20">
       <PublicSidebar
         isAuthenticated={isAuthenticated}
         userName={user?.userName}
@@ -30,11 +30,11 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
       />
       <SidebarInset className="min-h-screen flex flex-col bg-transparent">
         {/* Mobile top bar — SidebarTrigger mở drawer (Base UI Sheet) */}
-        <header className="sticky top-0 z-30 md:hidden bg-black/30 backdrop-blur-sm border-b border-white/10">
+        <header className="sticky top-0 z-30 md:hidden bg-background/30 backdrop-blur-sm border-b border-border">
           <div className="flex items-center h-14 px-4 gap-3">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
-              <Trophy size={18} className="text-blue-400" />
+              <Trophy size={18} className="text-brand" />
               <span className="text-sm font-bold text-white tracking-wide">
                 OLYMPIA CUSTOM
               </span>

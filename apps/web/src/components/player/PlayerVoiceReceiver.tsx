@@ -13,7 +13,7 @@ export function PlayerVoiceReceiver({
       size="icon"
       variant="ghost"
       onClick={() => setMuted((value) => !value)}
-      className="fixed bottom-3 right-3 z-40 rounded-lg bg-blue-900/90 p-2 text-white shadow"
+      className="fixed bottom-3 right-3 z-40 rounded-lg bg-primary/40 p-2 text-foreground shadow"
       title={muted ? "Bật tiếng MC" : "Tắt tiếng MC"}
     >
       {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}

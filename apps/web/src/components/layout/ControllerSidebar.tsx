@@ -70,8 +70,8 @@ export const ControllerSidebar: React.FC = () => {
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <Sidebar collapsible="offcanvas" className="border-r border-white/10">
-      <SidebarHeader className="border-b border-white/10 px-4 py-3">
+    <Sidebar collapsible="offcanvas" className="border-r border-border">
+      <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Gamepad2 size={18} className="text-orange-400" />
           <span className="text-sm font-bold text-white">CONTROLLER</span>

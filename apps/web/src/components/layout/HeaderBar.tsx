@@ -32,7 +32,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const displayPhase = phaseName || (phase ? PHASE_NAMES[phase] : null);
 
   return (
-    <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5 bg-black/30 backdrop-blur-sm border-b border-white/10 gap-2">
+    <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5 bg-background/30 backdrop-blur-sm border-b border-border gap-2">
       {/* Left: Match info */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0">
         <h1 className="text-sm sm:text-lg font-bold text-white tracking-wide truncate">
@@ -50,18 +50,18 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       {/* Right: Phase info + Connection status + custom content */}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {matchCode && (
-          <span className="hidden lg:inline text-xs sm:text-sm text-blue-300 font-mono truncate">
+          <span className="hidden lg:inline text-xs sm:text-sm text-brand font-mono truncate">
             {matchCode}
           </span>
         )}
         {displayPhase && (
-          <span className="hidden xl:inline text-xs sm:text-sm text-white/70 truncate">
+          <span className="hidden xl:inline text-xs sm:text-sm text-foreground/70 truncate">
             • {displayPhase}
           </span>
         )}
         {rightContent}
         <div
-          className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-green-400" : "text-red-400"}`}
+          className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-success" : "text-destructive"}`}
         >
           {isConnected ? (
             <>

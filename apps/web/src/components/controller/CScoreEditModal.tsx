@@ -104,11 +104,11 @@ export default function CScoreEditModal({
 
   return (
     <SidePanel open={open} onClose={onClose} title="Sửa điểm theo câu">
-        <p className="text-sm text-blue-300 mb-4">
+        <p className="text-sm text-brand mb-4">
           {playerName} ({playerCode})
         </p>
         <div className="flex flex-col gap-3">
-          <label className="text-xs text-blue-400">Câu hỏi</label>
+          <label className="text-xs text-brand">Câu hỏi</label>
           <NativeSelect
             value={questionCode}
             onChange={(event) => setQuestionCode(event.target.value)}
@@ -124,7 +124,7 @@ export default function CScoreEditModal({
               </option>
             ))}
           </NativeSelect>
-          <label className="text-xs text-blue-400">
+          <label className="text-xs text-brand">
             Điểm câu (bội số của 5)
           </label>
           <Input
@@ -132,10 +132,10 @@ export default function CScoreEditModal({
             step={5}
             value={points}
             onChange={(event) => setPoints(event.target.value)}
-            className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-600 text-white"
+            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground"
             autoFocus
           />
-          <p className="text-xs text-blue-300">
+          <p className="text-xs text-brand">
             Tổng điểm hiện tại: {currentScore}
           </p>
         </div>
@@ -143,7 +143,7 @@ export default function CScoreEditModal({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="bg-blue-800 hover:bg-blue-700 text-sm"
+            className="bg-accent/50 hover:bg-accent text-sm"
           >
             Huỷ
           </Button>
@@ -151,7 +151,7 @@ export default function CScoreEditModal({
             variant="default"
             onClick={() => void save()}
             disabled={saving || loading || !questionCode}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
+            className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-semibold"
           >
             {saving ? "Đang lưu..." : "Lưu"}
           </Button>

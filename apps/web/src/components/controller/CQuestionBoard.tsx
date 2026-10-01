@@ -73,7 +73,7 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
                   aria-pressed={active}
                   aria-label={`control-${idx + 1}`}
                   onClick={() => toggleBox(idx)}
-                  className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}
+                  className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-brand text-background border border-brand" : "bg-transparent border border-primary text-foreground hover:bg-primary/70"}`}
                 >
                   {idx + 1}
                 </Button>
@@ -94,7 +94,7 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
                   variant="ghost"
                   aria-pressed={active}
                   onClick={() => toggleBox(idx)}
-                  className={`flex items-center gap-4 rounded-xl px-3 py-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-blue-800 text-white border border-blue-600 hover:bg-blue-700"}`}
+                  className={`flex items-center gap-4 rounded-xl px-3 py-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? "bg-brand text-background border border-brand" : "bg-primary/60 text-primary-foreground border border-primary hover:bg-primary/80"}`}
                 >
                   <div className="text-2xl tablet:text-3xl font-extrabold w-12 tablet:w-16 text-left">
                     {score}
@@ -115,10 +115,10 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
     if (parts.length >= 2) {
       return (
         <div className="flex flex-col leading-tight">
-          <span className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+          <span className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
             {parts[0]}
           </span>
-          <span className="text-sm tablet:text-base xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+          <span className="text-sm tablet:text-base xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
             {parts.slice(1).join(" - ")}
           </span>
         </div>
@@ -131,12 +131,12 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
 
   return (
     <div
-      className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${containerHeightClass}`}
+      className={`p-2 tablet:p-3 xl:p-5 rounded-xl flex flex-col bg-primary/40 border-2 border-primary shadow-xl gap-2 tablet:gap-3 xl:gap-4 ${containerHeightClass}`}
     >
       {}
       <div className="flex justify-between items-center pb-1">
         <div className="flex items-center gap-4">
-          <div className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase">
+          <div className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
             {renderTitle(title)}
           </div>
           {titleExtra && <div className="ml-2">{titleExtra}</div>}
@@ -155,7 +155,7 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
               : renderDefaultControls()}
           </div>
           {}
-          <div className="text-3xl tablet:text-3xl xl:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-1 tablet:px-2 xl:px-3 py-1 transition-colors duration-500 text-white w-12 tablet:w-14 xl:w-20 text-center shrink-0">
+          <div className="text-3xl tablet:text-3xl xl:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-1 tablet:px-2 xl:px-3 py-1 transition-colors duration-500 text-foreground w-12 tablet:w-14 xl:w-20 text-center shrink-0">
             {timerDuration.toString().padStart(2, "0")}
           </div>
         </div>

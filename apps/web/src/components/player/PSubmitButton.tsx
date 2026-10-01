@@ -24,8 +24,8 @@ export const PSubmitButton: React.FC<PSubmitButtonProps> = ({
       className={`h-10 w-full rounded-lg px-4 text-base font-bold shadow-md transition duration-200 flex items-center justify-center
                 ${
                   isDisabled
-                    ? "bg-blue-900 ring-blue-600 ring-4 text-blue-300 cursor-not-allowed"
-                    : "bg-blue-600 ring-blue-300 ring-4 text-white"
+                    ? "bg-primary/40 ring-primary ring-4 text-brand cursor-not-allowed"
+                    : "bg-primary ring-brand ring-4 text-primary-foreground"
                 }`}
     >
       <PingIconStyle isKeywordMode={!!isKeywordMode} />

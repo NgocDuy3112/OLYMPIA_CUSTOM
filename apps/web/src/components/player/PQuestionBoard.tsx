@@ -57,7 +57,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
                 aria-pressed={active}
                 aria-label={`control-${idx + 1}`}
                 onClick={() => questionSelect?.(idx)}
-                className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : answeredIndices.has(idx) ? "bg-green-700 text-white border border-green-400" : "bg-transparent border border-blue-600 text-white"} ${questionSelect ? "cursor-pointer hover:bg-blue-500" : ""}`}
+                className={`w-10 h-10 flex items-center justify-center rounded-md text-sm font-bold transition-colors duration-150 ${active ? "bg-brand text-background border border-brand" : answeredIndices.has(idx) ? "bg-success text-success-foreground border border-success" : "bg-transparent border border-primary text-foreground"} ${questionSelect ? "cursor-pointer hover:bg-primary/60" : ""}`}
               >
                 {idx + 1}
                 {answeredIndices.has(idx) ? " ✓" : ""}
@@ -74,7 +74,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
             return (
               <div
                 key={idx}
-                className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-blue-800 text-white border border-blue-600"}`}
+                className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 ${active ? "bg-brand text-background border border-brand" : "bg-primary/60 text-primary-foreground border border-primary"}`}
               >
                 <div className="text-3xl font-extrabold w-16 text-left">
                   {score}
@@ -94,10 +94,10 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
     if (parts.length >= 2) {
       return (
         <div className="flex flex-col leading-tight">
-          <span className="text-xl sm:text-2xl lg:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase truncate">
+          <span className="text-xl sm:text-2xl lg:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase truncate">
             {parts[0]}
           </span>
-          <span className="text-sm sm:text-base lg:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase truncate">
+          <span className="text-sm sm:text-base lg:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase truncate">
             {parts.slice(1).join(" - ")}
           </span>
         </div>
@@ -108,17 +108,17 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
 
   return (
     <div
-      className={`p-2 sm:p-3 lg:p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-2 sm:gap-3 lg:gap-4 ${boardHeightClass}`}
+      className={`p-2 sm:p-3 lg:p-5 rounded-xl flex flex-col bg-primary/40 border-2 border-primary shadow-xl gap-2 sm:gap-3 lg:gap-4 ${boardHeightClass}`}
     >
       <div className="flex justify-between items-center pb-1 gap-2 min-w-0">
-        <div className="text-xl sm:text-2xl lg:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase truncate">
+        <div className="text-xl sm:text-2xl lg:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase truncate">
           {renderTitle(title)}
         </div>
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <div className="flex gap-2 shrink-0">
             {children ? <>{children}</> : renderDefaultControls()}
           </div>
-          <div className="text-3xl sm:text-4xl lg:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-2 sm:px-3 py-1 transition-colors duration-500 text-white w-12 sm:w-16 lg:w-20 text-center shrink-0">
+          <div className="text-3xl sm:text-4xl lg:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-2 sm:px-3 py-1 transition-colors duration-500 text-foreground w-12 sm:w-16 lg:w-20 text-center shrink-0">
             {timerDuration.toString().padStart(2, "0")}
           </div>
         </div>

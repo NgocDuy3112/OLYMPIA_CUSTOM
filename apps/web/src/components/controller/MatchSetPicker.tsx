@@ -84,7 +84,7 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
   if (!matchCode) return null;
 
   return (
-    <div className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-2.5">
+    <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2.5">
       <ConfirmActionPanel
         open={activating !== null}
         title="Kích hoạt bộ đề?"
@@ -96,13 +96,13 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
         onClose={() => setActivating(null)}
         onConfirm={confirmActivate}
       />
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-gray-300">
-        <Layers size={15} className="text-emerald-400" /> Bộ đề trận này
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Layers size={15} className="text-success" /> Bộ đề trận này
       </h2>
       {loading ? (
-        <p className="text-gray-500 text-sm">Đang tải…</p>
+        <p className="text-muted-foreground text-sm">Đang tải…</p>
       ) : sets.length === 0 ? (
-        <p className="text-gray-500 text-sm">
+        <p className="text-muted-foreground text-sm">
           Chưa có bộ đề nào gán cho {matchCode}. Nhờ QAuthor soạn ở tab Bộ đề.
         </p>
       ) : (
@@ -111,19 +111,19 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
             key={s.setCode}
             className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border ${
               s.activeMatchCode === matchCode
-                ? "bg-blue-600/10 border-blue-500/40"
-                : "bg-white/[0.02] border-white/10"
+                ? "bg-primary/10 border-primary/40"
+                : "bg-accent/25 border-border"
             }`}
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-white truncate">
+              <p className="text-sm text-foreground truncate">
                 {s.setName}{" "}
-                <span className="font-mono text-[11px] text-gray-500">{s.setCode}</span>
+                <span className="font-mono text-[11px] text-muted-foreground">{s.setCode}</span>
               </p>
-              <p className="text-[11px] text-gray-500 font-mono">
+              <p className="text-[11px] text-muted-foreground font-mono">
                 {s.filled}/{s.expected} câu · {s.status === "ready" ? "Sẵn sàng" : "Nháp"}
                 {s.activeMatchCode === matchCode && (
-                  <span className="ml-1 text-blue-300">· ĐANG LIVE</span>
+                  <span className="ml-1 text-brand">· ĐANG LIVE</span>
                 )}
               </p>
             </div>
@@ -132,7 +132,7 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
                 size="xs"
                 variant="default"
                 onClick={() => setActivating(s)}
-                className="gap-1 bg-blue-600 hover:bg-blue-500 text-xs font-semibold whitespace-nowrap"
+                className="gap-1 bg-primary hover:bg-primary/90 text-xs font-semibold whitespace-nowrap"
               >
                 <Zap size={13} /> Kích hoạt
               </Button>

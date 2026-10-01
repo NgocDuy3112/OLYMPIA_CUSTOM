@@ -94,10 +94,10 @@ export const AdminSidebar: React.FC = () => {
   };
 
   return (
-    <Sidebar collapsible="offcanvas" className="border-r border-white/10">
-      <SidebarHeader className="border-b border-white/10 px-4 py-3">
+    <Sidebar collapsible="offcanvas" className="border-r border-border">
+      <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <Shield size={18} className="text-blue-400" />
+          <Shield size={18} className="text-brand" />
           <span className="text-sm font-bold text-white">ADMIN</span>
         </div>
       </SidebarHeader>
@@ -112,7 +112,7 @@ export const AdminSidebar: React.FC = () => {
                     <SidebarMenuButton
                       isActive={active}
                       tooltip={item.label}
-                      className="data-[active=true]:bg-blue-600/20 data-[active=true]:text-blue-400"
+                      className="data-[active=true]:bg-primary/20 data-[active=true]:text-brand"
                       onClick={() => {
                         if (item.newTab) {
                           window.open(item.path, "_blank", "noopener");
@@ -126,10 +126,10 @@ export const AdminSidebar: React.FC = () => {
                       {item.icon}
                       <span className="flex-1 text-left">{item.label}</span>
                       {item.newTab ? (
-                        <ExternalLink size={14} className="text-gray-600" />
+                        <ExternalLink size={14} className="text-muted-foreground/70" />
                       ) : (
                         active && (
-                          <ChevronRight size={16} className="text-blue-400" />
+                          <ChevronRight size={16} className="text-brand" />
                         )
                       )}
                     </SidebarMenuButton>

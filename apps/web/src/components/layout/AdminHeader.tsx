@@ -26,7 +26,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 z-40 bg-black/40 backdrop-blur-sm border-b border-white/10">
+    <header className="sticky top-0 z-40 bg-background/40 backdrop-blur-sm border-b border-border">
       <div className="flex items-center justify-between px-4 py-2.5">
         {/* Left: Sidebar toggle + Logo */}
         <div className="flex items-center gap-3">
@@ -36,7 +36,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
             onClick={() => navigate("/admin")}
             className="gap-2"
           >
-            <Shield size={18} className="text-blue-400" />
+            <Shield size={18} className="text-brand" />
             <span className="text-sm sm:text-base font-bold text-white">
               ADMIN
             </span>
@@ -50,7 +50,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
               <Button variant="ghost" size="sm" className="gap-2 px-3" />
             }
           >
-            <User size={16} className="text-gray-400" />
+            <User size={16} className="text-muted-foreground" />
             <span className="text-sm text-white hidden sm:inline">
               {userName}
             </span>
@@ -58,7 +58,7 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel className="text-white">
               <p className="text-sm text-white">{userName}</p>
-              <p className="text-xs text-gray-400">Admin</p>
+              <p className="text-xs text-muted-foreground">Admin</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem

@@ -26,7 +26,7 @@ export const ControllerHeader: React.FC<ControllerHeaderProps> = ({
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 z-40 bg-black/40 backdrop-blur-sm border-b border-white/10">
+    <header className="sticky top-0 z-40 bg-background/40 backdrop-blur-sm border-b border-border">
       <div className="flex items-center justify-between px-4 py-2.5">
         <div className="flex items-center gap-3">
           <SidebarTrigger />
@@ -48,7 +48,7 @@ export const ControllerHeader: React.FC<ControllerHeaderProps> = ({
               <Button variant="ghost" size="sm" className="gap-2 px-3" />
             }
           >
-            <User size={16} className="text-gray-400" />
+            <User size={16} className="text-muted-foreground" />
             <span className="text-sm text-white hidden sm:inline">
               {userName}
             </span>
@@ -56,7 +56,7 @@ export const ControllerHeader: React.FC<ControllerHeaderProps> = ({
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel className="text-white">
               <p className="text-sm text-white">{userName}</p>
-              <p className="text-xs text-gray-400">Controller</p>
+              <p className="text-xs text-muted-foreground">Controller</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem
