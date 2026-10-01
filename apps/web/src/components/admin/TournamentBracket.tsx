@@ -64,17 +64,17 @@ function MatchBox({
   return (
     <div
       ref={(el) => register(match.matchCode, el)}
-      className="w-60 shrink-0 rounded-lg bg-white/5 border border-white/15 overflow-hidden"
+      className="w-60 shrink-0 rounded-lg bg-accent/50 border border-border overflow-hidden"
     >
-      <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-white/10 bg-white/[0.03]">
-        <span className="text-[11px] font-mono text-gray-400 truncate">
+      <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border bg-accent/25">
+        <span className="text-[11px] font-mono text-muted-foreground truncate">
           {match.matchLabel ?? match.matchCode}
         </span>
         <span className="flex items-center gap-1 shrink-0">
-          {isFinal && done && <Trophy size={12} className="text-amber-300" />}
+          {isFinal && done && <Trophy size={12} className="text-warning" />}
           <span
             className={`w-2 h-2 rounded-full ${
-              done ? "bg-green-500" : match.matchStatus === "setup" ? "bg-gray-500" : "bg-amber-400"
+              done ? "bg-success" : match.matchStatus === "setup" ? "bg-muted-foreground" : "bg-warning"
             }`}
             title={match.matchStatus}
           />
@@ -82,7 +82,7 @@ function MatchBox({
       </div>
       <div className="flex flex-col">
         {players.length === 0 && (
-          <p className="px-2.5 py-2 text-xs text-gray-600 border-b border-dashed border-white/10">
+          <p className="px-2.5 py-2 text-xs text-muted-foreground/70 border-b border-dashed border-border">
             Chưa có thí sinh
           </p>
         )}
@@ -91,25 +91,25 @@ function MatchBox({
           return (
             <div
               key={p.userCode}
-              className={`flex items-center gap-2 px-2.5 py-1.5 border-b border-white/5 last:border-0 ${
-                up ? "bg-green-600/15" : ""
+              className={`flex items-center gap-2 px-2.5 py-1.5 border-b border-border/50 last:border-0 ${
+                up ? "bg-success/15" : ""
               }`}
             >
               <span
-                className={`w-5 shrink-0 text-xs font-bold ${up ? "text-green-300" : "text-gray-500"}`}
+                className={`w-5 shrink-0 text-xs font-bold ${up ? "text-success" : "text-muted-foreground"}`}
               >
                 {p.position ?? "–"}
               </span>
-              <span className={`flex-1 min-w-0 text-sm truncate ${up ? "text-green-200 font-semibold" : "text-gray-200"}`}>
+              <span className={`flex-1 min-w-0 text-sm truncate ${up ? "text-success font-semibold" : "text-foreground"}`}>
                 {p.userName || p.userCode}
               </span>
-              {up && <Flag size={11} className="shrink-0 text-green-400" />}
+              {up && <Flag size={11} className="shrink-0 text-success" />}
             </div>
           );
         })}
       </div>
       {(match.scheduledAt || match.venue) && (
-        <div className="px-2.5 py-1 border-t border-white/10 text-[11px] text-gray-500 truncate">
+        <div className="px-2.5 py-1 border-t border-border text-[11px] text-muted-foreground truncate">
           {match.scheduledAt
             ? new Date(match.scheduledAt).toLocaleString("vi-VN", {
                 day: "2-digit",
@@ -269,14 +269,14 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
   };
 
   if (loading) {
-    return <p className="text-gray-500 text-sm py-8 text-center">Đang tải bracket…</p>;
+    return <p className="text-muted-foreground text-sm py-8 text-center">Đang tải bracket…</p>;
   }
 
   if (matches.length === 0) {
     return (
-      <div className="rounded-xl bg-white/5 border border-white/10 p-8 text-center">
-        <Trophy size={24} className="mx-auto text-gray-600 mb-2" />
-        <p className="text-gray-400 text-sm">Giải chưa có trận nào — dùng template hoặc lên lịch ở tab Lịch thi đấu.</p>
+      <div className="rounded-xl bg-accent/50 border border-border p-8 text-center">
+        <Trophy size={24} className="mx-auto text-muted-foreground/70 mb-2" />
+        <p className="text-muted-foreground text-sm">Giải chưa có trận nào — dùng template hoặc lên lịch ở tab Lịch thi đấu.</p>
       </div>
     );
   }
@@ -284,23 +284,23 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-xs text-gray-500">
-          <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1" /> Đi tiếp
-          <span className="inline-block w-2 h-2 rounded-full bg-amber-400 ml-3 mr-1" /> Đang đấu
-          <span className="inline-block w-2 h-2 rounded-full bg-gray-500 ml-3 mr-1" /> Chưa đấu
+        <p className="text-xs text-muted-foreground">
+          <span className="inline-block w-2 h-2 rounded-full bg-success mr-1" /> Đi tiếp
+          <span className="inline-block w-2 h-2 rounded-full bg-warning ml-3 mr-1" /> Đang đấu
+          <span className="inline-block w-2 h-2 rounded-full bg-muted-foreground ml-3 mr-1" /> Chưa đấu
         </p>
         <Button
           variant="default"
           onClick={() => void handleGenerateNext()}
           disabled={generating || phases.length === 0}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-xs font-medium"
+          className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-xs font-medium"
           title="POST generate-next-round từ phase cuối"
         >
           {generating ? "Đang sinh…" : "Sinh vòng tiếp theo"}
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl bg-black/20 border border-white/10">
+      <div className="overflow-x-auto rounded-xl bg-background/40 border border-border">
         <div ref={innerRef} className="relative flex gap-12 p-6 min-w-max">
           <svg
             className="absolute inset-0 pointer-events-none"
@@ -313,7 +313,7 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
           </svg>
           {columns.map((col) => (
             <div key={col.key} className="flex flex-col w-60 shrink-0">
-              <p className="self-center px-4 py-1.5 rounded bg-blue-700 text-white text-sm font-bold whitespace-nowrap mb-2">
+              <p className="self-center px-4 py-1.5 rounded bg-primary text-primary-foreground text-sm font-bold whitespace-nowrap mb-2">
                 {col.title}
               </p>
               <div className="flex-1 flex flex-col justify-around gap-8 py-2">

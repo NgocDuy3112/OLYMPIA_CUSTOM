@@ -64,7 +64,7 @@ export function EditQualifierPanel({
       setValue((prev) => ({ ...prev, [key]: e.target.value }));
 
   const inputClass =
-    "px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm";
+    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm";
 
   return (
     <SidePanel
@@ -76,7 +76,7 @@ export function EditQualifierPanel({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="bg-blue-800 hover:bg-blue-700 text-sm"
+            className="bg-accent/50 hover:bg-accent text-sm"
           >
             Huỷ
           </Button>
@@ -90,24 +90,24 @@ export function EditQualifierPanel({
               }
               void onSave({ ...value, options: JSON.stringify(filled) });
             }}
-            className="bg-white/10 hover:bg-white/20 text-white font-semibold text-sm"
+            className="bg-primary hover:bg-primary/90 text-white font-semibold text-sm"
           >
             Lưu
           </Button>
         </div>
       }
     >
-      <p className="text-xs text-blue-400 font-mono -mt-2">
+      <p className="text-xs text-primary font-mono -mt-2">
         {item?.questionCode}
       </p>
-      <label className="text-xs text-blue-300">Nội dung</label>
+      <label className="text-xs text-brand">Nội dung</label>
       <Textarea
         rows={3}
         value={value.content}
         onChange={set("content")}
         className={`${inputClass} resize-none`}
       />
-      <label className="text-xs text-blue-300">Phương án (bấm để chọn đáp án đúng)</label>
+      <label className="text-xs text-brand">Phương án (bấm để chọn đáp án đúng)</label>
       <QualifierOptionsInput
         options={optionList}
         correct={value.correctOption}
@@ -116,7 +116,7 @@ export function EditQualifierPanel({
       />
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-xs text-blue-300">Vị trí 1-16</label>
+          <label className="text-xs text-brand">Vị trí 1-16</label>
           <Input
             value={value.position}
             onChange={set("position")}

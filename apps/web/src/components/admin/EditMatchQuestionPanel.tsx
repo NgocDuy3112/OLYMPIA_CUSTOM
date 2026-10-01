@@ -66,7 +66,7 @@ export function EditMatchQuestionPanel({
   }, [open, item, matchCode, mediaUrl, mediaFile]);
 
   const inputClass =
-    "px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm";
+    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
   const handlePickFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -90,7 +90,7 @@ export function EditMatchQuestionPanel({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="bg-blue-800 hover:bg-blue-700 text-sm"
+            className="bg-accent/50 hover:bg-accent text-sm"
           >
             Huỷ
           </Button>
@@ -98,19 +98,19 @@ export function EditMatchQuestionPanel({
             variant="default"
             onClick={() => void onSave({ content, answer, explanation, mediaUrl }, mediaFile)}
             disabled={saving || !content.trim() || !answer.trim()}
-            className="bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 font-semibold text-sm"
+            className="bg-primary hover:bg-primary/90 text-white disabled:opacity-50 font-semibold text-sm"
           >
             {saving ? "Đang lưu…" : "Lưu thay đổi"}
           </Button>
         </div>
       }
     >
-      <p className="text-xs text-blue-400 font-mono -mt-2">
+      <p className="text-xs text-primary font-mono -mt-2">
         {item?.question_code}
       </p>
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Nội dung</label>
+          <label className="text-xs text-brand">Nội dung</label>
           <Textarea
             rows={3}
             value={content}
@@ -119,7 +119,7 @@ export function EditMatchQuestionPanel({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Đáp án</label>
+          <label className="text-xs text-brand">Đáp án</label>
           <Input
             type="text"
             value={answer}
@@ -128,17 +128,17 @@ export function EditMatchQuestionPanel({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Giải thích</label>
+          <label className="text-xs text-brand">Giải thích</label>
           <Input
             type="text"
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
             placeholder="(tuỳ chọn)"
-            className={`${inputClass} placeholder-blue-400`}
+            className={`${inputClass} placeholder:text-muted-foreground`}
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Media URL / S3 key</label>
+          <label className="text-xs text-brand">Media URL / S3 key</label>
           <div className="flex flex-col gap-2">
             <Input
               type="text"
@@ -158,19 +158,19 @@ export function EditMatchQuestionPanel({
               <Button
                 variant="secondary"
                 onClick={() => mediaInputRef.current?.click()}
-                className="flex-1 bg-blue-700 hover:bg-blue-600 text-white text-sm truncate"
+                className="flex-1 bg-accent/50 hover:bg-accent text-foreground text-sm truncate"
                 title="Upload file mới"
               >
                 {mediaFile ? mediaFile.name : "Chọn file mới"}
               </Button>
               {mediaFile && (
-                <span className="text-xs text-green-400 whitespace-nowrap">
+                <span className="text-xs text-success whitespace-nowrap">
                   Sẽ upload khi lưu
                 </span>
               )}
             </div>
             {mediaUrl && (
-              <div className="text-xs text-blue-300">
+              <div className="text-xs text-brand">
                 S3 key: <span className="font-mono">{mediaUrl}</span>
               </div>
             )}

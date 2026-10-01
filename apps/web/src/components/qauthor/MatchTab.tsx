@@ -370,19 +370,19 @@ export const MatchTab = () => {
         onConfirm={confirmPickGmSet}
       />
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+      <div className="bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
           <Input
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value)}
             placeholder="Mã trận đấu"
-            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
           />
           <Button
             variant="default"
             onClick={() => void fetchQuestions()}
             disabled={loading || !matchCode.trim()}
-            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium"
+            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
           >
             <Search size={14} /> Tải
           </Button>
@@ -390,7 +390,7 @@ export const MatchTab = () => {
             variant="default"
             onClick={() => setShowCreate(true)}
             disabled={!matchCode.trim()}
-            className="gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium"
+            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
             title="Soạn câu tay trong sidebar phải"
           >
             <Plus size={14} /> Soạn câu
@@ -400,7 +400,7 @@ export const MatchTab = () => {
             variant="secondary"
             onClick={() => void fetchQuestions()}
             disabled={loading}
-            className="bg-white/10 hover:bg-white/15 disabled:opacity-50"
+            className="bg-accent hover:bg-accent/80 disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
@@ -415,7 +415,7 @@ export const MatchTab = () => {
                 <span
                   key={t.id}
                   className={`px-2 py-1 rounded-full text-xs font-mono ${
-                    full ? "bg-green-600/20 text-green-300" : "bg-white/5 text-gray-400"
+                    full ? "bg-success/20 text-success" : "bg-accent/50 text-muted-foreground"
                   }`}
                 >
                   {t.label} {done}/{total}
@@ -426,8 +426,8 @@ export const MatchTab = () => {
         )}
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
+      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-success uppercase tracking-wide">
           Pick từ bank vào trận (theo slot)
         </h3>
         <div className="flex gap-1.5 flex-wrap">
@@ -440,16 +440,16 @@ export const MatchTab = () => {
                 variant="ghost"
                 onClick={() => { setPickRound(t.id); setSelSlot(null); }}
                 className={`px-3 py-1.5 text-xs font-medium ${
-                  pickRound === t.id ? "bg-green-600/20 text-green-300" : "text-gray-400 hover:text-white bg-white/5"
+                  pickRound === t.id ? "bg-success/20 text-success" : "text-muted-foreground hover:text-foreground bg-accent/50"
                 }`}
               >
-                {t.label} <span className={`font-mono ${done === total && total !== "0" ? "text-green-300" : "opacity-70"}`}>{prog}</span>
+                {t.label} <span className={`font-mono ${done === total && total !== "0" ? "text-success" : "opacity-70"}`}>{prog}</span>
               </Button>
             );
           })}
         </div>
         {pickRound === "KDR" && (
-          <p className="text-xs text-gray-500">Lượt i = thí sinh vị trí i trong trận (tự map lúc pick).</p>
+          <p className="text-xs text-muted-foreground">Lượt i = thí sinh vị trí i trong trận (tự map lúc pick).</p>
         )}
         {(pickRound === "KDR" || pickRound === "VD" ? (
           pickRound === "KDR"
@@ -459,7 +459,7 @@ export const MatchTab = () => {
           [{ label: "", slots: slotsFor(pickRound) }]
         )).map((grp) => (
           <div key={grp.label || "all"} className="flex flex-col gap-1.5">
-            {grp.label && <p className="text-xs font-semibold text-gray-400">{grp.label}</p>}
+            {grp.label && <p className="text-xs font-semibold text-muted-foreground">{grp.label}</p>}
             <div className="flex flex-wrap gap-1.5">
               {grp.slots.map((s) => {
             const filled = questions.find((q) => q.slot === s);
@@ -475,10 +475,10 @@ export const MatchTab = () => {
                 title={filled ? filled.question_code : s}
                 className={`font-mono text-xs border ${
                   filled
-                    ? "bg-green-600/20 border-green-600 text-green-200"
+                    ? "bg-success/20 border-success text-success"
                     : active
-                      ? "bg-blue-600/30 border-blue-500 text-blue-100"
-                      : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                      ? "bg-primary/30 border-primary text-brand"
+                      : "bg-accent/50 border-border text-muted-foreground hover:bg-accent"
                 }`}
               >
                 {short}
@@ -489,7 +489,7 @@ export const MatchTab = () => {
           </div>
         ))}
         {pickRound === "GM" && (
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-muted-foreground">
             Chọn dòng KEY bên dưới rồi Pick cả set (chặn cứng nếu set thiếu 1 KEY + 8 hint đã duyệt).
           </p>
         )}
@@ -498,13 +498,13 @@ export const MatchTab = () => {
             value={bankQuery}
             onChange={(e) => setBankQuery(e.target.value)}
             placeholder={selSlot ? `Tìm bank cho slot ${selSlot}…` : "Chọn slot trước, rồi tìm bank…"}
-            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm"
           />
           <Button
             variant="default"
             onClick={() => void fetchBank()}
             disabled={bankLoading}
-            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
+            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground"
           >
             <Search size={14} /> Tìm
           </Button>
@@ -515,10 +515,10 @@ export const MatchTab = () => {
           return (
             <div key={q.bank_id} className="flex items-center gap-2 text-sm">
               <p className="flex-1 truncate">
-                <span className="font-mono text-xs text-green-300">{q.bank_code}</span>{" "}
+                <span className="font-mono text-xs text-success">{q.bank_code}</span>{" "}
                 <span className="text-white">{q.content}</span>
-                {q.hint_index && <span className="ml-1 font-mono text-xs text-amber-300">· {q.hint_index}</span>}
-                {q.domain && <span className="ml-1 font-mono text-xs text-blue-300">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>}
+                {q.hint_index && <span className="ml-1 font-mono text-xs text-warning">· {q.hint_index}</span>}
+                {q.domain && <span className="ml-1 font-mono text-xs text-brand">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>}
               </p>
               {pickRound === "GM" && q.hint_index === "KEY" && (
                 <Button
@@ -526,7 +526,7 @@ export const MatchTab = () => {
                   variant="secondary"
                   onClick={() => setPendingGmSet(q)}
                   disabled={adding}
-                  className="bg-blue-700 hover:bg-blue-600 text-white disabled:opacity-50"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
                 >
                   {adding ? "…" : "Pick cả set"}
                 </Button>
@@ -537,7 +537,7 @@ export const MatchTab = () => {
                 onClick={() => void reuseFromBank(q)}
                 disabled={adding || added || !selSlot || pickRound === "GM"}
                 title={pickRound === "GM" ? "GM chỉ pick cả set" : undefined}
-                className="bg-green-700 hover:bg-green-600 text-white disabled:opacity-50"
+                className="bg-success hover:bg-success/90 text-success-foreground disabled:opacity-50"
               >
                 {adding ? "Đang thêm…" : added ? "Đã thêm" : pickRound === "GM" ? "Chỉ pick set" : selSlot ? `Vào ${selSlot}` : "Chọn slot"}
               </Button>
@@ -546,26 +546,26 @@ export const MatchTab = () => {
         })}
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
-        <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
+      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-4">
+        <h3 className="text-sm font-semibold text-success uppercase tracking-wide">
           Danh sách ({questions.length})
         </h3>
         {loading ? (
-          <p className="text-gray-400 text-sm">Đang tải…</p>
+          <p className="text-muted-foreground text-sm">Đang tải…</p>
         ) : questions.length === 0 ? (
-          <p className="text-gray-400 text-sm">Chưa có câu hỏi. Nhập mã trận rồi bấm Tải.</p>
+          <p className="text-muted-foreground text-sm">Chưa có câu hỏi. Nhập mã trận rồi bấm Tải.</p>
         ) : (
           ["KĐ chung", "KĐ riêng", "Giải mã", "Bứt phá", "Về đích", "Chưa xếp", "Khác"].map((g) => {
             const groupQs = questions.filter((q) => roundOfSlot(q.slot) === g);
             if (groupQs.length === 0) return null;
             return (
               <div key={g} className="flex flex-col gap-1">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide pt-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">
                   {g} ({groupQs.length})
                 </p>
                 {groupQs.map((q) => (
-                  <div key={q.question_code} className="flex items-center gap-2 text-sm py-1.5 border-b border-white/5">
-                    <span className="font-mono text-xs text-green-300 whitespace-nowrap">{q.slot ?? "—"}</span>
+                  <div key={q.question_code} className="flex items-center gap-2 text-sm py-1.5 border-b border-border/50">
+                    <span className="font-mono text-xs text-success whitespace-nowrap">{q.slot ?? "—"}</span>
                     <p className="flex-1 truncate text-white">{q.content}</p>
                     <span className="font-semibold text-sm hidden sm:inline">{q.answer}</span>
                     <RowActions onEdit={() => setEditing(q)} onDelete={() => setDeleting(q)} />

@@ -257,7 +257,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
         onClose={() => { setSidebar(null); setFormError(""); }}
         onSave={saveSidebar}
       />
-      {formError && <p className="text-xs text-red-300">{formError}</p>}
+      {formError && <p className="text-xs text-destructive">{formError}</p>}
       <ConfirmActionPanel
         open={deleting !== null}
         title="Xoá câu bank?"
@@ -270,13 +270,13 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
         onConfirm={confirmDeleteBank}
       />
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
+      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-4">
         <div className="flex gap-2 flex-wrap">
           {group === "kd" && (
             <Button
               variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "kd", preset: { roundHint: "KD_C" }, row: null })}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo câu KĐ
             </Button>
@@ -285,7 +285,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             <Button
               variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "bp", preset: { roundHint: "BP" }, row: null })}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo câu BP
             </Button>
@@ -294,7 +294,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             <Button
               variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "vd", preset: { roundHint: "VD", domain: vdDomain, difficulty: vdLevel }, row: null })}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo câu VĐ
             </Button>
@@ -303,7 +303,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             <Button
               variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "gm-key", row: null })}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo set GM
             </Button>
@@ -312,7 +312,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm theo mã / nội dung / đáp án…"
-            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm"
           />
           <NativeSelect
             value={used}
@@ -359,7 +359,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             variant="default"
             onClick={() => void fetchBank(1)}
             disabled={loading}
-            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
+            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground"
           >
             <Search size={14} /> Tìm
           </Button>
@@ -378,16 +378,16 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               const have = new Set(hints.map((r) => r.hint_index));
               const missing = ["H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"].filter((h) => !have.has(h));
               return (
-                <div key={setCode} className="rounded-lg bg-black/30 border border-white/10 p-3 flex flex-col gap-2">
+                <div key={setCode} className="rounded-lg bg-background/40 border border-border p-3 flex flex-col gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm text-amber-300">{setCode}</span>
+                    <span className="font-mono text-sm text-warning">{setCode}</span>
                     {key && <span className="text-sm text-white">KEY: {key.answer}</span>}
-                    <span className="text-xs text-gray-500">{hints.length}/8 hint{missing.length > 0 && ` · thiếu ${missing.join(",")}`}</span>
+                    <span className="text-xs text-muted-foreground">{hints.length}/8 hint{missing.length > 0 && ` · thiếu ${missing.join(",")}`}</span>
                     <Button
                       size="xs"
                       variant="secondary"
                       onClick={() => setSidebar({ mode: "create", kind: "gm-hint", preset: { roundHint: "GM", setCode: setCode === "(chưa set)" ? "" : setCode }, row: null })}
-                      className="ml-auto bg-blue-700 hover:bg-blue-600"
+                      className="ml-auto bg-primary hover:bg-primary/90"
                     >
                       + Thêm hint
                     </Button>
@@ -398,51 +398,51 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
           </div>
         )}
         {loading ? (
-          <p className="text-gray-400 text-sm">Đang tải…</p>
+          <p className="text-muted-foreground text-sm">Đang tải…</p>
         ) : rows.length === 0 ? (
-          <p className="text-gray-400 text-sm">Chưa có dữ liệu bank. Bấm Tìm để tải.</p>
+          <p className="text-muted-foreground text-sm">Chưa có dữ liệu bank. Bấm Tìm để tải.</p>
         ) : (
           <>
             <Table className="w-full text-sm">
               <TableHeader>
-                <TableRow className="border-b border-white/10 hover:bg-transparent">
-                  <TableHead className="py-2 px-2 text-green-300">Mã</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Nội dung</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Đáp án</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Duyệt</TableHead>
-                  <TableHead className="py-2 px-2 text-green-300">Media</TableHead>
+                <TableRow className="border-b border-border hover:bg-transparent">
+                  <TableHead className="py-2 px-2 text-success">Mã</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Nội dung</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Đáp án</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Duyệt</TableHead>
+                  <TableHead className="py-2 px-2 text-success">Media</TableHead>
                   <TableHead className="py-2 px-2"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((q) => (
-                  <TableRow key={q.bank_id} className="border-b border-white/5 align-top hover:bg-transparent">
+                  <TableRow key={q.bank_id} className="border-b border-border/50 align-top hover:bg-transparent">
                     <TableCell className="py-2 px-2 font-mono text-xs whitespace-nowrap">
                       {q.bank_code}
-                      {q.round_hint && <span className="ml-1 text-gray-500">· {q.round_hint}</span>}
+                      {q.round_hint && <span className="ml-1 text-muted-foreground">· {q.round_hint}</span>}
                       {group === "vd" && q.domain && (
-                        <span className="ml-1 text-blue-300">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>
+                        <span className="ml-1 text-brand">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>
                       )}
                       {group === "gm" && q.hint_index && (
-                        <span className="ml-1 text-amber-300">· {q.hint_index}</span>
+                        <span className="ml-1 text-warning">· {q.hint_index}</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2 px-2 max-w-xs truncate">{q.content}</TableCell>
                     <TableCell className="py-2 px-2 font-semibold">{q.answer}</TableCell>
                     <TableCell className="py-2 px-2 whitespace-nowrap">
                       {q.status === "approved" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-green-600/20 text-green-300">Đã duyệt</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success">Đã duyệt</span>
                       ) : q.status === "rejected" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-red-600/20 text-red-300">Không duyệt</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-red-600/20 text-destructive">Không duyệt</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300">Chờ duyệt</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-warning/20 text-warning">Chờ duyệt</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2 px-2 font-mono text-xs max-w-48 truncate">
                       {q.media_url ? (
-                        <span className="text-green-300" title={q.media_url}>Có media</span>
+                        <span className="text-success" title={q.media_url}>Có media</span>
                       ) : (
-                        <span className="text-gray-500">Chưa có</span>
+                        <span className="text-muted-foreground">Chưa có</span>
                       )}
                     </TableCell>
                     <TableCell className="py-2 px-2 text-right">
@@ -463,13 +463,13 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               </TableBody>
             </Table>
             <div className="flex items-center justify-between pt-2">
-              <p className="text-xs text-gray-500">Trang {page}/{pages} · {total} câu</p>
+              <p className="text-xs text-muted-foreground">Trang {page}/{pages} · {total} câu</p>
               <div className="flex gap-2">
                 <Button
                   variant="secondary"
                   onClick={() => void fetchBank(page - 1)}
                   disabled={loading || page <= 1}
-                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
                 >
                   ← Trước
                 </Button>
@@ -477,7 +477,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                   variant="secondary"
                   onClick={() => void fetchBank(page + 1)}
                   disabled={loading || page >= pages}
-                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
                 >
                   Sau →
                 </Button>

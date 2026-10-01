@@ -52,43 +52,43 @@ export const OverviewStats = () => {
   }, []);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+    <div className="bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
       <div className="flex gap-2">
         <Input
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận để xem tổng quan"
-          className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-xs"
+          className="flex-1 px-3 py-1.5 rounded-lg bg-background/60 border border-border text-foreground font-mono text-xs"
         />
         <Button
           variant="default"
           onClick={() => void fetchStats()}
           disabled={loading || !matchCode.trim()}
-          className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-xs text-white"
+          className="bg-success hover:bg-success/90 disabled:opacity-50 text-xs text-success-foreground"
         >
           {loading ? "…" : "Tải"}
         </Button>
       </div>
       <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-green-600/10 border border-green-600/20 p-2.5 flex items-center gap-2">
-          <HelpCircle size={16} className="text-green-400 shrink-0" />
+        <div className="rounded-lg bg-success/10 border border-success/20 p-2.5 flex items-center gap-2">
+          <HelpCircle size={16} className="text-success shrink-0" />
           <div>
             <p className="text-lg font-bold text-white leading-none">{stats.questions}</p>
-            <p className="text-[11px] text-gray-400">Câu hỏi</p>
+            <p className="text-[11px] text-muted-foreground">Câu hỏi</p>
           </div>
         </div>
-        <div className="rounded-lg bg-yellow-600/10 border border-yellow-600/20 p-2.5 flex items-center gap-2">
-          <Clock size={16} className="text-yellow-400 shrink-0" />
+        <div className="rounded-lg bg-warning/10 border border-warning/20 p-2.5 flex items-center gap-2">
+          <Clock size={16} className="text-warning shrink-0" />
           <div>
             <p className="text-lg font-bold text-white leading-none">{stats.pending}</p>
-            <p className="text-[11px] text-gray-400">Chờ duyệt</p>
+            <p className="text-[11px] text-muted-foreground">Chờ duyệt</p>
           </div>
         </div>
-        <div className="rounded-lg bg-blue-600/10 border border-blue-600/20 p-2.5 flex items-center gap-2">
-          <CheckCircle2 size={16} className="text-blue-400 shrink-0" />
+        <div className="rounded-lg bg-primary/10 border border-primary/20 p-2.5 flex items-center gap-2">
+          <CheckCircle2 size={16} className="text-brand shrink-0" />
           <div>
             <p className="text-lg font-bold text-white leading-none">{stats.decided}</p>
-            <p className="text-[11px] text-gray-400">Đã chốt</p>
+            <p className="text-[11px] text-muted-foreground">Đã chốt</p>
           </div>
         </div>
       </div>

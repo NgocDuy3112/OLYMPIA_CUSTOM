@@ -43,7 +43,7 @@ interface SetFillPanelProps {
 }
 
 const inputClass =
-  "px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm";
+  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
 /** Sidebar Excel điền bộ đề: dòng template slot, pick từ bank đã duyệt. */
 export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps) {
@@ -257,7 +257,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="ghost"
                   onClick={() => setConfirm({ kind: "delete-set" })}
                   disabled={saving}
-                  className="bg-red-700/70 hover:bg-red-600 text-white disabled:opacity-50 text-sm"
+                  className="bg-destructive/70 hover:bg-destructive text-destructive-foreground disabled:opacity-50 text-sm"
                 >
                   Xoá bộ
                 </Button>
@@ -265,7 +265,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="default"
                   onClick={() => void callSet("/ready", { method: "POST" })}
                   disabled={saving}
-                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+                  className="bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm text-success-foreground"
                 >
                   {saving ? "…" : "Sẵn sàng"}
                 </Button>
@@ -276,7 +276,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="secondary"
                   onClick={() => void callSet("/reopen", { method: "POST" })}
                   disabled={saving}
-                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-sm"
+                  className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-sm"
                 >
                   Mở lại nháp
                 </Button>
@@ -285,7 +285,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   onClick={() => setConfirm({ kind: "activate" })}
                   disabled={saving || !detail.matchCode}
                   title={!detail.matchCode ? "Gán mã trận trước" : undefined}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm"
+                  className="bg-primary hover:bg-primary/90 disabled:opacity-50 font-semibold text-sm"
                 >
                   Kích hoạt cho trận
                 </Button>
@@ -296,23 +296,23 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
       }
     >
       {loading || !detail ? (
-        <p className="text-gray-400 text-sm py-8 text-center">Đang tải…</p>
+        <p className="text-muted-foreground text-sm py-8 text-center">Đang tải…</p>
       ) : (
         <>
-          <div className="flex flex-col gap-2 rounded-lg bg-white/5 border border-white/10 p-3">
+          <div className="flex flex-col gap-2 rounded-lg bg-accent/50 border border-border p-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs text-blue-300">{detail.setCode}</span>
+              <span className="font-mono text-xs text-brand">{detail.setCode}</span>
               <span
                 className={`px-2 py-0.5 rounded-full text-[11px] ${
                   detail.status === "ready"
-                    ? "bg-green-600/20 text-green-300"
-                    : "bg-yellow-600/20 text-yellow-300"
+                    ? "bg-success/20 text-success"
+                    : "bg-warning/20 text-warning"
                 }`}
               >
                 {detail.status === "ready" ? "Sẵn sàng" : "Nháp"}
               </span>
               {detail.activeMatchCode && (
-                <span className="px-2 py-0.5 rounded-full text-[11px] bg-blue-600/20 text-blue-300">
+                <span className="px-2 py-0.5 rounded-full text-[11px] bg-primary/20 text-brand">
                   Đang live {detail.activeMatchCode}
                 </span>
               )}
@@ -330,7 +330,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="default"
                   onClick={() => void saveMatchCode()}
                   disabled={saving}
-                  className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+                  className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
                 >
                   Gán
                 </Button>
@@ -341,7 +341,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 <span
                   key={r.round}
                   className={`px-2 py-0.5 rounded-full text-[11px] font-mono ${
-                    r.filled === r.expected ? "bg-green-600/20 text-green-300" : "bg-white/5 text-gray-400"
+                    r.filled === r.expected ? "bg-success/20 text-success" : "bg-accent/50 text-muted-foreground"
                   }`}
                 >
                   {r.round} {r.filled}/{r.expected}
@@ -357,7 +357,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 variant="ghost"
                 onClick={() => { setRound(t.id); setPickSlot(null); }}
                 className={`px-3 py-1.5 text-xs font-medium ${
-                  round === t.id ? "bg-blue-600/30 text-blue-100" : "text-gray-400 hover:text-white bg-white/5"
+                  round === t.id ? "bg-primary/30 text-brand" : "text-muted-foreground hover:text-foreground bg-accent/50"
                 }`}
               >
                 {t.label}
@@ -372,7 +372,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="default"
                   onClick={() => void loadGmSets()}
                   disabled={bankLoading || !isDraft}
-                  className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+                  className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
                 >
                   {bankLoading ? "Đang tải…" : "Tải set GM đã duyệt"}
                 </Button>
@@ -382,11 +382,11 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 const missing = ["KEY", "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"].filter((h) => !have.has(h));
                 const key = rows.find((r) => r.hint_index === "KEY");
                 return (
-                  <div key={setCodeG} className="rounded-lg bg-black/30 border border-white/10 p-3 flex flex-col gap-1">
+                  <div key={setCodeG} className="rounded-lg bg-background/40 border border-border p-3 flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-sm text-amber-300">{setCodeG}</span>
+                      <span className="font-mono text-sm text-warning">{setCodeG}</span>
                       {key && <span className="text-sm text-white truncate">KEY: {key.answer}</span>}
-                      <span className="text-xs text-gray-500">
+                      <span className="text-xs text-muted-foreground">
                         {rows.length}/9{missing.length > 0 && ` · thiếu ${missing.join(",")}`}
                       </span>
                       {isDraft && missing.length === 0 && (
@@ -395,7 +395,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                           variant="default"
                           onClick={() => void pickGmSet(setCodeG)}
                           disabled={saving}
-                          className="ml-auto bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-semibold"
+                          className="ml-auto bg-success hover:bg-success/90 disabled:opacity-50 text-xs font-semibold text-success-foreground"
                         >
                           Pick cả set
                         </Button>
@@ -412,7 +412,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="secondary"
                   size="xs"
                   onClick={() => setPickSlot(null)}
-                  className="gap-1 bg-white/10 hover:bg-white/15"
+                  className="gap-1 bg-accent hover:bg-accent/80"
                 >
                   <ArrowLeft size={13} /> {pickSlot}
                 </Button>
@@ -426,18 +426,18 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="default"
                   onClick={() => void searchBank()}
                   disabled={bankLoading}
-                  className="gap-1 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+                  className="gap-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
                 >
                   <Search size={14} /> Tìm
                 </Button>
               </div>
               {bankLoading ? (
-                <p className="text-gray-500 text-sm py-4 text-center">Đang tìm…</p>
+                <p className="text-muted-foreground text-sm py-4 text-center">Đang tìm…</p>
               ) : (
                 bankRows.map((q) => (
                   <div key={q.bank_id} className="flex items-center gap-2 text-sm">
                     <p className="flex-1 truncate">
-                      <span className="font-mono text-xs text-green-300">{q.bank_code}</span>{" "}
+                      <span className="font-mono text-xs text-success">{q.bank_code}</span>{" "}
                       <span className="text-white">{q.content}</span>
                     </p>
                     <Button
@@ -445,7 +445,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                       variant="default"
                       onClick={() => void pickIntoSlot(q.bank_code)}
                       disabled={saving}
-                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 whitespace-nowrap"
+                      className="bg-success hover:bg-success/90 disabled:opacity-50 whitespace-nowrap text-success-foreground"
                     >
                       Vào {pickSlot}
                     </Button>
@@ -463,7 +463,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                     variant="ghost"
                     onClick={() => setKdrTurn(t)}
                     className={`px-3 py-1.5 text-xs font-medium ${
-                      kdrTurn === t ? "bg-emerald-600/30 text-emerald-100" : "text-gray-400 hover:text-white bg-white/5"
+                      kdrTurn === t ? "bg-success/30 text-success" : "text-muted-foreground hover:text-foreground bg-accent/50"
                     }`}
                   >
                     Lượt {t}
@@ -475,27 +475,27 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
               .filter((g) => round !== "KD_R" || g.label === `Lượt ${kdrTurn}`)
               .map((g) => (
               <div key={g.label || "all"} className="flex flex-col gap-1">
-                {g.label && <p className="text-xs font-semibold text-gray-400">{g.label}</p>}
+                {g.label && <p className="text-xs font-semibold text-muted-foreground">{g.label}</p>}
                 <Table className="w-full text-sm">
                   <TableBody>
                     {g.slots.map((s) => {
                       const item = itemBySlot.get(s);
                       return (
-                        <TableRow key={s} className="border-b border-white/5 align-top hover:bg-transparent">
-                          <TableCell className="py-1.5 pr-2 font-mono text-xs text-blue-300 whitespace-nowrap w-24">{s}</TableCell>
+                        <TableRow key={s} className="border-b border-border/50 align-top hover:bg-transparent">
+                          <TableCell className="py-1.5 pr-2 font-mono text-xs text-brand whitespace-nowrap w-24">{s}</TableCell>
                           <TableCell className="py-1.5 pr-2">
                             {item ? (
                               <>
                                 <p className="text-white truncate">
-                                  <span className="font-mono text-[11px] text-green-300">{item.bankCode}</span>{" "}
+                                  <span className="font-mono text-[11px] text-success">{item.bankCode}</span>{" "}
                                   {item.content}
                                 </p>
                                 {item.bankMissing && (
-                                  <p className="text-[11px] text-red-300">Câu bank không còn dùng được — gỡ rồi pick lại.</p>
+                                  <p className="text-[11px] text-destructive">Câu bank không còn dùng được — gỡ rồi pick lại.</p>
                                 )}
                               </>
                             ) : (
-                              <p className="text-gray-600 text-xs italic">Trống</p>
+                              <p className="text-muted-foreground/70 text-xs italic">Trống</p>
                             )}
                           </TableCell>
                           <TableCell className="py-1.5 text-right whitespace-nowrap w-20">
@@ -505,7 +505,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                                   size="icon-sm"
                                   variant="ghost"
                                   onClick={() => setConfirm({ kind: "remove-item", slot: s })}
-                                  className="bg-red-700/70 hover:bg-red-600 text-white"
+                                  className="bg-destructive/70 hover:bg-destructive text-destructive-foreground"
                                   title="Gỡ khỏi bộ"
                                 >
                                   <Trash2 size={13} />
@@ -515,7 +515,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                                   size="icon-sm"
                                   variant="ghost"
                                   onClick={() => setPickSlot(s)}
-                                  className="bg-emerald-600/70 hover:bg-emerald-500 text-white"
+                                  className="bg-success/70 hover:bg-success text-success-foreground"
                                   title={`Thêm vào ${s}`}
                                 >
                                   <Plus size={13} />

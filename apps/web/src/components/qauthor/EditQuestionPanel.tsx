@@ -68,7 +68,7 @@ export function EditQuestionPanel({
       setValue((prev) => ({ ...prev, [key]: e.target.value }));
 
   const inputClass =
-    "px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm";
+    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm";
 
   return (
     <SidePanel
@@ -80,51 +80,51 @@ export function EditQuestionPanel({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="bg-blue-800 hover:bg-blue-700 text-sm"
+            className="bg-accent/50 hover:bg-accent text-sm"
           >
             Huỷ
           </Button>
           <Button
             variant="default"
             onClick={() => void onSave(value)}
-            className="bg-white/10 hover:bg-white/20 text-white font-semibold text-sm"
+            className="bg-primary hover:bg-primary/90 text-white font-semibold text-sm"
           >
             Lưu
           </Button>
         </div>
       }
     >
-      <p className="text-xs text-blue-400 font-mono -mt-2">
+      <p className="text-xs text-primary font-mono -mt-2">
         {item?.question_code}
       </p>
-      <label className="text-xs text-blue-300">Nội dung</label>
+      <label className="text-xs text-brand">Nội dung</label>
       <Textarea
         rows={3}
         value={value.content}
         onChange={set("content")}
         className={`${inputClass} resize-none`}
       />
-      <label className="text-xs text-blue-300">Đáp án</label>
+      <label className="text-xs text-brand">Đáp án</label>
       <Input value={value.answer} onChange={set("answer")} className={inputClass} />
-      <label className="text-xs text-blue-300">Giải thích</label>
+      <label className="text-xs text-brand">Giải thích</label>
       <Input
         value={value.explanation}
         onChange={set("explanation")}
         className={inputClass}
       />
-      <label className="text-xs text-blue-300">Gợi ý GIAI_MA</label>
+      <label className="text-xs text-brand">Gợi ý GIAI_MA</label>
       <Input
         value={value.hintText}
         onChange={set("hintText")}
         className={inputClass}
       />
-      <label className="text-xs text-blue-300">Media URL</label>
+      <label className="text-xs text-brand">Media URL</label>
       <Input
         value={value.mediaUrl}
         onChange={set("mediaUrl")}
         className={`${inputClass} font-mono`}
       />
-      <label className="text-xs text-blue-300">Options (JSON hoặc A|B|C)</label>
+      <label className="text-xs text-brand">Options (JSON hoặc A|B|C)</label>
       <Input
         value={value.options}
         onChange={set("options")}

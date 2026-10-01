@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 
 const inputClass =
-  "px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full";
+  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm w-full";
 
 interface MatchScheduleFormProps {
   initial: ScheduleFormValue;
@@ -46,9 +46,9 @@ export function MatchScheduleForm({
     });
 
   return (
-    <div className={bare ? "flex flex-col gap-3" : "rounded-xl bg-blue-600/[0.07] border border-blue-500/30 p-4 flex flex-col gap-3"}>
+    <div className={bare ? "flex flex-col gap-3" : "rounded-xl bg-primary/[0.07] border border-primary/30 p-4 flex flex-col gap-3"}>
       {!bare && (
-        <p className="text-sm font-semibold text-gray-200">
+        <p className="text-sm font-semibold text-foreground">
           {isEdit ? "Sửa trận / lịch" : "Lên lịch trận mới"}
         </p>
       )}
@@ -94,16 +94,16 @@ export function MatchScheduleForm({
           </NativeSelect>
         )}
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-gray-500 uppercase tracking-wide">Giờ thi đấu</span>
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Giờ thi đấu</span>
           <Input
             type="datetime-local"
             value={form.scheduledAt}
             onChange={(e) => set({ scheduledAt: e.target.value })}
-            className={`${inputClass} text-gray-200`}
+            className={`${inputClass} text-foreground`}
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-gray-500 uppercase tracking-wide">Địa điểm</span>
+          <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Địa điểm</span>
           <Input
             placeholder="Hội trường A…"
             value={form.venue}
@@ -117,7 +117,7 @@ export function MatchScheduleForm({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {form.playerCodes.map((code, i) => (
           <label key={i} className="relative block">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-gray-500 pointer-events-none">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
               #{i + 1}
             </span>
             <Input
@@ -130,11 +130,11 @@ export function MatchScheduleForm({
         ))}
       </div>
 
-      <div className="flex gap-2 justify-end sticky bottom-0 bg-[#14122b] py-2 border-t border-white/10">
+      <div className="flex gap-2 justify-end sticky bottom-0 bg-popover py-2 border-t border-border">
         <Button
           variant="ghost"
           onClick={onCancel}
-          className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+          className="px-4 py-2 rounded-lg bg-accent/50 border border-border hover:bg-accent text-sm transition-colors"
         >
           Huỷ
         </Button>
@@ -142,7 +142,7 @@ export function MatchScheduleForm({
           variant="default"
           onClick={() => onSubmit(form)}
           disabled={saving || !form.matchName.trim()}
-          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+          className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 font-semibold text-sm transition-colors"
         >
           {saving ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Lên lịch"}
         </Button>

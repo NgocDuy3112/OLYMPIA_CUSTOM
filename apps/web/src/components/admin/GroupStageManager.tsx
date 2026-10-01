@@ -227,21 +227,21 @@ export function GroupStageManager({
 
   const goSchedule = () => navigate("/admin/schedule");
 
-  if (loading) return <p className="text-gray-500 text-sm py-8 text-center">Đang tải vòng bảng…</p>;
+  if (loading) return <p className="text-muted-foreground text-sm py-8 text-center">Đang tải vòng bảng…</p>;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Khung 2×4</p>
-          <p className="text-xl font-bold">{totalSlotted}/8 <span className="text-sm font-normal text-gray-500">trận</span></p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Khung 2×4</p>
+          <p className="text-xl font-bold">{totalSlotted}/8 <span className="text-sm font-normal text-muted-foreground">trận</span></p>
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Vòng bảng</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Vòng bảng</p>
           <p className="text-xl font-bold">{phases.length}</p>
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Thí sinh BXH</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Thí sinh BXH</p>
           <p className="text-xl font-bold">{standings.length}</p>
         </div>
       </div>
@@ -250,14 +250,14 @@ export function GroupStageManager({
         <Button
           variant="secondary"
           onClick={() => void fetchAll()}
-          className="gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
+          className="gap-1.5 bg-accent/50 border border-border hover:bg-accent text-sm"
         >
           <RefreshCw size={14} /> Làm mới
         </Button>
         <Button
           variant="default"
           onClick={() => setShowForm(true)}
-          className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
+          className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
         >
           <Plus size={14} /> Thêm trận nhánh
         </Button>
@@ -282,9 +282,9 @@ export function GroupStageManager({
       </SidePanel>
 
       {phases.length === 0 ? (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-5 flex flex-col gap-3">
-          <p className="text-sm text-gray-300 font-medium">Giải chưa có vòng phân nhánh</p>
-          <p className="text-xs text-gray-500">Áp template để dựng khung 2 vòng × 4 trận × 4 thí sinh.</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-5 flex flex-col gap-3">
+          <p className="text-sm text-foreground font-medium">Giải chưa có vòng phân nhánh</p>
+          <p className="text-xs text-muted-foreground">Áp template để dựng khung 2 vòng × 4 trận × 4 thí sinh.</p>
           <div className="flex gap-2">
             <NativeSelect
               value={templateId}
@@ -302,7 +302,7 @@ export function GroupStageManager({
               variant="default"
               onClick={() => void handleApplyTemplate()}
               disabled={saving}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-medium"
+              className="gap-1.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-medium"
             >
               <LayoutTemplate size={14} /> {saving ? "…" : "Áp template"}
             </Button>
@@ -312,15 +312,15 @@ export function GroupStageManager({
         structures.map(({ phase, grid, others }) => (
           <section key={phase.id} className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-gray-200">{phase.phaseName}</h3>
-              <span className="px-1.5 py-0.5 rounded bg-white/10 text-[11px] font-mono text-gray-400">
+              <h3 className="text-sm font-semibold text-foreground">{phase.phaseName}</h3>
+              <span className="px-1.5 py-0.5 rounded bg-accent text-[11px] font-mono text-muted-foreground">
                 {grid.flat().filter(Boolean).length}/8
               </span>
-              <div className="flex-1 border-t border-white/10" />
+              <div className="flex-1 border-t border-border" />
             </div>
             {[0, 1].map((r) => (
               <div key={r} className="flex flex-col gap-2">
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Vòng {r + 1} · {grid[r].filter(Boolean).length}/4 trận
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2.5">
@@ -348,7 +348,7 @@ export function GroupStageManager({
                         variant="ghost"
                         onClick={() => void handleFillSlot(phase, r + 1, i + 1)}
                         disabled={filling !== null}
-                        className="min-h-[180px] w-full flex-col gap-1.5 rounded-xl border border-dashed border-white/15 text-gray-600 hover:text-gray-300 hover:border-white/30 hover:bg-white/[0.02] text-sm disabled:opacity-50"
+                        className="min-h-[180px] w-full flex-col gap-1.5 rounded-xl border border-dashed border-border text-muted-foreground/70 hover:text-foreground hover:border-border hover:bg-accent/25 text-sm disabled:opacity-50"
                       >
                         <Plus size={18} />
                         {filling === `${phase.id}-${r + 1}-${i + 1}` ? "Đang tạo…" : `Vòng ${r + 1} · Trận ${i + 1}`}
@@ -360,7 +360,7 @@ export function GroupStageManager({
             ))}
             {others.length > 0 && (
               <div className="flex flex-col gap-1.5">
-                <p className="text-xs font-medium text-gray-600 uppercase tracking-wide">
+                <p className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">
                   Trận khác trong {phase.phaseName} (tên không theo mẫu Vòng/Trận)
                 </p>
                 {others.map((m) => {
@@ -368,16 +368,16 @@ export function GroupStageManager({
                   return (
                     <div
                       key={m.matchCode}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/5 text-sm"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/25 border border-border/50 text-sm"
                     >
                       <span className="flex-1 text-white truncate">{m.matchName}</span>
-                      <span className="text-[11px] font-mono text-gray-500">{m.matchCode}</span>
+                      <span className="text-[11px] font-mono text-muted-foreground">{m.matchCode}</span>
                       {!done && (
                         <Button
                           size="icon-sm"
                           variant="ghost"
                           onClick={() => void handleFinish(m.matchSlug, m.matchName)}
-                          className="bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-green-600/40"
+                          className="bg-success/20 border border-success/30 text-success hover:bg-success/40"
                           title="Hoàn thành"
                         >
                           <Flag size={12} />
@@ -393,17 +393,17 @@ export function GroupStageManager({
       )}
 
       {standings.length > 0 && (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-300 mb-2">
-            <Trophy size={14} className="text-amber-300" /> Leaderboard vòng bảng
+        <div className="rounded-xl bg-accent/50 border border-border p-4">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
+            <Trophy size={14} className="text-warning" /> Leaderboard vòng bảng
           </p>
           <div className="flex flex-col gap-1">
             {standings.slice(0, 10).map((s) => (
-              <div key={s.userCode} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm">
-                <span className="w-6 text-xs font-bold text-gray-500">{s.rank}</span>
+              <div key={s.userCode} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 text-sm">
+                <span className="w-6 text-xs font-bold text-muted-foreground">{s.rank}</span>
                 <span className="flex-1 text-white truncate">{s.userName || s.userCode}</span>
-                <span className="text-[11px] text-gray-500">{s.matchesPlayed} trận</span>
-                <span className="font-mono text-xs text-gray-300 w-14 text-right">{s.totalPoints}đ</span>
+                <span className="text-[11px] text-muted-foreground">{s.matchesPlayed} trận</span>
+                <span className="font-mono text-xs text-foreground w-14 text-right">{s.totalPoints}đ</span>
               </div>
             ))}
           </div>
@@ -413,7 +413,7 @@ export function GroupStageManager({
       <Button
         variant="ghost"
         onClick={() => navigate("/admin/schedule")}
-        className="self-start px-0 text-xs text-blue-400 hover:text-blue-300"
+        className="self-start px-0 text-xs text-brand hover:text-brand/80"
       >
         Mở Lịch thi đấu tổng →
       </Button>

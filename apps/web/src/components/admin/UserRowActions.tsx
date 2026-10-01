@@ -20,7 +20,7 @@ export function UserRowActions({
         size="icon-sm"
         variant="ghost"
         onClick={onChangeRole}
-        className="bg-amber-600/70 text-white hover:bg-amber-500 hover:text-white"
+        className="bg-warning/70 text-warning-foreground hover:bg-warning hover:text-warning-foreground"
         title="Đổi vai trò / cấp scope"
       >
         <ShieldCheck size={13} />

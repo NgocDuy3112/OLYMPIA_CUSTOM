@@ -34,13 +34,13 @@ export function QualifierOptionsInput({ options, correct, onChange, onCorrectCha
               title={isCorrect ? "Đáp án đúng — bấm để đổi" : "Bấm để chọn làm đáp án đúng"}
               className={`gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${
                 isCorrect
-                  ? "bg-green-600/20 border-green-600 text-green-200"
-                  : "bg-white/5 border-white/10 hover:bg-white/10"
+                  ? "bg-success/20 border-success text-success"
+                  : "bg-accent/50 border-border hover:bg-accent"
               }`}
             >
               <span
                 className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-md font-mono text-xs font-bold ${
-                  isCorrect ? "bg-green-600 text-white" : "bg-white/10 text-gray-400"
+                  isCorrect ? "bg-success text-success-foreground" : "bg-accent text-muted-foreground"
                 }`}
               >
                 {letter}
@@ -50,7 +50,7 @@ export function QualifierOptionsInput({ options, correct, onChange, onCorrectCha
                 onChange={(e) => set(i, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
                 placeholder={`Phương án ${letter}`}
-                className="h-auto flex-1 border-0 bg-transparent px-0 text-sm text-white shadow-none placeholder:text-gray-500 focus-visible:border-0 focus-visible:ring-0"
+                className="h-auto flex-1 border-0 bg-transparent px-0 text-sm text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-0 focus-visible:ring-0"
               />
             </Button>
           );
@@ -63,7 +63,7 @@ export function QualifierOptionsInput({ options, correct, onChange, onCorrectCha
             variant="secondary"
             size="xs"
             onClick={() => onChange([...options, ""])}
-            className="gap-1 bg-white/10 hover:bg-white/15 text-xs text-white"
+            className="gap-1 bg-accent hover:bg-accent/80 text-xs text-foreground"
           >
             <Plus size={12} /> Thêm (tối đa 6)
           </Button>
@@ -78,7 +78,7 @@ export function QualifierOptionsInput({ options, correct, onChange, onCorrectCha
               onChange(next);
               if (!LETTERS.slice(0, next.length).includes(correct)) onCorrectChange("A");
             }}
-            className="gap-1 bg-white/10 hover:bg-white/15 text-xs text-white"
+            className="gap-1 bg-accent hover:bg-accent/80 text-xs text-foreground"
           >
             <Minus size={12} /> Bớt
           </Button>

@@ -324,19 +324,19 @@ export const QualifierTab = () => {
         onConfirm={confirmDeleteQuestion}
       />
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
+      <div className="bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
           <Input
             value={tournamentCode}
             onChange={(e) => setTournamentCode(e.target.value)}
             placeholder="Mã giải đấu (VD: OC3_T_...)"
-            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+            className="flex-1 px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
           />
           <Button
             variant="default"
             onClick={() => { void fetchQuestions(); void fetchStandings(); }}
             disabled={loading || !tournamentCode.trim()}
-            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium"
+            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
           >
             <Search size={14} /> Tải
           </Button>
@@ -344,20 +344,20 @@ export const QualifierTab = () => {
             variant="default"
             onClick={() => setShowForm(true)}
             disabled={!tournamentCode.trim()}
-            className="gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium"
+            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
           >
             <Plus size={14} /> Soạn câu
           </Button>
         </div>
         {tournamentCode.trim() && (
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+            <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
               <div
-                className="h-full rounded-full bg-green-500 transition-all"
+                className="h-full rounded-full bg-success transition-all"
                 style={{ width: `${Math.min(questions.length / 16 * 100, 100)}%` }}
               />
             </div>
-            <span className="font-mono text-xs text-gray-400 whitespace-nowrap">
+            <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
               {questions.length}/16 câu · {questions.filter((q) => q.status === "closed").length} đã chốt
             </span>
           </div>
@@ -374,14 +374,14 @@ export const QualifierTab = () => {
             <Button
               variant="secondary"
               onClick={() => setForm({ ...emptyForm, position: String(freePositions[0] ?? 1), questionCode: `VL_${String(freePositions[0] ?? 1).padStart(2, "0")}` })}
-              className="bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
+              className="bg-accent/50 border border-border hover:bg-accent text-sm"
             >
               Làm lại
             </Button>
             <Button
               variant="secondary"
               onClick={() => setShowForm(false)}
-              className="bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
+              className="bg-accent/50 border border-border hover:bg-accent text-sm"
             >
               Huỷ
             </Button>
@@ -389,7 +389,7 @@ export const QualifierTab = () => {
               variant="default"
               onClick={() => void createQuestion()}
               disabled={saving || !tournamentCode.trim()}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+              className="gap-2 bg-success hover:bg-success/90 disabled:opacity-50 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
             </Button>
@@ -398,18 +398,18 @@ export const QualifierTab = () => {
       >
         <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs text-gray-500">Vị trí và nội dung</p>
-          <span className="font-mono text-xs text-gray-400">
+          <p className="text-xs text-muted-foreground">Vị trí và nội dung</p>
+          <span className="font-mono text-xs text-muted-foreground">
             {questions.length}/16 câu · còn trống {freePositions.length}
           </span>
         </div>
 
         {/* Bước 1 — vị trí + mã câu + nội dung */}
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-gray-400">1 · Vị trí và nội dung</p>
+          <p className="text-xs font-medium text-muted-foreground">1 · Vị trí và nội dung</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-gray-500">Vị trí</span>
+              <span className="text-[11px] text-muted-foreground">Vị trí</span>
               <NativeSelect
                 value={form.position}
                 onChange={(e) => handlePositionChange(e.target.value)}
@@ -427,12 +427,12 @@ export const QualifierTab = () => {
               </NativeSelect>
             </label>
             <label className="flex flex-col gap-1 col-span-1 sm:col-span-3">
-              <span className="text-[11px] text-gray-500">Mã câu</span>
+              <span className="text-[11px] text-muted-foreground">Mã câu</span>
               <Input
                 value={form.questionCode}
                 onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value.toUpperCase() }))}
                 placeholder="VL_01"
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+                className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
               />
             </label>
           </div>
@@ -441,13 +441,13 @@ export const QualifierTab = () => {
             value={form.content}
             onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
             placeholder="Nội dung câu hỏi *"
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm resize-none"
+            className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm resize-none"
           />
         </div>
 
         {/* Bước 2 — phương án (bấm chữ cái để chọn đáp án đúng) */}
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-gray-400">2 · Phương án — bấm chữ cái để chọn đáp án đúng</p>
+          <p className="text-xs font-medium text-muted-foreground">2 · Phương án — bấm chữ cái để chọn đáp án đúng</p>
           <QualifierOptionsInput
             options={form.optionList}
             correct={form.correctOption}
@@ -458,19 +458,19 @@ export const QualifierTab = () => {
 
         {/* Bước 3 — bổ sung */}
         <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-gray-400">3 · Bổ sung (tuỳ chọn)</p>
+          <p className="text-xs font-medium text-muted-foreground">3 · Bổ sung (tuỳ chọn)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <Input
               value={form.explanation}
               onChange={(e) => setForm((p) => ({ ...p, explanation: e.target.value }))}
               placeholder="Giải thích"
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
+              className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm"
             />
             <Input
               value={form.mediaUrl}
               onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
               placeholder="Media URL"
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+              className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground font-mono text-sm"
             />
           </div>
         </div>
@@ -478,22 +478,22 @@ export const QualifierTab = () => {
       </SidePanel>
 
       {closeResult && (
-        <div className="bg-emerald-900/40 border border-emerald-600 rounded-xl p-4 text-sm">
-          <p className="font-bold text-emerald-300">Đã chốt + chấm</p>
-          <p className="text-emerald-200 font-mono text-xs mt-1">
+        <div className="bg-success/10 border border-success rounded-xl p-4 text-sm">
+          <p className="font-bold text-success">Đã chốt + chấm</p>
+          <p className="text-success/80 font-mono text-xs mt-1">
             X đúng={String(closeResult.correctCount)} · Y sai={String(closeResult.wrongCount)} · Z bỏ={String(closeResult.noAnswerCount)} · đúng +{String(closeResult.perCorrect)} · sai {String(closeResult.perWrong)}
           </p>
         </div>
       )}
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-green-300 uppercase tracking-wide">
+      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-3">
+        <h3 className="text-sm font-semibold text-success uppercase tracking-wide">
           Đề vòng loại ({questions.length}/16)
         </h3>
         {loading ? (
-          <p className="text-gray-400 text-sm">Đang tải…</p>
+          <p className="text-muted-foreground text-sm">Đang tải…</p>
         ) : questions.length === 0 ? (
-          <p className="text-gray-400 text-sm">Chưa có câu hỏi. Nhập mã giải rồi bấm Tải.</p>
+          <p className="text-muted-foreground text-sm">Chưa có câu hỏi. Nhập mã giải rồi bấm Tải.</p>
         ) : (
           <>
             <div className="flex flex-wrap gap-1.5">
@@ -506,10 +506,10 @@ export const QualifierTab = () => {
                     title={q ? `${q.questionCode} · ${q.status === "closed" ? "Đã chốt" : "Mở"}` : `Trống vị trí ${pos}`}
                     className={`w-8 h-8 flex items-center justify-center rounded-lg font-mono text-xs border ${
                       !q
-                        ? "bg-white/5 border-white/10 text-gray-600"
+                        ? "bg-accent/50 border-border text-muted-foreground/70"
                         : q.status === "closed"
-                          ? "bg-emerald-600/20 border-emerald-600 text-emerald-200"
-                          : "bg-yellow-600/20 border-yellow-600 text-yellow-200"
+                          ? "bg-success/20 border-success text-success"
+                          : "bg-warning/20 border-warning text-warning"
                     }`}
                   >
                     {pos}
@@ -518,15 +518,15 @@ export const QualifierTab = () => {
               })}
             </div>
             {[...questions].sort((a, b) => a.position - b.position).map((q) => (
-              <div key={q.id} className="flex flex-col gap-1.5 py-2 border-b border-white/5">
+              <div key={q.id} className="flex flex-col gap-1.5 py-2 border-b border-border/50">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="font-mono text-xs text-gray-400 w-6">#{q.position}</span>
-                  <span className="font-mono text-xs text-green-300">{q.questionCode}</span>
+                  <span className="font-mono text-xs text-muted-foreground w-6">#{q.position}</span>
+                  <span className="font-mono text-xs text-success">{q.questionCode}</span>
                   <p className="flex-1 truncate text-white">{q.content}</p>
                   {q.status === "closed" ? (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-600/20 text-emerald-300 whitespace-nowrap">Đã chốt</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success whitespace-nowrap">Đã chốt</span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300 whitespace-nowrap">Mở</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-warning/20 text-warning whitespace-nowrap">Mở</span>
                   )}
                   <RowActions
                     onEdit={q.status === "open" ? () => setEditing(q) : undefined}
@@ -538,7 +538,7 @@ export const QualifierTab = () => {
                         variant="secondary"
                         onClick={() => setPendingClose(q)}
                         disabled={closing === q.questionCode}
-                        className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-xs text-white whitespace-nowrap"
+                        className="bg-success hover:bg-success/90 disabled:opacity-50 text-xs text-success-foreground whitespace-nowrap"
                       >
                         {closing === q.questionCode ? "…" : "Chốt + chấm"}
                       </Button>
@@ -553,7 +553,7 @@ export const QualifierTab = () => {
                       <span
                         key={i}
                         className={`px-2 py-0.5 rounded text-xs font-mono ${
-                          correct ? "bg-green-600/25 text-green-200" : "bg-white/5 text-gray-400"
+                          correct ? "bg-success/25 text-success" : "bg-accent/50 text-muted-foreground"
                         }`}
                       >
                         {letter}. {opt}
@@ -567,42 +567,42 @@ export const QualifierTab = () => {
         )}
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-3">
+      <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-green-300 uppercase tracking-wide">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-success uppercase tracking-wide">
             <Trophy size={16} /> Top 16
           </h3>
           <Button
             variant="secondary"
             onClick={() => void fetchStandings()}
             disabled={!tournamentCode.trim()}
-            className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+            className="bg-accent hover:bg-accent/80 disabled:opacity-50 text-xs text-foreground"
           >
             Làm mới
           </Button>
         </div>
         {standings.length === 0 ? (
-          <p className="text-gray-400 text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>
+          <p className="text-muted-foreground text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>
         ) : (
           standings.map((s) => (
-            <div key={s.playerId} className="flex items-center gap-3 py-2 border-b border-white/5 text-sm">
+            <div key={s.playerId} className="flex items-center gap-3 py-2 border-b border-border/50 text-sm">
               <span
                 className={`w-7 h-7 flex items-center justify-center rounded-full font-mono text-xs font-bold ${
                   s.rank === 1
-                    ? "bg-yellow-500/25 text-yellow-300"
+                    ? "bg-warning/25 text-warning"
                     : s.rank === 2
-                      ? "bg-gray-400/25 text-gray-200"
+                      ? "bg-muted/25 text-foreground"
                       : s.rank === 3
-                        ? "bg-amber-700/30 text-amber-400"
-                        : "bg-white/5 text-gray-400"
+                        ? "bg-warning/30 text-warning"
+                        : "bg-accent/50 text-muted-foreground"
                 }`}
               >
                 {s.rank}
               </span>
               <p className="flex-1 text-white">
-                {s.userName} <span className="text-gray-500 font-mono text-xs">· {s.userCode}</span>
+                {s.userName} <span className="text-muted-foreground font-mono text-xs">· {s.userCode}</span>
               </p>
-              <span className="font-mono text-xs text-gray-400 hidden sm:inline">{s.correctCount} đúng</span>
+              <span className="font-mono text-xs text-muted-foreground hidden sm:inline">{s.correctCount} đúng</span>
               <span className="font-bold text-white font-mono">{s.totalPoints}đ</span>
             </div>
           ))

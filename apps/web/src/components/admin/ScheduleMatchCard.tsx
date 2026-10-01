@@ -14,18 +14,18 @@ export interface SlotPlayer {
 function StatusBadge({ status }: { status?: string }) {
   if (status === "finished" || status === "completed")
     return (
-      <span className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium bg-green-600/20 text-green-300">
+      <span className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium bg-success/20 text-success">
         Hoàn thành
       </span>
     );
   if (status === "active" || status === "in_progress" || status === "paused")
     return (
-      <span className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-600/20 text-amber-300">
+      <span className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium bg-warning/20 text-warning">
         {status}
       </span>
     );
   return (
-    <span className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-600/20 text-blue-300">
+    <span className="shrink-0 px-2 py-0.5 rounded text-[11px] font-medium bg-primary/20 text-brand">
       {status ?? "—"}
     </span>
   );
@@ -34,8 +34,8 @@ function StatusBadge({ status }: { status?: string }) {
 function Slot({ position, player }: { position: number; player?: SlotPlayer }) {
   if (!player) {
     return (
-      <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-dashed border-white/10 text-gray-600">
-        <span className="w-5 h-5 shrink-0 rounded-full bg-white/5 text-[10px] font-mono flex items-center justify-center">
+      <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-dashed border-border text-muted-foreground/70">
+        <span className="w-5 h-5 shrink-0 rounded-full bg-accent/50 text-[10px] font-mono flex items-center justify-center">
           {position}
         </span>
         <span className="text-[11px]">Trống</span>
@@ -44,14 +44,14 @@ function Slot({ position, player }: { position: number; player?: SlotPlayer }) {
   }
   const name = player.userName || player.userCode;
   return (
-    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 min-w-0">
-      <span className="w-5 h-5 shrink-0 rounded-full bg-blue-600/30 text-blue-200 text-[10px] font-mono flex items-center justify-center">
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-accent/25 border border-border min-w-0">
+      <span className="w-5 h-5 shrink-0 rounded-full bg-primary/30 text-brand text-[10px] font-mono flex items-center justify-center">
         {position}
       </span>
       <span className="min-w-0">
         <span className="block text-xs text-white truncate">{name}</span>
         {player.userName && (
-          <span className="block text-[10px] text-gray-500 font-mono truncate">{player.userCode}</span>
+          <span className="block text-[10px] text-muted-foreground font-mono truncate">{player.userCode}</span>
         )}
       </span>
     </div>
@@ -84,8 +84,8 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
       onClick={() => onSelect(match.match_code)}
       className={`flex flex-col gap-2.5 p-3.5 rounded-xl border cursor-pointer transition-colors ${
         selected
-          ? "bg-blue-600/10 border-blue-500/50"
-          : "bg-white/[0.03] border-white/10 hover:bg-white/5 hover:border-white/20"
+          ? "bg-primary/10 border-primary/50"
+          : "bg-accent/25 border-border hover:bg-accent/50 hover:border-border"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -97,19 +97,19 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
           )}
           <StatusBadge status={match.match_status} />
         </div>
-        <span className="text-[11px] text-gray-600 font-mono shrink-0">{match.match_code}</span>
+        <span className="text-[11px] text-muted-foreground/70 font-mono shrink-0">{match.match_code}</span>
       </div>
 
       <p className="font-semibold text-white leading-snug">{match.match_name}</p>
 
-      <div className="flex flex-col gap-1 text-xs text-gray-400">
+      <div className="flex flex-col gap-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <CalendarDays size={13} className="shrink-0 text-gray-500" />
+          <CalendarDays size={13} className="shrink-0 text-muted-foreground" />
           {formatScheduleTime(match.scheduled_at)}
         </span>
         {match.venue && (
           <span className="flex items-center gap-1.5">
-            <MapPin size={13} className="shrink-0 text-gray-500" />
+            <MapPin size={13} className="shrink-0 text-muted-foreground" />
             <span className="truncate">{match.venue}</span>
           </span>
         )}
@@ -125,7 +125,7 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
         <Button
           variant="secondary"
           onClick={() => onSelect(match.match_code)}
-          className="flex-1 justify-center gap-1 bg-white/5 border border-white/10 hover:bg-white/10 text-xs"
+          className="flex-1 justify-center gap-1 bg-accent/50 border border-border hover:bg-accent text-xs"
           title="Chọn để sửa / xem câu hỏi"
         >
           <Pencil size={12} /> Sửa
@@ -134,7 +134,7 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
           variant="default"
           onClick={handleEnter}
           disabled={done}
-          className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-xs font-medium"
+          className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-40 text-xs font-medium"
           title="Mở phòng điều khiển"
         >
           Vào trận
@@ -144,7 +144,7 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
             size="icon-sm"
             variant="ghost"
             onClick={() => onFinish(match)}
-            className="bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-green-600/40"
+            className="bg-success/20 border border-success/30 text-success hover:bg-success/40"
             title="Hoàn thành (PUT matchStatus=finished)"
           >
             <Flag size={12} />

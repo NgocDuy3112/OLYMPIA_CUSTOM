@@ -29,7 +29,7 @@ interface StandingRow {
 }
 
 const inputClass =
-  "px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full";
+  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm w-full";
 
 /** Tab Vòng loại: 16 slot câu hỏi VL + chấm + bảng xếp hạng. */
 export function QualifierManager({ tournamentCode }: { tournamentCode: string }) {
@@ -204,7 +204,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
     }
   };
 
-  if (loading) return <p className="text-gray-500 text-sm py-8 text-center">Đang tải vòng loại…</p>;
+  if (loading) return <p className="text-muted-foreground text-sm py-8 text-center">Đang tải vòng loại…</p>;
 
   return (
     <div className="flex flex-col gap-4">
@@ -242,17 +242,17 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         onConfirm={confirmCloseAll}
       />
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Câu hỏi</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Câu hỏi</p>
           <p className="text-xl font-bold">{questions.length}/16</p>
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Đang mở</p>
-          <p className="text-xl font-bold text-amber-300">{openCount}</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Đang mở</p>
+          <p className="text-xl font-bold text-warning">{openCount}</p>
         </div>
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3">
-          <p className="text-[11px] text-gray-500 uppercase tracking-wide">Đã chấm</p>
-          <p className="text-xl font-bold text-green-300">{questions.length - openCount}</p>
+        <div className="rounded-xl bg-accent/50 border border-border p-3">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Đã chấm</p>
+          <p className="text-xl font-bold text-success">{questions.length - openCount}</p>
         </div>
       </div>
 
@@ -260,14 +260,14 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         <Button
           variant="secondary"
           onClick={() => void fetchAll()}
-          className="gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
+          className="gap-1.5 bg-accent/50 border border-border hover:bg-accent text-sm"
         >
           <RefreshCw size={14} /> Làm mới
         </Button>
         <Button
           variant="default"
           onClick={() => setShowForm(true)}
-          className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
+          className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
         >
           <Plus size={14} /> Thêm câu
         </Button>
@@ -275,7 +275,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
           <Button
             variant="secondary"
             onClick={() => setPendingCloseAll(true)}
-            className="gap-1.5 bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-sm"
+            className="gap-1.5 bg-warning/20 border border-warning/30 text-warning hover:bg-warning/30 text-sm"
           >
             <Lock size={14} /> Chấm tất cả
           </Button>
@@ -292,7 +292,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
             <Button
               variant="secondary"
               onClick={() => setShowForm(false)}
-              className="bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
+              className="bg-accent/50 border border-border hover:bg-accent text-sm"
             >
               Huỷ
             </Button>
@@ -300,7 +300,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               variant="default"
               onClick={() => void handleCreate()}
               disabled={saving}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
+              className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-semibold"
             >
               {saving ? "Đang lưu…" : "Lưu câu hỏi"}
             </Button>
@@ -308,7 +308,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         }
       >
         <div className="flex flex-col gap-2.5">
-          <p className="text-xs text-gray-500">Câu mới vào vị trí trống đầu tiên.</p>
+          <p className="text-xs text-muted-foreground">Câu mới vào vị trí trống đầu tiên.</p>
           <Textarea
             rows={3}
             placeholder="Nội dung câu hỏi *"
@@ -319,7 +319,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {form.options.map((o, i) => (
               <label key={i} className="relative block">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">
+                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
                   {String.fromCharCode(65 + i)}
                 </span>
                 <Input
@@ -339,7 +339,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
           </div>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-gray-500 uppercase tracking-wide">Đáp án đúng</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Đáp án đúng</span>
               <NativeSelect
                 value={form.correct}
                 onChange={(e) => setForm((f) => ({ ...f, correct: e.target.value }))}
@@ -352,7 +352,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               </NativeSelect>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-gray-500 uppercase tracking-wide">Giải thích</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-wide">Giải thích</span>
               <Input
                 placeholder="(tuỳ chọn)"
                 value={form.explanation}
@@ -369,7 +369,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
           !q ? (
             <div
               key={i}
-              className="p-3.5 rounded-xl border border-dashed border-white/10 text-gray-600 text-sm"
+              className="p-3.5 rounded-xl border border-dashed border-border text-muted-foreground/70 text-sm"
             >
               <span className="font-mono font-bold">VL_{String(i + 1).padStart(2, "0")}</span>
               <span className="ml-2 text-xs">Trống</span>
@@ -378,25 +378,25 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
             <div
               key={q.questionCode}
               className={`p-3.5 rounded-xl border flex flex-col gap-1.5 ${
-                q.status === "closed" ? "bg-green-600/[0.06] border-green-500/20" : "bg-white/[0.03] border-white/10"
+                q.status === "closed" ? "bg-success/[0.06] border-success/20" : "bg-accent/25 border-border"
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-xs font-bold text-blue-300">{q.questionCode}</span>
+                <span className="font-mono text-xs font-bold text-brand">{q.questionCode}</span>
                 {q.status === "closed" ? (
-                  <span className="flex items-center gap-1 text-[11px] text-green-300">
+                  <span className="flex items-center gap-1 text-[11px] text-success">
                     <CheckCircle2 size={12} /> Đã chấm
                   </span>
                 ) : (
-                  <span className="flex items-center gap-1 text-[11px] text-amber-300">
+                  <span className="flex items-center gap-1 text-[11px] text-warning">
                     <XCircle size={12} /> Mở
                   </span>
                 )}
               </div>
               <p className="text-sm text-white line-clamp-2">{q.content}</p>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-[11px] text-muted-foreground">
                 {q.options?.length ?? 0} đáp án · Đúng:{" "}
-                <span className="font-bold text-gray-300">{q.correctOption || "?"}</span>
+                <span className="font-bold text-foreground">{q.correctOption || "?"}</span>
               </p>
               <div className="flex gap-1.5 mt-1">
                 {q.status !== "closed" && (
@@ -405,7 +405,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
                       size="icon-sm"
                       variant="ghost"
                       onClick={() => setEditing({ ...q, options: q.options ?? [] })}
-                      className="text-gray-300 hover:text-white hover:bg-white/10"
+                      className="text-muted-foreground hover:text-foreground hover:bg-accent"
                       title="Sửa"
                     >
                       <Pencil size={13} />
@@ -413,7 +413,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
                     <Button
                       variant="secondary"
                       onClick={() => setPendingClose(q)}
-                      className="flex-1 bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-xs"
+                      className="flex-1 bg-warning/20 border border-warning/30 text-warning hover:bg-warning/30 text-xs"
                     >
                       Chấm
                     </Button>
@@ -423,7 +423,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
                   size="icon-sm"
                   variant="ghost"
                   onClick={() => setDeleting(q)}
-                  className="text-gray-500 hover:text-red-300 hover:bg-red-500/10"
+                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   title="Xoá"
                 >
                   <Trash2 size={13} />
@@ -435,16 +435,16 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
       </div>
 
       {standings.length > 0 && (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-300 mb-2">
-            <Trophy size={14} className="text-amber-300" /> Bảng xếp hạng vòng loại
+        <div className="rounded-xl bg-accent/50 border border-border p-4">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground mb-2">
+            <Trophy size={14} className="text-warning" /> Bảng xếp hạng vòng loại
           </p>
           <div className="flex flex-col gap-1">
             {standings.slice(0, 8).map((s, i) => (
-              <div key={s.userCode} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm">
-                <span className="w-6 text-xs font-bold text-gray-500">{i + 1}</span>
+              <div key={s.userCode} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 text-sm">
+                <span className="w-6 text-xs font-bold text-muted-foreground">{i + 1}</span>
                 <span className="flex-1 text-white truncate">{s.userName || s.userCode}</span>
-                <span className="font-mono text-xs text-gray-400">
+                <span className="font-mono text-xs text-muted-foreground">
                   {s.totalPoints ?? s.correctCount ?? ""}đ
                 </span>
               </div>

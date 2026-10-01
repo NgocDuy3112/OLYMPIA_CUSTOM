@@ -171,8 +171,8 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
   };
 
   const inputClass =
-    "px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white text-sm";
-  const labelClass = "text-xs text-blue-300";
+    "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground text-sm";
+  const labelClass = "text-xs text-brand";
 
   return (
     <SidePanel
@@ -186,7 +186,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
             variant="ghost"
             onClick={() => void checkDuplicate()}
             disabled={checkingDup || saving}
-            className="gap-1 bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
+            className="gap-1 bg-accent/50 hover:bg-accent disabled:opacity-50 text-sm"
           >
             <Search size={14} /> {checkingDup ? "Đang check…" : "Check trùng"}
           </Button>
@@ -194,7 +194,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
             variant="ghost"
             onClick={onClose}
             disabled={saving}
-            className="bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
+            className="bg-accent/50 hover:bg-accent disabled:opacity-50 text-sm"
           >
             Huỷ
           </Button>
@@ -202,7 +202,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
             variant="default"
             onClick={() => void onSave(value)}
             disabled={saving}
-            className="bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 font-semibold text-sm"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 font-semibold text-sm"
           >
             {saving ? "Đang lưu…" : mode === "create" ? "Tạo câu" : "Lưu"}
           </Button>
@@ -210,7 +210,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
       }
     >
       {mode === "create" && (
-        <p className="text-xs text-gray-500 font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
+        <p className="text-xs text-muted-foreground font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
       )}
       <label className={labelClass}>Nội dung *</label>
       <Textarea
@@ -318,26 +318,26 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
       <details
         key={value.mediaFile || (mode === "edit" && initial?.media_url && !value.removeMedia) ? "media-open" : "media-closed"}
         open={value.mediaFile || (mode === "edit" && initial?.media_url && !value.removeMedia) ? true : undefined}
-        className="rounded-lg bg-blue-950/40 border border-blue-800 px-3 py-2"
+        className="rounded-lg bg-primary/10 border border-primary/30 px-3 py-2"
       >
-        <summary className="text-xs text-blue-300 cursor-pointer select-none">
+        <summary className="text-xs text-brand cursor-pointer select-none">
           Media (tuỳ chọn — bỏ qua được, chèn sau cũng được)
         </summary>
         <div className="pt-2">
           {value.mediaFile ? (
-        <div className="rounded-lg bg-blue-950 border border-blue-700 p-3 flex flex-col gap-2">
+        <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2">
           <LocalPreview file={value.mediaFile} />
           <Button
             size="xs"
             variant="ghost"
             onClick={() => setValue((prev) => ({ ...prev, mediaFile: null }))}
-            className="text-xs text-red-300 hover:text-red-200 self-start"
+            className="text-xs text-destructive hover:text-destructive/80 self-start"
           >
             Bỏ file này
           </Button>
         </div>
       ) : mode === "edit" && initial?.media_url && !value.removeMedia ? (
-        <div className="rounded-lg bg-blue-950 border border-blue-700 p-3 flex flex-col gap-2">
+        <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2">
           <div className="max-h-48 overflow-hidden rounded">
             <RenderMedia mediaUrl={initial.media_url} />
           </div>
@@ -345,13 +345,13 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
             size="xs"
             variant="ghost"
             onClick={() => setValue((prev) => ({ ...prev, removeMedia: true }))}
-            className="text-xs text-red-300 hover:text-red-200 self-start"
+            className="text-xs text-destructive hover:text-destructive/80 self-start"
           >
             Xóa media này
           </Button>
         </div>
       ) : (
-        <label className="px-4 py-3 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm text-center cursor-pointer">
+        <label className="px-4 py-3 rounded-lg bg-accent/50 hover:bg-accent text-sm text-center cursor-pointer">
           Chọn ảnh / audio / video
           <input
             type="file"
@@ -364,10 +364,10 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         </div>
       </details>
       {mode === "edit" && value.removeMedia && (
-        <p className="text-xs text-amber-300">Sẽ xóa media khi lưu.</p>
+        <p className="text-xs text-warning">Sẽ xóa media khi lưu.</p>
       )}
 
-      {dupNote && <p className="text-xs text-amber-300">{dupNote}</p>}
+      {dupNote && <p className="text-xs text-warning">{dupNote}</p>}
     </SidePanel>
   );
 }

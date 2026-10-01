@@ -59,13 +59,13 @@ const parseScopes = (raw?: string | null): OperatorScope[] =>
     );
 
 const inputClass =
-  "px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm";
+  "px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
 const cancelClass =
-  "px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors";
+  "px-4 py-2 rounded-lg bg-accent/50 hover:bg-accent text-sm transition-colors";
 
 const saveClass =
-  "px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors";
+  "px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 font-semibold text-sm transition-colors";
 
 interface UserEditPanelProps {
   item: PanelUser | null;
@@ -111,16 +111,16 @@ export function UserEditPanel({ item, saving, onClose, onSave }: UserEditPanelPr
         </div>
       }
     >
-      <p className="text-xs text-blue-400 font-mono -mt-2">
+      <p className="text-xs text-primary font-mono -mt-2">
         Mã: {item?.user_code}
       </p>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">{isStaff ? "Tên người dùng" : "Tên thí sinh"}</label>
+        <label className="text-xs text-brand">{isStaff ? "Tên người dùng" : "Tên thí sinh"}</label>
         <Input type="text" value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
       </div>
       {isStaff ? (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Mật khẩu mới</label>
+          <label className="text-xs text-brand">Mật khẩu mới</label>
           <Input
             type="password"
             value={password}
@@ -132,7 +132,7 @@ export function UserEditPanel({ item, saving, onClose, onSave }: UserEditPanelPr
         </div>
       ) : (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Email</label>
+          <label className="text-xs text-brand">Email</label>
           <Input
             type="email"
             value={email}
@@ -185,7 +185,7 @@ export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelPr
           <Button
             variant="ghost"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+            className="px-4 py-2 rounded-lg bg-accent/50 border border-border hover:bg-accent text-sm transition-colors"
           >
             Huỷ
           </Button>
@@ -201,28 +201,28 @@ export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelPr
       }
     >
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400">Tên người dùng</label>
+        <label className="text-xs text-muted-foreground">Tên người dùng</label>
         <Input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="VD: Nguyễn Văn A"
-          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400">Mật khẩu</label>
+        <label className="text-xs text-muted-foreground">Mật khẩu</label>
         <Input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Tối thiểu 8 ký tự"
           minLength={8}
-          className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+          className="px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-gray-400">Vai trò</label>
+        <label className="text-xs text-muted-foreground">Vai trò</label>
         <NativeSelect
           value={staffRole}
           onChange={(e) => setStaffRole(e.target.value as StaffRole)}
@@ -235,7 +235,7 @@ export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelPr
           ))}
         </NativeSelect>
         {staffRole !== "admin" && (
-          <p className="text-[11px] text-gray-500">
+          <p className="text-[11px] text-muted-foreground/70">
             Tạo operator với scope {staffRole} — đăng nhập rồi vào đúng shell làm việc.
           </p>
         )}
@@ -285,11 +285,11 @@ export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelPr
         </div>
       }
     >
-      <p className="text-xs text-blue-400 font-mono -mt-2">
+      <p className="text-xs text-primary font-mono -mt-2">
         {item?.user_name} · {item?.user_code}
       </p>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-blue-300">Vai trò</label>
+        <label className="text-xs text-brand">Vai trò</label>
         <NativeSelect
           value={role}
           onChange={(e) => setRole(e.target.value as GlobalRole)}
@@ -303,8 +303,8 @@ export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelPr
       </div>
       {role === "operator" && (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-blue-300">Scopes</label>
-          <div className="flex gap-3 text-sm text-blue-100">
+          <label className="text-xs text-brand">Scopes</label>
+          <div className="flex gap-3 text-sm text-foreground">
             {OPERATOR_SCOPES.map((s) => (
               <label key={s} className="flex items-center gap-1.5">
                 <Checkbox
@@ -347,17 +347,17 @@ export function UserDeletePanel({ item, saving, onClose, onConfirm }: UserDelete
             variant="destructive"
             onClick={() => void onConfirm()}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 disabled:opacity-50 font-semibold text-sm transition-colors"
+            className="px-4 py-2 rounded-lg bg-destructive hover:bg-destructive/90 disabled:opacity-50 font-semibold text-sm transition-colors"
           >
             {saving ? "Đang xoá…" : "Xoá"}
           </Button>
         </div>
       }
     >
-      <p className="text-sm text-blue-200">
+      <p className="text-sm text-foreground">
         <span className="font-mono">{item?.user_code}</span> · {item?.user_name}
         <br />
-        <span className="text-xs text-blue-400">Hành động này không thể hoàn tác.</span>
+        <span className="text-xs text-primary">Hành động này không thể hoàn tác.</span>
       </p>
     </SidePanel>
   );

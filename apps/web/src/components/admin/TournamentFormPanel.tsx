@@ -25,8 +25,8 @@ const STATUS_OPTIONS = [
 ];
 
 const inputClass =
-  "w-full px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm";
-const labelClass = "block text-[11px] text-blue-300 uppercase tracking-wide mb-1";
+  "w-full px-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
+const labelClass = "block text-[11px] text-brand uppercase tracking-wide mb-1";
 
 interface TournamentFormPanelProps {
   open: boolean;
@@ -69,7 +69,7 @@ export function TournamentFormPanel({
           <Button
             variant="ghost"
             onClick={onClose}
-            className="px-5 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 transition-colors text-sm"
+            className="px-5 py-2 rounded-lg bg-accent/50 hover:bg-accent transition-colors text-sm"
           >
             Hủy
           </Button>
@@ -77,7 +77,7 @@ export function TournamentFormPanel({
             variant="default"
             onClick={() => void onSubmit(form)}
             disabled={saving || !form.tournamentName.trim()}
-            className="gap-2 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 transition-colors disabled:opacity-50 text-sm font-medium"
+            className="gap-2 px-5 py-2 rounded-lg bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50 text-sm font-medium"
           >
             {saving ? (
               <Loader2 size={15} className="animate-spin" />
@@ -90,15 +90,15 @@ export function TournamentFormPanel({
       }
     >
       {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm">
+        <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-xl text-destructive text-sm">
           {error}
         </div>
       )}
       <section className="flex flex-col gap-3">
-        <p className="text-xs font-medium text-gray-400">Cơ bản</p>
+        <p className="text-xs font-medium text-muted-foreground">Cơ bản</p>
         <div>
           <label className={labelClass}>
-            Tên giải đấu <span className="text-red-400">*</span>
+            Tên giải đấu <span className="text-destructive">*</span>
           </label>
           <Input
             type="text"
@@ -153,7 +153,7 @@ export function TournamentFormPanel({
       </section>
 
       <section className="flex flex-col gap-3">
-        <p className="text-xs font-medium text-gray-400">Thời gian & địa điểm</p>
+        <p className="text-xs font-medium text-muted-foreground">Thời gian & địa điểm</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={labelClass}>Ngày bắt đầu</label>
@@ -161,7 +161,7 @@ export function TournamentFormPanel({
               type="date"
               value={form.startDate}
               onChange={(e) => set({ startDate: e.target.value })}
-              className={`${inputClass} text-gray-200`}
+              className={`${inputClass} text-foreground`}
             />
           </div>
           <div>
@@ -170,7 +170,7 @@ export function TournamentFormPanel({
               type="date"
               value={form.endDate}
               onChange={(e) => set({ endDate: e.target.value })}
-              className={`${inputClass} text-gray-200`}
+              className={`${inputClass} text-foreground`}
             />
           </div>
           <div>
@@ -197,7 +197,7 @@ export function TournamentFormPanel({
       </section>
 
       <section className="flex flex-col gap-3">
-        <p className="text-xs font-medium text-gray-400">Ghi chú</p>
+        <p className="text-xs font-medium text-muted-foreground">Ghi chú</p>
         <Textarea
           value={form.notes}
           onChange={(e) => set({ notes: e.target.value })}

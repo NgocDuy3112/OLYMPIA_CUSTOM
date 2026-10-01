@@ -36,9 +36,11 @@
   --color-info-foreground: #ffffff;
   --color-purple: #8b5cf6;
   --color-purple-foreground: #ffffff;
-  --color-border: #5226e8;
-  --color-input: #5226e8;
+  --color-border: rgb(255 255 255 / 0.10);
+  --color-input: rgb(255 255 255 / 0.15);
   --color-ring: #7a61f5;
+  /* Light-violet accent text (palette blue-300 cũ — primary quá tối cho chữ nhỏ) */
+  --color-brand: #9c8dfa;
 
   /* Sidebar tokens (shadcn Sidebar components) */
   --color-sidebar: #12102e;
