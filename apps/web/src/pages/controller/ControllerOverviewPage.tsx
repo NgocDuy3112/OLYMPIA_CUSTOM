@@ -7,7 +7,12 @@ import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { OVERLAYS, overlayUrl } from "@/pages/overlay/overlayList";
 import { MatchSetPicker } from "@/components/controller/MatchSetPicker";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
 const logger = createLogger("ControllerOverviewPage");
 
@@ -107,20 +112,23 @@ const ControllerOverviewPage = () => {
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold text-foreground">Tổng quan live</h1>
       <div className="flex gap-2">
-        <Input
-          value={matchCode}
-          onChange={(e) => setCode(e.target.value)}
-          placeholder="Mã trận đấu"
-          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
-        />
-        <Button
-          variant="default"
-          onClick={() => void fetchStats()}
-          disabled={loading || !matchCode.trim()}
-          className="gap-1 bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
-        >
-          <Search size={14} /> Tải
-        </Button>
+        <InputGroup className="h-9 flex-1">
+          <InputGroupInput
+            value={matchCode}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Mã trận đấu"
+            className="font-mono text-sm"
+          />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              onClick={() => void fetchStats()}
+              disabled={loading || !matchCode.trim()}
+              className="bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
+            >
+              <Search size={14} /> Tải
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
         <Button
           variant="default"
           onClick={enterLive}

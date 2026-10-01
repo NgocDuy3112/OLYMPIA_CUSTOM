@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import type { ScheduleFormValue } from "./scheduleFormState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
 import { NativeSelect } from "@/components/ui/native-select";
 import { FormField, formInputClass } from "@/components/shared/ui/form";
 
@@ -119,17 +125,19 @@ export function MatchScheduleForm({
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {form.playerCodes.map((code, i) => (
-          <label key={i} className="relative block">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-muted-foreground pointer-events-none">
-              #{i + 1}
-            </span>
-            <Input
+          <InputGroup key={i} className="h-9">
+            <InputGroupAddon>
+              <InputGroupText className="font-mono text-[11px]">
+                #{i + 1}
+              </InputGroupText>
+            </InputGroupAddon>
+            <InputGroupInput
               placeholder="userCode"
               value={code}
               onChange={(e) => setPlayer(i, e.target.value)}
-              className={`${formInputClass} pl-8 font-mono text-xs`}
+              className="font-mono text-xs"
             />
-          </label>
+          </InputGroup>
         ))}
       </div>
 

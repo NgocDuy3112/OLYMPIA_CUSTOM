@@ -8,7 +8,12 @@ import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreatePanel";
 import { BANK_PAGE_SIZE, toBankData, type BankData } from "./bankTypes";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
 const logger = createLogger("MatchTab");
 
@@ -333,20 +338,23 @@ export const MatchTab = () => {
 
       <div className="bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
-          <Input
-            value={matchCode}
-            onChange={(e) => setMatchCode(e.target.value)}
-            placeholder="Mã trận đấu"
-            className="flex-1 h-9 text-foreground font-mono text-sm"
-          />
-          <Button
-            variant="default"
-            onClick={() => void fetchQuestions()}
-            disabled={loading || !matchCode.trim()}
-            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
-          >
-            <Search size={14} /> {loading ? "Đang tải…" : "Tải"}
-          </Button>
+          <InputGroup className="h-9 flex-1">
+            <InputGroupInput
+              value={matchCode}
+              onChange={(e) => setMatchCode(e.target.value)}
+              placeholder="Mã trận đấu"
+              className="font-mono text-sm"
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                onClick={() => void fetchQuestions()}
+                disabled={loading || !matchCode.trim()}
+                className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
+              >
+                <Search size={14} /> {loading ? "Đang tải…" : "Tải"}
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
           <Button
             variant="default"
             onClick={() => setShowCreate(true)}
@@ -477,22 +485,23 @@ export const MatchTab = () => {
             Chọn dòng KEY bên dưới rồi Pick cả set (chặn cứng nếu set thiếu 1 KEY + 8 hint đã duyệt).
           </p>
         )}
-        <div className="flex gap-2">
-          <Input
+        <InputGroup className="h-9">
+          <InputGroupInput
             value={bankQuery}
             onChange={(e) => setBankQuery(e.target.value)}
             placeholder={selSlot ? `Tìm bank cho slot ${selSlot}…` : "Chọn slot trước, rồi tìm bank…"}
-            className="flex-1 h-9 text-foreground text-sm"
+            className="text-sm"
           />
-          <Button
-            variant="default"
-            onClick={() => void fetchBank()}
-            disabled={bankLoading}
-            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground"
-          >
-            <Search size={14} /> Tìm
-          </Button>
-        </div>
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              onClick={() => void fetchBank()}
+              disabled={bankLoading}
+              className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm"
+            >
+              <Search size={14} /> Tìm
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
         {bankLoading ? (
           <p className="text-muted-foreground text-sm">Đang tải bank đã duyệt…</p>
         ) : bankQuestions.length === 0 ? (

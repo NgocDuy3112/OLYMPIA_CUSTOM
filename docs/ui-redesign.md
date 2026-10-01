@@ -178,7 +178,20 @@ SetFillPanel (`bare` — bảng mini trong panel, sort tắt).
 **RulesPage** tách khỏi DataTable: bảng luật đổi UI riêng — `PointMatrix` (card điểm theo hạng,
 tone màu great/good/mid/low) + `DurationList` (timeline thời gian vòng, thanh tỉ lệ /60s).
 
-## 10. Tài liệu đọc thêm
+## 10. InputGroup — 16 chỗ gộp ô nhập + addon/nút (2026-10)
+
+`components/ui/input-group.tsx` (shadcn) thay 3 hack phổ biến:
+
+| Pattern cũ | Pattern mới | Chỗ đã đổi |
+|---|---|---|
+| icon Search `absolute` + `pl-8` | `InputGroupAddon` leading | QuestionsCard, AdminGameManagingPage |
+| prefix text `absolute` + `pl-8` | `InputGroupText` leading | MatchScheduleForm (`#1..4`), QualifierManager (`A/B/C/D`) |
+| Input + nút Tìm/Tải tách rời | `InputGroupButton` inline-end | BankTab, MatchTab ×2, SetFillPanel, QualifierTab, ControllerOverview, CQualifierPage, MQualifierPage |
+
+Quy tắc: group luôn `h-9` (khớp `formInputClass`); nút submit ở `align="inline-end"`;
+nút phụ (Soạn câu, Vào live, quay lại) để NGOÀI group.
+
+## 11. Tài liệu đọc thêm
 
 - `design-system/olympia-custom/MASTER.md` — design system gốc (lưu ý: palette/font trong này đã cũ, code ghi đè)
 - [WCAG 2.2 — Contrast (Minimum) 4.5:1](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)

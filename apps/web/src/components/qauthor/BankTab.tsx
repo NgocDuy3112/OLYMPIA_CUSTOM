@@ -11,7 +11,12 @@ import {
 } from "./bankTypes";
 import { uploadQuestionMedia } from "./uploadMedia";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   DataTable,
@@ -319,12 +324,23 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               <Plus size={16} /> Tạo set GM
             </Button>
           )}
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Tìm theo mã / nội dung / đáp án…"
-            className="flex-1 h-9 text-foreground text-sm"
-          />
+          <InputGroup className="h-9 flex-1">
+            <InputGroupInput
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm theo mã / nội dung / đáp án…"
+              className="text-sm"
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                onClick={() => void fetchBank(1)}
+                disabled={loading}
+                className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm"
+              >
+                <Search size={14} /> Tìm
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
           <NativeSelect
             value={used}
             onChange={(e) => setUsed(e.target.value as "all" | "only" | "unused")}
@@ -366,14 +382,6 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               </NativeSelect>
             </>
           )}
-          <Button
-            variant="default"
-            onClick={() => void fetchBank(1)}
-            disabled={loading}
-            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground"
-          >
-            <Search size={14} /> Tìm
-          </Button>
         </div>
         {group === "gm" && !loading && rows.length > 0 && (
           <div className="flex flex-col gap-2">

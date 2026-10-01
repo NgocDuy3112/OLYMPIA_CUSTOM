@@ -3,7 +3,12 @@ import { ListOrdered, Search, Trophy } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { getMatchCode } from "@/utils/storage";
 
 const logger = createLogger("CQualifierPage");
@@ -116,22 +121,23 @@ const CQualifierPage = () => {
       <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
         <ListOrdered size={20} /> Vòng loại — điều phối live
       </h1>
-      <div className="flex gap-2">
-        <Input
+      <InputGroup className="h-9">
+        <InputGroupInput
           value={tournamentCode}
           onChange={(e) => setTournamentCode(e.target.value)}
           placeholder="Mã giải đấu (VD: OC3_T_...)"
-          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
+          className="font-mono text-sm"
         />
-        <Button
-          variant="default"
-          onClick={() => void fetchAll()}
-          disabled={loading || !tournamentCode.trim()}
-          className="gap-1 bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
-        >
-          <Search size={14} /> Tải
-        </Button>
-      </div>
+        <InputGroupAddon align="inline-end">
+          <InputGroupButton
+            onClick={() => void fetchAll()}
+            disabled={loading || !tournamentCode.trim()}
+            className="bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
+          >
+            <Search size={14} /> Tải
+          </InputGroupButton>
+        </InputGroupAddon>
+      </InputGroup>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="default"

@@ -7,6 +7,12 @@ import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -317,11 +323,14 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {form.options.map((o, i) => (
-              <label key={i} className="relative block">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
-                  {String.fromCharCode(65 + i)}
-                </span>
-                <Input
+              <InputGroup key={i} className="h-9">
+                <InputGroupAddon>
+                  <InputGroupText className="font-bold">
+                    {String.fromCharCode(65 + i)}
+                  </InputGroupText>
+                </InputGroupAddon>
+                <InputGroupInput
+                  aria-label={`Đáp án ${String.fromCharCode(65 + i)}`}
                   placeholder={`Đáp án ${String.fromCharCode(65 + i)} *`}
                   value={o}
                   onChange={(e) =>
@@ -331,9 +340,9 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
                       return { ...f, options: next };
                     })
                   }
-                  className={`${formInputClass} pl-8`}
+                  className="text-sm"
                 />
-              </label>
+              </InputGroup>
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">

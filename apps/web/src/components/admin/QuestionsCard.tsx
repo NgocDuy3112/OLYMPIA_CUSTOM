@@ -10,6 +10,11 @@ import {
 import type { QuestionData } from "./gameTypes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 
 interface QuestionsCardProps {
   matchCode: string;
@@ -93,15 +98,17 @@ export function QuestionsCard({
       </div>
 
       {questions.length > 0 && (
-        <div className="relative">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <InputGroup className="h-9">
+          <InputGroupAddon>
+            <Search size={14} />
+          </InputGroupAddon>
+          <InputGroupInput
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Lọc theo mã / nội dung / đáp án…"
-            className={`${inputClass} pl-8`}
+            className="text-sm"
           />
-        </div>
+        </InputGroup>
       )}
 
       <div className="overflow-y-auto min-h-0 max-h-[520px] -mr-1 pr-1">

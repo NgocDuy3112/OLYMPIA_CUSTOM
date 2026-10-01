@@ -14,6 +14,12 @@ import { toBankData, type BankData } from "./bankTypes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import {
   DataTable,
   createDataTableColumns,
   type DataTableColumn,
@@ -498,20 +504,23 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 >
                   <ArrowLeft size={13} /> {pickSlot}
                 </Button>
-                <Input
-                  value={bankQuery}
-                  onChange={(e) => setBankQuery(e.target.value)}
-                  placeholder={`Tìm bank cho slot ${pickSlot}…`}
-                  className={`${inputClass} flex-1 min-w-0`}
-                />
-                <Button
-                  variant="default"
-                  onClick={() => void searchBank()}
-                  disabled={bankLoading}
-                  className="gap-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
-                >
-                  <Search size={14} /> Tìm
-                </Button>
+                <InputGroup className="h-9 min-w-0 flex-1">
+                  <InputGroupInput
+                    value={bankQuery}
+                    onChange={(e) => setBankQuery(e.target.value)}
+                    placeholder={`Tìm bank cho slot ${pickSlot}…`}
+                    className="text-sm"
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      onClick={() => void searchBank()}
+                      disabled={bankLoading}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 text-sm"
+                    >
+                      <Search size={14} /> Tìm
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
               </div>
               {bankLoading ? (
                 <p className="text-muted-foreground text-sm py-4 text-center">Đang tìm…</p>

@@ -11,7 +11,11 @@ import { QuestionsCard } from "@/components/admin/QuestionsCard";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { EditMatchQuestionPanel, type MatchQuestionEditValue } from "@/components/admin/EditMatchQuestionPanel";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { MatchData, QuestionData } from "@/components/admin/gameTypes";
 
@@ -476,15 +480,17 @@ const AdminGameManagingPage = () => {
 
       {/* Bộ lọc */}
       <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <InputGroup className="h-9 flex-1">
+          <InputGroupAddon>
+            <Search size={14} />
+          </InputGroupAddon>
+          <InputGroupInput
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm mã / tên / nhãn / địa điểm…"
-            className="w-full pl-8 pr-3 py-2 rounded-lg bg-background/60 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="text-sm"
           />
-        </div>
+        </InputGroup>
         <NativeSelect
           value={tournamentFilter}
           onChange={(e) => setTournamentFilter(e.target.value)}

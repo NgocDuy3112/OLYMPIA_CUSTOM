@@ -9,6 +9,12 @@ import { EditQualifierPanel, type QualifierEditValue } from "./EditQualifierPane
 import { QualifierOptionsInput } from "./QualifierOptionsInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -326,20 +332,26 @@ export const QualifierTab = () => {
 
       <div className="bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
-          <Input
-            value={tournamentCode}
-            onChange={(e) => setTournamentCode(e.target.value)}
-            placeholder="Mã giải đấu (VD: OC3_T_...)"
-            className="flex-1 h-9 text-foreground font-mono text-sm"
-          />
-          <Button
-            variant="default"
-            onClick={() => { void fetchQuestions(); void fetchStandings(); }}
-            disabled={loading || !tournamentCode.trim()}
-            className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm text-success-foreground font-medium"
-          >
-            <Search size={14} /> Tải
-          </Button>
+          <InputGroup className="h-9 flex-1">
+            <InputGroupInput
+              value={tournamentCode}
+              onChange={(e) => setTournamentCode(e.target.value)}
+              placeholder="Mã giải đấu (VD: OC3_T_...)"
+              className="font-mono text-sm"
+            />
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                onClick={() => {
+                  void fetchQuestions();
+                  void fetchStandings();
+                }}
+                disabled={loading || !tournamentCode.trim()}
+                className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
+              >
+                <Search size={14} /> Tải
+              </InputGroupButton>
+            </InputGroupAddon>
+          </InputGroup>
           <Button
             variant="default"
             onClick={() => setShowForm(true)}
