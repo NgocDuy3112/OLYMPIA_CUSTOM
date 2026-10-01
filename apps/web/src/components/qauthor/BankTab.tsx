@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { RowActions } from "@/components/shared/RowActions";
-import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditBankSidebar, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
@@ -67,13 +65,9 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   const [pages, setPages] = useState(1);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState<BankData | null>(null);
-  const [deleteSaving, setDeleteSaving] = useState(false);
   const [sidebar, setSidebar] = useState<{
-    mode: "create" | "edit";
     kind: BankFormKind;
     preset?: Partial<BankFormValue>;
-    row: BankData | null;
   } | null>(null);
 
   const fetchBank = useCallback(async (p = 1) => {
@@ -152,130 +146,68 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     setFormError("");
     setSaving(true);
     try {
-      if (sidebar.mode === "create") {
-        const roundHint = v.roundHint.trim() || GROUP_ROUNDS[group].split(",")[0];
-        const bankCode = genBankCode(roundHint);
-        const res = await fetch(`${API_BASE_URL}/bank`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            bankCode,
-            content: v.content.trim(),
-            answer: v.answer.trim(),
-            explanation: v.explanation.trim() || undefined,
-            roundHint,
-            domain: v.domain || undefined,
-            difficulty: v.difficulty ? Number(v.difficulty) : undefined,
-            setCode: v.setCode || undefined,
-            hintIndex: v.hintIndex || undefined,
-            citations: buildCitations(v),
-          }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message ?? "Tạo thất bại");
-        const id = String(json.data?.id ?? "");
-        if (v.mediaFile) {
-          const key = await uploadQuestionMedia(bankCode, v.mediaFile);
-          await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(id)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ media_url: key }),
-          });
-        }
-        setSidebar(null);
-        await fetchBank(1);
-      } else {
-        const row = sidebar.row!;
-        const body: Record<string, string | number | object | null> = {
-          content: v.content.trim(),
-          answer: v.answer.trim(),
-          explanation: v.explanation.trim() || null,
-          citations: buildCitations(v),
-          domain: v.domain || null,
-          difficulty: v.difficulty ? Number(v.difficulty) : null,
-          setCode: v.setCode || null,
-          hintIndex: v.hintIndex || null,
-        };
-        if (v.mediaFile) {
-          body.media_url = await uploadQuestionMedia(row.bank_code, v.mediaFile);
-        } else if (v.removeMedia) {
-          body.media_url = null;
-        }
-        const res = await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(row.bank_id)}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(body),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.message ?? "Lưu thất bại");
-        setSidebar(null);
-        await fetchBank(page);
-      }
+  const roundHint = v.roundHint.trim() || GROUP_ROUNDS[group].split(",")[0];
+  const bankCode = genBankCode(roundHint);
+  const res = await fetch(`${API_BASE_URL}/bank`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      bankCode,
+      content: v.content.trim(),
+      answer: v.answer.trim(),
+      explanation: v.explanation.trim() || undefined,
+      roundHint,
+      domain: v.domain || undefined,
+      difficulty: v.difficulty ? Number(v.difficulty) : undefined,
+      setCode: v.setCode || undefined,
+      hintIndex: v.hintIndex || undefined,
+      citations: buildCitations(v),
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.message ?? "Tạo thất bại");
+  const id = String(json.data?.id ?? "");
+  if (v.mediaFile) {
+    const key = await uploadQuestionMedia(bankCode, v.mediaFile);
+    await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ media_url: key }),
+    });
+  }
+  setSidebar(null);
+  await fetchBank(1);
     } catch (err) {
       logger.error("Error saving bank:", err);
       setFormError(err instanceof Error ? err.message : "Lỗi kết nối khi lưu");
     } finally {
       setSaving(false);
     }
-  }, [sidebar, fetchBank, page]);
+  }, [sidebar, fetchBank]);
 
-  const confirmDeleteBank = useCallback(async () => {
-    if (!deleting) return;
-    setDeleteSaving(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(deleting.bank_id)}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      const json = await res.json();
-      if (res.ok) {
-        setDeleting(null);
-        await fetchBank(page);
-      } else {
-        alert(`Xoá thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
-    } catch (err) {
-      logger.error("Error deleting bank:", err);
-      alert("Lỗi kết nối khi xoá bank");
-    } finally {
-      setDeleteSaving(false);
-    }
-  }, [deleting, fetchBank, page]);
 
   return (
     <div className="flex flex-col gap-4">
       <EditBankSidebar
         open={sidebar !== null}
-        mode={sidebar?.mode ?? "create"}
+        mode="create"
         kind={sidebar?.kind ?? "kd"}
         preset={sidebar?.preset}
-        initial={sidebar?.row ?? null}
+        initial={null}
         saving={saving}
         onClose={() => { setSidebar(null); setFormError(""); }}
         onSave={saveSidebar}
       />
       {formError && <p className="text-xs text-destructive">{formError}</p>}
-      <ConfirmActionPanel
-        open={deleting !== null}
-        title="Xoá câu bank?"
-        tone="danger"
-        itemCode={deleting?.bank_code}
-        message={deleting ? `Xoá câu “${deleting.content}” khỏi bank?` : ""}
-        confirmLabel="Xoá"
-        saving={deleteSaving}
-        onClose={() => setDeleting(null)}
-        onConfirm={confirmDeleteBank}
-      />
 
       <div className="bg-accent/50 border border-border rounded-xl p-5 flex flex-col gap-4">
         <div className="flex gap-2 flex-wrap">
           {group === "kd" && (
             <Button
               variant="default"
-              onClick={() => setSidebar({ mode: "create", kind: "kd", preset: { roundHint: "KD_C" }, row: null })}
+              onClick={() => setSidebar({ kind: "kd", preset: { roundHint: "KD_C" } })}
               className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo câu KĐ
@@ -284,7 +216,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
           {group === "bp" && (
             <Button
               variant="default"
-              onClick={() => setSidebar({ mode: "create", kind: "bp", preset: { roundHint: "BP" }, row: null })}
+              onClick={() => setSidebar({ kind: "bp", preset: { roundHint: "BP" } })}
               className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo câu BP
@@ -293,7 +225,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
           {group === "vd" && (
             <Button
               variant="default"
-              onClick={() => setSidebar({ mode: "create", kind: "vd", preset: { roundHint: "VD", domain: vdDomain, difficulty: vdLevel }, row: null })}
+              onClick={() => setSidebar({ kind: "vd", preset: { roundHint: "VD", domain: vdDomain, difficulty: vdLevel } })}
               className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo câu VĐ
@@ -302,7 +234,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
           {group === "gm" && (
             <Button
               variant="default"
-              onClick={() => setSidebar({ mode: "create", kind: "gm-key", row: null })}
+              onClick={() => setSidebar({ kind: "gm-key" })}
               className="gap-2 bg-success hover:bg-success/90 font-semibold text-sm text-success-foreground"
             >
               <Plus size={16} /> Tạo set GM
@@ -386,7 +318,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                     <Button
                       size="xs"
                       variant="secondary"
-                      onClick={() => setSidebar({ mode: "create", kind: "gm-hint", preset: { roundHint: "GM", setCode: setCode === "(chưa set)" ? "" : setCode }, row: null })}
+                      onClick={() => setSidebar({ kind: "gm-hint", preset: { roundHint: "GM", setCode: setCode === "(chưa set)" ? "" : setCode } })}
                       className="ml-auto bg-primary hover:bg-primary/90"
                     >
                       + Thêm hint
@@ -411,7 +343,6 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                   <TableHead className="py-2 px-2 text-success">Đáp án</TableHead>
                   <TableHead className="py-2 px-2 text-success">Duyệt</TableHead>
                   <TableHead className="py-2 px-2 text-success">Media</TableHead>
-                  <TableHead className="py-2 px-2"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -444,19 +375,6 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                       ) : (
                         <span className="text-muted-foreground">Chưa có</span>
                       )}
-                    </TableCell>
-                    <TableCell className="py-2 px-2 text-right">
-                      <RowActions
-                        onEdit={() => setSidebar({
-                          mode: "edit",
-                          kind: q.hint_index === "KEY" ? "gm-key"
-                            : q.hint_index ? "gm-hint"
-                            : group === "vd" ? "vd"
-                            : group === "bp" ? "bp" : "kd",
-                          row: q,
-                        })}
-                        onDelete={() => setDeleting(q)}
-                      />
                     </TableCell>
                   </TableRow>
                 ))}
