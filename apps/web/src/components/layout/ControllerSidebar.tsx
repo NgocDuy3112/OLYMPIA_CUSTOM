@@ -1,109 +1,52 @@
 import React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Play,
   ClipboardCheck,
   HelpCircle,
   KeyRound,
-  ChevronRight,
   Gamepad2,
 } from "lucide-react";
 import { getMatchCode } from "@/utils/storage";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
+import { ShellSidebar, type ShellNavGroup } from "./ShellSidebar";
 
-interface SidebarItem {
-  label: string;
-  path: string;
-  icon: React.ReactNode;
-}
-
+/** Controller shell sidebar — cấu hình cho ShellSidebar (shadcn Sidebar block). */
 export const ControllerSidebar: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { isMobile, setOpenMobile } = useSidebar();
   const matchCode = getMatchCode();
 
-  const items: SidebarItem[] = [
+  const groups: ShellNavGroup[] = [
     {
-      label: "Tổng quan live",
-      path: "/operator/controller/overview",
-      icon: <LayoutDashboard size={18} />,
+      label: "Trận đấu",
+      items: [
+        {
+          label: "Tổng quan live",
+          path: "/operator/controller/overview",
+          icon: <LayoutDashboard size={18} />,
+        },
+        {
+          label: "Sảnh chờ",
+          path: matchCode ? `/operator/controller/waiting/${matchCode}` : "/operator/controller",
+          icon: <Play size={18} />,
+        },
+        { label: "Vòng loại", path: "/operator/controller/qualifier", icon: <HelpCircle size={18} /> },
+        { label: "Duyệt điểm", path: "/operator/controller/reviews", icon: <ClipboardCheck size={18} /> },
+      ],
     },
     {
-      label: "Sảnh chờ",
-      path: matchCode ? `/operator/controller/waiting/${matchCode}` : "/operator/controller",
-      icon: <Play size={18} />,
-    },
-    {
-      label: "Vòng loại",
-      path: "/operator/controller/qualifier",
-      icon: <HelpCircle size={18} />,
-    },
-    {
-      label: "Duyệt điểm",
-      path: "/operator/controller/reviews",
-      icon: <ClipboardCheck size={18} />,
-    },
-    // Bỏ "Câu hỏi trận này" (/operator/qauthor/bank): link sang shell khác,
-    // AuthGuard chặn operator thiếu scope qauthor, và CQuestionBoard đã show câu hỏi live.
-    {
-      label: "MCP Tokens",
-      path: "/operator/mcp-tokens",
-      icon: <KeyRound size={18} />,
+      label: "Hệ thống",
+      items: [{ label: "MCP Tokens", path: "/operator/mcp-tokens", icon: <KeyRound size={18} /> }],
     },
   ];
 
-  const isActive = (path: string) => location.pathname.startsWith(path);
-
   return (
-    <Sidebar collapsible="offcanvas" className="border-r border-border">
-      <SidebarHeader className="border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Gamepad2 size={18} className="text-role-controller" />
-          <span className="text-sm font-bold text-foreground">CONTROLLER</span>
-        </div>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => {
-                const active = isActive(item.path);
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton size="lg"
-                      isActive={active}
-                      tooltip={item.label}
-                      className="data-[active=true]:bg-role-controller/20 data-[active=true]:text-role-controller"
-                      onClick={() => {
-                        navigate(item.path);
-                        if (isMobile) setOpenMobile(false);
-                      }}
-                    >
-                      {item.icon}
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {active && (
-                        <ChevronRight size={16} className="text-role-controller" />
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+    <ShellSidebar
+      shellName="CONTROLLER"
+      brandIcon={<Gamepad2 size={16} />}
+      brandHome="/operator/controller/overview"
+      accentClass="text-role-controller"
+      activeClass="data-[active=true]:bg-role-controller/15 data-[active=true]:text-role-controller"
+      roleLabel="Controller"
+      groups={groups}
+    />
   );
 };

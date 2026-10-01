@@ -113,7 +113,29 @@ Cũng trong lần này: tự tải câu hỏi khi mount (nếu có mã trận l�
 thành 1 (có trạng thái "Đang tải…"), thêm loading/empty state cho bank list, bỏ pills progress
 trùng lặp ở box header (progress sống ở tabs vòng của zone Pick).
 
-## 7. Tài liệu đọc thêm
+## 7. Sidebar — shadcn Sidebar block (2026-10)
+
+4 sidebar gộp về 1 component `ShellSidebar` theo block pattern (sidebar-01/07):
+
+```mermaid
+flowchart TD
+    subgraph SB["ShellSidebar — mỗi shell 1 wrapper config"]
+      H["SidebarHeader<br/>brand tile OLYMPIA CUSTOM + tên shell"]
+      C["SidebarContent<br/>SidebarGroup + SidebarGroupLabel<br/>(Vận hành / Hệ thống, Soạn câu, Khám phá ...) "]
+      F["SidebarFooter<br/>user card dropdown: tên + vai trò + Đăng xuất<br/>(Public: nút Đăng nhập)"]
+      R[SidebarRail — bấm mép để thu gọn]
+    end
+    AS[AdminSidebar] --> SB
+    CS[ControllerSidebar] --> SB
+    QS[QAuthorSidebar] --> SB
+    PS[PublicSidebar] --> SB
+```
+
+- Active state theo role token: `data-[active=true]:bg-role-*/15`
+- User menu chuyển từ header xuống footer (header chỉ còn trigger + tên + chip vai trò — `ShellHeader`)
+- Item `newTab` (admin → controller/qauthor) có title "Mở trong tab mới"
+
+## 8. Tài liệu đọc thêm
 
 - `design-system/olympia-custom/MASTER.md` — design system gốc (lưu ý: palette/font trong này đã cũ, code ghi đè)
 - [WCAG 2.2 — Contrast (Minimum) 4.5:1](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
