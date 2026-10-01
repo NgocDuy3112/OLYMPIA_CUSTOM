@@ -1,8 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Trophy, Calendar, MapPin, Users, ArrowRight } from "lucide-react";
-import { Card } from "../shared/ui/Card";
-import { TournamentStatusBadge } from "../shared/ui/Badge";
+import { Card } from "@/components/ui/card";
+import { TournamentStatusBadge } from "@/components/shared/StatusBadges";
 
 interface TournamentCardProps {
   id: string;
@@ -31,7 +31,10 @@ export const TournamentCard: React.FC<TournamentCardProps> = ({
   const navigate = useNavigate();
 
   return (
-    <Card hover onClick={() => navigate(`/tournament/${tournamentCode}`)}>
+    <Card
+      className="px-4 cursor-pointer hover:ring-primary transition-colors"
+      onClick={() => navigate(`/tournament/${tournamentCode}`)}
+    >
       <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
         {/* Info */}
         <div className="flex-1 min-w-0">

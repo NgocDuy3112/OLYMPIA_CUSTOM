@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
 import { PublicLayout } from "@/components/layout";
-import { Card, PageLoading } from "@/components/shared/ui";
+import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 
 interface PublicProfile {
   userCode: string;
@@ -39,7 +40,12 @@ const PublicProfilePage: React.FC = () => {
     void fetchProfile();
   }, [userCode]);
 
-  if (loading) return <PageLoading />;
+  if (loading)
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner className="size-12" />
+      </div>
+    );
   if (error || !profile) {
     return (
       <PublicLayout>
@@ -53,7 +59,7 @@ const PublicProfilePage: React.FC = () => {
   return (
     <PublicLayout>
       <div className="max-w-2xl mx-auto">
-        <Card>
+        <Card className="px-4">
           <div className="flex items-center gap-4">
             {profile.avatarUrl ? (
               <img

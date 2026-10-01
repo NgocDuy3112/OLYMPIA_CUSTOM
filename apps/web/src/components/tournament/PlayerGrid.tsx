@@ -1,6 +1,6 @@
 import React from "react";
 import { Users } from "lucide-react";
-import { TournamentRoleBadge } from "../shared/ui/Badge";
+import { TournamentRoleBadge } from "@/components/shared/StatusBadges";
 
 interface Player {
   id: string;

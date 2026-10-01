@@ -8,7 +8,8 @@ import {
   Users,
   Loader2,
 } from "lucide-react";
-import { Card, Button } from "../shared/ui";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 interface Template {
   id: string;
@@ -178,7 +179,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
               Cấu Hình Giải Đấu
             </h3>
             {selectedTemplate && (
-              <Card>
+              <Card className="px-4">
                 <div className="space-y-4">
                   <div>
                     <h4 className="font-medium text-white mb-2">
@@ -243,7 +244,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
               Xác Nhận
             </h3>
             {selectedTemplate && (
-              <Card>
+              <Card className="px-4">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-green-500/20 rounded-lg">
@@ -336,8 +337,8 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
           variant="secondary"
           onClick={() => setCurrentStep((prev) => prev - 1)}
           disabled={currentStep === 0}
-          leftIcon={<ArrowLeft size={16} />}
         >
+          <ArrowLeft size={16} />
           Quay lại
         </Button>
 
@@ -345,17 +346,17 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
           <Button
             onClick={() => setCurrentStep((prev) => prev + 1)}
             disabled={!selectedTemplate}
-            rightIcon={<ArrowRight size={16} />}
           >
             Tiếp theo
+            <ArrowRight size={16} />
           </Button>
         ) : (
           <Button
             onClick={handleApplyTemplate}
-            isLoading={isApplying}
-            variant="success"
-            leftIcon={<Check size={16} />}
+            disabled={isApplying}
+            className="bg-success text-success-foreground hover:bg-success/90"
           >
+            <Check size={16} />
             Áp dụng Template
           </Button>
         )}

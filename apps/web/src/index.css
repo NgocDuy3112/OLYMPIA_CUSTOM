@@ -26,6 +26,16 @@
   --color-accent-foreground: #e6eef5;
   --color-destructive: #dc2626;
   --color-destructive-foreground: #ffffff;
+
+  /* Semantic state tokens (stock shadcn has no success/warning/info/purple) */
+  --color-success: #16a34a;
+  --color-success-foreground: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #12102e;
+  --color-info: #3b82f6;
+  --color-info-foreground: #ffffff;
+  --color-purple: #8b5cf6;
+  --color-purple-foreground: #ffffff;
   --color-border: #5226e8;
   --color-input: #5226e8;
   --color-ring: #7a61f5;

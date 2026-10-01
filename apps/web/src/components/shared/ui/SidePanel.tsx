@@ -52,7 +52,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                     <SheetTitle
                         className={cn(
                             "text-base font-bold",
-                            tone === "danger" ? "text-red-300" : "",
+                            tone === "danger" ? "text-destructive" : "",
                         )}
                     >
                         {title}
@@ -62,7 +62,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                     {children}
                 </div>
                 {footer && (
-                    <SheetFooter className="border-t pt-2">
+                    <SheetFooter className="border-t border-border pt-2">
                         {footer}
                     </SheetFooter>
                 )}

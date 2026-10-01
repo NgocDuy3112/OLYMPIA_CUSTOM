@@ -1,5 +1,5 @@
 import { SidePanel } from "@/components/shared/ui/SidePanel";
-import { Button } from "@/components/shared/ui/Button";
+import { Button } from "@/components/ui/button";
 
 interface ConfirmActionPanelProps {
   open: boolean;
@@ -39,7 +39,10 @@ export function ConfirmActionPanel({
             Huỷ
           </Button>
           <Button
-            variant={tone === "danger" ? "danger" : "success"}
+            variant={tone === "danger" ? "destructive" : "default"}
+            className={
+              tone === "danger" ? "" : "bg-success text-success-foreground hover:bg-success/90"
+            }
             onClick={() => void onConfirm()}
             disabled={saving}
           >
@@ -52,7 +55,7 @@ export function ConfirmActionPanel({
         <p className="text-xs text-blue-400 font-mono -mt-2">{itemCode}</p>
       )}
       <p className="text-sm text-white">{message}</p>
-      <p className="text-xs text-gray-400">{note}</p>
+      <p className="text-xs text-muted-foreground">{note}</p>
     </SidePanel>
   );
 }

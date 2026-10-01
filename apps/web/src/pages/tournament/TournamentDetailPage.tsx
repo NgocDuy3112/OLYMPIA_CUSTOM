@@ -15,12 +15,10 @@ import {
   TabNavigation,
 } from "@/components/layout";
 import { PlayerGrid, MatchCard, StandingsTable, RoleManager } from "@/components/tournament";
-import {
-  Button,
-  Card,
-  TournamentStatusBadge,
-  PageLoading,
-} from "@/components/shared/ui";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { TournamentStatusBadge } from "@/components/shared/StatusBadges";
 
 interface Tournament {
   id: string;
@@ -154,7 +152,11 @@ const TournamentDetailPage: React.FC = () => {
   }, [code]);
 
   if (isLoading) {
-    return <PageLoading />;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner className="size-12" />
+      </div>
+    );
   }
 
   if (!tournament) {
@@ -241,7 +243,7 @@ const TournamentDetailPage: React.FC = () => {
           <div className="py-6 space-y-6">
             {activeTab === "standings" ? (
               /* Standings Tab */
-              <Card>
+              <Card className="px-4">
                 <h2 className="text-lg font-bold text-white mb-4">
                   Bảng xếp hạng
                 </h2>
@@ -260,7 +262,7 @@ const TournamentDetailPage: React.FC = () => {
               <>
                 {/* Description */}
                 {tournament.description && (
-                  <Card>
+                  <Card className="px-4">
                     <h2 className="text-lg font-bold text-white mb-3">Giới thiệu</h2>
                     <p className="text-gray-300 text-sm leading-relaxed">
                       {tournament.description}
@@ -272,7 +274,7 @@ const TournamentDetailPage: React.FC = () => {
               {/* Main content */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Matches */}
-                <Card>
+                <Card className="px-4">
                   <h2 className="text-lg font-bold text-white mb-4">
                     Trận đấu ({matches.length})
                   </h2>
@@ -298,7 +300,7 @@ const TournamentDetailPage: React.FC = () => {
                 </Card>
 
                 {/* Players */}
-                <Card>
+                <Card className="px-4">
                   <h2 className="text-lg font-bold text-white mb-4">
                     Danh sách thí sinh ({players.length})
                   </h2>
@@ -328,7 +330,7 @@ const TournamentDetailPage: React.FC = () => {
               {/* Sidebar */}
               <div className="space-y-6">
                 {/* Register / Actions */}
-                <Card>
+                <Card className="px-4">
                   <h2 className="text-lg font-bold text-white mb-4">Tham gia</h2>
                   {!isAuthenticated ? (
                     <div className="space-y-3">
@@ -336,7 +338,7 @@ const TournamentDetailPage: React.FC = () => {
                         Đăng nhập để đăng ký tham gia giải đấu
                       </p>
                       <Button
-                        fullWidth
+                        className="w-full"
                         onClick={() => navigate("/login")}
                       >
                         Đăng nhập
@@ -351,8 +353,7 @@ const TournamentDetailPage: React.FC = () => {
                       {(myMembership.role === "player" ||
                         myMembership.role === "operator") && (
                         <Button
-                          fullWidth
-                          variant="success"
+                          className="w-full bg-success text-success-foreground hover:bg-success/90"
                           onClick={() => navigate("/")}
                         >
                           Vào sảnh thi đấu
@@ -365,10 +366,10 @@ const TournamentDetailPage: React.FC = () => {
                         Đăng ký để tham gia giải đấu này
                       </p>
                       <Button
-                        fullWidth
-                        leftIcon={<UserPlus size={18} />}
+                        className="w-full"
                         onClick={() => navigate(`/tournament/${code}/register`)}
                       >
+                        <UserPlus size={18} />
                         Đăng ký tham gia
                       </Button>
                     </div>
@@ -376,20 +377,20 @@ const TournamentDetailPage: React.FC = () => {
                 </Card>
 
                 {/* Quick links */}
-                <Card>
+                <Card className="px-4">
                   <h2 className="text-lg font-bold text-white mb-4">Liên kết</h2>
                   <Button
-                    fullWidth
                     variant="secondary"
-                    leftIcon={<BookOpen size={18} />}
+                    className="w-full"
                     onClick={() => navigate(`/tournament/${code}/rules`)}
                   >
+                    <BookOpen size={18} />
                     Luật chơi
                   </Button>
                 </Card>
 
                 {/* Stats */}
-                <Card>
+                <Card className="px-4">
                   <h2 className="text-lg font-bold text-white mb-4">Thống kê</h2>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between text-gray-300">

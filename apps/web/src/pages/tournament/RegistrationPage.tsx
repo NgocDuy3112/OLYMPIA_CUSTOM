@@ -12,7 +12,9 @@ import {
   UserPlus,
 } from "lucide-react";
 import { PublicLayout } from "@/components/layout";
-import { Button, Card, TournamentStatusBadge } from "@/components/shared/ui";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { TournamentStatusBadge } from "@/components/shared/StatusBadges";
 
 interface Tournament {
   id: string;
@@ -183,7 +185,7 @@ const RegistrationPage: React.FC = () => {
     return (
       <PublicLayout>
         <div className="flex items-center justify-center p-4">
-          <Card className="text-center">
+          <Card className="px-4 text-center">
             <p className="text-gray-400 mb-4">Không tìm thấy giải đấu</p>
             <Button onClick={() => navigate("/")}>Về trang chủ</Button>
           </Card>
@@ -203,7 +205,7 @@ const RegistrationPage: React.FC = () => {
             variants={scaleUp}
             className="w-full max-w-md"
           >
-            <Card className="text-center">
+            <Card className="px-4 text-center">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -239,7 +241,7 @@ const RegistrationPage: React.FC = () => {
             variants={scaleUp}
             className="w-full max-w-md"
           >
-            <Card className="text-center">
+            <Card className="px-4 text-center">
               <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
@@ -295,7 +297,7 @@ const RegistrationPage: React.FC = () => {
         animate="visible"
         exit="exit"
       >
-        <Card>
+        <Card className="px-4">
           <h3 className="text-lg font-bold text-white mb-4">
             Đăng ký cá nhân
           </h3>
@@ -310,11 +312,11 @@ const RegistrationPage: React.FC = () => {
           )}
 
           <Button
-            fullWidth
-            isLoading={isRegistering}
+            className="w-full"
+            disabled={isRegistering}
             onClick={handleRegisterIndividual}
-            leftIcon={<UserPlus size={18} />}
           >
+            <UserPlus size={18} />
             Đăng ký tham gia
           </Button>
         </Card>

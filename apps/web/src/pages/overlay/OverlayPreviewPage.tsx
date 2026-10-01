@@ -11,7 +11,8 @@ import {
   Users,
   HelpCircle,
 } from "lucide-react";
-import { Card, Button } from "@/components/shared/ui";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { API_BASE_URL } from "@/configs";
 import { OVERLAYS, overlayUrl, type OverlayItem } from "./overlayList";
 
@@ -75,7 +76,7 @@ const OverlayPreviewPage: React.FC = () => {
   if (!matchCode) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="text-center">
+        <Card className="px-4 text-center">
           <p className="text-gray-400">Cần match code để xem preview</p>
         </Card>
       </div>
@@ -114,7 +115,7 @@ const OverlayPreviewPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
             >
-              <Card className="!p-0 overflow-hidden">
+              <Card className="p-0 overflow-hidden">
                 {/* Preview area */}
                 <div className="relative h-40 bg-gray-950 flex items-center justify-center border-b border-white/10">
                   <iframe
@@ -155,22 +156,20 @@ const OverlayPreviewPage: React.FC = () => {
                       size="sm"
                       variant="secondary"
                       onClick={() => handleCopyUrl(overlay)}
-                      leftIcon={
-                        copiedId === overlay.id ? (
-                          <Check size={14} />
-                        ) : (
-                          <Copy size={14} />
-                        )
-                      }
                       className="flex-1"
                     >
+                      {copiedId === overlay.id ? (
+                        <Check size={14} />
+                      ) : (
+                        <Copy size={14} />
+                      )}
                       {copiedId === overlay.id ? "Đã copy!" : "Copy URL"}
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => handleOpenPreview(overlay)}
-                      leftIcon={<ExternalLink size={14} />}
                     >
+                      <ExternalLink size={14} />
                       Preview
                     </Button>
                   </div>
@@ -187,7 +186,7 @@ const OverlayPreviewPage: React.FC = () => {
           transition={{ delay: 0.5 }}
           className="mt-8"
         >
-          <Card>
+          <Card className="px-4">
             <h3 className="font-bold text-white mb-3">Hướng dẫn sử dụng</h3>
             <ol className="space-y-2 text-sm text-gray-400">
               <li className="flex gap-2">

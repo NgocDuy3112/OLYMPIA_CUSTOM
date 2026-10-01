@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Pencil, LogOut, Trophy, Camera } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { PublicLayout } from "@/components/layout";
-import { Button, Card, PageLoading } from "@/components/shared/ui";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -153,7 +155,12 @@ const ProfilePage: React.FC = () => {
     }
   };
 
-  if (loading) return <PageLoading />;
+  if (loading)
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner className="size-12" />
+      </div>
+    );
   if (error || !profile) {
     return (
       <PublicLayout>
@@ -167,7 +174,7 @@ const ProfilePage: React.FC = () => {
   return (
     <PublicLayout>
       <div className="max-w-2xl mx-auto flex flex-col gap-4">
-        <Card>
+        <Card className="px-4">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               {profile.avatarUrl ? (
@@ -225,9 +232,8 @@ const ProfilePage: React.FC = () => {
             {editing ? (
               <>
                 <Button
-                  variant="primary"
                   size="sm"
-                  isLoading={saving}
+                  disabled={saving}
                   onClick={() => void handleSave()}
                 >
                   Lưu
@@ -247,24 +253,24 @@ const ProfilePage: React.FC = () => {
               <Button
                 variant="secondary"
                 size="sm"
-                leftIcon={<Pencil size={16} />}
                 onClick={() => setEditing(true)}
               >
+                <Pencil size={16} />
                 Sửa tên
               </Button>
             )}
             <Button
               variant="ghost"
               size="sm"
-              leftIcon={<LogOut size={16} />}
               onClick={() => void handleLogout()}
             >
+              <LogOut size={16} />
               Đăng xuất
             </Button>
           </div>
         </Card>
 
-        <Card>
+        <Card className="px-4">
           <div className="flex items-center gap-2 text-white font-bold">
             <Trophy size={18} className="text-amber-400" />
             <span>Giải đấu đã tham gia</span>

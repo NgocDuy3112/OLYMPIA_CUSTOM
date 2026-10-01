@@ -1,12 +1,8 @@
-export { Button } from "./Button";
-export { Card } from "./Card";
+export { SidePanel } from "./SidePanel";
+export { ConfirmActionPanel } from "./ConfirmActionPanel";
 export {
-  Badge,
+  StatusBadge,
   TournamentStatusBadge,
   MatchStatusBadge,
   TournamentRoleBadge,
-} from "./Badge";
-export { Modal, ConfirmModal } from "./Modal";
-export { Loading, PageLoading, InlineLoading } from "./Loading";
-export { SidePanel } from "./SidePanel";
-export { ConfirmActionPanel } from "./ConfirmActionPanel";
+} from "../StatusBadges";

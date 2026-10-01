@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 import { PublicLayout } from "@/components/layout";
 import { TournamentCard } from "@/components/tournament";
-import { PageLoading } from "@/components/shared/ui";
+import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 
 interface Tournament {
@@ -53,7 +53,11 @@ const SMatchListPage: React.FC = () => {
   }, []);
 
   if (isLoading) {
-    return <PageLoading />;
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Spinner className="size-12" />
+      </div>
+    );
   }
 
   if (error) {
@@ -63,9 +67,7 @@ const SMatchListPage: React.FC = () => {
           <div className="card text-center w-full max-w-md">
             <p className="text-red-500 mb-4">{error}</p>
             <Button
-              variant="default"
               onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white"
             >
               Thử lại
             </Button>

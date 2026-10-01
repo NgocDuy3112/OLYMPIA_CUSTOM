@@ -1,6 +1,6 @@
 import React from "react";
 import { Clock, ExternalLink } from "lucide-react";
-import { MatchStatusBadge } from "../shared/ui/Badge";
+import { MatchStatusBadge } from "@/components/shared/StatusBadges";
 import { Button } from "@/components/ui/button";
 
 interface MatchCardProps {
