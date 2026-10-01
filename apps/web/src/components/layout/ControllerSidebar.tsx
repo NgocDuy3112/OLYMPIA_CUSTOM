@@ -55,11 +55,8 @@ export const ControllerSidebar: React.FC = () => {
       path: "/operator/controller/reviews",
       icon: <ClipboardCheck size={18} />,
     },
-    {
-      label: "Câu hỏi trận này",
-      path: "/operator/qauthor/bank",
-      icon: <HelpCircle size={18} />,
-    },
+    // Bỏ "Câu hỏi trận này" (/operator/qauthor/bank): link sang shell khác,
+    // AuthGuard chặn operator thiếu scope qauthor, và CQuestionBoard đã show câu hỏi live.
     {
       label: "MCP Tokens",
       path: "/operator/mcp-tokens",
