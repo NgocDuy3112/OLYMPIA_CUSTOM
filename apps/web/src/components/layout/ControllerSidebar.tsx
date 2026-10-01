@@ -74,7 +74,7 @@ export const ControllerSidebar: React.FC = () => {
       <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Gamepad2 size={18} className="text-orange-400" />
-          <span className="text-sm font-bold text-white">CONTROLLER</span>
+          <span className="text-sm font-bold text-foreground">CONTROLLER</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -85,7 +85,7 @@ export const ControllerSidebar: React.FC = () => {
                 const active = isActive(item.path);
                 return (
                   <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
+                    <SidebarMenuButton size="lg"
                       isActive={active}
                       tooltip={item.label}
                       className="data-[active=true]:bg-orange-600/20 data-[active=true]:text-orange-400"

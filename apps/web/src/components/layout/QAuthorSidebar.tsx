@@ -67,7 +67,7 @@ export const QAuthorSidebar: React.FC = () => {
       <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <HelpCircle size={18} className="text-success" />
-          <span className="text-sm font-bold text-white">QAUTHOR</span>
+          <span className="text-sm font-bold text-foreground">QAUTHOR</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -78,7 +78,7 @@ export const QAuthorSidebar: React.FC = () => {
                 const active = isActive(item.path);
                 return (
                   <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
+                    <SidebarMenuButton size="lg"
                       isActive={active}
                       tooltip={item.label}
                       className="data-[active=true]:bg-success/20 data-[active=true]:text-success"

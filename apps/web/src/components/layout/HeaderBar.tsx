@@ -32,10 +32,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const displayPhase = phaseName || (phase ? PHASE_NAMES[phase] : null);
 
   return (
-    <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5 bg-background/30 backdrop-blur-sm border-b border-border gap-2">
+    <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5 glass gap-2">
       {/* Left: Match info */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0">
-        <h1 className="text-sm sm:text-lg font-bold text-white tracking-wide truncate">
+        <h1 className="text-sm sm:text-lg font-bold text-foreground tracking-wide truncate">
           OLYMPIA CUSTOM
         </h1>
       </div>

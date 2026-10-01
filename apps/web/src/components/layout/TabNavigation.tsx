@@ -42,7 +42,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
           <TabsTrigger
             key={tab.path}
             value={tab.path}
-            className="flex items-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[active=true]:border-brand data-[active=true]:bg-transparent data-[active=true]:text-foreground data-[active=true]:shadow-none"
+            className="flex items-center gap-2 whitespace-nowrap rounded-none border-b-2 border-transparent px-4 py-3 text-sm font-medium text-muted-foreground transition-colors hover:border-border hover:text-foreground data-[active=true]:border-brand data-[active=true]:bg-transparent data-[active=true]:text-brand data-[active=true]:shadow-none"
           >
             {tab.icon}
             {tab.label}

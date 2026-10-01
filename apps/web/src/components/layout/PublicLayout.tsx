@@ -30,12 +30,12 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
       />
       <SidebarInset className="min-h-screen flex flex-col bg-transparent">
         {/* Mobile top bar — SidebarTrigger mở drawer (Base UI Sheet) */}
-        <header className="sticky top-0 z-30 md:hidden bg-background/30 backdrop-blur-sm border-b border-border">
+        <header className="sticky top-0 z-30 md:hidden glass">
           <div className="flex items-center h-14 px-4 gap-3">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
               <Trophy size={18} className="text-brand" />
-              <span className="text-sm font-bold text-white tracking-wide">
+              <span className="text-sm font-bold text-foreground tracking-wide">
                 OLYMPIA CUSTOM
               </span>
             </div>

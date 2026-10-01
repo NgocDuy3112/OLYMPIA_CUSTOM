@@ -98,7 +98,7 @@ export const AdminSidebar: React.FC = () => {
       <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
           <Shield size={18} className="text-brand" />
-          <span className="text-sm font-bold text-white">ADMIN</span>
+          <span className="text-sm font-bold text-foreground">ADMIN</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -109,7 +109,7 @@ export const AdminSidebar: React.FC = () => {
                 const active = !item.newTab && isActive(item.path);
                 return (
                   <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
+                    <SidebarMenuButton size="lg"
                       isActive={active}
                       tooltip={item.label}
                       className="data-[active=true]:bg-primary/20 data-[active=true]:text-brand"

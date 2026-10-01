@@ -38,7 +38,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
       : "text-foreground/80 hover:text-foreground hover:bg-accent/50";
 
   return (
-    <header className="sticky top-0 z-40 bg-background/30 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-40 glass">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
@@ -48,7 +48,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
             className="gap-2 px-2 shrink-0"
           >
             <Trophy size={20} className="text-brand" />
-            <span className="text-sm sm:text-lg font-bold text-white tracking-wide">
+            <span className="text-sm sm:text-lg font-bold text-foreground tracking-wide">
               OLYMPIA CUSTOM
             </span>
           </Button>
@@ -78,7 +78,7 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                     className="gap-2"
                   >
                     <User size={16} className="text-muted-foreground" />
-                    <span className="text-sm text-white">{userName}</span>
+                    <span className="text-sm text-foreground">{userName}</span>
                   </Button>
                 )}
                 <Button

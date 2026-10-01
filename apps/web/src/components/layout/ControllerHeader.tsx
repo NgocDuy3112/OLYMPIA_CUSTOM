@@ -1,6 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import { LogOut, User, Gamepad2 } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -23,24 +22,10 @@ export const ControllerHeader: React.FC<ControllerHeaderProps> = ({
   userName,
   onLogout,
 }) => {
-  const navigate = useNavigate();
-
   return (
-    <header className="sticky top-0 z-40 bg-background/40 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-40 glass">
       <div className="flex items-center justify-between px-4 py-2.5">
-        <div className="flex items-center gap-3">
-          <SidebarTrigger />
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/operator/controller/overview")}
-            className="gap-2"
-          >
-            <Gamepad2 size={18} className="text-orange-400" />
-            <span className="text-sm sm:text-base font-bold text-white">
-              CONTROLLER
-            </span>
-          </Button>
-        </div>
+        <SidebarTrigger />
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -49,13 +34,13 @@ export const ControllerHeader: React.FC<ControllerHeaderProps> = ({
             }
           >
             <User size={16} className="text-muted-foreground" />
-            <span className="text-sm text-white hidden sm:inline">
+            <span className="text-sm text-foreground hidden sm:inline">
               {userName}
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel className="text-white">
-              <p className="text-sm text-white">{userName}</p>
+            <DropdownMenuLabel className="text-foreground">
+              <p className="text-sm text-foreground">{userName}</p>
               <p className="text-xs text-muted-foreground">Controller</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

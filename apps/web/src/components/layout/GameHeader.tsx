@@ -38,7 +38,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
   const displayPhase = phaseName || (phase ? PHASE_NAMES[phase] : null);
 
   return (
-    <header className="sticky top-0 z-40 bg-background/40 backdrop-blur-sm border-b border-border">
+    <header className="sticky top-0 z-40 glass">
       <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5">
         {/* Left: Back button + match info */}
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0">
@@ -57,7 +57,7 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
             <Trophy size={16} className="text-brand hidden sm:block" />
             <div className="min-w-0">
               {matchName && (
-                <h1 className="text-sm sm:text-base font-bold text-white truncate">
+                <h1 className="text-sm sm:text-base font-bold text-foreground truncate">
                   {matchName}
                 </h1>
               )}

@@ -71,7 +71,7 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
           className="gap-2 px-2"
         >
           <Trophy size={22} className="text-brand" />
-          <span className="text-base font-bold text-white tracking-wide">
+          <span className="text-base font-bold text-foreground tracking-wide">
             OLYMPIA CUSTOM
           </span>
         </Button>
@@ -90,7 +90,7 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
                 const active = isActive(item.path);
                 return (
                   <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
+                    <SidebarMenuButton size="lg"
                       isActive={active}
                       tooltip={item.label}
                       className="data-[active=true]:bg-primary/20 data-[active=true]:text-brand"
@@ -117,7 +117,7 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
                 onClick={() => go("/profile")}
               >
                 <User size={16} className="text-muted-foreground shrink-0" />
-                <span className="text-sm text-white truncate">{userName}</span>
+                <span className="text-sm text-foreground truncate">{userName}</span>
               </Button>
             ) : (
               <div className="w-full flex items-center gap-2 px-3 py-2">

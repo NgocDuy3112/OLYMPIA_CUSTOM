@@ -228,6 +228,14 @@
   background-color: var(--oc-primary);
 }
 
+/* Glass header bar — design-system Phase 2 (token-driven) */
+.glass {
+  background: color-mix(in srgb, var(--background) 60%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
 /* Overlay pages - transparent background for OBS Browser Source */
 .overlay-mode {
   background: transparent !important;
