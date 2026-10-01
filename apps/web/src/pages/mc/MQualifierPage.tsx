@@ -142,6 +142,7 @@ const MQualifierPage = () => {
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
+                variant="default"
             onClick={() => void fetchAll()}
             disabled={loading || !tournamentCode.trim()}
             className="bg-purple/80 hover:bg-purple disabled:opacity-50 text-sm text-purple-foreground"

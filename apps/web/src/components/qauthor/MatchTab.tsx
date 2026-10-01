@@ -347,6 +347,7 @@ export const MatchTab = () => {
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton
+                variant="default"
                 onClick={() => void fetchQuestions()}
                 disabled={loading || !matchCode.trim()}
                 className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm font-medium"
@@ -494,6 +495,7 @@ export const MatchTab = () => {
           />
           <InputGroupAddon align="inline-end">
             <InputGroupButton
+                variant="default"
               onClick={() => void fetchBank()}
               disabled={bankLoading}
               className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm"

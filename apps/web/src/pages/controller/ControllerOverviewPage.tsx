@@ -121,6 +121,7 @@ const ControllerOverviewPage = () => {
           />
           <InputGroupAddon align="inline-end">
             <InputGroupButton
+                variant="default"
               onClick={() => void fetchStats()}
               disabled={loading || !matchCode.trim()}
               className="bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"

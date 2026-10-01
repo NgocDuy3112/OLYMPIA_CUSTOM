@@ -186,10 +186,13 @@ tone màu great/good/mid/low) + `DurationList` (timeline thời gian vòng, than
 |---|---|---|
 | icon Search `absolute` + `pl-8` | `InputGroupAddon` leading | QuestionsCard, AdminGameManagingPage |
 | prefix text `absolute` + `pl-8` | `InputGroupText` leading | MatchScheduleForm (`#1..4`), QualifierManager (`A/B/C/D`) |
-| Input + nút Tìm/Tải tách rời | `InputGroupButton` inline-end | BankTab, MatchTab ×2, SetFillPanel, QualifierTab, ControllerOverview, CQualifierPage, MQualifierPage |
+| Input + nút Tìm/Tải tách rời | `InputGroupButton` inline-end | BankTab, MatchTab ×2, SetFillPanel, QualifierTab, ControllerOverview, CQualifierPage, MQualifierPage, AdminCheckpoints |
 
 Quy tắc: group luôn `h-9` (khớp `formInputClass`); nút submit ở `align="inline-end"`;
 nút phụ (Soạn câu, Vào live, quay lại) để NGOÀI group.
+
+**Nút Tìm/Tải chuẩn hoá về `variant="default"`** — bỏ `bg-success`/`bg-purple`/`bg-role-controller`
+tự viết (8 nút trong các InputGroup). Icon-only trong ô (vd AdminCheckpoints refresh) giữ ghost.
 
 ## 11. Tài liệu đọc thêm
 

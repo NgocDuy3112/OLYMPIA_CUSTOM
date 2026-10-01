@@ -3,7 +3,12 @@ import { DatabaseBackup, RefreshCw, RotateCcw } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import {
   DataTable,
   createDataTableColumns,
@@ -119,22 +124,24 @@ const AdminCheckpointsPage = () => {
       </h1>
 
       <div className="flex gap-2">
-        <Input
-          value={matchCode}
-          onChange={(e) => setMatchCode(e.target.value)}
-          placeholder="Nhập match code..."
-          className="flex-1 h-9 text-foreground placeholder:text-muted-foreground font-mono text-sm"
-        />
-        <Button
-          size="icon"
-          variant="secondary"
-          onClick={() => void fetchCheckpoints()}
-          disabled={loading || !matchCode.trim()}
-          className="bg-accent/50 border border-border hover:bg-accent disabled:opacity-50"
-          title="Tải checkpoints"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-        </Button>
+        <InputGroup className="h-9 flex-1">
+          <InputGroupInput
+            value={matchCode}
+            onChange={(e) => setMatchCode(e.target.value)}
+            placeholder="Nhập match code..."
+            className="font-mono text-sm"
+          />
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              onClick={() => void fetchCheckpoints()}
+              disabled={loading || !matchCode.trim()}
+              title="Tải checkpoints"
+              aria-label="Tải checkpoints"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            </InputGroupButton>
+          </InputGroupAddon>
+        </InputGroup>
         <Button
           variant="default"
           onClick={() => void handleRestore()}

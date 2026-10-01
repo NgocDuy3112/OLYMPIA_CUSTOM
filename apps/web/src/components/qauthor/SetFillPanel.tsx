@@ -513,6 +513,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   />
                   <InputGroupAddon align="inline-end">
                     <InputGroupButton
+                variant="default"
                       onClick={() => void searchBank()}
                       disabled={bankLoading}
                       className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 text-sm"

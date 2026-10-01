@@ -333,6 +333,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton
+                variant="default"
                 onClick={() => void fetchBank(1)}
                 disabled={loading}
                 className="bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 text-sm"

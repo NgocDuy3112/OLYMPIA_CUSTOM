@@ -341,6 +341,7 @@ export const QualifierTab = () => {
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton
+                variant="default"
                 onClick={() => {
                   void fetchQuestions();
                   void fetchStandings();
