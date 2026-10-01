@@ -13,9 +13,20 @@ import {
   KeyRound,
   ChevronRight,
   ExternalLink,
-  X,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 interface SidebarItem {
   label: string;
@@ -25,17 +36,10 @@ interface SidebarItem {
   newTab?: boolean;
 }
 
-interface AdminSidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-}
-
-export const AdminSidebar: React.FC<AdminSidebarProps> = ({
-  isOpen = true,
-  onClose,
-}) => {
+export const AdminSidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
 
@@ -90,74 +94,52 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed top-0 left-0 z-50 h-full w-64 bg-[#12102e] border-r border-white/10
-          transform transition-transform duration-200 ease-in-out
-          lg:static lg:translate-x-0
-          ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
-        {/* Mobile close button */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 lg:hidden">
-          <span className="text-sm font-bold text-white">Menu</span>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <X size={18} />
-          </button>
+    <Sidebar collapsible="offcanvas" className="border-r border-white/10">
+      <SidebarHeader className="border-b border-white/10 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <Shield size={18} className="text-blue-400" />
+          <span className="text-sm font-bold text-white">ADMIN</span>
         </div>
-
-        {/* Navigation */}
-        <nav className="p-3 space-y-1">
-          {SIDEBAR_ITEMS.map((item) => {
-            const active = !item.newTab && isActive(item.path);
-            return (
-              <button
-                key={item.path}
-                onClick={() => {
-                  if (item.newTab) {
-                    window.open(item.path, "_blank", "noopener");
-                  } else {
-                    navigate(item.path);
-                    onClose?.();
-                  }
-                }}
-                title={item.newTab ? "Mở trong tab mới" : undefined}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
-                  ${
-                    active
-                      ? "bg-blue-600/20 text-blue-400"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }
-                `}
-              >
-                {item.icon}
-                <span className="flex-1 text-left text-sm font-medium">
-                  {item.label}
-                </span>
-                {item.newTab ? (
-                  <ExternalLink size={14} className="text-gray-600" />
-                ) : (
-                  active && <ChevronRight size={16} className="text-blue-400" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
-    </>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {SIDEBAR_ITEMS.map((item) => {
+                const active = !item.newTab && isActive(item.path);
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      isActive={active}
+                      tooltip={item.label}
+                      className="data-[active=true]:bg-blue-600/20 data-[active=true]:text-blue-400"
+                      onClick={() => {
+                        if (item.newTab) {
+                          window.open(item.path, "_blank", "noopener");
+                        } else {
+                          navigate(item.path);
+                          if (isMobile) setOpenMobile(false);
+                        }
+                      }}
+                      title={item.newTab ? "Mở trong tab mới" : undefined}
+                    >
+                      {item.icon}
+                      <span className="flex-1 text-left">{item.label}</span>
+                      {item.newTab ? (
+                        <ExternalLink size={14} className="text-gray-600" />
+                      ) : (
+                        active && (
+                          <ChevronRight size={16} className="text-blue-400" />
+                        )
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
   );
 };

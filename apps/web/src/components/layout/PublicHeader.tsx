@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Menu, X, LogIn, LogOut, User, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface PublicHeaderProps {
   isAuthenticated?: boolean;
@@ -31,38 +32,38 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
     return location.pathname.startsWith(path);
   };
 
+  const navItemClass = (active: boolean) =>
+    active
+      ? "text-white bg-white/10"
+      : "text-gray-300 hover:text-white hover:bg-white/5";
+
   return (
     <header className="sticky top-0 z-40 bg-black/30 backdrop-blur-sm border-b border-white/10">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
-          <button
+          <Button
+            variant="ghost"
             onClick={() => navigate("/")}
-            className="flex items-center gap-2 shrink-0"
+            className="gap-2 px-2 shrink-0"
           >
             <Trophy size={20} className="text-blue-400" />
             <span className="text-sm sm:text-lg font-bold text-white tracking-wide">
               OLYMPIA CUSTOM
             </span>
-          </button>
+          </Button>
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => (
-              <button
+              <Button
                 key={link.path}
+                variant="ghost"
                 onClick={() => navigate(link.path)}
-                className={`
-                  px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                  ${
-                    isActive(link.path)
-                      ? "text-white bg-white/10"
-                      : "text-gray-300 hover:text-white hover:bg-white/5"
-                  }
-                `}
+                className={navItemClass(isActive(link.path))}
               >
                 {link.label}
-              </button>
+              </Button>
             ))}
           </nav>
 
@@ -71,40 +72,45 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
                 {showProfile && (
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() => navigate("/profile")}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
+                    className="gap-2"
                   >
                     <User size={16} className="text-gray-400" />
                     <span className="text-sm text-white">{userName}</span>
-                  </button>
+                  </Button>
                 )}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={onLogout}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                   title="Đăng xuất"
                 >
                   <LogOut size={18} />
-                </button>
+                </Button>
               </div>
             ) : (
-              <button
+              <Button
+                variant="default"
                 onClick={() => navigate("/login")}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
+                className="gap-2 bg-blue-600 hover:bg-blue-500"
               >
                 <LogIn size={16} />
                 <span>Đăng nhập</span>
-              </button>
+              </Button>
             )}
           </div>
 
           {/* Mobile menu button */}
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -113,23 +119,17 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
         <div className="md:hidden border-t border-white/10 bg-black/50 backdrop-blur-sm">
           <div className="px-4 py-3 space-y-1">
             {navLinks.map((link) => (
-              <button
+              <Button
                 key={link.path}
+                variant="ghost"
                 onClick={() => {
                   navigate(link.path);
                   setIsMobileMenuOpen(false);
                 }}
-                className={`
-                  block w-full text-left px-3 py-2 text-sm font-medium rounded-lg transition-colors
-                  ${
-                    isActive(link.path)
-                      ? "text-white bg-white/10"
-                      : "text-gray-300 hover:text-white hover:bg-white/5"
-                  }
-                `}
+                className={`block w-full justify-start text-left ${navItemClass(isActive(link.path))}`}
               >
                 {link.label}
-              </button>
+              </Button>
             ))}
 
             <div className="pt-2 mt-2 border-t border-white/10">
@@ -138,26 +138,28 @@ export const PublicHeader: React.FC<PublicHeaderProps> = ({
                   <div className="px-3 py-2 text-sm text-gray-400">
                     {userName}
                   </div>
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() => {
                       onLogout?.();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="block w-full text-left px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-white/5 rounded-lg transition-colors"
+                    className="block w-full justify-start text-left text-red-400 hover:text-red-300 hover:bg-white/5"
                   >
                     Đăng xuất
-                  </button>
+                  </Button>
                 </>
               ) : (
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => {
                     navigate("/login");
                     setIsMobileMenuOpen(false);
                   }}
-                  className="block w-full text-left px-3 py-2 text-sm text-blue-400 hover:text-blue-300 hover:bg-white/5 rounded-lg transition-colors"
+                  className="block w-full justify-start text-left text-blue-400 hover:text-blue-300 hover:bg-white/5"
                 >
                   Đăng nhập
-                </button>
+                </Button>
               )}
             </div>
           </div>

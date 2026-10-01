@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 export const PublicFooter: React.FC = () => {
   const navigate = useNavigate();
@@ -18,12 +19,13 @@ export const PublicFooter: React.FC = () => {
           </div>
 
           <nav className="flex items-center gap-4">
-            <button
+            <Button
+              variant="ghost"
               onClick={() => navigate("/info/rules")}
-              className="text-sm text-gray-400 hover:text-white transition-colors"
+              className="px-0 text-sm text-gray-400 hover:text-white"
             >
               Luật chơi
-            </button>
+            </Button>
             <a
               href="https://github.com"
               target="_blank"

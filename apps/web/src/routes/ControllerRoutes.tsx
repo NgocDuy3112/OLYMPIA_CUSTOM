@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   Routes,
   Route,
@@ -22,6 +22,7 @@ import { GameWebSocketProvider } from "@/contexts/GameWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { ControllerHeader, ControllerSidebar } from "@/components/layout";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { getMatchCode } from "@/utils/storage";
 import { VeDichRound } from "@/types/veDich";
 
@@ -67,21 +68,14 @@ const ControllerAutoNavigator: React.FC = () => {
 const ControllerLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   return (
-    <div className="min-h-screen flex flex-col bg-black/20">
-      <ControllerHeader
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-      />
-      <div className="flex flex-1">
-        <ControllerSidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-        />
+    <SidebarProvider className="min-h-screen bg-black/20">
+      <ControllerSidebar />
+      <SidebarInset className="min-h-screen flex flex-col bg-transparent">
+        <ControllerHeader />
         <main className="flex-1 p-4 sm:p-6 overflow-auto">{children}</main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 };
 

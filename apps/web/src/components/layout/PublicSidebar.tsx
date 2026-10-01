@@ -2,21 +2,31 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Trophy,
-  X,
   LogIn,
   LogOut,
   User,
   Swords,
   BookOpen,
 } from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 
 interface PublicSidebarProps {
   isAuthenticated?: boolean;
   userName?: string;
   userRole?: string;
   onLogout?: () => void;
-  isOpen?: boolean;
-  onClose?: () => void;
 }
 
 interface SidebarItem {
@@ -35,11 +45,10 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
   userName,
   userRole,
   onLogout,
-  isOpen = false,
-  onClose,
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
   // Hồ sơ chỉ dành cho player/spectator.
   const showProfile = userRole === "player" || userRole === "spectator";
 
@@ -50,119 +59,95 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
 
   const go = (path: string) => {
     navigate(path);
-    onClose?.();
+    if (isMobile) setOpenMobile(false);
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed top-0 left-0 z-50 h-full w-64 bg-[#12102e] border-r border-white/10
-          flex flex-col transform transition-transform duration-200 ease-in-out
-          lg:sticky lg:top-0 lg:h-screen lg:translate-x-0
-          ${isOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
-        {/* Mobile close button */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 lg:hidden">
-          <span className="text-sm font-bold text-white">Menu</span>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Logo */}
-        <button
+    <Sidebar collapsible="offcanvas" className="border-r border-white/10">
+      <SidebarHeader className="border-b border-white/10 px-5 py-5">
+        <Button
+          variant="ghost"
           onClick={() => go("/")}
-          className="hidden lg:flex items-center gap-2 px-5 py-5 shrink-0"
+          className="gap-2 px-2"
         >
           <Trophy size={22} className="text-blue-400" />
           <span className="text-base font-bold text-white tracking-wide">
             OLYMPIA CUSTOM
           </span>
-        </button>
+        </Button>
+      </SidebarHeader>
 
-        {/* Navigation */}
-        <nav className="p-3 space-y-1 flex-1">
-          {[
-            ...BASE_ITEMS,
-            ...(showProfile
-              ? [{ label: "Hồ sơ", path: "/profile", icon: <User size={18} /> } as SidebarItem]
-              : []),
-          ].map((item) => {
-            const active = isActive(item.path);
-            return (
-              <button
-                key={item.path}
-                onClick={() => go(item.path)}
-                className={`
-                  w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors
-                  ${
-                    active
-                      ? "bg-blue-600/20 text-blue-400"
-                      : "text-gray-400 hover:text-white hover:bg-white/5"
-                  }
-                `}
-              >
-                {item.icon}
-                <span className="text-sm font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {[
+                ...BASE_ITEMS,
+                ...(showProfile
+                  ? [{ label: "Hồ sơ", path: "/profile", icon: <User size={18} /> } as SidebarItem]
+                  : []),
+              ].map((item) => {
+                const active = isActive(item.path);
+                return (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      isActive={active}
+                      tooltip={item.label}
+                      className="data-[active=true]:bg-blue-600/20 data-[active=true]:text-blue-400"
+                      onClick={() => go(item.path)}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
-        {/* Auth section */}
-        <div className="p-3 border-t border-white/10">
-          {isAuthenticated ? (
-            <div className="space-y-1">
-              {showProfile ? (
-                <button
-                  onClick={() => go("/profile")}
-                  className="w-full flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
-                >
-                  <User size={16} className="text-gray-400 shrink-0" />
-                  <span className="text-sm text-white truncate">{userName}</span>
-                </button>
-              ) : (
-                <div className="w-full flex items-center gap-2 px-3 py-2">
-                  <User size={16} className="text-gray-400 shrink-0" />
-                  <span className="text-sm text-gray-400 truncate">{userName}</span>
-                </div>
-              )}
-              <button
-                onClick={() => {
-                  onLogout?.();
-                  onClose?.();
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+      <SidebarFooter className="border-t border-white/10 p-3">
+        {isAuthenticated ? (
+          <div className="space-y-1">
+            {showProfile ? (
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+                onClick={() => go("/profile")}
               >
-                <LogOut size={18} />
-                <span className="text-sm font-medium">Đăng xuất</span>
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => go("/login")}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
+                <User size={16} className="text-gray-400 shrink-0" />
+                <span className="text-sm text-white truncate">{userName}</span>
+              </Button>
+            ) : (
+              <div className="w-full flex items-center gap-2 px-3 py-2">
+                <User size={16} className="text-gray-400 shrink-0" />
+                <span className="text-sm text-gray-400 truncate">{userName}</span>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3"
+              onClick={() => {
+                onLogout?.();
+                if (isMobile) setOpenMobile(false);
+              }}
             >
-              <LogIn size={16} />
-              <span>Đăng nhập</span>
-            </button>
-          )}
-        </div>
-      </aside>
-    </>
+              <LogOut size={18} />
+              <span className="text-sm font-medium">Đăng xuất</span>
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="default"
+            className="w-full gap-2"
+            onClick={() => go("/login")}
+          >
+            <LogIn size={16} />
+            <span>Đăng nhập</span>
+          </Button>
+        )}
+      </SidebarFooter>
+    </Sidebar>
   );
 };

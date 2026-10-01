@@ -1,6 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Wifi, WifiOff, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface GameHeaderProps {
   matchCode?: string;
@@ -42,13 +43,15 @@ export const GameHeader: React.FC<GameHeaderProps> = ({
         {/* Left: Back button + match info */}
         <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0">
           {backTo && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => navigate(backTo)}
-              className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              className="text-gray-400"
               title={backLabel}
             >
               <ArrowLeft size={18} />
-            </button>
+            </Button>
           )}
           <div className="flex items-center gap-2">
             <Trophy size={16} className="text-blue-400 hidden sm:block" />

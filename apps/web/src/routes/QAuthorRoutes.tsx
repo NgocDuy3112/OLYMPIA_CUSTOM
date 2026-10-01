@@ -5,24 +5,19 @@ import QAuthorQualifierPage from "@/pages/qauthor/QAuthorQualifierPage";
 import QAuthorAgentPage from "@/pages/qauthor/QAuthorAgentPage";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { QAuthorHeader, QAuthorSidebar } from "@/components/layout";
-import { useState } from "react";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 const QAuthorLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   return (
-    <div className="min-h-screen flex flex-col bg-black/20">
-      <QAuthorHeader onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-      <div className="flex flex-1">
-        <QAuthorSidebar
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-        />
+    <SidebarProvider className="min-h-screen bg-black/20">
+      <QAuthorSidebar />
+      <SidebarInset className="min-h-screen flex flex-col bg-transparent">
+        <QAuthorHeader />
         <main className="flex-1 p-4 sm:p-6 overflow-auto">{children}</main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 };
 
