@@ -27,16 +27,10 @@ import CControlButton from "@/components/controller/CControlButton";
 import CPlayerCard from "@/components/controller/CPlayerCard";
 import ControllerGameplayNavBar from "@/navigation/CNavBar";
 import { WaitingView } from "@/components/shared/WaitingView";
+import { SERIES_COLORS } from "@/lib/seriesColors";
 
 const logger = createLogger("WaitingPage");
-const PLAYER_COLORS = [
-  "#67E8F9",
-  "#38BDF8",
-  "#60A5FA",
-  "#818CF8",
-  "#A78BFA",
-  "#BAE6FD",
-];
+const PLAYER_COLORS = SERIES_COLORS;
 
 // ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminWaitingView = () => {
@@ -251,7 +245,7 @@ const AdminWaitingView = () => {
     <div className="flex flex-col h-screen overflow-hidden">
       <ControllerGameplayNavBar onNavigateToWaiting={handleNavigateToWaiting} />
       <div className="flex flex-col flex-1 items-center gap-6 p-6 overflow-y-auto">
-        <h1 className="font-[SVN-Gratelos_Display] text-4xl xl:text-5xl font-bold text-foreground uppercase tracking-wide text-center">
+        <h1 className="font-display text-4xl xl:text-5xl font-bold text-foreground uppercase tracking-wide text-center">
           Sảnh Chờ
         </h1>
         <p className="text-brand text-sm">

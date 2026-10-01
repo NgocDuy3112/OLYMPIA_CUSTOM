@@ -42,7 +42,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
       case 2:
         return <Medal size={18} className="text-foreground" />;
       case 3:
-        return <Medal size={18} className="text-orange-400" />;
+        return <Medal size={18} className="text-warning" />;
       default:
         return <span className="text-muted-foreground w-[18px] text-center">{rank}</span>;
     }

@@ -4,6 +4,7 @@ import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
 import { API_BASE_URL } from "@/configs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { authInputClass, AuthError } from "@/components/auth/AuthFormBits";
 
 type StaffMode = "admin" | "operator";
 
@@ -76,24 +77,26 @@ const StaffLoginPage: React.FC<{ mode: StaffMode }> = ({ mode }) => {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         placeholder={copy.placeholder}
+                        aria-label="Username"
                         required
-                        className="px-4 py-2.5 rounded-lg bg-accent border border-border text-foreground placeholder-gray-400 text-sm"
+                        className={authInputClass}
                     />
                     <Input
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Mật khẩu"
+                        aria-label="Mật khẩu"
                         required
                         minLength={8}
-                        className="px-4 py-2.5 rounded-lg bg-accent border border-border text-foreground placeholder-gray-400 text-sm"
+                        className={authInputClass}
                     />
-                    {error && <p className="text-xs text-destructive">{error}</p>}
+                    {error && <AuthError message={error} />}
                     <Button
                         type="submit"
                         variant="default"
                         disabled={loading}
-                        className="bg-purple hover:bg-purple/90 disabled:opacity-50 text-foreground text-sm font-medium"
+                        className="w-full disabled:opacity-50 text-sm font-medium"
                     >
                         {loading ? "Đang đăng nhập..." : copy.button}
                     </Button>

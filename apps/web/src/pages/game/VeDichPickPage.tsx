@@ -729,16 +729,16 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
             if (parts.length >= 2)
               return (
                 <div className="flex flex-col leading-tight shrink-0">
-                  <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
+                  <span className="text-4xl font-display font-extrabold text-brand uppercase">
                     {parts[0]}
                   </span>
-                  <span className="text-2xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
+                  <span className="text-2xl font-display font-extrabold text-brand uppercase">
                     {parts.slice(1).join(" - ")}
                   </span>
                 </div>
               );
             return (
-              <span className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase shrink-0">
+              <span className="text-4xl font-display font-extrabold text-brand uppercase shrink-0">
                 {title}
               </span>
             );

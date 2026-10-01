@@ -68,7 +68,8 @@ services:
         condition: service_started
     networks:
       - oc-network
-      - edge-network
+      # - edge-network
+      
   frontend:
     container_name: oc-frontend
     build:
@@ -84,7 +85,7 @@ services:
       - app
     networks:
       - oc-network
-      - edge-network
+      # - edge-network
 
   # ── AI Agent (OCee — internal only) ───────────────────────
   ai-agent:
@@ -210,5 +211,5 @@ services:
 networks:
   oc-network:
     driver: bridge
-  edge-network:
-    external: true
+  # edge-network:
+  #   external: true

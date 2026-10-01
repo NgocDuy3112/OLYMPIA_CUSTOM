@@ -135,7 +135,7 @@ const AdminHealthPage = () => {
           rel="noreferrer"
           className="rounded-xl bg-accent/50 border border-border p-4 flex items-center gap-3 hover:bg-accent"
         >
-          <Activity size={18} className="text-orange-400" />
+          <Activity size={18} className="text-warning" />
           <div>
             <p className="text-sm font-semibold text-foreground flex items-center gap-1">
               Grafana <ExternalLink size={12} />

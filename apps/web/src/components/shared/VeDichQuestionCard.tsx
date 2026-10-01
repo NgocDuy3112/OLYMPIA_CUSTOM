@@ -76,7 +76,7 @@ const VeDichQuestionCard = ({
 
       {}
       {typeof points === "number" && (
-        <span className="font-[SVN-Gratelos_Display] text-lg sm:text-2xl font-extrabold leading-none self-center drop-shadow-md">
+        <span className="font-display text-lg sm:text-2xl font-extrabold leading-none self-center drop-shadow-md">
           {points}
         </span>
       )}

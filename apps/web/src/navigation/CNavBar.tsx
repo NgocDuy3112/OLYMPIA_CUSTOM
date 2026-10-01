@@ -80,7 +80,7 @@ const ControllerGameplayNavBar: React.FC<ControllerGameplayNavBarProps> = ({
   const rightContent = (
     <button
       onClick={handleLogout}
-      className="px-3 py-1.5 bg-red-600 hover:bg-red-500 rounded text-xs sm:text-sm font-medium text-white transition-colors flex items-center gap-1.5"
+      className="px-3 py-1.5 bg-destructive hover:bg-destructive/85 rounded text-xs sm:text-sm font-medium text-destructive-foreground transition-colors flex items-center gap-1.5"
     >
       <LogOut size={14} />
       <span className="hidden sm:inline">Đăng Xuất</span>

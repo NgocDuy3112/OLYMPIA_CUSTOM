@@ -69,7 +69,7 @@ const ControllerLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   return (
-    <SidebarProvider className="min-h-screen bg-black/20">
+    <SidebarProvider className="min-h-screen bg-background/30">
       <ControllerSidebar />
       <SidebarInset className="min-h-screen flex flex-col bg-transparent">
         <ControllerHeader />

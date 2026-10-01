@@ -91,7 +91,7 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {match.match_label && (
-            <span className="shrink-0 px-1.5 py-0.5 rounded bg-purple-600/20 border border-purple-500/30 text-purple-300 text-[11px] font-mono font-bold">
+            <span className="shrink-0 px-1.5 py-0.5 rounded bg-role-admin/20 border border-role-admin/30 text-role-admin text-[11px] font-mono font-bold">
               {match.match_label}
             </span>
           )}

@@ -83,7 +83,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({
                 }`}
     >
       <div className="flex justify-between items-center w-full">
-        <p className="text-[28px] font-bold font-[SVN-Gratelos_Display] uppercase truncate text-left max-w-[80%] flex items-center gap-2">
+        <p className="text-[28px] font-bold font-display uppercase truncate text-left max-w-[80%] flex items-center gap-2">
           <span className="truncate">{player.playerName}</span>
           {isCurrent && <Mic size={20} className="text-foreground inline-block" />}
           {player.playerPower === "star" && (
@@ -104,7 +104,7 @@ const PPlayerRec: React.FC<PPlayerRecProps> = ({
           )}
         </p>
         <div className="flex items-center">
-          <p className="text-[32px] font-[SVN-Gratelos_Display] font-extrabold">
+          <p className="text-[32px] font-display font-extrabold">
             {player.playerScore}
           </p>
         </div>

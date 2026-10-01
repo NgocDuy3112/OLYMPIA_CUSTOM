@@ -1,5 +1,9 @@
 # Design System Master File
 
+> **⚠ CẬP NHẬT 2026-10 — REDesign UI/UX:** Palette/font dưới đây do tool sinh năm 2026-10-01 và **đã lệch code**.
+> Nguồn sự thật hiện tại là `apps/web/src/index.css` (brand violet `#4416d9` / bg `#12102e` / card `#1b1552`,
+> font Inter + SVN-Gratelos). Đọc `docs/ui-redesign.md` trước khi sửa UI.
+
 > **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.
 > If not, strictly follow the rules below.

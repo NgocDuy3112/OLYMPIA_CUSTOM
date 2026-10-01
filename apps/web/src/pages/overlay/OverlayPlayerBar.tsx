@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOverlayMode } from "@/hooks/useOverlayMode";
 
 interface PlayerInfo {
   userCode: string;
@@ -11,6 +12,7 @@ interface PlayerInfo {
 }
 
 const OverlayPlayerBar: React.FC = () => {
+  useOverlayMode();
   const { matchCode } = useParams<{ matchCode: string }>();
   const { lastMessage } = useWebSocket(matchCode || "");
   const [players, setPlayers] = useState<PlayerInfo[]>([]);
@@ -62,10 +64,6 @@ const OverlayPlayerBar: React.FC = () => {
 
   return (
     <div className="bg-transparent p-2 min-w-[400px] sm:min-w-[700px]">
-      <style>{`
-        body { background: transparent !important; }
-        #root { background: transparent !important; }
-      `}</style>
 
       <div className="flex items-center justify-center gap-3 sm:gap-4">
         <AnimatePresence>

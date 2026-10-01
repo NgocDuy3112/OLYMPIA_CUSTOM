@@ -4,6 +4,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { API_BASE_URL } from "@/configs";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { phaseLabel } from "@/lib/gameMeta";
 
 interface PlayerScore {
   userCode: string;
@@ -17,16 +18,6 @@ interface MatchInfo {
   videoUrl?: string;
   matchStatus: string;
 }
-
-const PHASE_NAMES: Record<string, string> = {
-  kdc: "Khởi Động Chung",
-  kdr: "Khởi Động Cá Nhân",
-  bp: "Bứt Phá",
-  vdc: "Về Đích Chung",
-  vdr: "Về Đích Cá Nhân",
-  gm: "Giải Mã",
-  vl: "Vòng Loại",
-};
 
 const SLiveMatchPage: React.FC = () => {
   const { matchCode } = useParams<{ matchCode: string }>();
@@ -159,9 +150,7 @@ const SLiveMatchPage: React.FC = () => {
             {matchInfo?.matchName || matchCode}
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            {currentPhase && PHASE_NAMES[currentPhase]
-              ? PHASE_NAMES[currentPhase]
-              : "Đang tải..."}
+            {phaseLabel(currentPhase) ?? "Đang tải..."}
           </p>
         </div>
         <div className="flex items-center gap-1.5">

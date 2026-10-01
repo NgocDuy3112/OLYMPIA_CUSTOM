@@ -43,7 +43,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <div className="flex flex-col leading-tight">
           <span
             className={`
-            font-[SVN-Gratelos_Display] font-extrabold uppercase truncate
+            font-display font-extrabold uppercase truncate
             ${isOverlay ? "text-2xl sm:text-3xl" : "text-base sm:text-lg md:text-xl xl:text-4xl"}
             ${isOverlay ? "text-foreground" : "text-brand"}
           `}
@@ -52,7 +52,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </span>
           <span
             className={`
-            font-[SVN-Gratelos_Display] font-extrabold uppercase truncate
+            font-display font-extrabold uppercase truncate
             ${isOverlay ? "text-lg sm:text-xl" : "text-xs sm:text-sm md:text-base xl:text-2xl"}
             ${isOverlay ? "text-foreground/80" : "text-brand"}
           `}
@@ -65,7 +65,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     return (
       <span
         className={`
-        font-[SVN-Gratelos_Display] font-extrabold uppercase truncate
+        font-display font-extrabold uppercase truncate
         ${isOverlay ? "text-2xl sm:text-3xl" : "text-base sm:text-lg md:text-xl xl:text-4xl"}
         ${isOverlay ? "text-foreground" : "text-brand"}
       `}
@@ -105,7 +105,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           {timerDuration !== undefined && (
             <div
               className={`
-              font-[SVN-Gratelos_Display] font-extrabold px-2 py-1 sm:px-3
+              font-display font-extrabold px-2 py-1 sm:px-3
               transition-colors duration-500 text-center shrink-0
               ${
                 isOverlay

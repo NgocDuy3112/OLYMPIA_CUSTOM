@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOverlayMode } from "@/hooks/useOverlayMode";
 
 interface PlayerScore {
   userCode: string;
@@ -19,6 +20,7 @@ const RANK_COLORS = [
 ];
 
 const OverlayScoreboard: React.FC = () => {
+  useOverlayMode();
   const { matchCode } = useParams<{ matchCode: string }>();
   const { lastMessage } = useWebSocket(matchCode || "");
   const [scores, setScores] = useState<PlayerScore[]>([]);
@@ -47,10 +49,6 @@ const OverlayScoreboard: React.FC = () => {
 
   return (
     <div className="bg-transparent p-3 sm:p-4 min-w-[280px] sm:min-w-[320px]">
-      <style>{`
-        body { background: transparent !important; }
-        #root { background: transparent !important; }
-      `}</style>
 
       <div className="backdrop-blur-md bg-background/30 rounded-2xl border border-border p-4 shadow-2xl">
         {/* Header */}

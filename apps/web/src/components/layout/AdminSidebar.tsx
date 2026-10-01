@@ -97,7 +97,7 @@ export const AdminSidebar: React.FC = () => {
     <Sidebar collapsible="offcanvas" className="border-r border-border">
       <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <Shield size={18} className="text-brand" />
+          <Shield size={18} className="text-role-admin" />
           <span className="text-sm font-bold text-foreground">ADMIN</span>
         </div>
       </SidebarHeader>
@@ -112,7 +112,7 @@ export const AdminSidebar: React.FC = () => {
                     <SidebarMenuButton size="lg"
                       isActive={active}
                       tooltip={item.label}
-                      className="data-[active=true]:bg-primary/20 data-[active=true]:text-brand"
+                      className="data-[active=true]:bg-role-admin/20 data-[active=true]:text-role-admin"
                       onClick={() => {
                         if (item.newTab) {
                           window.open(item.path, "_blank", "noopener");
@@ -129,7 +129,7 @@ export const AdminSidebar: React.FC = () => {
                         <ExternalLink size={14} className="text-muted-foreground/70" />
                       ) : (
                         active && (
-                          <ChevronRight size={16} className="text-brand" />
+                          <ChevronRight size={16} className="text-role-admin" />
                         )
                       )}
                     </SidebarMenuButton>

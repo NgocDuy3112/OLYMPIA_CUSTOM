@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOverlayMode } from "@/hooks/useOverlayMode";
 
 interface QuestionData {
   content?: string;
@@ -11,6 +12,7 @@ interface QuestionData {
 }
 
 const OverlayQuestion: React.FC = () => {
+  useOverlayMode();
   const { matchCode } = useParams<{ matchCode: string }>();
   const { lastMessage } = useWebSocket(matchCode || "");
   const [question, setQuestion] = useState<QuestionData | null>(null);
@@ -38,10 +40,6 @@ const OverlayQuestion: React.FC = () => {
 
   return (
     <div className="bg-transparent p-4 sm:p-6 min-w-[320px] sm:min-w-[500px] max-w-[700px]">
-      <style>{`
-        body { background: transparent !important; }
-        #root { background: transparent !important; }
-      `}</style>
 
       <AnimatePresence mode="wait">
         <motion.div

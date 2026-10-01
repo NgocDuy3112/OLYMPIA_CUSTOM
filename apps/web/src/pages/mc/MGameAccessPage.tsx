@@ -22,7 +22,7 @@ const MGameAccessPage: React.FC = () => {
     <div className="flex flex-col justify-center items-center h-screen overflow-hidden bg-cover bg-center p-4">
       <div className="card">
         <div className="gap-2 text-center">
-          <h1 className="text-4xl font-[SVN-Gratelos_Display] font-bold mb-2">
+          <h1 className="text-4xl font-display font-bold mb-2">
             OLYMPIA CUSTOM 3
           </h1>
           <h2 className="text-xl font-bold mb-1">Màn hình MC</h2>

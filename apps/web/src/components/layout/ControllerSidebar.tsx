@@ -73,7 +73,7 @@ export const ControllerSidebar: React.FC = () => {
     <Sidebar collapsible="offcanvas" className="border-r border-border">
       <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <Gamepad2 size={18} className="text-orange-400" />
+          <Gamepad2 size={18} className="text-role-controller" />
           <span className="text-sm font-bold text-foreground">CONTROLLER</span>
         </div>
       </SidebarHeader>
@@ -88,7 +88,7 @@ export const ControllerSidebar: React.FC = () => {
                     <SidebarMenuButton size="lg"
                       isActive={active}
                       tooltip={item.label}
-                      className="data-[active=true]:bg-orange-600/20 data-[active=true]:text-orange-400"
+                      className="data-[active=true]:bg-role-controller/20 data-[active=true]:text-role-controller"
                       onClick={() => {
                         navigate(item.path);
                         if (isMobile) setOpenMobile(false);
@@ -97,7 +97,7 @@ export const ControllerSidebar: React.FC = () => {
                       {item.icon}
                       <span className="flex-1 text-left">{item.label}</span>
                       {active && (
-                        <ChevronRight size={16} className="text-orange-400" />
+                        <ChevronRight size={16} className="text-role-controller" />
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>

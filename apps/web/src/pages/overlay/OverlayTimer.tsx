@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { motion, AnimatePresence } from "framer-motion";
+import { useOverlayMode } from "@/hooks/useOverlayMode";
 
 const OverlayTimer: React.FC = () => {
+  useOverlayMode();
   const { matchCode } = useParams<{ matchCode: string }>();
   const { lastMessage } = useWebSocket(matchCode || "");
   const [timer, setTimer] = useState<number | null>(null);
@@ -44,10 +46,6 @@ const OverlayTimer: React.FC = () => {
 
   return (
     <div className="bg-transparent p-2 sm:p-4 flex items-center justify-center min-w-[100px] sm:min-w-[140px] min-h-[100px] sm:min-h-[140px]">
-      <style>{`
-        body { background: transparent !important; }
-        #root { background: transparent !important; }
-      `}</style>
 
       <div className="relative">
         {/* Background circle */}

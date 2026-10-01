@@ -117,7 +117,7 @@ const ControllerOverviewPage = () => {
           variant="default"
           onClick={() => void fetchStats()}
           disabled={loading || !matchCode.trim()}
-          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-foreground"
+          className="gap-1 bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
         >
           <Search size={14} /> Tải
         </Button>
@@ -132,10 +132,10 @@ const ControllerOverviewPage = () => {
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <StatCard
-          icon={<Play size={20} className="text-orange-400" />}
+          icon={<Play size={20} className="text-role-controller" />}
           label="Thí sinh trong trận"
           value={stats.players}
-          accent="bg-orange-600/20"
+          accent="bg-role-controller/20"
         />
         <StatCard
           icon={<Clock size={20} className="text-warning" />}

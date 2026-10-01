@@ -1,5 +1,6 @@
 import React from "react";
-import { Wifi, WifiOff } from "lucide-react";
+import { phaseLabel } from "@/lib/gameMeta";
+import { ConnectionStatus } from "@/components/shared/ConnectionStatus";
 
 interface HeaderBarProps {
   matchCode: string;
@@ -10,17 +11,10 @@ interface HeaderBarProps {
   rightContent?: React.ReactNode;
 }
 
-const PHASE_NAMES: Record<string, string> = {
-  kdc: "Khởi Động Chung",
-  kdr: "Khởi Động Cá Nhân",
-  bp: "Bứt Phá",
-  vdc: "Về Đích Chung",
-  vdr: "Về Đích Cá Nhân",
-  gm: "Giải Mã",
-  vl: "Vòng Loại",
-  waiting: "Sảnh Chờ",
-};
-
+/**
+ * Header gọn cho shell game (player/controller live).
+ * Phase name + connection pill lấy từ nguồn chung — không còn copy.
+ */
 export const HeaderBar: React.FC<HeaderBarProps> = ({
   matchCode,
   phase,
@@ -29,7 +23,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   centerContent,
   rightContent,
 }) => {
-  const displayPhase = phaseName || (phase ? PHASE_NAMES[phase] : null);
+  const displayPhase = phaseLabel(phase, phaseName);
 
   return (
     <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5 glass gap-2">
@@ -60,21 +54,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </span>
         )}
         {rightContent}
-        <div
-          className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-success" : "text-destructive"}`}
-        >
-          {isConnected ? (
-            <>
-              <Wifi size={14} />
-              <span className="hidden sm:inline">Connected</span>
-            </>
-          ) : (
-            <>
-              <WifiOff size={14} />
-              <span className="hidden sm:inline">Disconnected</span>
-            </>
-          )}
-        </div>
+        <ConnectionStatus isConnected={isConnected} />
       </div>
     </div>
   );

@@ -115,10 +115,10 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
     if (parts.length >= 2) {
       return (
         <div className="flex flex-col leading-tight">
-          <span className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
+          <span className="text-lg tablet:text-xl xl:text-4xl font-display font-extrabold text-brand uppercase">
             {parts[0]}
           </span>
-          <span className="text-sm tablet:text-base xl:text-2xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
+          <span className="text-sm tablet:text-base xl:text-2xl font-display font-extrabold text-brand uppercase">
             {parts.slice(1).join(" - ")}
           </span>
         </div>
@@ -136,7 +136,7 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
       {}
       <div className="flex justify-between items-center pb-1">
         <div className="flex items-center gap-4">
-          <div className="text-lg tablet:text-xl xl:text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase">
+          <div className="text-lg tablet:text-xl xl:text-4xl font-display font-extrabold text-brand uppercase">
             {renderTitle(title)}
           </div>
           {titleExtra && <div className="ml-2">{titleExtra}</div>}
@@ -155,7 +155,7 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
               : renderDefaultControls()}
           </div>
           {}
-          <div className="text-3xl tablet:text-3xl xl:text-5xl font-[SVN-Gratelos_Display] font-extrabold px-1 tablet:px-2 xl:px-3 py-1 transition-colors duration-500 text-foreground w-12 tablet:w-14 xl:w-20 text-center shrink-0">
+          <div className="text-3xl tablet:text-3xl xl:text-5xl font-display font-extrabold px-1 tablet:px-2 xl:px-3 py-1 transition-colors duration-500 text-foreground w-12 tablet:w-14 xl:w-20 text-center shrink-0">
             {timerDuration.toString().padStart(2, "0")}
           </div>
         </div>

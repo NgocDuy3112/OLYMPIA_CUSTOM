@@ -85,7 +85,7 @@ const CPlayerCard: React.FC<CPlayerCardProps> = ({
             connected={!!player.playerConnected}
             size={14}
           />
-          <p className="font-[SVN-Gratelos_Display] text-[22px] xl:text-[26px] font-bold uppercase truncate text-center flex items-center gap-1">
+          <p className="font-display text-[22px] xl:text-[26px] font-bold uppercase truncate text-center flex items-center gap-1">
             {player.playerName}
             {player.playerAfk && (
               <span className="rounded bg-warning/25 px-1.5 py-0.5 text-[10px] font-bold text-warning">
@@ -111,7 +111,7 @@ const CPlayerCard: React.FC<CPlayerCardProps> = ({
 
         {}
         <div className="flex items-center gap-2 mt-2">
-          <p className="font-[SVN-Gratelos_Display] text-[36px] xl:text-[44px] font-extrabold leading-none">
+          <p className="font-display text-[36px] xl:text-[44px] font-extrabold leading-none">
             {player.playerScore}
           </p>
           {onEditScore && !disabled && (

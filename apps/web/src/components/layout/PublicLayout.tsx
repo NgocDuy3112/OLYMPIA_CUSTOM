@@ -21,7 +21,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   };
 
   return (
-    <SidebarProvider className="min-h-screen bg-background/20">
+    <SidebarProvider className="min-h-screen bg-background/30">
       <PublicSidebar
         isAuthenticated={isAuthenticated}
         userName={user?.userName}
@@ -31,7 +31,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
       <SidebarInset className="min-h-screen flex flex-col bg-transparent">
         {/* Mobile top bar — SidebarTrigger mở drawer (Base UI Sheet) */}
         <header className="sticky top-0 z-30 md:hidden glass">
-          <div className="flex items-center h-14 px-4 gap-3">
+          <div className="flex items-center h-12 px-4 gap-3">
             <SidebarTrigger />
             <div className="flex items-center gap-2">
               <Trophy size={18} className="text-brand" />

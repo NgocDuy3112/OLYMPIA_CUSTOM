@@ -1016,7 +1016,7 @@ const AdminGiaiMaView = () => {
             )}
           </div>
         ) : (
-          <span className="font-[SVN-Gratelos_Display] text-2xl sm:text-[30pt] lg:text-[40pt] xl:text-[50pt]">
+          <span className="font-display text-2xl sm:text-[30pt] lg:text-[40pt] xl:text-[50pt]">
             {index}
           </span>
         )}
@@ -1030,7 +1030,7 @@ const AdminGiaiMaView = () => {
         type="button"
         variant="ghost"
         onClick={() => setKeywordPhaseActive((prev) => !prev)}
-        className={`w-full rounded-xl px-3 sm:px-6 py-3 sm:py-6 text-center font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-5xl font-bold text-foreground uppercase shadow border-2 transition-colors duration-200 cursor-pointer select-none ${keywordPhaseActive ? "bg-primary border-brand ring-2 ring-brand" : "bg-primary/40 border-primary hover:bg-primary/60"}`}
+        className={`w-full rounded-xl px-3 sm:px-6 py-3 sm:py-6 text-center font-display text-2xl sm:text-3xl lg:text-5xl font-bold text-foreground uppercase shadow border-2 transition-colors duration-200 cursor-pointer select-none ${keywordPhaseActive ? "bg-primary border-brand ring-2 ring-brand" : "bg-primary/40 border-primary hover:bg-primary/60"}`}
       >
         {keywordAnswerRevealed && keywordQuestion?.questionAnswer
           ? `${keywordQuestion.questionAnswer}`
@@ -1684,7 +1684,7 @@ const PlayerGiaiMaView = () => {
             )}
           </div>
         ) : (
-          <span className="font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-[40pt] xl:text-[50pt]">
+          <span className="font-display text-2xl sm:text-3xl lg:text-[40pt] xl:text-[50pt]">
             {index}
           </span>
         )}
@@ -1694,7 +1694,7 @@ const PlayerGiaiMaView = () => {
 
   const clueGrid = (
     <div className="flex flex-col gap-2 sm:gap-3 w-full mb-2 sm:mb-3 px-1 sm:px-3">
-      <div className="w-full bg-primary/40 border-2 border-primary rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-foreground uppercase shadow">
+      <div className="w-full bg-primary/40 border-2 border-primary rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-display text-lg sm:text-2xl lg:text-3xl font-bold text-foreground uppercase shadow">
         {keywordAnswer || keywordBanner}
       </div>
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">
@@ -1768,7 +1768,7 @@ const PlayerGiaiMaView = () => {
               <Button
                 variant="secondary"
                 onClick={() => setShowKeywordConfirm(false)}
-                className="bg-slate-600 text-foreground font-bold hover:bg-slate-500"
+                className="bg-muted text-foreground font-bold hover:bg-muted/80"
               >
                 HỦY
               </Button>

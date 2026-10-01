@@ -127,7 +127,7 @@ const CQualifierPage = () => {
           variant="default"
           onClick={() => void fetchAll()}
           disabled={loading || !tournamentCode.trim()}
-          className="gap-1 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-sm text-foreground"
+          className="gap-1 bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
         >
           <Search size={14} /> Tải
         </Button>
@@ -167,7 +167,7 @@ const CQualifierPage = () => {
         </div>
       )}
       <div className="rounded-xl bg-accent/50 border border-border p-4">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-orange-300 uppercase tracking-wide mb-3">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-role-controller uppercase tracking-wide mb-3">
           <Trophy size={16} /> Top 16
         </h3>
         {standings.length === 0 ? (

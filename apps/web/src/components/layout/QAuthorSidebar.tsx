@@ -66,7 +66,7 @@ export const QAuthorSidebar: React.FC = () => {
     <Sidebar collapsible="offcanvas" className="border-r border-border">
       <SidebarHeader className="border-b border-border px-4 py-3">
         <div className="flex items-center gap-2">
-          <HelpCircle size={18} className="text-success" />
+          <HelpCircle size={18} className="text-role-qauthor" />
           <span className="text-sm font-bold text-foreground">QAUTHOR</span>
         </div>
       </SidebarHeader>
@@ -81,7 +81,7 @@ export const QAuthorSidebar: React.FC = () => {
                     <SidebarMenuButton size="lg"
                       isActive={active}
                       tooltip={item.label}
-                      className="data-[active=true]:bg-success/20 data-[active=true]:text-success"
+                      className="data-[active=true]:bg-role-qauthor/20 data-[active=true]:text-role-qauthor"
                       onClick={() => {
                         navigate(item.path);
                         if (isMobile) setOpenMobile(false);
@@ -90,7 +90,7 @@ export const QAuthorSidebar: React.FC = () => {
                       {item.icon}
                       <span className="flex-1 text-left">{item.label}</span>
                       {active && (
-                        <ChevronRight size={16} className="text-success" />
+                        <ChevronRight size={16} className="text-role-qauthor" />
                       )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>

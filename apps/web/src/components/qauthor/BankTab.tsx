@@ -433,7 +433,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                       {q.status === "approved" ? (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success">Đã duyệt</span>
                       ) : q.status === "rejected" ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-red-600/20 text-destructive">Không duyệt</span>
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-destructive/20 text-destructive">Không duyệt</span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-warning/20 text-warning">Chờ duyệt</span>
                       )}

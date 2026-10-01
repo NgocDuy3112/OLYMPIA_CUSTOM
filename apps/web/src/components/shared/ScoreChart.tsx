@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PlayerStatus } from "@/types/player";
+import { SERIES_COLORS } from "@/lib/seriesColors";
 
 interface ChartPoint {
   question_code: string;
@@ -11,14 +12,7 @@ type ChartData = Record<string, ChartPoint[]>;
 
 type HoveredPoint = { playerCode: string; index: number } | null;
 
-const COLORS = [
-  "#67E8F9",
-  "#38BDF8",
-  "#60A5FA",
-  "#818CF8",
-  "#A78BFA",
-  "#BAE6FD",
-];
+const COLORS = SERIES_COLORS;
 
 function isAdjustCode(code: string): boolean {
   return (

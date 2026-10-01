@@ -55,7 +55,7 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({
           )}
         </div>
       ) : (
-        <span className="font-[SVN-Gratelos_Display] text-2xl sm:text-3xl lg:text-[40pt] xl:text-[50pt]">
+        <span className="font-display text-2xl sm:text-3xl lg:text-[40pt] xl:text-[50pt]">
           {index}
         </span>
       )}
@@ -314,7 +314,7 @@ export function SGiaiMaPage({ Layout }: SGiaiMaPageProps) {
 
   const clueGrid = (
     <div className="flex flex-col gap-2 sm:gap-3 w-full mb-2 sm:mb-3 px-1 sm:px-3">
-      <div className="w-full bg-primary/40 border-2 border-primary rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-foreground uppercase shadow">
+      <div className="w-full bg-primary/40 border-2 border-primary rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-display text-lg sm:text-2xl lg:text-3xl font-bold text-foreground uppercase shadow">
         {_keywordAnswer ? `${_keywordAnswer}` : keywordBanner}
       </div>
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">

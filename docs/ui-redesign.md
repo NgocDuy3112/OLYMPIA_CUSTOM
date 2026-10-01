@@ -1,0 +1,97 @@
+# UI/UX Redesign — Olympia Custom (apps/web)
+
+> Ngày: 2026-10 · Phạm vi: toàn bộ 9 surface · Hướng: giữ brand violet, tinh chỉnh
+> Nguồn token thật: `apps/web/src/index.css` (file này ghi đè `design-system/olympia-custom/MASTER.md` nếu lệch)
+
+---
+
+## 1. Vấn đề phát hiện khi audit
+
+| # | Vấn đề | Ảnh hưởng | Đã sửa |
+|---|--------|-----------|--------|
+| 1 | `a { color: #4416d9 }` trên nền `#12102e` ≈ 2.4:1 | Link không đọc được (WCAG fail) | ✓ `--oc-link: #9c8dfa` |
+| 2 | Background ảnh `fixed` không scrim | Chữ nổi trên ảnh, khó đọc | ✓ gradient scrim 2 lớp (body + `::before`) |
+| 3 | `.card` global padding 2.5rem + max-w cố định | Trang chống lại bằng `p-6!`, auth thêm inline style | ✓ `.card` p-7, bỏ inline style |
+| 4 | `PHASE_NAMES` trùng 3 bản; 3 header copy y hệt; connection pill copy nhiều nơi | Sửa 1 chỗ, 2 chỗ quên | ✓ `lib/gameMeta.ts`, `ShellHeader`, `ConnectionStatus` |
+| 5 | 3 kiểu heading (`font-[SVN-Gratelos_Display]` thô, `font-display`, `font-heading`) | Typography lệch nhau từng trang | ✓ gộp về `font-display` (38 chỗ) |
+| 6 | Dead CSS: `.hide-mobile` family, `.bottom-nav`, `.score-pulse`, `.accent-dot`, hack `.lg\:grid-cols-2`; file chết `PublicHeader`, `GameHeader` | CSS phình, gây hiểu nhầm | ✓ xóa |
+| 7 | Overlay OBS set `body background` nhưng quên `body::before` | Ảnh brand lòe sau overlay OBS | ✓ `useOverlayMode()` + `body.overlay-mode` |
+| 8 | Màu accent mỗi surface hardcode (`orange-400`, `success`, `red-600`…) | Không kiểm soát được, lệch token | ✓ role tokens |
+| 9 | Auth: lỗi chỉ là `text-xs` đỏ, input 32px, placeholder-only label | Lỗi khó thấy, touch target nhỏ | ✓ `AuthError` (role=alert), input 44px, aria-label |
+
+---
+
+## 2. Kiến trúc token (sau redesign)
+
+```mermaid
+flowchart TD
+    subgraph GLOBAL["index.css — nguồn duy nhất"]
+        BRAND["Brand: #4416d9 primary · #12102e bg · #ffb547 secondary · #9c8dfa link/accent"]
+        SURFACE["Surface: #1b1552 card/popover · #241a66 muted · border white/10"]
+        ROLE["Role accents:<br/>admin #9c8dfa · controller #ffb547<br/>qauthor #34d399 · mc #38bdf8 · live #fb7185"]
+        A11Y["A11Y: focus-visible ring · reduced-motion<br/>scrim nền ảnh · cursor:pointer · line-height 1.5"]
+    end
+
+    BRAND --> SHADCN["shadcn semantic vars<br/>(background/card/primary/muted/...)"]
+    SURFACE --> SHADCN
+    ROLE --> RCLASS["Tailwind class:<br/>text-role-admin / bg-role-controller/20 ..."]
+    A11Y --> BASE["@layer base — mọi trang miễn phí"]
+
+    SHADCN --> PAGES["components/ui/* (button, card, input, ...)"]
+    RCLASS --> SIDEBARS["4 sidebar shell"]
+    BASE --> PAGES
+```
+
+## 3. Layout system 9 surface
+
+```mermaid
+flowchart LR
+    subgraph PUBLIC["Public"]
+        PL["PublicLayout<br/>(sidebar + mobile header h-12)"]
+    end
+    subgraph SHELL["Operator shells — dùng chung 1 component"]
+        SH["ShellHeader<br/>roleLabel + useAuth"]
+        AS["AdminSidebar<br/>role-admin"]
+        CS["ControllerSidebar<br/>role-controller"]
+        QS["QAuthorSidebar<br/>role-qauthor"]
+    end
+    subgraph GAME["Game live"]
+        HB["HeaderBar<br/>phaseLabel() + ConnectionStatus"]
+        PBP["PBasePageLayout (player/MC)"]
+        CNAV["CNavBar (controller)"]
+    end
+    subgraph OVL["OBS Overlay"]
+        UOM["useOverlayMode()<br/>body.overlay-mode → nền trong suốt"]
+    end
+
+    AS --> SH
+    CS --> SH
+    QS --> SH
+    HB --> PBP
+    HB --> CNAV
+```
+
+## 4. Quy tắc thiết kế (áp dụng khi làm trang mới)
+
+1. **Màu**: chỉ dùng token (`role-*`, `success/warning/destructive`, `text-foreground`). Không hardcode hex/Tailwind palette (`orange-600`, `slate-600`, `text-white`) — dùng `text-foreground` thay `text-white`.
+2. **Typography**: body Inter 16px/1.5; tiêu đề lớn/hero = `font-display` (SVN-Gratelos); tiêu đề card = `font-heading`.
+3. **Touch**: control ≥ 36px (button `default` h-9), input 44px (`authInputClass`), vùng bấm ≥ 44px trên tablet (`touch-target`).
+4. **Responsive**: grid stat 3 cột giữ `grid-cols-3`; form 2 cột hạ `grid-cols-1 sm:grid-cols-2` khi có input to; table để component `<Table>` lo (đã có `overflow-x-auto`).
+5. **Feedback**: lỗi form dùng `<AuthError>` (`role=alert`); nút async hiện label loading; kết nối WebSocket dùng `<ConnectionStatus>`.
+6. **Overlay OBS**: mọi trang overlay PHẢI gọi `useOverlayMode()` (không tự `<style>` set background).
+
+## 5. Kiểm chứng
+
+- `pnpm typecheck` (turbo toàn repo): 10/10 pass
+- `pnpm build` (apps/web): pass — `✓ built in 7.90s`
+- `pnpm lint` (apps/web): 5 problems — **cũ, không thuộc redesign** (2 lỗi `react-hooks/refs` ở `PQualifierPage.tsx:164`, 3 warning exhaustive-deps ở `BankTab`/`VeDich*`)
+- Visual: login + public shell kiểm tra bằng Chrome DevTools ở 375px và 1440px, không lỗi JS console (chỉ 401/500 do preview không có backend)
+
+## 6. Tài liệu đọc thêm
+
+- `design-system/olympia-custom/MASTER.md` — design system gốc (lưu ý: palette/font trong này đã cũ, code ghi đè)
+- [WCAG 2.2 — Contrast (Minimum) 4.5:1](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
+- [Tailwind CSS v4 CSS-first theme](https://tailwindcss.com/docs/theme) — `@theme` / token trong `index.css`
+- [shadcn/ui theming](https://ui.shadcn.com/docs/theming) — semantic vars (`--card`, `--muted`, `--ring`)
+- [Base UI (Button/Sidebar primitives)](https://base-ui.com/) — component gốc của `components/ui/*`
+- `apps/web/src/lib/gameMeta.ts`, `lib/seriesColors.ts`, `hooks/useOverlayMode.ts`, `components/layout/ShellHeader.tsx`, `components/auth/AuthFormBits.tsx` — các module nguồn chung mới

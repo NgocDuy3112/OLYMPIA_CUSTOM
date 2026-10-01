@@ -116,7 +116,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
               />
 
               {player.playerName && (
-                <span className="font-[SVN-Gratelos_Display] uppercase text-[14px] tablet:text-[16px] xl:text-[24px] font-extrabold flex items-center gap-2">
+                <span className="font-display uppercase text-[14px] tablet:text-[16px] xl:text-[24px] font-extrabold flex items-center gap-2">
                   {player.playerName}
                   {player.playerAfk && (
                     <span className="rounded bg-warning/25 px-1.5 py-0.5 text-[10px] font-bold text-warning">
@@ -174,7 +174,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
             </p>
           )}
         </div>
-        <div className="flex font-[SVN-Gratelos_Display] text-[28px] tablet:text-[32px] xl:text-[50px] font-extrabold ml-2 xl:ml-4 items-center gap-2">
+        <div className="flex font-display text-[28px] tablet:text-[32px] xl:text-[50px] font-extrabold ml-2 xl:ml-4 items-center gap-2">
           {player.playerScore}
           {sendMessage && !disabled && (
             <Button

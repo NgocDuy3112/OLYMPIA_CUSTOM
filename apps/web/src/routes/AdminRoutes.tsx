@@ -21,7 +21,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   return (
-    <SidebarProvider className="min-h-screen bg-black/20">
+    <SidebarProvider className="min-h-screen bg-background/30">
       <AdminSidebar />
       <SidebarInset className="min-h-screen flex flex-col bg-transparent">
         <AdminHeader />

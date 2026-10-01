@@ -16,12 +16,19 @@
   --color-surface: rgb(255 255 255 / 0.12);
   --color-text-primary: #e6eef5;
 
+  /* Role accents — mỗi surface 1 màu nhận diện, thống nhất mọi header/sidebar */
+  --color-role-admin: #9c8dfa;
+  --color-role-controller: #ffb547;
+  --color-role-qauthor: #34d399;
+  --color-role-mc: #38bdf8;
+  --color-role-live: #fb7185;
+
   /* shadcn semantic tokens (base-nova registry components use these) */
   --color-background: #12102e;
   --color-foreground: #e6eef5;
-  --color-card: #231a7a;
+  --color-card: #1b1552;
   --color-card-foreground: #e6eef5;
-  --color-popover: #231a7a;
+  --color-popover: #1b1552;
   --color-popover-foreground: #e6eef5;
   --color-primary-foreground: #ffffff;
   --color-secondary-foreground: #12102e;
@@ -83,22 +90,24 @@
   --oc-bg: #12102e;
   --oc-border: #5226e8;
   --oc-card-border: var(--oc-border);
-  --oc-card-bg: #231a7a; /* khớp tông #221b6e của background */
+  --oc-card-bg: #1b1552; /* card sâu hơn nền — text nổi, bớt sạn tím */
   --oc-surface: rgba(255, 255, 255, 0.12);
   --oc-text: #e6eef5;
+  /* Link: brand-violet #4416d9 chỉ đạt 2.4:1 trên nền tối → dùng accent sáng */
+  --oc-link: #9c8dfa;
   /* Brand violet dark — design-system/olympia-custom/MASTER.md */
   --background: #12102e;
   --foreground: #e6eef5;
-  --card: #231a7a;
+  --card: #1b1552;
   --card-foreground: #e6eef5;
-  --popover: #231a7a;
+  --popover: #1b1552;
   --popover-foreground: #e6eef5;
   --primary: #4416d9;
   --primary-foreground: #ffffff;
   --secondary: #ffb547;
   --secondary-foreground: #12102e;
-  --muted: #2b1a9f;
-  --muted-foreground: #94a3b8;
+  --muted: #241a66;
+  --muted-foreground: #a9b6cd;
   --accent: rgb(255 255 255 / 0.12);
   --accent-foreground: #e6eef5;
   --destructive: #dc2626;
@@ -138,12 +147,16 @@
   }
   body {
     background-color: var(--oc-bg);
-    background-image: var(--background-image-oc);
+    /* Scrim 2 lớp: ảnh brand vẫn thấy, chữ luôn đọc được (WCAG AA) */
+    background-image:
+      linear-gradient(180deg, rgb(11 9 48 / 0.82), rgb(18 16 46 / 0.92)),
+      var(--background-image-oc);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed; /* cố định khi cuộn */
     color: var(--oc-text);
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     @apply bg-background text-foreground;
@@ -154,16 +167,46 @@
     position: fixed;
     inset: 0;
     z-index: -1;
-    background: var(--background-image-oc) center / cover no-repeat;
+    background:
+      linear-gradient(180deg, rgb(11 9 48 / 0.82), rgb(18 16 46 / 0.92)),
+      var(--background-image-oc) center / cover no-repeat;
   }
   a {
-    color: var(--oc-primary);
+    color: var(--oc-link);
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+  /* Focus thật sự thấy được khi điều hướng bàn phím */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--oc-primary) 55%, transparent);
+    color: #fff;
+  }
+  button,
+  [role="button"],
+  summary,
+  label[for] {
+    cursor: pointer;
   }
   * {
     @apply border-border outline-ring/50;
   }
   html {
     @apply font-sans;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
@@ -172,23 +215,22 @@
 .card,
 .panel {
   background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--oc-card-bg) 65%, #0b0930 35%),
-    color-mix(in srgb, var(--oc-card-bg) 40%, #060413 60%)
+    160deg,
+    color-mix(in srgb, var(--oc-card-bg) 92%, #ffffff 8%),
+    color-mix(in srgb, var(--oc-card-bg) 88%, #060413 12%)
   );
   color: var(--oc-text);
-  border: 2px solid color-mix(in srgb, var(--oc-card-border) 70%, #080618 30%);
+  border: 1px solid rgb(255 255 255 / 0.14);
   box-shadow:
-    0 25px 60px rgba(6, 9, 205, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+    0 18px 40px rgb(4 2 20 / 0.45),
+    inset 0 1px 0 rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .card {
-  padding: 2.5rem; /* p-10 */
+  padding: 1.75rem; /* p-7 — trước p-10 quá dồn cho card đăng nhập */
   border-radius: 0.75rem; /* rounded-xl */
-  box-shadow: 0 25px 50px rgba(2, 6, 23, 0.6); /* stronger shadow for separation */
   width: 100%;
   max-width: 28rem; /* max-w-md */
   position: relative;
@@ -223,11 +265,6 @@
   background-color: var(--oc-primary-dark);
 }
 
-/* Panel used for wider admin pages to match project color scheme */
-.accent-dot {
-  background-color: var(--oc-primary);
-}
-
 /* Glass header bar — design-system Phase 2 (token-driven) */
 .glass {
   background: color-mix(in srgb, var(--background) 60%, transparent);
@@ -236,45 +273,13 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Overlay pages - transparent background for OBS Browser Source */
-.overlay-mode {
+/* Overlay pages — OBS Browser Source: nền trong suốt, TẮP cả layer ảnh body::before */
+body.overlay-mode,
+body.overlay-mode #root {
   background: transparent !important;
 }
-.overlay-mode body,
-.overlay-mode #root {
-  background: transparent !important;
-}
-.overlay-mode body::before {
-  background: none;
-}
-
-/* Responsive utilities */
-@media (max-width: 767px) {
-  .hide-mobile {
-    display: none !important;
-  }
-  .show-mobile {
-    display: block !important;
-  }
-  .flex-mobile-col {
-    flex-direction: column !important;
-  }
-}
-@media (min-width: 768px) and (max-width: 1024px) {
-  .hide-tablet {
-    display: none !important;
-  }
-  .show-tablet {
-    display: block !important;
-  }
-}
-@media (min-width: 1025px) {
-  .hide-desktop {
-    display: none !important;
-  }
-  .show-desktop {
-    display: block !important;
-  }
+body.overlay-mode::before {
+  display: none !important;
 }
 
 /* Touch-friendly targets for tablet/mobile */
@@ -304,22 +309,6 @@
   }
 }
 
-/* Score animation */
-@keyframes scorePulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-.score-pulse {
-  animation: scorePulse 0.3s ease-in-out;
-}
-
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
@@ -335,13 +324,6 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
-}
-
-/* Smooth transitions for responsive layouts */
-@media (min-width: 1024px) {
-  .lg\:grid-cols-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 /* Buzz highlight */
@@ -425,16 +407,16 @@
   /* Dark-first app — giữ cùng brand values với :root */
   --background: #12102e;
   --foreground: #e6eef5;
-  --card: #231a7a;
+  --card: #1b1552;
   --card-foreground: #e6eef5;
-  --popover: #231a7a;
+  --popover: #1b1552;
   --popover-foreground: #e6eef5;
   --primary: #4416d9;
   --primary-foreground: #ffffff;
   --secondary: #ffb547;
   --secondary-foreground: #12102e;
-  --muted: #2b1a9f;
-  --muted-foreground: #94a3b8;
+  --muted: #241a66;
+  --muted-foreground: #a9b6cd;
   --accent: rgb(255 255 255 / 0.12);
   --accent-foreground: #e6eef5;
   --destructive: #dc2626;

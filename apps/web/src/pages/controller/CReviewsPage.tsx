@@ -130,7 +130,7 @@ const CReviewsPage = () => {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-        <ClipboardCheck size={20} className="text-orange-400" /> Duyệt điểm
+        <ClipboardCheck size={20} className="text-role-controller" /> Duyệt điểm
       </h1>
       <div className="flex gap-2">
         <Input
@@ -151,7 +151,7 @@ const CReviewsPage = () => {
           variant="default"
           onClick={() => void fetchReviews()}
           disabled={loading || !matchCode.trim()}
-          className="gap-1 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-sm text-foreground"
+          className="gap-1 bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-sm"
         >
           {loading ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />} Tải
         </Button>
@@ -167,7 +167,7 @@ const CReviewsPage = () => {
         return (
           <div key={r.id} className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="font-mono text-sm text-orange-300">{r.questionCode}</p>
+              <p className="font-mono text-sm text-role-controller">{r.questionCode}</p>
               <p className="text-xs text-muted-foreground">{r.status}</p>
             </div>
             {r.candidates.map((c) => {
@@ -217,7 +217,7 @@ const CReviewsPage = () => {
                 variant="default"
                 onClick={() => void submit(r)}
                 disabled={saving === r.id || isDecided}
-                className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-xs font-semibold text-foreground"
+                className="bg-role-controller text-background hover:bg-role-controller/85 disabled:opacity-50 text-xs font-semibold"
               >
                 {saving === r.id ? "Đang chốt..." : isDecided ? "Đã chốt" : "Xác nhận"}
               </Button>

@@ -1,15 +1,9 @@
 import { useState } from "react";
 import PPlayerRec from "@/components/player/PPlayerRec";
 import type { PlayerStatus } from "@/types/player";
+import { SERIES_COLORS } from "@/lib/seriesColors";
 
-const PLAYER_COLORS = [
-  "#67E8F9",
-  "#38BDF8",
-  "#60A5FA",
-  "#818CF8",
-  "#A78BFA",
-  "#BAE6FD",
-];
+const PLAYER_COLORS = SERIES_COLORS;
 
 interface WaitingViewProps {
   matchCode: string;
@@ -47,7 +41,7 @@ export function WaitingView({
       ) : null}
 
       <div className="mt-8 text-center">
-        <h1 className="font-[SVN-Gratelos_Display] text-5xl font-bold text-white uppercase tracking-wide">
+        <h1 className="font-display text-5xl font-bold text-white uppercase tracking-wide">
           OLYMPIA CUSTOM 3
         </h1>
         {loaded && matchName ? (
