@@ -104,9 +104,9 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
   const getTemplateIcon = (type: string) => {
     switch (type) {
       case "individual":
-        return <Users size={24} className="text-blue-400" />;
+        return <Users size={24} className="text-brand" />;
       default:
-        return <Trophy size={24} className="text-yellow-400" />;
+        return <Trophy size={24} className="text-warning" />;
     }
   };
 
@@ -120,7 +120,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
             </h3>
             {isLoading ? (
               <div className="flex justify-center py-8">
-                <Loader2 size={24} className="animate-spin text-gray-400" />
+                <Loader2 size={24} className="animate-spin text-muted-foreground" />
               </div>
             ) : (
               <div className="grid gap-4">
@@ -132,13 +132,13 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                       p-4 rounded-lg border-2 cursor-pointer transition-all
                       ${
                         selectedTemplate?.id === template.id
-                          ? "border-blue-500 bg-blue-500/10"
-                          : "border-white/20 hover:border-white/40 bg-white/5"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-border bg-accent/50"
                       }
                     `}
                   >
                     <div className="flex items-start gap-4">
-                      <div className="p-2 bg-white/10 rounded-lg">
+                      <div className="p-2 bg-accent rounded-lg">
                         {getTemplateIcon(template.config.type)}
                       </div>
                       <div className="flex-1">
@@ -147,14 +147,14 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                             {template.templateName}
                           </h4>
                         </div>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-sm text-muted-foreground">
                           {template.description}
                         </p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {template.config.phases.map((phase, i) => (
                             <span
                               key={i}
-                              className="px-2 py-0.5 bg-white/10 text-gray-300 text-xs rounded"
+                              className="px-2 py-0.5 bg-accent text-foreground text-xs rounded"
                             >
                               {phase.name}
                             </span>
@@ -162,7 +162,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                         </div>
                       </div>
                       {selectedTemplate?.id === template.id && (
-                        <Check size={20} className="text-blue-400" />
+                        <Check size={20} className="text-brand" />
                       )}
                     </div>
                   </div>
@@ -185,25 +185,25 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                     <h4 className="font-medium text-white mb-2">
                       {selectedTemplate.templateName}
                     </h4>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       {selectedTemplate.description}
                     </p>
                   </div>
 
-                  <div className="border-t border-white/10 pt-4">
-                    <h5 className="text-sm font-medium text-gray-400 mb-3">
+                  <div className="border-t border-border pt-4">
+                    <h5 className="text-sm font-medium text-muted-foreground mb-3">
                       Các Phase
                     </h5>
                     <div className="space-y-2">
                       {selectedTemplate.config.phases.map((phase, i) => (
                         <div
                           key={i}
-                          className="flex items-center justify-between p-2 bg-white/5 rounded"
+                          className="flex items-center justify-between p-2 bg-accent/50 rounded"
                         >
                           <span className="text-white text-sm">
                             {phase.name}
                           </span>
-                          <span className="text-gray-400 text-sm">
+                          <span className="text-muted-foreground text-sm">
                             {phase.rounds
                               ? `${phase.rounds} rounds`
                               : `${phase.matches} matches`}
@@ -214,15 +214,15 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                   </div>
 
                   {selectedTemplate.config.tiers && (
-                    <div className="border-t border-white/10 pt-4">
-                      <h5 className="text-sm font-medium text-gray-400 mb-3">
+                    <div className="border-t border-border pt-4">
+                      <h5 className="text-sm font-medium text-muted-foreground mb-3">
                         Tiers
                       </h5>
                       <div className="flex gap-2">
                         {selectedTemplate.config.tiers.map((tier) => (
                           <span
                             key={tier}
-                            className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded font-medium"
+                            className="px-3 py-1 bg-primary/20 text-brand rounded font-medium"
                           >
                             Tier {tier}
                           </span>
@@ -247,29 +247,29 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
               <Card className="px-4">
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-green-500/20 rounded-lg">
-                      <Check size={20} className="text-green-400" />
+                    <div className="p-2 bg-success/20 rounded-lg">
+                      <Check size={20} className="text-success" />
                     </div>
                     <div>
                       <h4 className="font-bold text-white">
                         Sẵn sàng áp dụng
                       </h4>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         Template "{selectedTemplate.templateName}" sẽ được áp
                         dụng cho giải đấu này.
                       </p>
                     </div>
                   </div>
 
-                  <div className="border-t border-white/10 pt-4">
-                    <p className="text-sm text-gray-400">
+                  <div className="border-t border-border pt-4">
+                    <p className="text-sm text-muted-foreground">
                       Sau khi áp dụng, hệ thống sẽ tự động tạo các phase, round
                       và match dựa trên template.
                     </p>
                   </div>
 
                   {error && (
-                    <div className="p-3 bg-red-500/20 border border-red-500 rounded text-red-400 text-sm">
+                    <div className="p-3 bg-destructive/20 border border-destructive rounded text-destructive text-sm">
                       {error}
                     </div>
                   )}
@@ -296,10 +296,10 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
                   w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold
                   ${
                     index < currentStep
-                      ? "bg-green-500 text-white"
+                      ? "bg-success text-success-foreground"
                       : index === currentStep
-                        ? "bg-blue-500 text-white"
-                        : "bg-white/10 text-gray-400"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-accent text-muted-foreground"
                   }
                 `}
               >
@@ -311,7 +311,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
               </div>
               <span
                 className={`text-sm hidden sm:inline ${
-                  index <= currentStep ? "text-white" : "text-gray-400"
+                  index <= currentStep ? "text-foreground" : "text-muted-foreground"
                 }`}
               >
                 {step}
@@ -320,7 +320,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
             {index < STEPS.length - 1 && (
               <div
                 className={`w-12 sm:w-20 h-0.5 mx-2 ${
-                  index < currentStep ? "bg-green-500" : "bg-white/10"
+                  index < currentStep ? "bg-success" : "bg-accent"
                 }`}
               />
             )}

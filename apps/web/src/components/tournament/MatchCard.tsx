@@ -25,13 +25,13 @@ export const MatchCard: React.FC<MatchCardProps> = ({
   const canReplay = matchStatus === "completed" || matchStatus === "finished";
 
   return (
-    <div className="flex items-center justify-between p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+    <div className="flex items-center justify-between p-3 bg-accent/50 rounded-lg hover:bg-accent transition-colors">
       <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-1">
           <span className="font-medium text-white truncate">{matchName}</span>
           <MatchStatusBadge status={matchStatus} />
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-400">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Clock size={12} />
           <span>{new Date(createdAt).toLocaleDateString("vi-VN")}</span>
         </div>
@@ -43,8 +43,8 @@ export const MatchCard: React.FC<MatchCardProps> = ({
           onClick={onWatch}
           className={`ml-4 gap-1 px-3 py-1.5 text-sm ${
             canWatch
-              ? "bg-green-600 hover:bg-green-500 text-white"
-              : "bg-blue-600 hover:bg-blue-500 text-white"
+              ? "bg-success hover:bg-success/90 text-success-foreground"
+              : "bg-primary hover:bg-primary/90 text-primary-foreground"
           }`}
         >
           <ExternalLink size={14} />

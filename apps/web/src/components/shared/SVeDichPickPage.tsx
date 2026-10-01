@@ -110,9 +110,9 @@ export function SVeDichPickPage({
 
   return (
     <Layout players={players} currentPlayerCode="">
-      <div className="p-5 rounded-xl flex flex-col bg-blue-900 border-2 border-blue-600 shadow-xl gap-4 w-full">
+      <div className="p-5 rounded-xl flex flex-col bg-primary/40 border-2 border-primary shadow-xl gap-4 w-full">
         <div className="flex items-center gap-4 pb-1">
-          <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-blue-300 uppercase shrink-0">
+          <p className="text-4xl font-[SVN-Gratelos_Display] font-extrabold text-brand uppercase shrink-0">
             {title}
           </p>
           <div className="flex-1" />
@@ -154,7 +154,7 @@ export function SVeDichPickPage({
           </div>
         </div>
 
-        <div className="border-t border-blue-700" />
+        <div className="border-t border-primary/70" />
 
         <div
           className="grid gap-3"

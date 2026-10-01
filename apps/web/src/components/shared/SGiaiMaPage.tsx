@@ -34,10 +34,10 @@ const PlayerClueCard: React.FC<PlayerClueCardProps> = ({
   const base =
     "flex-1 h-16 sm:h-20 lg:h-28 xl:h-36 flex items-center justify-center rounded-xl font-bold transition-all duration-200 select-none border-2";
   const styles: Record<ClueState, string> = {
-    idle: "bg-blue-900 border-blue-600 text-white",
+    idle: "bg-primary/40 border-primary text-foreground",
     active:
-      "bg-blue-500 border-blue-200 text-white shadow-lg ring-2 ring-blue-300",
-    used: "bg-blue-700 border-blue-500 text-white",
+      "bg-primary border-primary-foreground/30 text-primary-foreground shadow-lg ring-2 ring-brand",
+    used: "bg-primary/70 border-primary text-primary-foreground",
   };
   const showHint =
     (state === "active" || state === "used") &&
@@ -314,7 +314,7 @@ export function SGiaiMaPage({ Layout }: SGiaiMaPageProps) {
 
   const clueGrid = (
     <div className="flex flex-col gap-2 sm:gap-3 w-full mb-2 sm:mb-3 px-1 sm:px-3">
-      <div className="w-full bg-blue-900 border-2 border-blue-600 rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-white uppercase shadow">
+      <div className="w-full bg-primary/40 border-2 border-primary rounded-xl px-2 sm:px-4 py-1.5 sm:py-2 text-center font-[SVN-Gratelos_Display] text-lg sm:text-2xl lg:text-3xl font-bold text-foreground uppercase shadow">
         {_keywordAnswer ? `${_keywordAnswer}` : keywordBanner}
       </div>
       <div className="grid grid-cols-4 gap-1.5 sm:gap-2 w-full">

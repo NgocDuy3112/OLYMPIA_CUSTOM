@@ -39,7 +39,7 @@ export function RowActions({
           variant="ghost"
           onClick={onDelete}
           title={deleteTitle}
-          className="bg-red-700/70 text-white hover:bg-red-600 hover:text-white"
+          className="bg-destructive/70 text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground"
         >
           <Trash2 size={13} />
         </Button>

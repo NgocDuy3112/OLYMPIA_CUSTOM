@@ -111,7 +111,7 @@ const VideoElement: React.FC<{
           type="button"
           variant="ghost"
           onClick={handleOverlayClick}
-          className="absolute inset-0 h-full w-full flex-col gap-2 rounded-lg bg-black/60 px-4 py-3 text-white hover:bg-black/70"
+          className="absolute inset-0 h-full w-full flex-col gap-2 rounded-lg bg-background/60 px-4 py-3 text-foreground hover:bg-background/70"
           aria-label="Nhấp để bật âm thanh và phát video"
         >
           <span className="text-2xl">🔊</span>
@@ -185,7 +185,7 @@ export const RenderMedia: React.FC<RenderMediaProps> = ({
   if (s3Media.loading) {
     return (
       <div className={CONTAINER_CLASS}>
-        <div className="text-blue-300 text-sm animate-pulse">
+        <div className="text-brand text-sm animate-pulse">
           Đang tải media…
         </div>
       </div>
@@ -194,7 +194,7 @@ export const RenderMedia: React.FC<RenderMediaProps> = ({
   if (s3Media.error) {
     return (
       <div className={CONTAINER_CLASS}>
-        <div className="text-red-400 text-sm text-center">
+        <div className="text-destructive text-sm text-center">
           Không tải được media
         </div>
       </div>

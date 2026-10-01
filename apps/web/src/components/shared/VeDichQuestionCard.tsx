@@ -27,24 +27,24 @@ const VeDichQuestionCard = ({
 }: VeDichQuestionCardProps) => {
   const getStateStyles = () => {
     if (placeholder) {
-      return "bg-blue-800/30 text-transparent ring-0 border-2 border-dashed border-blue-500/50 pointer-events-none";
+      return "bg-primary/20 text-transparent ring-0 border-2 border-dashed border-primary/50 pointer-events-none";
     }
 
     if (state === "answered") {
-      return "bg-blue-700 text-white ring-2 ring-blue-500 shadow-md shadow-blue-900/50 pointer-events-none";
+      return "bg-primary/80 text-primary-foreground ring-2 ring-primary shadow-md pointer-events-none";
     }
     if (state === "answered-wrong") {
-      return "bg-red-800/80 text-white ring-2 ring-red-600 shadow-md shadow-red-900/50 pointer-events-none";
+      return "bg-destructive/80 text-destructive-foreground ring-2 ring-destructive shadow-md pointer-events-none";
     }
 
     if (disabled) {
       if (isSelected) {
-        return "bg-blue-500 text-white ring-2 ring-white shadow-md pointer-events-none";
+        return "bg-brand text-background ring-2 ring-foreground shadow-md pointer-events-none";
       }
-      return "bg-blue-950/70 text-blue-700/50 ring-1 ring-blue-900/60 cursor-not-allowed pointer-events-none line-through decoration-blue-700/50";
+      return "bg-background/70 text-brand/50 ring-1 ring-primary/60 cursor-not-allowed pointer-events-none line-through decoration-primary/50";
     }
 
-    return "bg-blue-800 text-white ring-2 ring-blue-400 shadow-md shadow-blue-950/60 hover:bg-blue-700 hover:ring-blue-300 hover:shadow-blue-800/80";
+    return "bg-primary/60 text-primary-foreground ring-2 ring-brand shadow-md hover:bg-primary/80 hover:ring-brand";
   };
 
   const [catPrimary, catSecondary] = (category || "")
@@ -62,7 +62,7 @@ const VeDichQuestionCard = ({
 			border-2 border-transparent
 			transition-all duration-150 font-bold min-h-0
 				${getStateStyles()}
-				${isSelected && state === "available" ? "!border-white !bg-blue-500 text-white outline outline-2 outline-white outline-offset-[-1px]" : ""}
+				${isSelected && state === "available" ? "!border-foreground !bg-brand text-background outline outline-2 outline-foreground outline-offset-[-1px]" : ""}
 				${!disabled && state === "available" && !placeholder ? "cursor-pointer" : ""}
 			`}
     >

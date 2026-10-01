@@ -166,7 +166,7 @@ export function SKhoiDongPage({
         {(api) => (
           <div className="flex gap-2 items-center">
             {hasSecondAttempt && (
-              <div className="bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+              <div className="bg-warning text-warning-foreground px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
                 Trả lời lần 2
               </div>
             )}
@@ -179,7 +179,7 @@ export function SKhoiDongPage({
                   variant="ghost"
                   aria-pressed={active}
                   onClick={() => api.toggle(index)}
-                  className={`w-8 h-8 tablet:w-10 tablet:h-10 rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}
+                  className={`w-8 h-8 tablet:w-10 tablet:h-10 rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-brand text-background border border-brand" : "bg-transparent border border-primary text-foreground hover:bg-primary/70"}`}
                 >
                   {index + 1}
                 </Button>

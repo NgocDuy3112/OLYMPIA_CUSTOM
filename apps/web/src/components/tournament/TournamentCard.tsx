@@ -45,38 +45,38 @@ export const TournamentCard: React.FC<TournamentCardProps> = ({
             <TournamentStatusBadge status={status} />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-gray-400">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Trophy size={14} className="text-blue-400" />
+              <Trophy size={14} className="text-brand" />
               {tournamentFormat.toUpperCase()}
             </span>
             <span className="flex items-center gap-1">
-              <Calendar size={14} className="text-blue-400" />
+              <Calendar size={14} className="text-brand" />
               {startDate || "Chưa đặt"} - {endDate || "Chưa đặt"}
             </span>
             {venue && (
               <span className="flex items-center gap-1">
-                <MapPin size={14} className="text-blue-400" />
+                <MapPin size={14} className="text-brand" />
                 {venue}
               </span>
             )}
             {playerCount !== undefined && (
               <span className="flex items-center gap-1">
-                <Users size={14} className="text-blue-400" />
+                <Users size={14} className="text-brand" />
                 {playerCount} thí sinh
               </span>
             )}
           </div>
 
           {description && (
-            <p className="text-gray-400 text-sm mt-2 line-clamp-2">
+            <p className="text-muted-foreground text-sm mt-2 line-clamp-2">
               {description}
             </p>
           )}
         </div>
 
         {/* Arrow */}
-        <div className="flex items-center gap-2 text-blue-400 shrink-0">
+        <div className="flex items-center gap-2 text-brand shrink-0">
           <span className="text-sm hidden sm:inline">Xem chi tiết</span>
           <ArrowRight size={16} />
         </div>

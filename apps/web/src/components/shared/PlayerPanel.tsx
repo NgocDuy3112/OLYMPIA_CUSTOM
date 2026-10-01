@@ -21,7 +21,7 @@ export function PlayerPanel(
   const [volume, setVolume] = useState(1);
   const [cameraRequested, setCameraRequested] = useState(true);
   return (
-    <div className="overflow-hidden rounded-lg bg-blue-950 shadow-lg">
+    <div className="overflow-hidden rounded-lg bg-background shadow-lg">
       <div className="relative" onClick={(event) => event.stopPropagation()}>
         <CameraVideo
           stream={stream}
@@ -36,7 +36,7 @@ export function PlayerPanel(
             animate={{ scale: 1, opacity: 1 }}
             className={`
               flex items-center justify-center w-6 h-6 rounded-full
-              ${stream ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}
+              ${stream ? "bg-success/20 text-success" : "bg-destructive/20 text-destructive"}
             `}
             title={stream ? "Camera đang bật" : "Camera đã tắt"}
           >
@@ -50,7 +50,7 @@ export function PlayerPanel(
           size="icon-sm"
           variant="ghost"
           onClick={() => setMuted((value) => !value)}
-          className="absolute right-2 top-2 rounded bg-black/60 text-white hover:bg-black/80"
+          className="absolute right-2 top-2 rounded bg-background/60 text-foreground hover:bg-background/80"
           title={muted ? "Bật tiếng" : "Tắt tiếng"}
         >
           {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
@@ -67,7 +67,7 @@ export function PlayerPanel(
               setCameraRequested(next);
               props.onCameraControl?.(props.player.playerCode, next);
             }}
-            className={`absolute bottom-2 right-2 text-white ${cameraRequested ? "bg-green-600/80 hover:bg-green-600" : "bg-red-600/80 hover:bg-red-600"}`}
+            className={`absolute bottom-2 right-2 text-foreground ${cameraRequested ? "bg-success/80 hover:bg-success" : "bg-destructive/80 hover:bg-destructive"}`}
             title={cameraRequested ? "Yêu cầu tắt camera" : "Yêu cầu bật camera"}
           >
             {cameraRequested ? <Camera size={16} /> : <CameraOff size={16} />}
@@ -75,10 +75,10 @@ export function PlayerPanel(
         )}
       </div>
       <div
-        className="flex items-center gap-2 bg-blue-950 px-2 py-1"
+        className="flex items-center gap-2 bg-background px-2 py-1"
         onClick={(event) => event.stopPropagation()}
       >
-        <VolumeX size={13} className="text-white/60" />
+        <VolumeX size={13} className="text-foreground/60" />
         <Slider
           aria-label={`Âm lượng ${props.player.playerName}`}
           min={0}
@@ -92,7 +92,7 @@ export function PlayerPanel(
           }}
           className="w-full"
         />
-        <Volume2 size={13} className="text-white/60" />
+        <Volume2 size={13} className="text-foreground/60" />
       </div>
       <CPlayerBar {...props} />
     </div>

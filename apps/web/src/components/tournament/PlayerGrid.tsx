@@ -24,7 +24,7 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({
 }) => {
   if (players.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400">
+      <div className="text-center py-12 text-muted-foreground">
         <Users size={40} className="mx-auto mb-3 opacity-50" />
         <p>Chưa có thí sinh nào</p>
       </div>
@@ -36,10 +36,10 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({
       {players.map((player, index) => (
         <div
           key={player.id}
-          className="flex items-center gap-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+          className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg hover:bg-accent transition-colors"
         >
           {/* Avatar */}
-          <div className="w-10 h-10 rounded-full bg-blue-600/30 flex items-center justify-center text-blue-300 font-bold shrink-0">
+          <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center text-brand font-bold shrink-0">
             {index + 1}
           </div>
 
@@ -48,7 +48,7 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({
             <div className="font-medium text-white truncate">
               {player.userName}
             </div>
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {showGroup && player.groupNumber && (
                 <span>Nhóm {player.groupNumber}</span>
               )}

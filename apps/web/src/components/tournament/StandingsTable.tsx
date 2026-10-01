@@ -28,7 +28,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
 }) => {
   if (standings.length === 0) {
     return (
-      <div className="text-center py-12 text-gray-400">
+      <div className="text-center py-12 text-muted-foreground">
         <Trophy size={40} className="mx-auto mb-3 opacity-50" />
         <p>Chưa có kết quả</p>
       </div>
@@ -38,31 +38,31 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
-        return <Medal size={18} className="text-yellow-400" />;
+        return <Medal size={18} className="text-warning" />;
       case 2:
-        return <Medal size={18} className="text-gray-300" />;
+        return <Medal size={18} className="text-foreground" />;
       case 3:
         return <Medal size={18} className="text-orange-400" />;
       default:
-        return <span className="text-gray-400 w-[18px] text-center">{rank}</span>;
+        return <span className="text-muted-foreground w-[18px] text-center">{rank}</span>;
     }
   };
 
   return (
     <Table className="w-full text-sm">
       <TableHeader>
-        <TableRow className="border-b border-white/10 hover:bg-transparent">
-          <TableHead className="w-12 py-3 px-3 text-gray-400 font-medium">
+        <TableRow className="border-b border-border hover:bg-transparent">
+          <TableHead className="w-12 py-3 px-3 text-muted-foreground font-medium">
             #
           </TableHead>
-          <TableHead className="py-3 px-3 text-gray-400 font-medium">
+          <TableHead className="py-3 px-3 text-muted-foreground font-medium">
             Thí sinh
           </TableHead>
-          <TableHead className="py-3 px-3 text-right text-gray-400 font-medium">
+          <TableHead className="py-3 px-3 text-right text-muted-foreground font-medium">
             Điểm
           </TableHead>
           {showMatchesPlayed && (
-            <TableHead className="py-3 px-3 text-right text-gray-400 font-medium">
+            <TableHead className="py-3 px-3 text-right text-muted-foreground font-medium">
               Trận
             </TableHead>
           )}
@@ -72,7 +72,7 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
         {standings.map((standing) => (
           <TableRow
             key={standing.userId}
-            className="border-b border-white/5 hover:bg-white/5"
+            className="border-b border-border/50 hover:bg-accent/50"
           >
             <TableCell className="py-3 px-3">
               <div className="flex items-center">{getRankIcon(standing.rank)}</div>
@@ -83,12 +83,12 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
               </span>
             </TableCell>
             <TableCell className="py-3 px-3 text-right">
-              <span className="font-bold text-blue-400">
+              <span className="font-bold text-brand">
                 {standing.score.toLocaleString()}
               </span>
             </TableCell>
             {showMatchesPlayed && (
-              <TableCell className="py-3 px-3 text-right text-gray-400">
+              <TableCell className="py-3 px-3 text-right text-muted-foreground">
                 {standing.matchesPlayed}
               </TableCell>
             )}

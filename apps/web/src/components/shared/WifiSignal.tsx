@@ -20,7 +20,7 @@ const WifiSignal: React.FC<WifiSignalProps> = ({
   const litBars = connected ? latencyToBars(latencyMs) : 0;
   const colorClass = connected
     ? latencyToColorClass(latencyMs)
-    : "text-gray-600";
+    : "text-muted-foreground/70";
 
   const bars = [
     { x: 1, h: 4, y: 11 },

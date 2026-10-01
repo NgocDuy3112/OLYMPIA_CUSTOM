@@ -29,11 +29,11 @@ export function CameraVideo({
           className="h-full w-full object-cover"
         />
       ) : (
-        <div className="flex h-full items-center justify-center text-xs text-white/50">
+        <div className="flex h-full items-center justify-center text-xs text-foreground/50">
           Camera chưa kết nối
         </div>
       )}
-      <span className="absolute bottom-1 left-1 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
+      <span className="absolute bottom-1 left-1 rounded bg-background/60 px-2 py-0.5 text-xs text-foreground">
         {label}
       </span>
     </div>

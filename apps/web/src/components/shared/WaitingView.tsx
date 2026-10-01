@@ -51,7 +51,7 @@ export function WaitingView({
           OLYMPIA CUSTOM 3
         </h1>
         {loaded && matchName ? (
-          <p className="mt-2 text-2xl font-semibold text-blue-300 uppercase">
+          <p className="mt-2 text-2xl font-semibold text-brand uppercase">
             {matchName}
           </p>
         ) : null}

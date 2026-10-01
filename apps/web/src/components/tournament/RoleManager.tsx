@@ -21,11 +21,11 @@ interface RoleManagerProps {
 }
 
 const ROLES = [
-  { value: "player", label: "Thí sinh", color: "bg-green-500" },
+  { value: "player", label: "Thí sinh", color: "bg-success" },
   { value: "mc", label: "MC", color: "bg-pink-500" },
-  { value: "controller", label: "Điều hành", color: "bg-purple-500" },
-  { value: "qauthor", label: "Soạn câu hỏi", color: "bg-amber-500" },
-  { value: "spectator", label: "Khán giả", color: "bg-gray-500" },
+  { value: "controller", label: "Điều hành", color: "bg-purple" },
+  { value: "qauthor", label: "Soạn câu hỏi", color: "bg-warning" },
+  { value: "spectator", label: "Khán giả", color: "bg-muted-foreground" },
 ];
 
 export const RoleManager: React.FC<RoleManagerProps> = ({
@@ -75,14 +75,14 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
-        <UserCog size={18} className="text-blue-400" />
+        <UserCog size={18} className="text-brand" />
         <h3 className="text-sm font-semibold text-white uppercase tracking-wider">
           Quản lý quyền
         </h3>
       </div>
 
       {error && (
-        <div className="p-2 bg-red-500/20 border border-red-500 rounded text-red-400 text-sm">
+        <div className="p-2 bg-destructive/20 border border-destructive rounded text-destructive text-sm">
           {error}
         </div>
       )}
@@ -91,23 +91,23 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
         {players.map((player) => (
           <div
             key={player.userId}
-            className="flex items-center justify-between p-3 bg-white/5 rounded-lg"
+            className="flex items-center justify-between p-3 bg-accent/50 rounded-lg"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-blue-600/30 flex items-center justify-center text-blue-300 text-sm font-bold shrink-0">
+              <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center text-brand text-sm font-bold shrink-0">
                 {player.userName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-medium text-white truncate">
                   {player.userName}
                 </div>
-                <div className="text-xs text-gray-400">{player.userCode}</div>
+                <div className="text-xs text-muted-foreground">{player.userCode}</div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               {updatingUserId === player.userId ? (
-                <Loader2 size={16} className="animate-spin text-gray-400" />
+                <Loader2 size={16} className="animate-spin text-muted-foreground" />
               ) : (
                 <NativeSelect
                   size="sm"

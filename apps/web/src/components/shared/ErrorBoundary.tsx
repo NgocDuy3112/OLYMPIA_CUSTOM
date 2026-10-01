@@ -33,14 +33,14 @@ export class ErrorBoundary extends React.Component<
     if (this.state.error) {
       return (
         <div className="flex justify-center items-start min-h-screen p-6 text-white">
-          <div className="w-full max-w-2xl rounded-xl bg-red-950/60 border border-red-500/40 p-5 flex flex-col gap-3">
-            <p className="font-bold text-red-300">
+          <div className="w-full max-w-2xl rounded-xl bg-destructive/10 border border-destructive/40 p-5 flex flex-col gap-3">
+            <p className="font-bold text-destructive">
               Trang gặp lỗi — gửi đoạn này cho dev
             </p>
-            <p className="text-sm font-mono break-all text-red-200">
+            <p className="text-sm font-mono break-all text-destructive/80">
               {String(this.state.error.message)}
             </p>
-            <pre className="text-[11px] font-mono text-gray-400 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+            <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
               {this.state.error.stack}
             </pre>
             <div>

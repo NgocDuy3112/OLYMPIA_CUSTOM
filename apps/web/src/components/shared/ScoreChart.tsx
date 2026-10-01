@@ -216,7 +216,7 @@ export default function ScoreChart({
     ((maxScore - score) * (height - padding.top - padding.bottom)) / scoreRange;
 
   return (
-    <section className="w-full max-w-3xl rounded-xl border-2 border-blue-600 bg-blue-950/70 p-3 shadow-xl">
+    <section className="w-full max-w-3xl rounded-xl border-2 border-primary bg-background/70 p-3 shadow-xl">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3"></div>
       <div className="overflow-x-auto">
         <svg
@@ -484,8 +484,8 @@ export default function ScoreChart({
                     height="104"
                     pointerEvents="none"
                   >
-                    <div className="rounded-lg border border-blue-300/60 bg-[#12102e]/95 px-3 py-2 text-left text-xs text-blue-50 shadow-xl">
-                      <div className="mb-1 font-bold text-blue-100">
+                    <div className="rounded-lg border border-primary/60 bg-background/95 px-3 py-2 text-left text-xs text-foreground shadow-xl">
+                      <div className="mb-1 font-bold text-foreground">
                         {tooltipLabelFor(titleCode, titlePoints)}
                       </div>
                       {rows.map((row) => (
