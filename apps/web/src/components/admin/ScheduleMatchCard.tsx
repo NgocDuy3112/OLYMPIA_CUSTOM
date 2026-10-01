@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { CalendarDays, Flag, MapPin, Pencil } from "lucide-react";
 import { setMatchCode as persistMatchCode } from "@/utils/storage";
 import { formatScheduleTime } from "./scheduleUtils";
+import { Button } from "@/components/ui/button";
 import type { MatchData } from "./gameTypes";
 
 export interface SlotPlayer {
@@ -121,29 +122,33 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
       </div>
 
       <div className="flex gap-1.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
-        <button
+        <Button
+          variant="secondary"
           onClick={() => onSelect(match.match_code)}
-          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-xs transition-colors"
+          className="flex-1 justify-center gap-1 bg-white/5 border border-white/10 hover:bg-white/10 text-xs"
           title="Chọn để sửa / xem câu hỏi"
         >
           <Pencil size={12} /> Sửa
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="default"
           onClick={handleEnter}
           disabled={done}
-          className="flex-1 px-2 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-xs font-medium transition-colors"
+          className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-xs font-medium"
           title="Mở phòng điều khiển"
         >
           Vào trận
-        </button>
+        </Button>
         {!done && (
-          <button
+          <Button
+            size="icon-sm"
+            variant="ghost"
             onClick={() => onFinish(match)}
-            className="px-2 py-1.5 rounded-lg bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-green-600/40 text-xs transition-colors"
+            className="bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-green-600/40"
             title="Hoàn thành (PUT matchStatus=finished)"
           >
             <Flag size={12} />
-          </button>
+          </Button>
         )}
       </div>
     </div>

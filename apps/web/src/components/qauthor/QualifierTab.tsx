@@ -7,6 +7,10 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditQualifierPanel, type QualifierEditValue } from "./EditQualifierPanel";
 import { QualifierOptionsInput } from "./QualifierOptionsInput";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 
 const logger = createLogger("QualifierTab");
 
@@ -322,26 +326,28 @@ export const QualifierTab = () => {
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
-          <input
+          <Input
             value={tournamentCode}
             onChange={(e) => setTournamentCode(e.target.value)}
             placeholder="Mã giải đấu (VD: OC3_T_...)"
             className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
           />
-          <button
+          <Button
+            variant="default"
             onClick={() => { void fetchQuestions(); void fetchStandings(); }}
             disabled={loading || !tournamentCode.trim()}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium transition-colors"
+            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium"
           >
             <Search size={14} /> Tải
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => setShowForm(true)}
             disabled={!tournamentCode.trim()}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium transition-colors"
+            className="gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium"
           >
             <Plus size={14} /> Soạn câu
-          </button>
+          </Button>
         </div>
         {tournamentCode.trim() && (
           <div className="flex items-center gap-2">
@@ -365,25 +371,28 @@ export const QualifierTab = () => {
         wide
         footer={
           <div className="flex gap-2 justify-end">
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setForm({ ...emptyForm, position: String(freePositions[0] ?? 1), questionCode: `VL_${String(freePositions[0] ?? 1).padStart(2, "0")}` })}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+              className="bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
             >
               Làm lại
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+              className="bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
             >
               Huỷ
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="default"
               onClick={() => void createQuestion()}
               disabled={saving || !tournamentCode.trim()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
             >
               <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu vòng loại"}
-            </button>
+            </Button>
           </div>
         }
       >
@@ -401,10 +410,10 @@ export const QualifierTab = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-gray-500">Vị trí</span>
-              <select
+              <NativeSelect
                 value={form.position}
                 onChange={(e) => handlePositionChange(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+                className="w-full font-mono"
               >
                 {[...Array(16)].map((_, i) => {
                   const p = i + 1;
@@ -415,11 +424,11 @@ export const QualifierTab = () => {
                     </option>
                   );
                 })}
-              </select>
+              </NativeSelect>
             </label>
             <label className="flex flex-col gap-1 col-span-1 sm:col-span-3">
               <span className="text-[11px] text-gray-500">Mã câu</span>
-              <input
+              <Input
                 value={form.questionCode}
                 onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value.toUpperCase() }))}
                 placeholder="VL_01"
@@ -427,7 +436,7 @@ export const QualifierTab = () => {
               />
             </label>
           </div>
-          <textarea
+          <Textarea
             rows={3}
             value={form.content}
             onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))}
@@ -451,13 +460,13 @@ export const QualifierTab = () => {
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-gray-400">3 · Bổ sung (tuỳ chọn)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <input
+            <Input
               value={form.explanation}
               onChange={(e) => setForm((p) => ({ ...p, explanation: e.target.value }))}
               placeholder="Giải thích"
               className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
             />
-            <input
+            <Input
               value={form.mediaUrl}
               onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
               placeholder="Media URL"
@@ -524,13 +533,15 @@ export const QualifierTab = () => {
                     onDelete={q.status === "open" ? () => setDeleting(q) : undefined}
                   >
                     {q.status === "open" && (
-                      <button
+                      <Button
+                        size="xs"
+                        variant="secondary"
                         onClick={() => setPendingClose(q)}
                         disabled={closing === q.questionCode}
-                        className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-xs text-white whitespace-nowrap"
+                        className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-xs text-white whitespace-nowrap"
                       >
                         {closing === q.questionCode ? "…" : "Chốt + chấm"}
-                      </button>
+                      </Button>
                     )}
                   </RowActions>
                 </div>
@@ -561,13 +572,14 @@ export const QualifierTab = () => {
           <h3 className="flex items-center gap-2 text-sm font-semibold text-green-300 uppercase tracking-wide">
             <Trophy size={16} /> Top 16
           </h3>
-          <button
+          <Button
+            variant="secondary"
             onClick={() => void fetchStandings()}
             disabled={!tournamentCode.trim()}
-            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+            className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
           >
             Làm mới
-          </button>
+          </Button>
         </div>
         {standings.length === 0 ? (
           <p className="text-gray-400 text-sm">Chưa có bảng xếp hạng (chỉ tính câu đã chốt).</p>

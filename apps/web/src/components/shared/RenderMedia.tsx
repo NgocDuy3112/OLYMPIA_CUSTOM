@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useS3Media } from "@/hooks/useS3Media";
+import { Button } from "@/components/ui/button";
 
 interface RenderMediaProps {
   mediaUrl: string | undefined;
@@ -106,17 +107,18 @@ const VideoElement: React.FC<{
         Trình duyệt của bạn không hỗ trợ video.
       </video>
       {autoplayBlocked && (
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={handleOverlayClick}
-          className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-white px-4 py-3 rounded-lg hover:bg-black/70 transition-colors"
+          className="absolute inset-0 h-full w-full flex-col gap-2 rounded-lg bg-black/60 px-4 py-3 text-white hover:bg-black/70"
           aria-label="Nhấp để bật âm thanh và phát video"
         >
           <span className="text-2xl">🔊</span>
           <span className="text-sm sm:text-base font-bold text-center">
             Nhấp để bật âm thanh
           </span>
-        </button>
+        </Button>
       )}
     </div>
   );

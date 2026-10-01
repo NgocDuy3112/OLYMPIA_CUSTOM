@@ -1,5 +1,8 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 /** Câu hỏi tối thiểu để sửa — MatchTab. */
 export interface EditableQuestion {
@@ -74,18 +77,20 @@ export function EditQuestionPanel({
       title="Sửa câu hỏi"
       footer={
         <div className="flex gap-2 justify-end">
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
+            className="bg-blue-800 hover:bg-blue-700 text-sm"
           >
             Huỷ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => void onSave(value)}
-            className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm"
+            className="bg-white/10 hover:bg-white/20 text-white font-semibold text-sm"
           >
             Lưu
-          </button>
+          </Button>
         </div>
       }
     >
@@ -93,34 +98,34 @@ export function EditQuestionPanel({
         {item?.question_code}
       </p>
       <label className="text-xs text-blue-300">Nội dung</label>
-      <textarea
+      <Textarea
         rows={3}
         value={value.content}
         onChange={set("content")}
         className={`${inputClass} resize-none`}
       />
       <label className="text-xs text-blue-300">Đáp án</label>
-      <input value={value.answer} onChange={set("answer")} className={inputClass} />
+      <Input value={value.answer} onChange={set("answer")} className={inputClass} />
       <label className="text-xs text-blue-300">Giải thích</label>
-      <input
+      <Input
         value={value.explanation}
         onChange={set("explanation")}
         className={inputClass}
       />
       <label className="text-xs text-blue-300">Gợi ý GIAI_MA</label>
-      <input
+      <Input
         value={value.hintText}
         onChange={set("hintText")}
         className={inputClass}
       />
       <label className="text-xs text-blue-300">Media URL</label>
-      <input
+      <Input
         value={value.mediaUrl}
         onChange={set("mediaUrl")}
         className={`${inputClass} font-mono`}
       />
       <label className="text-xs text-blue-300">Options (JSON hoặc A|B|C)</label>
-      <input
+      <Input
         value={value.options}
         onChange={set("options")}
         className={`${inputClass} font-mono`}

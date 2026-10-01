@@ -1,4 +1,5 @@
 import React from "react";
+import { Button } from "@/components/ui/button";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -43,12 +44,9 @@ export class ErrorBoundary extends React.Component<
               {this.state.error.stack}
             </pre>
             <div>
-              <button
-                onClick={this.handleReset}
-                className="px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-sm font-semibold"
-              >
+              <Button variant="destructive" onClick={this.handleReset}>
                 Tải lại trang
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { ShieldCheck } from "lucide-react";
 import { RowActions } from "@/components/shared/RowActions";
+import { Button } from "@/components/ui/button";
 
 interface UserRowActionsProps {
   onEdit: () => void;
@@ -15,13 +16,15 @@ export function UserRowActions({
 }: UserRowActionsProps) {
   return (
     <RowActions onEdit={onEdit} onDelete={onDelete}>
-      <button
+      <Button
+        size="icon-sm"
+        variant="ghost"
         onClick={onChangeRole}
-        className="p-1.5 rounded bg-amber-600/70 hover:bg-amber-500 transition-colors"
+        className="bg-amber-600/70 text-white hover:bg-amber-500 hover:text-white"
         title="Đổi vai trò / cấp scope"
       >
         <ShieldCheck size={13} />
-      </button>
+      </Button>
     </RowActions>
   );
 }

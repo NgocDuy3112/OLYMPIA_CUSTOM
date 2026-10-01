@@ -4,13 +4,25 @@ import { RowActions } from "@/components/shared/RowActions";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import { EditBankSidebar, genBankCode, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
+import { EditBankSidebar, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
 import {
   BANK_PAGE_SIZE,
+  genBankCode,
   toBankData,
   type BankData,
 } from "./bankTypes";
 import { uploadQuestionMedia } from "./uploadMedia";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const logger = createLogger("BankTab");
 
@@ -261,93 +273,96 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
       <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col gap-4">
         <div className="flex gap-2 flex-wrap">
           {group === "kd" && (
-            <button
+            <Button
+              variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "kd", preset: { roundHint: "KD_C" }, row: null })}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
             >
               <Plus size={16} /> Tạo câu KĐ
-            </button>
+            </Button>
           )}
           {group === "bp" && (
-            <button
+            <Button
+              variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "bp", preset: { roundHint: "BP" }, row: null })}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
             >
               <Plus size={16} /> Tạo câu BP
-            </button>
+            </Button>
           )}
           {group === "vd" && (
-            <button
+            <Button
+              variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "vd", preset: { roundHint: "VD", domain: vdDomain, difficulty: vdLevel }, row: null })}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
             >
               <Plus size={16} /> Tạo câu VĐ
-            </button>
+            </Button>
           )}
           {group === "gm" && (
-            <button
+            <Button
+              variant="default"
               onClick={() => setSidebar({ mode: "create", kind: "gm-key", row: null })}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-500 font-semibold text-sm"
             >
               <Plus size={16} /> Tạo set GM
-            </button>
+            </Button>
           )}
-          <input
+          <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Tìm theo mã / nội dung / đáp án…"
             className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           />
-          <select
+          <NativeSelect
             value={used}
             onChange={(e) => setUsed(e.target.value as "all" | "only" | "unused")}
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           >
             <option value="all">Tất cả</option>
             <option value="unused">Chưa dùng</option>
             <option value="only">Đã dùng</option>
-          </select>
-          <select
+          </NativeSelect>
+          <NativeSelect
             value={reviewStatus}
             onChange={(e) => setReviewStatus(e.target.value as "" | "pending" | "approved" | "rejected")}
-            className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           >
             <option value="">Tất cả</option>
             <option value="pending">Chờ duyệt</option>
             <option value="approved">Đã duyệt</option>
             <option value="rejected">Không duyệt</option>
-          </select>
+          </NativeSelect>
           {group === "vd" && (
             <>
-              <select
+              <NativeSelect
                 value={vdDomain}
                 onChange={(e) => setVdDomain(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+                className="font-mono"
               >
                 <option value="">Mọi lĩnh vực</option>
                 {["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"].map((d) => (
                   <option key={d} value={d}>{d}</option>
                 ))}
-              </select>
-              <select
+              </NativeSelect>
+              <NativeSelect
                 value={vdLevel}
                 onChange={(e) => setVdLevel(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
+                className="font-mono"
               >
                 <option value="">Mọi mức</option>
                 {[20, 30, 40, 50].map((l) => (
                   <option key={l} value={String(l)}>{l}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </>
           )}
-          <button
+          <Button
+            variant="default"
             onClick={() => void fetchBank(1)}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
+            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
           >
             <Search size={14} /> Tìm
-          </button>
+          </Button>
         </div>
         {group === "gm" && !loading && rows.length > 0 && (
           <div className="flex flex-col gap-2">
@@ -368,12 +383,14 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                     <span className="font-mono text-sm text-amber-300">{setCode}</span>
                     {key && <span className="text-sm text-white">KEY: {key.answer}</span>}
                     <span className="text-xs text-gray-500">{hints.length}/8 hint{missing.length > 0 && ` · thiếu ${missing.join(",")}`}</span>
-                    <button
+                    <Button
+                      size="xs"
+                      variant="secondary"
                       onClick={() => setSidebar({ mode: "create", kind: "gm-hint", preset: { roundHint: "GM", setCode: setCode === "(chưa set)" ? "" : setCode }, row: null })}
-                      className="ml-auto px-2 py-1 rounded bg-blue-700 hover:bg-blue-600 text-xs"
+                      className="ml-auto bg-blue-700 hover:bg-blue-600"
                     >
                       + Thêm hint
-                    </button>
+                    </Button>
                   </div>
                 </div>
               );
@@ -386,21 +403,21 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
           <p className="text-gray-400 text-sm">Chưa có dữ liệu bank. Bấm Tìm để tải.</p>
         ) : (
           <>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-green-300 border-b border-white/10">
-                  <th className="py-2 px-2">Mã</th>
-                  <th className="py-2 px-2">Nội dung</th>
-                  <th className="py-2 px-2">Đáp án</th>
-                  <th className="py-2 px-2">Duyệt</th>
-                  <th className="py-2 px-2">Media</th>
-                  <th className="py-2 px-2"></th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-sm">
+              <TableHeader>
+                <TableRow className="border-b border-white/10 hover:bg-transparent">
+                  <TableHead className="py-2 px-2 text-green-300">Mã</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Nội dung</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Đáp án</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Duyệt</TableHead>
+                  <TableHead className="py-2 px-2 text-green-300">Media</TableHead>
+                  <TableHead className="py-2 px-2"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rows.map((q) => (
-                  <tr key={q.bank_id} className="border-b border-white/5 align-top">
-                    <td className="py-2 px-2 font-mono text-xs whitespace-nowrap">
+                  <TableRow key={q.bank_id} className="border-b border-white/5 align-top hover:bg-transparent">
+                    <TableCell className="py-2 px-2 font-mono text-xs whitespace-nowrap">
                       {q.bank_code}
                       {q.round_hint && <span className="ml-1 text-gray-500">· {q.round_hint}</span>}
                       {group === "vd" && q.domain && (
@@ -409,10 +426,10 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                       {group === "gm" && q.hint_index && (
                         <span className="ml-1 text-amber-300">· {q.hint_index}</span>
                       )}
-                    </td>
-                    <td className="py-2 px-2 max-w-xs truncate">{q.content}</td>
-                    <td className="py-2 px-2 font-semibold">{q.answer}</td>
-                    <td className="py-2 px-2 whitespace-nowrap">
+                    </TableCell>
+                    <TableCell className="py-2 px-2 max-w-xs truncate">{q.content}</TableCell>
+                    <TableCell className="py-2 px-2 font-semibold">{q.answer}</TableCell>
+                    <TableCell className="py-2 px-2 whitespace-nowrap">
                       {q.status === "approved" ? (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-green-600/20 text-green-300">Đã duyệt</span>
                       ) : q.status === "rejected" ? (
@@ -420,15 +437,15 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-600/20 text-yellow-300">Chờ duyệt</span>
                       )}
-                    </td>
-                    <td className="py-2 px-2 font-mono text-xs max-w-48 truncate">
+                    </TableCell>
+                    <TableCell className="py-2 px-2 font-mono text-xs max-w-48 truncate">
                       {q.media_url ? (
                         <span className="text-green-300" title={q.media_url}>Có media</span>
                       ) : (
                         <span className="text-gray-500">Chưa có</span>
                       )}
-                    </td>
-                    <td className="py-2 px-2 text-right">
+                    </TableCell>
+                    <TableCell className="py-2 px-2 text-right">
                       <RowActions
                         onEdit={() => setSidebar({
                           mode: "edit",
@@ -440,28 +457,30 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
                         })}
                         onDelete={() => setDeleting(q)}
                       />
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
             <div className="flex items-center justify-between pt-2">
               <p className="text-xs text-gray-500">Trang {page}/{pages} · {total} câu</p>
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => void fetchBank(page - 1)}
                   disabled={loading || page <= 1}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
                 >
                   ← Trước
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => void fetchBank(page + 1)}
                   disabled={loading || page >= pages}
-                  className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
+                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-xs text-white"
                 >
                   Sau →
-                </button>
+                </Button>
               </div>
             </div>
           </>

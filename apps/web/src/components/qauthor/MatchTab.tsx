@@ -9,6 +9,8 @@ import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { EditQuestionPanel, type QuestionEditValue } from "./EditQuestionPanel";
 import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreatePanel";
 import { BANK_PAGE_SIZE, toBankData, type BankData } from "./bankTypes";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const logger = createLogger("MatchTab");
 
@@ -370,35 +372,39 @@ export const MatchTab = () => {
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
         <div className="flex gap-2">
-          <input
+          <Input
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value)}
             placeholder="Mã trận đấu"
             className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-sm"
           />
-          <button
+          <Button
+            variant="default"
             onClick={() => void fetchQuestions()}
             disabled={loading || !matchCode.trim()}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium transition-colors"
+            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white font-medium"
           >
             <Search size={14} /> Tải
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => setShowCreate(true)}
             disabled={!matchCode.trim()}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium transition-colors"
+            className="gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-sm text-white font-medium"
             title="Soạn câu tay trong sidebar phải"
           >
             <Plus size={14} /> Soạn câu
-          </button>
-          <button
+          </Button>
+          <Button
+            size="icon"
+            variant="secondary"
             onClick={() => void fetchQuestions()}
             disabled={loading}
-            className="p-2 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 transition-colors"
+            className="bg-white/10 hover:bg-white/15 disabled:opacity-50"
             title="Làm mới"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          </button>
+          </Button>
         </div>
         {matchCode.trim() && (
           <div className="flex gap-1.5 flex-wrap">
@@ -429,15 +435,16 @@ export const MatchTab = () => {
             const prog = roundProgress(t.id);
             const [done, total] = prog.split("/");
             return (
-              <button
+              <Button
                 key={t.id}
+                variant="ghost"
                 onClick={() => { setPickRound(t.id); setSelSlot(null); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium ${
                   pickRound === t.id ? "bg-green-600/20 text-green-300" : "text-gray-400 hover:text-white bg-white/5"
                 }`}
               >
                 {t.label} <span className={`font-mono ${done === total && total !== "0" ? "text-green-300" : "opacity-70"}`}>{prog}</span>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -461,11 +468,12 @@ export const MatchTab = () => {
               ? `L${s[3]}·${s.slice(5)}`
               : s.replace(/^(KDC_|GM_|BP_|VD_)/, "");
             return (
-              <button
+              <Button
                 key={s}
+                variant="ghost"
                 onClick={() => setSelSlot(active ? null : s)}
                 title={filled ? filled.question_code : s}
-                className={`px-2 py-1.5 rounded-lg font-mono text-xs border ${
+                className={`font-mono text-xs border ${
                   filled
                     ? "bg-green-600/20 border-green-600 text-green-200"
                     : active
@@ -474,7 +482,7 @@ export const MatchTab = () => {
                 }`}
               >
                 {short}
-              </button>
+              </Button>
             );
           })}
             </div>
@@ -486,19 +494,20 @@ export const MatchTab = () => {
           </p>
         )}
         <div className="flex gap-2">
-          <input
+          <Input
             value={bankQuery}
             onChange={(e) => setBankQuery(e.target.value)}
             placeholder={selSlot ? `Tìm bank cho slot ${selSlot}…` : "Chọn slot trước, rồi tìm bank…"}
             className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm"
           />
-          <button
+          <Button
+            variant="default"
             onClick={() => void fetchBank()}
             disabled={bankLoading}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
+            className="gap-1 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-sm text-white"
           >
             <Search size={14} /> Tìm
-          </button>
+          </Button>
         </div>
         {bankQuestions.map((q) => {
           const added = addedCodes.has(q.bank_code);
@@ -512,22 +521,26 @@ export const MatchTab = () => {
                 {q.domain && <span className="ml-1 font-mono text-xs text-blue-300">· {q.domain}{q.difficulty ? `_${q.difficulty}` : ""}</span>}
               </p>
               {pickRound === "GM" && q.hint_index === "KEY" && (
-                <button
+                <Button
+                  size="xs"
+                  variant="secondary"
                   onClick={() => setPendingGmSet(q)}
                   disabled={adding}
-                  className="px-2 py-1 rounded text-xs text-white bg-blue-700 hover:bg-blue-600 disabled:opacity-50"
+                  className="bg-blue-700 hover:bg-blue-600 text-white disabled:opacity-50"
                 >
                   {adding ? "…" : "Pick cả set"}
-                </button>
+                </Button>
               )}
-              <button
+              <Button
+                size="xs"
+                variant="secondary"
                 onClick={() => void reuseFromBank(q)}
                 disabled={adding || added || !selSlot || pickRound === "GM"}
                 title={pickRound === "GM" ? "GM chỉ pick cả set" : undefined}
-                className="px-2 py-1 rounded text-xs text-white bg-green-700 hover:bg-green-600 disabled:opacity-50"
+                className="bg-green-700 hover:bg-green-600 text-white disabled:opacity-50"
               >
                 {adding ? "Đang thêm…" : added ? "Đã thêm" : pickRound === "GM" ? "Chỉ pick set" : selSlot ? `Vào ${selSlot}` : "Chọn slot"}
-              </button>
+              </Button>
             </div>
           );
         })}

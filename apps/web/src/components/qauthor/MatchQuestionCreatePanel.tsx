@@ -2,6 +2,9 @@ import { useEffect, useState, type ChangeEvent } from "react";
 import { Plus } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export interface MatchQuestionCreateValue {
   questionCode: string;
@@ -63,19 +66,21 @@ export function MatchQuestionCreatePanel({
       wide
       footer={
         <div className="flex gap-2 justify-end">
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+            className="bg-blue-800 hover:bg-blue-700 text-sm"
           >
             Huỷ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => void onCreate(value)}
             disabled={saving || !canSave}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+            className="gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
           >
             <Plus size={16} /> {saving ? "Đang tạo…" : "Tạo câu hỏi"}
-          </button>
+          </Button>
         </div>
       }
     >
@@ -85,7 +90,7 @@ export function MatchQuestionCreatePanel({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <label className="flex flex-col gap-1">
           <span className="text-xs text-blue-300">Mã câu hỏi *</span>
-          <input
+          <Input
             value={value.questionCode}
             onChange={set("questionCode")}
             placeholder="OC3_Q_KD_C_1"
@@ -94,12 +99,12 @@ export function MatchQuestionCreatePanel({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-blue-300">Đáp án *</span>
-          <input value={value.answer} onChange={set("answer")} className={inputClass} />
+          <Input value={value.answer} onChange={set("answer")} className={inputClass} />
         </label>
       </div>
       <label className="flex flex-col gap-1">
         <span className="text-xs text-blue-300">Nội dung *</span>
-        <textarea
+        <Textarea
           rows={3}
           value={value.content}
           onChange={set("content")}
@@ -109,15 +114,15 @@ export function MatchQuestionCreatePanel({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <label className="flex flex-col gap-1">
           <span className="text-xs text-blue-300">Giải thích</span>
-          <input value={value.explanation} onChange={set("explanation")} className={inputClass} />
+          <Input value={value.explanation} onChange={set("explanation")} className={inputClass} />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-blue-300">Gợi ý GIAI_MA</span>
-          <input value={value.hintText} onChange={set("hintText")} className={inputClass} />
+          <Input value={value.hintText} onChange={set("hintText")} className={inputClass} />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-blue-300">Media URL</span>
-          <input
+          <Input
             value={value.mediaUrl}
             onChange={set("mediaUrl")}
             className={`${inputClass} font-mono`}
@@ -125,7 +130,7 @@ export function MatchQuestionCreatePanel({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-xs text-blue-300">Options JSON</span>
-          <input
+          <Input
             value={value.options}
             onChange={set("options")}
             className={`${inputClass} font-mono`}

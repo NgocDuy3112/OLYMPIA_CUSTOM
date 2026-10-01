@@ -1,5 +1,8 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { QualifierOptionsInput } from "./QualifierOptionsInput";
 
 /** Câu vòng loại tối thiểu để sửa — QualifierTab. */
@@ -70,13 +73,15 @@ export function EditQualifierPanel({
       title="Sửa câu vòng loại"
       footer={
         <div className="flex gap-2 justify-end">
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
+            className="bg-blue-800 hover:bg-blue-700 text-sm"
           >
             Huỷ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => {
               const filled = optionList.map((s) => s.trim());
               if (filled.some((s) => !s)) {
@@ -85,10 +90,10 @@ export function EditQualifierPanel({
               }
               void onSave({ ...value, options: JSON.stringify(filled) });
             }}
-            className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 font-semibold text-sm"
+            className="bg-white/10 hover:bg-white/20 text-white font-semibold text-sm"
           >
             Lưu
-          </button>
+          </Button>
         </div>
       }
     >
@@ -96,7 +101,7 @@ export function EditQualifierPanel({
         {item?.questionCode}
       </p>
       <label className="text-xs text-blue-300">Nội dung</label>
-      <textarea
+      <Textarea
         rows={3}
         value={value.content}
         onChange={set("content")}
@@ -112,7 +117,7 @@ export function EditQualifierPanel({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-xs text-blue-300">Vị trí 1-16</label>
-          <input
+          <Input
             value={value.position}
             onChange={set("position")}
             className={`w-full ${inputClass} font-mono`}

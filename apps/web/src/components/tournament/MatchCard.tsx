@@ -1,6 +1,7 @@
 import React from "react";
 import { Clock, ExternalLink } from "lucide-react";
 import { MatchStatusBadge } from "../shared/ui/Badge";
+import { Button } from "@/components/ui/button";
 
 interface MatchCardProps {
   id: string;
@@ -37,20 +38,18 @@ export const MatchCard: React.FC<MatchCardProps> = ({
       </div>
 
       {(canWatch || canReplay) && onWatch && (
-        <button
+        <Button
+          variant="ghost"
           onClick={onWatch}
-          className={`
-            flex items-center gap-1 px-3 py-1.5 text-sm rounded-lg transition-colors ml-4
-            ${
-              canWatch
-                ? "bg-green-600 hover:bg-green-500 text-white"
-                : "bg-blue-600 hover:bg-blue-500 text-white"
-            }
-          `}
+          className={`ml-4 gap-1 px-3 py-1.5 text-sm ${
+            canWatch
+              ? "bg-green-600 hover:bg-green-500 text-white"
+              : "bg-blue-600 hover:bg-blue-500 text-white"
+          }`}
         >
           <ExternalLink size={14} />
           <span>{canWatch ? "Xem" : "Xem lại"}</span>
-        </button>
+        </Button>
       )}
     </div>
   );

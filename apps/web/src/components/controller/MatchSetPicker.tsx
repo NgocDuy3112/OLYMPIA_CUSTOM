@@ -3,6 +3,7 @@ import { Layers, Zap } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
+import { Button } from "@/components/ui/button";
 
 const logger = createLogger("MatchSetPicker");
 
@@ -127,12 +128,14 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
               </p>
             </div>
             {s.status === "ready" && s.activeMatchCode !== matchCode && (
-              <button
+              <Button
+                size="xs"
+                variant="default"
                 onClick={() => setActivating(s)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold whitespace-nowrap"
+                className="gap-1 bg-blue-600 hover:bg-blue-500 text-xs font-semibold whitespace-nowrap"
               >
                 <Zap size={13} /> Kích hoạt
-              </button>
+              </Button>
             )}
           </div>
         ))

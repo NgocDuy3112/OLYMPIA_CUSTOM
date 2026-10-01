@@ -1,4 +1,6 @@
 import { Minus, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -24,12 +26,13 @@ export function QualifierOptionsInput({ options, correct, onChange, onCorrectCha
           const letter = LETTERS[i] ?? String(i + 1);
           const isCorrect = correct === letter;
           return (
-            <button
+            <Button
               key={i}
               type="button"
+              variant="ghost"
               onClick={() => onCorrectChange(letter)}
               title={isCorrect ? "Đáp án đúng — bấm để đổi" : "Bấm để chọn làm đáp án đúng"}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors ${
+              className={`gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${
                 isCorrect
                   ? "bg-green-600/20 border-green-600 text-green-200"
                   : "bg-white/5 border-white/10 hover:bg-white/10"
@@ -42,39 +45,43 @@ export function QualifierOptionsInput({ options, correct, onChange, onCorrectCha
               >
                 {letter}
               </span>
-              <input
+              <Input
                 value={opt}
                 onChange={(e) => set(i, e.target.value)}
                 onClick={(e) => e.stopPropagation()}
                 placeholder={`Phương án ${letter}`}
-                className="flex-1 bg-transparent outline-none text-white text-sm placeholder-gray-500"
+                className="h-auto flex-1 border-0 bg-transparent px-0 text-sm text-white shadow-none placeholder:text-gray-500 focus-visible:border-0 focus-visible:ring-0"
               />
-            </button>
+            </Button>
           );
         })}
       </div>
       <div className="flex gap-2">
         {options.length < 6 && (
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="xs"
             onClick={() => onChange([...options, ""])}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-white/10 hover:bg-white/15 text-xs text-white"
+            className="gap-1 bg-white/10 hover:bg-white/15 text-xs text-white"
           >
             <Plus size={12} /> Thêm (tối đa 6)
-          </button>
+          </Button>
         )}
         {options.length > 4 && (
-          <button
+          <Button
             type="button"
+            variant="secondary"
+            size="xs"
             onClick={() => {
               const next = options.slice(0, -1);
               onChange(next);
               if (!LETTERS.slice(0, next.length).includes(correct)) onCorrectChange("A");
             }}
-            className="flex items-center gap-1 px-2 py-1 rounded bg-white/10 hover:bg-white/15 text-xs text-white"
+            className="gap-1 bg-white/10 hover:bg-white/15 text-xs text-white"
           >
             <Minus size={12} /> Bớt
-          </button>
+          </Button>
         )}
       </div>
     </div>

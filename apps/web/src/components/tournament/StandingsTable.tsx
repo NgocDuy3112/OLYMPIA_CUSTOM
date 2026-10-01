@@ -1,5 +1,13 @@
 import React from "react";
 import { Trophy, Medal } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Standing {
   rank: number;
@@ -41,54 +49,52 @@ export const StandingsTable: React.FC<StandingsTableProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-white/10">
-            <th className="text-left py-3 px-3 text-gray-400 font-medium w-12">
-              #
-            </th>
-            <th className="text-left py-3 px-3 text-gray-400 font-medium">
-              Thí sinh
-            </th>
-            <th className="text-right py-3 px-3 text-gray-400 font-medium">
-              Điểm
-            </th>
+    <Table className="w-full text-sm">
+      <TableHeader>
+        <TableRow className="border-b border-white/10 hover:bg-transparent">
+          <TableHead className="w-12 py-3 px-3 text-gray-400 font-medium">
+            #
+          </TableHead>
+          <TableHead className="py-3 px-3 text-gray-400 font-medium">
+            Thí sinh
+          </TableHead>
+          <TableHead className="py-3 px-3 text-right text-gray-400 font-medium">
+            Điểm
+          </TableHead>
+          {showMatchesPlayed && (
+            <TableHead className="py-3 px-3 text-right text-gray-400 font-medium">
+              Trận
+            </TableHead>
+          )}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {standings.map((standing) => (
+          <TableRow
+            key={standing.userId}
+            className="border-b border-white/5 hover:bg-white/5"
+          >
+            <TableCell className="py-3 px-3">
+              <div className="flex items-center">{getRankIcon(standing.rank)}</div>
+            </TableCell>
+            <TableCell className="py-3 px-3">
+              <span className="font-medium text-white">
+                {standing.userName}
+              </span>
+            </TableCell>
+            <TableCell className="py-3 px-3 text-right">
+              <span className="font-bold text-blue-400">
+                {standing.score.toLocaleString()}
+              </span>
+            </TableCell>
             {showMatchesPlayed && (
-              <th className="text-right py-3 px-3 text-gray-400 font-medium">
-                Trận
-              </th>
+              <TableCell className="py-3 px-3 text-right text-gray-400">
+                {standing.matchesPlayed}
+              </TableCell>
             )}
-          </tr>
-        </thead>
-        <tbody>
-          {standings.map((standing) => (
-            <tr
-              key={standing.userId}
-              className="border-b border-white/5 hover:bg-white/5"
-            >
-              <td className="py-3 px-3">
-                <div className="flex items-center">{getRankIcon(standing.rank)}</div>
-              </td>
-              <td className="py-3 px-3">
-                <span className="font-medium text-white">
-                  {standing.userName}
-                </span>
-              </td>
-              <td className="py-3 px-3 text-right">
-                <span className="font-bold text-blue-400">
-                  {standing.score.toLocaleString()}
-                </span>
-              </td>
-              {showMatchesPlayed && (
-                <td className="py-3 px-3 text-right text-gray-400">
-                  {standing.matchesPlayed}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 };

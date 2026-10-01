@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import type { QuestionData } from "./gameTypes";
 
 export interface MatchQuestionEditValue {
@@ -84,19 +87,21 @@ export function EditMatchQuestionPanel({
       title="Sửa câu hỏi"
       footer={
         <div className="flex gap-2 justify-end">
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm transition-colors"
+            className="bg-blue-800 hover:bg-blue-700 text-sm"
           >
             Huỷ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => void onSave({ content, answer, explanation, mediaUrl }, mediaFile)}
             disabled={saving || !content.trim() || !answer.trim()}
-            className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm transition-colors"
+            className="bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 font-semibold text-sm"
           >
             {saving ? "Đang lưu…" : "Lưu thay đổi"}
-          </button>
+          </Button>
         </div>
       }
     >
@@ -106,7 +111,7 @@ export function EditMatchQuestionPanel({
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-blue-300">Nội dung</label>
-          <textarea
+          <Textarea
             rows={3}
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -115,7 +120,7 @@ export function EditMatchQuestionPanel({
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-blue-300">Đáp án</label>
-          <input
+          <Input
             type="text"
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
@@ -124,7 +129,7 @@ export function EditMatchQuestionPanel({
         </div>
         <div className="flex flex-col gap-1">
           <label className="text-xs text-blue-300">Giải thích</label>
-          <input
+          <Input
             type="text"
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
@@ -135,7 +140,7 @@ export function EditMatchQuestionPanel({
         <div className="flex flex-col gap-1">
           <label className="text-xs text-blue-300">Media URL / S3 key</label>
           <div className="flex flex-col gap-2">
-            <input
+            <Input
               type="text"
               value={mediaUrl}
               onChange={(e) => setMediaUrl(e.target.value)}
@@ -150,13 +155,14 @@ export function EditMatchQuestionPanel({
                 className="hidden"
                 onChange={handlePickFile}
               />
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => mediaInputRef.current?.click()}
-                className="flex-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-white text-sm truncate"
+                className="flex-1 bg-blue-700 hover:bg-blue-600 text-white text-sm truncate"
                 title="Upload file mới"
               >
                 {mediaFile ? mediaFile.name : "Chọn file mới"}
-              </button>
+              </Button>
               {mediaFile && (
                 <span className="text-xs text-green-400 whitespace-nowrap">
                   Sẽ upload khi lưu

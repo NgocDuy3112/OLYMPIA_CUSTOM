@@ -37,6 +37,35 @@ export interface BankApiResponse {
 
 export const BANK_PAGE_SIZE = 20;
 
+/** Stamp VN hiện tại: HHMMSS + DDMMYYYY (Asia/Ho_Chi_Minh). */
+function vnStamp(): { time: string; date: string } {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return {
+    time: `${get("hour")}${get("minute")}${get("second")}`,
+    date: `${get("day")}${get("month")}${get("year")}`,
+  };
+}
+
+/** Mã bank dạng QB_<VÒNG>_<HHMMSS>_<DDMMYYYY> (giờ VN).
+ *  VD: QB_KDC_143022_23092026 */
+export function genBankCode(roundHint = ""): string {
+  const round = roundHint.trim().toUpperCase().replace(/[^A-Z]/g, "") || "QB";
+  const stem = round === "QB" ? "QB" : `QB_${round}`;
+  const { time, date } = vnStamp();
+  const code = `${stem}_${time}_${date}`;
+  return code.length <= 23 ? code : `QB_${time}_${date}`;
+}
+
 /** ISO date → DD/MM/YYYY (Asia/Ho_Chi_Minh). */
 export function formatVnDate(iso: string): string {
   if (!iso) return "";

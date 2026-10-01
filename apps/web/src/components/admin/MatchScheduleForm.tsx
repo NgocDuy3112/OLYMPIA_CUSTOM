@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import type { ScheduleFormValue } from "./scheduleFormState";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const inputClass =
   "px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm w-full";
@@ -51,16 +54,16 @@ export function MatchScheduleForm({
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <input
+        <Input
           placeholder="Tên trận đấu *"
           value={form.matchName}
           onChange={(e) => set({ matchName: e.target.value })}
           className={`${inputClass} sm:col-span-2`}
         />
-        <select
+        <NativeSelect
           value={form.tournamentCode}
           onChange={(e) => set({ tournamentCode: e.target.value })}
-          className={`${inputClass} bg-black/30`}
+          className="w-full"
         >
           <option value="">Không thuộc giải nào</option>
           {tournaments.map((t) => (
@@ -68,8 +71,8 @@ export function MatchScheduleForm({
               {t.tournamentName} ({t.tournamentCode})
             </option>
           ))}
-        </select>
-        <input
+        </NativeSelect>
+        <Input
           placeholder="Nhãn (VD: BK1, CK…)"
           value={form.matchLabel}
           onChange={(e) => set({ matchLabel: e.target.value.toUpperCase() })}
@@ -77,10 +80,10 @@ export function MatchScheduleForm({
           maxLength={20}
         />
         {phases && phases.length > 0 && (
-          <select
+          <NativeSelect
             value={form.phaseId}
             onChange={(e) => set({ phaseId: e.target.value })}
-            className={`${inputClass} bg-black/30 sm:col-span-2`}
+            className="w-full sm:col-span-2"
           >
             <option value="">Không gán vòng nào</option>
             {phases.map((p) => (
@@ -88,11 +91,11 @@ export function MatchScheduleForm({
                 {p.phaseName}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         )}
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-gray-500 uppercase tracking-wide">Giờ thi đấu</span>
-          <input
+          <Input
             type="datetime-local"
             value={form.scheduledAt}
             onChange={(e) => set({ scheduledAt: e.target.value })}
@@ -101,7 +104,7 @@ export function MatchScheduleForm({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-[11px] text-gray-500 uppercase tracking-wide">Địa điểm</span>
-          <input
+          <Input
             placeholder="Hội trường A…"
             value={form.venue}
             onChange={(e) => set({ venue: e.target.value })}
@@ -117,7 +120,7 @@ export function MatchScheduleForm({
             <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] font-mono text-gray-500 pointer-events-none">
               #{i + 1}
             </span>
-            <input
+            <Input
               placeholder="userCode"
               value={code}
               onChange={(e) => setPlayer(i, e.target.value)}
@@ -128,19 +131,21 @@ export function MatchScheduleForm({
       </div>
 
       <div className="flex gap-2 justify-end sticky bottom-0 bg-[#14122b] py-2 border-t border-white/10">
-        <button
+        <Button
+          variant="ghost"
           onClick={onCancel}
           className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
         >
           Huỷ
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="default"
           onClick={() => onSubmit(form)}
           disabled={saving || !form.matchName.trim()}
           className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm transition-colors"
         >
           {saving ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Lên lịch"}
-        </button>
+        </Button>
       </div>
     </div>
   );

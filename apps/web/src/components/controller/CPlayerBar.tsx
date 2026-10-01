@@ -5,6 +5,7 @@ import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import { requestScoreReview } from "@/api/scoreReviews";
 import CScoreEditModal from "@/components/controller/CScoreEditModal";
+import { Button } from "@/components/ui/button";
 
 interface CPlayerBarProps {
   player: PlayerStatus;
@@ -176,8 +177,10 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
         <div className="flex font-[SVN-Gratelos_Display] text-[28px] tablet:text-[32px] xl:text-[50px] font-extrabold ml-2 xl:ml-4 items-center gap-2">
           {player.playerScore}
           {sendMessage && !disabled && (
-            <button
+            <Button
               type="button"
+              size="xs"
+              variant="ghost"
               title={player.playerAfk ? "Bật lại thí sinh" : "Đánh dấu AFK"}
               onClick={(event) => {
                 event.stopPropagation();
@@ -188,31 +191,35 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
                   afk: !player.playerAfk,
                 });
               }}
-              className={`rounded px-2 py-1 text-[10px] font-bold transition-colors ${player.playerAfk ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-amber-600 hover:bg-amber-500 text-white"}`}
+              className={`rounded px-2 py-1 text-[10px] font-bold ${player.playerAfk ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-amber-600 hover:bg-amber-500 text-white"}`}
             >
               {player.playerAfk ? "BẬT LẠI" : "AFK"}
-            </button>
+            </Button>
           )}
           {onEditScore && !disabled && (
-            <button
+            <Button
+              size="icon-sm"
+              variant="ghost"
               onClick={handleEditScoreClick}
-              className="p-1 rounded hover:bg-blue-700 transition-colors text-blue-300 hover:text-white"
+              className="rounded hover:bg-blue-700 text-blue-300 hover:text-white"
               title="Sửa điểm"
               type="button"
             >
               <Pencil size={18} />
-            </button>
+            </Button>
           )}
           {questionCode && matchCode && !disabled && (
-            <button
+            <Button
+              size="icon-sm"
+              variant="ghost"
               onClick={(e) => void handleRequestReview(e)}
               disabled={isRequestingReview}
-              className="p-1 rounded hover:bg-amber-600 transition-colors text-amber-300 hover:text-white disabled:opacity-50"
+              className="rounded hover:bg-amber-600 text-amber-300 hover:text-white disabled:opacity-50"
               title="Gửi duyệt đáp án qua Discord"
               type="button"
             >
               <Send size={18} />
-            </button>
+            </Button>
           )}
         </div>
       </div>

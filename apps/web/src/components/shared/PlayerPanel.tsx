@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import type { ComponentProps } from "react";
 import type { PlayerStatus } from "@/types/player";
 import CPlayerBar from "@/components/controller/CPlayerBar";
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { CameraVideo } from "./CameraVideo";
 import { useWebRTCCameraViewer } from "@/hooks/useWebRTCCamera";
 
@@ -43,29 +45,33 @@ export function PlayerPanel(
         </div>
 
         {/* Mute button */}
-        <button
+        <Button
           type="button"
+          size="icon-sm"
+          variant="ghost"
           onClick={() => setMuted((value) => !value)}
-          className="absolute right-2 top-2 rounded bg-black/60 p-1.5 text-white hover:bg-black/80"
+          className="absolute right-2 top-2 rounded bg-black/60 text-white hover:bg-black/80"
           title={muted ? "Bật tiếng" : "Tắt tiếng"}
         >
           {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-        </button>
+        </Button>
 
         {/* Controller camera control */}
         {props.showCameraControl && (
-          <button
+          <Button
             type="button"
+            size="icon-sm"
+            variant="ghost"
             onClick={() => {
               const next = !cameraRequested;
               setCameraRequested(next);
               props.onCameraControl?.(props.player.playerCode, next);
             }}
-            className={`absolute bottom-2 right-2 rounded p-1.5 text-white ${cameraRequested ? "bg-green-600/80 hover:bg-green-600" : "bg-red-600/80 hover:bg-red-600"}`}
+            className={`absolute bottom-2 right-2 text-white ${cameraRequested ? "bg-green-600/80 hover:bg-green-600" : "bg-red-600/80 hover:bg-red-600"}`}
             title={cameraRequested ? "Yêu cầu tắt camera" : "Yêu cầu bật camera"}
           >
             {cameraRequested ? <Camera size={16} /> : <CameraOff size={16} />}
-          </button>
+          </Button>
         )}
       </div>
       <div
@@ -73,18 +79,18 @@ export function PlayerPanel(
         onClick={(event) => event.stopPropagation()}
       >
         <VolumeX size={13} className="text-white/60" />
-        <input
+        <Slider
           aria-label={`Âm lượng ${props.player.playerName}`}
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
+          min={0}
+          max={1}
+          step={0.05}
           value={muted ? 0 : volume}
-          onChange={(event) => {
-            setVolume(Number(event.target.value));
+          onValueChange={(next) => {
+            const n = Array.isArray(next) ? next[0] : next;
+            setVolume(n);
             setMuted(false);
           }}
-          className="w-full accent-blue-400"
+          className="w-full"
         />
         <Volume2 size={13} className="text-white/60" />
       </div>

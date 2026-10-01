@@ -4,6 +4,7 @@ import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import CScoreEditModal from "@/components/controller/CScoreEditModal";
+import { Button } from "@/components/ui/button";
 
 interface CPlayerCardProps {
   player: PlayerStatus;
@@ -114,14 +115,16 @@ const CPlayerCard: React.FC<CPlayerCardProps> = ({
             {player.playerScore}
           </p>
           {onEditScore && !disabled && (
-            <button
+            <Button
+              size="icon-sm"
+              variant="ghost"
               onClick={handleEditScoreClick}
-              className="p-1 rounded hover:bg-blue-700 transition-colors text-blue-300 hover:text-white"
+              className="rounded hover:bg-blue-700 text-blue-300 hover:text-white"
               title="Sửa điểm"
               type="button"
             >
               <Pencil size={16} />
-            </button>
+            </Button>
           )}
         </div>
 

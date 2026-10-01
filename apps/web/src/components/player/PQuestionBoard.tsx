@@ -1,5 +1,6 @@
 import React from "react";
 import { QuestionContent } from "@/components/shared/QuestionContent";
+import { Button } from "@/components/ui/button";
 import type { Question } from "@/types/question";
 import type { PlayerQuestionBoardControls } from "@/types/questionBoardTypes";
 
@@ -49,9 +50,10 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
         ? boxStates.map((on, idx) => {
             const active = on;
             return (
-              <button
+              <Button
                 key={idx}
                 type="button"
+                variant="ghost"
                 aria-pressed={active}
                 aria-label={`control-${idx + 1}`}
                 onClick={() => questionSelect?.(idx)}
@@ -59,7 +61,7 @@ const PQuestionBoard: React.FC<PQuestionBoardProps> = ({
               >
                 {idx + 1}
                 {answeredIndices.has(idx) ? " ✓" : ""}
-              </button>
+              </Button>
             );
           })
         : Array.from({ length: count }).map((_, idx) => {

@@ -8,6 +8,7 @@ import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import type { RawPlayer } from "@/utils/playerHelpers";
+import { Button } from "@/components/ui/button";
 
 interface SKhoiDongPageProps {
   variant: "chung" | "rieng";
@@ -172,15 +173,16 @@ export function SKhoiDongPage({
             {api.boxStates.map((_, index) => {
               const active = api.activeIndices.includes(index);
               return (
-                <button
+                <Button
                   key={index}
                   type="button"
+                  variant="ghost"
                   aria-pressed={active}
                   onClick={() => api.toggle(index)}
-                  className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}
+                  className={`w-8 h-8 tablet:w-10 tablet:h-10 rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}
                 >
                   {index + 1}
-                </button>
+                </Button>
               );
             })}
           </div>

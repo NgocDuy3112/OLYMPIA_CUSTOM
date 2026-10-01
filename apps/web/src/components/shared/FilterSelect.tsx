@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { NativeSelect } from "@/components/ui/native-select";
 
 interface FilterSelectProps {
   value: string;
@@ -7,7 +8,7 @@ interface FilterSelectProps {
   "aria-label"?: string;
 }
 
-/** Select lọc chuẩn admin — style đồng bộ input (`bg-blue-950 border-blue-700`). */
+/** Select lọc chuẩn admin — giờ là shadcn NativeSelect (Base UI style). */
 export function FilterSelect({
   value,
   onChange,
@@ -15,14 +16,13 @@ export function FilterSelect({
   ...rest
 }: FilterSelectProps) {
   return (
-    <select
+    <NativeSelect
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 rounded-lg bg-blue-950 border border-blue-700 text-white text-sm"
       {...rest}
     >
       {children}
-    </select>
+    </NativeSelect>
   );
 }
 

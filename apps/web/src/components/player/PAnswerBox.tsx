@@ -1,5 +1,6 @@
 import React from "react";
 import { KeyRound } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface PAnswerBoxProps {
   answer: string;
@@ -33,7 +34,7 @@ const PAnswerBox: React.FC<PAnswerBoxProps> = ({
       {showKeyIcon && (
         <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-blue-600 pointer-events-none" />
       )}
-      <input
+      <Input
         type="text"
         value={answer}
         onChange={(e) => setAnswer(e.target.value)}
@@ -45,7 +46,7 @@ const PAnswerBox: React.FC<PAnswerBoxProps> = ({
             : "Bạn không thể nhập đáp án tại thời điểm này")
         }
         disabled={isDisabled}
-        className={`w-full p-3 rounded-lg text-lg text-black text-center shadow-sm transition duration-150 border-blue-500 border-4 bg-white disabled:bg-blue-900 disabled:cursor-not-allowed disabled:text-blue-300 ${showKeyIcon ? "pr-12" : ""}`}
+        className={`p-3 rounded-lg text-lg text-black text-center shadow-sm transition duration-150 border-blue-500 border-4 bg-white disabled:bg-blue-900 disabled:cursor-not-allowed disabled:text-blue-300 ${showKeyIcon ? "pr-12" : ""}`}
       />
       {showKeyIcon && (
         <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 text-blue-600 pointer-events-none" />

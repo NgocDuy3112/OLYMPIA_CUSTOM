@@ -6,6 +6,8 @@ import { MatchScheduleForm } from "./MatchScheduleForm";
 import { ScheduleMatchCard, type SlotPlayer } from "./ScheduleMatchCard";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { emptyScheduleForm, type ScheduleFormValue } from "./scheduleFormState";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 
 interface BracketMatch {
   matchCode: string;
@@ -245,18 +247,20 @@ export function GroupStageManager({
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        <button
+        <Button
+          variant="secondary"
           onClick={() => void fetchAll()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+          className="gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
         >
           <RefreshCw size={14} /> Làm mới
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="default"
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition-colors"
+          className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
         >
           <Plus size={14} /> Thêm trận nhánh
-        </button>
+        </Button>
       </div>
 
       <SidePanel
@@ -282,10 +286,10 @@ export function GroupStageManager({
           <p className="text-sm text-gray-300 font-medium">Giải chưa có vòng phân nhánh</p>
           <p className="text-xs text-gray-500">Áp template để dựng khung 2 vòng × 4 trận × 4 thí sinh.</p>
           <div className="flex gap-2">
-            <select
+            <NativeSelect
               value={templateId}
               onChange={(e) => setTemplateId(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-white text-sm"
+              className="flex-1"
             >
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -293,14 +297,15 @@ export function GroupStageManager({
                 </option>
               ))}
               {templates.length === 0 && <option value="oc3-classic">OC3 Classic</option>}
-            </select>
-            <button
+            </NativeSelect>
+            <Button
+              variant="default"
               onClick={() => void handleApplyTemplate()}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-medium transition-colors"
+              className="gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-medium"
             >
               <LayoutTemplate size={14} /> {saving ? "…" : "Áp template"}
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -338,15 +343,16 @@ export function GroupStageManager({
                         onFinish={(mm) => void handleFinish(m.matchSlug, mm.match_name)}
                       />
                     ) : (
-                      <button
+                      <Button
                         key={`empty-${r}-${i}`}
+                        variant="ghost"
                         onClick={() => void handleFillSlot(phase, r + 1, i + 1)}
                         disabled={filling !== null}
-                        className="min-h-[180px] rounded-xl border border-dashed border-white/15 text-gray-600 hover:text-gray-300 hover:border-white/30 hover:bg-white/[0.02] transition-colors flex flex-col items-center justify-center gap-1.5 text-sm disabled:opacity-50"
+                        className="min-h-[180px] w-full flex-col gap-1.5 rounded-xl border border-dashed border-white/15 text-gray-600 hover:text-gray-300 hover:border-white/30 hover:bg-white/[0.02] text-sm disabled:opacity-50"
                       >
                         <Plus size={18} />
                         {filling === `${phase.id}-${r + 1}-${i + 1}` ? "Đang tạo…" : `Vòng ${r + 1} · Trận ${i + 1}`}
-                      </button>
+                      </Button>
                     ),
                   )}
                 </div>
@@ -367,13 +373,15 @@ export function GroupStageManager({
                       <span className="flex-1 text-white truncate">{m.matchName}</span>
                       <span className="text-[11px] font-mono text-gray-500">{m.matchCode}</span>
                       {!done && (
-                        <button
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
                           onClick={() => void handleFinish(m.matchSlug, m.matchName)}
-                          className="p-1.5 rounded-lg bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-green-600/40 transition-colors"
+                          className="bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-green-600/40"
                           title="Hoàn thành"
                         >
                           <Flag size={12} />
-                        </button>
+                        </Button>
                       )}
                     </div>
                   );
@@ -402,12 +410,13 @@ export function GroupStageManager({
         </div>
       )}
 
-      <button
+      <Button
+        variant="ghost"
         onClick={() => navigate("/admin/schedule")}
-        className="text-xs text-blue-400 hover:text-blue-300 self-start"
+        className="self-start px-0 text-xs text-blue-400 hover:text-blue-300"
       >
         Mở Lịch thi đấu tổng →
-      </button>
+      </Button>
     </div>
   );
 }

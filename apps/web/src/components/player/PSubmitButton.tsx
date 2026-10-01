@@ -1,5 +1,6 @@
 import React from "react";
 import PingIconStyle from "@/components/shared/PingIconStyle";
+import { Button } from "@/components/ui/button";
 
 interface PSubmitButtonProps {
   isEnabled: boolean;
@@ -16,10 +17,11 @@ export const PSubmitButton: React.FC<PSubmitButtonProps> = ({
 }) => {
   const isDisabled = !isEnabled;
   return (
-    <button
+    <Button
+      variant="default"
       onClick={onSubmit}
       disabled={isDisabled}
-      className={`w-full px-4 h-10 rounded-lg text-base font-bold shadow-md transition duration-200 flex items-center justify-center
+      className={`h-10 w-full rounded-lg px-4 text-base font-bold shadow-md transition duration-200 flex items-center justify-center
                 ${
                   isDisabled
                     ? "bg-blue-900 ring-blue-600 ring-4 text-blue-300 cursor-not-allowed"
@@ -28,6 +30,6 @@ export const PSubmitButton: React.FC<PSubmitButtonProps> = ({
     >
       <PingIconStyle isKeywordMode={!!isKeywordMode} />
       {label || "BẤM CHUÔNG ĐỂ GIÀNH QUYỀN TRẢ LỜI"}
-    </button>
+    </Button>
   );
 };

@@ -4,6 +4,10 @@ import { API_BASE_URL } from "@/configs";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { EditQualifierPanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierPanel";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 
 interface QualifierQuestion {
   id?: string;
@@ -253,25 +257,28 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        <button
+        <Button
+          variant="secondary"
           onClick={() => void fetchAll()}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+          className="gap-1.5 bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
         >
           <RefreshCw size={14} /> Làm mới
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="default"
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-sm font-medium transition-colors"
+          className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-sm font-medium"
         >
           <Plus size={14} /> Thêm câu
-        </button>
+        </Button>
         {openCount > 0 && (
-          <button
+          <Button
+            variant="secondary"
             onClick={() => setPendingCloseAll(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-sm transition-colors"
+            className="gap-1.5 bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-sm"
           >
             <Lock size={14} /> Chấm tất cả
-          </button>
+          </Button>
         )}
       </div>
 
@@ -282,25 +289,27 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         wide
         footer={
           <div className="flex gap-2 justify-end">
-            <button
+            <Button
+              variant="secondary"
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-sm transition-colors"
+              className="bg-white/5 border border-white/10 hover:bg-white/10 text-sm"
             >
               Huỷ
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="default"
               onClick={() => void handleCreate()}
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
+              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
             >
               {saving ? "Đang lưu…" : "Lưu câu hỏi"}
-            </button>
+            </Button>
           </div>
         }
       >
         <div className="flex flex-col gap-2.5">
           <p className="text-xs text-gray-500">Câu mới vào vị trí trống đầu tiên.</p>
-          <textarea
+          <Textarea
             rows={3}
             placeholder="Nội dung câu hỏi *"
             value={form.content}
@@ -313,7 +322,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">
                   {String.fromCharCode(65 + i)}
                 </span>
-                <input
+                <Input
                   placeholder={`Đáp án ${String.fromCharCode(65 + i)} *`}
                   value={o}
                   onChange={(e) =>
@@ -331,19 +340,20 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-gray-500 uppercase tracking-wide">Đáp án đúng</span>
-              <select
+              <NativeSelect
                 value={form.correct}
                 onChange={(e) => setForm((f) => ({ ...f, correct: e.target.value }))}
-                className="px-3 py-2 rounded-lg bg-black/30 border border-white/10 text-sm"
+                size="sm"
+                className="w-full"
               >
                 {["A", "B", "C", "D"].map((l) => (
                   <option key={l} value={l}>{l}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-gray-500 uppercase tracking-wide">Giải thích</span>
-              <input
+              <Input
                 placeholder="(tuỳ chọn)"
                 value={form.explanation}
                 onChange={(e) => setForm((f) => ({ ...f, explanation: e.target.value }))}
@@ -391,28 +401,33 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               <div className="flex gap-1.5 mt-1">
                 {q.status !== "closed" && (
                   <>
-                    <button
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
                       onClick={() => setEditing({ ...q, options: q.options ?? [] })}
-                      className="px-2 py-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 text-xs transition-colors"
+                      className="text-gray-300 hover:text-white hover:bg-white/10"
                       title="Sửa"
                     >
                       <Pencil size={13} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="secondary"
                       onClick={() => setPendingClose(q)}
-                      className="flex-1 px-2 py-1.5 rounded-lg bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-xs transition-colors"
+                      className="flex-1 bg-amber-600/20 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30 text-xs"
                     >
                       Chấm
-                    </button>
+                    </Button>
                   </>
                 )}
-                <button
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
                   onClick={() => setDeleting(q)}
-                  className="px-2 py-1.5 rounded-lg text-gray-500 hover:text-red-300 hover:bg-red-500/10 text-xs transition-colors"
+                  className="text-gray-500 hover:text-red-300 hover:bg-red-500/10"
                   title="Xoá"
                 >
                   <Trash2 size={13} />
-                </button>
+                </Button>
               </div>
             </div>
           ),

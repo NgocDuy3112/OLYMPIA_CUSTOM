@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Flag, Trophy } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
+import { Button } from "@/components/ui/button";
 
 interface BracketPlayer {
   userCode: string;
@@ -288,14 +289,15 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
           <span className="inline-block w-2 h-2 rounded-full bg-amber-400 ml-3 mr-1" /> Đang đấu
           <span className="inline-block w-2 h-2 rounded-full bg-gray-500 ml-3 mr-1" /> Chưa đấu
         </p>
-        <button
+        <Button
+          variant="default"
           onClick={() => void handleGenerateNext()}
           disabled={generating || phases.length === 0}
-          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-xs font-medium transition-colors"
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-xs font-medium"
           title="POST generate-next-round từ phase cuối"
         >
           {generating ? "Đang sinh…" : "Sinh vòng tiếp theo"}
-        </button>
+        </Button>
       </div>
 
       <div className="overflow-x-auto rounded-xl bg-black/20 border border-white/10">

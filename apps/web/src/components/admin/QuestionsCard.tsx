@@ -8,6 +8,8 @@ import {
   Plus,
 } from "lucide-react";
 import type { QuestionData } from "./gameTypes";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 interface QuestionsCardProps {
   matchCode: string;
@@ -60,18 +62,19 @@ export function QuestionsCard({
             </span>
           )}
         </h2>
-        <button
+        <Button
+          variant="secondary"
           onClick={() => navigate("/operator/qauthor/overview")}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/30 transition-colors text-xs"
+          className="gap-1 bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/30 text-xs"
           title="Thêm câu hỏi bằng QAuthor pick từ bank đã duyệt"
         >
           <Plus size={13} /> QAuthor
-        </button>
+        </Button>
       </div>
 
       <div className="flex items-center gap-2">
         {onQuestionsMatchCodeChange && (
-          <input
+          <Input
             type="text"
             placeholder="Mã trận đấu"
             value={questionsMatchCode}
@@ -79,19 +82,20 @@ export function QuestionsCard({
             className={`${inputClass} flex-1 min-w-0 font-mono text-xs`}
           />
         )}
-        <button
+        <Button
+          variant="secondary"
           onClick={onFetch}
           disabled={questionsLoading || !activeCode}
-          className="shrink-0 px-3 py-2 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 disabled:opacity-50 transition-colors text-sm"
+          className="shrink-0 bg-white/10 border border-white/10 hover:bg-white/15 disabled:opacity-50 text-sm"
         >
           {questionsLoading ? "Đang tải…" : "Tải"}
-        </button>
+        </Button>
       </div>
 
       {questions.length > 0 && (
         <div className="relative">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
-          <input
+          <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Lọc theo mã / nội dung / đáp án…"
@@ -119,13 +123,15 @@ export function QuestionsCard({
                 key={q.question_code}
                 className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/5 hover:bg-white/5 hover:border-white/15 transition-colors"
               >
-                <button
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
                   onClick={() => onEditQuestion(q)}
-                  className="mt-0.5 p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                  className="mt-0.5 text-gray-500 hover:text-white hover:bg-white/10 shrink-0"
                   title="Sửa câu hỏi"
                 >
                   <Pencil size={13} />
-                </button>
+                </Button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-[11px] text-blue-300/80">{q.question_code}</span>

@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { Search } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Textarea } from "@/components/ui/textarea";
 import { API_BASE_URL } from "@/configs";
 import type { BankData } from "./bankTypes";
 
@@ -61,35 +65,7 @@ const KIND_TITLE: Record<BankFormKind, string> = {
   "gm-key": "GM — từ khóa",
   "gm-hint": "GM — gợi ý",
 };
-
-/** Stamp VN hiện tại: HHMMSS + DDMMYYYY (Asia/Ho_Chi_Minh). */
-function vnStamp(): { time: string; date: string } {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Ho_Chi_Minh",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date());
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
-  return {
-    time: `${get("hour")}${get("minute")}${get("second")}`,
-    date: `${get("day")}${get("month")}${get("year")}`,
-  };
-}
-
-/** Mã bank dạng QB_<VÒNG>_<HHMMSS>_<DDMMYYYY> (giờ VN).
- *  VD: QB_KDC_143022_23092026 */
-export function genBankCode(roundHint = ""): string {
-  const round = roundHint.trim().toUpperCase().replace(/[^A-Z]/g, "") || "QB";
-  const stem = round === "QB" ? "QB" : `QB_${round}`;
-  const { time, date } = vnStamp();
-  const code = `${stem}_${time}_${date}`;
-  return code.length <= 23 ? code : `QB_${time}_${date}`;
-}
+/** Stamp VN hiện tại — chuyển sang bankTypes.ts (tránh lỗi react-refresh). */
 
 /** Preview file local chưa upload: ảnh hiện ảnh, video hiện video, audio hiện audio. */
 function LocalPreview({ file }: { file: File }) {
@@ -206,27 +182,30 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
       title={mode === "create" ? `Tạo câu ${KIND_TITLE[kind]}` : `Sửa ${initial?.bank_code ?? ""}`}
       footer={
         <div className="flex gap-2 justify-end">
-          <button
+          <Button
+            variant="ghost"
             onClick={() => void checkDuplicate()}
             disabled={checkingDup || saving}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
+            className="gap-1 bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
           >
             <Search size={14} /> {checkingDup ? "Đang check…" : "Check trùng"}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
+            className="bg-blue-800 hover:bg-blue-700 disabled:opacity-50 text-sm"
           >
             Huỷ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => void onSave(value)}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white-600 hover:bg-white-500 disabled:opacity-50 font-semibold text-sm"
+            className="bg-white/10 hover:bg-white/20 text-white disabled:opacity-50 font-semibold text-sm"
           >
             {saving ? "Đang lưu…" : mode === "create" ? "Tạo câu" : "Lưu"}
-          </button>
+          </Button>
         </div>
       }
     >
@@ -234,7 +213,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         <p className="text-xs text-gray-500 font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
       )}
       <label className={labelClass}>Nội dung *</label>
-      <textarea
+      <Textarea
         rows={4}
         value={value.content}
         onChange={set("content")}
@@ -243,21 +222,21 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <div className="flex flex-col gap-1">
           <label className={labelClass}>Đáp án *</label>
-          <input value={value.answer} onChange={set("answer")} className={inputClass} />
+          <Input value={value.answer} onChange={set("answer")} className={inputClass} />
         </div>
         <div className="flex flex-col gap-1">
           <label className={labelClass}>Round</label>
           {kind === "kd" && mode === "create" ? (
-            <select
+            <NativeSelect
               value={value.roundHint}
               onChange={(e) => setValue((prev) => ({ ...prev, roundHint: e.target.value }))}
-              className={`${inputClass} font-mono`}
+              className="w-full font-mono"
             >
               <option value="KD_C">KĐ chung</option>
               <option value="KD_R">KĐ riêng</option>
-            </select>
+            </NativeSelect>
           ) : (
-            <input value={value.roundHint} readOnly className={`${inputClass} font-mono opacity-70`} />
+            <Input value={value.roundHint} readOnly className={`${inputClass} font-mono opacity-70`} />
           )}
         </div>
       </div>
@@ -265,29 +244,29 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Lĩnh vực *</label>
-            <select
+            <NativeSelect
               value={value.domain}
               onChange={(e) => setValue((prev) => ({ ...prev, domain: e.target.value }))}
-              className={`${inputClass} font-mono`}
+              className="w-full font-mono"
             >
               <option value="">— chọn —</option>
               {VD_DOMAINS.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Độ khó *</label>
-            <select
+            <NativeSelect
               value={value.difficulty}
               onChange={(e) => setValue((prev) => ({ ...prev, difficulty: e.target.value }))}
-              className={`${inputClass} font-mono`}
+              className="w-full font-mono"
             >
               <option value="">— chọn —</option>
               {VD_LEVELS.map((l) => (
                 <option key={l} value={String(l)}>{l}</option>
               ))}
-            </select>
+            </NativeSelect>
           </div>
         </div>
       )}
@@ -295,7 +274,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Set GM</label>
-            <input
+            <Input
               value={value.setCode}
               readOnly
               placeholder="server tự gen S1, S2, ... khi tạo KEY"
@@ -305,31 +284,31 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
           <div className="flex flex-col gap-1">
             <label className={labelClass}>Vị trí *</label>
             {kind === "gm-hint" && mode === "create" ? (
-              <select
+              <NativeSelect
                 value={value.hintIndex}
                 onChange={(e) => setValue((prev) => ({ ...prev, hintIndex: e.target.value }))}
-                className={`${inputClass} font-mono`}
+                className="w-full font-mono"
               >
                 <option value="">— chọn —</option>
                 {GM_HINTS.map((h) => (
                   <option key={h} value={h}>{h}</option>
                 ))}
-              </select>
+              </NativeSelect>
             ) : (
-              <input value={value.hintIndex} readOnly className={`${inputClass} font-mono opacity-70`} />
+              <Input value={value.hintIndex} readOnly className={`${inputClass} font-mono opacity-70`} />
             )}
           </div>
         </div>
       )}
       <label className={labelClass}>Giải thích (tuỳ chọn)</label>
-      <textarea
+      <Textarea
         rows={3}
         value={value.explanation}
         onChange={set("explanation")}
         className={`${inputClass} resize-none`}
       />
       <label className={labelClass}>Link nguồn (tuỳ chọn — OCee tự đọc + check ngày sau)</label>
-      <input
+      <Input
         value={value.citationUrl}
         onChange={set("citationUrl")}
         placeholder="https://…"
@@ -348,24 +327,28 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
           {value.mediaFile ? (
         <div className="rounded-lg bg-blue-950 border border-blue-700 p-3 flex flex-col gap-2">
           <LocalPreview file={value.mediaFile} />
-          <button
+          <Button
+            size="xs"
+            variant="ghost"
             onClick={() => setValue((prev) => ({ ...prev, mediaFile: null }))}
             className="text-xs text-red-300 hover:text-red-200 self-start"
           >
             Bỏ file này
-          </button>
+          </Button>
         </div>
       ) : mode === "edit" && initial?.media_url && !value.removeMedia ? (
         <div className="rounded-lg bg-blue-950 border border-blue-700 p-3 flex flex-col gap-2">
           <div className="max-h-48 overflow-hidden rounded">
             <RenderMedia mediaUrl={initial.media_url} />
           </div>
-          <button
+          <Button
+            size="xs"
+            variant="ghost"
             onClick={() => setValue((prev) => ({ ...prev, removeMedia: true }))}
             className="text-xs text-red-300 hover:text-red-200 self-start"
           >
             Xóa media này
-          </button>
+          </Button>
         </div>
       ) : (
         <label className="px-4 py-3 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm text-center cursor-pointer">

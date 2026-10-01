@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface RowActionsProps {
   /** Bỏ prop = không render nút đó. */
@@ -22,23 +23,26 @@ export function RowActions({
   return (
     <div className="flex gap-1 justify-end">
       {onEdit && (
-        <button
+        <Button
+          size="icon-sm"
+          variant="ghost"
           onClick={onEdit}
-          className="p-1.5 rounded bg-white-600/70 hover:bg-white-500 transition-colors"
           title={editTitle}
         >
           <Pencil size={13} />
-        </button>
+        </Button>
       )}
       {children}
       {onDelete && (
-        <button
+        <Button
+          size="icon-sm"
+          variant="ghost"
           onClick={onDelete}
-          className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
           title={deleteTitle}
+          className="bg-red-700/70 text-white hover:bg-red-600 hover:text-white"
         >
           <Trash2 size={13} />
-        </button>
+        </Button>
       )}
     </div>
   );

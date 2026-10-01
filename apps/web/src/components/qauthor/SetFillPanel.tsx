@@ -11,6 +11,9 @@ import {
   type SetRound,
 } from "./setTemplate";
 import { toBankData, type BankData } from "./bankTypes";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 const logger = createLogger("SetFillPanel");
 
@@ -250,38 +253,42 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
           <div className="flex gap-2 justify-end flex-wrap">
             {detail.status === "draft" ? (
               <>
-                <button
+                <Button
+                  variant="ghost"
                   onClick={() => setConfirm({ kind: "delete-set" })}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-red-700/70 hover:bg-red-600 disabled:opacity-50 text-sm"
+                  className="bg-red-700/70 hover:bg-red-600 text-white disabled:opacity-50 text-sm"
                 >
                   Xoá bộ
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="default"
                   onClick={() => void callSet("/ready", { method: "POST" })}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
+                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 font-semibold text-sm"
                 >
                   {saving ? "…" : "Sẵn sàng"}
-                </button>
+                </Button>
               </>
             ) : (
               <>
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => void callSet("/reopen", { method: "POST" })}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-sm"
+                  className="bg-white/10 hover:bg-white/15 disabled:opacity-50 text-sm"
                 >
                   Mở lại nháp
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="default"
                   onClick={() => setConfirm({ kind: "activate" })}
                   disabled={saving || !detail.matchCode}
                   title={!detail.matchCode ? "Gán mã trận trước" : undefined}
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm"
+                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 font-semibold text-sm"
                 >
                   Kích hoạt cho trận
-                </button>
+                </Button>
               </>
             )}
           </div>
@@ -311,7 +318,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
               )}
             </div>
             <div className="flex gap-2">
-              <input
+              <Input
                 value={matchEdit}
                 onChange={(e) => setMatchEdit(e.target.value.toUpperCase())}
                 placeholder="Mã trận (VD: OC4_M01T)"
@@ -319,13 +326,14 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 className={`${inputClass} flex-1 min-w-0 font-mono disabled:opacity-50`}
               />
               {isDraft && (
-                <button
+                <Button
+                  variant="default"
                   onClick={() => void saveMatchCode()}
                   disabled={saving}
-                  className="px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+                  className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
                 >
                   Gán
-                </button>
+                </Button>
               )}
             </div>
             <div className="flex gap-1.5 flex-wrap">
@@ -344,28 +352,30 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
 
           <div className="flex gap-1.5 flex-wrap">
             {SET_ROUND_TABS.map((t) => (
-              <button
+              <Button
                 key={t.id}
+                variant="ghost"
                 onClick={() => { setRound(t.id); setPickSlot(null); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium ${
                   round === t.id ? "bg-blue-600/30 text-blue-100" : "text-gray-400 hover:text-white bg-white/5"
                 }`}
               >
                 {t.label}
-              </button>
+              </Button>
             ))}
           </div>
 
           {round === "GM" ? (
             <div className="flex flex-col gap-2">
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="default"
                   onClick={() => void loadGmSets()}
                   disabled={bankLoading || !isDraft}
-                  className="px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+                  className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
                 >
                   {bankLoading ? "Đang tải…" : "Tải set GM đã duyệt"}
-                </button>
+                </Button>
               </div>
               {gmGroups.map(([setCodeG, rows]) => {
                 const have = new Set(rows.map((r) => r.hint_index));
@@ -380,13 +390,15 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                         {rows.length}/9{missing.length > 0 && ` · thiếu ${missing.join(",")}`}
                       </span>
                       {isDraft && missing.length === 0 && (
-                        <button
+                        <Button
+                          size="xs"
+                          variant="default"
                           onClick={() => void pickGmSet(setCodeG)}
                           disabled={saving}
-                          className="ml-auto px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-semibold"
+                          className="ml-auto bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-xs font-semibold"
                         >
                           Pick cả set
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -396,25 +408,28 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
           ) : pickSlot ? (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <button
+                <Button
+                  variant="secondary"
+                  size="xs"
                   onClick={() => setPickSlot(null)}
-                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-xs"
+                  className="gap-1 bg-white/10 hover:bg-white/15"
                 >
                   <ArrowLeft size={13} /> {pickSlot}
-                </button>
-                <input
+                </Button>
+                <Input
                   value={bankQuery}
                   onChange={(e) => setBankQuery(e.target.value)}
                   placeholder={`Tìm bank cho slot ${pickSlot}…`}
                   className={`${inputClass} flex-1 min-w-0`}
                 />
-                <button
+                <Button
+                  variant="default"
                   onClick={() => void searchBank()}
                   disabled={bankLoading}
-                  className="flex items-center gap-1 px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
+                  className="gap-1 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-sm"
                 >
                   <Search size={14} /> Tìm
-                </button>
+                </Button>
               </div>
               {bankLoading ? (
                 <p className="text-gray-500 text-sm py-4 text-center">Đang tìm…</p>
@@ -425,13 +440,15 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                       <span className="font-mono text-xs text-green-300">{q.bank_code}</span>{" "}
                       <span className="text-white">{q.content}</span>
                     </p>
-                    <button
+                    <Button
+                      size="xs"
+                      variant="default"
                       onClick={() => void pickIntoSlot(q.bank_code)}
                       disabled={saving}
-                      className="px-2 py-1 rounded text-xs text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 whitespace-nowrap"
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 whitespace-nowrap"
                     >
                       Vào {pickSlot}
-                    </button>
+                    </Button>
                   </div>
                 ))
               )}
@@ -441,15 +458,16 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
             {round === "KD_R" && (
               <div className="flex gap-1.5 flex-wrap">
                 {[1, 2, 3, 4].map((t) => (
-                  <button
+                  <Button
                     key={t}
+                    variant="ghost"
                     onClick={() => setKdrTurn(t)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    className={`px-3 py-1.5 text-xs font-medium ${
                       kdrTurn === t ? "bg-emerald-600/30 text-emerald-100" : "text-gray-400 hover:text-white bg-white/5"
                     }`}
                   >
                     Lượt {t}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -458,14 +476,14 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
               .map((g) => (
               <div key={g.label || "all"} className="flex flex-col gap-1">
                 {g.label && <p className="text-xs font-semibold text-gray-400">{g.label}</p>}
-                <table className="w-full text-sm">
-                  <tbody>
+                <Table className="w-full text-sm">
+                  <TableBody>
                     {g.slots.map((s) => {
                       const item = itemBySlot.get(s);
                       return (
-                        <tr key={s} className="border-b border-white/5 align-top">
-                          <td className="py-1.5 pr-2 font-mono text-xs text-blue-300 whitespace-nowrap w-24">{s}</td>
-                          <td className="py-1.5 pr-2">
+                        <TableRow key={s} className="border-b border-white/5 align-top hover:bg-transparent">
+                          <TableCell className="py-1.5 pr-2 font-mono text-xs text-blue-300 whitespace-nowrap w-24">{s}</TableCell>
+                          <TableCell className="py-1.5 pr-2">
                             {item ? (
                               <>
                                 <p className="text-white truncate">
@@ -479,33 +497,37 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                             ) : (
                               <p className="text-gray-600 text-xs italic">Trống</p>
                             )}
-                          </td>
-                          <td className="py-1.5 text-right whitespace-nowrap w-20">
+                          </TableCell>
+                          <TableCell className="py-1.5 text-right whitespace-nowrap w-20">
                             {isDraft && (
                               item ? (
-                                <button
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
                                   onClick={() => setConfirm({ kind: "remove-item", slot: s })}
-                                  className="p-1.5 rounded bg-red-700/70 hover:bg-red-600 transition-colors"
+                                  className="bg-red-700/70 hover:bg-red-600 text-white"
                                   title="Gỡ khỏi bộ"
                                 >
                                   <Trash2 size={13} />
-                                </button>
+                                </Button>
                               ) : (
-                                <button
+                                <Button
+                                  size="icon-sm"
+                                  variant="ghost"
                                   onClick={() => setPickSlot(s)}
-                                  className="p-1.5 rounded bg-emerald-600/70 hover:bg-emerald-500 transition-colors"
+                                  className="bg-emerald-600/70 hover:bg-emerald-500 text-white"
                                   title={`Thêm vào ${s}`}
                                 >
                                   <Plus size={13} />
-                                </button>
+                                </Button>
                               )
                             )}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ))}
             </>

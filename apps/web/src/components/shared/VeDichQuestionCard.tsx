@@ -1,3 +1,5 @@
+import { Button } from "@/components/ui/button";
+
 interface VeDichQuestionCardProps {
   category: string;
   points?: number;
@@ -50,14 +52,15 @@ const VeDichQuestionCard = ({
     .map((s) => s?.trim());
 
   return (
-    <button
+    <Button
+      variant="ghost"
       onClick={onClick}
       disabled={disabled || placeholder}
       aria-hidden={placeholder}
       className={`
-				flex flex-col items-stretch justify-between px-2 sm:px-3 py-1.5 sm:py-2.5 rounded-lg
+				flex h-full w-full flex-col items-stretch justify-between rounded-lg px-2 sm:px-3 py-1.5 sm:py-2.5
 			border-2 border-transparent
-			transition-all duration-150 font-bold w-full h-full min-h-0
+			transition-all duration-150 font-bold min-h-0
 				${getStateStyles()}
 				${isSelected && state === "available" ? "!border-white !bg-blue-500 text-white outline outline-2 outline-white outline-offset-[-1px]" : ""}
 				${!disabled && state === "available" && !placeholder ? "cursor-pointer" : ""}
@@ -77,7 +80,7 @@ const VeDichQuestionCard = ({
           {points}
         </span>
       )}
-    </button>
+    </Button>
   );
 };
 

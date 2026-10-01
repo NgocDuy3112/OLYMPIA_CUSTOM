@@ -3,6 +3,8 @@ import { HelpCircle, Clock, CheckCircle2 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const logger = createLogger("OverviewStats");
 
@@ -52,19 +54,20 @@ export const OverviewStats = () => {
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-3">
       <div className="flex gap-2">
-        <input
+        <Input
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận để xem tổng quan"
           className="flex-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white font-mono text-xs"
         />
-        <button
+        <Button
+          variant="default"
           onClick={() => void fetchStats()}
           disabled={loading || !matchCode.trim()}
-          className="px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 disabled:opacity-50 text-xs text-white"
+          className="bg-green-700 hover:bg-green-600 disabled:opacity-50 text-xs text-white"
         >
           {loading ? "…" : "Tải"}
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-green-600/10 border border-green-600/20 p-2.5 flex items-center gap-2">

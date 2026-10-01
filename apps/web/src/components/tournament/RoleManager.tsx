@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { API_BASE_URL } from "@/configs";
 import { UserCog, Loader2 } from "lucide-react";
+import { NativeSelect } from "@/components/ui/native-select";
 
 interface Player {
   id: string;
@@ -108,20 +109,21 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
               {updatingUserId === player.userId ? (
                 <Loader2 size={16} className="animate-spin text-gray-400" />
               ) : (
-                <select
+                <NativeSelect
+                  size="sm"
                   value={player.role || "player"}
                   onChange={(e) =>
                     handleRoleChange(player.userId, e.target.value)
                   }
                   disabled={player.userId === currentUserId}
-                  className="px-2 py-1 bg-white/10 border border-white/20 rounded text-sm text-white focus:outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="min-w-[7rem]"
                 >
                   {ROLES.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               )}
             </div>
           </div>

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 const logger = createLogger("CScoreEditModal");
 
@@ -106,11 +109,11 @@ export default function CScoreEditModal({
         </p>
         <div className="flex flex-col gap-3">
           <label className="text-xs text-blue-400">Câu hỏi</label>
-          <select
+          <NativeSelect
             value={questionCode}
             onChange={(event) => setQuestionCode(event.target.value)}
             disabled={loading}
-            className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-600 text-white"
+            className="w-full"
           >
             {questions.map((question) => (
               <option
@@ -120,11 +123,11 @@ export default function CScoreEditModal({
                 {question.question_code}
               </option>
             ))}
-          </select>
+          </NativeSelect>
           <label className="text-xs text-blue-400">
             Điểm câu (bội số của 5)
           </label>
-          <input
+          <Input
             type="number"
             step={5}
             value={points}
@@ -137,19 +140,21 @@ export default function CScoreEditModal({
           </p>
         </div>
         <div className="flex gap-3 mt-6 justify-end">
-          <button
+          <Button
+            variant="ghost"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-blue-800 hover:bg-blue-700 text-sm"
+            className="bg-blue-800 hover:bg-blue-700 text-sm"
           >
             Huỷ
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
             onClick={() => void save()}
             disabled={saving || loading || !questionCode}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-sm font-semibold"
           >
             {saving ? "Đang lưu..." : "Lưu"}
-          </button>
+          </Button>
         </div>
     </SidePanel>
   );

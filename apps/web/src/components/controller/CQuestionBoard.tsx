@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { QuestionContent } from "@/components/shared/QuestionContent";
+import { Button } from "@/components/ui/button";
 import type { Question } from "@/types/question";
 import type {
   ControllerQuestionBoardControls,
@@ -65,16 +66,17 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
           ? boxStates.map((on, idx) => {
               const active = controls?.activeIndices?.includes(idx) ?? on;
               return (
-                <button
+                <Button
                   key={idx}
                   type="button"
+                  variant="ghost"
                   aria-pressed={active}
                   aria-label={`control-${idx + 1}`}
                   onClick={() => toggleBox(idx)}
                   className={`w-8 h-8 tablet:w-10 tablet:h-10 flex items-center justify-center rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-transparent border border-blue-600 text-white hover:bg-blue-700"}`}
                 >
                   {idx + 1}
-                </button>
+                </Button>
               );
             })
           : Array.from({ length: count }).map((_, idx) => {
@@ -86,12 +88,13 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
               const line2 = (words[2] ?? "") + (words[3] ? ` ${words[3]}` : "");
               const score = controls?.scores?.[idx] ?? 0;
               return (
-                <button
+                <Button
                   key={idx}
                   type="button"
+                  variant="ghost"
                   aria-pressed={active}
                   onClick={() => toggleBox(idx)}
-                  className={`flex items-center gap-4 px-3 py-2 rounded-xl transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-blue-800 text-white border border-blue-600 hover:bg-blue-700"}`}
+                  className={`flex items-center gap-4 rounded-xl px-3 py-2 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${active ? "bg-blue-300 text-blue-900 border border-blue-200" : "bg-blue-800 text-white border border-blue-600 hover:bg-blue-700"}`}
                 >
                   <div className="text-2xl tablet:text-3xl font-extrabold w-12 tablet:w-16 text-left">
                     {score}
@@ -100,7 +103,7 @@ const CQuestionBoard: React.FC<CQuestionBoardProps> = ({
                     <div>{line1}</div>
                     <div>{line2}</div>
                   </div>
-                </button>
+                </Button>
               );
             })}
       </div>

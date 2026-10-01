@@ -1,5 +1,29 @@
 /** State shape của form lên lịch (không chứa component). */
 
+export interface TournamentFormValue {
+  tournamentName: string;
+  description: string;
+  tournamentFormat: string;
+  startDate: string;
+  endDate: string;
+  maxPlayers: string;
+  venue: string;
+  notes: string;
+  status: string;
+}
+
+export const emptyTournamentForm = (): TournamentFormValue => ({
+  tournamentName: "",
+  description: "",
+  tournamentFormat: "oc3",
+  startDate: "",
+  endDate: "",
+  maxPlayers: "",
+  venue: "",
+  notes: "",
+  status: "draft",
+});
+
 export interface ScheduleFormValue {
   matchName: string;
   tournamentCode: string;

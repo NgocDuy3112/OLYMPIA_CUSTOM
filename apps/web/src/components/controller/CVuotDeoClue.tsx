@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { Button } from "@/components/ui/button";
 import type { Question } from "@/types/question";
 
 interface CVuotDeoClueProps {
@@ -72,13 +73,15 @@ const CVuotDeoClue: React.FC<CVuotDeoClueProps> = ({
             onClick={() => setShowPopup(false)}
           />
           <div className="relative bg-white rounded-xl p-6 max-w-lg w-full shadow-lg">
-            <button
+            <Button
+              size="icon-sm"
+              variant="ghost"
               className="absolute top-3 right-3 text-gray-600"
               onClick={() => setShowPopup(false)}
               aria-label="Close clue"
             >
               ✕
-            </button>
+            </Button>
 
             {question.questionMediaURL ? (
               <div>
