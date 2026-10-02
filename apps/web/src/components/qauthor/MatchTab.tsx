@@ -393,22 +393,26 @@ export const MatchTab = () => {
         cell: (info) => {
           const q = info.row.original;
           return (
-            <span className="min-w-0 truncate text-sm">
-              <span className="font-mono text-xs text-success">
-                {q.bank_code}
-              </span>{" "}
-              <span className="text-foreground">{q.content}</span>
-              {q.hint_index && (
-                <span className="ml-1 font-mono text-xs text-warning">
-                  · {q.hint_index}
-                </span>
-              )}
-              {q.domain && (
-                <span className="ml-1 font-mono text-xs text-brand">
-                  · {q.domain}
-                  {q.difficulty ? `_${q.difficulty}` : ""}
-                </span>
-              )}
+            <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
+              <span className="flex flex-wrap items-center gap-1.5">
+                <code className="font-mono text-xs text-success">
+                  {q.bank_code}
+                </code>
+                {q.hint_index && (
+                  <code className="font-mono text-xs text-warning">
+                    {q.hint_index}
+                  </code>
+                )}
+                {q.domain && (
+                  <code className="font-mono text-xs text-brand">
+                    {q.domain}
+                    {q.difficulty ? `_${q.difficulty}` : ""}
+                  </code>
+                )}
+              </span>
+              <span className="truncate text-sm text-foreground">
+                {q.content}
+              </span>
             </span>
           );
         },
@@ -434,24 +438,26 @@ export const MatchTab = () => {
                   {adding ? "…" : "Pick cả set"}
                 </Button>
               )}
-              {q.hint_index !== "KEY" && (
+              {q.hint_index && q.hint_index !== "KEY" && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  disabled
+                  title="GM chỉ pick cả set"
+                  className="opacity-60"
+                >
+                  Chỉ pick set
+                </Button>
+              )}
+              {!q.hint_index && selSlot && (
                 <Button
                   size="xs"
                   variant="default"
                   onClick={() => void reuseFromBank(q)}
-                  disabled={adding || added || (!q.hint_index && !selSlot)}
-                  title={q.hint_index ? "GM chỉ pick cả set" : undefined}
+                  disabled={adding || added}
                   className="disabled:opacity-50"
                 >
-                  {adding
-                    ? "Đang thêm…"
-                    : added
-                      ? "Đã thêm"
-                      : q.hint_index
-                        ? "Chỉ pick set"
-                        : selSlot
-                          ? `Vào ${selSlot}`
-                          : "Chọn slot"}
+                  {adding ? "Đang thêm…" : added ? "Đã thêm" : `Vào ${selSlot}`}
                 </Button>
               )}
             </span>
@@ -703,6 +709,12 @@ export const MatchTab = () => {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Bank đã duyệt{selSlot ? ` · ${selSlot}` : " · tất cả vòng"}
             </p>
+            {!selSlot && (
+              <p className="text-[11px] text-muted-foreground">
+                Chưa chọn ô — bấm 1 ô bên trái để bật nút &quot;Vào
+                slot&quot;.
+              </p>
+            )}
             <InputGroup className="h-9">
               <InputGroupInput
                 value={bankQuery}
