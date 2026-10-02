@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import LoginPage from "@/pages/auth/LoginPage";
-import StaffLoginPage from "@/pages/auth/StaffLoginPage";
+import SignInPage from "@/pages/auth/SignInPage";
 import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RulesPage from "@/pages/info/RulesPage";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
@@ -28,12 +27,19 @@ function App() {
           <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Navigate to="/tournament/*" replace />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/login/admin" element={<StaffLoginPage mode="admin" />} />
-            <Route path="/login/operator" element={<StaffLoginPage mode="operator" />} />
+            <Route path="/login" element={<SignInPage />} />
+            {/* Route cũ → route chung, giữ chủ ý qua query role */}
+            <Route
+              path="/login/admin"
+              element={<Navigate to="/login?role=admin" replace />}
+            />
+            <Route
+              path="/login/operator"
+              element={<Navigate to="/login?role=operator" replace />}
+            />
             <Route
               path="/login/staffs"
-              element={<Navigate to="/login/admin" replace />}
+              element={<Navigate to="/login?role=admin" replace />}
             />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/player/*" element={<PlayerRoutes />} />

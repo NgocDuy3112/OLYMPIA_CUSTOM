@@ -205,7 +205,26 @@ nút phụ (Soạn câu, Vào live, quay lại) để NGOÀI group.
 **Nút Tìm/Tải chuẩn hoá về `variant="default"`** — bỏ `bg-success`/`bg-purple`/`bg-role-controller`
 tự viết (8 nút trong các InputGroup). Icon-only trong ô (vd AdminCheckpoints refresh) giữ ghost.
 
-## 11. Tài liệu đọc thêm
+## 11. Đăng nhập — 1 route chung, nhiều phương thức (2026-10)
+
+`pages/auth/SignInPage.tsx` thay `LoginPage` + `StaffLoginPage` (đã xóa):
+
+```mermaid
+flowchart TD
+    R["/login (route duy nhất)"] --> T{"Tabs phương thức"}
+    T -->|Thí sinh| G["Google OAuth"]
+    T -->|Thí sinh| E["email + mật khẩu → /auth/login → /profile"]
+    T -->|Nhân sự| S{"toggle admin/điều phối"}
+    S --> A["/auth/staff-login expectRole=admin → /admin"]
+    S --> O["/auth/staff-login expectRole=operator → home theo scope"]
+    R --> U["Khách → /spectator"]
+```
+
+- Subtitle + label nút đổi theo tab/toggle (`STAFF_COPY`), lỗi chung `AuthError` dưới tabs
+- Route cũ `/login/admin|operator|staffs` → redirect `/login?role=...` (giữ link/bookmark cũ)
+- Đã verify bằng DOM trên preview: tab switch, toggle admin/điều phối đổi subtitle + label nút ✓
+
+## 12. Tài liệu đọc thêm
 
 - `design-system/olympia-custom/MASTER.md` — design system gốc (lưu ý: palette/font trong này đã cũ, code ghi đè)
 - [WCAG 2.2 — Contrast (Minimum) 4.5:1](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)
