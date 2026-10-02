@@ -130,6 +130,14 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - Progress `0/6` chuyển thành pill sát tên vòng (bỏ `justify-between` đang tách count ra mép phải cột)
 - **Bank column sticky** `lg:sticky lg:top-16 lg:self-start` (dưới ShellHeader 48px): cuộn ma trận 63 ô vẫn thấy ô tìm + kết quả; đóng vai card `border + bg-background/25 + p-4` thay border-l chìm
 
+**Update 09:46 — Bank mặc định tất cả:**
+- Mount → fetch `bank/search?status=approved&limit=100` (server cap) **không round_hint** — hiện toàn bộ bank
+- Bấm ô slot → auto-fetch lọc `round_hint` theo vòng của slot (VD kèm domain/difficulty matrix); bỏ chọn → về tất cả
+- Search debounce 300ms (state `bankQueryDebounced`); nút Tìm fetch ngay bằng `fetchBank(bankQuery)`
+- Bỏ state `pickRound` — derive `bankRound = selSlot ? roundOfSlot(selSlot) : null`; `reuseFromBank` tính round từ slot thật
+- Nút theo dòng: KEY → "Pick cả set" (không cần chọn slot, thiếu mã trận có alert); hint H1-8 → "Chỉ pick set" disabled; dòng thường → `Vào {slot}` / "Chọn slot"
+- Nhãn cột `Bank đã duyệt · tất cả vòng` / `· KDC_3`; ghi chú `Hiển thị X/100 câu` khi vượt cap
+
 ## 7. Sidebar — shadcn Sidebar block (2026-10)
 
 4 sidebar gộp về 1 component `ShellSidebar` theo block pattern (sidebar-01/07):

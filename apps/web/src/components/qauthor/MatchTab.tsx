@@ -6,7 +6,7 @@ import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { normalizeQuestionRow } from "@/utils/questionMapper";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreatePanel";
-import { BANK_PAGE_SIZE, toBankData, type BankData } from "./bankTypes";
+import { toBankData, type BankData } from "./bankTypes";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -123,8 +123,11 @@ export const MatchTab = () => {
   const [bankQuestions, setBankQuestions] = useState<BankData[]>([]);
   const [bankLoading, setBankLoading] = useState(false);
   const [bankQuery, setBankQuery] = useState("");
-  const [pickRound, setPickRound] = useState<PickRound>("KDC");
+  const [bankQueryDebounced, setBankQueryDebounced] = useState("");
+  const [bankTotal, setBankTotal] = useState(0);
   const [selSlot, setSelSlot] = useState<string | null>(null);
+  /** Vòng của slot đang chọn — null = bank hiển thị tất cả. */
+  const bankRound: PickRound | null = selSlot ? roundOfSlot(selSlot) : null;
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
   const [showCreate, setShowCreate] = useState(false);
@@ -228,41 +231,71 @@ export const MatchTab = () => {
     }
   }, [deleting, fetchQuestions, matchCode]);
 
-  const fetchBank = useCallback(async () => {
-    setBankLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (bankQuery.trim()) params.set("q", bankQuery.trim());
-      params.set("round_hint", ROUND_OF_SLOT[pickRound]);
-      // VĐ slot đang chọn thì lọc đúng ô matrix.
-      if (pickRound === "VD" && selSlot) {
-        const m = /^VD_([A-Z]+)_(\d+)$/.exec(selSlot);
-        if (m) {
-          params.set("domain", m[1]);
-          params.set("difficulty", m[2]);
+  /**
+   * Mặc định: toàn bộ bank đã duyệt (limit 100 = server cap).
+   * Chọn ô slot → lọc đúng vòng (VĐ lọc cả ô matrix domain/difficulty).
+   * `qOverride` cho nút Tìm (fetch ngay với chuỗi đang gõ, không chờ debounce).
+   */
+  const fetchBank = useCallback(
+    async (qOverride?: string) => {
+      const q = qOverride ?? bankQueryDebounced;
+      setBankLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (q.trim()) params.set("q", q.trim());
+        if (selSlot) {
+          params.set("round_hint", ROUND_OF_SLOT[roundOfSlot(selSlot)]);
+          if (roundOfSlot(selSlot) === "VD") {
+            const m = /^VD_([A-Z]+)_(\d+)$/.exec(selSlot);
+            if (m) {
+              params.set("domain", m[1]);
+              params.set("difficulty", m[2]);
+            }
+          }
         }
-      }
-      params.set("status", "approved");
-      params.set("limit", String(BANK_PAGE_SIZE));
-      params.set("page", "1");
-      const res = await fetch(
-        `${API_BASE_URL}/bank/search?${params.toString()}`,
-        { credentials: "include" },
-      );
-      const json = await res.json();
-      const data = json.data as { rows: Record<string, unknown>[] } | null;
-      if (json.status === "success" && data) {
-        setBankQuestions((data.rows as Record<string, unknown>[]).map(toBankData));
-      } else {
+        params.set("status", "approved");
+        params.set("limit", "100");
+        params.set("page", "1");
+        const res = await fetch(
+          `${API_BASE_URL}/bank/search?${params.toString()}`,
+          { credentials: "include" },
+        );
+        const json = await res.json();
+        const data = json.data as
+          | { rows: Record<string, unknown>[]; total?: number }
+          | null;
+        if (json.status === "success" && data) {
+          setBankQuestions(
+            (data.rows as Record<string, unknown>[]).map(toBankData),
+          );
+          setBankTotal(data.total ?? data.rows.length);
+        } else {
+          setBankQuestions([]);
+          setBankTotal(0);
+        }
+      } catch (err) {
+        logger.error("Error fetching bank:", err);
         setBankQuestions([]);
+        setBankTotal(0);
+      } finally {
+        setBankLoading(false);
       }
-    } catch (err) {
-      logger.error("Error fetching bank:", err);
-      setBankQuestions([]);
-    } finally {
-      setBankLoading(false);
-    }
-  }, [bankQuery, pickRound, selSlot]);
+    },
+    [bankQueryDebounced, selSlot],
+  );
+
+  // Gõ tìm → 300ms ngừng gõ là fetch; đổi slot cũng fetch lại (danh sách tự cập nhật).
+  useEffect(() => {
+    const t = window.setTimeout(
+      () => setBankQueryDebounced(bankQuery),
+      300,
+    );
+    return () => window.clearTimeout(t);
+  }, [bankQuery]);
+
+  useEffect(() => {
+    void fetchBank();
+  }, [fetchBank]);
 
   const reuseFromBank = useCallback(async (q: BankData, slotOverride?: string) => {
     const code = matchCode.trim();
@@ -275,7 +308,7 @@ export const MatchTab = () => {
       alert("Chọn 1 slot trống trong lưới vòng trước.");
       return;
     }
-    const round = ROUND_OF_SLOT[pickRound];
+    const round = ROUND_OF_SLOT[roundOfSlot(slot)];
     setAddingId(q.bank_code);
     try {
       const res = await fetch(`${API_BASE_URL}/questions/pick`, {
@@ -297,11 +330,15 @@ export const MatchTab = () => {
     } finally {
       setAddingId(null);
     }
-  }, [fetchQuestions, matchCode, pickRound, selSlot]);
+  }, [fetchQuestions, matchCode, selSlot]);
 
   const confirmPickGmSet = useCallback(async () => {
     const code = matchCode.trim();
-    if (!code || !pendingGmSet?.set_code) return;
+    if (!pendingGmSet?.set_code) return;
+    if (!code) {
+      alert("Nhập mã trận trước khi pick set.");
+      return;
+    }
     setAddingId(pendingGmSet.bank_code);
     try {
       const res = await fetch(`${API_BASE_URL}/questions/pick`, {
@@ -483,11 +520,9 @@ export const MatchTab = () => {
                             <Button
                               key={sl}
                               variant="ghost"
-                              onClick={() => {
-                                const next = active ? null : sl;
-                                setSelSlot(next);
-                                if (next) setPickRound(roundOfSlot(next));
-                              }}
+                              onClick={() =>
+                                setSelSlot(active ? null : sl)
+                              }
                               title={
                                 filled
                                   ? `${sl} · ${filled.question_code}`
@@ -576,7 +611,7 @@ export const MatchTab = () => {
                   ))}
               </div>
             )}
-            {pickRound === "GM" && (
+            {bankRound === "GM" && (
               <p className="text-xs text-muted-foreground">
                 Chọn dòng KEY ở cột Bank rồi Pick cả set (chặn cứng nếu set thiếu
                 1 KEY + 8 hint đã duyệt).
@@ -587,7 +622,7 @@ export const MatchTab = () => {
           {/* PHẢI — ngân hàng để pick */}
           <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 bg-background/25 p-4 lg:sticky lg:top-16 lg:self-start">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Bank đã duyệt{selSlot ? ` · ${selSlot}` : ""}
+              Bank đã duyệt{selSlot ? ` · ${selSlot}` : " · tất cả vòng"}
             </p>
             <InputGroup className="h-9">
               <InputGroupInput
@@ -596,14 +631,14 @@ export const MatchTab = () => {
                 placeholder={
                   selSlot
                     ? `Tìm bank cho slot ${selSlot}…`
-                    : "Chọn slot trước, rồi tìm bank…"
+                    : "Tìm theo mã / nội dung / đáp án…"
                 }
                 className="text-sm"
               />
               <InputGroupAddon align="inline-end">
                 <InputGroupButton
                   variant="default"
-                  onClick={() => void fetchBank()}
+                  onClick={() => void fetchBank(bankQuery)}
                   disabled={bankLoading}
                   className="disabled:opacity-50 text-sm"
                 >
@@ -621,7 +656,7 @@ export const MatchTab = () => {
                 <p className="text-sm text-muted-foreground">
                   {selSlot
                     ? `Chưa có bank khớp ${selSlot} — thử từ khóa khác hoặc chọn slot khác.`
-                    : "Chọn 1 slot trống rồi bấm Tìm để xem bank đã duyệt."}
+                    : "Chưa có câu bank đã duyệt nào."}
                 </p>
               </div>
             ) : (
@@ -651,7 +686,7 @@ export const MatchTab = () => {
                           </span>
                         )}
                       </p>
-                      {pickRound === "GM" && q.hint_index === "KEY" && (
+                      {q.hint_index === "KEY" && (
                         <Button
                           size="xs"
                           variant="outline"
@@ -662,33 +697,42 @@ export const MatchTab = () => {
                           {adding ? "…" : "Pick cả set"}
                         </Button>
                       )}
-                      <Button
-                        size="xs"
-                        variant="default"
-                        onClick={() => void reuseFromBank(q)}
-                        disabled={adding || added || !selSlot || pickRound === "GM"}
-                        title={
-                          pickRound === "GM"
-                            ? "GM chỉ pick cả set"
-                            : undefined
-                        }
-                        className="shrink-0 disabled:opacity-50"
-                      >
-                        {adding
-                          ? "Đang thêm…"
-                          : added
-                            ? "Đã thêm"
-                            : pickRound === "GM"
-                              ? "Chỉ pick set"
-                              : selSlot
-                                ? `Vào ${selSlot}`
-                                : "Chọn slot"}
-                      </Button>
+                      {q.hint_index !== "KEY" && (
+                        <Button
+                          size="xs"
+                          variant="default"
+                          onClick={() => void reuseFromBank(q)}
+                          disabled={
+                            adding || added || (!q.hint_index && !selSlot)
+                          }
+                          title={
+                            q.hint_index ? "GM chỉ pick cả set" : undefined
+                          }
+                          className="shrink-0 disabled:opacity-50"
+                        >
+                          {adding
+                            ? "Đang thêm…"
+                            : added
+                              ? "Đã thêm"
+                              : q.hint_index
+                                ? "Chỉ pick set"
+                                : selSlot
+                                  ? `Vào ${selSlot}`
+                                  : "Chọn slot"}
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
               </div>
             )}
+            {!bankLoading &&
+              bankTotal > bankQuestions.length && (
+                <p className="text-[11px] text-muted-foreground">
+                  Hiển thị {bankQuestions.length}/{bankTotal} câu — gõ từ khóa
+                  hoặc bấm ô slot để lọc.
+                </p>
+              )}
           </div>
         </div>
       </div>
