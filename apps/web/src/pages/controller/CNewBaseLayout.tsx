@@ -65,10 +65,19 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
           {/* Board tự theo nội dung — KHÔNG flex-1, nếu không nút bị đẩy xuống đáy */}
           <div>{children}</div>
 
-          {/* Điều khiển — ngay dưới QuestionCard, dồn trái */}
-          {actions && (
+          {/* Toàn bộ nút điều khiển — ngay dưới QuestionCard */}
+          {(actions || playerActions) && (
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               {actions}
+              {playerActions && (
+                <>
+                  <span
+                    className="mx-1 hidden h-5 w-px bg-border sm:block"
+                    aria-hidden
+                  />
+                  {playerActions}
+                </>
+              )}
             </div>
           )}
 
@@ -110,12 +119,6 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
               </div>
             ))}
           </div>
-
-          {playerActions && (
-            <div className="flex flex-wrap items-center justify-start gap-2">
-              {playerActions}
-            </div>
-          )}
         </div>
       </div>
 

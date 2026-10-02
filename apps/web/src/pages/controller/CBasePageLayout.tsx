@@ -83,6 +83,15 @@ const CBasePageLayout: React.FC<CBasePageLayoutProps> = ({
           <div className="flex flex-wrap items-center justify-center gap-2 tablet:gap-3 xl:gap-4">
             {topControlButtons}
             {bottomActionButtons}
+            {playerSectionButtons && (
+              <>
+                <span
+                  className="mx-1 hidden h-5 w-px bg-border sm:block"
+                  aria-hidden
+                />
+                {playerSectionButtons}
+              </>
+            )}
           </div>
           {statusMessages}
         </div>
@@ -91,11 +100,6 @@ const CBasePageLayout: React.FC<CBasePageLayoutProps> = ({
           <div className="flex flex-col gap-2 tablet:gap-3 xl:gap-5 overflow-y-auto pr-2">
             {renderPlayerList()}
           </div>
-          {playerSectionButtons && (
-            <div className="flex flex-wrap items-center justify-start gap-2">
-              {playerSectionButtons}
-            </div>
-          )}
         </div>
       </div>
 
