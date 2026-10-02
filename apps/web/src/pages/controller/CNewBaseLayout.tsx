@@ -66,7 +66,7 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
 
           {/* Điều khiển — ngay dưới QuestionCard, dồn trái */}
           {actions && (
-            <div className="flex flex-wrap items-center justify-start gap-2 sm:gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               {actions}
             </div>
           )}

@@ -80,7 +80,7 @@ const CBasePageLayout: React.FC<CBasePageLayoutProps> = ({
           </CQuestionBoard>
           {}
           {underQuestionBoard}
-          <div className="flex flex-wrap items-center justify-start gap-2 tablet:gap-3 xl:gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-2 tablet:gap-3 xl:gap-4">
             {topControlButtons}
             {bottomActionButtons}
           </div>
