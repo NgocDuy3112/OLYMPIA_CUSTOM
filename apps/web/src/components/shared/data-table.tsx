@@ -13,8 +13,16 @@ import {
   type RowData,
   type SortingState,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import {
   Table,
   TableBody,
@@ -76,6 +84,80 @@ interface DataTableProps<TData extends RowData> {
   className?: string;
 }
 
+/** Danh sách trang hiển thị: ≤7 trang hiện hết, không thì 1 … window 3 quanh trang hiện tại … N. */
+const pageItems = (page: number, count: number): Array<number | "gap"> => {
+  const picked = Array.from(
+    new Set(
+      [0, count - 1, page - 1, page, page + 1].filter(
+        (i) => i >= 0 && i < count,
+      ),
+    ),
+  ).sort((a, b) => a - b);
+  const items: Array<number | "gap"> = [];
+  picked.forEach((i, idx) => {
+    if (idx > 0 && i - picked[idx - 1]! > 1) items.push("gap");
+    items.push(i);
+  });
+  return items;
+};
+
+/** Pager dạng số: Trước · 1 … 4 5 6 … 20 · Sau (shadcn Pagination block). */
+function DataTablePager({
+  page,
+  count,
+  go,
+}: {
+  page: number;
+  count: number;
+  go: (p: number) => void;
+}) {
+  if (count <= 1) return null;
+  const items = pageItems(page, count);
+  const canPrev = page > 0;
+  const canNext = page < count - 1;
+  return (
+    <div className="flex justify-end pt-3">
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              text="Trước"
+              aria-disabled={!canPrev || undefined}
+              onClick={canPrev ? () => go(page - 1) : undefined}
+              className={cn(!canPrev && "pointer-events-none opacity-40")}
+            />
+          </PaginationItem>
+          {items.map((it, idx) =>
+            it === "gap" ? (
+              <PaginationItem key={`gap-${idx}`}>
+                <PaginationEllipsis />
+              </PaginationItem>
+            ) : (
+              <PaginationItem key={it}>
+                <PaginationLink
+                  isActive={it === page}
+                  onClick={() => go(it)}
+                  aria-label={`Trang ${it + 1}`}
+                >
+                  {it + 1}
+                </PaginationLink>
+              </PaginationItem>
+            ),
+          )}
+          <PaginationItem>
+            <PaginationNext
+              text="Sau"
+              aria-disabled={!canNext || undefined}
+              onClick={canNext ? () => go(page + 1) : undefined}
+              className={cn(!canNext && "pointer-events-none opacity-40")}
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  );
+}
+
 /**
  * DataTable chuẩn shadcn block trên @tanstack/react-table v9
  * (useTable + tableFeatures). Sort cột, pagination client/server,
@@ -118,62 +200,21 @@ export function DataTable<TData extends RowData>({
 
   const rows = table.getRowModel().rows;
   const colCount = columns.length;
-  const showPager = !serverPagination && !!pageSize;
-  const clientPageIndex = pagination.pageIndex;
-  const clientPageCount = Math.max(
-    1,
-    Math.ceil(data.length / pagination.pageSize),
-  );
-
-  const pager = serverPagination ? (
-    <div className="flex items-center justify-end gap-3 pt-3 text-sm text-muted-foreground">
-      <span>
-        Trang {serverPagination.page + 1}/{Math.max(1, serverPagination.pageCount)}
-      </span>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={serverPagination.page <= 0}
-        onClick={() => serverPagination.onPageChange(serverPagination.page - 1)}
-        aria-label="Trang trước"
-      >
-        <ChevronLeft size={14} />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={serverPagination.page + 1 >= serverPagination.pageCount}
-        onClick={() => serverPagination.onPageChange(serverPagination.page + 1)}
-        aria-label="Trang sau"
-      >
-        <ChevronRight size={14} />
-      </Button>
-    </div>
-  ) : showPager ? (
-    <div className="flex items-center justify-end gap-3 pt-3 text-sm text-muted-foreground">
-      <span>
-        Trang {clientPageIndex + 1}/{clientPageCount}
-      </span>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={!table.getCanPreviousPage()}
-        onClick={() => table.previousPage()}
-        aria-label="Trang trước"
-      >
-        <ChevronLeft size={14} />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        disabled={!table.getCanNextPage()}
-        onClick={() => table.nextPage()}
-        aria-label="Trang sau"
-      >
-        <ChevronRight size={14} />
-      </Button>
-    </div>
-  ) : null;
+  // Nguồn pager: server (page/pageCount điều khiển) hoặc client (tanstack state).
+  const pagerTarget = serverPagination
+    ? {
+        page: serverPagination.page,
+        count: Math.max(1, serverPagination.pageCount),
+        go: serverPagination.onPageChange,
+      }
+    : pageSize
+      ? {
+          page: pagination.pageIndex,
+          count: Math.max(1, Math.ceil(data.length / pagination.pageSize)),
+          go: (p: number) =>
+            setPagination((prev) => ({ ...prev, pageIndex: p })),
+        }
+      : null;
 
   return (
     <div className={cn("w-full", className)}>
@@ -249,7 +290,13 @@ export function DataTable<TData extends RowData>({
           </TableBody>
         </Table>
       </div>
-      {!loading && rows.length > 0 && pager}
+      {!loading && rows.length > 0 && pagerTarget && (
+        <DataTablePager
+          page={pagerTarget.page}
+          count={pagerTarget.count}
+          go={pagerTarget.go}
+        />
+      )}
     </div>
   );
 }

@@ -158,6 +158,7 @@ const AdminCheckpointsPage = () => {
         data={checkpoints}
         loading={loading}
         emptyText="Nhập match code rồi bấm tải. Job snapshot chạy mỗi 30s, giữ 10 bản mới nhất."
+        pageSize={20}
       />
     </div>
   );

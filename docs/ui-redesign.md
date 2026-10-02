@@ -138,6 +138,14 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - Nút theo dòng: KEY → "Pick cả set" (không cần chọn slot, thiếu mã trận có alert); hint H1-8 → "Chỉ pick set" disabled; dòng thường → `Vào {slot}` / "Chọn slot"
 - Nhãn cột `Bank đã duyệt · tất cả vòng` / `· KDC_3`; ghi chú `Hiển thị X/100 câu` khi vượt cap
 
+**Update 10:05 — Pagination dạng số:**
+- `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
+  (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)
+  và server (`serverPagination.onPageChange`)
+- Gắn `pageSize={20}` cho AdminMcpTokens + AdminCheckpoints (trước: hiện hết)
+- List bank trong MatchTab chuyển sang `DataTable` (2 cột: Câu hỏi + actions, `pageSize={10}`) —
+  thay khung `max-h-26rem` cuộn tay; deps `reuseFromBank` vào columns memo để pick luôn theo mã trận hiện tại
+
 ## 7. Sidebar — shadcn Sidebar block (2026-10)
 
 4 sidebar gộp về 1 component `ShellSidebar` theo block pattern (sidebar-01/07):

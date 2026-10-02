@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
@@ -7,6 +7,11 @@ import { normalizeQuestionRow } from "@/utils/questionMapper";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreatePanel";
 import { toBankData, type BankData } from "./bankTypes";
+import {
+  DataTable,
+  createDataTableColumns,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -16,6 +21,8 @@ import {
 } from "@/components/ui/input-group";
 
 const logger = createLogger("MatchTab");
+
+const bankHelper = createDataTableColumns<BankData>();
 
 interface QuestionData {
   question_code: string;
@@ -379,6 +386,82 @@ export const MatchTab = () => {
     return `${n}/${slots.length}`;
   };
 
+  const bankColumns: DataTableColumn<BankData>[] = React.useMemo(
+    () => [
+      bankHelper.accessor("bank_code", {
+        header: "Câu hỏi",
+        cell: (info) => {
+          const q = info.row.original;
+          return (
+            <span className="min-w-0 truncate text-sm">
+              <span className="font-mono text-xs text-success">
+                {q.bank_code}
+              </span>{" "}
+              <span className="text-foreground">{q.content}</span>
+              {q.hint_index && (
+                <span className="ml-1 font-mono text-xs text-warning">
+                  · {q.hint_index}
+                </span>
+              )}
+              {q.domain && (
+                <span className="ml-1 font-mono text-xs text-brand">
+                  · {q.domain}
+                  {q.difficulty ? `_${q.difficulty}` : ""}
+                </span>
+              )}
+            </span>
+          );
+        },
+      }),
+      bankHelper.display({
+        id: "actions",
+        header: "",
+        enableSorting: false,
+        cell: (info) => {
+          const q = info.row.original;
+          const added = addedCodes.has(q.bank_code);
+          const adding = addingId === q.bank_code;
+          return (
+            <span className="flex items-center justify-end gap-2">
+              {q.hint_index === "KEY" && (
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={() => setPendingGmSet(q)}
+                  disabled={adding}
+                  className="disabled:opacity-50"
+                >
+                  {adding ? "…" : "Pick cả set"}
+                </Button>
+              )}
+              {q.hint_index !== "KEY" && (
+                <Button
+                  size="xs"
+                  variant="default"
+                  onClick={() => void reuseFromBank(q)}
+                  disabled={adding || added || (!q.hint_index && !selSlot)}
+                  title={q.hint_index ? "GM chỉ pick cả set" : undefined}
+                  className="disabled:opacity-50"
+                >
+                  {adding
+                    ? "Đang thêm…"
+                    : added
+                      ? "Đã thêm"
+                      : q.hint_index
+                        ? "Chỉ pick set"
+                        : selSlot
+                          ? `Vào ${selSlot}`
+                          : "Chọn slot"}
+                </Button>
+              )}
+            </span>
+          );
+        },
+      }),
+    ],
+    [selSlot, addedCodes, addingId, reuseFromBank],
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <MatchQuestionCreatePanel
@@ -646,86 +729,17 @@ export const MatchTab = () => {
                 </InputGroupButton>
               </InputGroupAddon>
             </InputGroup>
-            {bankLoading ? (
-              <p className="text-sm text-muted-foreground">
-                Đang tải bank đã duyệt…
-              </p>
-            ) : bankQuestions.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border bg-background/30 px-4 py-8 text-center">
-                <Search size={24} className="text-muted-foreground/70" aria-hidden />
-                <p className="text-sm text-muted-foreground">
-                  {selSlot
-                    ? `Chưa có bank khớp ${selSlot} — thử từ khóa khác hoặc chọn slot khác.`
-                    : "Chưa có câu bank đã duyệt nào."}
-                </p>
-              </div>
-            ) : (
-              <div className="flex max-h-[26rem] flex-col gap-1.5 overflow-y-auto pr-1">
-                {bankQuestions.map((q) => {
-                  const added = addedCodes.has(q.bank_code);
-                  const adding = addingId === q.bank_code;
-                  return (
-                    <div
-                      key={q.bank_id}
-                      className="flex items-center gap-2 rounded-lg border border-border/60 bg-background/30 px-3 py-2 transition-colors hover:bg-accent/40"
-                    >
-                      <p className="min-w-0 flex-1 truncate text-sm">
-                        <span className="font-mono text-xs text-success">
-                          {q.bank_code}
-                        </span>{" "}
-                        <span className="text-foreground">{q.content}</span>
-                        {q.hint_index && (
-                          <span className="ml-1 font-mono text-xs text-warning">
-                            · {q.hint_index}
-                          </span>
-                        )}
-                        {q.domain && (
-                          <span className="ml-1 font-mono text-xs text-brand">
-                            · {q.domain}
-                            {q.difficulty ? `_${q.difficulty}` : ""}
-                          </span>
-                        )}
-                      </p>
-                      {q.hint_index === "KEY" && (
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          onClick={() => setPendingGmSet(q)}
-                          disabled={adding}
-                          className="shrink-0 disabled:opacity-50"
-                        >
-                          {adding ? "…" : "Pick cả set"}
-                        </Button>
-                      )}
-                      {q.hint_index !== "KEY" && (
-                        <Button
-                          size="xs"
-                          variant="default"
-                          onClick={() => void reuseFromBank(q)}
-                          disabled={
-                            adding || added || (!q.hint_index && !selSlot)
-                          }
-                          title={
-                            q.hint_index ? "GM chỉ pick cả set" : undefined
-                          }
-                          className="shrink-0 disabled:opacity-50"
-                        >
-                          {adding
-                            ? "Đang thêm…"
-                            : added
-                              ? "Đã thêm"
-                              : q.hint_index
-                                ? "Chỉ pick set"
-                                : selSlot
-                                  ? `Vào ${selSlot}`
-                                  : "Chọn slot"}
-                        </Button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <DataTable
+              columns={bankColumns}
+              data={bankQuestions}
+              loading={bankLoading}
+              pageSize={10}
+              emptyText={
+                selSlot
+                  ? `Chưa có bank khớp ${selSlot} — thử từ khóa khác hoặc chọn slot khác.`
+                  : "Chưa có câu bank đã duyệt nào."
+              }
+            />
             {!bankLoading &&
               bankTotal > bankQuestions.length && (
                 <p className="text-[11px] text-muted-foreground">

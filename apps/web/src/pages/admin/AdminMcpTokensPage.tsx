@@ -279,6 +279,7 @@ const AdminMcpTokensPage = () => {
         data={tokens}
         loading={loading}
         emptyText="Chưa có token nào"
+        pageSize={20}
       />
     </div>
   );
