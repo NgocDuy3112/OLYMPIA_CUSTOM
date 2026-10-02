@@ -5,6 +5,7 @@ import { useSidebar, SidebarMenuButton } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -83,12 +84,15 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
         <ChevronsUpDown className="ml-auto size-4 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" className="w-56">
-        <DropdownMenuLabel className="text-foreground">
-          <p className="text-sm text-foreground">{userName}</p>
-          <p className="text-xs text-muted-foreground">
-            {ROLE_LABEL[userRole ?? ""] ?? "Tài khoản"}
-          </p>
-        </DropdownMenuLabel>
+        {/* Base UI: GroupLabel bắt buộc trong Menu.Group */}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-foreground">
+            <p className="text-sm text-foreground">{userName}</p>
+            <p className="text-xs text-muted-foreground">
+              {ROLE_LABEL[userRole ?? ""] ?? "Tài khoản"}
+            </p>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         {showProfile && (
           <DropdownMenuItem onClick={() => go("/profile")}>

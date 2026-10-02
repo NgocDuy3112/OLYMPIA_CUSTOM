@@ -50,6 +50,10 @@ function DropdownMenuGroup({ ...props }: MenuPrimitive.Group.Props) {
   return <MenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
 }
 
+/**
+ * LƯU Ý (Base UI): DropdownMenuLabel là Menu.GroupLabel — BẮT BUỘC render bên trong
+ * DropdownMenuGroup (Menu.Group), nếu không sẽ throw "MenuGroupContext is missing".
+ */
 function DropdownMenuLabel({
   className,
   inset,

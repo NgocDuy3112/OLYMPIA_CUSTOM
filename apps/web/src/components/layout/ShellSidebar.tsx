@@ -18,6 +18,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -171,10 +172,13 @@ export const ShellSidebar: React.FC<ShellSidebarProps> = ({
                 <ChevronsUpDown className="ml-auto size-4 opacity-50" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-56">
-                <DropdownMenuLabel className="text-foreground">
-                  <p className="text-sm text-foreground">{user.userName}</p>
-                  <p className="text-xs text-muted-foreground">{roleLabel}</p>
-                </DropdownMenuLabel>
+                {/* Base UI: GroupLabel bắt buộc trong Menu.Group */}
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-foreground">
+                    <p className="text-sm text-foreground">{user.userName}</p>
+                    <p className="text-xs text-muted-foreground">{roleLabel}</p>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
                   <LogOut size={16} />
