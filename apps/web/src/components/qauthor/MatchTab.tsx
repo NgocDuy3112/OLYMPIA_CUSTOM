@@ -705,7 +705,7 @@ export const MatchTab = () => {
           </div>
 
           {/* PHẢI — ngân hàng để pick */}
-          <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 bg-background/25 p-4 lg:sticky lg:top-16 lg:self-start">
+          <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 bg-background/25 p-4 lg:sticky lg:top-16 lg:self-start xl:max-w-[44rem]">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Bank đã duyệt{selSlot ? ` · ${selSlot}` : " · tất cả vòng"}
             </p>
