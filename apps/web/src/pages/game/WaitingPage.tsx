@@ -25,7 +25,6 @@ import {
 
 import CControlButton from "@/components/controller/CControlButton";
 import CPlayerCard from "@/components/controller/CPlayerCard";
-import ControllerGameplayNavBar from "@/navigation/CNavBar";
 import { WaitingView } from "@/components/shared/WaitingView";
 import { SERIES_COLORS } from "@/lib/seriesColors";
 
@@ -235,15 +234,10 @@ const AdminWaitingView = () => {
   const handleNavigateToGM = useCallback(() => {
     void broadcastNavigate("/operator/controller/gm", "/player/gm", "gm");
   }, [broadcastNavigate]);
-  const handleNavigateToWaiting = useCallback(() => {
-    void broadcastNavigate("/operator/controller/waiting", "/player/waiting", "waiting");
-  }, [broadcastNavigate]);
-
   if (!currentMatchCode) return null;
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <ControllerGameplayNavBar onNavigateToWaiting={handleNavigateToWaiting} />
       <div className="flex flex-col flex-1 items-center gap-6 p-6 overflow-y-auto">
         <h1 className="font-display text-4xl xl:text-5xl font-bold text-foreground uppercase tracking-wide text-center">
           Sảnh Chờ

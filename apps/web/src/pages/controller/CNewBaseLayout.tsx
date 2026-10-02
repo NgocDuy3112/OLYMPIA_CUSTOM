@@ -41,7 +41,6 @@ interface CNewBaseLayoutProps {
 }
 
 const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
-  title,
   children,
   actions,
   playerActions,
@@ -62,13 +61,15 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
       <div className="flex flex-col lg:flex-row flex-1 p-2 sm:p-3 lg:p-4 gap-3 lg:gap-4 overflow-hidden">
         {/* Main content */}
         <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-y-auto min-w-0">
-          {/* Title */}
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground text-center uppercase tracking-wide">
-            {title}
-          </h1>
-
           {/* Content */}
           <div className="flex-1">{children}</div>
+
+          {/* Điều khiển — ngay dưới QuestionCard, dồn trái */}
+          {actions && (
+            <div className="flex flex-wrap items-center justify-start gap-2 sm:gap-3">
+              {actions}
+            </div>
+          )}
 
         </div>
 
@@ -109,28 +110,14 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
             ))}
           </div>
 
+          {playerActions && (
+            <div className="flex flex-wrap items-center justify-start gap-2">
+              {playerActions}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Control dock — nút dồn trái, divider nhóm */}
-      {(actions || playerActions) && (
-        <div className="flex w-full shrink-0 flex-wrap items-center justify-start gap-2 border-t border-border bg-background/60 px-3 py-2.5 backdrop-blur sm:px-4">
-          <div className="flex flex-wrap items-center justify-start gap-2">
-            {actions}
-          </div>
-          {playerActions && (
-            <>
-              <span
-                className="mx-1 hidden h-5 w-px bg-border sm:block"
-                aria-hidden
-              />
-              <div className="flex flex-wrap items-center justify-start gap-2">
-                {playerActions}
-              </div>
-            </>
-          )}
-        </div>
-      )}
     </CGameShell>
   );
 };

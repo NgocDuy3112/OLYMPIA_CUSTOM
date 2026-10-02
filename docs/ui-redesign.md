@@ -159,6 +159,14 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - Player list giữ cột phải, `playerSectionButtons`/`playerActions` chuyển vào dock nhóm 2
 - `topControlButtons` (gần như luôn null) gộp chung nhóm 1 với bottom
 
+**Update 15:09 — nút dưới QuestionCard + bỏ NavBar + bỏ title trắng:**
+- `CNewBaseLayout`: bỏ h1 "KHỞI ĐỘNG - LƯỢT RIÊNG" (title còn trong interface, caller khỏi sửa);
+  `actions` → **ngay dưới QuestionCard, justify-start**; `playerActions` về cột phải dưới danh sách thí sinh
+- `CBasePageLayout` + `CVeDichPickLayout`: nút + status về lại dưới QuestionBoard/ma trận, dồn trái;
+  `playerSectionButtons` về cột phải
+- **Xóa gameplay NavBar**: render trong `CGameShell` + `WaitingPage`, xoá file `navigation/CNavBar.tsx`
+  (Sảnh Chờ/Tổng quan đã có sidebar, Đăng xuất đã có footer user card — không mất gì)
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)

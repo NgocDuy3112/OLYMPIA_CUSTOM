@@ -80,38 +80,25 @@ const CBasePageLayout: React.FC<CBasePageLayoutProps> = ({
           </CQuestionBoard>
           {}
           {underQuestionBoard}
+          <div className="flex flex-wrap items-center justify-start gap-2 tablet:gap-3 xl:gap-4">
+            {topControlButtons}
+            {bottomActionButtons}
+          </div>
+          {statusMessages}
         </div>
 
         <div className="flex flex-col flex-1 gap-2 tablet:gap-3 xl:gap-5 overflow-hidden">
           <div className="flex flex-col gap-2 tablet:gap-3 xl:gap-5 overflow-y-auto pr-2">
             {renderPlayerList()}
           </div>
-        </div>
-      </div>
-
-      {/* Control dock — nút dồn trái, divider nhóm, status sang phải */}
-      <div className="flex w-full shrink-0 flex-wrap items-center justify-start gap-2 border-t border-border bg-background/60 px-3 py-2.5 backdrop-blur sm:px-4">
-        <div className="flex flex-wrap items-center justify-start gap-2">
-          {topControlButtons}
-          {bottomActionButtons}
-        </div>
-        {playerSectionButtons && (
-          <>
-            <span
-              className="mx-1 hidden h-5 w-px bg-border sm:block"
-              aria-hidden
-            />
+          {playerSectionButtons && (
             <div className="flex flex-wrap items-center justify-start gap-2">
               {playerSectionButtons}
             </div>
-          </>
-        )}
-        {statusMessages && (
-          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
-            {statusMessages}
-          </div>
-        )}
+          )}
+        </div>
       </div>
+
     </CGameShell>
 
   );
