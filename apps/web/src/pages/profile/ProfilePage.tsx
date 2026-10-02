@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Pencil, LogOut, Trophy, Camera } from "lucide-react";
+import { Pencil, LogOut, Trophy, Camera, X } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
+import { useAvatarSrc } from "@/hooks/useAvatarSrc";
 import { PublicLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,6 +40,7 @@ const ProfilePage: React.FC = () => {
   const [tournaments, setTournaments] = useState<MyTournament[]>([]);
   const [tournamentsLoading, setTournamentsLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const { src: avatarSrc } = useAvatarSrc(profile?.avatarUrl);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -79,6 +81,7 @@ const ProfilePage: React.FC = () => {
 
   const handleSave = async () => {
     if (!userName.trim()) return;
+    setError(null);
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE_URL}/users/me`, {
@@ -116,6 +119,7 @@ const ProfilePage: React.FC = () => {
       setError("Ảnh tối đa 2MB");
       return;
     }
+    setError(null);
     setUploadingAvatar(true);
     try {
       // 1. Get presigned PUT url
@@ -161,7 +165,9 @@ const ProfilePage: React.FC = () => {
         <Spinner className="size-12" />
       </div>
     );
-  if (error || !profile) {
+  // Không tải được profile → trang lỗi riêng;
+  // lỗi thao tác (sửa tên/upload avatar) chỉ hiện banner trong trang.
+  if (!profile) {
     return (
       <PublicLayout>
         <p className="text-destructive text-center py-12">
@@ -174,18 +180,34 @@ const ProfilePage: React.FC = () => {
   return (
     <PublicLayout>
       <div className="max-w-2xl mx-auto flex flex-col gap-4">
+        {error && (
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/15 px-4 py-3">
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              aria-label="Đóng lỗi"
+              className="shrink-0 text-destructive/80 transition-colors hover:text-destructive"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
         <Card className="px-4">
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
-              {profile.avatarUrl ? (
+              {avatarSrc ? (
                 <img
-                  src={profile.avatarUrl}
+                  src={avatarSrc}
                   alt={profile.userName}
                   className="w-16 h-16 rounded-full object-cover border-2 border-primary"
+                  onError={() => setError("Không tải được avatar — hiển thị tên chữ cái.")}
                 />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-foreground">
-                  {profile.userName.charAt(0).toUpperCase()}
+                  {(profile.userName ?? "?").charAt(0).toUpperCase()}
                 </div>
               )}
               <label
@@ -295,7 +317,7 @@ const ProfilePage: React.FC = () => {
                       {t.tournamentName}
                     </p>
                     <p className="text-xs text-muted-foreground font-mono">
-                      {t.tournamentCode} · {t.tournamentFormat.toUpperCase()} ·{" "}
+                      {t.tournamentCode} · {t.tournamentFormat?.toUpperCase() ?? "—"} ·{" "}
                       {t.status}
                     </p>
                   </div>

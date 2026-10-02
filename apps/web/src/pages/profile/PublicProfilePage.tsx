@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
 import { PublicLayout } from "@/components/layout";
+import { useAvatarSrc } from "@/hooks/useAvatarSrc";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -18,6 +19,7 @@ const PublicProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { src: avatarSrc } = useAvatarSrc(profile?.avatarUrl);
 
   useEffect(() => {
     if (!userCode) return;
@@ -61,15 +63,15 @@ const PublicProfilePage: React.FC = () => {
       <div className="max-w-2xl mx-auto">
         <Card className="px-4">
           <div className="flex items-center gap-4">
-            {profile.avatarUrl ? (
+            {avatarSrc ? (
               <img
-                src={profile.avatarUrl}
+                src={avatarSrc}
                 alt={profile.userName}
                 className="w-16 h-16 rounded-full object-cover border-2 border-primary"
               />
             ) : (
               <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-foreground">
-                {profile.userName.charAt(0).toUpperCase()}
+                {(profile.userName ?? "?").charAt(0).toUpperCase()}
               </div>
             )}
             <div className="min-w-0">

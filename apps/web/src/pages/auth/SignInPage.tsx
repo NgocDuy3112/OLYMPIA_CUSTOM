@@ -21,12 +21,12 @@ const STAFF_COPY: Record<
   admin: {
     subtitle: "Quản trị hệ thống",
     button: "Đăng nhập admin",
-    placeholder: "Username admin",
+    placeholder: "Username",
   },
   operator: {
     subtitle: "Điều phối — Controller / QAuthor / MC",
     button: "Đăng nhập operator",
-    placeholder: "Username, mã OC_U_xxx hoặc email",
+    placeholder: "Username",
   },
 };
 
@@ -65,13 +65,7 @@ const Divider: React.FC<{ label: string }> = ({ label }) => (
   </div>
 );
 
-/**
- * Route đăng nhập DUY NHẤT — nhiều phương thức trong 1 card:
- *  - Thí sinh: Google OAuth hoặc email + mật khẩu
- *  - Nhân sự: staff-login, chọn admin/điều phối (chuyển role = đổi copy + home)
- *  - Khách: link vào /spectator
- * Route cũ /login/admin | /login/operator redirect sang /login?role=...
- */
+
 const SignInPage = () => {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -186,18 +180,8 @@ const SignInPage = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* ── Phương thức 1: thí sinh (Google + email) ── */}
           <TabsContent value="player" className="mt-4 flex flex-col gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={googleLogin}
-              className="h-11 w-full gap-3 bg-white font-semibold text-background hover:bg-white/90"
-            >
-              <GoogleIcon />
-              Đăng nhập với Google
-            </Button>
-            <Divider label="hoặc" />
+            
             <form
               onSubmit={(e) => void submitPlayer(e)}
               className="flex flex-col gap-3"
@@ -229,6 +213,18 @@ const SignInPage = () => {
                 {loading ? "Đang đăng nhập..." : "Đăng nhập"}
               </Button>
             </form>
+            
+            <Divider label="hoặc" />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={googleLogin}
+              className="h-11 w-full gap-3 bg-white font-semibold text-background hover:bg-white/90"
+            >
+              <GoogleIcon />
+              Đăng nhập với Google
+            </Button>
+            
           </TabsContent>
 
           {/* ── Phương thức 2: nhân sự (staff-login) ── */}
@@ -283,7 +279,7 @@ const SignInPage = () => {
               </Button>
             </form>
             <p className="text-xs text-muted-foreground">
-              Nhân sự dùng tên đăng nhập, mã OC_U_xxx hoặc email.
+              
             </p>
           </TabsContent>
         </Tabs>
