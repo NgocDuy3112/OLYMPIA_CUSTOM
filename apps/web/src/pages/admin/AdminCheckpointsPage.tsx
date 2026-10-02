@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { DatabaseBackup, RefreshCw, RotateCcw } from "lucide-react";
+import { RefreshCw, RotateCcw } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
@@ -119,10 +119,6 @@ const AdminCheckpointsPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
-      <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
-        <DatabaseBackup size={20} /> Checkpoints
-      </h1>
-
       <div className="flex gap-2">
         <InputGroup className="h-9 flex-1">
           <InputGroupInput

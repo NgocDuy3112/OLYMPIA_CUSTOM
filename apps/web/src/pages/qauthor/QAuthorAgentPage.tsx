@@ -88,10 +88,7 @@ const QAuthorAgentPage = () => {
 
   return (
     <div className="flex flex-col gap-3 h-[calc(100vh-8rem)]">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-          <Bot size={20} className="text-success" /> AI Agent — kiểm tra câu hỏi
-        </h1>
+      <div className="flex justify-end">
         <Button
           variant="secondary"
           size="xs"

@@ -19,13 +19,6 @@ const QAuthorBankHubPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-xl font-bold text-foreground">Ngân hàng câu hỏi</h1>
-        <p className="text-xs text-muted-foreground">
-          Soạn câu theo vòng thi
-        </p>
-      </div>
-
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
         {TABS.map((t) => (
           <Button

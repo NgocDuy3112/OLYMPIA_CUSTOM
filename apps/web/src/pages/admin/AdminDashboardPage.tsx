@@ -274,13 +274,7 @@ const AdminDashboardPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Tổng quan vận hành — số liệu trực tiếp từ API.
-          </p>
-        </div>
+      <div className="flex justify-end">
         <Button
           variant="secondary"
           onClick={() => void fetchAll()}

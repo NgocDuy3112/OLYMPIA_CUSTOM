@@ -497,48 +497,44 @@ export const MatchTab = () => {
         onConfirm={confirmPickGmSet}
       />
 
-      {/* Header: tiêu đề + mã trận + thao tác — thay box input trống chiếm chỗ */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-bold text-foreground">Câu hỏi trận</h1>
-        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto sm:flex-none sm:justify-end">
-          <InputGroup className="h-9 min-w-0 flex-1 sm:w-80 sm:flex-none">
-            <InputGroupInput
-              value={matchCode}
-              onChange={(e) => setMatchCode(e.target.value)}
-              placeholder="Mã trận đấu"
-              className="font-mono text-sm"
-            />
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton
-                variant="default"
-                onClick={() => void fetchQuestions()}
-                disabled={loading || !matchCode.trim()}
-                className="disabled:opacity-50 text-sm font-medium"
-              >
-                <Search size={14} /> {loading ? "Đang tải…" : "Tải"}
-              </InputGroupButton>
-            </InputGroupAddon>
-          </InputGroup>
-          <Button
-            variant="default"
-            onClick={() => setShowCreate(true)}
-            disabled={!matchCode.trim()}
-            className="gap-1 disabled:opacity-50 text-sm font-medium"
-            title="Soạn câu tay trong sidebar phải"
-          >
-            <Plus size={14} /> Soạn câu
-          </Button>
-        </div>
-      </div>
-
       <div className="flex flex-col gap-4 rounded-xl border border-border bg-accent/50 p-5">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-success">
           Pick từ bank vào trận (theo slot)
         </h3>
 
         <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)]">
-          {/* TRÁI — ma trận toàn bộ vòng thi (bỏ tabs) */}
-          <div className="flex min-w-0 flex-col gap-4">
+          {/* TRÁI — toolbar mã trận + ma trận (cuộn độc lập) */}
+          <div className="flex min-w-0 flex-col gap-4 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-2">
+            <div className="flex items-center gap-2">
+              <InputGroup className="h-9 min-w-0 flex-1">
+                <InputGroupInput
+                  value={matchCode}
+                  onChange={(e) => setMatchCode(e.target.value)}
+                  placeholder="Mã trận đấu"
+                  className="font-mono text-sm"
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    variant="default"
+                    onClick={() => void fetchQuestions()}
+                    disabled={loading || !matchCode.trim()}
+                    className="disabled:opacity-50 text-sm font-medium"
+                  >
+                    <Search size={14} /> {loading ? "Đang tải…" : "Tải"}
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+              <Button
+                variant="default"
+                onClick={() => setShowCreate(true)}
+                disabled={!matchCode.trim()}
+                className="shrink-0 gap-1 disabled:opacity-50 text-sm font-medium"
+                title="Soạn câu tay trong sidebar phải"
+              >
+                <Plus size={14} /> Soạn câu
+              </Button>
+            </div>
+
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <span

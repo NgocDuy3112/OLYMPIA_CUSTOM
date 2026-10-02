@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ListOrdered, Search, Trophy } from "lucide-react";
+import { Search, Trophy } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
@@ -118,9 +118,6 @@ const CQualifierPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-        <ListOrdered size={20} /> Vòng loại — điều phối live
-      </h1>
       <InputGroup className="h-9">
         <InputGroupInput
           value={tournamentCode}

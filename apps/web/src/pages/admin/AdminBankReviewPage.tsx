@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ClipboardCheck, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
@@ -270,10 +270,6 @@ const AdminBankReviewPage = () => {
 
   return (
     <div className="flex flex-col gap-4 min-h-screen text-foreground">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-success">
-        <ClipboardCheck size={20} /> Duyệt câu bank
-      </h1>
-
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
         {(
           [

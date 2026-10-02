@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ListOrdered, Mic, Search, Trophy } from "lucide-react";
+import { ListOrdered, Search, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -130,9 +130,6 @@ const MQualifierPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-foreground max-w-4xl mx-auto w-full">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-purple">
-        <Mic size={20} /> Dẫn vòng loại
-      </h1>
       <InputGroup className="h-9">
         <InputGroupInput
           value={tournamentCode}

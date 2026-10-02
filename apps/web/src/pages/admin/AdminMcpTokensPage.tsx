@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { KeyRound, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
@@ -193,10 +193,9 @@ const AdminMcpTokensPage = () => {
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
-          <KeyRound size={20} /> MCP Tokens
-          <span className="font-mono text-sm font-normal text-muted-foreground">({tokens.length})</span>
-        </h1>
+        <span className="font-mono text-sm text-muted-foreground">
+          ({tokens.length} token)
+        </span>
         <Button
           size="icon"
           variant="secondary"

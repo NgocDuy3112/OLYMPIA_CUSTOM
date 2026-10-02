@@ -134,14 +134,9 @@ const QAuthorSetsPage = () => {
       </SidePanel>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-            <Layers size={20} /> Bộ đề
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Mỗi bộ thuộc 1 trận · pick từ bank đã duyệt, không soạn tay · {sets.length} bộ
-          </p>
-        </div>
+        <span className="font-mono text-sm text-muted-foreground">
+          {sets.length} bộ
+        </span>
         <div className="flex gap-2 shrink-0">
           <Button
             size="icon"

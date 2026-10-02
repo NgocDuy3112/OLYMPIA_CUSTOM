@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { CheckCircle2, ListOrdered, Send, Trophy } from "lucide-react";
+import { CheckCircle2, Send, Trophy } from "lucide-react";
 import { API_BASE_URL, WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
@@ -217,10 +217,7 @@ const PQualifierPage = () => {
   return (
     <PBasePageLayout players={players} currentPlayerCode={playerCode}>
       <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-foreground max-w-3xl mx-auto w-full">
-        <div className="flex items-center justify-between">
-          <h1 className="flex items-center gap-2 text-xl font-bold text-brand">
-            <ListOrdered size={20} /> Vòng loại
-          </h1>
+        <div className="flex justify-end">
           <p className="text-xs text-muted-foreground font-mono">
             {code || "(thiếu mã giải)"} · {doneCount}/{questions.length} đã nộp
           </p>

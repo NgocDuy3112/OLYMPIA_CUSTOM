@@ -435,13 +435,7 @@ const AdminGameManagingPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Lịch thi đấu</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Mỗi ô là một trận — 4 slot thí sinh. Bấm card để sửa lịch / xem câu hỏi.
-          </p>
-        </div>
+      <div className="flex justify-end gap-2">
         <div className="flex gap-2 shrink-0">
           <Button
             size="icon"

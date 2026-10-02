@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Check, ClipboardCheck, RefreshCw, Search, X } from "lucide-react";
+import { Bot, Check, RefreshCw, Search, X } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
@@ -129,9 +129,6 @@ const CReviewsPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-        <ClipboardCheck size={20} className="text-role-controller" /> Duyệt điểm
-      </h1>
       <div className="flex gap-2">
         <Input
           value={matchCode}

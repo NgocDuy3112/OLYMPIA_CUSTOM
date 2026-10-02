@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, ScrollText } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { FilterSelect } from "@/components/shared/FilterSelect";
@@ -122,10 +122,9 @@ const AdminAuditPage = () => {
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
-          <ScrollText size={20} /> Nhật ký hệ thống
-          <span className="font-mono text-sm font-normal text-muted-foreground">({total})</span>
-        </h1>
+        <span className="font-mono text-sm text-muted-foreground">
+          ({total} log)
+        </span>
         <Button
           size="icon"
           variant="secondary"

@@ -138,6 +138,15 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - Nút theo dòng: KEY → "Pick cả set" (không cần chọn slot, thiếu mã trận có alert); hint H1-8 → "Chỉ pick set" disabled; dòng thường → `Vào {slot}` / "Chọn slot"
 - Nhãn cột `Bank đã duyệt · tất cả vòng` / `· KDC_3`; ghi chú `Hiển thị X/100 câu` khi vượt cap
 
+**Update 10:28 — toolbar trái + cột trái scroll + gỡ tiêu đề page:**
+- MatchTab: dời `[mã trận | Tải] [Soạn câu]` vào ĐẦU cột trái; cột trái có
+  `lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto` — cuộn ma trận độc lập, cột Bank đứng yên
+- **Gỡ toàn bộ h1 tiêu đề chrome ở18 trang shell** (admin/controller/qauthor/mc + player qualifier + MatchTab);
+  số liệu giữ lại dạng pill data (`{n} giải`, `({n} log)`, `{n} bộ`, `({n} token)`)
+- GIỮ h1 là nội dung/data: auth card, tên giải (tournament detail), profile (tên user), hero spectator,
+  "Overlay Preview", tiêu đề game (Waiting/MGameAccess/CNewBase), RulesPage hero, brand HeaderBar
+- Row chỉ còn nút action → đổi `justify-between` → `justify-end`; dọn 9 icon import thừa (TS6133)
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)

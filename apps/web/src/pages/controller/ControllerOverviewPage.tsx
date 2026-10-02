@@ -110,7 +110,6 @@ const ControllerOverviewPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-foreground">Tổng quan live</h1>
       <div className="flex gap-2">
         <InputGroup className="h-9 flex-1">
           <InputGroupInput

@@ -155,12 +155,9 @@ const TournamentListPage: React.FC = () => {
         onSubmit={handleCreate}
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Giải đấu</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Quản lý các giải đấu · {tournaments.length} giải
-          </p>
-        </div>
+        <span className="font-mono text-sm text-muted-foreground">
+          {tournaments.length} giải
+        </span>
         <div className="flex gap-2 shrink-0">
           <Button
             size="icon"

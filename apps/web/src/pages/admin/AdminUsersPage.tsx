@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw, Users } from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
@@ -349,9 +349,6 @@ const AdminUsersPage = () => {
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold">
-            <Users size={20} /> Người dùng
-          </h1>
           <FilterSelect
             value={userRoleFilter}
             onChange={setUserRoleFilter}

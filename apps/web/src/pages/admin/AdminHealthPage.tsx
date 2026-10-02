@@ -79,10 +79,7 @@ const AdminHealthPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-          <Activity size={20} className="text-brand" /> Sức khỏe hệ thống
-        </h1>
+      <div className="flex justify-end">
         <Button
           variant="default"
           onClick={() => void check()}

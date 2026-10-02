@@ -4,7 +4,6 @@ import { QualifierTab } from "@/components/qauthor/QualifierTab";
 const QAuthorQualifierPage = () => {
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold text-foreground">Vòng loại</h1>
       <QualifierTab />
     </div>
   );
