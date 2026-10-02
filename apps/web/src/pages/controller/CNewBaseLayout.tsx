@@ -70,12 +70,6 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
           {/* Content */}
           <div className="flex-1">{children}</div>
 
-          {/* Actions */}
-          {actions && (
-            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-              {actions}
-            </div>
-          )}
         </div>
 
         {/* Player sidebar */}
@@ -115,13 +109,28 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
             ))}
           </div>
 
-          {playerActions && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              {playerActions}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Control dock — nút dồn trái, divider nhóm */}
+      {(actions || playerActions) && (
+        <div className="flex w-full shrink-0 flex-wrap items-center justify-start gap-2 border-t border-border bg-background/60 px-3 py-2.5 backdrop-blur sm:px-4">
+          <div className="flex flex-wrap items-center justify-start gap-2">
+            {actions}
+          </div>
+          {playerActions && (
+            <>
+              <span
+                className="mx-1 hidden h-5 w-px bg-border sm:block"
+                aria-hidden
+              />
+              <div className="flex flex-wrap items-center justify-start gap-2">
+                {playerActions}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </CGameShell>
   );
 };

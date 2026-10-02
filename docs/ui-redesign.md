@@ -152,6 +152,13 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - Route `/overlay/*` → `Navigate to /` khi tắt (link/OBS cũ không trắng trang); bật lại = `true`
 - ẩn card "Overlay lên sóng" ở ControllerOverview (cùng cờ)
 
+**Update 13:54 — dock nút màn vòng thi (dồn trái):**
+- 3 layout (`CBasePageLayout`, `CNewBaseLayout`, `CVeDichPickLayout`): nút không còn wrap CENTRE dưới
+  board → **dock đáy full-width `justify-start`**: nhóm [điều hướng câu | hành động vòng] | divider |
+  [nút thí sinh], `statusMessages` sang **phải dock** (`ml-auto`) — hết reflow khi đổi câu
+- Player list giữ cột phải, `playerSectionButtons`/`playerActions` chuyển vào dock nhóm 2
+- `topControlButtons` (gần như luôn null) gộp chung nhóm 1 với bottom
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)

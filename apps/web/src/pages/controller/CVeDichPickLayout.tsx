@@ -205,17 +205,25 @@ const CVeDichPickLayout = ({
           </div>
 
           {}
-          <div className="flex flex-wrap items-center justify-center gap-3 xl:gap-4 max-w-220 mx-auto">
-            {topControlButtons}
-            {bottomActionButtons}
-          </div>
-          {statusMessages}
         </div>
 
         {}
         <div className="flex flex-col flex-1 gap-3 xl:gap-5 overflow-hidden pr-2">
           {renderPlayerList()}
         </div>
+      </div>
+
+      {/* Control dock — nút dồn trái, status sang phải */}
+      <div className="flex w-full shrink-0 flex-wrap items-center justify-start gap-2 border-t border-border bg-background/60 px-3 py-2.5 backdrop-blur sm:px-4">
+        <div className="flex flex-wrap items-center justify-start gap-2">
+          {topControlButtons}
+          {bottomActionButtons}
+        </div>
+        {statusMessages && (
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2">
+            {statusMessages}
+          </div>
+        )}
       </div>
     </CGameShell>
   );
