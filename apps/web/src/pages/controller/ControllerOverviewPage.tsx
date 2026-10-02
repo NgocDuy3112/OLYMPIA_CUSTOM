@@ -5,6 +5,7 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { OVERLAYS, overlayUrl } from "@/pages/overlay/overlayList";
+import { ENABLE_OVERLAY } from "@/configs";
 import { MatchSetPicker } from "@/components/controller/MatchSetPicker";
 import { Button } from "@/components/ui/button";
 import {
@@ -166,7 +167,7 @@ const ControllerOverviewPage = () => {
         <MatchSetPicker matchCode={matchCode.trim().toUpperCase()} onChanged={fetchStats} />
       )}
 
-      {matchCode.trim() && (
+      {ENABLE_OVERLAY && matchCode.trim() && (
         <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2.5">
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground/80">

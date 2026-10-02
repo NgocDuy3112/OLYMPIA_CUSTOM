@@ -4,6 +4,7 @@ import SignInPage from "@/pages/auth/SignInPage";
 import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RulesPage from "@/pages/info/RulesPage";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import { ENABLE_OVERLAY } from "@/configs";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
 const AdminMcpTokensPage = lazy(() => import("@/pages/admin/AdminMcpTokensPage"));
@@ -62,7 +63,16 @@ function App() {
             <Route path="/profile" element={<ProfileRoutes />} />
             <Route path="/u/:userCode" element={<PublicProfilePage />} />
             <Route path="/spectator/*" element={<SpectatorRoutes />} />
-            <Route path="/overlay/*" element={<OverlayRoutes />} />
+            <Route
+              path="/overlay/*"
+              element={
+                ENABLE_OVERLAY ? (
+                  <OverlayRoutes />
+                ) : (
+                  <Navigate to="/" replace />
+                )
+              }
+            />
           </Routes>
           </ErrorBoundary>
         </Suspense>

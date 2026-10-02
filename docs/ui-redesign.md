@@ -147,6 +147,11 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
   "Overlay Preview", tiêu đề game (Waiting/MGameAccess/CNewBase), RulesPage hero, brand HeaderBar
 - Row chỉ còn nút action → đổi `justify-between` → `justify-end`; dọn 9 icon import thừa (TS6133)
 
+**Update 10:37 — tạm ẩn Overlay:**
+- Cờ `ENABLE_OVERLAY = false` trong `configs.ts`
+- Route `/overlay/*` → `Navigate to /` khi tắt (link/OBS cũ không trắng trang); bật lại = `true`
+- ẩn card "Overlay lên sóng" ở ControllerOverview (cùng cờ)
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)
