@@ -416,7 +416,7 @@ export const MatchTab = () => {
           Pick từ bank vào trận (theo slot)
         </h3>
 
-        <div className="grid grid-cols-1 gap-x-8 gap-y-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)]">
           {/* TRÁI — ma trận toàn bộ vòng thi (bỏ tabs) */}
           <div className="flex min-w-0 flex-col gap-4">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
@@ -449,12 +449,16 @@ export const MatchTab = () => {
               const full = done === total && total !== "0";
               return (
                 <div key={r.id} className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {r.label}
                     </p>
                     <span
-                      className={`font-mono text-[11px] ${full ? "text-success" : "text-muted-foreground"}`}
+                      className={`rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${
+                        full
+                          ? "border-success/40 bg-success/15 text-success"
+                          : "border-border bg-accent/60 text-muted-foreground"
+                      }`}
                     >
                       {prog}
                     </span>
@@ -581,7 +585,7 @@ export const MatchTab = () => {
           </div>
 
           {/* PHẢI — ngân hàng để pick */}
-          <div className="flex min-w-0 flex-col gap-3 lg:border-l lg:border-border/60 lg:pl-8">
+          <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 bg-background/25 p-4 lg:sticky lg:top-16 lg:self-start">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Bank đã duyệt{selSlot ? ` · ${selSlot}` : ""}
             </p>

@@ -118,11 +118,17 @@ trống chiếm chỗ); vùng Pick chia 2 cột desktop: **trái** = vòng + lư
 **phải** = "Bank đã duyệt · {slot}" + ô tìm + kết quả dạng card cuộn (`max-h-26rem`) + empty state
 icon; stack 1 cột trên mobile, separator `border-l` chỉ ≥1024px.
 
-**Update 20:11 — bỏ tabs, ma trận toàn cục:** vòng thi không còn ẩn sau tabs. Cột trái hiện đủ5 vòng
+**Update 20:11 — bỏ tabs, ma trận toàn cục:**
+- Vòng thi không còn ẩn sau tabs. Cột trái hiện đủ5 vòng
 (KĐ chung/riêng, Giải mã, Bứt phá, Về đích) với progress từng vòng; mỗi slot là ô 48×44px có trạng thái
 thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang chọn) + legend. Click ô bất kỳ →
 `setPickRound(roundOfSlot(slot))` → bank bên phải tự lọc đúng vòng của ô đó. `tileLabel` rút gọn
 (KDR `1..6`, GM `KEY/H1..H8`, VD `20..50`).
+
+**Update 09:20 — bố cục cột + sticky:**
+- Cột: `lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)]` — ma trận giữ 512px (đủ 9 ô GM 1 hàng), Bank lấy phần còn lại
+- Progress `0/6` chuyển thành pill sát tên vòng (bỏ `justify-between` đang tách count ra mép phải cột)
+- **Bank column sticky** `lg:sticky lg:top-16 lg:self-start` (dưới ShellHeader 48px): cuộn ma trận 63 ô vẫn thấy ô tìm + kết quả; đóng vai card `border + bg-background/25 + p-4` thay border-l chìm
 
 ## 7. Sidebar — shadcn Sidebar block (2026-10)
 
