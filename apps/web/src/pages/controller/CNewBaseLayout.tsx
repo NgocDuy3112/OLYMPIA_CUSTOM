@@ -62,7 +62,8 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
         {/* Main content */}
         <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-y-auto min-w-0">
           {/* Content */}
-          <div className="flex-1">{children}</div>
+          {/* Board tự theo nội dung — KHÔNG flex-1, nếu không nút bị đẩy xuống đáy */}
+          <div>{children}</div>
 
           {/* Điều khiển — ngay dưới QuestionCard, dồn trái */}
           {actions && (
