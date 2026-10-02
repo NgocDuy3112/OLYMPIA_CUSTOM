@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "@/configs";
 
 /** Google avatar là URL tuyệt đối; avatar upload lưu S3 key (avatars/...). */
 const isRemoteUrl = (value: string) => /^https?:\/\//i.test(value);
+
+/** Presigned GET URL hay hết hạn (~15') — tối đa thử lại 1 lần. */
+const MAX_RETRY = 1;
 
 /** Đổi S3 key → presigned GET URL (backend: GET /media/presign/*). */
 export async function resolveAvatarUrl(key: string): Promise<string> {
@@ -19,13 +22,15 @@ export async function resolveAvatarUrl(key: string): Promise<string> {
 
 /**
  * Avatar src cho cả 2 loại giá trị trong DB (URL Google / S3 key).
- * Trả null khi chưa resolve được → caller fallback về chữ cái đầu.
+ * - `retry` gắn vào <img onError>: key → presign lại 1 lần (URL hết hạn),
+ *   URL Google hỏng thật → trả null để fallback chữ cái đầu.
  */
 export function useAvatarSrc(
   avatarUrl?: string | null,
-): { src: string | null; loading: boolean } {
+): { src: string | null; loading: boolean; retry: () => void } {
   const [src, setSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -54,7 +59,16 @@ export function useAvatarSrc(
     return () => {
       alive = false;
     };
-  }, [avatarUrl]);
+  }, [avatarUrl, attempt]);
 
-  return { src, loading };
+  const retry = useCallback(() => {
+    if (!avatarUrl) return;
+    if (isRemoteUrl(avatarUrl) || attempt >= MAX_RETRY) {
+      setSrc(null); // hết retry → fallback chữ cái đầu
+      return;
+    }
+    setAttempt((a) => a + 1); // resolve lại URL mới
+  }, [avatarUrl, attempt]);
+
+  return { src, loading, retry };
 }

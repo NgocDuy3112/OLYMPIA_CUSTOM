@@ -19,7 +19,7 @@ const PublicProfilePage: React.FC = () => {
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { src: avatarSrc } = useAvatarSrc(profile?.avatarUrl);
+  const { src: avatarSrc, retry: retryAvatar } = useAvatarSrc(profile?.avatarUrl);
 
   useEffect(() => {
     if (!userCode) return;
@@ -68,6 +68,7 @@ const PublicProfilePage: React.FC = () => {
                 src={avatarSrc}
                 alt={profile.userName}
                 className="w-16 h-16 rounded-full object-cover border-2 border-primary"
+                onError={retryAvatar}
               />
             ) : (
               <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-foreground">

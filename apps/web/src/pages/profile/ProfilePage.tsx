@@ -40,7 +40,7 @@ const ProfilePage: React.FC = () => {
   const [tournaments, setTournaments] = useState<MyTournament[]>([]);
   const [tournamentsLoading, setTournamentsLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const { src: avatarSrc } = useAvatarSrc(profile?.avatarUrl);
+  const { src: avatarSrc, retry: retryAvatar } = useAvatarSrc(profile?.avatarUrl);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -203,7 +203,7 @@ const ProfilePage: React.FC = () => {
                   src={avatarSrc}
                   alt={profile.userName}
                   className="w-16 h-16 rounded-full object-cover border-2 border-primary"
-                  onError={() => setError("Không tải được avatar — hiển thị tên chữ cái.")}
+                  onError={retryAvatar}
                 />
               ) : (
                 <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-foreground">
