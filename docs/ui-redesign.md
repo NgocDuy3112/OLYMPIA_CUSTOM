@@ -204,6 +204,19 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
   lựa chọn lưu `localStorage["bank_view"]`; **GM tab ẩn toggle** (giữ set-cards + list)
 - Grid dùng chung server pagination → export `DataTablePager` ghép dưới lưới (Trước · 1…N · Sau)
 - Grid `sm:grid-cols-2 xl:grid-cols-3`, cùng data/filter/empty state với list
+
+**Update 03/10 11:45 — tech debt + controller bấm vòng chủ động:**
+- Lint về **0 problems** (deps `+group`, `-clearPendingBroadcastTimer` ×2); bỏ 24 `bg-primary` trùng
+  variant default (giữ 4 chỗ override có chủ ý: secondary/ghost-tô-primary + label avatar)
+- Avatar upload có % — `lib/upload.ts` (`putFileWithProgress` XHR) dùng chung với upload media câu hỏi
+- **#2 Controller chủ động — KHÔNG cần sửa backend**: `ws.types.ts` đã có
+  `isAllowedByRole: controller → true` (gửi được `round_start`/`navigate`/`game_end`), `handleEngineAction`
+  persist state machine, `broadcast` gồm sender (self-echo)
+- Frontend: `hooks/useRoundNavigator.ts` — thứ tự vòng thật
+  `KĐ chung → KĐ riêng → Giải mã → Bứt phá → VĐ chọn câu → VĐ chung → VĐR chọn câu → VĐ riêng → Sảnh chờ`;
+  `goTo` mirror `WaitingPage.broadcastNavigate` (round_start → clear_question → navigate player → local)
+- UI: `CGameShell` giờ có **HeaderBar** (mã trận · vòng · WS) + stepper `◀ Trước | {vòng sau} ▶`
+  trên MỌI màn vòng thi (controller/mc; player tách PBase không bị ảnh hưởng)
 - **MediaThumb preview thật**: ảnh → `<img lazy>`, **video → `<video controls preload=metadata max-h-40>`**,
   audio → `<audio controls>` (tất cả qua presigned URL, onError presign lại 1 lần); file lạ/lỗi → chip Paperclip
 
