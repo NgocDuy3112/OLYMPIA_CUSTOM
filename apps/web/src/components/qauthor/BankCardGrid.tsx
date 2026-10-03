@@ -18,30 +18,66 @@ const statusTone = (status: BankData["status"]) =>
 const statusLabel = (status: BankData["status"]) =>
   status === "approved" ? "Đã duyệt" : status === "rejected" ? "Không duyệt" : "Chờ duyệt";
 
-/** Thumb ảnh media (presign URL — dùng lại hook avatar, GET /media/presign/* nhận mọi key). */
-function MediaThumb({ mediaUrl }: { mediaUrl: string }) {
-  const isImage = /\.(jpe?g|png|gif|webp|svg)$/.test(
-    mediaUrl.split("?")[0].toLowerCase(),
-  );
-  const { src, retry } = useAvatarSrc(isImage ? mediaUrl : null);
+/** Loại file media từ key/URL. */
+const mediaKind = (url: string): "image" | "video" | "audio" | "other" => {
+  const path = url.split("?")[0].toLowerCase();
+  if (/\.(jpe?g|png|gif|webp|svg)$/.test(path)) return "image";
+  if (/\.(mp4|webm|mov|m4v|avi|mkv)$/.test(path)) return "video";
+  if (/\.(mp3|wav|ogg|m4a|aac|flac|opus)$/.test(path)) return "audio";
+  return "other";
+};
 
-  if (!isImage) {
+/**
+ * Preview media trong card grid — presigned URL (GET /media/presign/* nhận mọi key):
+ * ảnh → <img lazy>, video → <video controls>, audio → <audio controls>;
+ * file lạ hoặc lỗi resolve → chip Paperclip. onError presign lại 1 lần (URL ~15' hết hạn).
+ */
+function MediaThumb({ mediaUrl }: { mediaUrl: string }) {
+  const kind = mediaKind(mediaUrl);
+  const wantPreview = kind !== "other";
+  const { src, loading, retry } = useAvatarSrc(wantPreview ? mediaUrl : null);
+
+  const fallbackChip = (
+    <div
+      className="flex items-center gap-1.5 self-start rounded-lg bg-accent/40 px-2 py-1 text-xs text-muted-foreground"
+      title={mediaUrl}
+    >
+      <Paperclip size={12} aria-hidden /> Có media đính kèm
+    </div>
+  );
+
+  if (kind === "other") return fallbackChip;
+  if (loading) return null; // đang resolve presigned URL
+  if (!src) return fallbackChip; // lỗi sau khi retry hết → chip dự phòng
+  if (kind === "image") {
     return (
-      <div className="flex items-center gap-1.5 self-start rounded-lg bg-accent/40 px-2 py-1 text-xs text-muted-foreground">
-        <Paperclip size={12} aria-hidden /> Có media đính kèm
-      </div>
+      <img
+        src={src}
+        alt=""
+        loading="lazy"
+        onError={retry}
+        className="h-28 w-full rounded-lg object-cover"
+      />
     );
   }
-  if (!src) return null; // đang resolve hoặc lỗi → card vẫn hiển thị text
-  return (
-    <img
-      src={src}
-      alt=""
-      loading="lazy"
-      onError={retry}
-      className="h-28 w-full rounded-lg object-cover"
-    />
-  );
+  if (kind === "video") {
+    return (
+      <video
+        src={src}
+        controls
+        preload="metadata"
+        onError={retry}
+        className="w-full max-h-40 rounded-lg bg-black/40"
+      />
+    );
+  }
+  // audio
+  if (kind === "audio") {
+    return (
+      <audio src={src} controls preload="metadata" onError={retry} className="w-full" />
+    );
+  }
+  return fallbackChip;
 }
 
 /**

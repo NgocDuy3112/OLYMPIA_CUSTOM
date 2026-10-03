@@ -204,6 +204,8 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
   lựa chọn lưu `localStorage["bank_view"]`; **GM tab ẩn toggle** (giữ set-cards + list)
 - Grid dùng chung server pagination → export `DataTablePager` ghép dưới lưới (Trước · 1…N · Sau)
 - Grid `sm:grid-cols-2 xl:grid-cols-3`, cùng data/filter/empty state với list
+- **MediaThumb preview thật**: ảnh → `<img lazy>`, **video → `<video controls preload=metadata max-h-40>`**,
+  audio → `<audio controls>` (tất cả qua presigned URL, onError presign lại 1 lần); file lạ/lỗi → chip Paperclip
 
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
