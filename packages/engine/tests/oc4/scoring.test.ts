@@ -28,19 +28,16 @@ describe("OC4 scoring adapters", () => {
   });
 
   it("gm clue awards 0 in OC4", () => {
-    // OC4 config sets clueCorrect: 0 — keyword-only scoring.
     expect(OC4_CONFIG.scoring.gm.clueCorrect).toBe(0);
   });
 
   it("gm keyword uses OC4 base/penalty", () => {
-    // base 80, penalty 5 per clue
     expect(gmKeywordCorrectOc4("P1", 0).points).toBe(80);
     expect(gmKeywordCorrectOc4("P1", 4).points).toBe(60);
     expect(gmKeywordCorrectOc4("P1", 99).points).toBe(0);
   });
 
   it("bp resolve uses OC4 thresholds and multipliers", () => {
-    // <5s → 15, <15s → 10, else → 5; multipliers 4/3/2/1
     const deltas = bpResolveOc4([
       { userCode: "A", timestamp: 3_000 },
       { userCode: "B", timestamp: 8_000 },
@@ -48,10 +45,10 @@ describe("OC4 scoring adapters", () => {
       { userCode: "D", timestamp: 25_000 },
     ]);
     expect(deltas.map((d) => d.points)).toEqual([
-      60, // 15 * 4
-      30, // 10 * 3
-      10, // 5 * 2
-      5, // 5 * 1
+      60,
+      30,
+      10,
+      5,
     ]);
   });
 

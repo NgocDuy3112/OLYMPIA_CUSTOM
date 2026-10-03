@@ -9,17 +9,6 @@ import {
 import { sql } from "drizzle-orm";
 import { roleEnum } from "./enums.js";
 
-/**
- * Users table — v4 schema.
- *
- * Changes from v3:
- *   + google_id (nullable, unique) — Google OAuth subject
- *   + avatar_url (nullable) — Google profile picture
- *   - hashed_password — REMOVED (v4 uses Google OAuth only)
- *
- * The 'guest' value in roleEnum is kept in the DB for backward compat
- * but will not be assigned to new users.
- */
 export const users = pgTable(
   "users",
   {

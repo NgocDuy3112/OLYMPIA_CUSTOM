@@ -1,14 +1,6 @@
-/* eslint-disable react-refresh/only-export-components -- shadcn DataTable pattern: helper/features export cùng file component */
 import * as React from "react";
 import {
-  createColumnHelper,
-  createPaginatedRowModel,
-  createSortedRowModel,
-  rowPaginationFeature,
-  rowSortingFeature,
-  tableFeatures,
   useTable,
-  type ColumnDef,
   type PaginationState,
   type RowData,
   type SortingState,
@@ -32,34 +24,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { cn } from "cn";
-
-/** Features dùng chung cho mọi DataTable: sort cột + pagination. */
-export const dataTableFeatures = tableFeatures({
-  rowSortingFeature,
-  sortedRowModel: createSortedRowModel(),
-  rowPaginationFeature,
-  paginatedRowModel: createPaginatedRowModel(),
-});
-export type DataTableFeatures = typeof dataTableFeatures;
-
-/**
- * Helper tạo column defs hợp type với DataTable:
- *   const helper = createDataTableColumns<Row>();
- *   const columns = helper.columns([helper.accessor("name", { header: "Tên" })]);
- */
-export const createDataTableColumns = <TData extends RowData>() =>
-  createColumnHelper<DataTableFeatures, TData>();
-
-export type DataTableColumn<TData extends RowData> = ColumnDef<
-  DataTableFeatures,
-  TData,
-  any
->;
+import {
+  dataTableFeatures,
+  type DataTableColumn,
+} from "./data-table-core";
 
 interface ServerPagination {
-  /** 0-based. */
   page: number;
-  /** Tổng số trang (server trả). */
   pageCount: number;
   onPageChange: (page: number) => void;
 }
@@ -67,24 +38,16 @@ interface ServerPagination {
 interface DataTableProps<TData extends RowData> {
   columns: DataTableColumn<TData>[];
   data: TData[];
-  /** Hiện dòng "Đang tải…". */
   loading?: boolean;
-  /** Text khi rỗng. */
   emptyText?: string;
-  /** Phân trang client: số dòng/trang. Bỏ = hiện tất cả. */
   pageSize?: number;
-  /** Phân trang server (vd BankTab, AdminAudit) — hiện nút Trang trước/sau. */
   serverPagination?: ServerPagination;
-  /** Click 1 dòng (vd chọn dòng để mở panel duyệt). */
   onRowClick?: (row: TData) => void;
-  /** Class cho từng dòng (vd highlight dòng đang chọn). */
   rowClassName?: (row: TData) => string | undefined;
-  /** Bỏ khung viền tròn — dùng cho bảng mini trong panel. */
   bare?: boolean;
   className?: string;
 }
 
-/** Danh sách trang hiển thị: ≤7 trang hiện hết, không thì 1 … window 3 quanh trang hiện tại … N. */
 const pageItems = (page: number, count: number): Array<number | "gap"> => {
   const picked = Array.from(
     new Set(
@@ -101,7 +64,6 @@ const pageItems = (page: number, count: number): Array<number | "gap"> => {
   return items;
 };
 
-/** Pager dạng số: Trước · 1 … 4 5 6 … 20 · Sau (shadcn Pagination block). */
 export function DataTablePager({
   page,
   count,
@@ -158,11 +120,6 @@ export function DataTablePager({
   );
 }
 
-/**
- * DataTable chuẩn shadcn block trên @tanstack/react-table v9
- * (useTable + tableFeatures). Sort cột, pagination client/server,
- * loading/empty state thống nhất — thay các bảng viết tay.
- */
 export function DataTable<TData extends RowData>({
   columns,
   data,
@@ -176,7 +133,6 @@ export function DataTable<TData extends RowData>({
   className,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  // Server đã cắt trang → giữ toàn bộ rows; không pagination → cũng giữ tất cả.
   const clientPageSize =
     serverPagination || !pageSize ? Math.max(data.length, 1) : pageSize;
   const [pagination, setPagination] = React.useState<PaginationState>({
@@ -184,7 +140,6 @@ export function DataTable<TData extends RowData>({
     pageSize: clientPageSize,
   });
 
-  // data.length đổi (fetch xong) mà đang ở trang cuối → lùi về trang hợp lệ.
   React.useEffect(() => {
     setPagination((p) => ({ ...p, pageSize: clientPageSize }));
   }, [clientPageSize]);
@@ -200,7 +155,6 @@ export function DataTable<TData extends RowData>({
 
   const rows = table.getRowModel().rows;
   const colCount = columns.length;
-  // Nguồn pager: server (page/pageCount điều khiển) hoặc client (tanstack state).
   const pagerTarget = serverPagination
     ? {
         page: serverPagination.page,

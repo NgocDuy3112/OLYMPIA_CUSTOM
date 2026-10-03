@@ -19,8 +19,6 @@ export default defineConfig({
   dbCredentials: {
     url: dbUrl,
   },
-  // Strict mode: fail if Drizzle detects drift between schema and DB
   strict: true,
-  // Verbose logging during generate/migrate
   verbose: true,
 });

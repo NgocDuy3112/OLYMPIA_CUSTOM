@@ -24,8 +24,6 @@ export function useRoleSession(
 ): PlayerSession | McSession {
   const matchCode = getMatchCode();
   if (role === "player") {
-    // playerCode is set on PIN join; fall back to logged-in userCode so
-    // session-based POST /answers/ still resolves the right player.
     return { matchCode, playerCode: getPlayerCode() || getUserCode() };
   }
   return { matchCode, mcCode: getMcCode() };

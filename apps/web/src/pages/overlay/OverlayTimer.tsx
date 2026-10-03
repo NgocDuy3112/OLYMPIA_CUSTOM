@@ -32,10 +32,8 @@ const OverlayTimer: React.FC = () => {
     return null;
   }
 
-  // Calculate progress percentage
   const progress = (timer / timeLimit) * 100;
 
-  // Get color based on time remaining
   const getColor = (t: number) => {
     if (t <= 5) return { text: "text-destructive", ring: "stroke-destructive", bg: "bg-destructive/20" };
     if (t <= 10) return { text: "text-warning", ring: "stroke-warning", bg: "bg-warning/20" };
@@ -48,13 +46,13 @@ const OverlayTimer: React.FC = () => {
     <div className="bg-transparent p-2 sm:p-4 flex items-center justify-center min-w-[100px] sm:min-w-[140px] min-h-[100px] sm:min-h-[140px]">
 
       <div className="relative">
-        {/* Background circle */}
+        {}
         <div className={`
           w-24 h-24 sm:w-28 sm:h-28 rounded-full backdrop-blur-md
           ${colors.bg} border border-border shadow-xl
           flex items-center justify-center
         `}>
-          {/* Timer text */}
+          {}
           <AnimatePresence mode="wait">
             <motion.div
               key={timer}
@@ -69,12 +67,12 @@ const OverlayTimer: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* Progress ring */}
+        {}
         <svg
           className="absolute inset-0 w-full h-full -rotate-90"
           viewBox="0 0 100 100"
         >
-          {/* Background ring */}
+          {}
           <circle
             cx="50"
             cy="50"
@@ -83,7 +81,7 @@ const OverlayTimer: React.FC = () => {
             stroke="rgba(255,255,255,0.1)"
             strokeWidth="4"
           />
-          {/* Progress ring */}
+          {}
           <motion.circle
             cx="50"
             cy="50"
@@ -101,7 +99,7 @@ const OverlayTimer: React.FC = () => {
           />
         </svg>
 
-        {/* Pulse effect when low time */}
+        {}
         {timer <= 5 && (
           <motion.div
             className={`absolute inset-0 rounded-full ${colors.bg}`}

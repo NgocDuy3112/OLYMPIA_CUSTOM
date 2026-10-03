@@ -36,7 +36,7 @@ export const TournamentCard: React.FC<TournamentCardProps> = ({
       onClick={() => navigate(`/tournament/${tournamentCode}`)}
     >
       <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
-        {/* Info */}
+        {}
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
             <h3 className="text-lg sm:text-xl font-bold text-foreground truncate">
@@ -75,7 +75,7 @@ export const TournamentCard: React.FC<TournamentCardProps> = ({
           )}
         </div>
 
-        {/* Arrow */}
+        {}
         <div className="flex items-center gap-2 text-brand shrink-0">
           <span className="text-sm hidden sm:inline">Xem chi tiết</span>
           <ArrowRight size={16} />

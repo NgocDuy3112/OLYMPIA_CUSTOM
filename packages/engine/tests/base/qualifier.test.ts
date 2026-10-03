@@ -71,7 +71,6 @@ describe("scoreQualifierQuestion", () => {
     expect(r.perWrong).toBe(-12);
     expect(r.points["C0"]).toBe(5);
     expect(r.points["W0"]).toBe(-12);
-    // zero-sum over submitted
     const total = Object.values(r.points).reduce((a, b) => a + b, 0);
     expect(total).toBe(0);
   });
@@ -82,7 +81,7 @@ describe("scoreQualifierQuestion", () => {
       3,
     );
     expect(r.noAnswerCount).toBe(2);
-    expect(r.points).toEqual({ P1: 0 }); // Y=0 → +0
+    expect(r.points).toEqual({ P1: 0 });
   });
 });
 
@@ -101,7 +100,6 @@ describe("avgCorrectTimeSec", () => {
 describe("rankQualifierPlayers", () => {
   it("tie-break: points, then correct count, then avg time", () => {
     const stats = summarizeQualifierPlayers({
-      // same points 10, same correct 2 → faster wins
       A: [
         { points: 5, isCorrect: true, responseTimeMs: 3000 },
         { points: 5, isCorrect: true, responseTimeMs: 3000 },
@@ -110,12 +108,10 @@ describe("rankQualifierPlayers", () => {
         { points: 5, isCorrect: true, responseTimeMs: 1000 },
         { points: 5, isCorrect: true, responseTimeMs: 1000 },
       ],
-      // same points 10 but 1 correct only → loses to 2-correct
       C: [
         { points: 10, isCorrect: true, responseTimeMs: 100 },
         { points: 0, isCorrect: false, responseTimeMs: 5000 },
       ],
-      // highest points wins outright
       D: [
         { points: 20, isCorrect: true, responseTimeMs: 9000 },
         { points: -5, isCorrect: false, responseTimeMs: 9000 },

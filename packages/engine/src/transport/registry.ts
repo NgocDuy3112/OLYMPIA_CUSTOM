@@ -1,6 +1,3 @@
-/**
- * Engine registry — maps tournament format string to engine instance.
- */
 
 import type { TournamentEngine } from "../core/engine.js";
 import { OC3Engine } from "../oc3/index.js";

@@ -1,11 +1,4 @@
-/**
- * Core types for the game engine.
- *
- * This file contains ALL shared types — no runtime imports,
- * pure TypeScript definitions only.
- */
 
-// ── Match status ──
 
 export type MatchStatus =
   | "setup"
@@ -15,7 +8,6 @@ export type MatchStatus =
   | "completed"
   | "finished";
 
-// ── Score delta ──
 
 export interface ScoreDelta {
   userCode: string;
@@ -23,14 +15,12 @@ export interface ScoreDelta {
   reason: string;
 }
 
-// ── Broadcast payload ──
 
 export interface BroadcastPayload {
   type: string;
   [key: string]: unknown;
 }
 
-// ── Game state ──
 
 export interface QuestionState {
   questionCode: string;
@@ -58,14 +48,11 @@ export interface BuzzerWinner {
   userCode: string;
 }
 
-// ── Reconnect snapshot ──
 
 export interface ReplayPayload {
   type: string;
   [key: string]: unknown;
 }
 
-// TournamentEngine contract lives in core/engine.ts.
-// These result types remain exported for OC3/OC4 compatibility during migration.
 export type { TournamentEngine } from "./core/engine.js";
 export type { Result, DomainEvent, DomainError } from "./core/result.js";

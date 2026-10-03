@@ -1,14 +1,7 @@
-/**
- * Scoring rules — shared between OC3 and OC4.
- *
- * All scoring logic is pure functions, no side effects.
- */
 
 import type { ScoreDelta, VeDichPower } from "../types.js";
 
-// ── Base points per phase ──
 
-/** Khởi Động Chung — everyone who answers correctly gets 10 */
 export function kdcCorrect(userCode: string): ScoreDelta {
   return { userCode, points: 10, reason: "kdc_correct" };
 }
@@ -25,15 +18,10 @@ export function kdrWrong(userCode: string): ScoreDelta {
   return { userCode, points: 0, reason: "kdr_wrong" };
 }
 
-/** Giải Mã — clue correct */
 export function gmClueCorrect(userCode: string): ScoreDelta {
   return { userCode, points: 10, reason: "gm_clue_correct" };
 }
 
-/**
- * Giải Mã — keyword correct
- * Points: max(0, 100 - 10 * cluesOpened)
- */
 export function gmKeywordCorrect(
   userCode: string,
   cluesOpened: number,
@@ -46,10 +34,6 @@ export function gmKeywordCorrect(
   return { userCode, points, reason: "gm_keyword_correct" };
 }
 
-/**
- * Về Đích Cá Nhân — correct/wrong
- * Question code encodes points: OC<number>_Q_VD_R_15 → ±15
- */
 export function vdrScore(
   userCode: string,
   questionCode: string,
@@ -63,10 +47,6 @@ export function vdrScore(
   };
 }
 
-/**
- * Về Đích Chung — resolve
- * All players get ±points based on correctness
- */
 export function vdcResolve(
   playerCodes: string[],
   correctCodes: string[],
@@ -80,12 +60,6 @@ export function vdcResolve(
   }));
 }
 
-/**
- * Bứt Phá — resolve by buzz timestamp
- *
- * Base points by time: <10s → 30, <20s → 20, else → 10
- * Multiplier by position: 1st → 2×, 2nd → 1.5×, 3rd → 1×, 4th+ → 0.5×
- */
 export function bpResolve(
   buzzOrder: Array<{ userCode: string; timestamp: number }>,
   config: {
@@ -124,14 +98,7 @@ export function bpResolve(
   });
 }
 
-// ── VeDich power modifiers ──
 
-/**
- * Apply star/shield power to a score delta.
- *
- * Star: 1.5× for positive, 1× for negative
- * Shield: 0.5× for positive, 0 for negative
- */
 export function applyVeDichPower(
   points: number,
   power: VeDichPower["power"] | undefined,
@@ -148,11 +115,10 @@ export function applyVeDichPower(
   return 0;
 }
 
-// ── Helpers ──
 
 function extractVdPoints(questionCode: string): number {
   const parts = questionCode.split("_");
   const last = parts[parts.length - 1];
   const n = parseInt(last, 10);
-  return isNaN(n) ? 10 : n; // fallback to 10 if parsing fails
+  return isNaN(n) ? 10 : n;
 }

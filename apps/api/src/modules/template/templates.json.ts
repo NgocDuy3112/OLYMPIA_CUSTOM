@@ -1,7 +1,3 @@
-/**
- * Built-in tournament templates (JSON config, no DB table).
- * Replaces tournament_templates table — only OC3/OC4 supported.
- */
 
 export interface TemplatePhase {
   name: string;

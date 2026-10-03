@@ -30,7 +30,6 @@ async function callBot(path: string, body: Record<string, unknown>) {
 
 type Session = { userId: string; role: string; userCode: string };
 
-/** Caller must be controller/mc of this tournament, or global admin. */
 async function requireTournamentStaff(
   repo: DiscordRepo,
   tournamentId: string,
@@ -54,7 +53,6 @@ function parseRoleMap(raw: string | null): Record<string, string> {
       return parsed as Record<string, string>;
     }
   } catch {
-    /* ignore malformed map */
   }
   return {};
 }
@@ -67,7 +65,6 @@ export async function discordRoutes(
   const resolveTournament = (code: string) => repo.findTournamentByCode(code);
   const gateFor = (tournamentId: string, session: Session) =>
     requireTournamentStaff(repo, tournamentId, session);
-  // GET /discord/:code/players — lookup Discord identity (read, any auth user)
   app.get(
     "/discord/:code/players",
     { preHandler: [requireAuth(app)] },
@@ -118,7 +115,6 @@ export async function discordRoutes(
         });
       }
 
-      // Resolve target member by userCode within this tournament
       const target = await repo.findMemberByUserCode(
         tournament.id,
         body.userCode,
@@ -167,7 +163,6 @@ export async function discordRoutes(
     },
   );
 
-  // POST /discord/:code/sync-nicknames — upsert nicknames from bot (staff only)
   app.post(
     "/discord/:code/sync-nicknames",
     { preHandler: [requireAuth(app)] },
@@ -213,7 +208,6 @@ export async function discordRoutes(
     },
   );
 
-  // POST /discord/:code/notify-prematch — fire-and-forget via Valkey (staff only)
   app.post(
     "/discord/:code/notify-prematch",
     { preHandler: [requireAuth(app)] },
@@ -264,7 +258,6 @@ export async function discordRoutes(
     },
   );
 
-  // POST /discord/:code/lock — remove match role from member (staff only)
   app.post(
     "/discord/:code/lock",
     { preHandler: [requireAuth(app)] },

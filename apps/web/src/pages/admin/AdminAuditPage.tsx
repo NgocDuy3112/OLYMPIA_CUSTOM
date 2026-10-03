@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   DataTable,
-  createDataTableColumns,
 } from "@/components/shared/data-table";
+import {
+  createDataTableColumns,
+} from "@/components/shared/data-table-core";
 
 const logger = createLogger("AdminAuditPage");
 

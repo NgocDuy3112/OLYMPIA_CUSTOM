@@ -1,9 +1,3 @@
-/**
- * WebSocket connection manager.
- *
- * Manages connections per room, provides broadcast/unicast,
- * and bridges to Valkey pub/sub for cross-instance support.
- */
 
 import type Redis from "ioredis";
 import type { WebSocket } from "ws";
@@ -51,7 +45,6 @@ class ConnectionManager {
 
     const room = this.rooms.get(conn.matchCode);
     if (room) {
-      // Find and delete the WsConnection containing this ws
       for (const c of room) {
         if (c.ws === ws) {
           room.delete(c);
@@ -124,7 +117,6 @@ class ConnectionManager {
         try {
           conn.ws.send(msg);
         } catch {
-          /* ignore */
         }
       }
     }
@@ -144,7 +136,6 @@ class ConnectionManager {
         try {
           conn.ws.send(msg);
         } catch {
-          /* ignore */
         }
       }
     }
@@ -154,10 +145,8 @@ class ConnectionManager {
     matchCode: string,
     payload: Record<string, unknown>,
   ): Promise<void> {
-    // Send locally
     await this.sendToRoom(matchCode, payload);
 
-    // Publish to Valkey for cross-instance
     if (this.valkey) {
       try {
         await this.valkey.publish(
@@ -165,7 +154,6 @@ class ConnectionManager {
           JSON.stringify(payload),
         );
       } catch {
-        // Valkey publish failure is non-fatal
       }
     }
   }

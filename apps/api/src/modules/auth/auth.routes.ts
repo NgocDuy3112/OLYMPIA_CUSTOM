@@ -24,7 +24,6 @@ export async function authRoutes(
   app.post("/auth/signup", signup(app, repo));
   app.post("/auth/login", login(app, repo));
   app.post("/auth/staff-login", staffLogin(app));
-  // Server-to-server (MCP): userCode → sid. Guard Bearer MCP_SERVICE_TOKEN.
   app.post("/auth/service/session", serviceSession(app, repo));
   app.get("/auth/me", getMe(app));
   app.post("/auth/logout", logout(app));

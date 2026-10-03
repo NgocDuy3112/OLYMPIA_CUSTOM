@@ -1,10 +1,3 @@
-/**
- * VeDichRiengPage — Unified page for Về Đích Cá Nhân (individual final).
- *
- * Admin: question grid, power system, buzzer, turn-based scoring.
- * MC: read-only spectator view.
- * Player: buzzer, power selection, question display.
- */
 import {
   startTransition,
   useCallback,
@@ -88,7 +81,6 @@ const getTimeLimitForPoints = (points: number): number => {
   }
 };
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminVeDichRiengView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -1175,7 +1167,6 @@ const AdminVeDichRiengView = () => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 type RoundQuestion = { code: string; category: string; points: number };
 const PlayerVeDichRiengView = () => {
   const { matchCode, playerCode } = useRoleSession("player");
@@ -1593,7 +1584,6 @@ const PlayerVeDichRiengView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCVeDichRiengView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
@@ -1605,7 +1595,6 @@ const MCVeDichRiengView = () => {
   );
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 const VeDichRiengPage = () => {
   const { role } = useGameWebSocket();
   if (role === "controller") return <AdminVeDichRiengView />;

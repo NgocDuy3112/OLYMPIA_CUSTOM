@@ -29,7 +29,6 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   }
 
   if (requiredRole && user.role !== requiredRole && user.role !== "admin") {
-    // Admin can access everything, others are restricted
     return <Navigate to="/login" replace />;
   }
 

@@ -1,7 +1,5 @@
-// ── Enums ──
 export { roleEnum, matchStatusEnum, auditActionTypeEnum } from "./enums.js";
 
-// ── Tables ──
 export { users } from "./user.js";
 export { matches, matchPlayerPositions } from "./match.js";
 export { questions, questionBank } from "./question.js";

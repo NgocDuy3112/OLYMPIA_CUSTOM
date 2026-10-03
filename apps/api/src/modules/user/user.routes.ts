@@ -33,7 +33,6 @@ export async function userRoutes(
   opts: { repo?: UserRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleUserRepo;
-  // GET /users/me — current user profile (private)
   app.get(
     "/users/me",
     { preHandler: [requireAuth(app)] },
@@ -53,7 +52,6 @@ export async function userRoutes(
     },
   );
 
-  // PATCH /users/me — update own userName/avatarUrl
   app.patch(
     "/users/me",
     { preHandler: [requireAuth(app)] },
@@ -88,7 +86,6 @@ export async function userRoutes(
     },
   );
 
-  // GET /users/by-code/:userCode — public profile (no email)
   app.get("/users/by-code/:userCode", async (request, reply) => {
     const { userCode } = request.params as { userCode: string };
     const row = await repo.findByCode(userCode);
@@ -139,7 +136,6 @@ export async function userRoutes(
     },
   );
 
-  // POST /users — admin tạo user mới kèm role (+ scopes nếu operator).
   app.post(
     "/users",
     { preHandler: [requireRole(app, "admin")] },
@@ -273,7 +269,6 @@ export async function userRoutes(
           });
         }
         updates.role = body.role as UserRow["role"];
-        // Clear scopes when leaving operator/agent role
         if (body.role !== "operator" && body.role !== "agent") {
           updates.operatorScopes = null;
         }
@@ -292,7 +287,6 @@ export async function userRoutes(
     },
   );
 
-  // PUT /users/:userCode/operator — admin grants/revokes operator scopes
   app.put(
     "/users/:userCode/operator",
     { preHandler: [requireRole(app, "admin")] },

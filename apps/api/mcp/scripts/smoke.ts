@@ -1,11 +1,3 @@
-/**
- * MCP smoke test — chạy cả 2 transport:
- *   1. HTTP : GET /health → POST /mcp initialize + tools/list
- *   2. stdio: spawn `node dist/index.js` → initialize + tools/list
- *
- * Chạy:  pnpm test:smoke   (cần build trước — dist/index.js)
- * Env:   MCP_SMOKE_URL (default http://localhost:8300)
- */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";

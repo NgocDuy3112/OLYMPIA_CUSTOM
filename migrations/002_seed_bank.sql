@@ -1,13 +1,13 @@
--- ============================================================
--- 002 seed sample question bank (QB_* codes, pre-approved)
--- ============================================================
--- Sample rows covering KD_C / KD_R / GM / BP / VD round hints.
--- status approved so rows are pickable right away.
--- Safe to re-run (ON CONFLICT DO NOTHING on bank_code).
---
--- Usage:
---   psql -U <user> -d <database> -f migrations/002_seed_bank.sql
--- ============================================================
+
+
+
+
+
+
+
+
+
+
 
 BEGIN;
 

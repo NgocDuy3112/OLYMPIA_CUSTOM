@@ -1,8 +1,8 @@
--- ============================================================
--- 001 full schema (squashed, generated from Drizzle + adapted)
--- Drizzle source: packages/db/src/schema/*
--- Re-generate: pnpm --filter @oc/db exec drizzle-kit generate
--- ============================================================
+
+
+
+
+
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 

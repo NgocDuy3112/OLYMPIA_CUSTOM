@@ -1,7 +1,3 @@
-/**
- * OC3 action parser — converts raw WS messages to typed OC3Action.
- * Other tournament formats must provide their own parser.
- */
 
 import type { OC3Action, OC3Phase } from "../oc3/types.js";
 

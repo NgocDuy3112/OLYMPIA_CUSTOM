@@ -15,17 +15,14 @@ const PGameAccessPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Focus first input on mount
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
 
   const handleChange = (index: number, value: string) => {
-    // Only allow digits
     if (value && !/^\d+$/.test(value)) return;
 
     const newPin = [...pin];
-    // Handle paste (multiple characters)
     if (value.length > 1) {
       const digits = value.slice(0, PIN_LENGTH - index).split("");
       digits.forEach((digit, i) => {
@@ -35,11 +32,9 @@ const PGameAccessPage: React.FC = () => {
       });
       setPin(newPin);
 
-      // Focus next empty input or last input
       const nextIndex = Math.min(index + digits.length, PIN_LENGTH - 1);
       inputRefs.current[nextIndex]?.focus();
 
-      // Auto-submit if all filled
       if (newPin.every((d) => d !== "")) {
         handleSubmit(newPin.join(""));
       }
@@ -47,12 +42,10 @@ const PGameAccessPage: React.FC = () => {
       newPin[index] = value;
       setPin(newPin);
 
-      // Auto-advance to next input
       if (value && index < PIN_LENGTH - 1) {
         inputRefs.current[index + 1]?.focus();
       }
 
-      // Auto-submit if all filled
       if (newPin.every((d) => d !== "") && value) {
         handleSubmit(newPin.join(""));
       }
@@ -61,7 +54,6 @@ const PGameAccessPage: React.FC = () => {
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     if (e.key === "Backspace" && !pin[index] && index > 0) {
-      // Move to previous input on backspace
       inputRefs.current[index - 1]?.focus();
     }
   };
@@ -99,9 +91,6 @@ const PGameAccessPage: React.FC = () => {
       }
 
       if (data.status === "success" && data.data) {
-        // Store match info and redirect to game.
-        // playerCode must be the logged-in userCode (from session), NOT
-        // matchSlug — backend POST /answers/ derives player from session.
         setMatchCode(data.data.matchSlug);
         try {
           const me = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -110,13 +99,11 @@ const PGameAccessPage: React.FC = () => {
           const userCode = me?.data?.userCode as string | undefined;
           if (userCode) setPlayerCode(userCode);
         } catch {
-          /* useRoleSession falls back to stored userCode */
         }
         navigate(`/player/waiting/${data.data.matchSlug}`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to join match");
-      // Clear PIN on error
       setPin(Array(PIN_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
     } finally {
@@ -132,7 +119,7 @@ const PGameAccessPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Header */}
+      {}
       <header className="sticky top-0 z-40 bg-background/30 backdrop-blur-sm border-b border-border">
         <div className="flex items-center justify-between px-4 py-3">
           <Button
@@ -144,14 +131,14 @@ const PGameAccessPage: React.FC = () => {
             <span className="text-sm">Quay lại</span>
           </Button>
           <span className="text-sm font-bold text-foreground">OLYMPIA CUSTOM</span>
-          <div className="w-20" /> {/* Spacer for centering */}
+          <div className="w-20" /> {}
         </div>
       </header>
 
-      {/* Main content */}
+      {}
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          {/* Title */}
+          {}
           <div className="text-center mb-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
               Vào Phòng Thi
@@ -161,7 +148,7 @@ const PGameAccessPage: React.FC = () => {
             </p>
           </div>
 
-          {/* PIN Input */}
+          {}
           <div className="card !p-6">
             <div className="flex justify-center gap-2 sm:gap-3 mb-6">
               {pin.map((digit, index) => (
@@ -190,14 +177,14 @@ const PGameAccessPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Error message */}
+            {}
             {error && (
               <div className="mb-4 p-3 bg-destructive/20 border border-destructive rounded-lg text-destructive text-sm text-center">
                 {error}
               </div>
             )}
 
-            {/* Buttons */}
+            {}
             <div className="flex gap-3">
               <Button
                 variant="secondary"
@@ -225,7 +212,7 @@ const PGameAccessPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Help text */}
+          {}
           <div className="mt-6 text-center text-xs text-muted-foreground">
             <p>
               Nếu bạn không có mã PIN, liên hệ MC hoặc admin để được cung cấp.

@@ -59,8 +59,6 @@ export async function qualifierRoutes(
     return t;
   }
 
-  // GET /qualifier/:tournamentCode/questions — list 16 questions (position order).
-  // Answer hidden unless qauthor/admin.
   app.get(
     "/qualifier/:tournamentCode/questions",
     { preHandler: [requireAuth(app)] },
@@ -84,7 +82,6 @@ export async function qualifierRoutes(
     },
   );
 
-  // POST /qualifier/:tournamentCode/questions — qauthor creates one (position 1-16).
   app.post(
     "/qualifier/:tournamentCode/questions",
     { preHandler: [requireScope(app, "qauthor")] },
@@ -163,7 +160,6 @@ export async function qualifierRoutes(
           targetCode: raw.questionCode,
           details: "qualifier question created",
         });
-        // Realtime: player pages in qualifier_<CODE> room refresh list.
         void manager.broadcast(`qualifier_${tournamentCode}`, {
           type: "qualifier_opened",
           tournament_code: tournamentCode,
@@ -187,7 +183,6 @@ export async function qualifierRoutes(
     },
   );
 
-  // PATCH /qualifier/:tournamentCode/questions/:questionCode — qauthor edits open question.
   app.patch(
     "/qualifier/:tournamentCode/questions/:questionCode",
     { preHandler: [requireScope(app, "qauthor")] },
@@ -290,7 +285,6 @@ export async function qualifierRoutes(
     },
   );
 
-  // DELETE /qualifier/:tournamentCode/questions/:questionCode — qauthor soft-deletes.
   app.delete(
     "/qualifier/:tournamentCode/questions/:questionCode",
     { preHandler: [requireScope(app, "qauthor")] },
@@ -336,7 +330,6 @@ export async function qualifierRoutes(
     },
   );
 
-  // POST /qualifier/:tournamentCode/questions/:questionCode/attempt — player submits.
   app.post(
     "/qualifier/:tournamentCode/questions/:questionCode/attempt",
     { preHandler: [requireAuth(app)] },
@@ -380,7 +373,6 @@ export async function qualifierRoutes(
           data: null,
         });
       }
-      // Moi cau 10s: qua gio → 400, tinh nhu bo qua (khong ghi attempt).
       if (isQualifierTimeout(ms)) {
         return reply.code(400).send({
           status: "error",
@@ -396,7 +388,6 @@ export async function qualifierRoutes(
           selectedOption: raw.selectedOption,
           responseTimeMs: Math.round(ms),
         });
-        // Do not reveal correctness before close.
         return reply.code(201).send({
           status: "success",
           message: "Attempt recorded",
@@ -414,8 +405,6 @@ export async function qualifierRoutes(
     },
   );
 
-  // POST /qualifier/:tournamentCode/questions/:questionCode/close — qauthor/controller
-  // freezes + scores (controller allowed for live ops).
   app.post(
     "/qualifier/:tournamentCode/questions/:questionCode/close",
     { preHandler: [requireScope(app, "qauthor", "controller")] },
@@ -457,7 +446,6 @@ export async function qualifierRoutes(
         targetCode: questionCode,
         details: `qualifier closed X=${result.correctCount} Y=${result.wrongCount} Z=${result.noAnswerCount}`,
       });
-      // Realtime: players refresh list + standings (correctness now visible).
       void manager.broadcast(`qualifier_${tournamentCode}`, {
         type: "qualifier_closed",
         tournament_code: tournamentCode,
@@ -476,7 +464,6 @@ export async function qualifierRoutes(
     },
   );
 
-  // GET /qualifier/:tournamentCode/standings?limit=16 — top-N ranking.
   app.get(
     "/qualifier/:tournamentCode/standings",
     { preHandler: [requireAuth(app)] },
@@ -501,8 +488,6 @@ export async function qualifierRoutes(
     },
   );
 
-  // POST /qualifier/:tournamentCode/close-all — qauthor/controller closes
-  // every open question (zero-sum each) for live ops. Skips already closed.
   app.post(
     "/qualifier/:tournamentCode/close-all",
     { preHandler: [requireScope(app, "qauthor", "controller")] },

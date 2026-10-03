@@ -1,4 +1,3 @@
-/** Helper dùng chung cho Lịch thi đấu (không chứa component). */
 
 export function formatScheduleTime(iso: string | null | undefined): string {
   if (!iso) return "Chưa xếp lịch";
@@ -13,7 +12,6 @@ export function formatScheduleTime(iso: string | null | undefined): string {
   });
 }
 
-/** ISO (có giờ) -> giá trị input datetime-local "YYYY-MM-DDTHH:mm". */
 export function isoToLocalInput(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);

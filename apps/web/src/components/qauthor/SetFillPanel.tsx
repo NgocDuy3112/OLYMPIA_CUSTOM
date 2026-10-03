@@ -21,9 +21,11 @@ import {
 } from "@/components/ui/input-group";
 import {
   DataTable,
+} from "@/components/shared/data-table";
+import {
   createDataTableColumns,
   type DataTableColumn,
-} from "@/components/shared/data-table";
+} from "@/components/shared/data-table-core";
 
 
 const logger = createLogger("SetFillPanel");
@@ -60,7 +62,6 @@ interface SetFillPanelProps {
 const inputClass =
   "h-9 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
-/** Sidebar Excel điền bộ đề: dòng template slot, pick từ bank đã duyệt. */
 export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps) {
   const open = setCode !== null;
   const [detail, setDetail] = useState<SetDetailView | null>(null);
@@ -202,7 +203,6 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
     }
   }, []);
 
-  // Vào chế độ pick là tự tải danh sách bank ngay, khỏi bấm Tìm.
   useEffect(() => {
     if (pickSlot) {
       setBankQuery("");

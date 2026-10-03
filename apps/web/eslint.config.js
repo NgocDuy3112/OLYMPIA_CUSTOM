@@ -30,7 +30,6 @@ export default defineConfig([
     },
   },
   {
-    // shadcn registry components export cva variants/hooks alongside components by design.
     files: ["src/components/ui/**/*.{ts,tsx}"],
     rules: {
       "react-refresh/only-export-components": "off",

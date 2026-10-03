@@ -34,7 +34,6 @@ function grade(candidate: string, expected: string, mode: GradeMode) {
 }
 
 export async function gradeRoutes(app: FastifyInstance) {
-  // POST /grade — chấm 1 đáp án bằng engine. Staff-only.
   app.post(
     "/grade",
     { preHandler: [requireAuth(app)] },
@@ -61,8 +60,6 @@ export async function gradeRoutes(app: FastifyInstance) {
     },
   );
 
-  // POST /grade/question — chấm toàn bộ bài 1 câu. Staff-only
-  // (đọc đáp án gốc + bài thí sinh), giống guard GET /answers/:match/:question.
   app.post(
     "/grade/question",
     { preHandler: [requireAuth(app)] },
@@ -83,7 +80,6 @@ export async function gradeRoutes(app: FastifyInstance) {
         throw new AppError(400, "match_code and question_code are required");
       }
       const mode: GradeMode = body.mode === "mcq" ? "mcq" : "auto";
-      // Agent chỉ quan tâm nội dung — ẩn user_code mặc định, thay label TS1..n.
       const anonymize = body.anonymize !== false;
 
       const matchId = await resolveMatchId(app.valkey, body.match_code);

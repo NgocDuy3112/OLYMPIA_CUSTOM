@@ -1,8 +1,8 @@
--- 006 agent role (machine identities: bots, AI agents).
--- Apply: psql $DATABASE_URL -f migrations/006_agent_role.sql
--- ALTER TYPE ... ADD VALUE cannot run inside a transaction block on old
--- versions; psql autocommit fine. IF NOT EXISTS needs PG 9.1+ (guarded
--- via DO block for idempotent re-runs).
+
+
+
+
+
 
 DO $$
 BEGIN

@@ -43,8 +43,6 @@ export interface NormalizedQuestionRow {
   isUsed: boolean;
 }
 
-// Backend drizzle returns camelCase (questionCode, mediaUrl, isUsed).
-// Normalize to one shape so bank/match tables read the same.
 export function normalizeQuestionRow(
   row: Record<string, unknown>,
 ): NormalizedQuestionRow {

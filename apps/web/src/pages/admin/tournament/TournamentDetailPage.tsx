@@ -130,7 +130,7 @@ const TournamentDetailPage: React.FC = () => {
         }}
         onSubmit={handleSaveEdit}
       />
-      {/* Header */}
+      {}
       <div className="flex items-center gap-4 mb-6">
         <Button
           size="icon"
@@ -165,7 +165,7 @@ const TournamentDetailPage: React.FC = () => {
         </Button>
       </div>
 
-      {/* Tabs */}
+      {}
       <div className="flex gap-1 mb-6 p-1 rounded-lg bg-accent/50 border border-border w-fit max-w-full overflow-x-auto">
         <Button
           variant="ghost"

@@ -80,7 +80,7 @@ const SMatchListPage: React.FC = () => {
   return (
       <PublicLayout>
         <div className="max-w-4xl mx-auto">
-          {/* Hero */}
+          {}
           <div className="text-center mb-8">
             <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">
               OLYMPIA CUSTOM
@@ -90,7 +90,7 @@ const SMatchListPage: React.FC = () => {
             </p>
           </div>
 
-          {/* Tournament List */}
+          {}
           <div>
             <h2 className="text-xl font-bold text-foreground mb-4">Giải đấu</h2>
             {tournaments.length === 0 ? (

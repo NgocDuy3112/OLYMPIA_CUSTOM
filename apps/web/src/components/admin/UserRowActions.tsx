@@ -8,7 +8,6 @@ interface UserRowActionsProps {
   onDelete: () => void;
 }
 
-/** 3 nút thao tác 1 dòng user: sửa / đổi vai trò / xoá — AdminUsersPage. */
 export function UserRowActions({
   onEdit,
   onChangeRole,

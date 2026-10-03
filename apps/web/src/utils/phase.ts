@@ -1,4 +1,3 @@
-/** Map URL path to game phase code (shared by nav bar and page layouts). */
 export function getPhaseFromPath(pathname: string): string {
   if (pathname.includes("/kdc")) return "kdc";
   if (pathname.includes("/kdr")) return "kdr";

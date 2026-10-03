@@ -9,14 +9,6 @@ import {
 import { matches } from "./match.js";
 import { questions } from "./question.js";
 
-/**
- * Score reviews — controller asks qauthor to judge marked answers.
- *
- * Flow: controller marks [position] name on web -> API creates pending row ->
- * Discord bot posts embed + per-player dung/sai buttons + Xac nhan + Nho OCee ->
- * qauthor decides -> callback -> WS score-review-result to controller.
- * Controller still calls /scoreboard/calculate to finalize points.
- */
 export type ScoreReviewStatus = "pending" | "decided" | "expired";
 
 export const scoreReviews = pgTable(
@@ -31,11 +23,8 @@ export const scoreReviews = pgTable(
       .references(() => questions.id, { onDelete: "cascade" }),
     matchCode: varchar("match_code", { length: 50 }).notNull(),
     questionCode: varchar("question_code", { length: 25 }).notNull(),
-    // [{ userCode, userName, position, answerText }]
     candidates: jsonb("candidates").notNull(),
-    // { [userCode]: "dung" | "sai" }
     decisions: jsonb("decisions").notNull().default({}),
-    // OCee suggestion: { [userCode]: { verdict, reason } }
     oceeSuggestion: jsonb("ocee_suggestion"),
     status: varchar("status", { length: 20 }).notNull().default("pending"),
     createdBy: varchar("created_by", { length: 50 }),

@@ -20,7 +20,6 @@ interface SetCard {
   expected: number;
 }
 
-/** Tab Bộ đề: cards từng bộ, mở bảng Excel điền slot từ bank. */
 const QAuthorSetsPage = () => {
   const [sets, setSets] = useState<SetCard[]>([]);
   const [loading, setLoading] = useState(false);

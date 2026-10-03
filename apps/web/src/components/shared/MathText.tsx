@@ -7,7 +7,6 @@ interface MathTextProps {
   className?: string;
 }
 
-// Render $...$ inline và $$...$$ block. Lỗi LaTeX fallback text thuần.
 export const MathText: React.FC<MathTextProps> = ({ text, className }) => {
   const parts = useMemo(() => {
     const out: Array<{ kind: "text" | "inline" | "block"; value: string; key: number }> = [];

@@ -11,7 +11,6 @@ type OperatorScope = "qauthor" | "controller" | "mc";
 
 const OPERATOR_SCOPES: OperatorScope[] = ["qauthor", "controller", "mc"];
 
-/** User tối mínimo — UserData (page) thỏa structural typing. */
 interface PanelUser {
   user_code: string;
   user_name: string;
@@ -23,7 +22,6 @@ interface PanelUser {
 export interface UserEditValue {
   name: string;
   email: string;
-  /** Mật khẩu mới — chỉ dùng cho admin/operator, rỗng = giữ nguyên. */
   password: string;
 }
 
@@ -72,8 +70,6 @@ interface UserEditPanelProps {
   onSave: (value: UserEditValue) => void | Promise<void>;
 }
 
-/** Panel sửa user — AdminUsersPage.
- *  Staff (admin/operator): Tên + Mật khẩu mới. Player/spectator: Tên + Email. */
 export function UserEditPanel({ item, saving, onClose, onSave }: UserEditPanelProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -151,13 +147,11 @@ interface UserAddPanelProps {
   onCreate: (value: UserAddValue) => void | Promise<void>;
 }
 
-/** Panel thêm user staff (tên/mật khẩu/vai trò) — AdminUsersPage. */
 export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelProps) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [staffRole, setStaffRole] = useState<StaffRole>("qauthor");
 
-  // Reset form mỗi lần mở panel.
   useEffect(() => {
     if (!open) return;
     setName("");
@@ -249,13 +243,11 @@ interface UserRolePanelProps {
   onSave: (value: UserRoleValue) => void | Promise<void>;
 }
 
-/** Panel đổi vai trò + cấp scopes operator — AdminUsersPage. */
 export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelProps) {
   const [role, setRole] = useState<GlobalRole>("player");
   const [scopes, setScopes] = useState<OperatorScope[]>([]);
   const open = item !== null;
 
-  // Reset từ item mỗi lần mở panel.
   useEffect(() => {
     if (!open || !item) return;
     setRole(item.role);
@@ -326,7 +318,6 @@ interface UserDeletePanelProps {
   onConfirm: () => void | Promise<void>;
 }
 
-/** Panel xác nhận xoá user (tone danger) — AdminUsersPage. */
 export function UserDeletePanel({ item, saving, onClose, onConfirm }: UserDeletePanelProps) {
   const open = item !== null;
 

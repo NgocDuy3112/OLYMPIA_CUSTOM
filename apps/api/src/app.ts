@@ -1,6 +1,3 @@
-/**
- * createApp — assembles all Fastify plugins and routes.
- */
 
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
@@ -47,26 +44,20 @@ export async function createApp() {
     },
   });
 
-  // Type provider
   app.withTypeProvider<ZodTypeProvider>();
 
-  // Plugins
   await app.register(cookie);
   await registerCors(app);
   await registerWebSocket(app);
   await app.register(valkeyPlugin);
   await app.register(s3Plugin);
 
-  // Error handler
   app.setErrorHandler(errorHandler);
 
-  // Health check
   app.get("/health", async () => ({ status: "healthy" }));
 
-  // Prometheus metrics (no /api prefix — scraped on internal network)
   await app.register(metricsRoutes);
 
-  // API routes
   await app.register(authRoutes, { prefix: "/api" });
   await app.register(userRoutes, { prefix: "/api" });
   await app.register(matchRoutes, { prefix: "/api" });
@@ -88,13 +79,11 @@ export async function createApp() {
   await app.register(gradeRoutes, { prefix: "/api" });
   await app.register(questionSetRoutes, { prefix: "/api" });
 
-  // Background: snapshot Valkey match state every 30s
   const checkpointJob = startCheckpointJob(app);
   app.addHook("onClose", async () => {
     checkpointJob.stop();
   });
 
-  // WebSocket route
   await app.register(wsRoute);
 
   return app;

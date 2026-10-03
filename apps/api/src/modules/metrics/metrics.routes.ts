@@ -1,14 +1,3 @@
-/**
- * metrics — Prometheus instrumentation for Fastify.
- *
- * Metrics (prefix oc_api_):
- *   http_requests_total{method,route,status}
- *   http_request_duration_seconds{method,route,status}
- *   ws_connections_current
- *   agent_ask_total{status} / agent_ask_errors_total
- *
- * Route: GET /metrics (no auth — Prometheus scrapes internal network).
- */
 
 import type { FastifyInstance } from "fastify";
 import {
@@ -56,7 +45,6 @@ export function observeAgentAsk(status: "ok" | "rate_limited" | "error"): void {
 }
 
 export async function metricsRoutes(app: FastifyInstance): Promise<void> {
-    // Timing hook — skip /metrics itself to avoid self-scrape noise.
     app.addHook("onResponse", async (request, reply) => {
         const url = request.url.split("?")[0];
         if (url === "/metrics") return;

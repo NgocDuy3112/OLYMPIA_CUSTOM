@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { ShellSidebar, type ShellNavGroup } from "./ShellSidebar";
 
-/** QAuthor shell sidebar — cấu hình cho ShellSidebar (shadcn Sidebar block). */
 export const QAuthorSidebar: React.FC = () => {
   const groups: ShellNavGroup[] = [
     {

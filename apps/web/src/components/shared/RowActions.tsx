@@ -3,16 +3,13 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface RowActionsProps {
-  /** Bỏ prop = không render nút đó. */
   onEdit?: () => void;
   onDelete?: () => void;
   editTitle?: string;
   deleteTitle?: string;
-  /** Nút phụ giữa Sửa và Xoá (Upload, Chốt…). */
   children?: ReactNode;
 }
 
-/** Row actions chuẩn cho bảng: Sửa · [nút phụ] · Xoá. */
 export function RowActions({
   onEdit,
   onDelete,

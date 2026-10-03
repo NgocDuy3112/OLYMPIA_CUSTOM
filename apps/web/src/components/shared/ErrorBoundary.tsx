@@ -9,7 +9,6 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-/** Bắt lỗi render (kể cả lazy chunk fail) — hiện lỗi thay vì trắng trang. */
 export class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,
   ErrorBoundaryState

@@ -9,12 +9,6 @@ import {
   type McpTokenEntry,
 } from "./token-store.js";
 
-/**
- * Admin/operator quản lý MCP tokens (tab web). Token hiện 1 lần.
- * Token gắn identity: `userCode` user thật trong DB — MCP server tự mint sid
- * (role operator/admin check lúc mint, POST /auth/service/session).
- * Không còn scope/role trong token — quyền = quyền backend của identity.
- */
 
 const ROLE_RANK: Record<string, number> = { operator: 1, admin: 2 };
 
@@ -24,7 +18,6 @@ export async function mcpTokenRoutes(
 ) {
   const repo = opts.repo ?? drizzleUserRepo;
 
-  // GET /mcp-tokens — list metadata (không trả token).
   app.get(
     "/mcp-tokens",
     { preHandler: [requireRole(app, "admin", "operator")] },
@@ -38,7 +31,6 @@ export async function mcpTokenRoutes(
     },
   );
 
-  // GET /mcp-tokens/identities — user thật (operator/admin) làm identity cho token.
   app.get(
     "/mcp-tokens/identities",
     { preHandler: [requireRole(app, "admin", "operator")] },
@@ -55,7 +47,6 @@ export async function mcpTokenRoutes(
     },
   );
 
-  // POST /mcp-tokens — tạo token mới. Body {name!, userCode!}.
   app.post(
     "/mcp-tokens",
     { preHandler: [requireRole(app, "admin", "operator")] },
@@ -82,7 +73,6 @@ export async function mcpTokenRoutes(
           session?: { userCode?: string; role?: string };
         }
       ).session;
-      // Người tạo ≥ role identity: operator chỉ cấp identity operator, admin cấp mọi thứ.
       const creatorRank = ROLE_RANK[session?.role ?? ""] ?? 0;
       if (creatorRank < identityRank) {
         throw new AppError(
@@ -111,7 +101,6 @@ export async function mcpTokenRoutes(
     },
   );
 
-  // DELETE /mcp-tokens/:name — thu hồi (MCP reload là mất hiệu lực).
   app.delete(
     "/mcp-tokens/:name",
     { preHandler: [requireRole(app, "admin", "operator")] },
@@ -125,7 +114,6 @@ export async function mcpTokenRoutes(
           session?: { userCode?: string; role?: string };
         }
       ).session;
-      // Operator chỉ thu hồi token mình cấp.
       if (session?.role === "operator" && entry.createdBy !== session.userCode) {
         throw new AppError(403, "Chỉ thu hồi token mình đã cấp");
       }

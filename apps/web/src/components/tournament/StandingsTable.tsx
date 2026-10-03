@@ -2,9 +2,11 @@ import React from "react";
 import { Trophy, Medal } from "lucide-react";
 import {
   DataTable,
+} from "@/components/shared/data-table";
+import {
   createDataTableColumns,
   type DataTableColumn,
-} from "@/components/shared/data-table";
+} from "@/components/shared/data-table-core";
 
 interface Standing {
   rank: number;

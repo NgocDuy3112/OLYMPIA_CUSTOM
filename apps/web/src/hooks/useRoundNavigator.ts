@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 
-/** Các bước vòng thi, theo thứ tự điều hành thật. */
 export type LiveRound =
   | "kdc"
   | "kdr"
@@ -17,7 +16,6 @@ export type LiveRound =
 interface RoundPath {
   controller: string;
   player: string;
-  /** round_start chỉ gửi khi có (sảnh chờ không phải vòng). */
   round?: string;
   label: string;
 }
@@ -45,7 +43,6 @@ export const LIVE_ROUND_ORDER: LiveRound[] = [
   "vdr",
 ];
 
-/** Suy vòng hiện tại từ path (đặt pick TRƯỚC vòng thường). */
 export function currentRoundFromPath(pathname: string): LiveRound | null {
   if (pathname.includes("/vdc/pick")) return "vdc_pick";
   if (pathname.includes("/vdr/pick")) return "vdr_pick";
@@ -56,12 +53,6 @@ export function currentRoundFromPath(pathname: string): LiveRound | null {
   return null;
 }
 
-/**
- * Điều khiển vòng thi CHỦ ĐỘNG từ controller — backend đã cho phép
- * (`isAllowedByRole: controller → true`, engine persist state, broadcast
- * gồm cả sender). Mirror nguyên luồng `WaitingPage.broadcastNavigate`:
- * round_start → clear_question → navigate (player) → navigate local.
- */
 export function useRoundNavigator(matchCode?: string) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -95,7 +86,7 @@ export function useRoundNavigator(matchCode?: string) {
       ? "kdc"
       : idx < LIVE_ROUND_ORDER.length - 1
         ? LIVE_ROUND_ORDER[idx + 1]
-        : "waiting"; // hết VĐ riêng → về sảnh chờ
+        : "waiting";
   const prev: LiveRound | null = idx > 0 ? LIVE_ROUND_ORDER[idx - 1] : null;
 
   const goNext = useCallback(() => {

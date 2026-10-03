@@ -10,7 +10,6 @@ import {
 import { getMatchCode } from "@/utils/storage";
 import { ShellSidebar, type ShellNavGroup } from "./ShellSidebar";
 
-/** Controller shell sidebar — cấu hình cho ShellSidebar (shadcn Sidebar block). */
 export const ControllerSidebar: React.FC = () => {
   const matchCode = getMatchCode();
 

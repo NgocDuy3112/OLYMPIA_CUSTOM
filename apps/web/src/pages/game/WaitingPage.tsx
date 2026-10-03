@@ -1,10 +1,3 @@
-/**
- * WaitingPage — Unified page for the waiting/lobby screen.
- *
- * Admin: game management buttons, player cards, round navigation.
- * MC: read-only waiting view.
- * Player: waiting view with player info.
- */
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Play, UserCheck, Trophy, Flag, CheckCircle } from "lucide-react";
@@ -42,7 +35,6 @@ import { SERIES_COLORS } from "@/lib/seriesColors";
 const logger = createLogger("WaitingPage");
 const PLAYER_COLORS = SERIES_COLORS;
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminWaitingView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -409,7 +401,6 @@ const AdminWaitingView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCWaitingView = () => {
   const { matchCode } = useRoleSession("mc");
   const { lastMessage } = useGameWebSocket();
@@ -423,7 +414,6 @@ const MCWaitingView = () => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 const PlayerWaitingView = () => {
   usePlayerProtection(true);
   const { matchCode: routeMatchCode } = useParams<{ matchCode: string }>();
@@ -440,7 +430,6 @@ const PlayerWaitingView = () => {
   );
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 const WaitingPage = () => {
   const { role } = useGameWebSocket();
   if (role === "controller") return <AdminWaitingView />;

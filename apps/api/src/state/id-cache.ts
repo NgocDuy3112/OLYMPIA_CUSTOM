@@ -1,16 +1,10 @@
-/**
- * ID resolution cache in Valkey.
- *
- * Maps human-readable codes (match_code, user_code, question_code)
- * to UUID primary keys. Avoids hitting the DB on every WS message.
- */
 
 import type Redis from "ioredis";
 import { drizzleMatchRepo } from "../modules/match/match.repo.js";
 import { drizzleUserRepo } from "../modules/user/user.repo.js";
 import { drizzleQuestionRepo } from "../modules/question/question.repo.js";
 
-const CACHE_TTL = 3600; // 1 hour
+const CACHE_TTL = 3600;
 
 function matchKey(code: string) {
   return `id:match:${code}`;
@@ -58,7 +52,6 @@ export async function resolveQuestionId(
   matchId?: string | null,
 ): Promise<string | null> {
   if (!questionCode) return null;
-  // Scoped lookup first when matchId known (question_code repeats per match).
   if (matchId) {
     const scoped = await valkey.get(questionKey(questionCode, matchId));
     if (scoped) return scoped;

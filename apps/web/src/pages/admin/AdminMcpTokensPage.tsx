@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   DataTable,
+} from "@/components/shared/data-table";
+import {
   createDataTableColumns,
   type DataTableColumn,
-} from "@/components/shared/data-table";
+} from "@/components/shared/data-table-core";
 
 const logger = createLogger("AdminMcpTokensPage");
 
@@ -23,7 +25,6 @@ interface McpTokenMeta {
 
 const helper = createDataTableColumns<McpTokenMeta>();
 
-/** Identity khả dụng — user thật role operator/admin (check lúc mint server-side). */
 interface Identity {
   userCode: string;
   userName: string;
@@ -104,7 +105,7 @@ const AdminMcpTokensPage = () => {
     }
   };
 
-  const revokeToken = async (tokenName: string) => {
+  const revokeToken = useCallback(async (tokenName: string) => {
     if (!window.confirm(`Thu hồi token "${tokenName}"?`)) return;
     try {
       const res = await fetch(`${API_BASE_URL}/mcp-tokens/${encodeURIComponent(tokenName)}`, {
@@ -121,7 +122,7 @@ const AdminMcpTokensPage = () => {
       logger.error("Error revoking token:", err);
       setError("Lỗi mạng");
     }
-  };
+  }, [fetchTokens]);
 
   const copyToken = async () => {
     if (freshToken) {
@@ -186,8 +187,7 @@ const AdminMcpTokensPage = () => {
         ),
       }),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [identities],
+    [identities, revokeToken],
   );
 
   return (

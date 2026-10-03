@@ -83,10 +83,6 @@ export async function questionRoutes(
     return { ...row, answer: "", explanation: null };
   }
 
-  // GET /questions?match_code=...&question_code=... — query style used by web
-  // (AGameManagingPage, useGameRound, game pages). Kept alongside param style.
-  // Requires auth; answer/explanation stripped unless privileged (admin,
-  // qauthor, controller, tournament qauthor/controller).
   app.get(
     "/questions",
     { preHandler: [requireAuth(app)] },
@@ -278,9 +274,6 @@ export async function questionRoutes(
     },
   );
 
-  // PATCH /questions/:matchCode/:questionCode — edit one question.
-  // Allowed: admin, operator qauthor, tournament qauthor.
-  // Matches AGameManagingPage patchQuestion() call shape.
   app.patch(
     "/questions/:matchCode/:questionCode",
     { preHandler: [requireAuth(app)] },
@@ -381,7 +374,6 @@ export async function questionRoutes(
     },
   );
 
-  // DELETE /questions/:matchCode/:questionCode — delete one question.
   app.delete(
     "/questions/:matchCode/:questionCode",
     { preHandler: [requireAuth(app)] },
@@ -425,9 +417,6 @@ export async function questionRoutes(
     },
   );
 
-  // POST /questions/:matchCode/:questionCode/use — mark question used live.
-  // Called when controller broadcasts send_question over WS.
-  // Allowed: admin, operator controller, tournament controller.
   app.post(
     "/questions/:matchCode/:questionCode/use",
     { preHandler: [requireAuth(app)] },
@@ -491,12 +480,6 @@ export async function questionRoutes(
     },
   );
 
-  // GET /bank/search?q=...&round_hint=...&limit=...&page=...&used=...
-  // Stable QB_* bank, searchable. Requires auth; answer visible to
-  // question writers (admin/qauthor), stripped otherwise.
-  // used=only|unused filters by used-where (source_bank_id links);
-  // response rows carry usedCount + usedIn [{matchCode, questionCode, isUsed}].
-  // Paged: limit (default 20) + page (1-based) -> data {rows,total,limit,page,pages}.
   app.get(
     "/bank/search",
     {
@@ -566,12 +549,6 @@ export async function questionRoutes(
     },
   );
 
-  // POST /questions/pick — gộp 2 mode:
-  //  - Lẻ (KĐC/KĐR/BP/VĐ): { bankId|bankCode, matchCode, round, slot? }
-  //  - Cả set GM: { matchCode, round: "GM", setCode } (setCode hoặc bankCode KEY)
-  // GM chặn pick lẻ. Response chuẩn: data { created: [{slot, questionCode, bankCode}], setCode }.
-  // Citation chuẩn: [{source, url, accessed_at}] — accessed_at nhận
-  // DD/MM/YYYY (VN) hoặc ISO, lưu ISO để sort mới-cũ.
   function normalizeCitations(raw: unknown): { source: string; url: string; accessedAt: string }[] | null {
     if (raw === undefined) return null;
     if (!Array.isArray(raw)) return [];
@@ -614,8 +591,6 @@ export async function questionRoutes(
     }
     return null;
   }
-  // Allowed: admin, operator qauthor, tournament qauthor. AI callers
-  // (MCP/agent) dùng session staff như mọi client khác.
   app.post(
     "/questions/pick",
     {
@@ -690,7 +665,6 @@ export async function questionRoutes(
       const bankId = raw.bankId ?? raw.bank_id ?? "";
       const bankCode = raw.bankCode ?? raw.bank_code ?? "";
       const ocPrefix = ocPrefixFromCode(matchCode);
-      // Mode set GM: { matchCode, round: "GM", setCode } — pick cả 9 1 lần.
       if (round === "GM") {
         let setCode = String(raw.setCode ?? raw.set_code ?? "").trim().toUpperCase();
         if (!setCode) {
@@ -878,7 +852,6 @@ export async function questionRoutes(
     );
   }
 
-  // POST /bank — QAuthor creates a stable QB_* bank row (media chèn sau).
   app.post(
     "/bank",
     { preHandler: [requireAuth(app)] },
@@ -945,7 +918,6 @@ export async function questionRoutes(
         (raw.hintIndex ?? raw.hint_index)?.trim().toUpperCase() || null;
       let setCode =
         (raw.setCode ?? raw.set_code)?.trim().toUpperCase() || null;
-      // GM KEY mở set mới: gen tuần tự S<max+1> khi để trống (không hash).
       if (!setCode && roundHint === "GM" && hintIndex === "KEY") {
         setCode = nextSequentialSetCode(
           await bankRepo.listCodesByPrefix("S"),
@@ -986,8 +958,6 @@ export async function questionRoutes(
     },
   );
 
-  // POST /bank/import — import hàng loạt (Excel raw items hoặc field-name rows).
-  // Partial import có chủ đích: dòng sai không chặn dòng đúng, trả report.
   app.post(
     "/bank/import",
     { preHandler: [requireAuth(app)] },
@@ -1050,14 +1020,11 @@ export async function questionRoutes(
       const key = (r: { row: number; sheet?: string }) =>
         `${r.sheet ?? ""}#${r.row}`;
 
-      // Lỗi theo dòng (normalize gộp + validate)
       const normalizeByKey = new Map<string, RowIssue[]>();
       for (const is of issues) {
         const k = `${is.sheet ?? ""}#${is.row}`;
         normalizeByKey.set(k, [...(normalizeByKey.get(k) ?? []), is]);
       }
-      // GM: validate cấp set (thiếu/trùng KEY+H1..H8) — issue gắn vào từng row
-      // của set → import chặn CẢ SET khi set vi phạm.
       for (const is of validateGmSets(rows)) {
         const k = `${is.sheet ?? ""}#${is.row}`;
         normalizeByKey.set(k, [...(normalizeByKey.get(k) ?? []), is]);
@@ -1088,7 +1055,6 @@ export async function questionRoutes(
           valid.push(r);
         }
       }
-      // Dòng bị normalize bỏ (sheet lạ...) chưa từng report
       for (const [k, errs] of normalizeByKey) {
         if (reported.has(k)) continue;
         results.push({
@@ -1099,7 +1065,6 @@ export async function questionRoutes(
         });
       }
 
-      // Auto-gen bankCode: query prefix1 lần/prefix (NN bắt đầu sau MAX hiện có)
       const missing = valid.filter((r) => !r.fields.bankCode);
       if (missing.length > 0) {
         const today = vnDate();
@@ -1110,7 +1075,6 @@ export async function questionRoutes(
         assignAutoCodes(missing, existing, today);
       }
 
-      // Insert — partial: lỗi1 dòng không chặn dòng khác
       let created = 0;
       for (const r of valid) {
         try {
@@ -1177,7 +1141,6 @@ export async function questionRoutes(
     },
   );
 
-  // PATCH /bank/:id — QAuthor edits a bank row (kể cả chèn mediaUrl sau).
   app.patch(
     "/bank/:id",
     {
@@ -1260,7 +1223,6 @@ export async function questionRoutes(
         updates.hintIndex = raw.hintIndex ?? raw.hint_index ?? null;
       const normCites = normalizeCitations(raw.citations);
       if (normCites !== null) updates.citations = normCites;
-      // Sửa nội dung/đáp án câu đã duyệt → rớt về pending, duyệt lại.
       const before = await bankRepo.findById(id);
       const contentChanged = raw.content !== undefined || raw.answer !== undefined;
       const ok = await bankRepo.update(id, updates);
@@ -1292,7 +1254,6 @@ export async function questionRoutes(
     },
   );
 
-  // DELETE /bank/:id — QAuthor soft-deletes a bank row.
   app.delete(
     "/bank/:id",
     { preHandler: [requireAuth(app)] },
@@ -1327,9 +1288,6 @@ export async function questionRoutes(
     },
   );
 
-  // POST /bank/:id/review { decision: approved|rejected, note? }
-  // Chỉ admin duyệt. OCee hỗ trợ bằng tool suggest_bank_review (read-only),
-  // không được write duyệt.
   app.post(
     "/bank/:id/review",
     { preHandler: [requireAuth(app)] },

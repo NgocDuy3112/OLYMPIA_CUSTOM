@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { PublicLayout } from "@/components/layout";
 
-/* ───────────────── Score visuals (card điểm + timeline) ───────────────── */
 
 type Tone = "great" | "good" | "mid" | "low" | "neutral";
 
@@ -44,7 +43,6 @@ const TONE_BG: Record<Tone, string> = {
   neutral: "bg-accent border-border",
 };
 
-/** Ma trận điểm chuông: 1 card/ứng hạng, số điểm theo khung giờ. */
 const PointMatrix: React.FC<{ headers: string[]; rows: ScoreRow[] }> = ({
   headers,
   rows,
@@ -81,7 +79,6 @@ const PointMatrix: React.FC<{ headers: string[]; rows: ScoreRow[] }> = ({
   </div>
 );
 
-/** Thời gian vòng: timeline 1 dòng/vòng, thanh tỉ lệ so với 60s. */
 const DurationList: React.FC<{ rows: ScoreRow[] }> = ({ rows }) => (
   <div className="mt-4 flex flex-col gap-2">
     {rows.map((row) => {
@@ -110,7 +107,6 @@ const DurationList: React.FC<{ rows: ScoreRow[] }> = ({ rows }) => (
   </div>
 );
 
-/* ────────────────────────────── Rule primitives ──────────────────────────── */
 
 const Rule: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <li className="flex gap-2.5">
@@ -126,7 +122,6 @@ const SubHeading: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </h4>
 );
 
-/* ────────────────────────────────── Sections ─────────────────────────────── */
 
 const SECTIONS = [
   {
@@ -354,7 +349,6 @@ const SECTIONS = [
   },
 ];
 
-/* ─────────────────────────────────── Page ────────────────────────────────── */
 
 const RulesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -387,7 +381,7 @@ const RulesPage: React.FC = () => {
   return (
     <PublicLayout>
       <div className="max-w-5xl mx-auto">
-        {/* Hero */}
+        {}
         <div className="mb-8 sm:mb-10">
           <Button
             variant="ghost"
@@ -415,7 +409,7 @@ const RulesPage: React.FC = () => {
               thời gian và luật chung.
             </p>
 
-            {/* Quick stats */}
+            {}
             <div className="mt-5 grid max-w-md grid-cols-3 gap-3">
               {[
                 ["4", "Thí sinh"],
@@ -438,9 +432,9 @@ const RulesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Body: sticky TOC + sections */}
+        {}
         <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
-          {/* Desktop TOC */}
+          {}
           <aside className="hidden lg:block">
             <nav className="card card-wide sticky top-8 p-4!" aria-label="Mục lục">
               <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-widest text-brand">
@@ -474,7 +468,7 @@ const RulesPage: React.FC = () => {
             </nav>
           </aside>
 
-          {/* Mobile TOC chips */}
+          {}
           <div className="mb-6 overflow-x-auto lg:hidden">
             <div className="flex w-max gap-2 pb-1">
               {SECTIONS.map((section) => {
@@ -498,7 +492,7 @@ const RulesPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Sections */}
+          {}
           <div className="min-w-0">
             <div className="space-y-6">
               {SECTIONS.map((section, index) => (
@@ -525,7 +519,7 @@ const RulesPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Footer */}
+            {}
             <p className="mb-4 mt-10 text-center text-xs text-muted-foreground">
               Luật chơi có thể được cập nhật. Phiên bản hiện tại áp dụng cho giải
               đấu Olympia Custom.

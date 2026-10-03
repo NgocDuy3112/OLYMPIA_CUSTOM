@@ -21,7 +21,6 @@ const AuthCallbackPage: React.FC = () => {
       return;
     }
 
-    // Verify session with backend
     const verifySession = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
@@ -34,15 +33,12 @@ const AuthCallbackPage: React.FC = () => {
 
         const data = await response.json();
         if (data.status === "success" && data.data) {
-          // Store minimal user info in sessionStorage for quick access
-          // (actual auth is cookie-based)
           setUserRole(data.data.role);
           setUserCode(data.data.userCode);
           setUserName(data.data.userName);
 
           setState("success");
 
-          // Redirect based on role
           setTimeout(() => {
             const role = data.data.role;
             if (role === "admin") {
@@ -62,7 +58,6 @@ const AuthCallbackPage: React.FC = () => {
       }
     };
 
-    // Small delay to ensure cookie is set
     const timer = setTimeout(verifySession, 100);
     return () => clearTimeout(timer);
   }, [searchParams, navigate]);

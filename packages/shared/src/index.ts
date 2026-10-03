@@ -1,6 +1,5 @@
 export type TournamentFormat = "oc3" | "oc4";
 
-/** OC code helpers — canonical format is OC<number>_X_*. */
 export const OC_MATCH_RE = /^OC(\d+)_M/;
 export const OC_QUESTION_RE = /^OC(\d+)_Q/;
 export const OC_TOURNAMENT_RE = /^OC(\d+)_T/;

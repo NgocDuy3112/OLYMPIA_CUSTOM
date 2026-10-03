@@ -7,15 +7,9 @@ interface PresignResponse {
   data: unknown;
 }
 
-/**
- * Upload 1 file ảnh/audio/video lên S3 qua presign-put rồi trả về key.
- * Key phẳng theo mã câu: questions/<CODE>.<ext> — 1 câu 1 file,
- * upload mới ghi đè file cũ.
- */
 export async function uploadQuestionMedia(
   code: string,
   file: File,
-  /** % 0→100 — fetch không có progress event nên PUT bằng XHR. */
   onProgress?: (pct: number) => void,
 ): Promise<string> {
   const okType =
@@ -38,7 +32,6 @@ export async function uploadQuestionMedia(
   return key;
 }
 
-/** Extension sạch từ tên file, fallback theo mime khi tên không có. */
 function extOf(file: File): string {
   const raw = file.name
     .split(".")

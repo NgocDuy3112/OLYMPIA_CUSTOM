@@ -35,7 +35,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const isOverlay = mode === "overlay";
   const mediaUrl = media || question.questionMediaURL;
 
-  // Title rendering
   const renderTitle = (t: string) => {
     const parts = t.split(" - ");
     if (parts.length >= 2) {
@@ -87,21 +86,21 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       ${className}
     `}
     >
-      {/* Header: Title + Controls + Timer */}
+      {}
       <div className="flex justify-between items-center pb-1 gap-2 min-w-0">
-        {/* Title */}
+        {}
         {title && (
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
             {renderTitle(title)}
           </div>
         )}
 
-        {/* Right side: Controls + Timer */}
+        {}
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-          {/* Controls */}
+          {}
           {controls && <div className="flex gap-1 sm:gap-2">{controls}</div>}
 
-          {/* Timer */}
+          {}
           {timerDuration !== undefined && (
             <div
               className={`
@@ -120,7 +119,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
       </div>
 
-      {/* Content: Question + Media */}
+      {}
       <div
         className={`
         flex flex-col lg:flex-row flex-1 gap-3 sm:gap-4 min-h-0 overflow-hidden
@@ -128,7 +127,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       >
         {mediaUrl ? (
           <>
-            {/* Question text */}
+            {}
             <div className="w-full lg:flex-[3] flex flex-col justify-start min-h-0 overflow-y-auto">
               <p
                 className={`
@@ -144,7 +143,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </p>
             </div>
 
-            {/* Media */}
+            {}
             <div className="w-full lg:flex-[7] aspect-video lg:aspect-auto lg:h-full min-h-0 overflow-hidden">
               <div
                 className={
@@ -178,7 +177,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         )}
       </div>
 
-      {/* Answer (only for admin/mc when showAnswer is true) */}
+      {}
       {showAnswer && question.questionAnswer && mode !== "overlay" && (
         <div className="mt-2 sm:mt-4 p-2 sm:p-3 bg-success/20 border border-success rounded-lg">
           <p className="text-success font-bold text-xs sm:text-sm">
@@ -187,7 +186,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
       )}
 
-      {/* Children slot */}
+      {}
       {children}
     </div>
   );

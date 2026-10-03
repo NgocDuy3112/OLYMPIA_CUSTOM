@@ -38,12 +38,12 @@ export const PlayerGrid: React.FC<PlayerGridProps> = ({
           key={player.id}
           className="flex items-center gap-3 p-3 bg-accent/50 rounded-lg hover:bg-accent transition-colors"
         >
-          {/* Avatar */}
+          {}
           <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center text-brand font-bold shrink-0">
             {index + 1}
           </div>
 
-          {/* Info */}
+          {}
           <div className="flex-1 min-w-0">
             <div className="font-medium text-foreground truncate">
               {player.userName}

@@ -1,8 +1,3 @@
-/**
- * usePlayerRound — Shared hook for all player game round pages.
- *
- * Encapsulates: WebSocket message handling, timer sync, player state updates.
- */
 import { useEffect, useRef, useState } from "react";
 import { useGameWebSocket } from "./useGameWebSocket";
 import { useCountdownTimer } from "./useCountdownTimer";
@@ -17,28 +12,23 @@ import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 
 export interface UsePlayerRoundOptions {
-  /** Whether to play audio on timer start */
   audioSrc?: string;
 }
 
 export interface UsePlayerRoundReturn {
-  // WebSocket
   isConnected: boolean;
   lastMessage: WebSocketMessage | null;
   sendMessage: WebSocketContextValue["sendMessage"];
 
-  // Timer
   timer: number;
   timeLimit: number;
   startSynced: (timeLimit: number, startedAt: number) => void;
   getElapsedSeconds: () => number;
 
-  // Question
   currentQuestion: Question;
   currentQuestionIndex: number;
   applyWsMessage: (msg: unknown) => void;
 
-  // Players
   players: PlayerStatus[];
   setPlayers: React.Dispatch<React.SetStateAction<PlayerStatus[]>>;
   applyPlayersInfo: (msg: WebSocketMessage) => void;
@@ -47,7 +37,6 @@ export interface UsePlayerRoundReturn {
   applyWrongAttempt: (msg: WebSocketMessage) => void;
   clearAnswers: () => void;
 
-  // Extra states
   showAnswers: boolean;
   setShowAnswers: (v: boolean) => void;
   videoPlayState: "playing" | "paused" | null;
@@ -83,14 +72,12 @@ export function usePlayerRound(
   const [timerHasStarted, setTimerHasStarted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Cleanup audio on unmount
   useEffect(() => {
     return () => {
       audioRef.current?.pause();
     };
   }, []);
 
-  // Base WebSocket message handling
   useEffect(() => {
     const msg = unwrapWebSocketMessage(lastMessage);
     if (!msg) return;
@@ -118,7 +105,6 @@ export function usePlayerRound(
           setShowAnswers(false);
           setVideoPlayState("playing");
 
-          // Play audio if provided
           if (audioSrc) {
             audioRef.current?.pause();
             audioRef.current = new Audio(audioSrc);

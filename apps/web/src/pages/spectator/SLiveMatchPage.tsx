@@ -33,7 +33,6 @@ const SLiveMatchPage: React.FC = () => {
     Array<{ text: string; timestamp: number }>
   >([]);
 
-  // Fetch match info
   useEffect(() => {
     if (!matchCode) return;
 
@@ -57,7 +56,6 @@ const SLiveMatchPage: React.FC = () => {
     fetchMatchInfo();
   }, [matchCode]);
 
-  // Handle WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
 
@@ -123,7 +121,6 @@ const SLiveMatchPage: React.FC = () => {
     }
   }, [lastMessage]);
 
-  // Extract YouTube ID from URL
   const extractYouTubeId = (url: string): string | null => {
     const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
     return match?.[1] ?? null;
@@ -135,7 +132,7 @@ const SLiveMatchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between p-3 sm:p-4 bg-background/50">
         <Button
           variant="ghost"
@@ -164,9 +161,9 @@ const SLiveMatchPage: React.FC = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 p-3 sm:p-4">
-        {/* Main content: Video + Question */}
+        {}
         <div className="flex-1 flex flex-col gap-3 sm:gap-4">
-          {/* Video embed */}
+          {}
           {videoId ? (
             <div className="aspect-video bg-black rounded-lg overflow-hidden">
               <iframe
@@ -184,7 +181,7 @@ const SLiveMatchPage: React.FC = () => {
             </div>
           )}
 
-          {/* Current question */}
+          {}
           {question && (
             <div className="bg-primary/40 border-2 border-primary rounded-lg p-3 sm:p-4">
               <div className="flex items-center justify-between mb-2">
@@ -203,7 +200,7 @@ const SLiveMatchPage: React.FC = () => {
             </div>
           )}
 
-          {/* Action feed */}
+          {}
           {actions.length > 0 && (
             <div className="bg-background/30 rounded-lg p-3">
               <h3 className="text-xs sm:text-sm text-muted-foreground mb-2">
@@ -223,7 +220,7 @@ const SLiveMatchPage: React.FC = () => {
           )}
         </div>
 
-        {/* Sidebar: Scoreboard */}
+        {}
         <div className="w-full lg:w-72 xl:w-80 bg-background/30 rounded-lg p-3 sm:p-4">
           <h2 className="text-base sm:text-lg font-bold text-foreground mb-3 sm:mb-4 flex items-center gap-2">
             <span>🏆</span> Bảng xếp hạng

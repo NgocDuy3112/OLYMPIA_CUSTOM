@@ -31,10 +31,6 @@ const ROLE_LABEL: Record<string, string> = {
   spectator: "Khán giả",
 };
 
-/**
- * Public sidebar — cũng theo shadcn Sidebar block (ShellSidebar),
- * footer riêng: Đăng nhập hoặc user card + Đăng xuất.
- */
 export const PublicSidebar: React.FC<PublicSidebarProps> = ({
   isAuthenticated = false,
   userName,
@@ -44,7 +40,6 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
-  // Hồ sơ chỉ dành cho player/spectator.
   const showProfile = userRole === "player" || userRole === "spectator";
 
   const go = (path: string) => {
@@ -84,7 +79,7 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
         <ChevronsUpDown className="ml-auto size-4 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" side="top" className="w-56">
-        {/* Base UI: GroupLabel bắt buộc trong Menu.Group */}
+        {}
         <DropdownMenuGroup>
           <DropdownMenuLabel className="text-foreground">
             <p className="text-sm text-foreground">{userName}</p>

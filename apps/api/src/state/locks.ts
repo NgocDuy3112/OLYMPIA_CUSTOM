@@ -1,18 +1,11 @@
-/**
- * Application-level locks stored in Valkey.
- *
- * Buzzer lock: ensures only one player wins a buzzer race per question.
- * Power lock: prevents duplicate power activation per player.
- */
 
 import type Redis from "ioredis";
 import { randomUUID } from "node:crypto";
 
-// ── Buzzer lock ──
 
 const BUZZER_LOCK_PREFIX = "buzzer_lock:";
 const BUZZER_WINDOW_PREFIX = "buzzer_window:";
-const BUZZER_LOCK_TTL = 10; // seconds
+const BUZZER_LOCK_TTL = 10;
 
 export async function tryAcquireBuzzerLock(
   valkey: Redis,
@@ -58,7 +51,6 @@ export async function clearBuzzerState(valkey: Redis, matchCode: string, questio
   await valkey.del(...keys);
 }
 
-// ── Buzzer winners ──
 
 const BUZZER_WINNER_PREFIX = "buzzer_winner:";
 const BUZZER_WINNER_TTL = 30;
@@ -90,7 +82,6 @@ export async function clearBuzzerWinners(
   await valkey.del(`${BUZZER_WINNER_PREFIX}${matchCode}`);
 }
 
-// ── Power lock ──
 
 const POWER_LOCK_PREFIX = "vd:power_lock:";
 const POWER_LOCK_TTL = 5;

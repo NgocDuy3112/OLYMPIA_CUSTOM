@@ -1,9 +1,3 @@
-/**
- * OC3 Engine — OC 3.
- *
- * Pure game logic — no WebSocket, no DB, no Valkey.
- * Backward compatible with existing OC3 data.
- */
 
 import type {
   TournamentEngine,
@@ -41,7 +35,6 @@ export class OC3Engine
     "gm",
   ];
 
-  // ── Init ──
 
   initMatch(matchCode: string): OC3State {
     return {
@@ -71,7 +64,6 @@ export class OC3Engine
     };
   }
 
-  // ── Lifecycle ──
 
   startMatch(state: OC3State): Result<OC3State> {
     return success({ ...state, currentPhase: null });
@@ -82,7 +74,6 @@ export class OC3Engine
   }
 
   startPhase(state: OC3State, phase: OC3Phase): Result<OC3State> {
-    // Clear round-specific state
     const newState: OC3State = {
       ...state,
       currentPhase: phase,
@@ -98,7 +89,6 @@ export class OC3Engine
       { type: "round_start", phase, match_code: state.matchCode },
     ];
 
-    // phase-specific init
     if (phase === "gm") {
       newState.gmAdminState = {
         activeClueIndex: null,
@@ -122,7 +112,6 @@ export class OC3Engine
     return success(state, broadcasts);
   }
 
-  // ── Action handling ──
 
   handleAction(state: OC3State, action: OC3Action): Result<OC3State> {
     if (action.type === "player_afk_updated") {
@@ -190,7 +179,6 @@ export class OC3Engine
     }
   }
 
-  // ── Action handlers ──
 
   private handleBuzz(
     state: OC3State,
@@ -204,7 +192,6 @@ export class OC3Engine
     const now = Date.now();
 
     if (state.buzzTimestamps[userCode]) {
-      // Already buzzed — ignore
       return { state, broadcasts: [], scoreDeltas: [] };
     }
 
@@ -360,7 +347,6 @@ export class OC3Engine
       return { state, broadcasts: [], scoreDeltas: [] };
     }
 
-    // Check if player already used a power
     if (state.veDichPowers.some((p) => p.userCode === userCode)) {
       return { state, broadcasts: [], scoreDeltas: [] };
     }
@@ -418,7 +404,6 @@ export class OC3Engine
     };
   }
 
-  // ── Capability checks ──
 
   canBuzz(state: OC3State, _userCode: string): boolean {
     return state.currentPhase === "bp" && state.currentQuestion !== null;
@@ -432,14 +417,12 @@ export class OC3Engine
     return state.currentPhase !== null;
   }
 
-  // ── Scoring ──
 
   calculateScore(action: OC3Action, state: OC3State): ScoreDelta[] {
     const { userCode, type, payload } = action;
 
     switch (type) {
       case "buzz": {
-        // Buzz itself doesn't score — scoring happens on resolve
         return [];
       }
 
@@ -477,7 +460,6 @@ export class OC3Engine
             [key]: (state.kdrAttempts[key] || 0) + 1,
           },
         };
-        // Side effect: update attempts
         Object.assign(state, newState);
         return [kdrWrong(userCode)];
       }
@@ -527,7 +509,6 @@ export class OC3Engine
     }
   }
 
-  // ── Reconnect snapshot ──
 
   getSnapshotForReconnect(state: OC3State, _userCode: string): ReplayPayload[] {
     const messages: ReplayPayload[] = [];

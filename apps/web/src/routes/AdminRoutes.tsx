@@ -16,7 +16,6 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminHeader, AdminSidebar } from "@/components/layout";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
-// Admin Layout wrapper for management pages
 const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -32,8 +31,6 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({
 };
 
 const AdminRoutes = () => {
-  // Management pages with AdminLayout — CRUD only.
-  // Live control moved to ControllerRoutes (/operator/controller/*).
   return (
     <AuthGuard requiredRole="admin">
       <AdminLayout>
@@ -51,7 +48,7 @@ const AdminRoutes = () => {
           <Route path="/audit" element={<AdminAuditPage />} />
           <Route path="/mcp-tokens" element={<AdminMcpTokensPage />} />
           <Route path="/checkpoints" element={<AdminCheckpointsPage />} />
-          {/* Tournament management routes */}
+          {}
           <Route path="/tournaments" element={<TournamentListPage />} />
           <Route path="/tournaments/:code" element={<TournamentDetailPage />} />
         </Routes>

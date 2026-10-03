@@ -50,7 +50,7 @@ const OverlayQuestion: React.FC = () => {
           transition={{ duration: 0.3 }}
           className="backdrop-blur-md bg-background/40 rounded-2xl border border-border p-5 sm:p-6 shadow-2xl"
         >
-          {/* Category & Points badges */}
+          {}
           {(question.category || question.points) && (
             <div className="flex items-center gap-2 mb-3">
               {question.category && (
@@ -66,12 +66,12 @@ const OverlayQuestion: React.FC = () => {
             </div>
           )}
 
-          {/* Question content */}
+          {}
           <div className="text-xl sm:text-2xl md:text-3xl font-semibold text-foreground leading-relaxed">
             {question.content}
           </div>
 
-          {/* Media indicator */}
+          {}
           {question.media && (
             <motion.div
               initial={{ opacity: 0 }}

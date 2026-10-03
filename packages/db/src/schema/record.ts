@@ -13,10 +13,6 @@ import { users } from "./user.js";
 import { matches } from "./match.js";
 import { questions } from "./question.js";
 
-/**
- * Records table — v4 schema (unchanged from v3).
- * Score records: points earned per question per player.
- */
 export const records = pgTable(
   "records",
   {

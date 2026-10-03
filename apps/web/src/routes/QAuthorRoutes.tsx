@@ -31,7 +31,7 @@ const QAuthorRoutes = () => {
           <Route path="/match" element={<QAuthorMatchPage />} />
           <Route path="/qualifier" element={<QAuthorQualifierPage />} />
           <Route path="/agent" element={<QAuthorAgentPage />} />
-          {/* Legacy: gom về trang mới */}
+          {}
           <Route path="/overview" element={<Navigate to="/operator/qauthor/bank" replace />} />
           <Route path="/import" element={<Navigate to="/operator/qauthor/bank" replace />} />
           <Route path="/media" element={<Navigate to="/operator/qauthor/bank" replace />} />

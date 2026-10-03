@@ -30,7 +30,6 @@ export interface ShellNavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
-  /** Mở browser tab mới (shell khác, vd admin → controller). */
   newTab?: boolean;
 }
 
@@ -40,30 +39,17 @@ export interface ShellNavGroup {
 }
 
 interface ShellSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  /** Nhãn shell: ADMIN / CONTROLLER / QAUTHOR / ... */
   shellName: string;
   brandIcon: React.ReactNode;
-  /** Click logo → về trang gốc của shell. */
   brandHome: string;
-  /** Tailwind class màu role, literal — vd "text-role-admin". */
   accentClass: string;
-  /** Tailwind class active literal — vd "data-[active=true]:bg-role-admin/15 data-[active=true]:text-role-admin". */
   activeClass: string;
-  /** Nhãn vai trò trong footer user card. */
   roleLabel: string;
   groups: ShellNavGroup[];
-  /** Override footer (Public truyền nút Đăng nhập / menu riêng). */
   footer?: React.ReactNode;
-  /** So khớp active tùy shell (vd "/admin" phải exact). */
   isItemActive?: (path: string) => boolean;
 }
 
-/**
- * Sidebar chuẩn theo shadcn Sidebar block (sidebar-01/07 pattern):
- * SidebarHeader (brand tile) → SidebarContent (group + label + menu)
- * → SidebarFooter (user card dropdown) → SidebarRail.
- * Thay 4 bản sidebar copy tay trước đây.
- */
 export const ShellSidebar: React.FC<ShellSidebarProps> = ({
   shellName,
   brandIcon,
@@ -94,7 +80,7 @@ export const ShellSidebar: React.FC<ShellSidebarProps> = ({
 
   return (
     <Sidebar collapsible="offcanvas" className="border-r border-border" {...props}>
-      {/* Brand tile — theo team-switcher của block */}
+      {}
       <SidebarHeader className="border-b border-border p-2">
         <SidebarMenu>
           <SidebarMenuItem>
@@ -152,7 +138,7 @@ export const ShellSidebar: React.FC<ShellSidebarProps> = ({
           ))}
       </SidebarContent>
 
-      {/* User card — chân sidebar chuẩn shadcn block */}
+      {}
       <SidebarFooter className="border-t border-border p-2">
         {footer ??
           (user ? (
@@ -172,7 +158,7 @@ export const ShellSidebar: React.FC<ShellSidebarProps> = ({
                 <ChevronsUpDown className="ml-auto size-4 opacity-50" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-56">
-                {/* Base UI: GroupLabel bắt buộc trong Menu.Group */}
+                {}
                 <DropdownMenuGroup>
                   <DropdownMenuLabel className="text-foreground">
                     <p className="text-sm text-foreground">{user.userName}</p>

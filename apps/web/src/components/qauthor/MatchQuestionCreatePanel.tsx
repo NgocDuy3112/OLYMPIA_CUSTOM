@@ -38,7 +38,6 @@ interface MatchQuestionCreatePanelProps {
   onCreate: (value: MatchQuestionCreateValue) => void | Promise<void>;
 }
 
-/** Panel soạn câu tay trong sidebar phải — thay form inline cũ. */
 export function MatchQuestionCreatePanel({
   open,
   saving,

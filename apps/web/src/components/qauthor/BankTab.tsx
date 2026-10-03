@@ -21,9 +21,11 @@ import { NativeSelect } from "@/components/ui/native-select";
 import {
   DataTable,
   DataTablePager,
+} from "@/components/shared/data-table";
+import {
   createDataTableColumns,
   type DataTableColumn,
-} from "@/components/shared/data-table";
+} from "@/components/shared/data-table-core";
 import { BankCardGrid } from "./BankCardGrid";
 
 const logger = createLogger("BankTab");
@@ -31,7 +33,6 @@ const logger = createLogger("BankTab");
 const helper = createDataTableColumns<BankData>();
 
 
-/** Citation: chỉ cần link (tùy chọn). Ngày do OCee đọc link + check sau. */
 function citationErrorOf(v: BankFormValue): string {
   if (v.citationUrl.trim() && !/^https?:\/\//i.test(v.citationUrl.trim())) {
     return "Link nguồn phải bắt đầu http(s)://.";
@@ -39,7 +40,6 @@ function citationErrorOf(v: BankFormValue): string {
   return "";
 }
 
-/** Dựng citations array từ ô link (rỗng = []). */
 function buildCitations(v: BankFormValue): { source: string; url: string; accessedAt: string }[] {
   if (!v.citationUrl.trim()) return [];
   return [{
@@ -70,7 +70,6 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
-  // List = mặc định; grid chỉ là lựa chọn xem thêm (nhớ trong localStorage).
   const [bankView, setBankView] = useState<"list" | "grid">(() => {
     try {
       return localStorage.getItem("bank_view") === "grid" ? "grid" : "list";
@@ -83,7 +82,6 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     try {
       localStorage.setItem("bank_view", v);
     } catch {
-      /* ignore */
     }
   };
   const [formError, setFormError] = useState("");
@@ -142,10 +140,8 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     }
   }, [query, used, group, vdDomain, vdLevel, reviewStatus]);
 
-  // Matrix/tab đổi là tự tải, khỏi bấm Tìm.
   useEffect(() => {
     void fetchBank(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [group, vdDomain, vdLevel, reviewStatus]);
 
   const saveSidebar = useCallback(async (v: BankFormValue) => {

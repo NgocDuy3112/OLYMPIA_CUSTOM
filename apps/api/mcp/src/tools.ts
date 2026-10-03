@@ -8,7 +8,6 @@ const text = (payload: unknown) => ({
 });
 
 type Shape = Record<string, z.ZodTypeAny>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Handler = (args: any) => Promise<{ content: Array<{ type: "text"; text: string }> }>;
 
 function reg(
@@ -21,15 +20,10 @@ function reg(
   server.registerTool(name, { description: desc, inputSchema: shape }, handler);
 }
 
-/** Gỡ hết gating: mọi tool đăng ký cho mọi token hợp lệ —
- *  quyền do backend chốt theo identity (role operator/admin lúc mint).
- *  Tool gộp theo intent: không identifier → list, có → detail (xem description).
- *  localFiles: stdio mới thêm param `path` (file Excel local) cho bank_create. */
 export function registerTools(
   server: McpServer,
   opts: { localFiles?: boolean } = {},
 ): void {
-  // ── Read ──
 
   reg(server, "match_overview",
     "Trạng thái trận đấu. Không slug → danh sách matches (lọc tournamentCode?). Có slug (matchSlug|matchCode) → chi tiết match + players; includeScoreboard=true → kèm bảng điểm. (GET /api/matches, /api/matches/:slug, /api/scoreboard/:matchCode)",
@@ -134,7 +128,6 @@ export function registerTools(
     },
   );
 
-  // ── Write (API vẫn enforce role, thiếu quyền → 401/403) ──
 
   reg(server, "grade_question",
     "Chấm toàn bộ bài 1 câu (backend tự lấy đáp án gốc + bài thí sinh rồi chấm). Staff-only. Mặc định ẩn danh TS1..n (anonymize=false để hiện userCode).",

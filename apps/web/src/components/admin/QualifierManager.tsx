@@ -36,7 +36,6 @@ interface StandingRow {
 }
 
 
-/** Tab Vòng loại: 16 slot câu hỏi VL + chấm + bảng xếp hạng. */
 export function QualifierManager({ tournamentCode }: { tournamentCode: string }) {
   const [questions, setQuestions] = useState<QualifierQuestion[]>([]);
   const [standings, setStandings] = useState<StandingRow[]>([]);
@@ -131,7 +130,6 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
       const arr = JSON.parse(t);
       if (Array.isArray(arr)) return arr.map(String);
     } catch {
-      // fall through
     }
     return t.split("|").map((s) => s.trim()).filter(Boolean);
   };

@@ -1,4 +1,3 @@
-/** Template slot bộ đề (đồng bộ backend slots.ts). */
 
 export type SetRound = "KD_C" | "KD_R" | "GM" | "BP" | "VD";
 
@@ -28,7 +27,6 @@ export function slotsForRound(round: SetRound): string[] {
   return out;
 }
 
-/** Nhóm dòng hiển thị: KĐ riêng theo lượt, VĐ theo lĩnh vực. */
 export function slotGroups(round: SetRound): { label: string; slots: string[] }[] {
   const all = slotsForRound(round);
   if (round === "KD_R") {
@@ -46,7 +44,6 @@ export function slotGroups(round: SetRound): { label: string; slots: string[] }[
   return [{ label: "", slots: all }];
 }
 
-/** round_hint tương ứng để lọc bank. */
 export function bankRoundHint(round: SetRound): string {
   if (round === "KD_C") return "KD_C";
   if (round === "KD_R") return "KD_R";

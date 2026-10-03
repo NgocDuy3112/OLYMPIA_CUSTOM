@@ -25,7 +25,6 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
     return location.pathname === fullPath || location.pathname === `${fullPath}/`;
   };
 
-  // Base UI Tabs controlled — value = path tab đang active theo router.
   const activeTab = tabs.find((tab) => isActive(tab.path))?.path ?? tabs[0]?.path ?? "";
 
   return (

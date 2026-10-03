@@ -9,9 +9,11 @@ import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./Match
 import { toBankData, type BankData } from "./bankTypes";
 import {
   DataTable,
+} from "@/components/shared/data-table";
+import {
   createDataTableColumns,
   type DataTableColumn,
-} from "@/components/shared/data-table";
+} from "@/components/shared/data-table-core";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -52,7 +54,6 @@ const toQuestionData = (row: Record<string, unknown>): QuestionData => {
 
 type PickRound = "KDC" | "KDR" | "GM" | "BP" | "VD";
 
-/** Slot từng vòng. KDR lượt i = thí sinh vị trí i (map lúc pick). */
 function slotsFor(round: PickRound): string[] {
   if (round === "KDC") return [1, 2, 3, 4, 5, 6].map((i) => `KDC_${i}`);
   if (round === "BP") return [1, 2, 3, 4].map((i) => `BP_${i}`);
@@ -69,7 +70,6 @@ function slotsFor(round: PickRound): string[] {
   return out;
 }
 
-/** Suy vòng từ slot — chọn ô bất kỳ sẽ lọc bank theo vòng đó. */
 const roundOfSlot = (slot: string): PickRound =>
   slot.startsWith("KDC")
     ? "KDC"
@@ -81,7 +81,6 @@ const roundOfSlot = (slot: string): PickRound =>
           ? "BP"
           : "VD";
 
-/** Nhãn ngắn trên ô slot. */
 const tileLabel = (slot: string): string =>
   slot.startsWith("KDR")
     ? slot.slice(5)
@@ -91,7 +90,6 @@ const tileLabel = (slot: string): string =>
         ? slot.split("_")[2] ?? slot
         : slot.replace(/^(KDC_|BP_)/, "");
 
-/** Nhóm con theo vòng (KDR 4 lượt, VD 6 lĩnh vực, còn lại 1 nhóm). */
 const groupsForRound = (
   round: PickRound,
 ): { label?: string; slots: string[] }[] => {
@@ -134,9 +132,7 @@ export const MatchTab = () => {
   const [bankQueryDebounced, setBankQueryDebounced] = useState("");
   const [bankTotal, setBankTotal] = useState(0);
   const [selSlot, setSelSlot] = useState<string | null>(null);
-  /** Vòng của slot đang chọn — null = bank hiển thị tất cả. */
   const bankRound: PickRound | null = selSlot ? roundOfSlot(selSlot) : null;
-  /** Tiến độ điền slot toàn trận: 6+24+9+4+24 = 67 ô. */
   const totalSlots = (["KDC", "KDR", "GM", "BP", "VD"] as const).reduce(
     (n, r) => n + slotsFor(r).length,
     0,
@@ -178,7 +174,6 @@ export const MatchTab = () => {
     }
   }, [matchCode]);
 
-  // Tự tải 1 lần khi mount nếu đã có mã trận lưu sẵn (trước: phải bấm Tải thủ công).
   const bootstrapped = useRef(false);
   useEffect(() => {
     if (bootstrapped.current) return;
@@ -248,11 +243,6 @@ export const MatchTab = () => {
     }
   }, [deleting, fetchQuestions, matchCode]);
 
-  /**
-   * Mặc định: toàn bộ bank đã duyệt (limit 100 = server cap).
-   * Chọn ô slot → lọc đúng vòng (VĐ lọc cả ô matrix domain/difficulty).
-   * `qOverride` cho nút Tìm (fetch ngay với chuỗi đang gõ, không chờ debounce).
-   */
   const fetchBank = useCallback(
     async (qOverride?: string) => {
       const q = qOverride ?? bankQueryDebounced;
@@ -301,7 +291,6 @@ export const MatchTab = () => {
     [bankQueryDebounced, selSlot],
   );
 
-  // Gõ tìm → 300ms ngừng gõ là fetch; đổi slot cũng fetch lại (danh sách tự cập nhật).
   useEffect(() => {
     const t = window.setTimeout(
       () => setBankQueryDebounced(bankQuery),
@@ -519,7 +508,7 @@ export const MatchTab = () => {
         </h3>
 
         <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-[minmax(0,32rem)_minmax(0,1fr)]">
-          {/* TRÁI — toolbar mã trận + ma trận (cuộn độc lập) */}
+          {}
           <div className="flex min-w-0 flex-col gap-4 lg:max-h-[calc(100vh-9rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-2">
             <div className="flex items-center gap-2">
               <InputGroup className="h-9 min-w-0 flex-1">
@@ -575,7 +564,7 @@ export const MatchTab = () => {
               </span>
             </div>
 
-            {/* Tiến độ điền slot toàn trận */}
+            {}
             <div className="flex items-center gap-2">
               <Progress
                 value={(filledSlots / totalSlots) * 100}
@@ -658,7 +647,7 @@ export const MatchTab = () => {
               );
             })}
 
-            {/* Chi tiết slot đang chọn */}
+            {}
             {selSlot &&
               (() => {
                 const filled = questions.find((q) => q.slot === selSlot);
@@ -699,7 +688,7 @@ export const MatchTab = () => {
                   </div>
                 );
               })()}
-            {/* Câu chưa xếp slot (soạn tay) */}
+            {}
             {questions.some((q) => !q.slot) && (
               <div className="flex flex-col gap-1 rounded-lg border border-border bg-background/40 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -725,7 +714,7 @@ export const MatchTab = () => {
             )}
           </div>
 
-          {/* PHẢI — ngân hàng để pick */}
+          {}
           <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 bg-background/25 p-4 lg:sticky lg:top-16 lg:self-start xl:max-w-[44rem]">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Bank đã duyệt{selSlot ? ` · ${selSlot}` : " · tất cả vòng"}

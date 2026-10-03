@@ -6,7 +6,6 @@ async function main() {
   const env = getEnv();
   const app = await createApp();
 
-  // Connect Valkey to WS manager
   manager.setValkey(app.valkey);
 
   try {
@@ -17,7 +16,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Graceful shutdown
   const shutdown = async () => {
     app.log.info("Shutting down...");
     manager.shutdown();

@@ -141,7 +141,6 @@ export const QualifierTab = () => {
       const arr = JSON.parse(t);
       if (Array.isArray(arr)) return arr.map(String);
     } catch {
-      // fall through
     }
     return t.split("|").map((s) => s.trim()).filter(Boolean);
   };
@@ -417,7 +416,7 @@ export const QualifierTab = () => {
           </span>
         </div>
 
-        {/* Bước 1 — vị trí + mã câu + nội dung */}
+        {}
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">1 · Vị trí và nội dung</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -458,7 +457,7 @@ export const QualifierTab = () => {
           />
         </div>
 
-        {/* Bước 2 — phương án (bấm chữ cái để chọn đáp án đúng) */}
+        {}
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">2 · Phương án — bấm chữ cái để chọn đáp án đúng</p>
           <QualifierOptionsInput
@@ -469,7 +468,7 @@ export const QualifierTab = () => {
           />
         </div>
 
-        {/* Bước 3 — bổ sung */}
+        {}
         <div className="flex flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">3 · Bổ sung (tuỳ chọn)</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

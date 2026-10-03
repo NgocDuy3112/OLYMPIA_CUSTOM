@@ -48,7 +48,6 @@ export function validateAnswerInput(input: {
   has_buzzed: unknown;
 }): void {
   assertMatchCode(input.match_code);
-  // user_code optional: backend derives player from session when absent.
   if (input.user_code !== undefined) assertUserCode(input.user_code);
   assertQuestionCode(input.question_code);
   if (!input.answer_text && input.has_buzzed !== true)

@@ -190,7 +190,6 @@ function requiredRoles(): Set<string> {
   );
 }
 
-/** Branch nút vf: — gọi từ bot InteractionCreate, trước handleReviewButton. */
 export async function handleVerifyButton(
   interaction: ButtonInteraction,
 ): Promise<boolean> {
@@ -299,7 +298,6 @@ function startReminders(client: Client): void {
   setInterval(tick, 60_000).unref();
 }
 
-/** Chạy MCP stdio chung process bot — stdout giữ sạch cho protocol. */
 export async function startDiscordMcp(client: Client): Promise<void> {
   const server = createDiscordMcpServer(client, getVerifyValkey());
   startReminders(client);
@@ -308,9 +306,6 @@ export async function startDiscordMcp(client: Client): Promise<void> {
 }
 
 function httpTokens(): Set<string> {
-  // Chung format MCP: "name:token:role:scopes;..." (role ⊂ admin,operator,agent).
-  // Discord chưa chia scope — token hợp lệ = full 4 tools.
-  // Legacy "tok1;tok2" → role agent.
   const out = new Set<string>();
   for (const entry of getEnv().MCP_HTTP_TOKENS.split(";")) {
     const parts = entry.split(":").map((s: string) => s.trim());
@@ -352,7 +347,6 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
   res.end(JSON.stringify(data));
 }
 
-/** HTTP transport cho container — POST /mcp (Bearer) + GET /health. */
 export async function startDiscordMcpHttp(client: Client): Promise<void> {
   const env = getEnv();
   startReminders(client);

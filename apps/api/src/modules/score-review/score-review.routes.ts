@@ -24,7 +24,6 @@ export async function scoreReviewRoutes(
 ) {
   const repo = opts.repo ?? drizzleScoreReviewRepo;
   const questionRepo = drizzleQuestionRepo;
-  // POST /score-reviews — controller marks [position] name, bot pings qauthor.
   app.post(
     "/score-reviews",
     { preHandler: [requireScope(app, "controller")] },
@@ -95,7 +94,6 @@ export async function scoreReviewRoutes(
       });
       const reviewId = inserted.id;
 
-      // Fire-and-forget Discord ping via Valkey — bot posts embed + buttons.
       try {
         await app.valkey.publish(
           "oc:live-events",
@@ -115,7 +113,6 @@ export async function scoreReviewRoutes(
           }),
         );
       } catch {
-        // Bot offline — review stays pending, controller can still decide on web.
       }
 
       void writeAudit({
@@ -134,7 +131,6 @@ export async function scoreReviewRoutes(
     },
   );
 
-  // GET /score-reviews/:id — controller/qauthor poll state. Requires auth.
   app.get(
     "/score-reviews/:id",
     { preHandler: [requireAuth(app)] },
@@ -150,8 +146,6 @@ export async function scoreReviewRoutes(
     },
   );
 
-  // GET /score-reviews?match_code=...&status=pending — list reviews for a
-  // match. Requires auth. Used by qauthor reviews page + overview stats.
   app.get(
     "/score-reviews",
     { preHandler: [requireAuth(app)] },
@@ -182,9 +176,6 @@ export async function scoreReviewRoutes(
     },
   );
 
-  // POST /score-reviews/:id/decision — qauthor verdict.
-  // Callers: discord-bot bằng staff session (operator + controller),
-  // web controller bằng cookie session. Không còn token riêng.
   app.post("/score-reviews/:id/decision", async (request, reply) => {
     await requireAuth(app)(request, reply);
     if (reply.sent) return;
@@ -239,7 +230,6 @@ export async function scoreReviewRoutes(
       details: `score-review ${id} decided: ${Object.entries(decisions).map(([u, v]) => `${u}=${v}`).join(",")}`,
     });
 
-    // Push result to controllers over WS + notify Discord.
     const payload = {
       type: "score_review_result",
       review_id: id,
@@ -255,13 +245,10 @@ export async function scoreReviewRoutes(
         JSON.stringify({ ...payload, type: "score_review_decided" }),
       );
     } catch {
-      /* ignore */
     }
     return reply.send({ status: "success", message: "OK", data: payload });
   });
 
-  // POST /score-reviews/:id/ocee — qauthor asks OCee for suggestion.
-  // Same callers as decision (staff session). Proxies to ai-agent.
   app.post("/score-reviews/:id/ocee", async (request, reply) => {
     await requireAuth(app)(request, reply);
     if (reply.sent) return;
@@ -328,7 +315,6 @@ export async function scoreReviewRoutes(
           }),
         );
       } catch {
-        /* ignore */
       }
       return reply.send({
         status: "success",

@@ -9,15 +9,10 @@ import { SVeDichPage } from "@/components/shared/SVeDichPage";
 import { SVeDichPickPage } from "@/components/shared/SVeDichPickPage";
 import { ROUND_KEYS, type RoundKey } from "./overlayList";
 
-/** Layout gọn cho overlay vòng thi — nền thường (không trong suốt). */
 const OverlayLayout: React.FC<{
   children?: React.ReactNode;
 }> = ({ children }) => <div className="min-h-screen">{children}</div>;
 
-/**
- * Overlay 1 vòng thi — tái dùng đúng component MC đang xem (S*),
- * nguồn WS theo matchCode, không cần đăng nhập (OBS không auth được).
- */
 const OverlayRoundPage: React.FC = () => {
   const { matchCode = "", round = "" } = useParams<{
     matchCode: string;

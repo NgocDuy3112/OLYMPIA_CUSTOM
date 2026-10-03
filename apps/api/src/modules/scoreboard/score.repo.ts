@@ -126,7 +126,6 @@ export const drizzleScoreRepo: ScoreRepo = {
     async ensureAdjustQuestion(
         matchId: string,
     ): Promise<{ id: string; questionCode: string }> {
-        // Legacy rows used OC3_Q_ADMIN_ADJUST; new rows use the match's OC prefix.
         const matchRows = await db
             .select({ matchCode: matches.matchCode })
             .from(matches)
@@ -145,7 +144,6 @@ export const drizzleScoreRepo: ScoreRepo = {
             )
             .limit(1);
         if (rows.length > 0) return rows[0];
-        // Fallback: reuse legacy OC3 adjust row if present.
         const legacy = await db
             .select({ id: questions.id, questionCode: questions.questionCode })
             .from(questions)

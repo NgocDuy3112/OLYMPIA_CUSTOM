@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-/** Câu hỏi tối thiểu để sửa — MatchTab. */
 export interface EditableQuestion {
   question_code: string;
   content: string;
@@ -44,7 +43,6 @@ interface EditQuestionPanelProps {
   onSave: (value: QuestionEditValue) => void | Promise<void>;
 }
 
-/** Panel sửa câu hỏi (SidePanel) — dùng cho MatchTab. */
 export function EditQuestionPanel({
   item,
   onClose,
@@ -53,7 +51,6 @@ export function EditQuestionPanel({
   const [value, setValue] = useState<QuestionEditValue>(EMPTY);
   const open = item !== null;
 
-  // Reset form mỗi lần mở panel (item đổi hoặc mở lại lần nữa).
   useEffect(() => {
     if (!open || !item) return;
     setValue({

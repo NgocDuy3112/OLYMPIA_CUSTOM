@@ -63,7 +63,6 @@ async function flushBatch(): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // Session is authenticated by httpOnly cookie.
         "X-Requested-With": "XMLHttpRequest",
       },
       body: JSON.stringify({ keys }),

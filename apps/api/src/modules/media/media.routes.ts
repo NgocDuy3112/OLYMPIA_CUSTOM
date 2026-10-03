@@ -6,7 +6,6 @@ export async function mediaRoutes(app: FastifyInstance) {
     "/media/upload",
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
-      // Note: file upload requires @fastify/multipart — add later
       return reply
         .code(501)
         .send({
@@ -34,7 +33,6 @@ export async function mediaRoutes(app: FastifyInstance) {
     }
   });
 
-  // GET /media/presign-put/?key=...&contentType=... — presigned PUT for avatar upload
   app.get(
     "/media/presign-put/",
     { preHandler: [requireAuth(app)] },
@@ -68,10 +66,6 @@ export async function mediaRoutes(app: FastifyInstance) {
     },
   );
 
-  // GET /media/presign-question/?key=...&contentType=... — presigned PUT cho
-  // QAuthor upload media câu hỏi (ảnh/audio/video). Flow: Excel trước (text),
-  // câu nào cần media thì upload file rồi PATCH mediaUrl vào bank/question sau.
-  // Key bắt buộc questions/<bankCode|questionCode>/<filename>.
   app.get(
     "/media/presign-question/",
     { preHandler: [requireAuth(app)] },

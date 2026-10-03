@@ -1,6 +1,3 @@
-/**
- * WebSocket message contracts shared between apps/web and apps/api.
- */
 
 export type UserRole =
   | "admin"
@@ -10,18 +7,12 @@ export type UserRole =
   | "spectator"
   | "operator";
 
-/** Parsed inbound WebSocket message. Payload fields stay loose but typed-safe. */
 export interface WebSocketMessage {
   type: string;
-  /** Some server messages wrap the payload inside `message`. */
   message?: WebSocketMessage;
-  // Payload fields vary per message type (answers, scores, timers...) — keep
-  // them loose at the boundary; consumers narrow with typeof/Array.isArray.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any;
 }
 
-/** Outbound WebSocket payload (client → server). */
 export type WebSocketPayload = { type: string } & Record<string, unknown>;
 
 export interface WebSocketContextValue {
@@ -31,7 +22,6 @@ export interface WebSocketContextValue {
   role: UserRole;
 }
 
-/** Parse a raw WebSocket text frame. Returns null for invalid frames. */
 export function parseWebSocketMessage(raw: string): WebSocketMessage | null {
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -48,11 +38,6 @@ export function parseWebSocketMessage(raw: string): WebSocketMessage | null {
   }
 }
 
-/**
- * Unwrap a context `lastMessage`: server payloads sometimes nest the real
- * message inside `message`. Returns the inner object when it looks like a
- * message, otherwise the message itself. Null-safe.
- */
 export function unwrapWebSocketMessage(
   lastMessage: WebSocketMessage | null | undefined,
 ): WebSocketMessage | null {

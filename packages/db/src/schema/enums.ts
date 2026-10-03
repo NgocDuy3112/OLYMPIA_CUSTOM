@@ -1,21 +1,14 @@
 import { pgEnum } from "drizzle-orm/pg-core";
 
-// ── Role enum (global) ──
-// Global roles: admin (full access), operator (staff with scopes),
-// agent (machine identity with scopes, like operator), player (contestant),
-// spectator (view only).
-// Operator scopes (qauthor/controller/mc) live in users.operator_scopes.
 export const roleEnum = pgEnum("roleenum", [
   "admin",
   "operator",
   "agent",
   "player",
   "spectator",
-  // Backward compat — do not assign to new users:
   "controller",
   "member",
 ]);
-// ── Match status enum ──
 export const matchStatusEnum = pgEnum("matchstatusenum", [
   "setup",
   "active",
@@ -25,7 +18,6 @@ export const matchStatusEnum = pgEnum("matchstatusenum", [
   "finished",
 ]);
 
-// ── Audit action type enum ──
 export const auditActionTypeEnum = pgEnum("auditactiontype", [
   "LOGIN",
   "LOGOUT",

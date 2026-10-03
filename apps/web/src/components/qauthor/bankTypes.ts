@@ -37,7 +37,6 @@ export interface BankApiResponse {
 
 export const BANK_PAGE_SIZE = 20;
 
-/** Stamp VN hiện tại: HHMMSS + DDMMYYYY (Asia/Ho_Chi_Minh). */
 function vnStamp(): { time: string; date: string } {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Ho_Chi_Minh",
@@ -56,8 +55,6 @@ function vnStamp(): { time: string; date: string } {
   };
 }
 
-/** Mã bank dạng QB_<VÒNG>_<HHMMSS>_<DDMMYYYY> (giờ VN).
- *  VD: QB_KDC_143022_23092026 */
 export function genBankCode(roundHint = ""): string {
   const round = roundHint.trim().toUpperCase().replace(/[^A-Z]/g, "") || "QB";
   const stem = round === "QB" ? "QB" : `QB_${round}`;
@@ -66,7 +63,6 @@ export function genBankCode(roundHint = ""): string {
   return code.length <= 23 ? code : `QB_${time}_${date}`;
 }
 
-/** ISO date → DD/MM/YYYY (Asia/Ho_Chi_Minh). */
 export function formatVnDate(iso: string): string {
   if (!iso) return "";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);

@@ -31,7 +31,6 @@ const STATUS_OPTIONS = [
 
 interface TournamentFormPanelProps {
   open: boolean;
-  /** null = tạo mới; có giá trị = sửa. */
   initial: Partial<TournamentFormValue> | null;
   saving: boolean;
   error: string | null;
@@ -39,7 +38,6 @@ interface TournamentFormPanelProps {
   onSubmit: (v: TournamentFormValue) => void | Promise<void>;
 }
 
-/** Panel tạo/sửa giải đấu (sidebar phải) — dùng cho list + detail. */
 export function TournamentFormPanel({
   open,
   initial,

@@ -1,10 +1,3 @@
-/**
- * Bank import — mapping input → bank fields. SỐNG 1 CHỖ cho mọi transport:
- *   - POST /bank/import { items }  : raw cells từ Excel (UI browser / MCP stdio parse)
- *   - POST /bank/import { rows }   : field-name rows (model paste trong chat)
- * Quy tắc: map theo TÊN cột (không vị trí), accent-insensitive; giá trị "None"
- * trong template = rỗng; media nhận URL http(s), tên file → warning (upload sau).
- */
 
 import { BANK_VD_DOMAINS, BANK_VD_LEVELS } from "./constants.js";
 
@@ -14,7 +7,6 @@ export const MAX_IMPORT_ROWS = 100;
 const GM_HINTS = new Set(["KEY", "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"]);
 const EMPTY_TOKENS = new Set(["none", "null", "nil", "n/a", "#n/a", "-"]);
 
-/** Đồng bộ với EditBankSidebar.genBankCode — ngày DDMMYYYY theo giờ VN. */
 export function vnDate(d: Date = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Ho_Chi_Minh",
@@ -68,7 +60,6 @@ export interface NormalizedRow {
   mediaWarning?: MediaWarning;
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────
 
 export function stripAccents(s: string): string {
   return s
@@ -107,13 +98,10 @@ function cellString(v: unknown): string | undefined {
   return String(v).trim();
 }
 
-// ── Alias cột (accent-insensitive) → field ───────────────────────────
-// Key = headerKey(): "Câu hỏi" → "cau hoi".
 
 type Target = keyof BankFields | "media";
 
 const HEADER_MAP: Record<string, Target> = {
-  // Tiếng Việt (template OC_BANK)
   "cau hoi": "content",
   "dap an": "answer",
   "dap an cau hoi": "answer",
@@ -124,7 +112,6 @@ const HEADER_MAP: Record<string, Target> = {
   "bo goi y": "setCode",
   "linh vuc": "domain",
   "muc diem": "difficulty",
-  // Field-name (model paste / curl)
   bankcode: "bankCode",
   content: "content",
   answer: "answer",
@@ -139,7 +126,6 @@ const HEADER_MAP: Record<string, Target> = {
   hintindex: "hintIndex",
 };
 
-/** Tên sheet → roundHint mặc định (cột Lượt/roundHint vẫn override). */
 const SHEET_ROUND: Record<string, string> = {
   KHOI_DONG: "KD_C",
   GIAI_MA: "GM",
@@ -147,7 +133,6 @@ const SHEET_ROUND: Record<string, string> = {
   VE_DICH: "VD",
 };
 
-/** Cột "Lượt" (KHOI_DONG): Chung → KD_C, Riêng → KD_R. */
 const LUOT_MAP: Record<string, string> = {
   chung: "KD_C",
   rieng: "KD_R",
@@ -182,13 +167,11 @@ function coerceOptions(v: unknown): string[] | undefined {
       const parsed = JSON.parse(v) as unknown;
       if (Array.isArray(parsed)) return parsed.map(String);
     } catch {
-      /* fallthrough */
     }
   }
   return undefined;
 }
 
-// ── Normalize: raw cells (Excel) hoặc field-name rows → NormalizedRow ──
 
 export function normalizeRows(items: RawItem[]): {
   rows: NormalizedRow[];
@@ -207,10 +190,9 @@ export function normalizeRows(items: RawItem[]): {
 
     for (const [rawKey, rawVal] of Object.entries(item.cells ?? {})) {
       const key = headerKey(rawKey);
-      // Cột media: map đúng tên template HOẶC bất kỳ cột nào bắt đầu "file"
       const target: Target | undefined =
         HEADER_MAP[key] ?? (key.startsWith("file") ? "media" : undefined);
-      if (!target) continue; // cột lạ → bỏ qua (template freely extensible)
+      if (!target) continue;
       if (target === "media") {
         mediaRaw = cellString(rawVal);
         continue;
@@ -236,7 +218,6 @@ export function normalizeRows(items: RawItem[]): {
       }
     }
 
-    // Normalization cấp field
     if (fields.roundHint) fields.roundHint = fields.roundHint.toUpperCase();
     if (fields.domain) fields.domain = fields.domain.toUpperCase();
     if (fields.setCode) fields.setCode = fields.setCode.toUpperCase();
@@ -254,7 +235,6 @@ export function normalizeRows(items: RawItem[]): {
       continue;
     }
 
-    // mediaUrl: URL → lấy; tên file → warning; "None"/trống → bỏ
     const mediaSrc = mediaRaw ?? fields.mediaUrl;
     let mediaWarning: MediaWarning | undefined;
     fields.mediaUrl = undefined;
@@ -274,7 +254,6 @@ export function normalizeRows(items: RawItem[]): {
   return { rows, issues };
 }
 
-// ── Validate ─────────────────────────────────────────────────────────
 
 export function validateRow(
   row: Pick<NormalizedRow, "row" | "sheet" | "fields">,
@@ -307,10 +286,7 @@ export function validateRow(
   return out;
 }
 
-// ── Set GM (GIAI_MA) ─────────────────────────────────────────────
 
-/** KEY + H1..H8 — ĐỒNG HỢP với GM_ORDER trong question-set.routes.ts
- *  (bên đó không export, không import chung được — đổi bên này nếu đổi bên kia). */
 const GM_SET_REQUIRED = [
   "KEY",
   "H1",
@@ -323,19 +299,11 @@ const GM_SET_REQUIRED = [
   "H8",
 ] as const;
 
-/**
- * Gom set + validate cấp SET cho GM (hành vi riêng của sheet GIAI_MA):
- * - Mỗi setCode phải có ĐÚNG 1 KEY + đủ H1..H8 (pick-gm-set trả 422 nếu thiếu,
- *   `Map<hintIndex>` overwrite im lặng nếu trùng).
- * - Vi phạm set → issue cho TỪNG row của set → import chặn cả set (atomic),
- *   không để setHalf-broken lọt vào DB.
- */
 export function validateGmSets(rows: NormalizedRow[]): RowIssue[] {
   const out: RowIssue[] = [];
   const gm = rows.filter((r) => r.fields.roundHint === "GM");
   if (gm.length === 0) return out;
 
-  // Row-level: thiếu cột
   for (const r of gm.filter((r) => !r.fields.hintIndex)) {
     out.push({
       row: r.row,
@@ -353,7 +321,6 @@ export function validateGmSets(rows: NormalizedRow[]): RowIssue[] {
     });
   }
 
-  // Set-level
   const bySet = new Map<string, NormalizedRow[]>();
   for (const r of gm) {
     if (!r.fields.setCode) continue;
@@ -384,15 +351,12 @@ export function validateGmSets(rows: NormalizedRow[]): RowIssue[] {
   return out;
 }
 
-// ── Auto-gen bankCode: QB_<ROUND>_<DDMMYYYY>_<NN> ───────────────────
 
 function roundToken(roundHint: string | undefined): string {
   const t = stripAccents(roundHint ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
   return (t || "IM").slice(0, 10);
 }
 
-/** setCode tuần tự `S<n>` kế từ MAX hiện có — thay hashing
- *  `SET_<base36>` (web trước đây). Chỉ tính `S<digits>`, bỏ qua SET_ cũ. */
 export function nextSequentialSetCode(existing: string[]): string {
   let max = 0;
   for (const code of existing) {
@@ -402,8 +366,6 @@ export function nextSequentialSetCode(existing: string[]): string {
   return `S${max + 1}`;
 }
 
-/** Prefix `QB_<TOKEN>_<DDMMYYYY>_` cho các rows THIẾU bankCode —
- *  route dùng để query listCodesByPrefix trước khi assignAutoCodes. */
 export function autoCodePrefixes(
   rows: NormalizedRow[],
   today: string = vnDate(),
@@ -414,11 +376,6 @@ export function autoCodePrefixes(
   return [...tokens].map((t) => `QB_${t}_${today}_`);
 }
 
-/**
- * Điền bankCode cho rows thiếu code. `existing` = mọi bankCode trùng prefix
- * (gọi bankRepo.listCodesByPrefix trước) — NN bắt đầu sau MAX hiện tại,
- * nhảy qua code đã dùng (trong batch + DB), cap9999.
- */
 export function assignAutoCodes(
   rows: NormalizedRow[],
   existing: string[],

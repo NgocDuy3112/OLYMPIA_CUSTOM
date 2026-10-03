@@ -287,7 +287,6 @@ export function createInMemoryTemplateRepo(
     ...m,
     isDeleted: false,
   }));
-  // tournamentCode -> id lookup for findTournamentByCode in tests
   const codeToId = new Map<string, string>();
   for (const t of tournamentsRows) {
     codeToId.set(t.id, t.id);
@@ -302,8 +301,6 @@ export function createInMemoryTemplateRepo(
     matches: matchesRows,
 
     async findTournamentByCode(code: string) {
-      // In-memory rows carry id only; tests seed with id === code or map via extra field.
-      // Match by id first, then by codeToId override.
       const byId = tournamentsRows.find((t) => t.id === code) ?? null;
       if (byId) return byId;
       const mapped = codeToId.get(code);

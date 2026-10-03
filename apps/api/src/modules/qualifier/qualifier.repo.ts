@@ -273,7 +273,6 @@ export const drizzleQualifierRepo: QualifierRepo = {
       })),
       totalPlayers,
     );
-    // Freeze + write points per attempt.
     for (const a of attempts) {
       const pts = result.points[a.playerId] ?? 0;
       await db
@@ -295,7 +294,6 @@ export const drizzleQualifierRepo: QualifierRepo = {
   },
 
   async standings(tournamentId: string, limit = 16) {
-    // All scored attempts (points NOT NULL) joined to questions of tournament.
     const rows = await db
       .select({
         playerId: qualifierAttempts.playerId,
@@ -326,7 +324,7 @@ export const drizzleQualifierRepo: QualifierRepo = {
       }
     > = {};
     for (const r of rows) {
-      if (r.points === null) continue; // not scored yet
+      if (r.points === null) continue;
       const entry = perPlayer[r.playerId] ?? {
         userCode: r.userCode,
         userName: r.userName,

@@ -15,10 +15,6 @@ import { sql } from "drizzle-orm";
 import { matches } from "./match.js";
 import { users } from "./user.js";
 
-/**
- * Questions table — match questions use OC<number>_Q_* codes for live WS/game.
- * Bank rows live in question_bank (QB_* codes) — see below.
- */
 export const questions = pgTable(
   "questions",
   {
@@ -29,17 +25,14 @@ export const questions = pgTable(
     mediaUrl: varchar("media_url"),
     explanation: varchar("explanation"),
     hintText: varchar("hint_text"),
-    options: varchar("options"), // JSON array stored as text: ["A","B","C"]
+    options: varchar("options"),
     isUsed: boolean("is_used").default(false),
     isDeleted: boolean("is_deleted").default(false),
     matchId: uuid("match_id")
       .notNull()
       .references(() => matches.id),
     sourceBankId: uuid("source_bank_id"),
-    // [{source, url, accessed_at}] — copy từ bank khi pick.
     citations: jsonb("citations").notNull().default([]),
-    // Round slot: KDC_1..6 | KDR{1..4}_1..6 | GM_KEY/GM_H1..H8 |
-    // BP_1..4 | VD_<DOMAIN>_<20|30|40|50>. One slot per match max.
     slot: varchar("slot", { length: 25 }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -54,10 +47,6 @@ export const questions = pgTable(
   ],
 );
 
-/**
- * Question bank — stable QB_* codes, searchable, no round prefix.
- * Pick flow copies bank -> match questions (generates OC<number>_Q_* code).
- */
 export const questionBank = pgTable(
   "question_bank",
   {
@@ -70,15 +59,11 @@ export const questionBank = pgTable(
     hintText: varchar("hint_text"),
     options: varchar("options"),
     roundHint: varchar("round_hint", { length: 20 }),
-    // Round-typed columns (single table, UI splits KĐ/GM/BP/VĐ):
-    // VĐ uses domain + difficulty, GM uses setCode + hintIndex.
     domain: varchar("domain", { length: 10 }),
     difficulty: integer("difficulty"),
     setCode: varchar("set_code", { length: 50 }),
     hintIndex: varchar("hint_index", { length: 4 }),
-    // [{source, url, accessed_at}] — hiển thị DD/MM/YYYY (Asia/Ho_Chi_Minh).
     citations: jsonb("citations").notNull().default([]),
-    // Review workflow: new rows pending, only approved rows pickable to matches.
     status: varchar("status", { length: 20 }).notNull().default("pending"),
     reviewNote: text("review_note"),
     reviewedBy: uuid("reviewed_by").references(() => users.id),

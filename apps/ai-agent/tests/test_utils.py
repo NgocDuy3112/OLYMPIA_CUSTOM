@@ -1,9 +1,3 @@
-"""Test contract module còn sống của ai-agent (app/utils/).
-
-Kiến trúc mới (reconstruct) chưa hoàn tất — app/agent.py còn import node cũ
-(không tồn tại) và app/main.py đang rỗng, nên graph/routing CHƯA test được.
-Khi2 file đó xong → thêm test tại đây.
-"""
 
 from __future__ import annotations
 
@@ -28,7 +22,7 @@ def test_question_subagent_members():
 
 
 def test_state_layers():
-    # TypedDict không xài issubclass — assert contract qua key annotations.
+    
     assert set(AgentInputState.__annotations__) == {"messages"}
     assert set(AgentOutputState.__annotations__) == {"messages", "response"}
     assert set(AgentState.__annotations__) == {"messages", "response"}

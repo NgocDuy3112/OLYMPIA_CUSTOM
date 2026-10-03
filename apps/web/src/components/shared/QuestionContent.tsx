@@ -10,10 +10,6 @@ interface QuestionContentProps {
   textSizeClass?: string;
 }
 
-/**
- * Khối render nội dung câu hỏi dùng chung cho C/PQuestionBoard:
- * text (MathText) + media (RenderMedia), layout 3/7 khi có media.
- */
 export const QuestionContent: React.FC<QuestionContentProps> = ({
   question,
   videoPlayState,

@@ -1,6 +1,5 @@
 import type { MatchStatus } from "../types.js";
 
-/** Match status transitions are transport-level lifecycle, not tournament phase rules. */
 export const STATUS_TRANSITIONS: Record<MatchStatus, MatchStatus[]> = {
   setup: ["active"],
   active: ["in_progress", "paused"],

@@ -96,7 +96,6 @@ const MQualifierPage = () => {
     void fetchAll();
   }, [fetchAll]);
 
-  // Realtime: refresh on any qualifier change.
   useEffect(() => {
     const code = tournamentCode.trim();
     if (!code) return;

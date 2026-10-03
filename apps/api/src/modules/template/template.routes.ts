@@ -5,12 +5,10 @@ import { BUILTIN_TEMPLATES, getBuiltinTemplate } from "./templates.json.js";
 import { drizzleTemplateRepo } from "./template.repo.js";
 
 export async function templateRoutes(app: FastifyInstance) {
-  // GET /templates — List builtin templates (JSON, no DB)
   app.get("/templates", async (_request, reply) => {
     return reply.send({ status: "success", message: "OK", data: BUILTIN_TEMPLATES });
   });
 
-  // GET /templates/:id — Get builtin template by ID
   app.get("/templates/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const template = getBuiltinTemplate(id);
@@ -24,7 +22,6 @@ export async function templateRoutes(app: FastifyInstance) {
     return reply.send({ status: "success", message: "OK", data: template });
   });
 
-  // POST /tournaments/:code/apply-template — Apply template to tournament
   app.post(
     "/tournaments/:code/apply-template",
     { preHandler: [requireRole(app, "admin")] },
@@ -42,7 +39,6 @@ export async function templateRoutes(app: FastifyInstance) {
 
       const session = (request as any).session;
 
-      // Get builtin template
       const template = getBuiltinTemplate(body.templateId);
 
       if (!template) {
@@ -53,7 +49,6 @@ export async function templateRoutes(app: FastifyInstance) {
         });
       }
 
-      // Get tournament via repo
       const tournament = await drizzleTemplateRepo.findTournamentByCode(code);
 
       if (!tournament) {
@@ -64,7 +59,6 @@ export async function templateRoutes(app: FastifyInstance) {
         });
       }
 
-      // Apply template - generate matches
       const result = await applyTemplate(
         code,
         template.config as any,
@@ -72,7 +66,6 @@ export async function templateRoutes(app: FastifyInstance) {
         { repo: drizzleTemplateRepo },
       );
 
-      // Update tournament format
       await drizzleTemplateRepo.updateTournamentFormat(
         tournament.id,
         template.templateType,
@@ -90,7 +83,6 @@ export async function templateRoutes(app: FastifyInstance) {
     },
   );
 
-  // POST /tournaments/:code/generate-next-round — Generate next round from current results
   app.post(
     "/tournaments/:code/generate-next-round",
     { preHandler: [requireRole(app, "admin")] },

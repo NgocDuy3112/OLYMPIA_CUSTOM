@@ -40,8 +40,6 @@ const ControllerAutoNavigator: React.FC = () => {
       return;
 
     const path = msg.path.endsWith("/") ? msg.path.slice(0, -1) : msg.path;
-    // Operator controller shell owns /operator/controller/*; map legacy
-    // /player/, /admin/ and old /controller/ paths so old broadcasts keep working.
     const normalized = path.startsWith("/controller/")
       ? path.replace("/controller/", "/operator/controller/")
       : path;

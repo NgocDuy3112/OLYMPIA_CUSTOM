@@ -8,9 +8,6 @@ export async function answerRoutes(
   opts: { repo?: AnswerRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleAnswerRepo;
-  // POST /answers/ — player submits own answer. Requires auth; playerCode
-  // comes from session (prevents spoofing user_code of another player).
-  // Controller/admin may submit on behalf by passing explicit user_code.
   app.post(
     "/answers/",
     { preHandler: [requireAuth(app)] },
@@ -41,7 +38,6 @@ export async function answerRoutes(
         session.role === "admin" ||
         (isOperatorLike(session.role) &&
           (scopes.includes("controller") || scopes.includes("qauthor")));
-      // Non-staff must submit as themselves; ignore spoofed user_code.
       const effectiveUserCode =
         isStaff && body.user_code ? body.user_code : session.userCode;
       if (!body.match_code || !body.question_code || !effectiveUserCode) {
@@ -85,8 +81,6 @@ export async function answerRoutes(
     },
   );
 
-  // GET /answers/:matchCode — list answers for a match. Requires auth.
-  // Staff (admin/controller/qauthor) see all; players see own only.
   app.get(
     "/answers/:matchCode",
     { preHandler: [requireAuth(app)] },
@@ -122,7 +116,6 @@ export async function answerRoutes(
       if (isStaff) {
         return reply.send({ status: "success", message: "OK", data: rows });
       }
-      // Player/spectator: only own answers (match playerId to session userId).
       const mine = rows.filter(
         (r: { playerId?: string }) => r.playerId === session.userId,
       );
@@ -130,9 +123,6 @@ export async function answerRoutes(
     },
   );
 
-  // GET /answers/:matchCode/:questionCode — answers for one question.
-  // Staff only (admin/controller/qauthor/mc). Used by controller
-  // "HIỆN TRẢ LỜI" to broadcast answers over WS.
   app.get(
     "/answers/:matchCode/:questionCode",
     { preHandler: [requireAuth(app)] },

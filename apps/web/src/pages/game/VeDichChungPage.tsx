@@ -1,10 +1,3 @@
-/**
- * VeDichChungPage — Unified page for Về Đích Chung (group final).
- *
- * Admin: question grid, power system, scoring.
- * MC: read-only spectator view.
- * Player: question grid, answer input, power selection.
- */
 import {
   startTransition,
   useCallback,
@@ -83,7 +76,6 @@ const getTimeLimitForPoints = (points: number): number => {
   }
 };
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminVeDichChungView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -969,7 +961,6 @@ const AdminVeDichChungView = () => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 type RoundQuestion = { code: string; category: string; points: number };
 const PlayerVeDichChungView = () => {
   const { matchCode, playerCode } = useRoleSession("player");
@@ -1298,7 +1289,6 @@ const PlayerVeDichChungView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCVeDichChungView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
@@ -1310,7 +1300,6 @@ const MCVeDichChungView = () => {
   );
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 const VeDichChungPage = () => {
   const { role } = useGameWebSocket();
   if (role === "controller") return <AdminVeDichChungView />;

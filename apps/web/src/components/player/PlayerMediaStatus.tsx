@@ -41,7 +41,7 @@ export const PlayerMediaStatus: React.FC<PlayerMediaStatusProps> = ({
 
   return (
     <div className={`flex items-center ${styles.container}`}>
-      {/* Camera status */}
+      {}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -65,7 +65,7 @@ export const PlayerMediaStatus: React.FC<PlayerMediaStatusProps> = ({
         )}
       </motion.div>
 
-      {/* Mic status */}
+      {}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

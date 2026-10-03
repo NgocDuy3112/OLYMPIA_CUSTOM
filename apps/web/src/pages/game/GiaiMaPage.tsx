@@ -1,10 +1,3 @@
-/**
- * GiaiMaPage — Unified page for Giải Mã (decode game).
- *
- * Admin: clue grid management, hint reveal/hide, keyword phase, scoring.
- * MC: read-only spectator view.
- * Player: clue display, answer input, keyword submission.
- */
 import React, {
   startTransition,
   useCallback,
@@ -91,7 +84,6 @@ const isMediaFilename = (v: string): boolean =>
     v.trim(),
   );
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminGiaiMaView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -770,7 +762,6 @@ const AdminGiaiMaView = () => {
   ]);
 
   const handleShowHint = useCallback(async () => {
-    // GIAI_MA hint: prefer dedicated hintText (sheet Goi y), fallback explanation.
     const hintText =
       currentQuestion.questionHintText ?? currentQuestion.questionExplanation ?? "";
     if (!hintText) return;
@@ -1224,7 +1215,6 @@ const AdminGiaiMaView = () => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 const PlayerGiaiMaView = () => {
   const { matchCode, playerCode } = useRoleSession("player");
   const {
@@ -1795,13 +1785,11 @@ const PlayerGiaiMaView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCGiaiMaView = () => {
   const { matchCode } = useRoleSession("mc");
   return <SGiaiMaPage Layout={PBasePageLayout} matchCode={matchCode} />;
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 const GiaiMaPage = () => {
   const { role } = useGameWebSocket();
   if (role === "controller") return <AdminGiaiMaView />;

@@ -23,7 +23,6 @@ interface MatchSetPickerProps {
   onChanged: () => void;
 }
 
-/** Controller chọn bộ đề cho trận: kích hoạt = copy bộ vào câu hỏi trận. */
 export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
   const [sets, setSets] = useState<SetRow[]>([]);
   const [loading, setLoading] = useState(false);

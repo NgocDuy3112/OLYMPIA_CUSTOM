@@ -1,4 +1,3 @@
-/** OC4 scoring adapters. Values come from OC4_CONFIG. */
 
 import { bpResolve, gmKeywordCorrect } from "../base/scoring.js";
 import type { ScoreDelta } from "../types.js";

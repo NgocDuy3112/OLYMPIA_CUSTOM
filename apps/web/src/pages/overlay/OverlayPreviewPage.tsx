@@ -35,7 +35,6 @@ const OverlayPreviewPage: React.FC = () => {
 
     const fetchMatch = async () => {
       try {
-        // Backend tra chi tiết theo slug — dùng list rồi tìm theo mã.
         const response = await fetch(`${API_BASE_URL}/matches`, {
           credentials: "include",
         });
@@ -49,7 +48,6 @@ const OverlayPreviewPage: React.FC = () => {
           }
         }
       } catch {
-        // Ignore error
       }
     };
 
@@ -86,7 +84,7 @@ const OverlayPreviewPage: React.FC = () => {
   return (
     <div className="min-h-screen p-4 sm:p-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
+        {}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -106,7 +104,7 @@ const OverlayPreviewPage: React.FC = () => {
           )}
         </motion.div>
 
-        {/* Overlay Grid */}
+        {}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {OVERLAYS_WITH_ICONS.map((overlay, index) => (
             <motion.div
@@ -116,7 +114,7 @@ const OverlayPreviewPage: React.FC = () => {
               transition={{ delay: index * 0.1 }}
             >
               <Card className="p-0 overflow-hidden">
-                {/* Preview area */}
+                {}
                 <div className="relative h-40 bg-background flex items-center justify-center border-b border-border">
                   <iframe
                     src={getOverlayUrl(overlay)}
@@ -128,7 +126,7 @@ const OverlayPreviewPage: React.FC = () => {
                     title={`Preview: ${overlay.name}`}
                   />
 
-                  {/* Overlay info */}
+                  {}
                   <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">
                       {overlay.defaultWidth} × {overlay.defaultHeight}
@@ -136,7 +134,7 @@ const OverlayPreviewPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Content */}
+                {}
                 <div className="p-4">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="p-2 bg-primary/20 rounded-lg text-brand">
@@ -150,7 +148,7 @@ const OverlayPreviewPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {}
                   <div className="flex gap-2">
                     <Button
                       size="sm"
@@ -179,7 +177,7 @@ const OverlayPreviewPage: React.FC = () => {
           ))}
         </div>
 
-        {/* Instructions */}
+        {}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

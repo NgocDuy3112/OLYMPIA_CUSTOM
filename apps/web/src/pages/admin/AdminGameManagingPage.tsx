@@ -87,13 +87,11 @@ const AdminGameManagingPage = () => {
   const [tournamentFilter, setTournamentFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "live" | "done">("all");
 
-  // Form lên lịch / sửa
   const [showForm, setShowForm] = useState(false);
   const [editingCode, setEditingCode] = useState<string | null>(null);
   const [formInitial, setFormInitial] = useState<ScheduleFormValue>(emptyScheduleForm());
   const [saving, setSaving] = useState(false);
 
-  // Câu hỏi của trận đang chọn
   const [selectedCode, setSelectedCode] = useState("");
   const [questions, setQuestions] = useState<QuestionData[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
@@ -130,7 +128,6 @@ const AdminGameManagingPage = () => {
         });
         setTournamentCodeById(tmap);
       }
-      // Nạp players từng trận để vẽ 4 slot (song song, lỗi từng trận không chặn)
       if (rows.length > 0) {
         const settled = await Promise.allSettled(
           rows.map((r) =>
@@ -187,7 +184,6 @@ const AdminGameManagingPage = () => {
       setQuestions([]);
       void fetchQuestions(code);
       if (m) {
-        // Mở form sửa với dữ liệu hiện tại
         const players = playersByCode[code] ?? [];
         const codes = ["", "", "", ""];
         players.forEach((p) => {
@@ -384,7 +380,6 @@ const AdminGameManagingPage = () => {
     [editingQuestion, selectedCode, fetchQuestions, uploadMediaViaPresign],
   );
 
-  // Lọc + nhóm theo ngày
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = allMatches.filter((m) => {
@@ -393,7 +388,6 @@ const AdminGameManagingPage = () => {
       if (statusFilter === "done" && !done) return false;
       if (tournamentFilter) {
         const codeOf = (m.tournament_id && tournamentCodeById[m.tournament_id]) ?? "";
-        // Trận không thuộc giải nào (code rỗng) cũng bị loại khi đang lọc theo giải
         if (codeOf !== tournamentFilter) return false;
       }
       if (!q) return true;
@@ -472,7 +466,7 @@ const AdminGameManagingPage = () => {
         </div>
       </div>
 
-      {/* Bộ lọc */}
+      {}
       <div className="flex flex-col sm:flex-row gap-2">
         <InputGroup className="h-9 flex-1">
           <InputGroupAddon>
@@ -535,7 +529,7 @@ const AdminGameManagingPage = () => {
           }}
         />
       </SidePanel>
-      {/* Lịch theo ngày */}
+      {}
       {loading && allMatches.length === 0 ? (
         <p className="text-muted-foreground text-sm py-8 text-center">Đang tải lịch…</p>
       ) : groups.length === 0 ? (
@@ -569,7 +563,7 @@ const AdminGameManagingPage = () => {
         ))
       )}
 
-      {/* Câu hỏi của trận đang chọn */}
+      {}
       {selectedCode && (
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">

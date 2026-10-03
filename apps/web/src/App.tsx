@@ -31,7 +31,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/tournament/*" replace />} />
             <Route path="/login" element={<SignInPage />} />
-            {/* Route cũ → route chung, giữ chủ ý qua query role */}
+            {}
             <Route
               path="/login/admin"
               element={<Navigate to="/login?role=admin" replace />}

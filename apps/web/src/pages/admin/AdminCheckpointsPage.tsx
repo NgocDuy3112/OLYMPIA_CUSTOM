@@ -11,8 +11,10 @@ import {
 } from "@/components/ui/input-group";
 import {
   DataTable,
-  createDataTableColumns,
 } from "@/components/shared/data-table";
+import {
+  createDataTableColumns,
+} from "@/components/shared/data-table-core";
 
 const logger = createLogger("AdminCheckpointsPage");
 

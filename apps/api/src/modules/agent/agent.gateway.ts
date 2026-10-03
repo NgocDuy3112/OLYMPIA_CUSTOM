@@ -1,14 +1,3 @@
-/**
- * agent.routes — Gateway cho ai-agent (MVP 2).
- *
- * Client không nói chuyện trực tiếp với Python agent. Flow:
- *   WS `agent_ask` → xác thực session → rate limit → forward HTTP
- *   POST {AGENT_URL}/agent/ask (kèm X-User-Code / X-User-Role)
- *   → trả `agent_answer` về user qua WS.
- *
- * Note MVP: HTTP-only transport (dùng fetch giữ-alive); WS message type
- * `agent_ask` handle ở ws.handler — module này chỉ export handler dùng chung.
- */
 
 import { getEnv } from "../../config/env.js";
 import { observeAgentAsk } from "../metrics/metrics.routes.js";
@@ -23,10 +12,6 @@ export interface GatewayIdentity {
   role: "controller" | "mc" | "qauthor" | "operator" | "admin";
 }
 
-/**
- * Forward một câu hỏi tới ai-agent. Rate limit theo user, per minute.
- * valkey: ioredis instance (từ app.valkey).
- */
 export async function forwardAgentAsk(
   valkey: {
     incr: (key: string) => Promise<number>;
@@ -36,7 +21,6 @@ export async function forwardAgentAsk(
   matchCode: string,
   question: string,
 ): Promise<{ answer: string; tools_used: string[] }> {
-  // Rate limit trước khi forward — fail closed.
   const rateKey = `agent:rate:${identity.userCode}:1m`;
   const count = await valkey.incr(rateKey);
   if (count === 1) {

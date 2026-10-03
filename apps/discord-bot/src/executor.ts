@@ -1,15 +1,3 @@
-/**
- * Bot executor — internal HTTP server for direct commands from the API.
- *
- * Transport (hybrid, per plan):
- * - Commands needing ack (assign role, nickname, lock) arrive here via HTTP
- *   and return a synchronous result. No Valkey ack channel needed.
- * - Fire-and-forget notifications (prematch) arrive via Valkey pub/sub
- *   on oc:live-events — see events/valkey-listener.ts.
- *
- * This server binds to EXECUTOR_PORT (default 8200) on localhost only.
- * It is NOT exposed publicly — only the Fastify API calls it.
- */
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { Client, GuildMember } from "discord.js";
@@ -76,7 +64,6 @@ async function handleAssign(client: Client, body: AssignBody) {
       await member.setNickname(body.nickname);
       nicknameChanged = true;
     } catch {
-      // Missing ManageNicknames permission or hierarchy — role still assigned
     }
   }
   return {

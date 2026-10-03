@@ -1,4 +1,3 @@
-# ── Stage 1: build ──────────────────────────────────────────
 FROM node:20-alpine AS builder
 
 RUN apk add --no-cache libc6-compat
@@ -15,7 +14,6 @@ COPY apps/discord-bot/tsconfig.json ./apps/discord-bot/
 COPY apps/discord-bot/src ./apps/discord-bot/src
 RUN cd apps/discord-bot && pnpm build
 
-# ── Stage 2: production ─────────────────────────────────────
 FROM node:20-alpine AS runner
 
 WORKDIR /app

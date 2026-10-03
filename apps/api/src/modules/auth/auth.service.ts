@@ -1,6 +1,3 @@
-/**
- * Auth service — Google OAuth + Valkey session management.
- */
 
 import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import { randomBytes } from "node:crypto";
@@ -14,14 +11,11 @@ import { getEnv } from "../../config/env.js";
 import { AppError } from "../../utils/errors.js";
 import { writeAudit } from "../audit/audit.service.js";
 
-// ── Session constants ──
 
 const SESSION_PREFIX = "session:";
 const SESSION_TTL = 86400;
 const COOKIE_NAME = "sid";
 
-/** Seeded staff sessions có userId dạng `staff:<username>` — không phải uuid.
- *  Dùng khi ghi cột FK uuid (created_by/reviewed_by): không phải uuid → null. */
 export function uuidOrNull(id: string | null | undefined): string | null {
   return id &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
@@ -29,7 +23,6 @@ export function uuidOrNull(id: string | null | undefined): string | null {
     : null;
 }
 
-// ── Password hashing (argon2id, 32MB / t=3 / p=1) ──
 
 const ARGON2_MEMORY_KIB = 32 * 1024;
 const ARGON2_ITERATIONS = 3;
@@ -90,7 +83,6 @@ function validateUsernamePassword(username: unknown, password: unknown): void {
   }
 }
 
-// ── Seeded staff accounts (admin/operator via username+password) ──
 
 interface StaffCredential {
   username: string;
@@ -153,12 +145,6 @@ async function createUserSession(
   });
 }
 
-/**
- * MCP server đổi userCode → sid (server-to-server):
- * `Authorization: Bearer <MCP_SERVICE_TOKEN>`, body `{ userCode }`.
- * Cách B: role phải operator/admin — không phải → 403, identity không xài được.
- * Trả `{ sid, expiresIn }` (TTL 86400s). Không set cookie — client không thấy.
- */
 export function serviceSession(
   app: FastifyInstance,
   repo: UserRepo = drizzleUserRepo,
@@ -193,7 +179,6 @@ export function serviceSession(
   };
 }
 
-// ── Login rate-limit (Valkey, per IP+email) ──
 
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_WINDOW_SEC = 15 * 60;
@@ -234,7 +219,6 @@ async function clearFailedLogins(valkey: any, id: string): Promise<void> {
   await valkey.del(loginAttemptKey(id));
 }
 
-// ── Types ──
 
 interface SessionData {
   userId: string;
@@ -248,7 +232,6 @@ interface SessionData {
   lastSeen: number;
 }
 
-// ── Session helpers ──
 
 function generateSessionId(): string {
   return randomBytes(32).toString("base64url");
@@ -298,11 +281,9 @@ export async function touchSession(valkey: any, sid: string): Promise<void> {
       SESSION_TTL,
     );
   } catch {
-    /* ignore */
   }
 }
 
-// ── Google OAuth ──
 
 function getGoogleAuthUrl(): string {
   const env = getEnv();
@@ -348,7 +329,6 @@ async function fetchGoogleUserInfo(accessToken: string) {
   }>;
 }
 
-// ── Route handlers (using closures to capture app.valkey) ──
 
 export function googleRedirect(_request: FastifyRequest, reply: FastifyReply) {
   return reply.redirect(getGoogleAuthUrl());
@@ -365,13 +345,11 @@ export function googleCallback(
     const tokens = await exchangeCode(code);
     const googleUser = await fetchGoogleUserInfo(tokens.access_token);
 
-    // Upsert user via UserRepo (shared with modules/user)
     const found = await repo.findByEmail(googleUser.email);
     let user: UserRow;
 
     if (found) {
       user = found;
-      // Staff + machine accounts (admin/operator/agent) must use username login only
       if (user.role === "admin" || user.role === "operator" || user.role === "agent") {
         throw new AppError(
           403,
@@ -475,7 +453,6 @@ export function logout(app: FastifyInstance) {
   };
 }
 
-// ── Email/password signup + login ──
 
 export function signup(
   app: FastifyInstance,
@@ -495,7 +472,6 @@ export function signup(
         ? body.userName.trim().slice(0, 100)
         : email.split("@")[0];
 
-    // Lock signup: only player/spectator allowed. Admin grants operator later.
     const requestedRole =
       typeof body.role === "string" ? body.role : "player";
     const role = requestedRole === "spectator" ? "spectator" : "player";
@@ -535,7 +511,6 @@ export function login(
     await checkLoginRateLimit(app.valkey, rateKey);
 
     const user = await repo.findByEmail(email);
-    // Staff + machine accounts (admin/operator/agent) use username login only — block email login
     if (user && (user.role === "admin" || user.role === "operator" || user.role === "agent")) {
       await recordFailedLogin(app.valkey, rateKey);
       throw new AppError(401, "Invalid email or password");
@@ -555,10 +530,6 @@ export function login(
   };
 }
 
-// POST /auth/staff-login — username+password for admin/operator.
-// Accepts seeded env credentials OR users table rows (email/user_code +
-// passwordHash). Optional body.expectRole ("admin" | "operator") — used by
-// split login pages to reject the wrong staff type early.
 export function staffLogin(app: FastifyInstance) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     const body = request.body as {
@@ -588,7 +559,6 @@ export function staffLogin(app: FastifyInstance) {
       throw new AppError(401, "Invalid username or password");
     };
 
-    // 1) Seeded credentials (STAFF_CREDENTIALS + env dev admin).
     const env = getEnv();
     const envAdmin = env.ADMIN_USERNAME.trim().toLowerCase();
     let cred = parseStaffCredentials().find((c) => c.username === username);
@@ -626,7 +596,6 @@ export function staffLogin(app: FastifyInstance) {
         createdAt: Date.now(),
         lastSeen: Date.now(),
       });
-      // Stash scopes in session via operatorScopes lookup at guard time
       await app.valkey.set(
         `staff:scopes:${sid}`,
         credScopes,
@@ -639,7 +608,6 @@ export function staffLogin(app: FastifyInstance) {
       });
     }
 
-    // 2) Users table fallback (email hoặc user_code + password).
     const found = rawUsername.includes("@")
       ? await drizzleUserRepo.findByEmail(username)
       : await drizzleUserRepo.findByCode(rawUsername.toUpperCase());
@@ -676,14 +644,11 @@ export function staffLogin(app: FastifyInstance) {
   };
 }
 
-// ── Guards ──
 
-/** Staff con người (admin/operator), chưa tính machine. */
 export function isStaffRole(role: string): boolean {
   return role === "admin" || role === "operator";
 }
 
-/** Có quyền operator-like: operator người + agent máy (cùng cơ chế scopes). */
 export function isOperatorLike(role?: string | null): boolean {
   return role === "operator" || role === "agent";
 }
@@ -721,8 +686,6 @@ export function requireRole(app: FastifyInstance, ...roles: string[]) {
   };
 }
 
-// requireScope — operator must hold a specific scope (controller/mc/qauthor).
-// Admin bypasses. Reads scopes from session, falls back to staff:scopes Valkey key.
 export function requireScope(app: FastifyInstance, ...scopes: string[]) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     await requireAuth(app)(request, reply);

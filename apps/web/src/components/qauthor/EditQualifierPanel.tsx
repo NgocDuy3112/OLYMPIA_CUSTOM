@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { QualifierOptionsInput } from "./QualifierOptionsInput";
 
-/** Câu vòng loại tối thiểu để sửa — QualifierTab. */
 export interface EditableQualifier {
   questionCode: string;
   content: string;
@@ -35,7 +34,6 @@ interface EditQualifierPanelProps {
   onSave: (value: QualifierEditValue) => void | Promise<void>;
 }
 
-/** Panel sửa câu vòng loại (SidePanel) — dùng cho QualifierTab. */
 export function EditQualifierPanel({
   item,
   onClose,
@@ -45,7 +43,6 @@ export function EditQualifierPanel({
   const [optionList, setOptionList] = useState<string[]>(["", "", "", ""]);
   const open = item !== null;
 
-  // Reset form mỗi lần mở panel (item đổi hoặc mở lại lần nữa).
   useEffect(() => {
     if (!open || !item) return;
     setValue({

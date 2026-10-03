@@ -14,7 +14,6 @@ interface ConfirmActionPanelProps {
   onConfirm: () => void | Promise<void>;
 }
 
-/** Panel xác nhận dùng chung cho Thêm/Xoá/Sửa, luôn mở từ sidebar phải. */
 export function ConfirmActionPanel({
   open,
   title,

@@ -6,7 +6,6 @@ export const WS_BASE_URL =
     return `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
   })();
 
-// ── WebRTC ICE (STUN + optional TURN for cross-NAT) ──
 function parseIceServers(): RTCIceServer[] {
   const servers: RTCIceServer[] = [
     {
@@ -31,5 +30,4 @@ export const ICE_SERVERS: RTCConfiguration = {
   iceServers: parseIceServers(),
 };
 
-/** Tạm ẩn Overlay (livestream/OBS chưa dùng) — bật lại = true. */
 export const ENABLE_OVERLAY = false;

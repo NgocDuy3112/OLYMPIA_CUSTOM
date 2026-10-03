@@ -1,11 +1,3 @@
-/**
- * agent.routes — HTTP gateway cho ai-agent (QAuthor kiểm tra câu hỏi).
- *
- * WS `agent_ask` chỉ dành cho controller/mc trong phòng match
- * (qauthor-only bị map thành player nên không gọi được).
- * Route này cho phép qauthor HOẶC controller kiểm tra chất lượng câu hỏi
- * bank/trận qua HTTP POST /agent/ask, forward tới ai-agent Python.
- */
 
 import type { FastifyInstance } from "fastify";
 import { requireScope } from "../auth/auth.service.js";
@@ -13,8 +5,6 @@ import { forwardAgentAsk, AgentRateLimitError } from "./agent.gateway.js";
 import { writeAudit } from "../audit/audit.service.js";
 
 export async function agentRoutes(app: FastifyInstance) {
-  // POST /agent/ask — { match_code?, question } → { answer, tools_used }
-  // Scope: qauthor hoặc controller (admin bypass).
   app.post(
     "/agent/ask",
     { preHandler: [requireScope(app, "qauthor", "controller")] },
@@ -38,8 +28,6 @@ export async function agentRoutes(app: FastifyInstance) {
           data: null,
         });
       }
-      // match_code optional — kiểm tra bank không cần trận live.
-      // Agent tools (get_match_info...) fail-soft khi không có snapshot.
       const effectiveMatch = matchCode.trim() || "BANK_REVIEW";
       const session = (
         request as unknown as {
@@ -47,7 +35,6 @@ export async function agentRoutes(app: FastifyInstance) {
         }
       ).session;
       const userCode = session?.userCode ?? "anonymous";
-      // Map role gửi sang ai-agent: chỉ staff (admin/operator + scope).
       const scopes = (session?.operatorScopes ?? "").split(",").map((s) => s.trim());
       const agentRole =
         session?.role === "admin"

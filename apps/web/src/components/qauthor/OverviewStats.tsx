@@ -48,7 +48,6 @@ export const OverviewStats = () => {
 
   useEffect(() => {
     if (matchCode.trim()) void fetchStats();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

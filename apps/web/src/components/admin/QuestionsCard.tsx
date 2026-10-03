@@ -29,7 +29,6 @@ interface QuestionsCardProps {
 const inputClass =
   "h-9 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
-/** Danh sách câu hỏi của trận — GET /questions?match_code, PATCH /questions/:match/:q. */
 export function QuestionsCard({
   matchCode,
   questionsMatchCode,

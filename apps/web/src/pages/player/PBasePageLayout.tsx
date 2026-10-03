@@ -42,7 +42,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {/* Header */}
+      {}
       {role === "player" && (
         <>
           <PlayerCameraPublisher userCode={currentPlayerCode} />
@@ -56,7 +56,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
         isConnected={isConnected}
       />
 
-      {/* Player bar */}
+      {}
       <div className="flex gap-1 sm:gap-2 lg:gap-4 max-w-7xl w-full justify-center p-2 sm:p-3 lg:p-4 bg-background/20 shrink-0 overflow-x-auto">
         {players.map((p) =>
           role === "mc" ? (
@@ -81,7 +81,7 @@ export const PBasePageLayout: React.FC<PBasePageLayoutProps> = ({
         )}
       </div>
 
-      {/* Main content */}
+      {}
       <div className="flex-1 p-1 sm:p-2 lg:p-5 w-full flex justify-center min-h-0 overflow-y-auto">
         <div className="w-full max-w-7xl flex flex-col gap-2 sm:gap-3 lg:gap-4">
           {children}

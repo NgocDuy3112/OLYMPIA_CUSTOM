@@ -60,7 +60,6 @@ const ControllerOverviewPage = () => {
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
-      // clipboard không khả dụng (OBS cũ) — user copy tay từ text
     }
   };
 

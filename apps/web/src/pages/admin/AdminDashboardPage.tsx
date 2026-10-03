@@ -134,7 +134,6 @@ const QuickAction = ({
   </Button>
 );
 
-/** Tổng quan vận hành cho admin: số liệu + việc cần làm + lối tắt. */
 const AdminDashboardPage = () => {
   const navigate = useNavigate();
   const [state, setState] = useState<DashboardState>(initialState);
@@ -196,7 +195,6 @@ const AdminDashboardPage = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 6);
 
-      // Health: fire-and-forget, không chặn dashboard
       let apiOk: boolean | null = null;
       let agentOk: boolean | null = null;
       try {
@@ -211,7 +209,6 @@ const AdminDashboardPage = () => {
           agentOk = agentH.value?.status === "ok" || agentH.value?.status === "healthy";
         else agentOk = false;
       } catch {
-        /* giữ null -> hiển thị "—" */
       }
 
       setState({ tournaments, matches, users, pendingBank, approvedBank, rejectedBank, recentLogs, totalLogs, actionCounts, apiOk, agentOk });
@@ -286,7 +283,7 @@ const AdminDashboardPage = () => {
         </Button>
       </div>
 
-      {/* Việc cần làm */}
+      {}
       {needsAttention.length > 0 && (
         <div className="rounded-xl bg-warning/10 border border-warning/30 p-4">
           <p className="text-sm font-semibold text-warning mb-2">Cần xử lý</p>
@@ -305,7 +302,7 @@ const AdminDashboardPage = () => {
         </div>
       )}
 
-      {/* Số liệu */}
+      {}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
           icon={<Trophy size={14} />}
@@ -337,7 +334,7 @@ const AdminDashboardPage = () => {
         />
       </div>
 
-      {/* Biểu đồ phân bố */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
           <p className="text-sm font-semibold text-foreground/80">Trận theo trạng thái</p>
@@ -370,7 +367,7 @@ const AdminDashboardPage = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Tác vụ nhanh */}
+        {}
         <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
           <p className="text-sm font-semibold text-foreground/80 mb-1">Tác vụ nhanh</p>
           <QuickAction
@@ -399,7 +396,7 @@ const AdminDashboardPage = () => {
           />
         </div>
 
-        {/* Trận gần đây */}
+        {}
         <div className="rounded-xl bg-accent/50 border border-border p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-semibold text-foreground/80">Trận gần đây</p>
@@ -457,7 +454,7 @@ const AdminDashboardPage = () => {
           )}
         </div>
 
-        {/* Nhật ký gần đây */}
+        {}
         <div className="rounded-xl bg-accent/50 border border-border p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm font-semibold text-foreground/80 flex items-center gap-1.5">

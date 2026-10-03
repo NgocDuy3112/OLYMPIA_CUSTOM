@@ -1,8 +1,3 @@
-/**
- * OC4 Engine — OC 4.
- *
- * Currently identical to OC3. Override methods here as OC4 diverges.
- */
 
 import { OC3Engine } from "../oc3/index.js";
 import type { ScoreDelta } from "../types.js";
@@ -34,7 +29,6 @@ export class OC4Engine extends OC3Engine {
       return [gmKeywordCorrectOc4(action.userCode, cluesOpened)];
     }
 
-    // Clue opening itself has no score delta in OC4.
     if (action.type === "gm_clue_correct") {
       return [];
     }

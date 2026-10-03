@@ -1,10 +1,3 @@
-/**
- * Typed storage access — the ONLY place in the app that touches
- * localStorage/sessionStorage directly.
- *
- * All access is SSR-safe, try/catch guarded (Safari private mode, quota
- * errors) and centralized so the storage backend can be swapped later.
- */
 
 interface SyncStore {
   get(key: string): string | null;
@@ -25,14 +18,12 @@ function createSyncStore(backend: () => Storage | undefined): SyncStore {
       try {
         backend()?.setItem(key, value);
       } catch {
-        // Storage full / disabled — ignore.
       }
     },
     remove(key) {
       try {
         backend()?.removeItem(key);
       } catch {
-        // ignore
       }
     },
   };
@@ -45,7 +36,6 @@ export const sessionStore = createSyncStore(() =>
   typeof window === "undefined" ? undefined : window.sessionStorage,
 );
 
-/** Well-known identity keys. */
 export const storageKeys = {
   matchCode: "matchCode",
   playerCode: "playerCode",
@@ -55,7 +45,6 @@ export const storageKeys = {
   userName: "user_name",
 } as const;
 
-/** Per-match namespaced key prefixes (value is appended with the match code). */
 export const matchStoragePrefixes = {
   chungMeta: "vd_chung_meta_",
   chungCodes: "vd_chung_codes_",
@@ -67,7 +56,6 @@ export const matchStoragePrefixes = {
   pickSelected: "vd_pick_selected_",
 } as const;
 
-// ── Identity helpers ─────────────────────────────────────────────────────────
 
 export function getMatchCode(): string {
   return localStore.get(storageKeys.matchCode) ?? "";
@@ -114,7 +102,6 @@ export function setUserName(name: string): void {
   sessionStore.set(storageKeys.userName, name);
 }
 
-/** Clear the auth session written by AuthCallbackPage. */
 export function clearAuthSession(): void {
   sessionStore.remove(storageKeys.userRole);
   sessionStore.remove(storageKeys.userCode);
@@ -122,7 +109,6 @@ export function clearAuthSession(): void {
   localStore.remove(storageKeys.matchCode);
 }
 
-// ── JSON helpers ─────────────────────────────────────────────────────────────
 
 export function readJson<T>(key: string, fallback: T): T {
   const raw = localStore.get(key);
@@ -138,7 +124,6 @@ export function writeJson(key: string, value: unknown): void {
   try {
     localStore.set(key, JSON.stringify(value));
   } catch {
-    // ignore serialization errors
   }
 }
 
@@ -146,7 +131,6 @@ export function removeKey(key: string): void {
   localStore.remove(key);
 }
 
-// ── Per-match namespaced helpers ─────────────────────────────────────────────
 
 export function readMatchJson<T>(
   prefix: string,

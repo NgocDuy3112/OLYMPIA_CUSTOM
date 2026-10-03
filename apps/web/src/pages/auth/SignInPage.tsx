@@ -78,10 +78,8 @@ const SignInPage = () => {
     roleParam === "operator" ? "operator" : "admin",
   );
 
-  // Form thí sinh
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Form nhân sự
   const [username, setUsername] = useState("");
   const [staffPassword, setStaffPassword] = useState("");
 
@@ -227,7 +225,7 @@ const SignInPage = () => {
             
           </TabsContent>
 
-          {/* ── Phương thức 2: nhân sự (staff-login) ── */}
+          {}
           <TabsContent value="staff" className="mt-4 flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2">
               {(["admin", "operator"] as StaffRole[]).map((r) => (

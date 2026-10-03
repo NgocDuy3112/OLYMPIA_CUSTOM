@@ -13,17 +13,11 @@ interface SidePanelProps {
     onClose: () => void;
     title: string;
     tone?: "default" | "danger";
-    /** Rộng nửa màn hình cho form nhiều field. */
     wide?: boolean;
-    /** Thanh action dính đáy panel (Lưu/Xoá...) — nội dung giữa tự scroll. */
     footer?: React.ReactNode;
     children: React.ReactNode;
 }
 
-/**
- * Panel phải trỏ sang shadcn Sheet (Base UI).
- * Focus-trap, Esc, khoá scroll nền, animation — Base UI lo, bỏ hand-rolled.
- */
 export const SidePanel: React.FC<SidePanelProps> = ({
     open,
     onClose,

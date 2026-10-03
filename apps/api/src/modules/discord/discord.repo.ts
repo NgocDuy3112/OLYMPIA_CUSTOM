@@ -173,7 +173,6 @@ export function createInMemoryDiscordRepo(
       return tournamentList.find((t) => t.tournamentCode === code) ?? null;
     },
     async findMembership(tournamentId, playerId) {
-      // In-memory members carry userCode only; match playerId against userCode.
       const list = membersByTournament.get(tournamentId) ?? [];
       const found = list.find((m) => m.userCode === playerId);
       return found ? { role: found.role } : null;

@@ -9,10 +9,6 @@ interface PublicLayoutProps {
   children: React.ReactNode;
 }
 
-/**
- * Public layout: shadcn SidebarProvider — sidebar cố định desktop,
- * drawer mobile (Base UI Sheet) mở bằng trigger trong SidebarInset.
- */
 export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   const { isAuthenticated, user, logout } = useAuth();
 
@@ -29,7 +25,7 @@ export const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
         onLogout={handleLogout}
       />
       <SidebarInset className="min-h-screen flex flex-col bg-transparent">
-        {/* Mobile top bar — SidebarTrigger mở drawer (Base UI Sheet) */}
+        {}
         <header className="sticky top-0 z-30 md:hidden glass">
           <div className="flex items-center h-12 px-4 gap-3">
             <SidebarTrigger />

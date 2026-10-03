@@ -106,7 +106,6 @@ describe("qualifier repo (in-memory)", () => {
       correctOption: "B",
       position: 2,
     });
-    // q1: p1 correct, p2 wrong → p1 +1, p2 -1
     await repo.submitAttempt({
       questionId: q1.id,
       playerId: "p1",
@@ -119,7 +118,6 @@ describe("qualifier repo (in-memory)", () => {
       selectedOption: "B",
       responseTimeMs: 1000,
     });
-    // q2: both correct → +0 each (Y=0)
     await repo.submitAttempt({
       questionId: q2.id,
       playerId: "p1",

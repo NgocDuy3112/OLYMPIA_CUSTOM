@@ -33,7 +33,6 @@ interface BracketEdge {
   toMatchCode: string;
 }
 
-/** Vị trí của el tương đối với container (cộng dồn offsetParent). */
 function relBox(el: HTMLElement, container: HTMLElement) {
   let x = 0;
   let y = 0;
@@ -126,7 +125,6 @@ function MatchBox({
   );
 }
 
-/** Sơ đồ bracket kiểu loại trực tiếp: cột theo vòng, line SVG nối trận. */
 export function TournamentBracket({ tournamentCode }: { tournamentCode: string }) {
   const [phases, setPhases] = useState<BracketPhase[]>([]);
   const [matches, setMatches] = useState<BracketMatch[]>([]);
@@ -185,7 +183,6 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
     return cols;
   }, [phases, matches]);
 
-  // Map userCode -> đi tiếp (xuất hiện ở trận downstream trực tiếp)
   const advancedByMatch = useMemo(() => {
     const playersByCode = new Map(matches.map((m) => [m.matchCode, new Set(m.players.map((p) => p.userCode))]));
     const out = new Map<string, Set<string>>();
@@ -208,7 +205,6 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
     return new Set([...to].filter((c) => !from.has(c)));
   }, [edges]);
 
-  // Đo vị trí box thật rồi vẽ line nối
   useLayoutEffect(() => {
     const compute = () => {
       const inner = innerRef.current;
@@ -238,7 +234,6 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
     window.addEventListener("resize", compute);
     const ro = new ResizeObserver(compute);
     if (innerRef.current) ro.observe(innerRef.current);
-    // Font/layout ổn định sau paint đầu
     const t = setTimeout(compute, 300);
     return () => {
       window.removeEventListener("resize", compute);

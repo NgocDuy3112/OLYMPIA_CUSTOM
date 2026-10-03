@@ -11,14 +11,12 @@ import { API_BASE_URL } from "@/configs";
 import type { BankData } from "./bankTypes";
 import { Progress } from "@/components/ui/progress";
 
-/** Nhóm form soạn theo vòng: KĐ chung form, GM theo set, VĐ theo domain/độ khó. */
 export type BankFormKind = "kd" | "bp" | "vd" | "gm-key" | "gm-hint";
 
 export const VD_DOMAINS = ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"] as const;
 export const VD_LEVELS = [20, 30, 40, 50] as const;
 export const GM_HINTS = ["H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"] as const;
 
-/** Giá trị sidebar bank trả về khi lưu (mã bank tự sinh lúc lưu). */
 export interface BankFormValue {
   content: string;
   answer: string;
@@ -30,7 +28,6 @@ export interface BankFormValue {
   hintIndex: string;
   citationUrl: string;
   mediaFile: File | null;
-  /** True = xóa media hiện có. */
   removeMedia: boolean;
 }
 
@@ -38,11 +35,9 @@ interface EditBankSidebarProps {
   open: boolean;
   mode: "create" | "edit";
   kind: BankFormKind;
-  /** Giá trị fix sẵn theo tab (roundHint/domain/setCode...). */
   preset?: Partial<BankFormValue>;
   initial: BankData | null;
   saving: boolean;
-  /** % upload media (null = không upload) — hiện thanh Progress. */
   uploadPct?: number | null;
   onClose: () => void;
   onSave: (value: BankFormValue) => void | Promise<void>;
@@ -69,9 +64,7 @@ const KIND_TITLE: Record<BankFormKind, string> = {
   "gm-key": "GM — từ khóa",
   "gm-hint": "GM — gợi ý",
 };
-/** Stamp VN hiện tại — chuyển sang bankTypes.ts (tránh lỗi react-refresh). */
 
-/** Preview file local chưa upload: ảnh hiện ảnh, video hiện video, audio hiện audio. */
 function LocalPreview({ file }: { file: File }) {
   const url = useMemo(() => URL.createObjectURL(file), [file]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
@@ -84,7 +77,6 @@ function LocalPreview({ file }: { file: File }) {
   return <audio src={url} controls className="w-full" />;
 }
 
-/** Sidebar soạn + sửa câu bank (QAuthor): content/answer bắt buộc, media preview inline. */
 export function EditBankSidebar({ open, mode, kind, preset, initial, saving, uploadPct, onClose, onSave }: EditBankSidebarProps) {
   const [value, setValue] = useState<BankFormValue>(EMPTY);
   const [dupNote, setDupNote] = useState("");
@@ -124,7 +116,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
         hintIndex: preset?.hintIndex ?? "",
       });
     }
-  }, // eslint-disable-next-line react-hooks/exhaustive-deps
+  },
   [open, mode, kind, initial]);
 
   const set =

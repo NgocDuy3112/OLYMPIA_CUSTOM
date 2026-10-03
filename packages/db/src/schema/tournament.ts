@@ -10,16 +10,8 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "./user.js";
 
-/**
- * Tournament status enum values
- */
 export type TournamentStatus = "draft" | "active" | "completed" | "archived";
 
-/**
- * Tournaments table — manages tournament/league competitions.
- *
- * Each tournament can have multiple matches and players.
- */
 export const tournaments = pgTable(
   "tournaments",
   {
@@ -53,13 +45,6 @@ export const tournaments = pgTable(
   ],
 );
 
-/**
- * TournamentPlayers — tracks which players are registered for a tournament.
- *
- * Discord identity lives here (not on users): only in-tournament players
- * need a discord_user_id / nickname for AI mention + auto role assignment.
- * Outsiders stay untouched.
- */
 export const tournamentPlayers = pgTable(
   "tournament_players",
   {

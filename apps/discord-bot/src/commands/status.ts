@@ -16,7 +16,6 @@ export function createStatusCommand(valkey: Redis) {
 
       const matchCode = interaction.options.getString("match") || "OC3_M_VL";
 
-      // Check if match snapshot exists in Valkey
       const exists = await valkey.exists(`snapshot:${matchCode}`);
 
       const embed = new EmbedBuilder()

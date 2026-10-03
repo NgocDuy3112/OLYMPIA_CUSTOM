@@ -16,15 +16,12 @@ interface MatchScheduleFormProps {
   isEdit: boolean;
   saving: boolean;
   tournaments: { tournamentCode: string; tournamentName: string }[];
-  /** Khi có danh sách vòng (VD: tab phân nhánh) thì hiện select gán trận vào vòng. */
   phases?: { id: string; phaseName: string }[];
-  /** Render trần (dùng trong SidePanel) thay vì khung card. */
   bare?: boolean;
   onSubmit: (v: ScheduleFormValue) => void;
   onCancel: () => void;
 }
 
-/** Form lên lịch / sửa trận: giờ, địa điểm, nhãn, 4 slot thí sinh. */
 export function MatchScheduleForm({
   initial,
   isEdit,

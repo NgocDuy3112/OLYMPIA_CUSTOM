@@ -2,17 +2,11 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema/index.js";
 
-// Re-export everything so consumers can do:
-//   import { db, users, matches } from '@oc/db'
-//   `db` auto-connects on first use, or use getDb() for explicit init
 export * from "./schema/index.js";
 
-// Single drizzle-orm instance: API imports query helpers from here,
-// never from "drizzle-orm" directly (tránh 2 bản type xung đột).
 export { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 export type { SQL } from "drizzle-orm";
 
-// ── Connection ──
 
 function getDbUrl(): string {
   const url = process.env.DATABASE_URL;
@@ -48,7 +42,6 @@ export async function closeDb() {
   }
 }
 
-// Lazy proxy — `db` auto-connects on first use
 export const db = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
   get(_, prop) {
     if (!_db) {

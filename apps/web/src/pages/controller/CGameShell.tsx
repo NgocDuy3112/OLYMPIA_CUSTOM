@@ -1,8 +1,3 @@
-/**
- * CGameShell — khung màn vòng thi của Controller/MC.
- * Bắt chước cấu trúc Player: HeaderBar (mã trận · vòng · WS) + stepper
- * "vòng trước/sau" — controller tự điều khiển thay vì chờ admin push navigate.
- */
 import React, { type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -15,7 +10,6 @@ import { getPhaseFromPath } from "@/utils/phase";
 import { getMatchCode } from "@/utils/storage";
 
 interface CGameShellProps {
-  /** User code to publish MC voice for (omit to disable). */
   voiceUser?: string | null;
   children: ReactNode;
 }

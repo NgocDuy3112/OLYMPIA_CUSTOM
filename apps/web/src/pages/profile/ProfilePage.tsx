@@ -73,7 +73,6 @@ const ProfilePage: React.FC = () => {
           setTournaments(json.data);
         }
       } catch {
-        /* ignore — tournaments tab stays empty */
       } finally {
         setTournamentsLoading(false);
       }
@@ -125,7 +124,6 @@ const ProfilePage: React.FC = () => {
     setError(null);
     setUploadingAvatar(true);
     try {
-      // 1. Get presigned PUT url
       const key = `avatars/${profile?.userCode}/${Date.now()}_${file.name}`;
       const presignRes = await fetch(
         `${API_BASE_URL}/media/presign-put/?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(file.type)}`,
@@ -136,10 +134,8 @@ const ProfilePage: React.FC = () => {
         throw new Error(presignJson.message ?? "Không tạo được upload URL");
       }
       const putUrl: string = presignJson.data.url;
-      // 2. PUT file to S3
       setUploadPct(0);
       await putFileWithProgress(putUrl, file, setUploadPct);
-      // 3. Save avatar key to profile
       const patchRes = await fetch(`${API_BASE_URL}/users/me`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -165,8 +161,6 @@ const ProfilePage: React.FC = () => {
         <Spinner className="size-12" />
       </div>
     );
-  // Không tải được profile → trang lỗi riêng;
-  // lỗi thao tác (sửa tên/upload avatar) chỉ hiện banner trong trang.
   if (!profile) {
     return (
       <PublicLayout>

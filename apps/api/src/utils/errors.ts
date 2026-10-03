@@ -22,7 +22,6 @@ export function errorHandler(
       session?: { userCode?: string; role?: string };
     }
   ).session;
-  // Context để đọc log là biết ngay route nào + ai gọi, khỏi đoán.
   const ctx = {
     err: error,
     method: request.method,
@@ -50,8 +49,6 @@ export function errorHandler(
   }
 
   request.log.error(ctx, error.message);
-  // Dev: trả message thật để frontend/console thấy ngay nguyên nhân.
-  // Production: giấu chi tiết, chỉ log server-side.
   const dev = getEnv().NODE_ENV !== "production";
   return reply.code(500).send({
     status: "error",

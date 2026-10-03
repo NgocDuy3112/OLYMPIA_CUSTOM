@@ -11,12 +11,12 @@ interface PlayerScore {
 }
 
 const RANK_COLORS = [
-  "from-warning to-warning/80",  // Gold
-  "from-gray-300 to-gray-500",      // Silver
-  "from-orange-400 to-orange-600",  // Bronze
-  "from-brand to-primary",      // Blue
-  "from-purple to-purple/80",  // Purple
-  "from-pink-400 to-pink-600",      // Pink
+  "from-warning to-warning/80",
+  "from-gray-300 to-gray-500",
+  "from-orange-400 to-orange-600",
+  "from-brand to-primary",
+  "from-purple to-purple/80",
+  "from-pink-400 to-pink-600",
 ];
 
 const OverlayScoreboard: React.FC = () => {
@@ -44,21 +44,20 @@ const OverlayScoreboard: React.FC = () => {
     return null;
   }
 
-  // Sort by score descending
   const sorted = [...scores].sort((a, b) => b.score - a.score);
 
   return (
     <div className="bg-transparent p-3 sm:p-4 min-w-[280px] sm:min-w-[320px]">
 
       <div className="backdrop-blur-md bg-background/30 rounded-2xl border border-border p-4 shadow-2xl">
-        {/* Header */}
+        {}
         <div className="text-center mb-4">
           <span className="text-xs font-semibold text-foreground/60 uppercase tracking-wider">
             Scoreboard
           </span>
         </div>
 
-        {/* Scores */}
+        {}
         <div className="space-y-2">
           <AnimatePresence>
             {sorted.slice(0, 6).map((player, index) => (
@@ -71,7 +70,7 @@ const OverlayScoreboard: React.FC = () => {
                 transition={{ delay: index * 0.05 }}
                 className="flex items-center gap-3"
               >
-                {/* Rank */}
+                {}
                 <div
                   className={`
                     w-8 h-8 rounded-lg bg-gradient-to-br flex items-center justify-center
@@ -82,14 +81,14 @@ const OverlayScoreboard: React.FC = () => {
                   {index + 1}
                 </div>
 
-                {/* Name */}
+                {}
                 <div className="flex-1 truncate">
                   <span className="text-sm sm:text-base font-semibold text-foreground">
                     {player.userName}
                   </span>
                 </div>
 
-                {/* Score */}
+                {}
                 <motion.div
                   key={`${player.userCode}-${player.score}`}
                   initial={{ scale: 1.2, color: "#60A5FA" }}

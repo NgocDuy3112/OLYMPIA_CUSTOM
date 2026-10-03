@@ -1,4 +1,3 @@
-// ── Engine contract ──
 export type {
   TournamentEngine,
   Result,
@@ -7,7 +6,6 @@ export type {
 } from "./core/index.js";
 export { success, failure } from "./core/index.js";
 
-// ── Shared types ──
 export type {
   MatchStatus,
   ScoreDelta,
@@ -21,7 +19,6 @@ export type {
 
 export type { OC3State, OC3Action, OC3Phase } from "./oc3/types.js";
 
-// ── Base utilities ──
 export {
   kdcCorrect,
   kdrCorrect,
@@ -61,11 +58,9 @@ export type {
 
 export { STATUS_TRANSITIONS, canTransitionStatus } from "./base/lifecycle.js";
 
-// ── Engines ──
 export { OC3Engine } from "./oc3/index.js";
 export { OC4Engine } from "./oc4/index.js";
 
-// ── Transport ──
 export {
   parseAction,
   buildBroadcastMessage,

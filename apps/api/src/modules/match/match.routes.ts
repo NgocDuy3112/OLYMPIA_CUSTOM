@@ -8,14 +8,12 @@ export async function matchRoutes(
   opts: { repo?: MatchRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleMatchRepo;
-  // GET /matches — List all matches
   app.get("/matches", async (request, reply) => {
     const { tournamentCode } = request.query as { tournamentCode?: string };
     const rows = await repo.list(tournamentCode);
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 
-  // POST /matches — Create a new match (admin only; controller runs live)
   app.post(
     "/matches",
     { preHandler: [requireRole(app, "admin")] },
@@ -88,7 +86,6 @@ export async function matchRoutes(
     },
   );
 
-  // GET /matches/:slug — Get match by slug
   app.get("/matches/:slug", async (request, reply) => {
     const { slug } = request.params as { slug: string };
     const row = await repo.findBySlug(slug);
@@ -105,7 +102,6 @@ export async function matchRoutes(
     });
   });
 
-  // PUT /matches/:slug — Update match (admin only; controller runs live)
   app.put(
     "/matches/:slug",
     { preHandler: [requireRole(app, "admin")] },
@@ -166,7 +162,6 @@ export async function matchRoutes(
     },
   );
 
-  // POST /matches/join — Join match by PIN
   app.post(
     "/matches/join",
     { preHandler: [requireAuth(app)] },
@@ -184,7 +179,6 @@ export async function matchRoutes(
           });
       }
 
-      // Find match by PIN
       const match = await repo.findByPin(body.pin);
 
       if (!match) {
@@ -197,7 +191,6 @@ export async function matchRoutes(
           });
       }
 
-      // Check if match is joinable
       if (match.matchStatus === "finished" || match.matchStatus === "completed") {
         return reply
           .code(400)
@@ -219,7 +212,6 @@ export async function matchRoutes(
     },
   );
 
-  // POST /matches/:slug/players — Add player to match (admin only; controller runs live)
   app.post(
     "/matches/:slug/players",
     { preHandler: [requireRole(app, "admin")] },

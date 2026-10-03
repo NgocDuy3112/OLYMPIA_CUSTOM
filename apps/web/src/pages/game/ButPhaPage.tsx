@@ -1,10 +1,3 @@
-/**
- * ButPhaPage — Unified page for Bứt Phá (buzzer sprint).
- *
- * Admin: full control panel with question selection, timer, scoring.
- * MC: read-only spectator view (same as player).
- * Player: answer input with timer.
- */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { useNavigate, useParams } from "react-router-dom";
@@ -29,7 +22,6 @@ const QUESTION_PREFIX = "OC3_Q_BP";
 const MAX_QUESTION_INDEX = 5;
 const TIME_LIMIT = 30;
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminButPhaView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -178,7 +170,6 @@ const AdminButPhaView = () => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 const PlayerButPhaView = () => {
   const { matchCode, playerCode } = useRoleSession("player");
   const {
@@ -345,13 +336,11 @@ const PlayerButPhaView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCButPhaView = () => {
   const { matchCode } = useRoleSession("mc");
   return <SButPhaPage Layout={PBasePageLayout} matchCode={matchCode} />;
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 const ButPhaPage = () => {
   const { role } = useGameWebSocket();
   if (role === "controller") return <AdminButPhaView />;

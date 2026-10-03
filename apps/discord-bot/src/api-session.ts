@@ -1,8 +1,3 @@
-/**
- * API staff session cho bot (operator + controller).
- * Bot đăng nhập như staff (operator + controller) lúc start, giữ sid cookie.
- * 401 → login lại 1 lần (sid hết hạn).
- */
 
 import { getEnv } from "./config/env.js";
 
@@ -50,7 +45,6 @@ function headers(): Record<string, string> {
   return h;
 }
 
-/** fetch API kèm session bot — 401 thì login lại 1 lần rồi retry. */
 export async function botFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const doFetch = () =>
     fetch(`${API_BASE}${path}`, {

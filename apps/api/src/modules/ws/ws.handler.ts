@@ -1,6 +1,3 @@
-/**
- * WebSocket message handler.
- */
 
 import type { WebSocket } from "ws";
 import type { WsConnection, WsMessage } from "./ws.types.js";
@@ -45,7 +42,6 @@ export async function handleWsMessage(
   }
 
   if (msgType.startsWith("camera_") || msgType.startsWith("voice_")) {
-    // Only controller can remote-control player cameras
     if (msgType === "camera_control" && conn.role !== "controller") return;
     const target =
       typeof data.target_user_code === "string"
@@ -93,8 +89,6 @@ export async function handleWsMessage(
     return;
   }
 
-  // Live: controller broadcasts send_question -> mark is_used in DB
-  // (fire-and-forget so bank "used" filter stays correct).
   if (
     msgType === "send_question" &&
     conn.role === "controller" &&
@@ -109,7 +103,6 @@ export async function handleWsMessage(
         if (!matchId) return;
         await drizzleQuestionRepo.markUsed(matchId, data.question_code as string);
       } catch {
-        /* non-fatal */
       }
     })();
   }
@@ -124,8 +117,6 @@ async function handleAgentAsk(
 ): Promise<void> {
   const question = typeof data.question === "string" ? data.question : "";
   if (!question.trim() || !conn.matchCode || !manager.valkey) return;
-  // OCee chỉ nhận lệnh từ staff — player/spectator bị map thành player ở
-  // ws.route nên chặn tại đây, fail closed.
   if (conn.role !== "controller" && conn.role !== "mc") {
     await manager.sendToUser(conn.matchCode, conn.userCode, {
       type: "agent_error",
@@ -276,11 +267,9 @@ async function sendSnapshot(conn: WsConnection): Promise<void> {
           conn.ws.send(JSON.stringify(msg));
         }
       } catch {
-        /* ignore */
       }
     }
   } catch {
-    /* non-fatal */
   }
 }
 
@@ -308,6 +297,5 @@ export async function handleReconnect(conn: WsConnection): Promise<void> {
       }
     }
   } catch {
-    /* non-fatal */
   }
 }

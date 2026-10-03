@@ -3,20 +3,12 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ShellHeaderProps {
-  /** Nhãn vai trò hiển thị bên phải (Admin / Controller / Question Author). */
   roleLabel: string;
-  /** Override tên user (mặc định lấy từ useAuth). */
   userName?: string;
-  /** Không còn dùng — user menu đã chuyển xuống footer của ShellSidebar. */
   onLogout?: () => void;
-  /** Không còn dùng — giữ để các wrapper cũ không vỡ type. */
   onToggleSidebar?: () => void;
 }
 
-/**
- * Header của shell operator — gọn theo shadcn block pattern
- * (SidebarTrigger + ngữ cảnh). Toàn bộ điều hướng + user card nằm ở ShellSidebar.
- */
 export const ShellHeader: React.FC<ShellHeaderProps> = ({ roleLabel, userName }) => {
   const { user } = useAuth();
   const displayName = userName ?? user?.userName;

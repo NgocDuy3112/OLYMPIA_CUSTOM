@@ -19,7 +19,6 @@ async function readAuditFiles(): Promise<AuditEntry[]> {
   } catch {
     return [];
   }
-  // Newest file first
   files.sort().reverse();
   const entries: AuditEntry[] = [];
   for (const file of files.slice(0, 30)) {
@@ -31,20 +30,16 @@ async function readAuditFiles(): Promise<AuditEntry[]> {
         try {
           entries.push(JSON.parse(trimmed) as AuditEntry);
         } catch {
-          /* skip malformed line */
         }
       }
     } catch {
-      /* skip unreadable file */
     }
   }
-  // Newest entry first
   entries.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   return entries;
 }
 
 export async function auditRoutes(app: FastifyInstance) {
-  // GET /audit-logs — filter by action/actor/match, latest first (admin only)
   app.get(
     "/audit-logs",
     { preHandler: [requireRole(app, "admin")] },

@@ -286,7 +286,7 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Steps indicator */}
+      {}
       <div className="flex items-center justify-center mb-8">
         {STEPS.map((step, index) => (
           <React.Fragment key={step}>
@@ -328,10 +328,10 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
         ))}
       </div>
 
-      {/* Step content */}
+      {}
       <div className="mb-8">{renderStepContent()}</div>
 
-      {/* Navigation buttons */}
+      {}
       <div className="flex justify-between">
         <Button
           variant="secondary"

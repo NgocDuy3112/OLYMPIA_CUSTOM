@@ -11,13 +11,11 @@ export async function tournamentRoutes(
   opts: { repo?: TournamentRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleTournamentRepo;
-  // GET /tournaments — List all tournaments
   app.get("/tournaments", async (_request, reply) => {
     const rows = await repo.list();
     return reply.send({ status: "success", message: "OK", data: rows });
   });
 
-  // POST /tournaments — Create a new tournament
   app.post(
     "/tournaments",
     { preHandler: [requireRole(app, "admin")] },
@@ -45,7 +43,6 @@ export async function tournamentRoutes(
 
       const session = (request as any).session;
 
-      // Chuỗi rỗng từ form → null, tránh lỗi `invalid input syntax for type date`.
       const emptyToNull = (v: unknown): string | null =>
         typeof v === "string" && v.trim() ? v.trim() : null;
 
@@ -69,7 +66,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // GET /tournaments/:code — Get tournament details
   app.get("/tournaments/:code", async (request, reply) => {
     const { slug } = request.params as { slug: string };
     const tournament = await repo.findByCode(slug);
@@ -90,7 +86,6 @@ export async function tournamentRoutes(
     });
   });
 
-  // PUT /tournaments/:code — Update tournament
   app.put(
     "/tournaments/:code",
     { preHandler: [requireRole(app, "admin")] },
@@ -143,7 +138,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // DELETE /tournaments/:code — Soft delete tournament
   app.delete(
     "/tournaments/:code",
     { preHandler: [requireRole(app, "admin")] },
@@ -169,7 +163,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // POST /tournaments/:code/players — Add player to tournament
   app.post(
     "/tournaments/:code/players",
     { preHandler: [requireRole(app, "admin")] },
@@ -246,7 +239,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // DELETE /tournaments/:code/players/:userCode — Remove player from tournament
   app.delete(
     "/tournaments/:code/players/:userCode",
     { preHandler: [requireRole(app, "admin")] },
@@ -286,7 +278,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // GET /tournaments/:code/me — Get current user's role in this tournament
   app.get(
     "/tournaments/:code/me",
     { preHandler: [requireAuth(app)] },
@@ -318,7 +309,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // POST /tournaments/:code/register — Register as player in tournament
   app.post(
     "/tournaments/:code/register",
     { preHandler: [requireAuth(app)] },
@@ -350,7 +340,6 @@ export async function tournamentRoutes(
           });
       }
 
-      // Check max players limit
       if (tournament.maxPlayers) {
         const currentCount = await repo.countMembers(tournament.id);
         const maxCount = Number(tournament.maxPlayers);
@@ -380,7 +369,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // GET /tournaments/me — tournaments current user joined
   app.get(
     "/tournaments/me",
     { preHandler: [requireAuth(app)] },
@@ -391,7 +379,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // PUT /tournaments/:code/players/:userId/role — Assign role to player
   app.put(
     "/tournaments/:code/players/:userId/role",
     { preHandler: [requireAuth(app)] },
@@ -428,7 +415,6 @@ export async function tournamentRoutes(
 
       const tournamentId = tournament.id;
 
-      // Check if request user is controller or admin
       const requestUserMembership = await repo.findMember(
         tournamentId,
         session.userId,
@@ -449,7 +435,6 @@ export async function tournamentRoutes(
           });
       }
 
-      // Check if target user is registered
       const targetMembership = await repo.findMember(tournamentId, userId);
 
       if (!targetMembership) {
@@ -472,8 +457,6 @@ export async function tournamentRoutes(
     },
   );
 
-  // GET /tournaments/:code/bracket — phases + matches (kèm players) + edges
-  // để vẽ sơ đồ bracket. Public (giống trang detail).
   app.get("/tournaments/:code/bracket", async (request, reply) => {
     const { code } = request.params as { code: string };
     const tournament = await repo.findByCode(code);
@@ -515,7 +498,6 @@ export async function tournamentRoutes(
     });
   });
 
-  // GET /tournaments/:code/standings — Get tournament standings
   app.get("/tournaments/:code/standings", async (request, reply) => {
     const { code } = request.params as { code: string };
 

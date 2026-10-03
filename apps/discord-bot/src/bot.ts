@@ -1,6 +1,3 @@
-/**
- * Discord bot setup — client, commands, events.
- */
 
 import {
   Client,
@@ -26,7 +23,6 @@ interface Command {
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
 }
 
-// ── Shared async factory ──
 
 async function createValkeyClients() {
   const env = getEnv();
@@ -76,13 +72,11 @@ export async function startBot() {
   const commands = new Collection<string, Command>();
   commands.set(pingCommand.data.name, pingCommand as Command);
 
-  // ── Valkey ──
   const { client: valkey, subscriber: valkeySub } = await createValkeyClients();
 
   const statusCmd = createStatusCommand(valkey);
   commands.set(statusCmd.data.name, statusCmd as Command);
 
-  // ── Events ──
   discordClient.once(Events.ClientReady, (c) => {
     console.error(`✅ Logged in as ${c.user.tag}`);
 
@@ -135,7 +129,6 @@ export async function startBot() {
 
   await discordClient.login(env.BOT_TOKEN);
 
-  // Staff session cho API callbacks.
   try {
     await loginBot();
     console.error("[Discord] API session ready");
@@ -146,7 +139,6 @@ export async function startBot() {
     );
   }
 
-  // Internal HTTP executor for direct API commands (assign/remove/sync)
   const executor = startExecutor(discordClient);
 
   const shutdown = () => {

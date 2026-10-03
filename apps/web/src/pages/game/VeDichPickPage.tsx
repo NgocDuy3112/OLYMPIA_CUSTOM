@@ -1,10 +1,3 @@
-/**
- * VeDichPickPage — Unified page for question selection in Về Đích rounds.
- *
- * Admin: full question selection interface with player management.
- * MC: read-only spectator view of selected questions.
- * Player: display of selected questions grid.
- */
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { CheckCircle, RotateCcw, RefreshCw } from "lucide-react";
@@ -50,7 +43,6 @@ const CATEGORIES = [
   "KIẾN THỨC TỔNG HỢP",
 ];
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminVeDichPickView = () => {
   const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
   const currentMatchCode = getMatchCode() || paramMatchCode || "";
@@ -621,7 +613,6 @@ const AdminVeDichPickView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCVeDichPickView = ({ round }: { round: VeDichRound }) => {
   const { matchCode: routeMatchCode } = useParams<{ matchCode: string }>();
   const { matchCode } = useRoleSession("mc");
@@ -634,7 +625,6 @@ const MCVeDichPickView = ({ round }: { round: VeDichRound }) => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
   const { playerCode: paramPlayerCode, matchCode: paramMatchCode } = useParams<{
     matchCode: string;
@@ -815,7 +805,6 @@ const PlayerVeDichPickView = ({ round }: { round: VeDichRound }) => {
   );
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 interface VeDichPickPageProps {
   round: VeDichRound;
 }

@@ -1,10 +1,3 @@
-/**
- * KhoiDongChungPage — Unified page for Khởi Động Chung (group warm-up).
- *
- * Admin: auto-advance through 6 questions (10s each), 60s total timer.
- * MC: read-only spectator view.
- * Player: answer input for each question.
- */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { useNavigate, useParams } from "react-router-dom";
@@ -31,7 +24,6 @@ const QUESTION_PREFIX = "OC3_Q_KD_C";
 const MAX_QUESTION_INDEX = 6;
 const TIME_LIMIT = 60;
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminKhoiDongChungView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -77,7 +69,6 @@ const AdminKhoiDongChungView = () => {
     if (!matchCode) navigate("/operator/controller/overview");
   }, [matchCode, navigate]);
 
-  // Auto-advance questions based on timer
   useEffect(() => {
     if (!isTimerRunning || timer <= 0) return;
     const derivedIndex = Math.ceil((TIME_LIMIT - timer + 1) / 10);
@@ -225,7 +216,6 @@ const AdminKhoiDongChungView = () => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 const PlayerKhoiDongChungView = () => {
   const { matchCode, playerCode } = useRoleSession("player");
   const {
@@ -406,7 +396,6 @@ const PlayerKhoiDongChungView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCKhoiDongChungView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
@@ -418,7 +407,6 @@ const MCKhoiDongChungView = () => {
   );
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 const KhoiDongChungPage = () => {
   const { role } = useGameWebSocket();
   if (role === "controller") return <AdminKhoiDongChungView />;

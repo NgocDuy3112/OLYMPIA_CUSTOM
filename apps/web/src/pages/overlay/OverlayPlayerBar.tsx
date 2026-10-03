@@ -86,17 +86,17 @@ const OverlayPlayerBar: React.FC = () => {
                 }
               `}
             >
-              {/* Score badge */}
+              {}
               {player.score !== undefined && player.score > 0 && (
                 <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-primary text-foreground text-xs rounded-full font-bold">
                   {player.score}
                 </span>
               )}
 
-              {/* Player name */}
+              {}
               <span className="relative z-10">{player.userName}</span>
 
-              {/* Buzz indicator */}
+              {}
               {player.status === "buzzed" && (
                 <motion.span
                   initial={{ scale: 0 }}

@@ -15,7 +15,6 @@ export interface MatchQuestionEditValue {
 
 interface EditMatchQuestionPanelProps {
   item: QuestionData | null;
-  /** Tiền tố S3 key gợi ý: questionsMatchCode || matchCode. */
   matchCode: string;
   saving: boolean;
   onClose: () => void;
@@ -25,10 +24,6 @@ interface EditMatchQuestionPanelProps {
   ) => void | Promise<void>;
 }
 
-/**
- * Panel sửa câu hỏi trận đấu — có upload file media (presign qua page).
- * Tự reset form khi mở; tự điền S3 key gợi ý `${matchCode}/${question_code}.${ext}`.
- */
 export function EditMatchQuestionPanel({
   item,
   matchCode,
@@ -44,7 +39,6 @@ export function EditMatchQuestionPanel({
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const open = item !== null;
 
-  // Reset form mỗi lần mở panel.
   useEffect(() => {
     if (!open || !item) return;
     setContent(item.content);
@@ -55,7 +49,6 @@ export function EditMatchQuestionPanel({
     if (mediaInputRef.current) mediaInputRef.current.value = "";
   }, [open, item]);
 
-  // Gợi ý S3 key khi user chưa chọn file và key còn rỗng/đúng prefix match.
   useEffect(() => {
     if (!open || !item || mediaFile) return;
     if (!matchCode || !item.question_code) return;

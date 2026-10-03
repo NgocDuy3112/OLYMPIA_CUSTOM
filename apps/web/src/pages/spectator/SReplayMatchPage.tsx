@@ -17,7 +17,6 @@ const SReplayMatchPage: React.FC = () => {
   const [matchInfo, setMatchInfo] = useState<MatchInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch match info
   useEffect(() => {
     if (!matchCode) return;
 
@@ -43,7 +42,6 @@ const SReplayMatchPage: React.FC = () => {
     fetchMatchInfo();
   }, [matchCode]);
 
-  // Extract YouTube ID from URL
   const extractYouTubeId = (url: string): string | null => {
     const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
     return match?.[1] ?? null;
@@ -63,7 +61,7 @@ const SReplayMatchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between p-3 sm:p-4 bg-background/50">
         <Button
           variant="ghost"
@@ -79,11 +77,11 @@ const SReplayMatchPage: React.FC = () => {
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">Xem lại trận đấu</p>
         </div>
-        <div className="w-16 sm:w-20" /> {/* Spacer for alignment */}
+        <div className="w-16 sm:w-20" /> {}
       </div>
 
       <div className="flex flex-col items-center p-3 sm:p-4 gap-4">
-        {/* Video player */}
+        {}
         {videoId ? (
           <div className="w-full max-w-5xl aspect-video bg-black rounded-lg overflow-hidden">
             <iframe
@@ -101,7 +99,7 @@ const SReplayMatchPage: React.FC = () => {
           </div>
         )}
 
-        {/* Info */}
+        {}
         <div className="w-full max-w-5xl bg-background/30 rounded-lg p-3 sm:p-4">
           <h2 className="text-base sm:text-lg font-bold text-foreground mb-2">
             Thông tin trận đấu

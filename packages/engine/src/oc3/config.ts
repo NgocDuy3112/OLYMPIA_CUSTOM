@@ -16,11 +16,10 @@ export const OC3_CONFIG = {
     },
     vd: {
       defaultPoints: 10,
-      penaltyMultiplier: -1, // negative on wrong answer
+      penaltyMultiplier: -1,
     },
   },
 
-  // ── Time limits ──
   timer: {
     kdc: 60,
     kdr: 30,
@@ -30,34 +29,33 @@ export const OC3_CONFIG = {
     gm: 15,
   },
 
-  // ── Phase rules ──
   phases: {
     kdc: {
       type: "group" as const,
-      scoring: "all_correct" as const, // all players who answer correctly get points
+      scoring: "all_correct" as const,
     },
     kdr: {
       type: "individual" as const,
-      scoring: "attempts" as const, // points depend on attempt number
+      scoring: "attempts" as const,
     },
     bp: {
       type: "buzzer" as const,
-      scoring: "race" as const, // points depend on buzz order + time
+      scoring: "race" as const,
     },
     vdc: {
       type: "group" as const,
-      scoring: "resolve" as const, // all players scored, correct get +, wrong get -
+      scoring: "resolve" as const,
       questionCount: 4,
     },
     vdr: {
       type: "individual" as const,
-      scoring: "per_question" as const, // ±points per question
+      scoring: "per_question" as const,
       questionCount: 3,
-      hasPickStep: true, // /vdr/pick precedes gameplay
+      hasPickStep: true,
     },
     gm: {
       type: "group" as const,
-      scoring: "mixed" as const, // clue=10, keyword=100-10*clues
+      scoring: "mixed" as const,
       clueCount: 8,
     },
   },

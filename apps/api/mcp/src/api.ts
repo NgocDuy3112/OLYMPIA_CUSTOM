@@ -5,7 +5,6 @@ export interface ApiCallOptions {
   method?: string;
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
-  /** Ghi đè sid mặc định từ env (http mode: lấy từ header). */
   sid?: string;
 }
 
@@ -35,9 +34,6 @@ async function doFetch(
   });
 }
 
-/** Fetch wrapper tới Fastify backend, giữ nguyên envelope {status,message,data}.
- * Sid lấy từ identity (token → mint sid, cache), fallback OC_API_SID khi dev.
- * API trả 401 (sid hết hạn 24h) → mint lại 1 lần rồi retry. */
 export async function apiFetch<T = unknown>(
   path: string,
   opts: ApiCallOptions = {},
@@ -64,7 +60,6 @@ export async function apiFetch<T = unknown>(
   return json as T;
 }
 
-/** Chuẩn hoá output tool: strip PII, trả data gọn, giữ message khi lỗi logic. */
 export function toToolText(payload: unknown): string {
   return JSON.stringify(stripPII(payload), null, 2).slice(0, 20000);
 }
@@ -86,12 +81,6 @@ const PII_KEYS = new Set([
   "email",
 ]);
 
-/**
- * Strip định danh khỏi mọi output MCP (userCode/id, tên, email).
- * Agent trả kết quả cho controller tự thao tác — không cần biết ai là ai.
- * Ngoại lệ: verdictBy (Discord) giữ để biết ai bấm duyệt.
- * Sau này agent tự thao tác: thêm scope `identity` bypass strip theo token.
- */
 export function stripPII<T>(value: T, keep: Set<string> = new Set(["verdictby"])): T {
   if (Array.isArray(value)) return value.map((v) => stripPII(v, keep)) as T;
   if (value !== null && typeof value === "object") {

@@ -20,7 +20,6 @@ export async function scoreboardRoutes(
   opts: { repo?: ScoreRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleScoreRepo;
-  // GET /scoreboard/:matchCode — get scoreboard for a match
   app.get("/scoreboard/:matchCode", async (request, reply) => {
     const { matchCode } = request.params as { matchCode: string };
     const matchId = await resolveMatchId(app.valkey, matchCode);
@@ -39,7 +38,6 @@ export async function scoreboardRoutes(
     });
   });
 
-  // POST /scoreboard/calculate — controller only
   app.post(
     "/scoreboard/calculate",
     { preHandler: [requireScope(app, "controller")] },
@@ -69,7 +67,6 @@ export async function scoreboardRoutes(
       if (!question) throw new AppError(404, "Question not found");
       const questionId = question.id;
 
-      // Resolve player ids
       const playerIds = new Map<string, string>();
       for (const code of [...new Set(userCodes)]) {
         const id = await resolveUserId(app.valkey, code);
@@ -77,7 +74,6 @@ export async function scoreboardRoutes(
         playerIds.set(code, id);
       }
 
-      // Engine scoring per action
       type Delta = { userCode: string; points: number };
       let deltas: Delta[] = [];
       if (action === "kdc_correct") {
@@ -138,7 +134,6 @@ export async function scoreboardRoutes(
     },
   );
 
-  // PATCH /scoreboard/controller-adjust — controller only
   app.patch(
     "/scoreboard/controller-adjust",
     { preHandler: [requireScope(app, "controller")] },
@@ -163,7 +158,6 @@ export async function scoreboardRoutes(
       if (!matchId || !playerId)
         throw new AppError(404, "Match or player not found");
 
-      // Per-question adjust
       if (typeof body.question_code === "string" && body.question_code) {
         if (typeof body.points !== "number" || body.points % 5 !== 0)
           throw new AppError(400, "points must be a multiple of 5");
@@ -179,7 +173,6 @@ export async function scoreboardRoutes(
           },
         ]);
       } else {
-        // Total adjust: diff vs current total
         if (typeof body.new_score !== "number" || body.new_score % 5 !== 0)
           throw new AppError(400, "new_score must be a multiple of 5");
         const current = await repo.totalForPlayer(matchId, playerId);

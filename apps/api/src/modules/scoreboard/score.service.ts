@@ -16,7 +16,6 @@ interface ScoreServiceDeps {
   valkey?: Pick<Redis, "get"> | null;
 }
 
-/** Persist engine score deltas as immutable per-question records. */
 export async function persistScoreDeltas(
   matchCode: string,
   action: ScoreAction,

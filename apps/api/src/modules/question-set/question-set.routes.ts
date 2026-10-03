@@ -52,7 +52,6 @@ export async function questionSetRoutes(
 
   const needSet = async (setCode: string) => repo.findByCode(setCode.toUpperCase());
 
-  // GET /question-sets?matchCode= — list (auth).
   app.get("/question-sets", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const { matchCode } = request.query as { matchCode?: string };
     const rows = await repo.list(matchCode?.trim().toUpperCase() || undefined);
@@ -65,7 +64,6 @@ export async function questionSetRoutes(
     return ok(reply, 200, "OK", data);
   });
 
-  // POST /question-sets — tạo bộ (qauthor/admin).
   app.post("/question-sets", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can create sets");
@@ -81,7 +79,6 @@ export async function questionSetRoutes(
     return ok(reply, 201, "Question set created", created);
   });
 
-  // GET /question-sets/:code — chi tiết + items + tiến độ (auth).
   app.get("/question-sets/:code", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const { code } = request.params as { code: string };
     const set = await needSet(code);
@@ -91,7 +88,6 @@ export async function questionSetRoutes(
       const missing = missingSlots(r, items.filter((i) => i.round === r).map((i) => i.slot));
       return { round: r, expected: expectedSlotCount(r), filled: expectedSlotCount(r) - missing.length, missing };
     });
-    // Kèm nội dung bank để UI bảng hiển thị (không cần gọi thêm).
     const enriched = await Promise.all(
       items.map(async (i) => {
         const b = await bank.findByCode(i.bankCode);
@@ -106,7 +102,6 @@ export async function questionSetRoutes(
     return ok(reply, 200, "OK", { ...set, items: enriched, rounds });
   });
 
-  // PATCH /question-sets/:code — đổi tên/gán trận (draft only).
   app.patch("/question-sets/:code", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can edit sets");
@@ -129,7 +124,6 @@ export async function questionSetRoutes(
     return ok(reply, 200, "Question set updated", updated);
   });
 
-  // DELETE /question-sets/:code — xoá bộ draft.
   app.delete("/question-sets/:code", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can delete sets");
@@ -141,7 +135,6 @@ export async function questionSetRoutes(
     return ok(reply, 200, "Question set deleted", null);
   });
 
-  // POST /question-sets/:code/items — nhét 1 câu bank vào slot (KĐ/BP/VĐ).
   app.post("/question-sets/:code/items", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can fill sets");
@@ -177,7 +170,6 @@ export async function questionSetRoutes(
     return ok(reply, 201, "Item added to set", item);
   });
 
-  // POST /question-sets/:code/pick-gm-set — fill nguyên set GM (9 dòng).
   app.post("/question-sets/:code/pick-gm-set", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can fill sets");
@@ -204,7 +196,6 @@ export async function questionSetRoutes(
     return ok(reply, 201, `GM set ${gmSetCode} added`, { setCode: gmSetCode, created });
   });
 
-  // DELETE /question-sets/:code/items/:slot — gỡ 1 dòng.
   app.delete("/question-sets/:code/items/:slot", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can edit sets");
@@ -216,7 +207,6 @@ export async function questionSetRoutes(
     return ok(reply, 200, "Item removed", null);
   });
 
-  // POST /question-sets/:code/ready — chốt đủ slot → ready.
   app.post("/question-sets/:code/ready", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can ready sets");
@@ -235,7 +225,6 @@ export async function questionSetRoutes(
     return ok(reply, 200, "Set ready", updated);
   });
 
-  // POST /question-sets/:code/reopen — mở lại bộ ready để sửa.
   app.post("/question-sets/:code/reopen", { preHandler: [requireAuth(app)] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can reopen sets");
@@ -247,8 +236,6 @@ export async function questionSetRoutes(
     return ok(reply, 200, "Set reopened to draft", updated);
   });
 
-  // POST /question-sets/:code/activate — copy bộ vào trận (controller/admin).
-  // Ghi đè toàn bộ câu hỏi hiện tại của trận bằng nội dung bộ.
   app.post("/question-sets/:code/activate", { preHandler: [requireScope(app, "controller")] }, async (request, reply) => {
     const session = (request as unknown as { session: Session }).session;
     const { code } = request.params as { code: string };
@@ -268,7 +255,6 @@ export async function questionSetRoutes(
       missingSlots(r, items.filter((i) => i.round === r).map((i) => i.slot)),
     );
     if (lacking.length > 0) return err(reply, 422, `Set thiếu ${lacking.length} slot, reopen để bổ sung`);
-    // Validate bank trước khi xoá câu cũ.
     const bankRows = new Map<string, Awaited<ReturnType<typeof bank.findByCode>>>();
     for (const item of items) {
       const b = await bank.findByCode(item.bankCode);

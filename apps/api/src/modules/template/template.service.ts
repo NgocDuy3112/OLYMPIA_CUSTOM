@@ -46,13 +46,10 @@ interface TemplateServiceDeps {
   repo?: TemplateRepo;
 }
 
-// Generate random 6-digit PIN
 function generatePin(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Generate match code — OC number derived from tournament code (OC<n>_T_*),
-// fallback to OC3 for legacy codes.
 function generateMatchCode(index: number, tournamentCode?: string): string {
   let ocNumber = "3";
   const m = String(tournamentCode ?? "")
@@ -62,16 +59,11 @@ function generateMatchCode(index: number, tournamentCode?: string): string {
   return makeMatchCode(ocNumber, `${Date.now().toString(36).toUpperCase()}_${index}`);
 }
 
-// Generate match label (M01, M02, ...)
 function generateMatchLabel(phaseIndex: number, matchIndex: number): string {
   const matchNum = phaseIndex * 100 + matchIndex + 1;
   return `M${String(matchNum).padStart(2, "0")}`;
 }
 
-/**
- * Apply a template to a tournament.
- * Generates phases, rounds, and matches based on template config.
- */
 export async function applyTemplate(
   tournamentCode: string,
   templateConfig: TemplateConfig,
@@ -83,7 +75,6 @@ export async function applyTemplate(
   totalMatches: number;
 }> {
   const repo = deps.repo ?? drizzleTemplateRepo;
-  // Get tournament
   const tournament = await repo.findTournamentByCode(tournamentCode);
 
   if (!tournament) {
@@ -93,10 +84,8 @@ export async function applyTemplate(
   const tournamentId = tournament.id;
   const createdMatches: MatchData[] = [];
   const createdPhases: PhaseData[] = [];
-  // label -> match id, used to resolve advancementRules into bracket_edges
   const labelToId = new Map<string, string>();
 
-  // Process each phase — persist phase row FIRST so matches link via phase_id
   for (let phaseIndex = 0; phaseIndex < templateConfig.phases.length; phaseIndex++) {
     const phase = templateConfig.phases[phaseIndex];
 
@@ -112,11 +101,7 @@ export async function applyTemplate(
     let matchCount = 0;
 
     if (phase.type === "group_stage" && phase.rounds) {
-      // Group stage: create matches for each round
-      // Assume 4 players per match by default
-      // We'll create placeholder matches - actual players assigned later
-      // For now, create matches based on expected player count
-      matchCount = phase.rounds * 4; // Assume 4 matches per round (16 players)
+      matchCount = phase.rounds * 4;
 
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
         const roundNumber = Math.floor(matchIndex / 4) + 1;
@@ -136,7 +121,6 @@ export async function applyTemplate(
         createdMatches.push(matchData);
       }
     } else if (phase.type === "playoffs" && phase.matches) {
-      // Playoffs: create specified number of matches
       matchCount = phase.matches;
 
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
@@ -154,7 +138,6 @@ export async function applyTemplate(
         createdMatches.push(matchData);
       }
     } else if (phase.type === "finale" && phase.matches) {
-      // Finale: create final matches
       matchCount = phase.matches;
 
       for (let matchIndex = 0; matchIndex < matchCount; matchIndex++) {
@@ -184,7 +167,6 @@ export async function applyTemplate(
     });
   }
 
-  // Persist advancement rules as bracket edges (label -> id resolution)
   if (templateConfig.advancementRules?.length) {
     for (const m of createdMatches) {
       const found = await repo.findMatchByCode(m.matchCode);
@@ -210,9 +192,6 @@ export async function applyTemplate(
   };
 }
 
-/**
- * Create a single match with generated codes.
- */
 async function createMatch(
   repo: TemplateRepo,
   params: {
@@ -259,10 +238,6 @@ async function createMatch(
   };
 }
 
-/**
- * Generate next round matches based on current round results.
- * Used for auto-generating playoff rounds.
- */
 export async function generateNextRound(
   tournamentCode: string,
   currentPhaseNumber: number,
@@ -272,7 +247,6 @@ export async function generateNextRound(
   matches: MatchData[];
 }> {
   const repo = deps.repo ?? drizzleTemplateRepo;
-  // Get tournament
   const tournament = await repo.findTournamentByCode(tournamentCode);
 
   if (!tournament) {
@@ -281,10 +255,8 @@ export async function generateNextRound(
 
   const tournamentId = tournament.id;
 
-  // Get current matches in this phase
   const currentMatches = await repo.listMatchesByTournament(tournamentId);
 
-  // Calculate next phase
   const nextPhaseNumber = currentPhaseNumber + 1;
   const nextPhaseMatchCount = Math.ceil(currentMatches.length / 2);
 

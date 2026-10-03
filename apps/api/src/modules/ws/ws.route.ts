@@ -1,6 +1,3 @@
-/**
- * WebSocket route + connection lifecycle.
- */
 
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
@@ -20,7 +17,6 @@ export async function wsRoute(app: FastifyInstance) {
     async (socket: WebSocket, request) => {
       const matchCode = (request.params as any).matchCode as string;
 
-      // Extract session from cookie or query param
       const cookies = parseCookies(request.headers.cookie || "");
       const sid = cookies[COOKIE_NAME] || (request.query as any).sid;
 
@@ -43,10 +39,6 @@ export async function wsRoute(app: FastifyInstance) {
         .map((s) => s.trim())
         .filter(Boolean);
 
-      // Qualifier room: /ws/qualifier_<TOURNAMENT_CODE> — tournament-scoped,
-      // no match needed (qualifier runs before matches are drawn).
-      // Server pushes qualifier_opened/updated/deleted/closed; clients only
-      // send presence/heartbeat.
       if (matchCode.startsWith("qualifier_")) {
         const tournamentCode = matchCode.slice("qualifier_".length);
         const tournament =
@@ -85,9 +77,7 @@ export async function wsRoute(app: FastifyInstance) {
                 role: qualifierRole,
               });
             }
-            // Ignore everything else from clients in qualifier rooms.
           } catch {
-            /* ignore malformed messages */
           }
         });
         socket.on("close", () => {
@@ -110,8 +100,6 @@ export async function wsRoute(app: FastifyInstance) {
         return;
       }
 
-      // Determine game role: admin/controller-scope -> controller,
-      // mc-scope -> mc, else per-tournament membership, else player.
       let gameRole: "controller" | "mc" | "player" = "player";
 
       if (session.role === "admin" || sessionScopes.includes("controller")) {
@@ -119,10 +107,8 @@ export async function wsRoute(app: FastifyInstance) {
       } else if (sessionScopes.includes("mc")) {
         gameRole = "mc";
       } else if (isOperatorLike(session.role)) {
-        // Operator without controller/mc scope stays player in game
         gameRole = "player";
       } else {
-        // Look up tournament for this match, then check per-tournament role
         const tournamentId = (matchRow as { tournamentId?: string | null })
           .tournamentId;
         if (tournamentId) {
@@ -149,23 +135,18 @@ export async function wsRoute(app: FastifyInstance) {
         tournamentFormat,
       };
 
-      // Register connection
       manager.connect(socket, matchCode, userCode, gameRole, sid, tournamentFormat);
 
-      // Handle reconnect
       handleReconnect(conn);
 
-      // Message handler
       socket.on("message", async (raw) => {
         try {
           const data = JSON.parse(raw.toString());
           await handleWsMessage(socket, conn, data);
         } catch {
-          /* ignore malformed messages */
         }
       });
 
-      // Disconnect handler
       socket.on("close", () => {
         manager.disconnect(socket);
       });

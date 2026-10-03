@@ -5,9 +5,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Tailwind v4 CSS-first theme — replaces the dead v3 tailwind.config.cjs */
+
 @theme {
-  /* Brand tokens */
+  
   --color-primary: #4416d9;
   --color-primary-dark: #7c52ee;
   --color-secondary: #ffb547;
@@ -16,14 +16,14 @@
   --color-surface: rgb(255 255 255 / 0.12);
   --color-text-primary: #e6eef5;
 
-  /* Role accents — mỗi surface 1 màu nhận diện, thống nhất mọi header/sidebar */
+  
   --color-role-admin: #9c8dfa;
   --color-role-controller: #ffb547;
   --color-role-qauthor: #34d399;
   --color-role-mc: #38bdf8;
   --color-role-live: #fb7185;
 
-  /* shadcn semantic tokens (base-nova registry components use these) */
+  
   --color-background: #12102e;
   --color-foreground: #e6eef5;
   --color-card: #1b1552;
@@ -38,24 +38,24 @@
   --color-destructive: #dc2626;
   --color-destructive-foreground: #ffffff;
 
-  /* Semantic state tokens (stock shadcn has no success/warning/info/purple) */
+  
   --color-success: #16a34a;
-  /* Dark text trên nền xanh — trắng trên #16a34a chỉ 3.3:1 (WCAG fail) */
+  
   --color-success-foreground: #052e16;
   --color-warning: #f59e0b;
   --color-warning-foreground: #12102e;
   --color-info: #3b82f6;
-  /* Đậm chữ trên nền xanh dương — trắng trên #3b82f6 chỉ 3.7:1 */
+  
   --color-info-foreground: #0b1220;
   --color-purple: #8b5cf6;
   --color-purple-foreground: #ffffff;
   --color-border: rgb(255 255 255 / 0.10);
   --color-input: rgb(255 255 255 / 0.15);
   --color-ring: #7a61f5;
-  /* Light-violet accent text (palette blue-300 cũ — primary quá tối cho chữ nhỏ) */
+  
   --color-brand: #9c8dfa;
 
-  /* Sidebar tokens (shadcn Sidebar components) */
+  
   --color-sidebar: #12102e;
   --color-sidebar-foreground: #e6eef5;
   --color-sidebar-accent: rgb(255 255 255 / 0.08);
@@ -63,7 +63,7 @@
   --color-sidebar-border: rgb(255 255 255 / 0.10);
   --color-sidebar-ring: #7a61f5;
 
-  /* Override default blue palette so bg-blue / text-blue classes follow brand */
+  
   --color-blue-50: #eae7ff;
   --color-blue-100: #ded9ff;
   --color-blue-200: #c3bcff;
@@ -76,28 +76,28 @@
   --color-blue-900: #2b1a9f;
   --color-blue-950: #190b5c;
 
-  /* Extra breakpoint */
+  
   --breakpoint-tablet: 768px;
 
-  /* Brand background */
+  
   --background-image-oc: url("/background/OC_background.png");
 
-  /* Display font wired to @font-face below */
+  
   --font-display: "SVN-Gratelos Display", system-ui, sans-serif;
 }
 
 :root {
-  --oc-primary: #4416d9; /* primary violet-indigo */
-  --oc-primary-dark: #7c52ee; /* primary hover */
+  --oc-primary: #4416d9; 
+  --oc-primary-dark: #7c52ee; 
   --oc-bg: #12102e;
   --oc-border: #5226e8;
   --oc-card-border: var(--oc-border);
-  --oc-card-bg: #1b1552; /* card sâu hơn nền — text nổi, bớt sạn tím */
+  --oc-card-bg: #1b1552; 
   --oc-surface: rgba(255, 255, 255, 0.12);
   --oc-text: #e6eef5;
-  /* Link: brand-violet #4416d9 chỉ đạt 2.4:1 trên nền tối → dùng accent sáng */
+  
   --oc-link: #9c8dfa;
-  /* Brand violet dark — design-system/olympia-custom/MASTER.md */
+  
   --background: #12102e;
   --foreground: #e6eef5;
   --card: #1b1552;
@@ -140,7 +140,7 @@
   font-display: swap;
 }
 
-/* Global base styles and semantic helpers */
+
 @layer base {
   html,
   body,
@@ -149,21 +149,21 @@
   }
   body {
     background-color: var(--oc-bg);
-    /* Scrim 2 lớp: ảnh brand vẫn thấy, chữ luôn đọc được (WCAG AA) */
+    
     background-image:
       linear-gradient(180deg, rgb(11 9 48 / 0.82), rgb(18 16 46 / 0.92)),
       var(--background-image-oc);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
-    background-attachment: fixed; /* cố định khi cuộn */
+    background-attachment: fixed; 
     color: var(--oc-text);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     @apply bg-background text-foreground;
   }
-  /* iOS Safari bỏ qua background-attachment: fixed — dùng layer position:fixed */
+  
   body::before {
     content: "";
     position: fixed;
@@ -179,7 +179,7 @@
   a:hover {
     text-decoration: underline;
   }
-  /* Focus thật sự thấy được khi điều hướng bàn phím */
+  
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
@@ -212,7 +212,7 @@
   }
 }
 
-/* Component utilities (pure CSS to avoid @apply issues in some setups) */
+
 
 .card,
 .panel {
@@ -231,10 +231,10 @@
 }
 
 .card {
-  padding: 1.75rem; /* p-7 — trước p-10 quá dồn cho card đăng nhập */
-  border-radius: 0.75rem; /* rounded-xl */
+  padding: 1.75rem; 
+  border-radius: 0.75rem; 
   width: 100%;
-  max-width: 28rem; /* max-w-md */
+  max-width: 28rem; 
   position: relative;
   z-index: 10;
 }
@@ -245,9 +245,9 @@
   overflow: hidden;
 }
 
-/* small helper for full-width primary buttons */
 
-/* Full-width card variant: removes the 28rem cap of .card for wide layouts */
+
+
 .card-wide {
   max-width: none;
 }
@@ -257,7 +257,7 @@
   background-color: var(--oc-primary);
   color: #fff;
   width: 100%;
-  padding: 0.5rem 1rem; /* py-2 */
+  padding: 0.5rem 1rem; 
   border-radius: 0.375rem;
   font-weight: 600;
   transition: background-color 0.15s ease-in-out;
@@ -267,7 +267,7 @@
   background-color: var(--oc-primary-dark);
 }
 
-/* Glass header bar — design-system Phase 2 (token-driven) */
+
 .glass {
   background: color-mix(in srgb, var(--background) 60%, transparent);
   backdrop-filter: blur(12px);
@@ -275,7 +275,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* Overlay pages — OBS Browser Source: nền trong suốt, TẮP cả layer ảnh body::before */
+
 body.overlay-mode,
 body.overlay-mode #root {
   background: transparent !important;
@@ -284,7 +284,7 @@ body.overlay-mode::before {
   display: none !important;
 }
 
-/* Touch-friendly targets for tablet/mobile */
+
 @media (max-width: 1024px) {
   .touch-target {
     min-height: 44px;
@@ -296,7 +296,7 @@ body.overlay-mode::before {
   }
 }
 
-/* Bottom navigation for tablet */
+
 @media (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
   .bottom-nav {
     position: fixed;
@@ -311,7 +311,7 @@ body.overlay-mode::before {
   }
 }
 
-/* Scrollbar styling */
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -328,7 +328,7 @@ body.overlay-mode::before {
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Buzz highlight */
+
 @keyframes buzzGlow {
   0% {
     box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
@@ -344,7 +344,7 @@ body.overlay-mode::before {
   animation: buzzGlow 0.5s ease-out;
 }
 
-/* Timer warning colors */
+
 .timer-warning {
   color: #fbbf24;
 }
@@ -406,7 +406,7 @@ body.overlay-mode::before {
 }
 
 .dark {
-  /* Dark-first app — giữ cùng brand values với :root */
+  
   --background: #12102e;
   --foreground: #e6eef5;
   --card: #1b1552;

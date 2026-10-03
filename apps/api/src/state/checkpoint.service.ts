@@ -1,9 +1,3 @@
-/**
- * Checkpoint service — periodic Valkey snapshot persistence.
- *
- * Every 30s: for each active match (snapshot:* key), dump full hash
- * to match_checkpoints. Keep latest 10 per match.
- */
 
 import type { FastifyInstance } from "fastify";
 import type Redis from "ioredis";
@@ -35,7 +29,6 @@ async function snapshotActiveMatches(
       const matchCode = key.slice("snapshot:".length);
       const data = await valkey.hgetall(key);
       if (Object.keys(data).length === 0) continue;
-      // Parse JSON fields back to objects for clean JSONB storage
       const checkpoint: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(data)) {
         try {
@@ -46,7 +39,6 @@ async function snapshotActiveMatches(
       }
       await repo.insert(matchCode, checkpoint);
       saved++;
-      // Prune: keep latest KEEP_PER_MATCH
       await repo.pruneKeepLatest(matchCode, KEEP_PER_MATCH);
     }
   } while (cursor !== "0");
@@ -72,7 +64,6 @@ export function startCheckpointJob(
     }
   };
 
-  // First run after 30s, then every 30s
   timer = setInterval(() => void tick(), CHECKPOINT_INTERVAL_MS);
   timer.unref?.();
 
@@ -84,7 +75,6 @@ export function startCheckpointJob(
   };
 }
 
-/** Restore a match snapshot from its latest checkpoint. */
 export async function restoreFromCheckpoint(
   valkey: Redis,
   matchCode: string,
@@ -107,7 +97,6 @@ export async function restoreFromCheckpoint(
   return true;
 }
 
-/** Verify match_code exists (FK-style guard since checkpoints use code, not id). */
 export async function matchCodeExists(
   matchCode: string,
   opts: { repo?: CheckpointRepo } = {},

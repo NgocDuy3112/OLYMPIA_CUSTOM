@@ -1,11 +1,4 @@
-/**
- * Answer normalization and validation.
- *
- * Math equivalence: "1/2" == "0.5", "x=2" == "2", "50%" == "0.5".
- * Diacritics-insensitive for text answers.
- */
 
-/** Normalize answer text: trim, lowercase, collapse whitespace */
 export function normalizeAnswer(answer: string): string {
   return answer.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -44,7 +37,6 @@ function toNumberOrNull(s: string): number | null {
   return null;
 }
 
-/** Canonical form: "num:<value>" for numbers, "txt:<lower>" for text */
 export function normalizeMathAnswer(raw: string): string {
   const s = stripLeftSide(raw.trim().replace(/\s+/g, " "));
   const num = toNumberOrNull(s);
@@ -52,7 +44,6 @@ export function normalizeMathAnswer(raw: string): string {
   return `txt:${stripDiacritics(s).toLowerCase()}`;
 }
 
-/** Math-aware equivalence: numbers by value, text diacritics-insensitive */
 export function mathAnswersEqual(a: string, b: string): boolean {
   const na = normalizeMathAnswer(a);
   const nb = normalizeMathAnswer(b);
@@ -62,13 +53,11 @@ export function mathAnswersEqual(a: string, b: string): boolean {
   return na === nb;
 }
 
-/** Check if two answers match (math-aware: 1/2 == 0.5, x=2 == 2) */
 export function answersMatch(submitted: string, expected: string): boolean {
   if (mathAnswersEqual(submitted, expected)) return true;
   return normalizeAnswer(submitted) === normalizeAnswer(expected);
 }
 
-/** Check if answer is correct for MCQ */
 export function isCorrectOption(
   submitted: string,
   correctOption: string,

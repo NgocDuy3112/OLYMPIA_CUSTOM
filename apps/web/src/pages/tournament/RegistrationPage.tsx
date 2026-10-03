@@ -33,7 +33,6 @@ interface MyMembership {
   groupNumber?: string;
 }
 
-// Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -103,7 +102,6 @@ const RegistrationPage: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        // Fetch tournament
         const tournamentResponse = await fetch(
           `${API_BASE_URL}/tournaments/${code}`,
           { credentials: "include" },
@@ -118,7 +116,6 @@ const RegistrationPage: React.FC = () => {
           setTournament(tournamentData.data);
         }
 
-        // Check user membership
         try {
           const meResponse = await fetch(
             `${API_BASE_URL}/tournaments/${code}/me`,
@@ -131,7 +128,6 @@ const RegistrationPage: React.FC = () => {
             }
           }
         } catch {
-          // Not authenticated
         }
       } catch (err) {
         setError(
@@ -194,7 +190,6 @@ const RegistrationPage: React.FC = () => {
     );
   }
 
-  // Already registered
   if (myMembership) {
     return (
       <PublicLayout>
@@ -230,7 +225,6 @@ const RegistrationPage: React.FC = () => {
     );
   }
 
-  // Success state
   if (showSuccess) {
     return (
       <PublicLayout>
@@ -286,9 +280,7 @@ const RegistrationPage: React.FC = () => {
     );
   }
 
-  // Registration form
   const renderStepContent = () => {
-    // Individual registration
     return (
       <motion.div
         key="individual"
@@ -328,7 +320,7 @@ const RegistrationPage: React.FC = () => {
     <PublicLayout>
       <main className="p-4 sm:p-6">
         <div className="max-w-2xl mx-auto">
-          {/* Hero Section */}
+          {}
           <motion.div
             initial="hidden"
             animate="visible"

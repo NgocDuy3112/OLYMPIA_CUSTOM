@@ -7,7 +7,6 @@ interface PlayerCameraPublisherProps {
   showControls?: boolean;
 }
 
-/** Publishes camera/microphone with optional status display. */
 export function PlayerCameraPublisher({
   userCode,
   showStatus = false,

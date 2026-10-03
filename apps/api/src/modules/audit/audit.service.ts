@@ -1,10 +1,3 @@
-/**
- * File audit service — JSONL append-only, daily rotation.
- *
- * Writes to logs/audit-<YYYY-MM-DD>.log (one JSON object per line).
- * Rotation is by date: filename changes at midnight, old files stay.
- * Keeps last 30 files, deletes older ones on write.
- */
 
 import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
@@ -54,7 +47,6 @@ function newId(): string {
   return `${Date.now().toString(36)}-${idCounter.toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/** Fire-and-forget audit write — never throws. */
 export async function writeAudit(entry: {
   actionType: AuditAction;
   actorCode?: string | null;
@@ -76,7 +68,6 @@ export async function writeAudit(entry: {
     await appendFile(auditFile(), `${JSON.stringify(record)}\n`, "utf8");
     void pruneOldFiles();
   } catch {
-    /* audit must never break the main flow */
   }
 }
 
@@ -102,7 +93,6 @@ async function pruneOldFiles(): Promise<void> {
     const excess = withTime.slice(0, withTime.length - KEEP_FILES);
     await Promise.all(excess.map(({ f }) => unlink(join(auditDir(), f)).catch(() => undefined)));
   } catch {
-    /* ignore prune errors */
   }
 }
 

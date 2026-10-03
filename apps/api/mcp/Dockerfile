@@ -1,4 +1,3 @@
-# ── Stage 1: build ──────────────────────────────────────────
 FROM node:20-alpine AS builder
 
 RUN apk add --no-cache libc6-compat
@@ -15,7 +14,6 @@ COPY apps/api/mcp/tsconfig.json ./apps/api/mcp/
 COPY apps/api/mcp/src ./apps/api/mcp/src
 RUN cd apps/api/mcp && pnpm build
 
-# ── Stage 2: production ─────────────────────────────────────
 FROM node:20-alpine AS runner
 
 WORKDIR /app

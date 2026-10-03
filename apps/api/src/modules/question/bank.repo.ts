@@ -69,7 +69,6 @@ export interface BankRepo {
     ): Promise<BankSearchResult<BankRowWithUsage>>;
     findByCode(bankCode: string): Promise<BankRow | null>;
     findById(id: string): Promise<BankRow | null>;
-    /** Mọi bankCode bắt đầu bằng prefix — dùng tính NN cho bankCode tự sinh. */
     listCodesByPrefix(prefix: string): Promise<string[]>;
     update(
         id: string,

@@ -65,10 +65,8 @@ const PQualifierPage = () => {
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  /** Thời điểm mở từng câu — state (không phải ref) để render đọc được khi tính countdown. */
   const [openedAt, setOpenedAt] = useState<Record<string, number>>({});
 
-  // Tick 250ms de countdown 10s moi cau.
   useEffect(() => {
     const id = window.setInterval(() => setNowMs(Date.now()), 250);
     return () => window.clearInterval(id);
@@ -87,7 +85,6 @@ const PQualifierPage = () => {
         const rows = (json.data as Record<string, unknown>[]).map(toQuestion);
         setQuestions(rows);
         const now = Date.now();
-        // Chỉ set lần đầu — câu đã mở trước đó giữ nguyên thời điểm cũ.
         setOpenedAt((prev) => {
           let changed = false;
           const next = { ...prev };
@@ -134,7 +131,6 @@ const PQualifierPage = () => {
     void fetchStandings();
   }, [fetchQuestions, fetchStandings]);
 
-  // Realtime: qauthor CRUD/chot cau -> refresh list + standings.
   useEffect(() => {
     if (!code) return;
     let socket: WebSocket | null = null;
@@ -167,7 +163,6 @@ const PQualifierPage = () => {
   const current = questions[index] ?? null;
   const currentLetter = current ? selected[current.questionCode] : undefined;
   const currentDone = current ? submitted[current.questionCode] : false;
-  // Moi cau 10s (QUALIFIER_TIME_LIMIT_MS). Het gio → khoa, tinh nhu bo qua.
   const currentElapsedMs = current
     ? Math.max(0, nowMs - (openedAt[current.questionCode] ?? nowMs))
     : 0;
@@ -182,7 +177,6 @@ const PQualifierPage = () => {
       if (!code || submitted[questionCode]) return;
       const openedAtMs = openedAt[questionCode] ?? Date.now();
       const responseTimeMs = Math.max(0, Date.now() - openedAtMs);
-      // Chan client-side: qua 10s thi khoa, khong gui.
       if (responseTimeMs > 10_000) return;
       setSubmitting(true);
       try {

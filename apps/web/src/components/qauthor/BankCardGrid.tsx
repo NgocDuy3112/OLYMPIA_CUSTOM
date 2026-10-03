@@ -8,7 +8,6 @@ interface BankCardGridProps {
   rows: BankData[];
   loading?: boolean;
   emptyText?: string;
-  /** Pager dạng số (DataTablePager) — ghép dưới lưới. */
   pager?: React.ReactNode;
 }
 
@@ -18,7 +17,6 @@ const statusTone = (status: BankData["status"]) =>
 const statusLabel = (status: BankData["status"]) =>
   status === "approved" ? "Đã duyệt" : status === "rejected" ? "Không duyệt" : "Chờ duyệt";
 
-/** Loại file media từ key/URL. */
 const mediaKind = (url: string): "image" | "video" | "audio" | "other" => {
   const path = url.split("?")[0].toLowerCase();
   if (/\.(jpe?g|png|gif|webp|svg)$/.test(path)) return "image";
@@ -27,11 +25,6 @@ const mediaKind = (url: string): "image" | "video" | "audio" | "other" => {
   return "other";
 };
 
-/**
- * Preview media trong card grid — presigned URL (GET /media/presign/* nhận mọi key):
- * ảnh → <img lazy>, video → <video controls>, audio → <audio controls>;
- * file lạ hoặc lỗi resolve → chip Paperclip. onError presign lại 1 lần (URL ~15' hết hạn).
- */
 function MediaThumb({ mediaUrl }: { mediaUrl: string }) {
   const kind = mediaKind(mediaUrl);
   const wantPreview = kind !== "other";
@@ -47,8 +40,8 @@ function MediaThumb({ mediaUrl }: { mediaUrl: string }) {
   );
 
   if (kind === "other") return fallbackChip;
-  if (loading) return null; // đang resolve presigned URL
-  if (!src) return fallbackChip; // lỗi sau khi retry hết → chip dự phòng
+  if (loading) return null;
+  if (!src) return fallbackChip;
   if (kind === "image") {
     return (
       <img
@@ -71,7 +64,6 @@ function MediaThumb({ mediaUrl }: { mediaUrl: string }) {
       />
     );
   }
-  // audio
   if (kind === "audio") {
     return (
       <audio src={src} controls preload="metadata" onError={retry} className="w-full" />
@@ -80,10 +72,6 @@ function MediaThumb({ mediaUrl }: { mediaUrl: string }) {
   return fallbackChip;
 }
 
-/**
- * View lưới cho Ngân hàng câu hỏi — xem nhanh nội dung + media.
- * List (DataTable) vẫn là mặc định; grid chỉ thêm lựa chọn ở toolbar.
- */
 export function BankCardGrid({
   rows,
   loading = false,

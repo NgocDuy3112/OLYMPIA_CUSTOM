@@ -15,13 +15,6 @@ import { users } from "./user.js";
 import { tournaments } from "./tournament.js";
 import { tournamentPhases } from "./phase.js";
 
-/**
- * Matches table — v4 schema.
- *
- * Changes from v3:
- *   + tournament_format (default 'oc3') — which engine to use
- *   + video_url (nullable) — YouTube/Facebook live stream URL
- */
 export const matches = pgTable(
   "matches",
   {
@@ -57,10 +50,6 @@ export const matches = pgTable(
   ],
 );
 
-/**
- * MatchPlayerPositions — which player sits at which position (1-4) in a match.
- * Kept identical to v3.
- */
 export const matchPlayerPositions = pgTable(
   "match_player_positions",
   {

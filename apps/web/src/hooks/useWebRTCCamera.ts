@@ -52,7 +52,6 @@ export function useWebRTCCameraPublisher(userCode: string) {
     const msg = (lastMessage?.message ?? lastMessage) as CameraMessage | null;
     if (!msg || String(msg.target_user_code ?? msg.user_code) !== String(userCode))
       return;
-    // Controller remote camera control
     if (msg.type === "camera_control" && typeof msg.enabled === "boolean") {
       const videoTrack = streamRef.current?.getVideoTracks()[0];
       if (videoTrack) {

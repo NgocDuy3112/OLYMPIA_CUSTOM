@@ -1,9 +1,9 @@
--- ============================================================
--- 005 question sets (bộ đề): preset câu hỏi theo trận, pick từ bank.
--- 1 bộ thuộc đúng 1 matchCode. Pick là tham chiếu bankCode.
--- Apply: ./scripts/migrate.sh (tracked in schema_migrations)
--- Drizzle source: packages/db/src/schema/question-set.ts
--- ============================================================
+
+
+
+
+
+
 
 CREATE TABLE IF NOT EXISTS "question_sets" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,

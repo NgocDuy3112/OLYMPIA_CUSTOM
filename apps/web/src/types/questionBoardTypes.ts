@@ -12,7 +12,6 @@ export interface ControllerQuestionBoardControls extends BaseQuestionBoardContro
   onToggle?: (index: number, state: boolean) => void;
 }
 
-/** Alias cũ giữ cho tương thích — AQuestionBoard đã gộp vào CQuestionBoard. */
 export type AdminQuestionBoardControls = ControllerQuestionBoardControls;
 
 export type PlayerQuestionBoardControls = BaseQuestionBoardControls;

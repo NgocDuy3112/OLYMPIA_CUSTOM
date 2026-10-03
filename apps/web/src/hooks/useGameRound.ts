@@ -1,9 +1,3 @@
-/**
- * useGameRound — Unified hook for admin/MC game round pages.
- *
- * Encapsulates: players state, timer, question loading, score management,
- * WebSocket message handling, and snapshot broadcasting.
- */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGameWebSocket } from "./useGameWebSocket";
@@ -24,22 +18,13 @@ import type { Question } from "@/types/question";
 const logger = createLogger("useGameRound");
 
 export interface GameRoundConfig {
-  /** Round code for navigation, e.g. "kdc", "bp", "gm" */
   round: string;
-  /**
-   * Question code prefix, e.g. "OC3_Q_KD_C".
-   * The OC number is normalized to the current matchCode at runtime, so
-   * legacy OC3 constants keep working for OC4+ matches.
-   */
   questionPrefix: string;
-  /** Timer duration in seconds */
   timeLimit: number;
-  /** Phase code for timer broadcast */
   timerPhase: string;
 }
 
 export interface UseGameRoundReturn {
-  // State
   players: PlayerStatus[];
   setPlayers: React.Dispatch<React.SetStateAction<PlayerStatus[]>>;
   currentQuestion: Question;
@@ -50,11 +35,9 @@ export interface UseGameRoundReturn {
   selectedPlayerCodes: string[];
   hasAddedScore: boolean;
 
-  // Derived
   matchCode: string;
   hasQuestionSelected: boolean;
 
-  // Actions
   toggleSelectedPlayer: (code: string) => void;
   loadQuestion: (index: number) => Promise<Question | undefined>;
   sendQuestionToPlayers: (index: number, question?: Question) => Promise<void>;
@@ -67,7 +50,6 @@ export interface UseGameRoundReturn {
   sendPlayersSnapshot: () => Promise<void>;
   sendRoundSnapshot: () => Promise<void>;
 
-  // Refs
   timerRef: React.MutableRefObject<number>;
   timerStartedAtRef: React.MutableRefObject<number>;
 }
@@ -88,47 +70,36 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
   const storedMatchCode = getMatchCode();
   const matchCode = storedMatchCode;
 
-  // ── Players ──
   const [players, setPlayers] = useState<PlayerStatus[]>([]);
   usePlayerTelemetry({ lastMessage, sendMessage, players, setPlayers });
 
-  // ── Question ──
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState<Question>({
     ...DEFAULT_QUESTION,
   });
 
-  // ── Timer ──
   const [timer, setTimer] = useState(0);
   const timerRef = useRef(0);
   const timerStartedAtRef = useRef(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
-  // ── Selection ──
   const [selectedPlayerCodes, setSelectedPlayerCodes] = useState<string[]>([]);
   const [hasAddedScore, setHasAddedScore] = useState(false);
 
-  // ── Timer lock ──
   const { isLocked: isTimerLocked, lock: lockTimer } = useQuestionTimerLock(
     currentQuestion.questionCode,
   );
 
-  // ── Derived ──
   const hasQuestionSelected = currentQuestionIndex > 0;
 
-  // ── Sync timerRef ──
   useEffect(() => {
     timerRef.current = timer;
   }, [timer]);
 
-  // ── Reset hasAddedScore on question change ──
   useEffect(() => {
     setHasAddedScore(false);
   }, [currentQuestionIndex]);
 
-  // ── Helpers ──
-  // Normalize OC number: legacy "OC3_Q_*" constants follow the current
-  // matchCode (OC4_M_* → OC4_Q_*), so one build works for every season.
   const resolveQuestionCode = useCallback(
     (index: number) => {
       const oc = (matchCode.toUpperCase().match(/^OC(\d+)/)?.[1] ?? "3");
@@ -144,7 +115,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     );
   }, []);
 
-  // ── Players snapshot ──
   const loadPlayersState = useCallback(async () => {
     if (!matchCode) return undefined;
     try {
@@ -216,7 +186,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     }
   }, [matchCode, loadPlayersState, sendMessage]);
 
-  // ── Question loading ──
   const loadQuestion = useCallback(
     async (index: number): Promise<Question | undefined> => {
       if (!matchCode || index <= 0) {
@@ -297,7 +266,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     }
   }, [matchCode, sendMessage]);
 
-  // ── Timer ──
   const startTimer = useCallback(
     async (index?: number) => {
       if (isTimerLocked) return;
@@ -312,7 +280,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
       setTimer(timeLimit);
       setIsTimerRunning(true);
 
-      // Clear player answers
       setPlayers((prev) =>
         prev.map((p) => ({
           ...p,
@@ -345,7 +312,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     ],
   );
 
-  // Timer countdown
   useEffect(() => {
     if (timer <= 0) {
       setIsTimerRunning(false);
@@ -365,7 +331,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     return () => window.clearInterval(intervalId);
   }, [timer]);
 
-  // ── Score ──
   const syncAndBroadcastScores = useCallback(async () => {
     if (!matchCode) return;
 
@@ -454,9 +419,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     [sendPlayersSnapshot],
   );
 
-  // ── Show answers ──
-  // Controller-only: fetch all answers for this question in one call,
-  // then broadcast over WS. Requires controller/admin session.
   const showAnswers = useCallback(async () => {
     if (!currentQuestion.questionCode || !matchCode) return;
 
@@ -498,7 +460,6 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     }
   }, [currentQuestion, matchCode, sendMessage]);
 
-  // ── End round ──
   const endRound = useCallback(async () => {
     setCurrentQuestionIndex(0);
     setCurrentQuestion({ ...DEFAULT_QUESTION });
@@ -532,12 +493,10 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     currentQuestion,
   ]);
 
-  // ── Load players on mount ──
   useEffect(() => {
     void loadPlayersState();
   }, [loadPlayersState]);
 
-  // ── WebSocket message handling ──
   useEffect(() => {
     if (!lastMessage) return;
     const msg: any = lastMessage;

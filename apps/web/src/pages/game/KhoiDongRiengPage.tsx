@@ -1,10 +1,3 @@
-/**
- * KhoiDongRiengPage — Unified page for Khởi Động Cá Nhân (individual warm-up).
- *
- * Admin: full control panel with question selection, timer, scoring.
- * MC: read-only spectator view.
- * Player: answer input for each question.
- */
 import { useCallback, useEffect } from "react";
 import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { useNavigate, useParams } from "react-router-dom";
@@ -28,7 +21,6 @@ const QUESTION_PREFIX = "OC3_Q_KD_R";
 const MAX_QUESTION_INDEX = 6;
 const TIME_LIMIT = 60;
 
-// ─── Admin View ─────────────────────────────────────────────────────────────
 const AdminKhoiDongRiengView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
@@ -184,7 +176,6 @@ const AdminKhoiDongRiengView = () => {
   );
 };
 
-// ─── Player View ────────────────────────────────────────────────────────────
 const PlayerKhoiDongRiengView = () => {
   const { playerCode } = useRoleSession("player");
   const { players, setPlayers, currentQuestion, currentQuestionIndex, timer } =
@@ -223,7 +214,6 @@ const PlayerKhoiDongRiengView = () => {
   );
 };
 
-// ─── MC View ────────────────────────────────────────────────────────────────
 const MCKhoiDongRiengView = () => {
   const { matchCode } = useRoleSession("mc");
   return (
@@ -235,7 +225,6 @@ const MCKhoiDongRiengView = () => {
   );
 };
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
 const KhoiDongRiengPage = () => {
   const { role } = useGameWebSocket();
   if (role === "controller") return <AdminKhoiDongRiengView />;

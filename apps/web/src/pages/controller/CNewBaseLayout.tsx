@@ -1,9 +1,3 @@
-/**
- * CNewBaseLayout — Simplified controller page layout.
- *
- * Two-column: main content (left) + player sidebar (right).
- * Responsive: stacks vertically on tablet, sidebar collapses on mobile.
- */
 import React, { type ReactNode } from "react";
 import CGameShell from "@/pages/controller/CGameShell";
 import { PlayerPanel } from "@/components/shared/PlayerPanel";
@@ -12,31 +6,18 @@ import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { getMatchCode } from "@/utils/storage";
 
 interface CNewBaseLayoutProps {
-  /** Round title displayed above question board */
   title: string;
-  /** Main content area */
   children: ReactNode;
-  /** Action buttons below content */
   actions?: ReactNode;
-  /** Additional buttons for the player sidebar */
   playerActions?: ReactNode;
-  /** Player list */
   players: PlayerStatus[];
-  /** Selected player codes for scoring */
   selectedPlayerCodes?: string[];
-  /** Toggle player selection */
   onTogglePlayer?: (code: string) => void;
-  /** Whether players are clickable */
   playersSelectable?: boolean;
-  /** Whether player selection is disabled */
   playersDisabled?: boolean;
-  /** Edit score callback */
   onEditScore?: (playerCode: string, newScore: number) => void;
-  /** Current question code — enables per-player Gui duyet review */
   questionCode?: string;
-  /** Fired after a score review is created */
   onReviewRequested?: (reviewId: string) => void;
-  /** Additional content above player list */
   playerHeader?: ReactNode;
 }
 
@@ -59,13 +40,13 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
   return (
     <CGameShell voiceUser="mc">
       <div className="flex flex-col lg:flex-row flex-1 p-2 sm:p-3 lg:p-4 gap-3 lg:gap-4 overflow-hidden">
-        {/* Main content */}
+        {}
         <div className="flex-1 flex flex-col gap-3 lg:gap-4 overflow-y-auto min-w-0">
-          {/* Content */}
-          {/* Board tự theo nội dung — KHÔNG flex-1, nếu không nút bị đẩy xuống đáy */}
+          {}
+          {}
           <div>{children}</div>
 
-          {/* Toàn bộ nút điều khiển — ngay dưới QuestionCard */}
+          {}
           {(actions || playerActions) && (
             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
               {actions}
@@ -83,7 +64,7 @@ const CNewBaseLayout: React.FC<CNewBaseLayoutProps> = ({
 
         </div>
 
-        {/* Player sidebar */}
+        {}
         <div className="w-full lg:w-72 xl:w-80 flex flex-col gap-3 lg:gap-4 overflow-hidden shrink-0">
           {playerHeader}
 

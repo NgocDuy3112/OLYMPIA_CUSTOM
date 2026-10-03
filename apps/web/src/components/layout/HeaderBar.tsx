@@ -11,10 +11,6 @@ interface HeaderBarProps {
   rightContent?: React.ReactNode;
 }
 
-/**
- * Header gọn cho shell game (player/controller live).
- * Phase name + connection pill lấy từ nguồn chung — không còn copy.
- */
 export const HeaderBar: React.FC<HeaderBarProps> = ({
   matchCode,
   phase,
@@ -27,21 +23,21 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <div className="flex items-center justify-between px-3 py-2 sm:px-4 sm:py-2.5 glass gap-2">
-      {/* Left: Match info */}
+      {}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0 shrink-0">
         <h1 className="text-sm sm:text-lg font-bold text-foreground tracking-wide truncate">
           OLYMPIA CUSTOM
         </h1>
       </div>
 
-      {/* Center: Navigation tabs */}
+      {}
       {centerContent && (
         <div className="flex items-center justify-center gap-1 sm:gap-2 flex-1 min-w-0">
           {centerContent}
         </div>
       )}
 
-      {/* Right: Phase info + Connection status + custom content */}
+      {}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {matchCode && (
           <span className="hidden lg:inline text-xs sm:text-sm text-brand font-mono truncate">

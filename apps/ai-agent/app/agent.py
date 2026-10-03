@@ -24,7 +24,6 @@ TASK_SUBAGENT: dict[str, str | None] = {
 
 
 def build_graph(checkpointer: Any | None = None) -> Any:
-    """Dựng StateGraph OCee. checkpointer=None → chạy không persist (test)."""
     from langgraph.graph import END, START, StateGraph
 
     builder = StateGraph(
@@ -40,7 +39,7 @@ def build_graph(checkpointer: Any | None = None) -> Any:
     builder.add_node("refuse", refuse_node)
 
     builder.add_edge(START, "route")
-    # Route tier-1 chọn task/subagent. verify/assist → track tier-2.
+    
     builder.add_conditional_edges(
         "route",
         lambda s: (
@@ -50,7 +49,7 @@ def build_graph(checkpointer: Any | None = None) -> Any:
         ),
         {"track": "track", "agent": "agent", "refuse": "refuse"},
     )
-    # Track tier-2 chọn subagent track, fail-open bank_agent chung.
+    
     builder.add_conditional_edges(
         "track",
         lambda s: s.get("subagent") or "agent",

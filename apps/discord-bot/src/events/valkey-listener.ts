@@ -35,7 +35,6 @@ interface LiveEvent {
 
 type EmbedHandler = (event: LiveEvent) => EmbedBuilder | null;
 
-// ── Phase Names ─────────────────────────────────────────────────────────────
 
 const PHASE_NAMES: Record<string, string> = {
   kdc: "Khởi Động Chung",
@@ -49,9 +48,7 @@ const PHASE_NAMES: Record<string, string> = {
 
 const RANK_EMOJI = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣"];
 
-// ── Embed Builders ──────────────────────────────────────────────────────────
 
-// Match Events
 const matchStarted: EmbedHandler = (e) => {
   if (!e.match_code) return null;
   return new EmbedBuilder()
@@ -70,7 +67,6 @@ const matchFinished: EmbedHandler = (e) => {
     .setTimestamp();
 };
 
-// Player Events
 const playerJoined: EmbedHandler = (e) => {
   if (!e.player_name) return null;
   const playerCount = e.player_count ? ` (${e.player_count}/${e.max_players || "?"})` : "";
@@ -104,8 +100,6 @@ const playersReady: EmbedHandler = (e) => {
     .setTimestamp();
 };
 
-// Prematch notify — fire-and-forget from API via Valkey.
-// channel_id is resolved per tournament (Discord IDs are global snowflakes).
 const prematchNotify: EmbedHandler = (e) => {
   if (!e.players || e.players.length === 0) return null;
   const mentions = e.players
@@ -126,7 +120,6 @@ const prematchNotify: EmbedHandler = (e) => {
     .setTimestamp();
 };
 
-// Round Events
 const roundStarted: EmbedHandler = (e) => {
   const roundName = e.round_name || `Round ${e.round_number || "?"}`;
   const phaseName = e.phase ? PHASE_NAMES[e.phase] || e.phase : "";
@@ -146,7 +139,6 @@ const roundEnded: EmbedHandler = (e) => {
     .setTimestamp();
 };
 
-// Score Events
 const scoreUpdated: EmbedHandler = (e) => {
   if (!e.player_name || e.new_score == null) return null;
   const change = e.old_score != null ? e.new_score - e.old_score : 0;
@@ -177,7 +169,6 @@ const scoreboardUpdated: EmbedHandler = (e) => {
     .setTimestamp();
 };
 
-// Phase Events
 const phaseChanged: EmbedHandler = (e) => {
   if (!e.phase) return null;
   const phaseName = PHASE_NAMES[e.phase] || e.phase;
@@ -188,10 +179,8 @@ const phaseChanged: EmbedHandler = (e) => {
     .setTimestamp();
 };
 
-// ── Handler Registry ────────────────────────────────────────────────────────
 
 const handlers: Record<string, EmbedHandler> = {
-  // Match lifecycle
   match_started: matchStarted,
   match_opened: matchStarted,
   match_finished: matchFinished,
@@ -202,7 +191,6 @@ const handlers: Record<string, EmbedHandler> = {
     return null;
   },
 
-  // Player events
   player_joined: playerJoined,
   user_online: playerJoined,
   player_left: playerLeft,
@@ -210,24 +198,19 @@ const handlers: Record<string, EmbedHandler> = {
   players_ready: playersReady,
   introduce_players: playersReady,
 
-  // Round events
   round_started: roundStarted,
   round_end: roundEnded,
 
-  // Score events
   player_scored: scoreUpdated,
   player_score_updated: scoreUpdated,
   show_scoreboard: scoreboardUpdated,
 
-  // Phase events
   phase_changed: phaseChanged,
   round_start: roundStarted,
 
-  // Prematch notify (fire-and-forget from API)
   prematch_notify: prematchNotify,
 };
 
-// ── Event Processing ────────────────────────────────────────────────────────
 
 function buildEmbed(event: LiveEvent): EmbedBuilder | null {
   const handler = handlers[event.type];
@@ -240,8 +223,6 @@ async function sendEmbed(
   embed: EmbedBuilder,
   channelId?: string,
 ) {
-  // Per-tournament channel first (Discord IDs are global snowflakes),
-  // fall back to the shared notification channel from env.
   let channel: TextChannel | null = null;
   if (channelId) {
     try {
@@ -261,7 +242,6 @@ async function sendEmbed(
   }
 }
 
-// ── Main Listener ───────────────────────────────────────────────────────────
 
 export function startValkeyListener(
   subscriber: Redis,
@@ -300,8 +280,6 @@ export function startValkeyListener(
         );
         return;
       }
-      // score_review_decided / score_review_ocee are informational;
-      // the interactive message already updates via button handlers.
       if (event.type === "score_review_decided" || event.type === "score_review_ocee") return;
       const embed = buildEmbed(event);
 

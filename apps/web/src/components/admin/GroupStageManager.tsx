@@ -49,7 +49,6 @@ function parseSlot(name: string): { round: number; index: number } | null {
   return { round: Number(r[1]), index: Number(m[1]) };
 }
 
-/** Tab Vòng phân nhánh: khung 2 vòng × 4 trận × 4 thí sinh. */
 export function GroupStageManager({
   tournamentCode,
   tournamentName,
@@ -100,7 +99,6 @@ export function GroupStageManager({
     [matches, groupIds],
   );
 
-  // Khung từng phase: vòng 1-2 × ô 1-4
   const structures = useMemo(
     () =>
       [...phases]
@@ -113,14 +111,11 @@ export function GroupStageManager({
                 const s = parseSlot(m.matchName);
                 return s?.round === round && s?.index === index;
               });
-              // Trận không parse được slot nhưng cùng phase: nhét vào ô trống đầu tiên
               return found ?? null;
             }),
           );
-          // Trận cùng phase nhưng không parse được tên chuẩn → gom riêng
           const slotted = new Set(grid.flat().filter(Boolean).map((m) => (m as BracketMatch).matchCode));
           const others = inPhase.filter((m) => !slotted.has(m.matchCode));
-          // Lấp ô trống bằng trận "others" dư (giữ đủ 4 ô/vòng hiển thị đúng số lượng)
           return { phase, grid, others };
         }),
     [phases, groupMatches],

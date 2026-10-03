@@ -89,7 +89,6 @@ const TournamentDetailPage: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        // Fetch tournament details
         const tournamentResponse = await fetch(
           `${API_BASE_URL}/tournaments/${code}`,
           { credentials: "include" },
@@ -106,7 +105,6 @@ const TournamentDetailPage: React.FC = () => {
           setMatches(tournamentData.data.matches || []);
         }
 
-        // Fetch standings
         try {
           const standingsResponse = await fetch(
             `${API_BASE_URL}/tournaments/${code}/standings`,
@@ -119,10 +117,8 @@ const TournamentDetailPage: React.FC = () => {
             }
           }
         } catch {
-          // Ignore standings fetch error
         }
 
-        // Try to fetch user's membership
         try {
           const meResponse = await fetch(
             `${API_BASE_URL}/tournaments/${code}/me`,
@@ -137,7 +133,6 @@ const TournamentDetailPage: React.FC = () => {
             }
           }
         } catch {
-          // Not authenticated
         }
       } catch (err) {
         setError(
@@ -175,7 +170,7 @@ const TournamentDetailPage: React.FC = () => {
   return (
     <PublicLayout>
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
+          {}
           <div className="mb-6">
             <div className="flex flex-wrap items-center gap-3 mb-2">
               <h1 className="text-3xl sm:text-4xl font-bold text-foreground">
@@ -207,14 +202,14 @@ const TournamentDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Error message */}
+          {}
           {error && (
             <div className="mb-4 p-3 bg-destructive/20 border border-destructive rounded-lg text-destructive text-sm">
               {error}
             </div>
           )}
 
-          {/* My role badge */}
+          {}
           {myMembership && (
             <div className="mb-4 p-3 bg-success/20 border border-success rounded-lg flex items-center gap-2">
               <CheckCircle size={16} className="text-success" />
@@ -236,13 +231,12 @@ const TournamentDetailPage: React.FC = () => {
             </div>
           )}
 
-          {/* Tabs */}
+          {}
           <TabNavigation tabs={TOURNAMENT_TABS} basepath={`/tournament/${code}`} />
 
-          {/* Tab Content */}
+          {}
           <div className="py-6 space-y-6">
             {activeTab === "standings" ? (
-              /* Standings Tab */
               <Card className="px-4">
                 <h2 className="text-lg font-bold text-foreground mb-4">
                   Bảng xếp hạng
@@ -258,9 +252,8 @@ const TournamentDetailPage: React.FC = () => {
                 />
               </Card>
             ) : (
-              /* Overview Tab */
               <>
-                {/* Description */}
+                {}
                 {tournament.description && (
                   <Card className="px-4">
                     <h2 className="text-lg font-bold text-foreground mb-3">Giới thiệu</h2>
@@ -271,9 +264,9 @@ const TournamentDetailPage: React.FC = () => {
                 )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Main content */}
+              {}
               <div className="lg:col-span-2 space-y-6">
-                {/* Matches */}
+                {}
                 <Card className="px-4">
                   <h2 className="text-lg font-bold text-foreground mb-4">
                     Trận đấu ({matches.length})
@@ -299,14 +292,14 @@ const TournamentDetailPage: React.FC = () => {
                   )}
                 </Card>
 
-                {/* Players */}
+                {}
                 <Card className="px-4">
                   <h2 className="text-lg font-bold text-foreground mb-4">
                     Danh sách thí sinh ({players.length})
                   </h2>
                   <PlayerGrid players={players} />
                   
-                  {/* Role Manager - only visible to controllers */}
+                  {}
                   {(myMembership?.role === "operator" ||
                     myMembership?.role === "controller") && (
                     <div className="mt-6 pt-6 border-t border-border">
@@ -327,9 +320,9 @@ const TournamentDetailPage: React.FC = () => {
                 </Card>
               </div>
 
-              {/* Sidebar */}
+              {}
               <div className="space-y-6">
-                {/* Register / Actions */}
+                {}
                 <Card className="px-4">
                   <h2 className="text-lg font-bold text-foreground mb-4">Tham gia</h2>
                   {!isAuthenticated ? (
@@ -376,7 +369,7 @@ const TournamentDetailPage: React.FC = () => {
                   )}
                 </Card>
 
-                {/* Quick links */}
+                {}
                 <Card className="px-4">
                   <h2 className="text-lg font-bold text-foreground mb-4">Liên kết</h2>
                   <Button
@@ -389,7 +382,7 @@ const TournamentDetailPage: React.FC = () => {
                   </Button>
                 </Card>
 
-                {/* Stats */}
+                {}
                 <Card className="px-4">
                   <h2 className="text-lg font-bold text-foreground mb-4">Thống kê</h2>
                   <div className="space-y-3 text-sm">

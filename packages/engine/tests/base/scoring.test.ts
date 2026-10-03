@@ -133,16 +133,16 @@ describe("bpResolve", () => {
   it("applies time-based base points", () => {
     const deltas = bpResolve(
       [
-        { userCode: "A", timestamp: 5_000 }, // <10s → 30
-        { userCode: "B", timestamp: 15_000 }, // <20s → 20
-        { userCode: "C", timestamp: 25_000 }, // else → 10
+        { userCode: "A", timestamp: 5_000 },
+        { userCode: "B", timestamp: 15_000 },
+        { userCode: "C", timestamp: 25_000 },
       ],
       defaultConfig,
     );
     expect(deltas.map((d) => d.points)).toEqual([
-      30 * 2, // 1st
-      20 * 1.5, // 2nd
-      10 * 1, // 3rd
+      30 * 2,
+      20 * 1.5,
+      10 * 1,
     ]);
   });
 
@@ -152,7 +152,6 @@ describe("bpResolve", () => {
       timestamp: n * 1_000,
     }));
     const deltas = bpResolve(buzzes, defaultConfig);
-    // all buzzes <10s → base 30; multipliers 2/1.5/1/0.5 (clamped for 5th)
     expect(deltas.map((d) => d.points)).toEqual([60, 45, 30, 15, 15]);
   });
 
@@ -195,7 +194,7 @@ describe("applyVeDichPower", () => {
   });
 
   it("rounds fractional results", () => {
-    expect(applyVeDichPower(15, "star")).toBe(23); // 22.5 → 23
+    expect(applyVeDichPower(15, "star")).toBe(23);
   });
 
   it("zero stays zero for any power", () => {

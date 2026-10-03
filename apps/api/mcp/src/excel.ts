@@ -1,6 +1,5 @@
 import ExcelJS from "exceljs";
 
-/** Raw item — cùng shape POST /api/bank/import { items }; mapping cột SỐNG Ở API. */
 export interface ParsedItem {
   sheet: string;
   row: number;
@@ -28,10 +27,6 @@ function cellText(v: ExcelJS.CellValue): string | undefined {
   return String(v).trim() || undefined;
 }
 
-/**
- * Parse file .xlsx local (chỉ stdio/TUI) → items gửi API.
- * Giữ NGUYÊN header tiếng Việt từng sheet — API map (1 chỗ).
- */
 export async function parseBankXlsx(path: string): Promise<ParsedItem[]> {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(path);
@@ -39,7 +34,7 @@ export async function parseBankXlsx(path: string): Promise<ParsedItem[]> {
   for (const ws of wb.worksheets) {
     let headers: Array<string | null> = [];
     ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-      const values = row.values as unknown[]; // ExcelJS1-based
+      const values = row.values as unknown[];
       if (rowNumber === 1) {
         headers = values
           .slice(1)

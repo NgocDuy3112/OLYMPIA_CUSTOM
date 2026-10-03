@@ -3,7 +3,6 @@ import Redis from "ioredis";
 import { getEnv } from "../config/env.js";
 import fp from "fastify-plugin";
 
-// Extend FastifyInstance to carry valkey
 declare module "fastify" {
   interface FastifyInstance {
     valkey: Redis;
@@ -11,7 +10,6 @@ declare module "fastify" {
   }
 }
 
-// ── Shared async factory ──
 
 export interface ValkeyClients {
   client: Redis;
@@ -59,7 +57,6 @@ export async function createValkeyClients(opts?: {
   return { client, subscriber };
 }
 
-// ── Fastify plugin ──
 
 async function valkeyPlugin(app: FastifyInstance) {
   const { client, subscriber } = await createValkeyClients();

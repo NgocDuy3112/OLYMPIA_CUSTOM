@@ -11,10 +11,6 @@ import { users } from "./user.js";
 import { matches } from "./match.js";
 import { questions } from "./question.js";
 
-/**
- * Answers table — v4 schema (unchanged from v3).
- * Stores each player's answer per question per match.
- */
 export const answers = pgTable(
   "answers",
   {

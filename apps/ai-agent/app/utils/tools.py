@@ -1,8 +1,3 @@
-"""Internal tools đã xóa — agent gọi tools duy nhất qua MCP adapter.
-
-Giữ lại tool_result_message cho synthesize() gom kết quả vào prompt.
-System prompt theo task nằm ở nodes.scope_for_task (prompts/*.txt ở root).
-"""
 
 from __future__ import annotations
 

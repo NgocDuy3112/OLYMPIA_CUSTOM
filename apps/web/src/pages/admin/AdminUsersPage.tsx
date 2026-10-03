@@ -5,9 +5,11 @@ import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import {
   DataTable,
+} from "@/components/shared/data-table";
+import {
   createDataTableColumns,
   type DataTableColumn,
-} from "@/components/shared/data-table";
+} from "@/components/shared/data-table-core";
 import {
   UserEditPanel,
   UserAddPanel,
@@ -39,7 +41,6 @@ interface ApiResponse {
   data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
-/** API trả camelCase — map về snake_case nội bộ trang Admin. */
 const toUserData = (r: Record<string, unknown>): UserData => ({
   user_code: String(r.userCode ?? r.user_code ?? ""),
   user_name: String(r.userName ?? r.user_name ?? ""),
@@ -60,15 +61,12 @@ const AdminUsersPage = () => {
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Panel: thêm user
   const [showAdd, setShowAdd] = useState(false);
   const [savingAdd, setSavingAdd] = useState(false);
 
-  // Panel: đổi vai trò / scopes
   const [roleUser, setRoleUser] = useState<UserData | null>(null);
   const [savingRole, setSavingRole] = useState(false);
 
-  // Panel: xác nhận xoá
   const [deleteTarget, setDeleteTarget] = useState<UserData | null>(null);
   const [savingDelete, setSavingDelete] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);

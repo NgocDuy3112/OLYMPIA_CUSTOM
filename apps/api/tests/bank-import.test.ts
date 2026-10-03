@@ -30,7 +30,7 @@ describe("normalizeRows — template OC_BANK (cột tiếng Việt, name-based)"
     ]);
     expect(rows[0].fields.roundHint).toBe("KD_R");
     expect(rows[1].fields.roundHint).toBe("KD_C");
-    expect(rows[2].fields.roundHint).toBe("KD_C"); // fallback sheet
+    expect(rows[2].fields.roundHint).toBe("KD_C");
     expect(rows[0].fields.content).toBe("Q1");
     expect(rows[0].fields.answer).toBe("A1");
   });
@@ -42,7 +42,7 @@ describe("normalizeRows — template OC_BANK (cột tiếng Việt, name-based)"
         "Bộ gợi ý": "s1",
         "Câu hỏi": "Từ khoá",
         "Đáp án câu hỏi": "Hà Nội",
-        "Gợi ý": "None", // template dính chữ None → rỗng
+        "Gợi ý": "None",
         "Giải thích": "CNV",
         "File ảnh/video/audio": "None",
       }),
@@ -56,11 +56,11 @@ describe("normalizeRows — template OC_BANK (cột tiếng Việt, name-based)"
     ]);
     expect(rows[0].fields.roundHint).toBe("GM");
     expect(rows[0].fields.answer).toBe("Hà Nội");
-    expect(rows[0].fields.hintText).toBeUndefined(); // "None" → rỗng
+    expect(rows[0].fields.hintText).toBeUndefined();
     expect(rows[0].fields.mediaUrl).toBeUndefined();
     expect(rows[0].mediaWarning).toBeUndefined();
-    expect(rows[0].fields.setCode).toBe("S1"); // UPPER
-    expect(rows[1].fields.hintIndex).toBe("H3"); // UPPER
+    expect(rows[0].fields.setCode).toBe("S1");
+    expect(rows[1].fields.hintIndex).toBe("H3");
     expect(rows[1].fields.hintText).toBe("gợi mở");
   });
 
@@ -162,7 +162,7 @@ describe("assignAutoCodes — QB_<ROUND>_<DDMMYYYY>_<NN>", () => {
       `QB_KDC_${today}_01`,
       `QB_KDC_${today}_07`,
       `QB_VD_${today}_02`,
-      `QB_KDC_31122025_99`, // ngày khác → bỏ qua
+      `QB_KDC_31122025_99`,
     ];
     const { rows } = normalizeRows([
       item("KHOI_DONG", 2, { "Câu hỏi": "Q1", "Đáp án": "A1" }),
@@ -178,7 +178,7 @@ describe("assignAutoCodes — QB_<ROUND>_<DDMMYYYY>_<NN>", () => {
     expect(rows[0].fields.bankCode).toBe(`QB_KDC_${today}_08`);
     expect(rows[1].fields.bankCode).toBe(`QB_KDC_${today}_09`);
     expect(rows[2].fields.bankCode).toBe(`QB_VD_${today}_03`);
-    expect(rows[3].fields.bankCode).toBe("QB_BP_01012026_55"); // giữ nguyên
+    expect(rows[3].fields.bankCode).toBe("QB_BP_01012026_55");
   });
 
   it("autoCodePrefixes chỉ cho rows thiếu code,1 prefix/round", () => {
@@ -222,7 +222,7 @@ describe("validateGmSets — GIAI_MA gom set theo hợp đồng pick-gm-set", ()
       gmRows(FULL.filter((h) => h !== "H5").map((h) => ({ hint: h, set: "S1" }))),
     );
     const issues = validateGmSets(rows);
-    expect(issues).toHaveLength(8); // mọi row của set đều dính
+    expect(issues).toHaveLength(8);
     expect(issues[0].msg).toContain("thiếu H5");
   });
 
@@ -246,18 +246,16 @@ describe("validateGmSets — GIAI_MA gom set theo hợp đồng pick-gm-set", ()
 
   it("thiếu Bộ gợi ý / Mã gợi ý → lỗi row-level", () => {
     const { rows } = normalizeRows([
-      // có set, thiếu Mã gợi ý
       item("GIAI_MA", 2, {
         "Bộ gợi ý": "S9",
         "Câu hỏi": "Q1",
         "Đáp án câu hỏi": "A1",
       }),
-      // thiếu cả2
       item("GIAI_MA", 3, { "Câu hỏi": "Q2", "Đáp án câu hỏi": "A2" }),
     ]);
     const fields = validateGmSets(rows).map((i) => i.field);
-    expect(fields).toContain("hintIndex"); // thiếu Mã gợi ý
-    expect(fields).toContain("setCode"); // thiếu Bộ gợi ý
+    expect(fields).toContain("hintIndex");
+    expect(fields).toContain("setCode");
   });
 
   it("set khác không liên quan vấn đề của nhau", () => {
@@ -268,7 +266,7 @@ describe("validateGmSets — GIAI_MA gom set theo hợp đồng pick-gm-set", ()
       ]),
     );
     const issues = validateGmSets(rows);
-    expect(issues).toHaveLength(1); // chỉ row của BROKEN (thiếu H1..H8)
+    expect(issues).toHaveLength(1);
     expect(issues[0].msg).toContain("set BROKEN");
   });
 

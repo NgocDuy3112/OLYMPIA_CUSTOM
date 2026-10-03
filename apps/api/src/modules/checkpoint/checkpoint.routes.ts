@@ -11,7 +11,6 @@ export async function checkpointRoutes(
   opts: { repo?: CheckpointRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleCheckpointRepo;
-  // GET /checkpoints/:matchCode — list checkpoints (latest first)
   app.get(
     "/checkpoints/:matchCode",
     { preHandler: [requireAuth(app)] },
@@ -22,7 +21,6 @@ export async function checkpointRoutes(
     },
   );
 
-  // POST /checkpoints/:matchCode/restore — restore Valkey from latest checkpoint
   app.post(
     "/checkpoints/:matchCode/restore",
     { preHandler: [requireRole(app, "admin")] },

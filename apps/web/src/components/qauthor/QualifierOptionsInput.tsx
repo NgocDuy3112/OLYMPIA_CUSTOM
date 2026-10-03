@@ -11,7 +11,6 @@ interface QualifierOptionsInputProps {
   onCorrectChange: (letter: string) => void;
 }
 
-/** Grid nhập phương án A-D (thêm/bớt tới 6), convert JSON khi lưu. */
 export function QualifierOptionsInput({ options, correct, onChange, onCorrectChange }: QualifierOptionsInputProps) {
   const set = (i: number, v: string) => {
     const next = [...options];

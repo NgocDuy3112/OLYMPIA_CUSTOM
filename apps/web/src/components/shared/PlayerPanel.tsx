@@ -29,7 +29,7 @@ export function PlayerPanel(
           muted={muted}
           volume={volume}
         />
-        {/* Camera status indicator */}
+        {}
         <div className="absolute left-2 top-2">
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
@@ -44,7 +44,7 @@ export function PlayerPanel(
           </motion.div>
         </div>
 
-        {/* Mute button */}
+        {}
         <Button
           type="button"
           size="icon-sm"
@@ -56,7 +56,7 @@ export function PlayerPanel(
           {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
         </Button>
 
-        {/* Controller camera control */}
+        {}
         {props.showCameraControl && (
           <Button
             type="button"

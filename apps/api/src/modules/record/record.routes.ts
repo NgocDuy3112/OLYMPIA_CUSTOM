@@ -8,7 +8,6 @@ export async function recordRoutes(
   opts: { repo?: RecordRepo } = {},
 ) {
   const repo = opts.repo ?? drizzleRecordRepo;
-  // GET /records/:matchCode — list score records for a match. Requires auth.
   app.get(
     "/records/:matchCode",
     { preHandler: [requireAuth(app)] },

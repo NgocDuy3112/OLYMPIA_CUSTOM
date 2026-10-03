@@ -12,14 +12,6 @@ import { sql } from "drizzle-orm";
 import { tournaments } from "./tournament.js";
 import { matches } from "./match.js";
 
-/**
- * Tournament phases — named stages within a tournament
- * (e.g., Group Stage, Playoffs Phase 1, Grand Finale).
- *
- * Replaces the ephemeral `phase_${n}` ids previously generated
- * in template.service.ts — phases are now persisted rows that
- * matches reference via matches.phase_id.
- */
 export const tournamentPhases = pgTable(
   "tournament_phases",
   {
@@ -40,16 +32,6 @@ export const tournamentPhases = pgTable(
   ],
 );
 
-/**
- * Bracket edges — advancement links between matches.
- *
- * "rank R of from_match advances to to_match".
- * Persisted form of the `advancementRules` previously stored
- * only inside tournament_templates.config JSONB.
- *
- * Example: winner (rank 1) of M09 advances to M19:
- *   from_match_id = <M09 id>, rank = 1, to_match_id = <M19 id>
- */
 export const bracketEdges = pgTable(
   "bracket_edges",
   {

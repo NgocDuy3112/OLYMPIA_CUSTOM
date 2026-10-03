@@ -1,10 +1,3 @@
-/**
- * useWsMessage — Central WebSocket message selector.
- *
- * Unwraps the context `lastMessage` (handles nested `message` payloads) and
- * optionally filters by message type. Use this instead of ad-hoc
- * `JSON.parse` / `?? lastMessage` handling in components.
- */
 import { useMemo } from "react";
 import { useGameWebSocket } from "./useGameWebSocket";
 import type { WebSocketMessage } from "@/types/websocket";

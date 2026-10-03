@@ -16,11 +16,6 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { ShellSidebar, type ShellNavGroup } from "./ShellSidebar";
 
-/**
- * Admin shell sidebar — cấu hình cho ShellSidebar (shadcn Sidebar block).
- * Admin tracks operations (giải đấu, lịch, người dùng, audit); nội dung
- * câu hỏi/điều live nhảy tab mới sang shell qauthor/controller.
- */
 export const AdminSidebar: React.FC = () => {
   const location = useLocation();
   const { user } = useAuth();

@@ -12,9 +12,9 @@ interface GameWebSocketConfig {
   role: UserRole;
   matchCode: string;
   userCode?: string;
-  heartbeatInterval?: number; // ms, default 15000
-  enablePresence?: boolean; // default true for player
-  enableHeartbeat?: boolean; // default true for player
+  heartbeatInterval?: number;
+  enablePresence?: boolean;
+  enableHeartbeat?: boolean;
 }
 
 interface GameWebSocketProviderProps {
@@ -44,7 +44,6 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
     [isConnected, lastMessage, sendMessage, role],
   );
 
-  // Player presence: send user_online on connect
   useEffect(() => {
     if (!enablePresence || !isConnected || !userCode) return;
 
@@ -55,7 +54,6 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
     });
   }, [enablePresence, isConnected, userCode, sendMessage]);
 
-  // Response to request_presence
   useEffect(() => {
     if (!enablePresence || !isConnected || !userCode) return;
 
@@ -69,7 +67,6 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
     });
   }, [lastMessage, enablePresence, isConnected, userCode, sendMessage]);
 
-  // Response to ping_latency
   useEffect(() => {
     if (!enablePresence || !isConnected || !userCode) return;
 
@@ -89,7 +86,6 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
     });
   }, [lastMessage, enablePresence, isConnected, userCode, sendMessage]);
 
-  // Periodic heartbeat
   useEffect(() => {
     if (!enableHeartbeat || !isConnected || !userCode) return;
 
@@ -104,7 +100,6 @@ export const GameWebSocketProvider: React.FC<GameWebSocketProviderProps> = ({
     return () => window.clearInterval(intervalId);
   }, [enableHeartbeat, isConnected, userCode, sendMessage, heartbeatInterval]);
 
-  // Controller: periodic request_presence
   useEffect(() => {
     if (role !== "controller" || !isConnected) return;
 

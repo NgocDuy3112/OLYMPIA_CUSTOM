@@ -12,8 +12,10 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DataTable,
-  createDataTableColumns,
 } from "@/components/shared/data-table";
+import {
+  createDataTableColumns,
+} from "@/components/shared/data-table-core";
 
 const logger = createLogger("AdminBankReviewPage");
 
@@ -140,7 +142,6 @@ interface SetCard {
   expected: number;
 }
 
-/** Admin duyệt câu bank: lọc theo trạng thái, ghi chú duyệt, Duyệt/Từ chối. */
 const AdminBankReviewPage = () => {
   const [rows, setRows] = useState<BankRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -162,7 +163,6 @@ const AdminBankReviewPage = () => {
   const fetchRows = useCallback(async (p = 1) => {
     setLoading(true);
     try {
-      // Tab Bộ đề: liệt kê sets (phương án a), không search bank.
       if (group === "sets") {
         const res = await fetch(`${API_BASE_URL}/question-sets`, { credentials: "include" });
         const json = await res.json();
@@ -204,7 +204,6 @@ const AdminBankReviewPage = () => {
     }
   }, [status, group]);
 
-  // Event-driven: vào trang tải 1 lần, bank đổi là SSE báo tải lại.
   useBankEvents(fetchRows);
   useEffect(() => {
     void fetchRows();

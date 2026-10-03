@@ -1,14 +1,8 @@
-/**
- * Unified Valkey state — 1 hash = 1 match.
- *
- * All real-time state for a match lives in snapshot:{matchCode}.
- * This module provides the single access point for reading/writing.
- */
 
 import type Redis from "ioredis";
 
 const SNAPSHOT_PREFIX = "snapshot:";
-const SNAPSHOT_TTL = 3 * 60 * 60; // 3 hours
+const SNAPSHOT_TTL = 3 * 60 * 60;
 
 function snapshotKey(matchCode: string): string {
   return `${SNAPSHOT_PREFIX}${matchCode}`;
@@ -69,7 +63,6 @@ async function getAllFields(
   return result;
 }
 
-// ── Round state ──
 
 export interface QuestionData {
   question_code: string;
@@ -91,26 +84,22 @@ export interface VideoData {
 }
 
 export const matchState = {
-  // ── Generic field access ──
   getField,
   setField,
   delFields,
   clearSnapshot,
   getAllFields,
 
-  // ── Current question ──
   getQuestion: (valkey: Redis, matchCode: string) =>
     getField<QuestionData>(valkey, matchCode, "current_question"),
   setQuestion: (valkey: Redis, matchCode: string, q: QuestionData) =>
     setField(valkey, matchCode, "current_question", q),
 
-  // ── Timer ──
   getTimer: (valkey: Redis, matchCode: string) =>
     getField<TimerData>(valkey, matchCode, "timer"),
   setTimer: (valkey: Redis, matchCode: string, t: TimerData) =>
     setField(valkey, matchCode, "timer", t),
 
-  // ── Answers ──
   getAnswers: (valkey: Redis, matchCode: string) =>
     getField<Record<string, unknown>>(valkey, matchCode, "answers"),
   setAnswers: (valkey: Redis, matchCode: string, a: Record<string, unknown>) =>
@@ -118,13 +107,11 @@ export const matchState = {
   clearAnswers: (valkey: Redis, matchCode: string) =>
     delFields(valkey, matchCode, "answers", "keyword_answers"),
 
-  // ── Video ──
   getVideo: (valkey: Redis, matchCode: string) =>
     getField<VideoData>(valkey, matchCode, "video"),
   setVideo: (valkey: Redis, matchCode: string, v: VideoData) =>
     setField(valkey, matchCode, "video", v),
 
-  // ── VeDich turn player ──
   getTurnPlayer: (valkey: Redis, matchCode: string) =>
     valkey.get(`vd:turn:${matchCode}`).then((v) => v || null),
   setTurnPlayer: (valkey: Redis, matchCode: string, userCode: string) =>
@@ -132,7 +119,6 @@ export const matchState = {
   clearTurnPlayer: (valkey: Redis, matchCode: string) =>
     valkey.del(`vd:turn:${matchCode}`),
 
-  // ── VeDich powers ──
   getUsedPowers: async (
     valkey: Redis,
     matchCode: string,
@@ -161,7 +147,6 @@ export const matchState = {
     return { powers, changed };
   },
 
-  // ── Snapshot for reconnect ──
   getSnapshotMessages: async (
     valkey: Redis,
     matchCode: string,

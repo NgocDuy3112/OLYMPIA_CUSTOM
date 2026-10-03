@@ -8,7 +8,6 @@ interface FilterSelectProps {
   "aria-label"?: string;
 }
 
-/** Select lọc chuẩn admin — giờ là shadcn NativeSelect (Base UI style). */
 export function FilterSelect({
   value,
   onChange,

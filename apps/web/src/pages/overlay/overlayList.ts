@@ -31,7 +31,6 @@ export interface OverlayItem {
   defaultHeight: number;
 }
 
-/** Danh mục overlay dùng chung: preview page + controller overview. */
 export const OVERLAYS: OverlayItem[] = [
   {
     id: "player-bar",

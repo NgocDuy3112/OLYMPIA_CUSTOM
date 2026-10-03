@@ -66,7 +66,6 @@ interface ScheduleMatchCardProps {
   onFinish: (m: MatchData) => void;
 }
 
-/** Một ô lịch: card trận với 4 slot thí sinh. */
 export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish }: ScheduleMatchCardProps) {
   const navigate = useNavigate();
   const done = match.match_status === "finished" || match.match_status === "completed";

@@ -3,15 +3,10 @@ import { Wifi, WifiOff } from "lucide-react";
 
 interface ConnectionStatusProps {
   isConnected: boolean;
-  /** Hiện nhãn chữ (ẩn trên mobile để tiết kiệm chỗ). */
   showLabel?: boolean;
   className?: string;
 }
 
-/**
- * Pill trạng thái kết nối WebSocket — dùng thống nhất ở mọi header
- * (trước: mỗi header tự viết lại markup + màu).
- */
 export const ConnectionStatus: React.FC<ConnectionStatusProps> = ({
   isConnected,
   showLabel = true,
