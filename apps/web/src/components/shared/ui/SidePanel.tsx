@@ -58,7 +58,7 @@ export const SidePanel: React.FC<SidePanelProps> = ({
                         {title}
                     </SheetTitle>
                 </SheetHeader>
-                <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
+                <div className="flex flex-col gap-4 flex-1 overflow-y-auto px-4 pb-4">
                     {children}
                 </div>
                 {footer && (

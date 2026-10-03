@@ -19,6 +19,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { Progress } from "@/components/ui/progress";
 
 const logger = createLogger("MatchTab");
 
@@ -135,6 +136,15 @@ export const MatchTab = () => {
   const [selSlot, setSelSlot] = useState<string | null>(null);
   /** Vòng của slot đang chọn — null = bank hiển thị tất cả. */
   const bankRound: PickRound | null = selSlot ? roundOfSlot(selSlot) : null;
+  /** Tiến độ điền slot toàn trận: 6+24+9+4+24 = 67 ô. */
+  const totalSlots = (["KDC", "KDR", "GM", "BP", "VD"] as const).reduce(
+    (n, r) => n + slotsFor(r).length,
+    0,
+  );
+  const filledSlots = Math.min(
+    totalSlots,
+    questions.filter((q) => q.slot).length,
+  );
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedCodes, setAddedCodes] = useState<Set<string>>(new Set());
   const [showCreate, setShowCreate] = useState(false);
@@ -562,6 +572,17 @@ export const MatchTab = () => {
                   aria-hidden
                 />
                 Đang chọn
+              </span>
+            </div>
+
+            {/* Tiến độ điền slot toàn trận */}
+            <div className="flex items-center gap-2">
+              <Progress
+                value={(filledSlots / totalSlots) * 100}
+                className="flex-1 [&_[data-slot=progress-track]]:h-2"
+              />
+              <span className="font-mono text-[11px] whitespace-nowrap text-muted-foreground">
+                {filledSlots}/{totalSlots} ô
               </span>
             </div>
 

@@ -187,6 +187,15 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - Skip có lý do: lưới PQuestionBoard (hành vi WS-driven qua callback, không có state cục bộ → map sang ToggleGroup rủi ro),
   clue grid Giải mã (PlayerClueCard = card nội dung, không phải toggle)
 
+**Update 03/10 09:53 — Progress + Sheet indent:**
+- **Progress (mới dùng primitive `Progress`):**
+  1. MatchTab: thanh tiến độ **điền slot toàn trận** `{filled}/{totalSlots} ô` (67 ô) ngay dưới legend cột trái
+  2. Upload media: `uploadQuestionMedia(code, file, onProgress?)` đổi PUT `fetch` → **XHR `upload.onprogress`**
+     (fetch không có progress event); BankTab giữ `uploadPct` state → EditBankSidebar hiện
+     `Đang upload N%` + thanh Progress khi submit
+- **Sheet indent:** `SheetContent` gốc không padding, header/footer `p-4` nhưng body =0 → content dính mép.
+  Sửa ở `SidePanel` (không sửa Sheet chung — Sheet còn cho sidebar mobile): body `px-4 pb-4`
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)

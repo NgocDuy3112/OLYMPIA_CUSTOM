@@ -70,6 +70,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   const [pages, setPages] = useState(1);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [sidebar, setSidebar] = useState<{
     kind: BankFormKind;
     preset?: Partial<BankFormValue>;
@@ -174,7 +175,8 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   if (!res.ok) throw new Error(json.message ?? "Tạo thất bại");
   const id = String(json.data?.id ?? "");
   if (v.mediaFile) {
-    const key = await uploadQuestionMedia(bankCode, v.mediaFile);
+    setUploadPct(0);
+    const key = await uploadQuestionMedia(bankCode, v.mediaFile, setUploadPct);
     await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -189,6 +191,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
       setFormError(err instanceof Error ? err.message : "Lỗi kết nối khi lưu");
     } finally {
       setSaving(false);
+      setUploadPct(null);
     }
   }, [sidebar, fetchBank]);
 
@@ -281,6 +284,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
         preset={sidebar?.preset}
         initial={null}
         saving={saving}
+        uploadPct={uploadPct}
         onClose={() => { setSidebar(null); setFormError(""); }}
         onSave={saveSidebar}
       />

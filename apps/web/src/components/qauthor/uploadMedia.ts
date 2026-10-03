@@ -14,6 +14,8 @@ interface PresignResponse {
 export async function uploadQuestionMedia(
   code: string,
   file: File,
+  /** % 0→100 — fetch không có progress event nên PUT bằng XHR. */
+  onProgress?: (pct: number) => void,
 ): Promise<string> {
   const okType =
     file.type.startsWith("image/") ||
@@ -31,12 +33,22 @@ export async function uploadQuestionMedia(
     throw new Error(presignJson.message ?? "Không tạo được upload URL");
   }
   const putUrl = (presignJson.data as { url: string }).url;
-  const putRes = await fetch(putUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", putUrl);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error("Upload file thất bại"));
+    };
+    xhr.onerror = () => reject(new Error("Lỗi kết nối khi upload file"));
+    xhr.send(file);
   });
-  if (!putRes.ok) throw new Error("Upload file thất bại");
   return key;
 }
 

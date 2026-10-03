@@ -9,6 +9,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { API_BASE_URL } from "@/configs";
 import type { BankData } from "./bankTypes";
+import { Progress } from "@/components/ui/progress";
 
 /** Nhóm form soạn theo vòng: KĐ chung form, GM theo set, VĐ theo domain/độ khó. */
 export type BankFormKind = "kd" | "bp" | "vd" | "gm-key" | "gm-hint";
@@ -41,6 +42,8 @@ interface EditBankSidebarProps {
   preset?: Partial<BankFormValue>;
   initial: BankData | null;
   saving: boolean;
+  /** % upload media (null = không upload) — hiện thanh Progress. */
+  uploadPct?: number | null;
   onClose: () => void;
   onSave: (value: BankFormValue) => void | Promise<void>;
 }
@@ -82,7 +85,7 @@ function LocalPreview({ file }: { file: File }) {
 }
 
 /** Sidebar soạn + sửa câu bank (QAuthor): content/answer bắt buộc, media preview inline. */
-export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onClose, onSave }: EditBankSidebarProps) {
+export function EditBankSidebar({ open, mode, kind, preset, initial, saving, uploadPct, onClose, onSave }: EditBankSidebarProps) {
   const [value, setValue] = useState<BankFormValue>(EMPTY);
   const [dupNote, setDupNote] = useState("");
   const [checkingDup, setCheckingDup] = useState(false);
@@ -206,6 +209,17 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, onC
         </div>
       }
     >
+      {uploadPct !== null && uploadPct !== undefined && (
+        <div className="flex items-center gap-2">
+          <Progress
+            value={uploadPct}
+            className="flex-1 [&_[data-slot=progress-track]]:h-2"
+          />
+          <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+            Đang upload {uploadPct}%
+          </span>
+        </div>
+      )}
       {mode === "create" && (
         <p className="text-xs text-muted-foreground font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
       )}
