@@ -134,7 +134,7 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
           variant="default"
           onClick={handleEnter}
           disabled={done}
-          className="flex-1 bg-primary hover:bg-primary/90 disabled:opacity-40 text-xs font-medium"
+          className="flex-1 disabled:opacity-40 text-xs font-medium"
           title="Mở phòng điều khiển"
         >
           Vào trận

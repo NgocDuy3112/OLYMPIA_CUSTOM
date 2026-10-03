@@ -257,7 +257,7 @@ export function GroupStageManager({
         <Button
           variant="default"
           onClick={() => setShowForm(true)}
-          className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
+          className="gap-1.5 text-sm font-medium"
         >
           <Plus size={14} /> Thêm trận nhánh
         </Button>
@@ -302,7 +302,7 @@ export function GroupStageManager({
               variant="default"
               onClick={() => void handleApplyTemplate()}
               disabled={saving}
-              className="gap-1.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-medium"
+              className="gap-1.5 disabled:opacity-50 text-sm font-medium"
             >
               <LayoutTemplate size={14} /> {saving ? "…" : "Áp template"}
             </Button>

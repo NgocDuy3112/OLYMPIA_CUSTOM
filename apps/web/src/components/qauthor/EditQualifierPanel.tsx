@@ -88,7 +88,7 @@ export function EditQualifierPanel({
               }
               void onSave({ ...value, options: JSON.stringify(filled) });
             }}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm"
+            className="text-primary-foreground font-semibold text-sm"
           >
             Lưu
           </Button>

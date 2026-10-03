@@ -202,7 +202,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
             variant="default"
             onClick={() => void onSave(value)}
             disabled={saving}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 font-semibold text-sm"
+            className="text-primary-foreground disabled:opacity-50 font-semibold text-sm"
           >
             {saving ? "Đang lưu…" : mode === "create" ? "Tạo câu" : "Lưu"}
           </Button>

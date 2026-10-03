@@ -153,7 +153,7 @@ export default function CScoreEditModal({
             variant="default"
             onClick={() => void save()}
             disabled={saving || loading || !questionCode}
-            className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-semibold"
+            className="disabled:opacity-50 text-sm font-semibold"
           >
             {saving ? "Đang lưu..." : "Lưu"}
           </Button>

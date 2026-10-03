@@ -153,7 +153,7 @@ export function MatchScheduleForm({
           variant="default"
           onClick={() => onSubmit(form)}
           disabled={saving || !form.matchName.trim()}
-          className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 font-semibold text-sm transition-colors"
+          className="px-4 py-2 rounded-lg disabled:opacity-50 font-semibold text-sm transition-colors"
         >
           {saving ? "Đang lưu…" : isEdit ? "Lưu thay đổi" : "Lên lịch"}
         </Button>

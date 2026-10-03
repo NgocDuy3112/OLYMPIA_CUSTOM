@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "@/configs";
+import { putFileWithProgress } from "@/lib/upload";
 
 interface PresignResponse {
   status: "success" | "error";
@@ -33,22 +34,7 @@ export async function uploadQuestionMedia(
     throw new Error(presignJson.message ?? "Không tạo được upload URL");
   }
   const putUrl = (presignJson.data as { url: string }).url;
-  await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", putUrl);
-    xhr.setRequestHeader("Content-Type", file.type);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(Math.min(100, Math.round((e.loaded / e.total) * 100)));
-      }
-    };
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error("Upload file thất bại"));
-    };
-    xhr.onerror = () => reject(new Error("Lỗi kết nối khi upload file"));
-    xhr.send(file);
-  });
+  await putFileWithProgress(putUrl, file, onProgress);
   return key;
 }
 

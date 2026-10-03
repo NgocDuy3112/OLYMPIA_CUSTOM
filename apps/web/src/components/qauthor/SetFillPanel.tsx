@@ -373,7 +373,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   onClick={() => setConfirm({ kind: "activate" })}
                   disabled={saving || !detail.matchCode}
                   title={!detail.matchCode ? "Gán mã trận trước" : undefined}
-                  className="bg-primary hover:bg-primary/90 disabled:opacity-50 font-semibold text-sm"
+                  className="disabled:opacity-50 font-semibold text-sm"
                 >
                   Kích hoạt cho trận
                 </Button>
@@ -418,7 +418,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="default"
                   onClick={() => void saveMatchCode()}
                   disabled={saving}
-                  className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
+                  className="disabled:opacity-50 text-sm"
                 >
                   Gán
                 </Button>
@@ -460,7 +460,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                   variant="default"
                   onClick={() => void loadGmSets()}
                   disabled={bankLoading || !isDraft}
-                  className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
+                  className="disabled:opacity-50 text-sm"
                 >
                   {bankLoading ? "Đang tải…" : "Tải set GM đã duyệt"}
                 </Button>

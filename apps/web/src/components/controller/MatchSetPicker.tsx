@@ -133,7 +133,7 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
                 size="xs"
                 variant="default"
                 onClick={() => setActivating(s)}
-                className="gap-1 bg-primary hover:bg-primary/90 text-xs font-semibold whitespace-nowrap"
+                className="gap-1 text-xs font-semibold whitespace-nowrap"
               >
                 <Zap size={13} /> Kích hoạt
               </Button>

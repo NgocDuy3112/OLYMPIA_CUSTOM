@@ -211,7 +211,7 @@ const PGameAccessPage: React.FC = () => {
                 variant="default"
                 onClick={() => handleSubmit()}
                 disabled={isLoading || pin.some((d) => d === "")}
-                className="flex-1 bg-primary hover:bg-primary/90 text-foreground"
+                className="flex-1 text-foreground"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">

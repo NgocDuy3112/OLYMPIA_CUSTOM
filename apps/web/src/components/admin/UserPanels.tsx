@@ -63,7 +63,7 @@ const cancelClass =
   "px-4 py-2 rounded-lg bg-accent/50 hover:bg-accent text-sm transition-colors";
 
 const saveClass =
-  "px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 disabled:opacity-50 font-semibold text-sm transition-colors";
+  "px-4 py-2 rounded-lg disabled:opacity-50 font-semibold text-sm transition-colors";
 
 interface UserEditPanelProps {
   item: PanelUser | null;

@@ -241,7 +241,7 @@ const AdminMcpTokensPage = () => {
             variant="default"
             onClick={() => void createToken()}
             disabled={!name.trim() || !userCode}
-            className="bg-primary hover:bg-primary/90 disabled:opacity-50"
+            className="disabled:opacity-50"
           >
             Cấp
           </Button>

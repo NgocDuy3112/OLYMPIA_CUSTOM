@@ -96,7 +96,7 @@ export function EditMatchQuestionPanel({
             variant="default"
             onClick={() => void onSave({ content, answer, explanation, mediaUrl }, mediaFile)}
             disabled={saving || !content.trim() || !answer.trim()}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 font-semibold text-sm"
+            className="text-primary-foreground disabled:opacity-50 font-semibold text-sm"
           >
             {saving ? "Đang lưu…" : "Lưu thay đổi"}
           </Button>

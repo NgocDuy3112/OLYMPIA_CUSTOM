@@ -450,7 +450,7 @@ const AdminGameManagingPage = () => {
           <Button
             variant="default"
             onClick={handleNew}
-            className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
+            className="gap-1.5 text-sm font-medium"
           >
             <Plus size={15} /> Lên lịch
           </Button>

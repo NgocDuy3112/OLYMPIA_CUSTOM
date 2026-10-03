@@ -364,7 +364,7 @@ const AdminUsersPage = () => {
           <Button
             variant="default"
             onClick={() => setShowAdd(true)}
-            className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
+            className="gap-1.5 text-sm font-medium"
           >
             <Plus size={15} /> Thêm người dùng
           </Button>

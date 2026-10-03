@@ -78,7 +78,7 @@ export function TournamentFormPanel({
             variant="default"
             onClick={() => void onSubmit(form)}
             disabled={saving || !form.tournamentName.trim()}
-            className="gap-2 px-5 py-2 rounded-lg bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50 text-sm font-medium"
+            className="gap-2 px-5 py-2 rounded-lg transition-colors disabled:opacity-50 text-sm font-medium"
           >
             {saving ? (
               <Loader2 size={15} className="animate-spin" />

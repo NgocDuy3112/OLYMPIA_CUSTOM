@@ -211,7 +211,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
       setSaving(false);
       setUploadPct(null);
     }
-  }, [sidebar, fetchBank]);
+  }, [sidebar, fetchBank, group]);
 
 
   const columns: DataTableColumn<BankData>[] = React.useMemo(() => {

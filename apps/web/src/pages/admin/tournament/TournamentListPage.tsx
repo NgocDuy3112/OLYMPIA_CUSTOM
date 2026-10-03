@@ -171,7 +171,7 @@ const TournamentListPage: React.FC = () => {
           <Button
             variant="default"
             onClick={() => setShowCreate(true)}
-            className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
+            className="gap-1.5 text-sm font-medium"
           >
             <Plus size={15} /> Tạo giải đấu
           </Button>
@@ -191,7 +191,7 @@ const TournamentListPage: React.FC = () => {
           <Button
             variant="default"
             onClick={() => setShowCreate(true)}
-            className="bg-primary hover:bg-primary/90 text-foreground text-sm font-medium"
+            className="text-foreground text-sm font-medium"
           >
             Tạo giải đấu đầu tiên
           </Button>

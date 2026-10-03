@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Pencil, LogOut, Trophy, Camera, X } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { useAvatarSrc } from "@/hooks/useAvatarSrc";
+import { putFileWithProgress } from "@/lib/upload";
+import { Progress } from "@/components/ui/progress";
 import { PublicLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -40,6 +42,7 @@ const ProfilePage: React.FC = () => {
   const [tournaments, setTournaments] = useState<MyTournament[]>([]);
   const [tournamentsLoading, setTournamentsLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const { src: avatarSrc, retry: retryAvatar } = useAvatarSrc(profile?.avatarUrl);
 
   useEffect(() => {
@@ -134,12 +137,8 @@ const ProfilePage: React.FC = () => {
       }
       const putUrl: string = presignJson.data.url;
       // 2. PUT file to S3
-      const putRes = await fetch(putUrl, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error("Upload ảnh thất bại");
+      setUploadPct(0);
+      await putFileWithProgress(putUrl, file, setUploadPct);
       // 3. Save avatar key to profile
       const patchRes = await fetch(`${API_BASE_URL}/users/me`, {
         method: "PATCH",
@@ -156,6 +155,7 @@ const ProfilePage: React.FC = () => {
       setError(err instanceof Error ? err.message : "Upload avatar thất bại");
     } finally {
       setUploadingAvatar(false);
+      setUploadPct(null);
     }
   };
 
@@ -250,6 +250,14 @@ const ProfilePage: React.FC = () => {
               {profile.role}
             </span>
           </div>
+          {uploadingAvatar && (
+            <div className="mt-3 flex items-center gap-2">
+              <Progress value={uploadPct ?? 0} className="flex-1" />
+              <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+                {uploadPct ?? 0}%
+              </span>
+            </div>
+          )}
           <div className="flex gap-2 mt-4">
             {editing ? (
               <>

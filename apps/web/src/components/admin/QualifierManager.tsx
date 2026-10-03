@@ -272,7 +272,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         <Button
           variant="default"
           onClick={() => setShowForm(true)}
-          className="gap-1.5 bg-primary hover:bg-primary/90 text-sm font-medium"
+          className="gap-1.5 text-sm font-medium"
         >
           <Plus size={14} /> Thêm câu
         </Button>
@@ -305,7 +305,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               variant="default"
               onClick={() => void handleCreate()}
               disabled={saving}
-              className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm font-semibold"
+              className="disabled:opacity-50 text-sm font-semibold"
             >
               {saving ? "Đang lưu…" : "Lưu câu hỏi"}
             </Button>

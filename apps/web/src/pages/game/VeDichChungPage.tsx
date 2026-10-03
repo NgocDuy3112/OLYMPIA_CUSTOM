@@ -527,7 +527,6 @@ const AdminVeDichChungView = () => {
       clearQuestion,
       currentMatchCode,
       sendMessage,
-      clearPendingBroadcastTimer,
       broadcastPendingVeDichQuestion,
       setVideoPlayState,
       setPlayers,

@@ -293,7 +293,7 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
           variant="default"
           onClick={() => void handleGenerateNext()}
           disabled={generating || phases.length === 0}
-          className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-xs font-medium"
+          className="disabled:opacity-50 text-xs font-medium"
           title="POST generate-next-round từ phase cuối"
         >
           {generating ? "Đang sinh…" : "Sinh vòng tiếp theo"}

@@ -84,7 +84,7 @@ const AdminHealthPage = () => {
           variant="default"
           onClick={() => void check()}
           disabled={checking}
-          className="bg-primary hover:bg-primary/90 disabled:opacity-50 text-xs text-foreground"
+          className="disabled:opacity-50 text-xs text-foreground"
         >
           {checking ? "Đang kiểm tra…" : "Kiểm tra lại"}
         </Button>
