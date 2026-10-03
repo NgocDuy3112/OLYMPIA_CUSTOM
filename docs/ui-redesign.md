@@ -196,6 +196,15 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - **Sheet indent:** `SheetContent` gốc không padding, header/footer `p-4` nhưng body =0 → content dính mép.
   Sửa ở `SidePanel` (không sửa Sheet chung — Sheet còn cho sidebar mobile): body `px-4 pb-4`
 
+**Update 03/10 10:09 — Bank: thêm view Lưới (grid):**
+- `BankCardGrid` mới: card = code + `StatusBadge` (Đã duyệt/Không duyệt/Chờ duyệt) + content `line-clamp-3`
+  + đáp án `line-clamp-2` + chip meta (round/domain/hint) + **thumb ảnh media** (dùng `resolveAvatarUrl`,
+  `loading=lazy`, onError retry; file không phải ảnh → chip `Có media đính kèm`)
+- Toolbar `BankTab`: toggle `[☰ danh sách] [▦ lưới]` (aria-pressed, sau ô tìm) — **list là mặc định**,
+  lựa chọn lưu `localStorage["bank_view"]`; **GM tab ẩn toggle** (giữ set-cards + list)
+- Grid dùng chung server pagination → export `DataTablePager` ghép dưới lưới (Trước · 1…N · Sau)
+- Grid `sm:grid-cols-2 xl:grid-cols-3`, cùng data/filter/empty state với list
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)

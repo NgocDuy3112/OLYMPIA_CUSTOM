@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { LayoutGrid, List, Plus, Search } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { EditBankSidebar, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
@@ -20,9 +20,11 @@ import {
 import { NativeSelect } from "@/components/ui/native-select";
 import {
   DataTable,
+  DataTablePager,
   createDataTableColumns,
   type DataTableColumn,
 } from "@/components/shared/data-table";
+import { BankCardGrid } from "./BankCardGrid";
 
 const logger = createLogger("BankTab");
 
@@ -68,6 +70,22 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(1);
+  // List = mặc định; grid chỉ là lựa chọn xem thêm (nhớ trong localStorage).
+  const [bankView, setBankView] = useState<"list" | "grid">(() => {
+    try {
+      return localStorage.getItem("bank_view") === "grid" ? "grid" : "list";
+    } catch {
+      return "list";
+    }
+  });
+  const changeView = (v: "list" | "grid") => {
+    setBankView(v);
+    try {
+      localStorage.setItem("bank_view", v);
+    } catch {
+      /* ignore */
+    }
+  };
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadPct, setUploadPct] = useState<number | null>(null);
@@ -346,6 +364,34 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               </InputGroupButton>
             </InputGroupAddon>
           </InputGroup>
+          {group !== "gm" && (
+            <div
+              className="flex shrink-0 items-center gap-0.5 rounded-lg border border-border p-0.5"
+              role="group"
+              aria-label="Kiểu xem danh sách bank"
+            >
+              <Button
+                size="icon-sm"
+                variant={bankView === "list" ? "secondary" : "ghost"}
+                onClick={() => changeView("list")}
+                aria-label="Xem dạng danh sách"
+                aria-pressed={bankView === "list"}
+                title="Danh sách"
+              >
+                <List size={15} />
+              </Button>
+              <Button
+                size="icon-sm"
+                variant={bankView === "grid" ? "secondary" : "ghost"}
+                onClick={() => changeView("grid")}
+                aria-label="Xem dạng lưới"
+                aria-pressed={bankView === "grid"}
+                title="Lưới"
+              >
+                <LayoutGrid size={15} />
+              </Button>
+            </div>
+          )}
           <NativeSelect
             value={used}
             onChange={(e) => setUsed(e.target.value as "all" | "only" | "unused")}
@@ -422,17 +468,32 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
           </div>
         )}
         <p className="text-xs text-muted-foreground">{total} câu</p>
-        <DataTable
-          columns={columns}
-          data={rows}
-          loading={loading}
-          emptyText="Chưa có dữ liệu bank. Bấm Tìm để tải."
-          serverPagination={{
-            page: page - 1,
-            pageCount: pages,
-            onPageChange: (p) => void fetchBank(p + 1),
-          }}
-        />
+        {group !== "gm" && bankView === "grid" ? (
+          <BankCardGrid
+            rows={rows}
+            loading={loading}
+            emptyText="Chưa có dữ liệu bank. Bấm Tìm để tải."
+            pager={
+              <DataTablePager
+                page={page - 1}
+                count={Math.max(1, pages)}
+                go={(p) => void fetchBank(p + 1)}
+              />
+            }
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={rows}
+            loading={loading}
+            emptyText="Chưa có dữ liệu bank. Bấm Tìm để tải."
+            serverPagination={{
+              page: page - 1,
+              pageCount: pages,
+              onPageChange: (p) => void fetchBank(p + 1),
+            }}
+          />
+        )}
       </div>
     </div>
   );

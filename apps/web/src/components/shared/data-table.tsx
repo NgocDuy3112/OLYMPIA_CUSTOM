@@ -102,7 +102,7 @@ const pageItems = (page: number, count: number): Array<number | "gap"> => {
 };
 
 /** Pager dạng số: Trước · 1 … 4 5 6 … 20 · Sau (shadcn Pagination block). */
-function DataTablePager({
+export function DataTablePager({
   page,
   count,
   go,
