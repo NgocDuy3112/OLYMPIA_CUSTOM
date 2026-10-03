@@ -4,6 +4,7 @@ import SignInPage from "@/pages/auth/SignInPage";
 import AuthCallbackPage from "@/pages/auth/AuthCallbackPage";
 import RulesPage from "@/pages/info/RulesPage";
 import { ErrorBoundary } from "@/components/shared/ErrorBoundary";
+import { Toaster } from "@/components/ui/toast";
 import { ENABLE_OVERLAY } from "@/configs";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
@@ -26,6 +27,7 @@ function App() {
       <div className="min-h-screen bg-oc bg-cover bg-center bg-no-repeat">
         <Suspense fallback={null}>
           <ErrorBoundary>
+          <Toaster />
           <Routes>
             <Route path="/" element={<Navigate to="/tournament/*" replace />} />
             <Route path="/login" element={<SignInPage />} />

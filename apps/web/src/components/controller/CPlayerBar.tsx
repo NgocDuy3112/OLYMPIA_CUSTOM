@@ -6,6 +6,7 @@ import type { PlayerStatus } from "@/types/player";
 import { requestScoreReview } from "@/api/scoreReviews";
 import CScoreEditModal from "@/components/controller/CScoreEditModal";
 import { Button } from "@/components/ui/button";
+import { notifyError } from "@/lib/notify";
 
 interface CPlayerBarProps {
   player: PlayerStatus;
@@ -79,7 +80,7 @@ const CPlayerBar: React.FC<CPlayerBarProps> = ({
       ]);
       onReviewRequested?.(data.id);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Không gửi duyệt được.");
+      notifyError(err instanceof Error ? err.message : "Không gửi duyệt được.");
     } finally {
       setIsRequestingReview(false);
     }

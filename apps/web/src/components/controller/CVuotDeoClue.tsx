@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 import { RenderMedia } from "@/components/shared/RenderMedia";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Question } from "@/types/question";
 
 interface CVuotDeoClueProps {
@@ -66,35 +71,25 @@ const CVuotDeoClue: React.FC<CVuotDeoClueProps> = ({
         )}
       </div>
 
-      {showPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-background/60"
-            onClick={() => setShowPopup(false)}
-          />
-          <div className="relative bg-white rounded-xl p-6 max-w-lg w-full shadow-lg">
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              className="absolute top-3 right-3 text-muted-foreground/70"
-              onClick={() => setShowPopup(false)}
-              aria-label="Close clue"
-            >
-              ✕
-            </Button>
-
-            {question.questionMediaURL ? (
-              <div>
-                <RenderMedia mediaUrl={question.questionMediaURL} />
-              </div>
-            ) : (
-              <div className="text-foreground">
-                {question.questionExplanation ?? "No clue available."}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={showPopup}
+        onOpenChange={(v) => {
+          if (!v) setShowPopup(false);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Gợi ý</DialogTitle>
+          </DialogHeader>
+          {question.questionMediaURL ? (
+            <RenderMedia mediaUrl={question.questionMediaURL} />
+          ) : (
+            <p className="text-foreground">
+              {question.questionExplanation ?? "No clue available."}
+            </p>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

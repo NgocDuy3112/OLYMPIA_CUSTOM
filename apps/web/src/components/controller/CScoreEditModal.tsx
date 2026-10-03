@@ -6,6 +6,7 @@ import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("CScoreEditModal");
 
@@ -97,7 +98,7 @@ export default function CScoreEditModal({
       onSaved(updated?.cumulative_score ?? currentScore);
       onClose();
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Không thể cập nhật điểm");
+      notifyError(error instanceof Error ? error.message : "Không thể cập nhật điểm");
     } finally {
       setSaving(false);
     }

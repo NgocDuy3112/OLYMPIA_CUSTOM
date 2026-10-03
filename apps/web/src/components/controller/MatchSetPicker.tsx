@@ -4,6 +4,7 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
 import { Button } from "@/components/ui/button";
+import { notifyError, notifySuccess } from "@/lib/notify";
 
 const logger = createLogger("MatchSetPicker");
 
@@ -66,16 +67,16 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
       );
       const json = await res.json().catch(() => null);
       if (!res.ok || json?.status !== "success") {
-        alert(`Kích hoạt thất bại: ${json?.message ?? `HTTP ${res.status}`}`);
+        notifyError(`Kích hoạt thất bại: ${json?.message ?? `HTTP ${res.status}`}`);
         return;
       }
       setActivating(null);
       await fetchSets();
       onChanged();
-      alert(json.message ?? "Đã kích hoạt");
+      notifySuccess(json.message ?? "Đã kích hoạt");
     } catch (err) {
       logger.error("Error activating set:", err);
-      alert("Lỗi kết nối khi kích hoạt");
+      notifyError("Lỗi kết nối khi kích hoạt");
     } finally {
       setSaving(false);
     }

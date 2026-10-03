@@ -167,6 +167,15 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - **Xóa gameplay NavBar**: render trong `CGameShell` + `WaitingPage`, xoá file `navigation/CNavBar.tsx`
   (Sảnh Chờ/Tổng quan đã có sidebar, Đăng xuất đã có footer user card — không mất gì)
 
+**Update 03/10 09:27 — P1 shadcn-ify màn trận:**
+- `lib/notify.ts` (`notifyError`/`notifySuccess`) + mount `<Toaster />` ở `App.tsx` — toast bottom-right
+- `alert()` ×7 → Toast: WaitingPage (lỗi hoàn thành), CPlayerBar (gửi duyệt), MatchSetPicker ×3 (kích hoạt),
+  CScoreEditModal (cập nhật điểm)
+- `window.confirm("Xác nhận hoàn thành trận?")` → **AlertDialog** (Huỷ / Hoàn thành) — WaitingPage
+- Modal tự làm confirm Từ khoá (GiaiMa) → **AlertDialog** (Title+Description+Cancel/Action)
+- Popup `bg-white` Vuốt đéo clue → **Dialog** (dark, Esc + overlay + close chuẩn) — bỏ card trắng giữa nền tối
+- Kiểm tra cuối: `grep alert(|window.confirm` trong màn trận = 0
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)

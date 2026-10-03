@@ -50,6 +50,16 @@ import PQuestionBoard from "@/components/player/PQuestionBoard";
 import PAnswerBox from "@/components/player/PAnswerBox";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SGiaiMaPage } from "@/components/shared/SGiaiMaPage";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const logger = createLogger("GiaiMaPage");
 const TIME_LIMIT = 15;
@@ -1752,37 +1762,35 @@ const PlayerGiaiMaView = () => {
         }
         showKeyIcon
       />
-      {showKeywordConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60">
-          <div className="bg-primary/40 border-2 border-brand rounded-xl p-6 sm:p-8 flex flex-col gap-4 max-w-sm w-full mx-4">
-            <p className="text-foreground font-bold text-xl text-center">
-              Xác nhận nộp Từ khoá
-            </p>
-            <p className="text-foreground/80 text-center text-sm">
+      <AlertDialog
+        open={showKeywordConfirm}
+        onOpenChange={(v) => {
+          if (!v) setShowKeywordConfirm(false);
+        }}
+      >
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận nộp Từ khoá</AlertDialogTitle>
+            <AlertDialogDescription>
               Bạn chỉ được nộp <strong>1 lần</strong>. Không thể thay đổi.
-            </p>
-            <p className="text-foreground font-bold text-center text-lg">
-              "{keywordToConfirm}"
-            </p>
-            <div className="flex gap-4 justify-center">
-              <Button
-                variant="secondary"
-                onClick={() => setShowKeywordConfirm(false)}
-                className="bg-muted text-foreground font-bold hover:bg-muted/80"
-              >
-                HỦY
-              </Button>
-              <Button
-                variant="default"
-                onClick={() => void handleConfirmKeyword()}
-                className="bg-primary text-foreground font-bold hover:bg-primary/90"
-              >
-                XÁC NHẬN
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="text-center text-lg font-bold text-foreground">
+            &quot;{keywordToConfirm}&quot;
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-muted font-bold text-foreground hover:bg-muted/80">
+              HỦY
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void handleConfirmKeyword()}
+              className="bg-primary font-bold text-primary-foreground hover:bg-primary/90"
+            >
+              XÁC NHẬN
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PBasePageLayout>
   );
 };

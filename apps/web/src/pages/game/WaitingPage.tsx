@@ -16,6 +16,17 @@ import { usePlayerTelemetry } from "@/hooks/usePlayerTelemetry";
 import { useRoleSession } from "@/hooks/useRoleSession";
 import { useWaitingState } from "@/hooks/useWaitingState";
 import { createLogger } from "@/utils/logger";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { notifyError } from "@/lib/notify";
 import { buildPlayersSnapshot } from "@/utils/playerHelpers";
 import {
   buildWaitingBroadcastPlayers,
@@ -183,10 +194,10 @@ const AdminWaitingView = () => {
       setIsEndingMatch(false);
     }
   }, [currentMatchCode, sendMessage, sendPlayersSnapshot]);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+
   const handleFinishMatch = useCallback(async () => {
     if (!currentMatchCode) return;
-    const confirmed = window.confirm("Xác nhận hoàn thành trận đấu?");
-    if (!confirmed) return;
     setIsFinishingMatch(true);
     try {
       await finishMatch(currentMatchCode);
@@ -194,7 +205,7 @@ const AdminWaitingView = () => {
       await sendMessage({ type: "match_state", state: "finished" });
       await sendPlayersSnapshot();
     } catch {
-      alert("Lỗi kết nối khi hoàn thành trận đấu");
+      notifyError("Lỗi kết nối khi hoàn thành trận đấu");
     } finally {
       setIsFinishingMatch(false);
     }
@@ -303,8 +314,33 @@ const AdminWaitingView = () => {
               <Flag size={18} />
               {isEndingMatch ? "Đang gửi..." : "Kết thúc trận đấu"}
             </CControlButton>
+            <AlertDialog
+              open={showFinishConfirm}
+              onOpenChange={setShowFinishConfirm}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Xác nhận hoàn thành trận đấu?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Hành động kết thúc trận — không thể hoàn tác.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Huỷ</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      setShowFinishConfirm(false);
+                      void handleFinishMatch();
+                    }}
+                    className="bg-success font-semibold text-success-foreground hover:bg-success/90"
+                  >
+                    Hoàn thành
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <CControlButton
-              onClick={handleFinishMatch}
+              onClick={() => setShowFinishConfirm(true)}
               disabled={isFinishingMatch || !currentMatchCode || matchFinished}
               className="!min-w-56 !h-14 xl:!min-w-64 xl:!h-16 text-sm xl:text-base gap-2 flex items-center justify-center bg-success hover:bg-success/90 disabled:bg-success/80 text-success-foreground"
             >
