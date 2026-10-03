@@ -22,6 +22,7 @@ import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { Button } from "@/components/ui/button";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SKhoiDongPage } from "@/components/shared/SKhoiDongPage";
+import { Badge } from "@/components/ui/badge";
 
 const QUESTION_PREFIX = "OC3_Q_KD_R";
 const MAX_QUESTION_INDEX = 6;
@@ -213,9 +214,9 @@ const PlayerKhoiDongRiengView = () => {
         }}
       >
         {hasPlayerWithSecondAttempt && (
-          <div className="bg-warning text-warning-foreground px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+          <Badge className="animate-pulse bg-warning text-warning-foreground">
             Trả lời lần 2
-          </div>
+          </Badge>
         )}
       </PQuestionBoard>
     </PBasePageLayout>

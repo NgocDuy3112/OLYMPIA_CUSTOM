@@ -176,6 +176,17 @@ thẳng (viền dashed = trống, xanh = đã có, viền tím + ring = đang ch
 - Popup `bg-white` Vuốt đéo clue → **Dialog** (dark, Esc + overlay + close chuẩn) — bỏ card trắng giữa nền tối
 - Kiểm tra cuối: `grep alert(|window.confirm` trong màn trận = 0
 
+**Update 03/10 09:42 — P2 shadcn-ify:**
+- Chip "Trả lời lần 2" (SKhoiDong + KhoiDongRieng) → **Badge** `bg-warning` + animate-pulse
+- Lưới ô KĐ (`SKhoiDong boxStates`) → **ToggleGroup multiple** + ToggleGroupItem (roving focus,
+  aria tự quản; bridge `api.toggle` bằng diff mảng — value kiểu **string[]** dù single theo Base UI version này,
+  index phải `String(index)`) + `aria-label="Câu n"`
+- Chọn quyền năng VĐC/VĐR → **ToggleGroup** single (value `selectedPower ? [selectedPower] : []`,
+  per-item `disabled` theo điểm), giữ nguyên class selected
+- **Progress: không tồn tại thanh tiến độ tự làm nào trong màn trận** → không có chỗ để thay (không làm cưỡng)
+- Skip có lý do: lưới PQuestionBoard (hành vi WS-driven qua callback, không có state cục bộ → map sang ToggleGroup rủi ro),
+  clue grid Giải mã (PlayerClueCard = card nội dung, không phải toggle)
+
 **Update 10:05 — Pagination dạng số:**
 - `DataTablePager` trong `data-table.tsx` dùng shadcn `Pagination` block: `Trước · 1 … 4 5 6 … 20 · Sau`
   (≤7 trang hiện hết, ngược lại window 3 + ellipsis) — hoạt động cho cả client (`setPagination`)

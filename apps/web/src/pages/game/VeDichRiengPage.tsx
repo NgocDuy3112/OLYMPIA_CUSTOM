@@ -60,9 +60,9 @@ import CPlayerBar from "@/components/controller/CPlayerBar";
 import VeDichQuestionCard from "@/components/shared/VeDichQuestionCard";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
 import { PSubmitButton } from "@/components/player/PSubmitButton";
-import { Button } from "@/components/ui/button";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SVeDichPage } from "@/components/shared/SVeDichPage";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 const logger = createLogger("VeDichRiengPage");
 const DEFAULT_QUESTION: Question = {
@@ -1534,26 +1534,34 @@ const PlayerVeDichRiengView = () => {
           <p className="text-foreground font-bold text-lg">
             Chọn quyền năng ({powerWindowCountdown}s)
           </p>
-          <div className="flex gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => void handleSelectPower("star")}
+          <ToggleGroup
+            spacing={4}
+            value={selectedPower ? [selectedPower] : []}
+            onValueChange={(next) => {
+              const arr = (Array.isArray(next) ? next : [next]) as string[];
+              const pick = arr.find((v) => v === "star" || v === "shield");
+              if (pick && pick !== selectedPower) {
+                void handleSelectPower(pick as "star" | "shield");
+              }
+            }}
+          >
+            <ToggleGroupItem
+              value="star"
               disabled={currentPoints === 20}
               className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "star" ? "bg-warning text-background" : "bg-warning/20 text-warning border-2 border-warning/50"} ${currentPoints === 20 ? "opacity-40" : ""}`}
             >
               <Star size={20} />
               <span>Ngôi Sao Hy Vọng</span>
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => void handleSelectPower("shield")}
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="shield"
               disabled={currentPoints === 50}
               className={`gap-2 rounded-xl px-4 py-3 font-bold ${selectedPower === "shield" ? "bg-primary text-background" : "bg-primary/20 text-brand border-2 border-primary/50"} ${currentPoints === 50 ? "opacity-40" : ""}`}
             >
               <Shield size={20} />
               <span>Bảo Hộ Miễn Trừ</span>
-            </Button>
-          </div>
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
       )}
       <div className="p-3">

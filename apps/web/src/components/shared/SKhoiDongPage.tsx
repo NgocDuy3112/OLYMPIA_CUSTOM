@@ -8,7 +8,8 @@ import { useGameWebSocket } from "@/hooks/useGameWebSocket";
 import { useQuestionState } from "@/hooks/useQuestionState";
 import { useRevealAnswer } from "@/hooks/useRevealAnswer";
 import type { RawPlayer } from "@/utils/playerHelpers";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface SKhoiDongPageProps {
   variant: "chung" | "rieng";
@@ -166,25 +167,38 @@ export function SKhoiDongPage({
         {(api) => (
           <div className="flex gap-2 items-center">
             {hasSecondAttempt && (
-              <div className="bg-warning text-warning-foreground px-3 py-1 rounded-md text-sm font-bold shrink-0 animate-pulse">
+              <Badge className="animate-pulse bg-warning text-warning-foreground">
                 Trả lời lần 2
-              </div>
+              </Badge>
             )}
-            {api.boxStates.map((_, index) => {
-              const active = api.activeIndices.includes(index);
-              return (
-                <Button
-                  key={index}
-                  type="button"
-                  variant="ghost"
-                  aria-pressed={active}
-                  onClick={() => api.toggle(index)}
-                  className={`w-8 h-8 tablet:w-10 tablet:h-10 rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-brand text-background border border-brand" : "bg-transparent border border-primary text-foreground hover:bg-primary/70"}`}
-                >
-                  {index + 1}
-                </Button>
-              );
-            })}
+            <ToggleGroup
+              multiple
+              value={api.activeIndices.map(String)}
+              onValueChange={(next) => {
+                const prev = new Set(api.activeIndices);
+                const arr = (Array.isArray(next) ? next : [next]) as string[];
+                const nums = arr.map(Number);
+                const added = nums.find((i) => !prev.has(i));
+                const removed = api.activeIndices.find((i) => !nums.includes(i));
+                const target = added ?? removed;
+                if (target !== undefined) api.toggle(target);
+              }}
+              className="flex-wrap"
+            >
+              {api.boxStates.map((_, index) => {
+                const active = api.activeIndices.includes(index);
+                return (
+                  <ToggleGroupItem
+                    key={index}
+                    value={String(index)}
+                    aria-label={`Câu ${index + 1}`}
+                    className={`w-8 h-8 tablet:w-10 tablet:h-10 rounded-md text-xs tablet:text-sm font-bold transition-colors duration-150 ${active ? "bg-brand text-background border border-brand" : "bg-transparent border border-primary text-foreground hover:bg-primary/70"}`}
+                  >
+                    {index + 1}
+                  </ToggleGroupItem>
+                );
+              })}
+            </ToggleGroup>
           </div>
         )}
       </CQuestionBoard>
