@@ -12,13 +12,14 @@ export const calculateScore = async (
     question_code: questionCode,
     user_codes: userCodes,
   });
+  const payload = {
+    match_code: matchCode,
+    question_code: questionCode,
+    action,
+    user_codes: userCodes,
+  };
   return requestJson("/scoreboard/calculate", {
     method: "POST",
-    body: JSON.stringify({
-      match_code: matchCode,
-      question_code: questionCode,
-      action,
-      user_codes: userCodes,
-    }),
+    body: JSON.stringify(payload),
   });
 };

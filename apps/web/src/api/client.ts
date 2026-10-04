@@ -11,7 +11,6 @@ export function getApiErrorMessage(
   fallback = "Request failed",
 ): string {
   if (error instanceof ApiError) return error.message || fallback;
-  if (error instanceof Error) return error.message || fallback;
   return fallback;
 }
 
@@ -49,6 +48,45 @@ export async function requestJson<T>(
     throw new ApiError(detail, response.status, data);
   }
   return data as T;
+}
+
+
+export async function apiCall<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<ApiResponse<T>> {
+  const body = await requestJson<ApiResponse<T>>(path, options);
+  if (body && body.status === "error") {
+    throw new ApiError(body.message || "Request failed", 0, body.data);
+  }
+  return body;
+}
+
+export function apiGet<T>(path: string): Promise<ApiResponse<T>> {
+  return apiCall<T>(path);
+}
+
+/**
+ * GET nhưng trả về `null` khi API báo lỗi (HTTP != 200 hoặc `status: "error"`),
+ * dành cho chỗ chỉ cần dữ liệu rỗng thay vì bắt lỗi thủ công.
+ * Lỗi mạng vẫn ném ra ngoài để caller xử lý như `apiGet`.
+ */
+export function apiGetOrNull<T>(path: string): Promise<ApiResponse<T> | null> {
+  return apiGet<T>(path).catch((error: unknown) => {
+    if (error instanceof ApiError) return null;
+    throw error;
+  });
+}
+
+export function apiSend<T>(
+  method: "POST" | "PUT" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<ApiResponse<T>> {
+  return apiCall<T>(path, {
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 }
 
 function getResponseError(data: unknown): string | null {

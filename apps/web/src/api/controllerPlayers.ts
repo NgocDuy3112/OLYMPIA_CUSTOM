@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiGet } from "@/api/client";
 import { normalizePlayerSnapshot } from "@/utils/playerHelpers";
 import type { RawPlayer, RawProfile, RawScore } from "@/utils/playerHelpers";
 
@@ -13,6 +13,23 @@ type CacheEntry = { promise: Promise<Snapshot>; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL = 1500;
 
+/**
+ * Giữ nguyên thông báo lỗi của bản fetch thô: đọc `detail` của API,
+ * không có thì dùng fallback; lỗi mạng ném thẳng ra ngoài.
+ */
+function snapshotError(error: unknown, fallback: string): Error {
+  if (error instanceof ApiError) {
+    const body = error.details;
+    const detail =
+      body && typeof body === "object"
+        ? (body as { detail?: unknown }).detail
+        : undefined;
+    return new Error(typeof detail === "string" && detail ? detail : fallback);
+  }
+  if (error instanceof Error) return error;
+  return new Error(fallback);
+}
+
 export async function loadControllerPlayersSnapshot(
   matchCode: string,
   force = false,
@@ -22,30 +39,30 @@ export async function loadControllerPlayersSnapshot(
   if (!force && existing && existing.expiresAt > Date.now())
     return existing.promise;
 
-  const promise = Promise.all([
-    fetch(`${API_BASE_URL}/matches/${encodeURIComponent(matchCode)}/players`, {
-      credentials: "include",
-    }),
-    fetch(`${API_BASE_URL}/scoreboard/${encodeURIComponent(matchCode)}`, {
-      credentials: "include",
-    }),
-  ]).then(async ([playersResponse, scoreboardResponse]) => {
-    const playersJson = await playersResponse.json();
-    const scoreboardJson = await scoreboardResponse.json();
-    if (!playersResponse.ok)
-      throw new Error(playersJson?.detail ?? "Failed to load players");
-    if (!scoreboardResponse.ok)
-      throw new Error(scoreboardJson?.detail ?? "Failed to load scoreboard");
-    const snapshot = normalizePlayerSnapshot({
-      players: playersJson?.data?.players,
-      scoreboard: scoreboardJson?.data?.scoreboard,
-    });
-    const profiles = snapshot.players.map((entry) => ({
-      user_code: entry.user_code,
-      user_name: entry.user_name ?? "",
-    }));
-    return { ...snapshot, profiles };
+  const playersRequest = apiGet<{ players?: unknown }>(
+    `/matches/${encodeURIComponent(matchCode)}/players`,
+  ).catch((error: unknown) => {
+    throw snapshotError(error, "Failed to load players");
   });
+  const scoreboardRequest = apiGet<{ scoreboard?: unknown }>(
+    `/scoreboard/${encodeURIComponent(matchCode)}`,
+  ).catch((error: unknown) => {
+    throw snapshotError(error, "Failed to load scoreboard");
+  });
+
+  const promise = Promise.all([playersRequest, scoreboardRequest]).then(
+    ([playersJson, scoreboardJson]) => {
+      const snapshot = normalizePlayerSnapshot({
+        players: playersJson.data?.players,
+        scoreboard: scoreboardJson.data?.scoreboard,
+      });
+      const profiles = snapshot.players.map((entry) => ({
+        user_code: entry.user_code,
+        user_name: entry.user_name ?? "",
+      }));
+      return { ...snapshot, profiles };
+    },
+  );
 
   cache.set(key, { promise, expiresAt: Date.now() + CACHE_TTL });
   try {
