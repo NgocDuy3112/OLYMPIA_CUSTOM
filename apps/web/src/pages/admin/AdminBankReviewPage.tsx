@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiCall, apiGet } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { SetFillSidePanel } from "@/components/qauthor/SetFillSidePanel";
@@ -16,6 +16,7 @@ import {
 import {
   createDataTableColumns,
 } from "@/components/shared/data-table-core";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("AdminBankReviewPage");
 
@@ -164,9 +165,11 @@ const AdminBankReviewPage = () => {
     setLoading(true);
     try {
       if (group === "sets") {
-        const res = await fetch(`${API_BASE_URL}/question-sets`, { credentials: "include" });
-        const json = await res.json();
-        setSets(json.status === "success" && Array.isArray(json.data) ? json.data : []);
+        const json = await apiGet<SetCard[]>("/question-sets").catch((err) => {
+          if (err instanceof ApiError) return null;
+          throw err;
+        });
+        setSets(json && Array.isArray(json.data) ? json.data : []);
         setRows([]);
         setTotal(0);
         setPages(1);
@@ -182,12 +185,17 @@ const AdminBankReviewPage = () => {
       if (status) params.set("status", status);
       params.set("limit", "20");
       params.set("page", String(p));
-      const res = await fetch(`${API_BASE_URL}/bank/search?${params.toString()}`, {
-        credentials: "include",
+      const json = await apiGet<{
+        rows: Record<string, unknown>[];
+        total?: number;
+        pages?: number;
+        page?: number;
+      }>(`/bank/search?${params.toString()}`).catch((err) => {
+        if (err instanceof ApiError) return null;
+        throw err;
       });
-      const json = await res.json();
-      if (json.status === "success" && json.data) {
-        setRows((json.data.rows as Record<string, unknown>[]).map(toRow));
+      if (json && json.data) {
+        setRows(json.data.rows.map(toRow));
         setTotal(json.data.total ?? 0);
         setPages(json.data.pages ?? 1);
         setPage(json.data.page ?? p);
@@ -214,20 +222,22 @@ const AdminBankReviewPage = () => {
     setAskingOcee(true);
     setOceeOpinion("");
     try {
-      const res = await fetch(`${API_BASE_URL}/agent/ask`, {
+      const payload = {
+        question: `Cho ý kiến duyệt câu bank ${selected.bankCode}: nội dung "${selected.content}", đáp án "${selected.answer}".`,
+      };
+      const json = await apiCall<{ answer?: string }>("/agent/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          question: `Cho ý kiến duyệt câu bank ${selected.bankCode}: nội dung "${selected.content}", đáp án "${selected.answer}".`,
-        }),
+        body: JSON.stringify(payload),
+      }).catch((err) => {
+        if (err instanceof ApiError) {
+          setOceeOpinion(`Lỗi: ${err.message}`);
+          return null;
+        }
+        throw err;
       });
-      const json = await res.json().catch(() => null);
-      setOceeOpinion(
-        res.ok && json?.status === "success"
-          ? String(json.data?.answer ?? "(trống)")
-          : `Lỗi: ${json?.message ?? `HTTP ${res.status}`}`,
-      );
+      if (json) {
+        setOceeOpinion(String(json.data?.answer ?? "(trống)"));
+      }
     } catch (err) {
       logger.error("Error asking OCee:", err);
       setOceeOpinion("Lỗi kết nối OCee.");
@@ -239,29 +249,22 @@ const AdminBankReviewPage = () => {
   const review = useCallback(async (decision: "approved" | "rejected") => {
     if (!selected) return;
     if (decision === "rejected" && !note.trim()) {
-      alert("Từ chối phải ghi chú thích.");
+      notifyError("Từ chối phải ghi chú thích.");
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/bank/${encodeURIComponent(selected.id)}/review`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ decision, note: note.trim() || undefined }),
-        },
-      );
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message ?? "Duyệt thất bại");
+      await apiCall(`/bank/${encodeURIComponent(selected.id)}/review`, {
+        method: "POST",
+        body: JSON.stringify({ decision, note: note.trim() || undefined }),
+      });
       setSelected(null);
       setNote("");
       setOceeOpinion("");
       await fetchRows(page);
     } catch (err) {
       logger.error("Error reviewing:", err);
-      alert(err instanceof Error ? err.message : "Lỗi kết nối");
+      notifyError(err instanceof Error ? err.message : "Lỗi kết nối");
     } finally {
       setSaving(false);
     }
