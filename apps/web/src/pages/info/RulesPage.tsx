@@ -1,6 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import {
+  ScrollSpy,
+  ScrollSpyLink,
+  ScrollSpyNav,
+  ScrollSpySection,
+  ScrollSpyViewport,
+} from "@/components/ui/scroll-spy";
 import {
   ArrowLeft,
   Zap,
@@ -65,7 +72,7 @@ const PointMatrix: React.FC<{ headers: string[]; rows: ScoreRow[] }> = ({
                   {headers[i + 1]}
                 </span>
                 <span
-                  className={`font-mono font-bold ${TONE_TEXT[cell.tone ?? "neutral"]}`}
+                  className={` font-bold ${TONE_TEXT[cell.tone ?? "neutral"]}`}
                 >
                   {cell.text}
                   <span className="text-xs font-normal">đ</span>
@@ -98,7 +105,7 @@ const DurationList: React.FC<{ rows: ScoreRow[] }> = ({ rows }) => (
               style={{ width: `${pct}%` }}
             />
           </span>
-          <span className="min-w-28 text-right font-mono text-sm font-bold text-brand">
+          <span className="min-w-28 text-right  text-sm font-bold text-brand">
             {row.cells[0]?.text}
           </span>
         </div>
@@ -354,30 +361,6 @@ const RulesPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeId, setActiveId] = useState<string>(SECTIONS[0].id);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
-        }
-      },
-      { rootMargin: "-20% 0px -70% 0px" },
-    );
-    SECTIONS.forEach(({ id }) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  const scrollTo = (id: string) => {
-    document
-      .getElementById(id)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   return (
     <PublicLayout>
       <div className="max-w-5xl mx-auto">
@@ -433,99 +416,85 @@ const RulesPage: React.FC = () => {
         </div>
 
         {}
+        <ScrollSpy
+          value={activeId}
+          onValueChange={setActiveId}
+          orientation="vertical"
+          offset={96}
+        >
         <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
-          {}
           <aside className="hidden lg:block">
-            <nav className="card card-wide sticky top-8 p-4!" aria-label="Mục lục">
+            <ScrollSpyNav
+              className="card card-wide sticky top-8 flex-col gap-1 p-4!"
+              aria-label="Mục lục"
+            >
               <h2 className="mb-3 px-1 text-xs font-semibold uppercase tracking-widest text-brand">
                 Mục lục
               </h2>
-              <ul className="space-y-1">
-                {SECTIONS.map((section) => {
-                  const active = activeId === section.id;
-                  return (
-                    <li key={section.id}>
-                      <Button
-                        variant="ghost"
-                        onClick={() => scrollTo(section.id)}
-                        className={`w-full cursor-pointer justify-start gap-2.5 rounded-lg px-3 py-2 text-sm ${
-                          active
-                            ? "bg-primary/25 font-medium text-foreground"
-                            : "text-foreground/80 hover:bg-accent/50 hover:text-foreground"
-                        }`}
-                      >
-                        <section.icon
-                          size={15}
-                          className={active ? "text-brand" : "text-brand"}
-                          aria-hidden
-                        />
-                        <span>{section.title}</span>
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
+              {SECTIONS.map((section) => (
+                <ScrollSpyLink
+                  key={section.id}
+                  value={section.id}
+                  className="flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-foreground/80 hover:bg-accent/50 hover:text-foreground data-[state=active]:bg-primary/25 data-[state=active]:font-medium data-[state=active]:text-foreground"
+                >
+                  <section.icon size={15} className="text-brand" aria-hidden />
+                  <span>{section.title}</span>
+                </ScrollSpyLink>
+              ))}
+            </ScrollSpyNav>
           </aside>
 
-          {}
           <div className="mb-6 overflow-x-auto lg:hidden">
             <div className="flex w-max gap-2 pb-1">
-              {SECTIONS.map((section) => {
-                const active = activeId === section.id;
-                return (
-                  <Button
-                    key={section.id}
-                    variant="ghost"
-                    onClick={() => scrollTo(section.id)}
-                    className={`cursor-pointer gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs ${
-                      active
-                        ? "border-brand/50 bg-primary/25 text-foreground"
-                        : "border-border bg-accent/50 text-foreground/80 hover:text-foreground"
-                    }`}
-                  >
-                    <section.icon size={13} className="text-brand" aria-hidden />
-                    {section.title}
-                  </Button>
-                );
-              })}
+              {SECTIONS.map((section) => (
+                <ScrollSpyLink
+                  key={section.id}
+                  value={section.id}
+                  className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-accent/50 px-3.5 py-1.5 text-xs text-foreground/80 hover:text-foreground data-[state=active]:border-brand/50 data-[state=active]:bg-primary/25 data-[state=active]:text-foreground"
+                >
+                  <section.icon size={13} className="text-brand" aria-hidden />
+                  {section.title}
+                </ScrollSpyLink>
+              ))}
             </div>
           </div>
 
-          {}
-          <div className="min-w-0">
-            <div className="space-y-6">
-              {SECTIONS.map((section, index) => (
-                <section
-                  key={section.id}
-                  id={section.id}
-                  className="card card-wide scroll-mt-6 p-5! sm:p-7!"
-                >
-                  <div className="mb-4 flex items-center gap-3.5">
-                    <div className="relative rounded-xl bg-primary/20 p-2.5">
-                      <section.icon size={20} className="text-brand" aria-hidden />
-                      <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-foreground">
-                        {index + 1}
-                      </span>
-                    </div>
-                    <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
-                      {section.title}
-                    </h2>
+          <ScrollSpyViewport className="min-w-0 gap-6">
+            {SECTIONS.map((section, index) => (
+              <ScrollSpySection
+                key={section.id}
+                value={section.id}
+                render={
+                  <section
+                    id={section.id}
+                    className="card card-wide scroll-mt-24 p-5! sm:p-7!"
+                  />
+                }
+              >
+                <div className="mb-4 flex items-center gap-3.5">
+                  <div className="relative rounded-xl bg-primary/20 p-2.5">
+                    <section.icon size={20} className="text-brand" aria-hidden />
+                    <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-foreground">
+                      {index + 1}
+                    </span>
                   </div>
-                  <div className="space-y-3 leading-relaxed text-foreground/80 [&_strong]:text-foreground [&_p]:leading-relaxed">
-                    {section.content}
-                  </div>
-                </section>
-              ))}
-            </div>
+                  <h2 className="font-display text-2xl font-bold text-foreground sm:text-3xl">
+                    {section.title}
+                  </h2>
+                </div>
+                <div className="space-y-3 leading-relaxed text-foreground/80 [&_strong]:text-foreground [&_p]:leading-relaxed">
+                  {section.content}
+                </div>
+              </ScrollSpySection>
+            ))}
 
-            {}
             <p className="mb-4 mt-10 text-center text-xs text-muted-foreground">
               Luật chơi có thể được cập nhật. Phiên bản hiện tại áp dụng cho giải
               đấu Olympia Custom.
             </p>
-          </div>
+          </ScrollSpyViewport>
         </div>
+        </ScrollSpy>
       </div>
     </PublicLayout>
   );

@@ -31,19 +31,19 @@ const EMPTY: MatchQuestionCreateValue = {
   options: "",
 };
 
-interface MatchQuestionCreatePanelProps {
+interface MatchQuestionCreateSidePanelProps {
   open: boolean;
   saving: boolean;
   onClose: () => void;
   onCreate: (value: MatchQuestionCreateValue) => void | Promise<void>;
 }
 
-export function MatchQuestionCreatePanel({
+export function MatchQuestionCreateSidePanel({
   open,
   saving,
   onClose,
   onCreate,
-}: MatchQuestionCreatePanelProps) {
+}: MatchQuestionCreateSidePanelProps) {
   const [value, setValue] = useState<MatchQuestionCreateValue>(EMPTY);
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export function MatchQuestionCreatePanel({
             value={value.questionCode}
             onChange={set("questionCode")}
             placeholder="OC3_Q_KD_C_1"
-            className={`${formInputClass} font-mono`}
+            className={`${formInputClass} `}
           />
         </FormField>
         <FormField label="Đáp án" required>
@@ -133,14 +133,14 @@ export function MatchQuestionCreatePanel({
           <Input
             value={value.mediaUrl}
             onChange={set("mediaUrl")}
-            className={`${formInputClass} font-mono`}
+            className={`${formInputClass} `}
           />
         </FormField>
         <FormField label="Options JSON" hint="A|B|C hoặc JSON array">
           <Input
             value={value.options}
             onChange={set("options")}
-            className={`${formInputClass} font-mono`}
+            className={`${formInputClass} `}
           />
         </FormField>
       </div>
@@ -156,4 +156,4 @@ export function MatchQuestionCreatePanel({
   );
 }
 
-export default MatchQuestionCreatePanel;
+export default MatchQuestionCreateSidePanel;

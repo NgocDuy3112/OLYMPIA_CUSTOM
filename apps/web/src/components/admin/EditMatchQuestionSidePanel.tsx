@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useState } from "react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { FormField, formInputClass } from "@/components/shared/ui/form";
+import { MediaFilePicker } from "@/components/shared/MediaFilePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +14,7 @@ export interface MatchQuestionEditValue {
   mediaUrl: string;
 }
 
-interface EditMatchQuestionPanelProps {
+interface EditMatchQuestionSidePanelProps {
   item: QuestionData | null;
   matchCode: string;
   saving: boolean;
@@ -24,19 +25,18 @@ interface EditMatchQuestionPanelProps {
   ) => void | Promise<void>;
 }
 
-export function EditMatchQuestionPanel({
+export function EditMatchQuestionSidePanel({
   item,
   matchCode,
   saving,
   onClose,
   onSave,
-}: EditMatchQuestionPanelProps) {
+}: EditMatchQuestionSidePanelProps) {
   const [content, setContent] = useState("");
   const [answer, setAnswer] = useState("");
   const [explanation, setExplanation] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaFile, setMediaFile] = useState<File | null>(null);
-  const mediaInputRef = useRef<HTMLInputElement>(null);
   const open = item !== null;
 
   useEffect(() => {
@@ -46,7 +46,6 @@ export function EditMatchQuestionPanel({
     setExplanation(item.explanation ?? "");
     setMediaUrl(item.media_url ?? "");
     setMediaFile(null);
-    if (mediaInputRef.current) mediaInputRef.current.value = "";
   }, [open, item]);
 
   useEffect(() => {
@@ -59,9 +58,11 @@ export function EditMatchQuestionPanel({
     }
   }, [open, item, matchCode, mediaUrl, mediaFile]);
 
-  const handlePickFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !item) return;
+  const handlePickFile = (file: File | null) => {
+    if (!file || !item) {
+      setMediaFile(null);
+      return;
+    }
     setMediaFile(file);
     const ext = file.name.split(".").pop() || "png";
     const suggestedKey =
@@ -96,7 +97,7 @@ export function EditMatchQuestionPanel({
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground font-mono">
+      <p className="text-xs text-muted-foreground ">
         {item?.question_code}
       </p>
       <FormField label="Nội dung">
@@ -130,33 +131,21 @@ export function EditMatchQuestionPanel({
             value={mediaUrl}
             onChange={(e) => setMediaUrl(e.target.value)}
             placeholder="OC3_M01T/OC3_Q_... (VD: OC<number>_M_*/OC<number>_Q_*)"
-            className={`${formInputClass} font-mono`}
+            className={`${formInputClass} `}
           />
-          <div className="flex items-center gap-2">
-            <input
-              ref={mediaInputRef}
-              type="file"
-              accept="image/*,audio/*,video/*"
-              className="hidden"
-              onChange={handlePickFile}
-            />
-            <Button
-              variant="secondary"
-              onClick={() => mediaInputRef.current?.click()}
-              className="flex-1 bg-accent/50 hover:bg-accent text-foreground text-sm truncate"
-              title="Upload file mới"
-            >
-              {mediaFile ? mediaFile.name : "Chọn file mới"}
-            </Button>
-            {mediaFile && (
-              <span className="text-xs text-success whitespace-nowrap">
-                Sẽ upload khi lưu
-              </span>
-            )}
-          </div>
+          <MediaFilePicker
+            value={mediaFile}
+            onChange={handlePickFile}
+            dropLabel="Chọn file mới"
+          />
+          {mediaFile && (
+            <span className="text-xs text-success whitespace-nowrap">
+              Sẽ upload khi lưu
+            </span>
+          )}
           {mediaUrl && (
             <div className="text-xs text-muted-foreground">
-              S3 key: <span className="font-mono">{mediaUrl}</span>
+              S3 key: <span className="">{mediaUrl}</span>
             </div>
           )}
         </div>
@@ -165,4 +154,4 @@ export function EditMatchQuestionPanel({
   );
 }
 
-export default EditMatchQuestionPanel;
+export default EditMatchQuestionSidePanel;

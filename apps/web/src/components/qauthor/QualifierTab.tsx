@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
 import { Plus, Search, Trophy } from "lucide-react";
 import { RowActions } from "@/components/shared/RowActions";
-import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
+import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import { EditQualifierPanel, type QualifierEditValue } from "./EditQualifierPanel";
+import { EditQualifierSidePanel, type QualifierEditValue } from "./EditQualifierSidePanel";
 import { QualifierOptionsInput } from "./QualifierOptionsInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -305,8 +305,8 @@ export const QualifierTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <EditQualifierPanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
-      <ConfirmActionPanel
+      <EditQualifierSidePanel item={editing} onClose={() => setEditing(null)} onSave={saveEdit} />
+      <ConfirmActionSidePanel
         open={pendingClose !== null}
         title="Chốt + chấm?"
         tone="danger"
@@ -317,7 +317,7 @@ export const QualifierTab = () => {
         onClose={() => setPendingClose(null)}
         onConfirm={confirmCloseQuestion}
       />
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={deleting !== null}
         title="Xoá câu vòng loại?"
         tone="danger"
@@ -336,7 +336,7 @@ export const QualifierTab = () => {
               value={tournamentCode}
               onChange={(e) => setTournamentCode(e.target.value)}
               placeholder="Mã giải đấu (VD: OC3_T_...)"
-              className="font-mono text-sm"
+              className=" text-sm"
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton
@@ -369,7 +369,7 @@ export const QualifierTab = () => {
                 style={{ width: `${Math.min(questions.length / 16 * 100, 100)}%` }}
               />
             </div>
-            <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+            <span className=" text-xs text-muted-foreground whitespace-nowrap">
               {questions.length}/16 câu · {questions.filter((q) => q.status === "closed").length} đã chốt
             </span>
           </div>
@@ -411,7 +411,7 @@ export const QualifierTab = () => {
         <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">Vị trí và nội dung</p>
-          <span className="font-mono text-xs text-muted-foreground">
+          <span className=" text-xs text-muted-foreground">
             {questions.length}/16 câu · còn trống {freePositions.length}
           </span>
         </div>
@@ -425,7 +425,7 @@ export const QualifierTab = () => {
               <NativeSelect
                 value={form.position}
                 onChange={(e) => handlePositionChange(e.target.value)}
-                className="w-full font-mono"
+                className="w-full "
               >
                 {[...Array(16)].map((_, i) => {
                   const p = i + 1;
@@ -444,7 +444,7 @@ export const QualifierTab = () => {
                 value={form.questionCode}
                 onChange={(e) => setForm((p) => ({ ...p, questionCode: e.target.value.toUpperCase() }))}
                 placeholder="VL_01"
-                className="h-9 text-foreground font-mono text-sm"
+                className="h-9 text-foreground  text-sm"
               />
             </label>
           </div>
@@ -482,7 +482,7 @@ export const QualifierTab = () => {
               value={form.mediaUrl}
               onChange={(e) => setForm((p) => ({ ...p, mediaUrl: e.target.value }))}
               placeholder="Media URL"
-              className="h-9 text-foreground font-mono text-sm"
+              className="h-9 text-foreground  text-sm"
             />
           </div>
         </div>
@@ -492,7 +492,7 @@ export const QualifierTab = () => {
       {closeResult && (
         <div className="bg-success/10 border border-success rounded-xl p-4 text-sm">
           <p className="font-bold text-success">Đã chốt + chấm</p>
-          <p className="text-success/80 font-mono text-xs mt-1">
+          <p className="text-success/80  text-xs mt-1">
             X đúng={String(closeResult.correctCount)} · Y sai={String(closeResult.wrongCount)} · Z bỏ={String(closeResult.noAnswerCount)} · đúng +{String(closeResult.perCorrect)} · sai {String(closeResult.perWrong)}
           </p>
         </div>
@@ -516,7 +516,7 @@ export const QualifierTab = () => {
                   <span
                     key={pos}
                     title={q ? `${q.questionCode} · ${q.status === "closed" ? "Đã chốt" : "Mở"}` : `Trống vị trí ${pos}`}
-                    className={`w-8 h-8 flex items-center justify-center rounded-lg font-mono text-xs border ${
+                    className={`w-8 h-8 flex items-center justify-center rounded-lg  text-xs border ${
                       !q
                         ? "bg-accent/50 border-border text-muted-foreground/70"
                         : q.status === "closed"
@@ -532,8 +532,8 @@ export const QualifierTab = () => {
             {[...questions].sort((a, b) => a.position - b.position).map((q) => (
               <div key={q.id} className="flex flex-col gap-1.5 py-2 border-b border-border/50">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="font-mono text-xs text-muted-foreground w-6">#{q.position}</span>
-                  <span className="font-mono text-xs text-success">{q.questionCode}</span>
+                  <span className=" text-xs text-muted-foreground w-6">#{q.position}</span>
+                  <span className=" text-xs text-success">{q.questionCode}</span>
                   <p className="flex-1 truncate text-foreground">{q.content}</p>
                   {q.status === "closed" ? (
                     <span className="px-2 py-0.5 rounded-full text-xs bg-success/20 text-success whitespace-nowrap">Đã chốt</span>
@@ -564,7 +564,7 @@ export const QualifierTab = () => {
                     return (
                       <span
                         key={i}
-                        className={`px-2 py-0.5 rounded text-xs font-mono ${
+                        className={`px-2 py-0.5 rounded text-xs  ${
                           correct ? "bg-success/25 text-success" : "bg-accent/50 text-muted-foreground"
                         }`}
                       >
@@ -599,7 +599,7 @@ export const QualifierTab = () => {
           standings.map((s) => (
             <div key={s.playerId} className="flex items-center gap-3 py-2 border-b border-border/50 text-sm">
               <span
-                className={`w-7 h-7 flex items-center justify-center rounded-full font-mono text-xs font-bold ${
+                className={`w-7 h-7 flex items-center justify-center rounded-full  text-xs font-bold ${
                   s.rank === 1
                     ? "bg-warning/25 text-warning"
                     : s.rank === 2
@@ -612,10 +612,10 @@ export const QualifierTab = () => {
                 {s.rank}
               </span>
               <p className="flex-1 text-foreground">
-                {s.userName} <span className="text-muted-foreground font-mono text-xs">· {s.userCode}</span>
+                {s.userName} <span className="text-muted-foreground  text-xs">· {s.userCode}</span>
               </p>
-              <span className="font-mono text-xs text-muted-foreground hidden sm:inline">{s.correctCount} đúng</span>
-              <span className="font-bold text-foreground font-mono">{s.totalPoints}đ</span>
+              <span className=" text-xs text-muted-foreground hidden sm:inline">{s.correctCount} đúng</span>
+              <span className="font-bold text-foreground ">{s.totalPoints}đ</span>
             </div>
           ))
         )}

@@ -57,7 +57,7 @@ export const OverviewStats = () => {
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận để xem tổng quan"
-          className="flex-1 px-3 py-1.5 rounded-lg bg-background/60 border border-border text-foreground font-mono text-xs"
+          className="flex-1 px-3 py-1.5 rounded-lg bg-background/60 border border-border text-foreground  text-xs"
         />
         <Button
           variant="default"

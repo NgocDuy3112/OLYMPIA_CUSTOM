@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { Search } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { FormField, formInputClass } from "@/components/shared/ui/form";
 import { RenderMedia } from "@/components/shared/RenderMedia";
+import { MediaFilePicker } from "@/components/shared/MediaFilePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -31,7 +32,7 @@ export interface BankFormValue {
   removeMedia: boolean;
 }
 
-interface EditBankSidebarProps {
+interface EditBankSidePanelProps {
   open: boolean;
   mode: "create" | "edit";
   kind: BankFormKind;
@@ -65,19 +66,14 @@ const KIND_TITLE: Record<BankFormKind, string> = {
   "gm-hint": "GM — gợi ý",
 };
 
-function LocalPreview({ file }: { file: File }) {
-  const url = useMemo(() => URL.createObjectURL(file), [file]);
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
-  if (file.type.startsWith("image/")) {
-    return <img src={url} alt="Preview" className="max-h-48 rounded object-contain" />;
+function validateBankMedia(file: File) {
+  if (!file.type.startsWith("image/") && !file.type.startsWith("audio/") && !file.type.startsWith("video/")) {
+    return "Chỉ nhận ảnh/audio/video.";
   }
-  if (file.type.startsWith("video/")) {
-    return <video src={url} controls className="max-h-48 w-full rounded" />;
-  }
-  return <audio src={url} controls className="w-full" />;
+  if (file.size > 50 * 1024 * 1024) return "File tối đa 50MB.";
 }
 
-export function EditBankSidebar({ open, mode, kind, preset, initial, saving, uploadPct, onClose, onSave }: EditBankSidebarProps) {
+export function EditBankSidePanel({ open, mode, kind, preset, initial, saving, uploadPct, onClose, onSave }: EditBankSidePanelProps) {
   const [value, setValue] = useState<BankFormValue>(EMPTY);
   const [dupNote, setDupNote] = useState("");
   const [checkingDup, setCheckingDup] = useState(false);
@@ -123,21 +119,6 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
     (key: keyof BankFormValue) =>
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
       setValue((prev) => ({ ...prev, [key]: e.target.value }));
-
-  const pickFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/") && !file.type.startsWith("audio/") && !file.type.startsWith("video/")) {
-      alert("Chỉ nhận ảnh/audio/video.");
-      return;
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      alert("File tối đa 50MB.");
-      return;
-    }
-    setValue((prev) => ({ ...prev, mediaFile: file, removeMedia: false }));
-    e.target.value = "";
-  };
 
   const checkDuplicate = async () => {
     const q = value.content.trim().slice(0, 40);
@@ -205,15 +186,12 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
         <div className="flex items-center gap-2">
           <Progress
             value={uploadPct}
-            className="flex-1 [&_[data-slot=progress-track]]:h-2"
+            className="flex-1 **:data-[slot=progress-track]:h-2"
           />
-          <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+          <span className=" text-xs whitespace-nowrap text-muted-foreground">
             Đang upload {uploadPct}%
           </span>
         </div>
-      )}
-      {mode === "create" && (
-        <p className="text-xs text-muted-foreground font-mono">Mã bank tự sinh lúc lưu (QB_VÒNG_HHMMSS_DDMMYYYY).</p>
       )}
       <FormField label="Nội dung" required>
         <Textarea
@@ -231,21 +209,21 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
             className={formInputClass}
           />
         </FormField>
-        <FormField label="Round">
+        <FormField label="Lượt thi">
           {kind === "kd" && mode === "create" ? (
             <NativeSelect
               value={value.roundHint}
               onChange={(e) => setValue((prev) => ({ ...prev, roundHint: e.target.value }))}
-              className={`${formInputClass} w-full font-mono`}
+              className={`${formInputClass} w-full`}
             >
-              <option value="KD_C">KĐ chung</option>
-              <option value="KD_R">KĐ riêng</option>
+              <option value="KD_C">Chung</option>
+              <option value="KD_R">Riêng</option>
             </NativeSelect>
           ) : (
             <Input
               value={value.roundHint}
               readOnly
-              className={`${formInputClass} font-mono opacity-70`}
+              className={`${formInputClass}  opacity-70`}
             />
           )}
         </FormField>
@@ -256,7 +234,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
             <NativeSelect
               value={value.domain}
               onChange={(e) => setValue((prev) => ({ ...prev, domain: e.target.value }))}
-              className={`${formInputClass} w-full font-mono`}
+              className={`${formInputClass} w-full `}
             >
               <option value="">— chọn —</option>
               {VD_DOMAINS.map((d) => (
@@ -268,7 +246,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
             <NativeSelect
               value={value.difficulty}
               onChange={(e) => setValue((prev) => ({ ...prev, difficulty: e.target.value }))}
-              className={`${formInputClass} w-full font-mono`}
+              className={`${formInputClass} w-full `}
             >
               <option value="">— chọn —</option>
               {VD_LEVELS.map((l) => (
@@ -285,7 +263,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
               value={value.setCode}
               readOnly
               placeholder="server tự gen S1, S2, ... khi tạo KEY"
-              className={`${formInputClass} font-mono opacity-70`}
+              className={`${formInputClass}  opacity-70`}
             />
           </FormField>
           <FormField label="Vị trí" required>
@@ -293,7 +271,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
               <NativeSelect
                 value={value.hintIndex}
                 onChange={(e) => setValue((prev) => ({ ...prev, hintIndex: e.target.value }))}
-                className={`${formInputClass} w-full font-mono`}
+                className={`${formInputClass} w-full `}
               >
                 <option value="">— chọn —</option>
                 {GM_HINTS.map((h) => (
@@ -304,7 +282,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
               <Input
                 value={value.hintIndex}
                 readOnly
-                className={`${formInputClass} font-mono opacity-70`}
+                className={`${formInputClass}  opacity-70`}
               />
             )}
           </FormField>
@@ -326,7 +304,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
           value={value.citationUrl}
           onChange={set("citationUrl")}
           placeholder="https://…"
-          className={`${formInputClass} font-mono`}
+          className={`${formInputClass} `}
         />
       </FormField>
 
@@ -339,19 +317,7 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
           Media (tuỳ chọn — bỏ qua được, chèn sau cũng được)
         </summary>
         <div className="pt-2">
-          {value.mediaFile ? (
-        <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2">
-          <LocalPreview file={value.mediaFile} />
-          <Button
-            size="xs"
-            variant="ghost"
-            onClick={() => setValue((prev) => ({ ...prev, mediaFile: null }))}
-            className="text-xs text-destructive hover:text-destructive/80 self-start"
-          >
-            Bỏ file này
-          </Button>
-        </div>
-      ) : mode === "edit" && initial?.media_url && !value.removeMedia ? (
+          {mode === "edit" && initial?.media_url && !value.removeMedia && !value.mediaFile ? (
         <div className="rounded-lg bg-primary/10 border border-primary/30 p-3 flex flex-col gap-2">
           <div className="max-h-48 overflow-hidden rounded">
             <RenderMedia mediaUrl={initial.media_url} />
@@ -366,15 +332,12 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
           </Button>
         </div>
       ) : (
-        <label className="px-4 py-3 rounded-lg bg-accent/50 hover:bg-accent text-sm text-center cursor-pointer">
-          Chọn ảnh / audio / video
-          <input
-            type="file"
-            accept="image/*,audio/*,video/*"
-            className="hidden"
-            onChange={pickFile}
-          />
-        </label>
+        <MediaFilePicker
+          value={value.mediaFile}
+          onChange={(file) => setValue((prev) => ({ ...prev, mediaFile: file, removeMedia: false }))}
+          onValidate={validateBankMedia}
+          dropLabel="Chọn ảnh / audio / video"
+        />
         )}
         </div>
       </details>
@@ -387,4 +350,4 @@ export function EditBankSidebar({ open, mode, kind, preset, initial, saving, upl
   );
 }
 
-export default EditBankSidebar;
+export default EditBankSidePanel;

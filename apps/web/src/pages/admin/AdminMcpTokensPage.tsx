@@ -134,7 +134,7 @@ const AdminMcpTokensPage = () => {
     () => [
       helper.accessor("name", {
         header: "Tên",
-        cell: (info) => <span className="font-mono">{info.getValue()}</span>,
+        cell: (info) => <span className="">{info.getValue()}</span>,
       }),
       helper.accessor("userCode", {
         header: "Identity",
@@ -142,7 +142,7 @@ const AdminMcpTokensPage = () => {
           const u = info.getValue();
           const id = identities.find((i) => i.userCode === u);
           return (
-            <span className="font-mono text-xs">
+            <span className=" text-xs">
               {u}
               <span className="text-muted-foreground">
                 {" "}
@@ -155,13 +155,13 @@ const AdminMcpTokensPage = () => {
       helper.accessor("createdBy", {
         header: "Người cấp",
         cell: (info) => (
-          <span className="font-mono text-xs">{info.getValue() ?? "-"}</span>
+          <span className=" text-xs">{info.getValue() ?? "-"}</span>
         ),
       }),
       helper.accessor("createdAt", {
         header: "Ngày cấp",
         cell: (info) => (
-          <span className="font-mono text-xs">
+          <span className=" text-xs">
             {info.getValue()
               ? new Date(info.getValue()!).toLocaleString("vi-VN")
               : "-"}
@@ -193,7 +193,7 @@ const AdminMcpTokensPage = () => {
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="font-mono text-sm text-muted-foreground">
+        <span className=" text-sm text-muted-foreground">
           ({tokens.length} token)
         </span>
         <Button
@@ -258,7 +258,7 @@ const AdminMcpTokensPage = () => {
               Token hiện 1 lần duy nhất — copy ngay:
             </p>
             <div className="flex gap-2 items-center">
-              <code className="flex-1 break-all font-mono text-xs bg-background/40 rounded px-2 py-2">
+              <code className="flex-1 break-all  text-xs bg-background/40 rounded px-2 py-2">
                 {freshToken}
               </code>
               <Button

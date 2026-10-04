@@ -30,7 +30,7 @@ const columns = helper.columns([
   helper.accessor("id", {
     header: "ID",
     cell: (info) => (
-      <span className="flex items-center font-mono text-xs text-foreground/80">
+      <span className="flex items-center  text-xs text-foreground/80">
         {info.getValue().slice(0, 8)}…
         {info.row.index === 0 && (
           <span className="ml-2 rounded bg-success/20 px-2 py-0.5 text-[11px] font-bold text-success">
@@ -43,7 +43,7 @@ const columns = helper.columns([
   helper.accessor("matchCode", {
     header: "Match",
     cell: (info) => (
-      <span className="font-mono text-xs text-muted-foreground">
+      <span className=" text-xs text-muted-foreground">
         {info.getValue()}
       </span>
     ),
@@ -127,7 +127,7 @@ const AdminCheckpointsPage = () => {
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value)}
             placeholder="Nhập match code..."
-            className="font-mono text-sm"
+            className=" text-sm"
           />
           <InputGroupAddon align="inline-end">
             <InputGroupButton

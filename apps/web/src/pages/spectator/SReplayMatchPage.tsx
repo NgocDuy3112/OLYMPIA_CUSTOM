@@ -107,7 +107,7 @@ const SReplayMatchPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
             <div>
               <span className="text-muted-foreground">Mã trận:</span>
-              <span className="ml-2 text-foreground font-mono">{matchCode}</span>
+              <span className="ml-2 text-foreground ">{matchCode}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Trạng thái:</span>

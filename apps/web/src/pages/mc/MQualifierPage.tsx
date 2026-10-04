@@ -134,7 +134,7 @@ const MQualifierPage = () => {
           value={tournamentCode}
           onChange={(e) => setTournamentCode(e.target.value)}
           placeholder="Mã giải đấu (VD: OC3_T_...)"
-          className="font-mono text-sm"
+          className=" text-sm"
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
@@ -174,7 +174,7 @@ const MQualifierPage = () => {
               </Button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground font-mono">
+          <p className="text-xs text-muted-foreground ">
             Câu {current.position}/{questions.length} · {current.questionCode}
             {current.status === "closed" && (
               <span className="ml-2 px-2 py-0.5 rounded-full bg-success/20 text-success">Đã chốt</span>
@@ -187,7 +187,7 @@ const MQualifierPage = () => {
                 key={LETTERS[i] ?? i}
                 className="min-h-11 px-4 py-3 rounded-lg bg-accent text-base flex gap-3"
               >
-                <span className="font-bold font-mono">{LETTERS[i]}.</span>
+                <span className="font-bold ">{LETTERS[i]}.</span>
                 <span>{reveal ? opt : "• • •"}</span>
               </li>
             ))}
@@ -215,7 +215,7 @@ const MQualifierPage = () => {
           <ol className="flex flex-col gap-1 text-sm">
             {standings.map((s) => (
               <li key={s.playerId} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/50">
-                <span className="font-mono text-muted-foreground w-6">{s.rank}</span>
+                <span className=" text-muted-foreground w-6">{s.rank}</span>
                 <span className="flex-1 truncate text-lg font-semibold">{s.userName}</span>
                 <span className="font-bold">{s.totalPoints}đ</span>
               </li>

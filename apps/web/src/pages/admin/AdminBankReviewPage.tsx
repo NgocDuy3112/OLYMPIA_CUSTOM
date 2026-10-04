@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
-import { SetFillPanel } from "@/components/qauthor/SetFillPanel";
+import { SetFillSidePanel } from "@/components/qauthor/SetFillSidePanel";
 import { useBankEvents } from "@/hooks/useBankEvents";
 import { RenderMedia } from "@/components/shared/RenderMedia";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ const columns = helper.columns([
   helper.accessor("bankCode", {
     header: "Mã",
     cell: (info) => (
-      <span className="whitespace-nowrap font-mono text-xs">
+      <span className="whitespace-nowrap  text-xs">
         {info.getValue()}
         {info.row.original.roundHint && (
           <span className="ml-1 text-muted-foreground">
@@ -123,11 +123,11 @@ const columns = helper.columns([
     enableSorting: false,
     cell: (info) =>
       info.getValue() ? (
-        <span className="font-mono text-xs text-success" title={info.getValue()!}>
+        <span className=" text-xs text-success" title={info.getValue()!}>
           Có media
         </span>
       ) : (
-        <span className="font-mono text-xs text-muted-foreground">Chưa có</span>
+        <span className=" text-xs text-muted-foreground">Chưa có</span>
       ),
   }),
 ]);
@@ -321,7 +321,7 @@ const AdminBankReviewPage = () => {
         </Button>
       </div>
 
-      <SetFillPanel setCode={openSetCode} onClose={() => setOpenSetCode(null)} onChanged={fetchRows} />
+      <SetFillSidePanel setCode={openSetCode} onClose={() => setOpenSetCode(null)} onChanged={fetchRows} />
 
       {group === "sets" ? (
         <div className="flex flex-col gap-2">
@@ -359,13 +359,13 @@ const AdminBankReviewPage = () => {
                       style={{ width: `${s.expected ? Math.min((s.filled / s.expected) * 100, 100) : 0}%` }}
                     />
                   </div>
-                  <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                  <span className=" text-xs text-muted-foreground whitespace-nowrap">
                     {s.filled}/{s.expected}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  <span className="font-mono">{s.setCode}</span> · Trận:{" "}
-                  <span className="font-mono text-foreground/80">{s.matchCode ?? "— chưa gán —"}</span>
+                  <span className="">{s.setCode}</span> · Trận:{" "}
+                  <span className=" text-foreground/80">{s.matchCode ?? "— chưa gán —"}</span>
                 </p>
               </Button>
             ))
@@ -430,7 +430,7 @@ const AdminBankReviewPage = () => {
       >
         {selected && (
         <>
-          <p className="font-mono text-sm text-success -mt-2">
+          <p className=" text-sm text-success -mt-2">
             {selected.bankCode}
             {selected.roundHint && <span className="ml-1 text-muted-foreground">· {selected.roundHint}</span>}
           </p>
@@ -441,7 +441,7 @@ const AdminBankReviewPage = () => {
             <div className="flex flex-col gap-1">
               <p className="text-xs text-muted-foreground">Nguồn:</p>
               {selected.citations.map((c, i) => (
-                <p key={i} className="text-xs text-foreground/80 font-mono break-all">
+                <p key={i} className="text-xs text-foreground/80  break-all">
                   {c.source} · {formatVnDate(c.accessedAt)}{c.url && <> · <a href={c.url} target="_blank" rel="noreferrer" className="text-brand underline">{c.url}</a></>}
                 </p>
               ))}

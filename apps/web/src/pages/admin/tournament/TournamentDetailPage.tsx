@@ -13,9 +13,9 @@ import QualifierManager from "@/components/admin/QualifierManager";
 import GroupStageManager from "@/components/admin/GroupStageManager";
 import { Button } from "@/components/ui/button";
 import {
-  TournamentFormPanel,
+  TournamentFormSidePanel,
   type TournamentFormValue,
-} from "@/components/admin/TournamentFormPanel";
+} from "@/components/admin/TournamentFormSidePanel";
 
 interface Tournament {
   id: string;
@@ -119,7 +119,7 @@ const TournamentDetailPage: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6">
-      <TournamentFormPanel
+      <TournamentFormSidePanel
         open={showEdit}
         initial={(tournament as unknown as TournamentFormValue | null) ?? null}
         saving={savingEdit}

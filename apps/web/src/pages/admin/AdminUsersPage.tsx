@@ -11,15 +11,15 @@ import {
   type DataTableColumn,
 } from "@/components/shared/data-table-core";
 import {
-  UserEditPanel,
-  UserAddPanel,
-  UserRolePanel,
-  UserDeletePanel,
+  UserEditSidePanel,
+  UserAddSidePanel,
+  UserRoleSidePanel,
+  UserDeleteSidePanel,
   type GlobalRole,
   type UserEditValue,
   type UserAddValue,
   type UserRoleValue,
-} from "@/components/admin/UserPanels";
+} from "@/components/admin/UserSidePanels";
 import { UserRowActions } from "@/components/admin/UserRowActions";
 import { FilterSelect } from "@/components/shared/FilterSelect";
 
@@ -275,7 +275,7 @@ const AdminUsersPage = () => {
       h.accessor("user_code", {
         header: "Mã người dùng",
         cell: (info) => (
-          <span className="font-mono text-xs text-foreground/80">
+          <span className=" text-xs text-foreground/80">
             {info.getValue()}
           </span>
         ),
@@ -321,25 +321,25 @@ const AdminUsersPage = () => {
 
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
-      <UserEditPanel
+      <UserEditSidePanel
         item={editingUser}
         saving={savingEdit}
         onClose={() => setEditingUser(null)}
         onSave={patchUser}
       />
-      <UserAddPanel
+      <UserAddSidePanel
         open={showAdd}
         saving={savingAdd}
         onClose={() => setShowAdd(false)}
         onCreate={createUser}
       />
-      <UserRolePanel
+      <UserRoleSidePanel
         item={roleUser}
         saving={savingRole}
         onClose={() => setRoleUser(null)}
         onSave={saveRole}
       />
-      <UserDeletePanel
+      <UserDeleteSidePanel
         item={deleteTarget}
         saving={savingDelete}
         onClose={() => setDeleteTarget(null)}

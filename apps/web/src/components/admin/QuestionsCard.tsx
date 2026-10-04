@@ -61,7 +61,7 @@ export function QuestionsCard({
           <HelpCircle size={16} className="text-success" />
           Câu hỏi
           {questions.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded bg-accent text-[11px] font-mono text-muted-foreground">
+            <span className="px-1.5 py-0.5 rounded bg-accent text-[11px]  text-muted-foreground">
               {filtered.length}/{questions.length}
             </span>
           )}
@@ -83,7 +83,7 @@ export function QuestionsCard({
             placeholder="Mã trận đấu"
             value={questionsMatchCode}
             onChange={(e) => onQuestionsMatchCodeChange(e.target.value)}
-            className={`${inputClass} flex-1 min-w-0 font-mono text-xs`}
+            className={`${inputClass} flex-1 min-w-0  text-xs`}
           />
         )}
         <Button
@@ -140,7 +140,7 @@ export function QuestionsCard({
                 </Button>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] text-brand/80">{q.question_code}</span>
+                    <span className=" text-[11px] text-brand/80">{q.question_code}</span>
                     {q.media_url && (
                       <span className="inline-flex items-center gap-1 text-muted-foreground" title={q.media_url}>
                         <Paperclip size={12} />

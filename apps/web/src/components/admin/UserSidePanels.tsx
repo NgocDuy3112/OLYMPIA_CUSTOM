@@ -70,7 +70,7 @@ interface UserEditPanelProps {
   onSave: (value: UserEditValue) => void | Promise<void>;
 }
 
-export function UserEditPanel({ item, saving, onClose, onSave }: UserEditPanelProps) {
+export function UserEditSidePanel({ item, saving, onClose, onSave }: UserEditPanelProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -105,7 +105,7 @@ export function UserEditPanel({ item, saving, onClose, onSave }: UserEditPanelPr
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground font-mono">
+      <p className="text-xs text-muted-foreground ">
         Mã: {item?.user_code}
       </p>
       <div className="flex flex-col gap-1">
@@ -147,7 +147,7 @@ interface UserAddPanelProps {
   onCreate: (value: UserAddValue) => void | Promise<void>;
 }
 
-export function UserAddPanel({ open, saving, onClose, onCreate }: UserAddPanelProps) {
+export function UserAddSidePanel({ open, saving, onClose, onCreate }: UserAddPanelProps) {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [staffRole, setStaffRole] = useState<StaffRole>("qauthor");
@@ -243,7 +243,7 @@ interface UserRolePanelProps {
   onSave: (value: UserRoleValue) => void | Promise<void>;
 }
 
-export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelProps) {
+export function UserRoleSidePanel({ item, saving, onClose, onSave }: UserRolePanelProps) {
   const [role, setRole] = useState<GlobalRole>("player");
   const [scopes, setScopes] = useState<OperatorScope[]>([]);
   const open = item !== null;
@@ -275,7 +275,7 @@ export function UserRolePanel({ item, saving, onClose, onSave }: UserRolePanelPr
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground font-mono">
+      <p className="text-xs text-muted-foreground ">
         {item?.user_name} · {item?.user_code}
       </p>
       <div className="flex flex-col gap-1">
@@ -318,7 +318,7 @@ interface UserDeletePanelProps {
   onConfirm: () => void | Promise<void>;
 }
 
-export function UserDeletePanel({ item, saving, onClose, onConfirm }: UserDeletePanelProps) {
+export function UserDeleteSidePanel({ item, saving, onClose, onConfirm }: UserDeletePanelProps) {
   const open = item !== null;
 
   return (
@@ -344,7 +344,7 @@ export function UserDeletePanel({ item, saving, onClose, onConfirm }: UserDelete
       }
     >
       <p className="text-sm text-foreground">
-        <span className="font-mono">{item?.user_code}</span> · {item?.user_name}
+        <span className="">{item?.user_code}</span> · {item?.user_name}
         <br />
         <span className="text-xs text-primary">Hành động này không thể hoàn tác.</span>
       </p>

@@ -190,7 +190,7 @@ const SLiveMatchPage: React.FC = () => {
                 </span>
                 {timer !== null && (
                   <span
-                    className={`text-xl sm:text-2xl font-bold font-mono ${timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : "text-foreground"}`}
+                    className={`text-xl sm:text-2xl font-bold  ${timer <= 5 ? "timer-danger" : timer <= 10 ? "timer-warning" : "text-foreground"}`}
                   >
                     {timer}
                   </span>

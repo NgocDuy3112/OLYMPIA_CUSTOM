@@ -1,5 +1,5 @@
 export { SidePanel } from "./SidePanel";
-export { ConfirmActionPanel } from "./ConfirmActionPanel";
+export { ConfirmActionSidePanel } from "./ConfirmActionSidePanel";
 export {
   StatusBadge,
   TournamentStatusBadge,

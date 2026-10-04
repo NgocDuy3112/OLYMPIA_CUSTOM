@@ -60,7 +60,7 @@ const OverlayTimer: React.FC = () => {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 1.1, opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className={`text-3xl sm:text-4xl font-bold font-mono tabular-nums ${colors.text}`}
+              className={`text-3xl sm:text-4xl font-bold  tabular-nums ${colors.text}`}
             >
               {timer}
             </motion.div>

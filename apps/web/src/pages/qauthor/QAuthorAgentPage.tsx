@@ -104,7 +104,7 @@ const QAuthorAgentPage = () => {
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận (tuỳ chọn — để trống khi hỏi về bank)"
-          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground  text-sm"
         />
       </div>
 
@@ -128,7 +128,7 @@ const QAuthorAgentPage = () => {
             >
               {m.text}
               {m.tools && m.tools.length > 0 && (
-                <p className="mt-1 text-[11px] text-muted-foreground font-mono">
+                <p className="mt-1 text-[11px] text-muted-foreground ">
                   tools: {m.tools.join(", ")}
                 </p>
               )}

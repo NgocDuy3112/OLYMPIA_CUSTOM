@@ -99,7 +99,7 @@ export function BankCardGrid({
             className="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/30 p-3.5 transition-colors hover:bg-accent/30"
           >
             <div className="flex items-start justify-between gap-2">
-              <code className="min-w-0 truncate font-mono text-xs text-success">
+              <code className="min-w-0 truncate  text-xs text-success">
                 {q.bank_code}
               </code>
               <StatusBadge tone={statusTone(q.status)}>{statusLabel(q.status)}</StatusBadge>
@@ -110,7 +110,7 @@ export function BankCardGrid({
               {q.answer}
             </p>
             {(q.round_hint || q.domain || q.hint_index) && (
-              <div className="flex flex-wrap gap-1.5 font-mono text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap gap-1.5  text-[11px] text-muted-foreground">
                 {q.round_hint && (
                   <span className="rounded bg-accent px-1.5 py-0.5">
                     {q.round_hint}

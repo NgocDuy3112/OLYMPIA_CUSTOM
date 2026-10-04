@@ -212,7 +212,7 @@ const PQualifierPage = () => {
     <PBasePageLayout players={players} currentPlayerCode={playerCode}>
       <div className="flex flex-col gap-4 p-3 sm:p-4 lg:p-6 min-h-screen text-foreground max-w-3xl mx-auto w-full">
         <div className="flex justify-end">
-          <p className="text-xs text-muted-foreground font-mono">
+          <p className="text-xs text-muted-foreground ">
             {code || "(thiếu mã giải)"} · {doneCount}/{questions.length} đã nộp
           </p>
         </div>
@@ -253,7 +253,7 @@ const PQualifierPage = () => {
 
               <div className="rounded-xl bg-accent/50 border border-border p-5 flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-muted-foreground font-mono">
+                  <p className="text-xs text-muted-foreground ">
                     Câu {current.position}/{questions.length} · {current.questionCode}
                     {current.status === "closed" && (
                       <span className="ml-2 px-2 py-0.5 rounded-full bg-success/20 text-success">Đã chốt</span>
@@ -282,7 +282,7 @@ const PQualifierPage = () => {
                             : "bg-accent text-foreground/90 hover:bg-accent"
                         }`}
                       >
-                        <span className="font-bold font-mono shrink-0">{letter}.</span>
+                        <span className="font-bold  shrink-0">{letter}.</span>
                         <span>{opt}</span>
                       </Button>
                     );
@@ -338,7 +338,7 @@ const PQualifierPage = () => {
                   key={s.playerId}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg ${s.userCode === playerCode ? "bg-primary/30" : "bg-accent/50"}`}
                 >
-                  <span className="font-mono text-muted-foreground w-6">{s.rank}</span>
+                  <span className=" text-muted-foreground w-6">{s.rank}</span>
                   <span className="flex-1 truncate">{s.userName}</span>
                   <span className="font-bold">{s.totalPoints}đ</span>
                   <span className="text-muted-foreground text-xs">{s.correctCount} đúng</span>

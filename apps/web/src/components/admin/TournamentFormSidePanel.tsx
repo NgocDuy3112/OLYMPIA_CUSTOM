@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator"
 import {
   emptyTournamentForm,
   type TournamentFormValue,
@@ -29,7 +30,7 @@ const STATUS_OPTIONS = [
   { value: "archived", label: "Lưu trữ" },
 ];
 
-interface TournamentFormPanelProps {
+interface TournamentFormSidePanelProps {
   open: boolean;
   initial: Partial<TournamentFormValue> | null;
   saving: boolean;
@@ -38,14 +39,14 @@ interface TournamentFormPanelProps {
   onSubmit: (v: TournamentFormValue) => void | Promise<void>;
 }
 
-export function TournamentFormPanel({
+export function TournamentFormSidePanel({
   open,
   initial,
   saving,
   error,
   onClose,
   onSubmit,
-}: TournamentFormPanelProps) {
+}: TournamentFormSidePanelProps) {
   const isEdit = initial !== null;
   const [form, setForm] = useState<TournamentFormValue>(emptyTournamentForm());
 
@@ -94,7 +95,7 @@ export function TournamentFormPanel({
         </div>
       )}
       <section className="flex flex-col gap-4">
-        <FormSection>Cơ bản</FormSection>
+        <FormSection>Thông tin cơ bản</FormSection>
         <FormField label="Tên giải đấu" required>
           <Input
             type="text"
@@ -127,8 +128,7 @@ export function TournamentFormPanel({
               ))}
             </NativeSelect>
           </FormField>
-          {isEdit && (
-            <FormField label="Trạng thái">
+          <FormField label="Trạng thái">
               <NativeSelect
                 value={form.status}
                 onChange={(e) => set({ status: e.target.value })}
@@ -141,13 +141,12 @@ export function TournamentFormPanel({
                 ))}
               </NativeSelect>
             </FormField>
-          )}
         </div>
       </section>
-
+      <Separator />
       <section className="flex flex-col gap-4">
         <FormSection>Thời gian &amp; địa điểm</FormSection>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <FormField label="Ngày bắt đầu">
             <Input
               type="date"
@@ -169,7 +168,6 @@ export function TournamentFormPanel({
               type="text"
               value={form.maxPlayers}
               onChange={(e) => set({ maxPlayers: e.target.value })}
-              placeholder="VD: 16, 32"
               className={formInputClass}
             />
           </FormField>
@@ -178,27 +176,13 @@ export function TournamentFormPanel({
               type="text"
               value={form.venue}
               onChange={(e) => set({ venue: e.target.value })}
-              placeholder="VD: Trường ĐH Bách Khoa"
               className={formInputClass}
             />
           </FormField>
         </div>
       </section>
-
-      <section className="flex flex-col gap-4">
-        <FormSection>Ghi chú</FormSection>
-        <FormField label="Ghi chú">
-          <Textarea
-            value={form.notes}
-            onChange={(e) => set({ notes: e.target.value })}
-            placeholder="Ghi chú thêm..."
-            rows={2}
-            className="resize-none"
-          />
-        </FormField>
-      </section>
     </SidePanel>
   );
 }
 
-export default TournamentFormPanel;
+export default TournamentFormSidePanel;

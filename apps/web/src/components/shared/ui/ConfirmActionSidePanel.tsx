@@ -1,7 +1,7 @@
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { Button } from "@/components/ui/button";
 
-interface ConfirmActionPanelProps {
+interface ConfirmActionSidePanelProps {
   open: boolean;
   title: string;
   tone?: "default" | "danger";
@@ -14,7 +14,7 @@ interface ConfirmActionPanelProps {
   onConfirm: () => void | Promise<void>;
 }
 
-export function ConfirmActionPanel({
+export function ConfirmActionSidePanel({
   open,
   title,
   tone = "default",
@@ -25,7 +25,7 @@ export function ConfirmActionPanel({
   saving,
   onClose,
   onConfirm,
-}: ConfirmActionPanelProps) {
+}: ConfirmActionSidePanelProps) {
   return (
     <SidePanel
       open={open}
@@ -51,7 +51,7 @@ export function ConfirmActionPanel({
       }
     >
       {itemCode && (
-        <p className="text-xs text-blue-400 font-mono -mt-2">{itemCode}</p>
+        <p className="text-xs text-blue-400  -mt-2">{itemCode}</p>
       )}
       <p className="text-sm text-foreground">{message}</p>
       <p className="text-xs text-muted-foreground">{note}</p>
@@ -59,4 +59,4 @@ export function ConfirmActionPanel({
   );
 }
 
-export default ConfirmActionPanel;
+export default ConfirmActionSidePanel;

@@ -35,7 +35,7 @@ function Slot({ position, player }: { position: number; player?: SlotPlayer }) {
   if (!player) {
     return (
       <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-dashed border-border text-muted-foreground/70">
-        <span className="w-5 h-5 shrink-0 rounded-full bg-accent/50 text-[10px] font-mono flex items-center justify-center">
+        <span className="w-5 h-5 shrink-0 rounded-full bg-accent/50 text-[10px]  flex items-center justify-center">
           {position}
         </span>
         <span className="text-[11px]">Trống</span>
@@ -45,13 +45,13 @@ function Slot({ position, player }: { position: number; player?: SlotPlayer }) {
   const name = player.userName || player.userCode;
   return (
     <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-accent/25 border border-border min-w-0">
-      <span className="w-5 h-5 shrink-0 rounded-full bg-primary/30 text-brand text-[10px] font-mono flex items-center justify-center">
+      <span className="w-5 h-5 shrink-0 rounded-full bg-primary/30 text-brand text-[10px]  flex items-center justify-center">
         {position}
       </span>
       <span className="min-w-0">
         <span className="block text-xs text-foreground truncate">{name}</span>
         {player.userName && (
-          <span className="block text-[10px] text-muted-foreground font-mono truncate">{player.userCode}</span>
+          <span className="block text-[10px] text-muted-foreground  truncate">{player.userCode}</span>
         )}
       </span>
     </div>
@@ -90,13 +90,13 @@ export function ScheduleMatchCard({ match, players, selected, onSelect, onFinish
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
           {match.match_label && (
-            <span className="shrink-0 px-1.5 py-0.5 rounded bg-role-admin/20 border border-role-admin/30 text-role-admin text-[11px] font-mono font-bold">
+            <span className="shrink-0 px-1.5 py-0.5 rounded bg-role-admin/20 border border-role-admin/30 text-role-admin text-[11px]  font-bold">
               {match.match_label}
             </span>
           )}
           <StatusBadge status={match.match_status} />
         </div>
-        <span className="text-[11px] text-muted-foreground/70 font-mono shrink-0">{match.match_code}</span>
+        <span className="text-[11px] text-muted-foreground/70  shrink-0">{match.match_code}</span>
       </div>
 
       <p className="font-semibold text-foreground leading-snug">{match.match_name}</p>

@@ -28,17 +28,17 @@ const EMPTY: QualifierEditValue = {
   position: "1",
 };
 
-interface EditQualifierPanelProps {
+interface EditQualifierSidePanelProps {
   item: EditableQualifier | null;
   onClose: () => void;
   onSave: (value: QualifierEditValue) => void | Promise<void>;
 }
 
-export function EditQualifierPanel({
+export function EditQualifierSidePanel({
   item,
   onClose,
   onSave,
-}: EditQualifierPanelProps) {
+}: EditQualifierSidePanelProps) {
   const [value, setValue] = useState<QualifierEditValue>(EMPTY);
   const [optionList, setOptionList] = useState<string[]>(["", "", "", ""]);
   const open = item !== null;
@@ -92,7 +92,7 @@ export function EditQualifierPanel({
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground font-mono">
+      <p className="text-xs text-muted-foreground ">
         {item?.questionCode}
       </p>
       <FormField label="Nội dung">
@@ -117,11 +117,11 @@ export function EditQualifierPanel({
         <Input
           value={value.position}
           onChange={set("position")}
-          className={`${formInputClass} font-mono`}
+          className={`${formInputClass} `}
         />
       </FormField>
     </SidePanel>
   );
 }
 
-export default EditQualifierPanel;
+export default EditQualifierSidePanel;

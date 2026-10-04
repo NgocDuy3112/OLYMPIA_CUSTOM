@@ -123,7 +123,7 @@ const CQualifierPage = () => {
           value={tournamentCode}
           onChange={(e) => setTournamentCode(e.target.value)}
           placeholder="Mã giải đấu (VD: OC3_T_...)"
-          className="font-mono text-sm"
+          className=" text-sm"
         />
         <InputGroupAddon align="inline-end">
           <InputGroupButton
@@ -158,7 +158,7 @@ const CQualifierPage = () => {
               <span
                 key={q.id}
                 title={`${q.questionCode}: ${q.content}`}
-                className={`min-w-9 min-h-9 px-2 flex items-center justify-center rounded-lg text-xs font-bold font-mono ${
+                className={`min-w-9 min-h-9 px-2 flex items-center justify-center rounded-lg text-xs font-bold  ${
                   q.status === "closed"
                     ? "bg-success/30 text-success"
                     : "bg-warning/20 text-warning"
@@ -180,7 +180,7 @@ const CQualifierPage = () => {
           <ol className="flex flex-col gap-1 text-sm text-foreground">
             {standings.map((s) => (
               <li key={s.playerId} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/50">
-                <span className="font-mono text-muted-foreground w-6">{s.rank}</span>
+                <span className=" text-muted-foreground w-6">{s.rank}</span>
                 <span className="flex-1 truncate">{s.userName}</span>
                 <span className="font-bold">{s.totalPoints}đ</span>
                 <span className="text-muted-foreground text-xs">{s.correctCount} đúng</span>

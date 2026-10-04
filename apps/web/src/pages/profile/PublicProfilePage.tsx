@@ -79,7 +79,7 @@ const PublicProfilePage: React.FC = () => {
               <h1 className="text-xl font-bold text-foreground truncate">
                 {profile.userName}
               </h1>
-              <p className="text-sm text-muted-foreground font-mono">
+              <p className="text-sm text-muted-foreground ">
                 {profile.userCode}
               </p>
             </div>

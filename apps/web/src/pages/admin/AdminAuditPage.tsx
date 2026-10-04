@@ -40,7 +40,7 @@ const columns = helper.columns([
   helper.accessor("actionType", {
     header: "Hành động",
     cell: (info) => (
-      <span className="rounded bg-accent px-2 py-0.5 font-mono text-xs font-bold text-foreground/80">
+      <span className="rounded bg-accent px-2 py-0.5  text-xs font-bold text-foreground/80">
         {info.getValue()}
       </span>
     ),
@@ -48,7 +48,7 @@ const columns = helper.columns([
   helper.accessor("actorCode", {
     header: "Actor",
     cell: (info) => (
-      <span className="font-mono text-xs text-muted-foreground">
+      <span className=" text-xs text-muted-foreground">
         {info.getValue() ?? "—"}
       </span>
     ),
@@ -56,7 +56,7 @@ const columns = helper.columns([
   helper.accessor("matchCode", {
     header: "Match",
     cell: (info) => (
-      <span className="font-mono text-xs text-muted-foreground">
+      <span className=" text-xs text-muted-foreground">
         {info.getValue() ?? "—"}
       </span>
     ),
@@ -124,7 +124,7 @@ const AdminAuditPage = () => {
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="font-mono text-sm text-muted-foreground">
+        <span className=" text-sm text-muted-foreground">
           ({total} log)
         </span>
         <Button
@@ -152,13 +152,13 @@ const AdminAuditPage = () => {
           value={actor}
           onChange={(e) => setActor(e.target.value)}
           placeholder="Lọc actor code..."
-          className="h-9 text-foreground placeholder:text-muted-foreground text-sm font-mono"
+          className="h-9 text-foreground placeholder:text-muted-foreground text-sm "
         />
         <Input
           value={match}
           onChange={(e) => setMatch(e.target.value)}
           placeholder="Lọc match code..."
-          className="h-9 text-foreground placeholder:text-muted-foreground text-sm font-mono"
+          className="h-9 text-foreground placeholder:text-muted-foreground text-sm "
         />
       </div>
 

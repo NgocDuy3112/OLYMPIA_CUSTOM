@@ -40,7 +40,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       {}
       <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {matchCode && (
-          <span className="hidden lg:inline text-xs sm:text-sm text-brand font-mono truncate">
+          <span className="hidden lg:inline text-xs sm:text-sm text-brand  truncate">
             {matchCode}
           </span>
         )}

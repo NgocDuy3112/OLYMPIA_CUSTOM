@@ -4,6 +4,7 @@ import { Pencil, LogOut, Trophy, Camera, X } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { useAvatarSrc } from "@/hooks/useAvatarSrc";
 import { putFileWithProgress } from "@/lib/upload";
+import { MediaUploadButton } from "@/components/shared/MediaFilePicker";
 import { Progress } from "@/components/ui/progress";
 import { PublicLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
@@ -204,23 +205,19 @@ const ProfilePage: React.FC = () => {
                   {(profile.userName ?? "?").charAt(0).toUpperCase()}
                 </div>
               )}
-              <label
+              <MediaUploadButton
+                accept="image/*"
+                maxSize={2 * 1024 * 1024}
+                disabled={uploadingAvatar}
+                onChange={(file) => void handleAvatarChange(file)}
+                onValidate={(file) => {
+                  if (!file.type.startsWith("image/")) return "Chỉ chấp nhận file ảnh";
+                  if (file.size > 2 * 1024 * 1024) return "Ảnh tối đa 2MB";
+                }}
                 className="absolute -bottom-1 -right-1 p-1.5 bg-primary hover:bg-primary/90 rounded-full cursor-pointer transition-colors"
-                title="Đổi avatar"
               >
                 <Camera size={14} className="text-foreground" />
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploadingAvatar}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void handleAvatarChange(file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
+              </MediaUploadButton>
             </div>
             <div className="flex-1 min-w-0">
               {editing ? (
@@ -235,7 +232,7 @@ const ProfilePage: React.FC = () => {
                   {profile.userName}
                 </h1>
               )}
-              <p className="text-sm text-muted-foreground font-mono">
+              <p className="text-sm text-muted-foreground ">
                 {profile.userCode}
               </p>
               <p className="text-sm text-muted-foreground">{profile.email}</p>
@@ -247,7 +244,7 @@ const ProfilePage: React.FC = () => {
           {uploadingAvatar && (
             <div className="mt-3 flex items-center gap-2">
               <Progress value={uploadPct ?? 0} className="flex-1" />
-              <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+              <span className=" text-xs whitespace-nowrap text-muted-foreground">
                 {uploadPct ?? 0}%
               </span>
             </div>
@@ -318,7 +315,7 @@ const ProfilePage: React.FC = () => {
                     <p className="text-sm font-bold text-foreground truncate">
                       {t.tournamentName}
                     </p>
-                    <p className="text-xs text-muted-foreground font-mono">
+                    <p className="text-xs text-muted-foreground ">
                       {t.tournamentCode} · {t.tournamentFormat?.toUpperCase() ?? "—"} ·{" "}
                       {t.status}
                     </p>

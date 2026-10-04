@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
-import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
+import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import {
@@ -28,7 +28,7 @@ import {
 } from "@/components/shared/data-table-core";
 
 
-const logger = createLogger("SetFillPanel");
+const logger = createLogger("SetFillSidePanel");
 
 export interface SetItemView {
   slot: string;
@@ -53,7 +53,7 @@ type SlotRow = { slot: string; item: SetItemView | undefined };
 
 const helper = createDataTableColumns<SlotRow>();
 
-interface SetFillPanelProps {
+interface SetFillSidePanelProps {
   setCode: string | null;
   onClose: () => void;
   onChanged: () => void;
@@ -62,7 +62,7 @@ interface SetFillPanelProps {
 const inputClass =
   "h-9 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
 
-export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps) {
+export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePanelProps) {
   const open = setCode !== null;
   const [detail, setDetail] = useState<SetDetailView | null>(null);
   const [loading, setLoading] = useState(false);
@@ -253,7 +253,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
         header: "Slot",
         enableSorting: false,
         cell: (info) => (
-          <span className="block w-24 whitespace-nowrap font-mono text-xs text-brand">
+          <span className="block w-24 whitespace-nowrap  text-xs text-brand">
             {info.getValue()}
           </span>
         ),
@@ -272,7 +272,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
           return (
             <>
               <p className="truncate text-foreground">
-                <span className="font-mono text-[11px] text-success">
+                <span className=" text-[11px] text-success">
                   {item.bankCode}
                 </span>{" "}
                 {item.content}
@@ -389,7 +389,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
         <>
           <div className="flex flex-col gap-2 rounded-lg bg-accent/50 border border-border p-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs text-brand">{detail.setCode}</span>
+              <span className=" text-xs text-brand">{detail.setCode}</span>
               <span
                 className={`px-2 py-0.5 rounded-full text-[11px] ${
                   detail.status === "ready"
@@ -411,7 +411,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 onChange={(e) => setMatchEdit(e.target.value.toUpperCase())}
                 placeholder="Mã trận (VD: OC4_M01T)"
                 disabled={!isDraft}
-                className={`${inputClass} flex-1 min-w-0 font-mono disabled:opacity-50`}
+                className={`${inputClass} flex-1 min-w-0  disabled:opacity-50`}
               />
               {isDraft && (
                 <Button
@@ -428,7 +428,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
               {detail.rounds.map((r) => (
                 <span
                   key={r.round}
-                  className={`px-2 py-0.5 rounded-full text-[11px] font-mono ${
+                  className={`px-2 py-0.5 rounded-full text-[11px]  ${
                     r.filled === r.expected ? "bg-success/20 text-success" : "bg-accent/50 text-muted-foreground"
                   }`}
                 >
@@ -472,7 +472,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 return (
                   <div key={setCodeG} className="rounded-lg bg-background/40 border border-border p-3 flex flex-col gap-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-sm text-warning">{setCodeG}</span>
+                      <span className=" text-sm text-warning">{setCodeG}</span>
                       {key && <span className="text-sm text-foreground truncate">KEY: {key.answer}</span>}
                       <span className="text-xs text-muted-foreground">
                         {rows.length}/9{missing.length > 0 && ` · thiếu ${missing.join(",")}`}
@@ -529,7 +529,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
                 bankRows.map((q) => (
                   <div key={q.bank_id} className="flex items-center gap-2 text-sm">
                     <p className="flex-1 truncate">
-                      <span className="font-mono text-xs text-success">{q.bank_code}</span>{" "}
+                      <span className=" text-xs text-success">{q.bank_code}</span>{" "}
                       <span className="text-foreground">{q.content}</span>
                     </p>
                     <Button
@@ -584,7 +584,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
         </>
       )}
 
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={confirm?.kind === "activate"}
         title="Kích hoạt bộ đề?"
         tone="danger"
@@ -598,7 +598,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
           if (okCall) setConfirm(null);
         }}
       />
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={confirm?.kind === "delete-set"}
         title="Xoá bộ đề?"
         tone="danger"
@@ -615,7 +615,7 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
           }
         }}
       />
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={confirm?.kind === "remove-item"}
         title="Gỡ câu khỏi bộ?"
         tone="danger"
@@ -634,4 +634,4 @@ export function SetFillPanel({ setCode, onClose, onChanged }: SetFillPanelProps)
   );
 }
 
-export default SetFillPanel;
+export default SetFillSidePanel;

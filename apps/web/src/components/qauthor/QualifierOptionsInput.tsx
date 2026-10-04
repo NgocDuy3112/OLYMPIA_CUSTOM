@@ -38,7 +38,7 @@ export function QualifierOptionsInput({ options, correct, onChange, onCorrectCha
               }`}
             >
               <span
-                className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-md font-mono text-xs font-bold ${
+                className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-md  text-xs font-bold ${
                   isCorrect ? "bg-success text-success-foreground" : "bg-accent text-muted-foreground"
                 }`}
               >

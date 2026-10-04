@@ -81,7 +81,7 @@ export function MatchScheduleForm({
           <Input
             value={form.matchLabel}
             onChange={(e) => set({ matchLabel: e.target.value.toUpperCase() })}
-            className={`${formInputClass} font-mono`}
+            className={`${formInputClass} `}
             maxLength={20}
           />
         </FormField>
@@ -124,7 +124,7 @@ export function MatchScheduleForm({
         {form.playerCodes.map((code, i) => (
           <InputGroup key={i} className="h-9">
             <InputGroupAddon>
-              <InputGroupText className="font-mono text-[11px]">
+              <InputGroupText className=" text-[11px]">
                 #{i + 1}
               </InputGroupText>
             </InputGroupAddon>
@@ -132,7 +132,7 @@ export function MatchScheduleForm({
               placeholder="userCode"
               value={code}
               onChange={(e) => setPlayer(i, e.target.value)}
-              className="font-mono text-xs"
+              className=" text-xs"
             />
           </InputGroup>
         ))}

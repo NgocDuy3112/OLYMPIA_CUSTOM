@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Layers, Zap } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
+import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
 import { Button } from "@/components/ui/button";
 import { notifyError, notifySuccess } from "@/lib/notify";
 
@@ -85,7 +85,7 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
 
   return (
     <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2.5">
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={activating !== null}
         title="Kích hoạt bộ đề?"
         tone="danger"
@@ -118,9 +118,9 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
             <div className="flex-1 min-w-0">
               <p className="text-sm text-foreground truncate">
                 {s.setName}{" "}
-                <span className="font-mono text-[11px] text-muted-foreground">{s.setCode}</span>
+                <span className=" text-[11px] text-muted-foreground">{s.setCode}</span>
               </p>
-              <p className="text-[11px] text-muted-foreground font-mono">
+              <p className="text-[11px] text-muted-foreground ">
                 {s.filled}/{s.expected} câu · {s.status === "ready" ? "Sẵn sàng" : "Nháp"}
                 {s.activeMatchCode === matchCode && (
                   <span className="ml-1 text-brand">· ĐANG LIVE</span>

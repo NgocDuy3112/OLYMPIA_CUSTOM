@@ -2,9 +2,9 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "@/configs";
 import {
-  TournamentFormPanel,
+  TournamentFormSidePanel,
   type TournamentFormValue,
-} from "@/components/admin/TournamentFormPanel";
+} from "@/components/admin/TournamentFormSidePanel";
 import { Button } from "@/components/ui/button";
 import {
   Plus,
@@ -143,7 +143,7 @@ const TournamentListPage: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
-      <TournamentFormPanel
+      <TournamentFormSidePanel
         open={showCreate}
         initial={null}
         saving={savingCreate}
@@ -155,7 +155,7 @@ const TournamentListPage: React.FC = () => {
         onSubmit={handleCreate}
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="font-mono text-sm text-muted-foreground">
+        <span className=" text-sm text-muted-foreground">
           {tournaments.length} giải
         </span>
         <div className="flex gap-2 shrink-0">
@@ -220,7 +220,7 @@ const TournamentListPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground mt-1">
-                  <span className="font-mono">{tournament.tournamentCode}</span>
+                  <span className="">{tournament.tournamentCode}</span>
                   <span className="flex items-center gap-1">
                     <Calendar size={12} />
                     {tournament.startDate || "—"} – {tournament.endDate || "—"}

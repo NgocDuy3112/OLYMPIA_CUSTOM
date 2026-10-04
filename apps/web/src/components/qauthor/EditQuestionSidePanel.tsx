@@ -37,17 +37,17 @@ const EMPTY: QuestionEditValue = {
   options: "",
 };
 
-interface EditQuestionPanelProps {
+interface EditQuestionSidePanelProps {
   item: EditableQuestion | null;
   onClose: () => void;
   onSave: (value: QuestionEditValue) => void | Promise<void>;
 }
 
-export function EditQuestionPanel({
+export function EditQuestionSidePanel({
   item,
   onClose,
   onSave,
-}: EditQuestionPanelProps) {
+}: EditQuestionSidePanelProps) {
   const [value, setValue] = useState<QuestionEditValue>(EMPTY);
   const open = item !== null;
 
@@ -92,7 +92,7 @@ export function EditQuestionPanel({
         </div>
       }
     >
-      <p className="text-xs text-muted-foreground font-mono">
+      <p className="text-xs text-muted-foreground ">
         {item?.question_code}
       </p>
       <FormField label="Nội dung">
@@ -128,7 +128,7 @@ export function EditQuestionPanel({
         <Input
           value={value.mediaUrl}
           onChange={set("mediaUrl")}
-          className={`${formInputClass} font-mono`}
+          className={`${formInputClass} `}
         />
       </FormField>
       <FormField
@@ -138,11 +138,11 @@ export function EditQuestionPanel({
         <Input
           value={value.options}
           onChange={set("options")}
-          className={`${formInputClass} font-mono`}
+          className={`${formInputClass} `}
         />
       </FormField>
     </SidePanel>
   );
 }
 
-export default EditQuestionPanel;
+export default EditQuestionSidePanel;

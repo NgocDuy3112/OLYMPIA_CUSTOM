@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Lock, Pencil, Plus, RefreshCw, Trash2, Trophy, XCircle } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
-import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
-import { EditQualifierPanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierPanel";
+import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
+import { EditQualifierSidePanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierSidePanel";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
@@ -211,8 +211,8 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
 
   return (
     <div className="flex flex-col gap-4">
-      <EditQualifierPanel item={editing ? { ...editing, options: editing.options ?? [], correctOption: editing.correctOption ?? "A" } : null} onClose={() => setEditing(null)} onSave={saveEdit} />
-      <ConfirmActionPanel
+      <EditQualifierSidePanel item={editing ? { ...editing, options: editing.options ?? [], correctOption: editing.correctOption ?? "A" } : null} onClose={() => setEditing(null)} onSave={saveEdit} />
+      <ConfirmActionSidePanel
         open={deleting !== null}
         title="Xoá câu vòng loại?"
         tone="danger"
@@ -223,7 +223,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         onClose={() => setDeleting(null)}
         onConfirm={confirmDelete}
       />
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={pendingClose !== null}
         title="Chấm câu vòng loại?"
         tone="danger"
@@ -234,7 +234,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
         onClose={() => setPendingClose(null)}
         onConfirm={confirmClose}
       />
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={pendingCloseAll}
         title="Chấm tất cả câu đang mở?"
         tone="danger"
@@ -377,7 +377,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               key={i}
               className="p-3.5 rounded-xl border border-dashed border-border text-muted-foreground/70 text-sm"
             >
-              <span className="font-mono font-bold">VL_{String(i + 1).padStart(2, "0")}</span>
+              <span className=" font-bold">VL_{String(i + 1).padStart(2, "0")}</span>
               <span className="ml-2 text-xs">Trống</span>
             </div>
           ) : (
@@ -388,7 +388,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               }`}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-xs font-bold text-brand">{q.questionCode}</span>
+                <span className=" text-xs font-bold text-brand">{q.questionCode}</span>
                 {q.status === "closed" ? (
                   <span className="flex items-center gap-1 text-[11px] text-success">
                     <CheckCircle2 size={12} /> Đã chấm
@@ -450,7 +450,7 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
               <div key={s.userCode} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-accent/50 text-sm">
                 <span className="w-6 text-xs font-bold text-muted-foreground">{i + 1}</span>
                 <span className="flex-1 text-foreground truncate">{s.userName || s.userCode}</span>
-                <span className="font-mono text-xs text-muted-foreground">
+                <span className=" text-xs text-muted-foreground">
                   {s.totalPoints ?? s.correctCount ?? ""}đ
                 </span>
               </div>

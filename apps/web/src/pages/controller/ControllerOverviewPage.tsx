@@ -116,7 +116,7 @@ const ControllerOverviewPage = () => {
             value={matchCode}
             onChange={(e) => setCode(e.target.value)}
             placeholder="Mã trận đấu"
-            className="font-mono text-sm"
+            className=" text-sm"
           />
           <InputGroupAddon align="inline-end">
             <InputGroupButton
@@ -200,7 +200,7 @@ const ControllerOverviewPage = () => {
                   <span className="w-24 shrink-0 text-xs font-medium text-foreground/80 truncate" title={o.description}>
                     {o.name}
                   </span>
-                  <code className="flex-1 min-w-0 truncate text-[11px] font-mono text-muted-foreground">
+                  <code className="flex-1 min-w-0 truncate text-[11px]  text-muted-foreground">
                     {url}
                   </code>
                   <Button

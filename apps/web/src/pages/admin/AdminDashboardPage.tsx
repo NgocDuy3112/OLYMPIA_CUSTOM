@@ -30,12 +30,16 @@ interface MatchRow {
   matchCode: string;
   matchName: string;
   matchStatus: string;
+  tournamentId?: string | null;
+  scheduledAt?: string | null;
+  createdAt?: string;
 }
 
 interface UserRow {
   userCode: string;
   role: string;
   operatorScopes?: string | null;
+  createdAt?: string;
 }
 
 interface AuditLog {
@@ -46,6 +50,20 @@ interface AuditLog {
   createdAt?: string;
 }
 
+interface BankRoundStat {
+  group: string;
+  rounds: string;
+  approved: number;
+  pending: number;
+}
+
+interface DayBucket {
+  key: string;
+  label: string;
+  total: number;
+  logins: number;
+}
+
 interface DashboardState {
   tournaments: Tournament[];
   matches: MatchRow[];
@@ -53,12 +71,24 @@ interface DashboardState {
   pendingBank: number;
   approvedBank: number;
   rejectedBank: number;
+  bankByRound: BankRoundStat[];
   recentLogs: AuditLog[];
   totalLogs: number;
   actionCounts: { action: string; count: number }[];
+  trend: DayBucket[];
   apiOk: boolean | null;
   agentOk: boolean | null;
+  apiMs: number | null;
+  agentMs: number | null;
+  checkedAt: string | null;
 }
+
+const BANK_ROUNDS: { group: string; rounds: string }[] = [
+  { group: "Khởi động", rounds: "KD_C,KD_R" },
+  { group: "GM", rounds: "GM" },
+  { group: "Bứt phá", rounds: "BP" },
+  { group: "Về đích", rounds: "VD" },
+];
 
 const initialState: DashboardState = {
   tournaments: [],
@@ -67,11 +97,16 @@ const initialState: DashboardState = {
   pendingBank: 0,
   approvedBank: 0,
   rejectedBank: 0,
+  bankByRound: [],
   recentLogs: [],
   totalLogs: 0,
   actionCounts: [],
+  trend: [],
   apiOk: null,
   agentOk: null,
+  apiMs: null,
+  agentMs: null,
+  checkedAt: null,
 };
 
 const StatCard = ({
@@ -107,7 +142,7 @@ const BarRow = ({ label, value, max, color }: { label: string; value: number; ma
     <div className="flex-1 h-2 rounded-full bg-accent overflow-hidden">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${max > 0 ? Math.round((value / max) * 100) : 0}%` }} />
     </div>
-    <span className="w-8 text-right text-[11px] font-mono text-foreground/80">{value}</span>
+    <span className="w-8 text-right text-[11px]  text-foreground/80">{value}</span>
   </div>
 );
 const QuickAction = ({
@@ -139,10 +174,18 @@ const AdminDashboardPage = () => {
   const [state, setState] = useState<DashboardState>(initialState);
   const [loading, setLoading] = useState(false);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
+  const fetchAll = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
-      const [tRes, mRes, uRes, bPen, bApp, bRej, aRes] = await Promise.allSettled([
+      const roundReqs = BANK_ROUNDS.flatMap((g) => [
+        fetch(`${API_BASE_URL}/bank/search?round_hints=${encodeURIComponent(g.rounds)}&status=approved&limit=1&page=1`, {
+          credentials: "include",
+        }).then((r) => r.json()),
+        fetch(`${API_BASE_URL}/bank/search?round_hints=${encodeURIComponent(g.rounds)}&status=pending&limit=1&page=1`, {
+          credentials: "include",
+        }).then((r) => r.json()),
+      ]);
+      const [tRes, mRes, uRes, bPen, bApp, bRej, aRes, ...roundRes] = await Promise.allSettled([
         fetch(`${API_BASE_URL}/tournaments`, { credentials: "include" }).then((r) => r.json()),
         fetch(`${API_BASE_URL}/matches`, { credentials: "include" }).then((r) => r.json()),
         fetch(`${API_BASE_URL}/users`, { credentials: "include" }).then((r) => r.json()),
@@ -158,6 +201,7 @@ const AdminDashboardPage = () => {
         fetch(`${API_BASE_URL}/audit-logs?limit=100`, { credentials: "include" }).then((r) =>
           r.json(),
         ),
+        ...roundReqs,
       ]);
 
       const tournaments: Tournament[] =
@@ -179,6 +223,14 @@ const AdminDashboardPage = () => {
       const pendingBank = bPen.status === "fulfilled" ? bankTotal(bPen.value) : 0;
       const approvedBank = bApp.status === "fulfilled" ? bankTotal(bApp.value) : 0;
       const rejectedBank = bRej.status === "fulfilled" ? bankTotal(bRej.value) : 0;
+      const settledTotal = (r: PromiseSettledResult<unknown> | undefined) =>
+        r && r.status === "fulfilled" ? bankTotal(r.value) : 0;
+      const bankByRound: BankRoundStat[] = BANK_ROUNDS.map((g, i) => ({
+        group: g.group,
+        rounds: g.rounds,
+        approved: settledTotal(roundRes[i * 2]),
+        pending: settledTotal(roundRes[i * 2 + 1]),
+      }));
       const allLogs: AuditLog[] =
         aRes.status === "fulfilled" && aRes.value?.status === "success"
           ? (aRes.value?.data?.logs ?? [])
@@ -195,23 +247,56 @@ const AdminDashboardPage = () => {
         .sort((a, b) => b.count - a.count)
         .slice(0, 6);
 
+      const trend: DayBucket[] = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        return {
+          key,
+          label: i === 6 ? "Hôm nay" : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit" }),
+          total: 0,
+          logins: 0,
+        };
+      });
+      const trendByKey = new Map(trend.map((b) => [b.key, b]));
+      allLogs.forEach((l) => {
+        if (!l.createdAt) return;
+        const d = new Date(l.createdAt);
+        if (Number.isNaN(d.getTime())) return;
+        const b = trendByKey.get(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+        if (!b) return;
+        b.total += 1;
+        if (l.actionType === "LOGIN") b.logins += 1;
+      });
+
       let apiOk: boolean | null = null;
       let agentOk: boolean | null = null;
+      let apiMs: number | null = null;
+      let agentMs: number | null = null;
       try {
         const base = API_BASE_URL.replace(/\/api$/, "");
-        const [apiH, agentH] = await Promise.allSettled([
-          fetch(`${base}/health`, { credentials: "include" }).then((r) => r.json()),
-          fetch(`${API_BASE_URL}/agent/health`, { credentials: "include" }).then((r) => r.json()),
+        const timed = async (url: string) => {
+          const t0 = performance.now();
+          try {
+            const r = await fetch(url, { credentials: "include" }).then((r) => r.json());
+            return { ms: Math.round(performance.now() - t0), body: r as unknown };
+          } catch {
+            return { ms: null as number | null, body: null as unknown };
+          }
+        };
+        const [apiH, agentH] = await Promise.all([
+          timed(`${base}/health`),
+          timed(`${API_BASE_URL}/agent/health`),
         ]);
-        if (apiH.status === "fulfilled") apiOk = apiH.value?.status === "healthy";
-        else apiOk = false;
-        if (agentH.status === "fulfilled")
-          agentOk = agentH.value?.status === "ok" || agentH.value?.status === "healthy";
-        else agentOk = false;
+        apiMs = apiH.ms;
+        agentMs = agentH.ms;
+        apiOk = (apiH.body as { status?: string } | null)?.status === "healthy";
+        const agentStatus = (agentH.body as { status?: string } | null)?.status;
+        agentOk = agentStatus === "ok" || agentStatus === "healthy";
       } catch {
       }
 
-      setState({ tournaments, matches, users, pendingBank, approvedBank, rejectedBank, recentLogs, totalLogs, actionCounts, apiOk, agentOk });
+      setState({ tournaments, matches, users, pendingBank, approvedBank, rejectedBank, bankByRound, recentLogs, totalLogs, actionCounts, trend, apiOk, agentOk, apiMs, agentMs, checkedAt: new Date().toLocaleTimeString("vi-VN") });
     } catch (err) {
       logger.error("Error loading dashboard:", err);
     } finally {
@@ -221,6 +306,11 @@ const AdminDashboardPage = () => {
 
   useEffect(() => {
     void fetchAll();
+  }, [fetchAll]);
+
+  useEffect(() => {
+    const t = setInterval(() => void fetchAll(true), 60000);
+    return () => clearInterval(t);
   }, [fetchAll]);
 
   const activeTournaments = state.tournaments.filter((t) => t.status === "active").length;
@@ -253,13 +343,27 @@ const AdminDashboardPage = () => {
     { label: "spectator", value: roleCount("spectator") },
   ];
   const maxRole = Math.max(1, ...roleBars.map((b) => b.value));
-  const bankBars = [
-    { label: "pending", value: state.pendingBank },
-    { label: "approved", value: state.approvedBank },
-    { label: "rejected", value: state.rejectedBank },
-  ];
-  const maxBank = Math.max(1, ...bankBars.map((b) => b.value));
   const maxAction = Math.max(1, ...state.actionCounts.map((a) => a.count));
+
+  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const newUsers7d = state.users.filter((u) => u.createdAt && new Date(u.createdAt).getTime() >= weekAgo).length;
+
+  const tNameById = new Map(state.tournaments.map((t) => [t.id, t.tournamentName]));
+  const mtCount = new Map<string, number>();
+  state.matches.forEach((m) => {
+    const key = (m.tournamentId && tNameById.get(m.tournamentId)) || "Chưa gán giải";
+    mtCount.set(key, (mtCount.get(key) ?? 0) + 1);
+  });
+  const matchTournBars = [...mtCount.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 6);
+  const maxMtTourn = Math.max(1, ...matchTournBars.map((b) => b.value));
+
+  const maxRoundApproved = Math.max(1, ...state.bankByRound.map((b) => b.approved));
+  const maxTrend = Math.max(1, ...state.trend.map((b) => b.total));
+
+  const healthDesc = `API ${state.apiOk === null ? "—" : state.apiOk ? `OK${state.apiMs !== null ? ` · ${state.apiMs}ms` : ""}` : "LỖI"} · Agent ${state.agentOk === null ? "—" : state.agentOk ? `OK${state.agentMs !== null ? ` · ${state.agentMs}ms` : ""}` : "LỖI"}${state.checkedAt ? ` · ${state.checkedAt}` : ""}`;
 
   const needsAttention: { label: string; path: string }[] = [];
   if (state.pendingBank > 0)
@@ -322,7 +426,7 @@ const AdminDashboardPage = () => {
           icon={<Users size={14} />}
           label="Người dùng"
           value={state.users.length}
-          sub={`${roleCount("player")} thí sinh · ${roleCount("admin")} admin · C${scopeCount("controller")}/Q${scopeCount("qauthor")}/M${scopeCount("mc")}`}
+          sub={`${roleCount("player")} thí sinh · ${roleCount("admin")} admin · C${scopeCount("controller")}/Q${scopeCount("qauthor")}/M${scopeCount("mc")} · +${newUsers7d}/7 ngày`}
           onClick={() => navigate("/admin/users")}
         />
         <StatCard
@@ -349,9 +453,15 @@ const AdminDashboardPage = () => {
           ))}
         </div>
         <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
-          <p className="text-sm font-semibold text-foreground/80">Bank theo duyệt</p>
-          {bankBars.map((b) => (
-            <BarRow key={b.label} label={b.label} value={b.value} max={maxBank} color="bg-warning" />
+          <p className="text-sm font-semibold text-foreground/80">Bank theo vòng (đã duyệt)</p>
+          {state.bankByRound.map((b) => (
+            <BarRow
+              key={b.group}
+              label={`${b.group} · chờ ${b.pending}`}
+              value={b.approved}
+              max={maxRoundApproved}
+              color="bg-warning"
+            />
           ))}
         </div>
         <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
@@ -363,6 +473,37 @@ const AdminDashboardPage = () => {
               <BarRow key={a.action} label={a.action} value={a.count} max={maxAction} color="bg-purple" />
             ))
           )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-foreground/80">Trận theo giải</p>
+          {matchTournBars.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Chưa có trận nào.</p>
+          ) : (
+            matchTournBars.map((b) => (
+              <BarRow key={b.label} label={b.label} value={b.value} max={maxMtTourn} color="bg-primary" />
+            ))
+          )}
+        </div>
+        <div className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-foreground/80">Hoạt động 7 ngày qua</p>
+          <div className="flex items-end gap-1.5 h-20">
+            {state.trend.map((b) => (
+              <div key={b.key} className="flex-1 flex flex-col items-center gap-1 h-full justify-end" title={`${b.label}: ${b.total} hoạt động · ${b.logins} login`}>
+                <span className="text-[10px] text-foreground/80">{b.total > 0 ? b.total : ""}</span>
+                <div
+                  className="w-full rounded bg-primary/70"
+                  style={{ height: `${maxTrend > 0 ? Math.max(b.total > 0 ? 8 : 2, Math.round((b.total / maxTrend) * 100)) : 2}%` }}
+                />
+                <span className="text-[10px] text-muted-foreground">{b.label}</span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            {state.trend.reduce((s, b) => s + b.logins, 0)} lượt login / 7 ngày
+          </p>
         </div>
       </div>
 
@@ -391,7 +532,7 @@ const AdminDashboardPage = () => {
           <QuickAction
             icon={<Activity size={16} />}
             label="Sức khỏe hệ thống"
-            desc={`API ${state.apiOk === null ? "—" : state.apiOk ? "OK" : "LỖI"} · Agent ${state.agentOk === null ? "—" : state.agentOk ? "OK" : "LỖI"}`}
+            desc={healthDesc}
             onClick={() => navigate("/admin/health")}
           />
         </div>
@@ -419,7 +560,7 @@ const AdminDashboardPage = () => {
                 >
                   <div className="min-w-0">
                     <p className="text-sm text-foreground truncate">{m.matchName}</p>
-                    <p className="text-[11px] text-muted-foreground font-mono">{m.matchCode}</p>
+                    <p className="text-[11px] text-muted-foreground ">{m.matchCode}</p>
                   </div>
                   <span
                     className={`shrink-0 px-2 py-0.5 rounded text-[11px] font-medium ${
@@ -475,11 +616,11 @@ const AdminDashboardPage = () => {
               {state.recentLogs.map((log) => (
                 <div key={log.id} className="px-2 py-1.5 rounded-lg hover:bg-accent/50">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 rounded bg-accent text-[11px] font-mono font-bold text-foreground/80">
+                    <span className="px-1.5 py-0.5 rounded bg-accent text-[11px]  font-bold text-foreground/80">
                       {log.actionType}
                     </span>
                     {log.matchCode && (
-                      <span className="text-[11px] font-mono text-muted-foreground">{log.matchCode}</span>
+                      <span className="text-[11px]  text-muted-foreground">{log.matchCode}</span>
                     )}
                   </div>
                   <p className="text-[11px] text-muted-foreground mt-0.5">

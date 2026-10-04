@@ -66,7 +66,7 @@ function MatchBox({
       className="w-60 shrink-0 rounded-lg bg-accent/50 border border-border overflow-hidden"
     >
       <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-border bg-accent/25">
-        <span className="text-[11px] font-mono text-muted-foreground truncate">
+        <span className="text-[11px]  text-muted-foreground truncate">
           {match.matchLabel ?? match.matchCode}
         </span>
         <span className="flex items-center gap-1 shrink-0">

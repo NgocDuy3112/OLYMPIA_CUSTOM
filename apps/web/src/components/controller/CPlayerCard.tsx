@@ -3,7 +3,7 @@ import { Mic, KeyRound, Pencil } from "lucide-react";
 import PingIconStyle from "../shared/PingIconStyle";
 import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
-import CScoreEditModal from "@/components/controller/CScoreEditModal";
+import CScoreEditSidePanel from "@/components/controller/CScoreEditSidePanel";
 import { Button } from "@/components/ui/button";
 
 interface CPlayerCardProps {
@@ -144,7 +144,7 @@ const CPlayerCard: React.FC<CPlayerCardProps> = ({
       </div>
 
       {}
-      <CScoreEditModal
+      <CScoreEditSidePanel
         open={showQuestionScoreModal}
         playerCode={player.playerCode}
         playerName={player.playerName}

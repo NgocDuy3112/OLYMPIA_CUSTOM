@@ -308,7 +308,7 @@ export function GroupStageManager({
           <section key={phase.id} className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold text-foreground">{phase.phaseName}</h3>
-              <span className="px-1.5 py-0.5 rounded bg-accent text-[11px] font-mono text-muted-foreground">
+              <span className="px-1.5 py-0.5 rounded bg-accent text-[11px]  text-muted-foreground">
                 {grid.flat().filter(Boolean).length}/8
               </span>
               <div className="flex-1 border-t border-border" />
@@ -366,7 +366,7 @@ export function GroupStageManager({
                       className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent/25 border border-border/50 text-sm"
                     >
                       <span className="flex-1 text-foreground truncate">{m.matchName}</span>
-                      <span className="text-[11px] font-mono text-muted-foreground">{m.matchCode}</span>
+                      <span className="text-[11px]  text-muted-foreground">{m.matchCode}</span>
                       {!done && (
                         <Button
                           size="icon-sm"
@@ -398,7 +398,7 @@ export function GroupStageManager({
                 <span className="w-6 text-xs font-bold text-muted-foreground">{s.rank}</span>
                 <span className="flex-1 text-foreground truncate">{s.userName || s.userCode}</span>
                 <span className="text-[11px] text-muted-foreground">{s.matchesPlayed} trận</span>
-                <span className="font-mono text-xs text-foreground w-14 text-right">{s.totalPoints}đ</span>
+                <span className=" text-xs text-foreground w-14 text-right">{s.totalPoints}đ</span>
               </div>
             ))}
           </div>

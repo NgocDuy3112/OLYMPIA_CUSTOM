@@ -4,8 +4,8 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { normalizeQuestionRow } from "@/utils/questionMapper";
-import { ConfirmActionPanel } from "@/components/shared/ui/ConfirmActionPanel";
-import { MatchQuestionCreatePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreatePanel";
+import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
+import { MatchQuestionCreateSidePanel, type MatchQuestionCreateValue } from "./MatchQuestionCreateSidePanel";
 import { toBankData, type BankData } from "./bankTypes";
 import {
   DataTable,
@@ -394,16 +394,16 @@ export const MatchTab = () => {
           return (
             <span className="flex min-w-0 flex-col gap-0.5 py-0.5">
               <span className="flex flex-wrap items-center gap-1.5">
-                <code className="font-mono text-xs text-success">
+                <code className=" text-xs text-success">
                   {q.bank_code}
                 </code>
                 {q.hint_index && (
-                  <code className="font-mono text-xs text-warning">
+                  <code className=" text-xs text-warning">
                     {q.hint_index}
                   </code>
                 )}
                 {q.domain && (
-                  <code className="font-mono text-xs text-brand">
+                  <code className=" text-xs text-brand">
                     {q.domain}
                     {q.difficulty ? `_${q.difficulty}` : ""}
                   </code>
@@ -469,13 +469,13 @@ export const MatchTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <MatchQuestionCreatePanel
+      <MatchQuestionCreateSidePanel
         open={showCreate}
         saving={saving}
         onClose={() => setShowCreate(false)}
         onCreate={(value) => void createQuestion(value)}
       />
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={deleting !== null}
         title="Gỡ khỏi slot?"
         tone="danger"
@@ -486,7 +486,7 @@ export const MatchTab = () => {
         onClose={() => setDeleting(null)}
         onConfirm={confirmDeleteQuestion}
       />
-      <ConfirmActionPanel
+      <ConfirmActionSidePanel
         open={pendingGmSet !== null}
         title="Pick cả set GM?"
         itemCode={pendingGmSet?.set_code ?? undefined}
@@ -516,7 +516,7 @@ export const MatchTab = () => {
                   value={matchCode}
                   onChange={(e) => setMatchCode(e.target.value)}
                   placeholder="Mã trận đấu"
-                  className="font-mono text-sm"
+                  className=" text-sm"
                 />
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton
@@ -568,9 +568,9 @@ export const MatchTab = () => {
             <div className="flex items-center gap-2">
               <Progress
                 value={(filledSlots / totalSlots) * 100}
-                className="flex-1 [&_[data-slot=progress-track]]:h-2"
+                className="flex-1 **:data-[slot=progress-track]:h-2"
               />
-              <span className="font-mono text-[11px] whitespace-nowrap text-muted-foreground">
+              <span className=" text-[11px] whitespace-nowrap text-muted-foreground">
                 {filledSlots}/{totalSlots} ô
               </span>
             </div>
@@ -586,7 +586,7 @@ export const MatchTab = () => {
                       {r.label}
                     </p>
                     <span
-                      className={`rounded-full border px-1.5 py-0.5 font-mono text-[10px] ${
+                      className={`rounded-full border px-1.5 py-0.5  text-[10px] ${
                         full
                           ? "border-success/40 bg-success/15 text-success"
                           : "border-border bg-accent/60 text-muted-foreground"
@@ -623,7 +623,7 @@ export const MatchTab = () => {
                                   ? `${sl} · ${filled.question_code}`
                                   : sl
                               }
-                              className={`h-11 w-12 rounded-lg border font-mono text-xs font-medium ${
+                              className={`h-11 w-12 rounded-lg border  text-xs font-medium ${
                                 filled
                                   ? "border-success bg-success/20 text-success hover:bg-success/30"
                                   : active
@@ -656,7 +656,7 @@ export const MatchTab = () => {
                     <div className="rounded-lg border border-dashed border-primary/50 bg-primary/10 p-3">
                       <p className="text-xs text-muted-foreground">
                         Slot{" "}
-                        <span className="font-mono text-brand">{selSlot}</span>{" "}
+                        <span className=" text-brand">{selSlot}</span>{" "}
                         trống — tìm trong Bank đã duyệt rồi bấm &quot;Vào{" "}
                         {selSlot}&quot;.
                       </p>
@@ -666,7 +666,7 @@ export const MatchTab = () => {
                 return (
                   <div className="flex items-start gap-3 rounded-lg border border-success/40 bg-success/10 p-3">
                     <div className="min-w-0 flex-1">
-                      <p className="font-mono text-xs text-success">
+                      <p className=" text-xs text-success">
                         {filled.slot} · {filled.question_code}
                       </p>
                       <p className="text-sm text-foreground">{filled.content}</p>
@@ -698,7 +698,7 @@ export const MatchTab = () => {
                   .filter((q) => !q.slot)
                   .map((q) => (
                     <p key={q.question_code} className="truncate text-sm">
-                      <span className="font-mono text-xs text-success">
+                      <span className=" text-xs text-success">
                         {q.question_code}
                       </span>{" "}
                       <span className="text-foreground">{q.content}</span>
@@ -715,7 +715,7 @@ export const MatchTab = () => {
           </div>
 
           {}
-          <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 bg-background/25 p-4 lg:sticky lg:top-16 lg:self-start xl:max-w-[44rem]">
+          <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-border/60 bg-background/25 p-4 lg:sticky lg:top-16 lg:self-start xl:max-w-176">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Bank đã duyệt{selSlot ? ` · ${selSlot}` : " · tất cả vòng"}
             </p>

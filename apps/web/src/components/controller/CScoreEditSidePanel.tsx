@@ -8,14 +8,14 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { notifyError } from "@/lib/notify";
 
-const logger = createLogger("CScoreEditModal");
+const logger = createLogger("CScoreEditSidePanel");
 
 interface QuestionOption {
   question_code: string;
   content?: string;
 }
 
-interface CScoreEditModalProps {
+interface CScoreEditSidePanelProps {
   open: boolean;
   playerCode: string;
   playerName: string;
@@ -25,7 +25,7 @@ interface CScoreEditModalProps {
   onSaved: (score: number) => void;
 }
 
-export default function CScoreEditModal({
+export default function CScoreEditSidePanel({
   open,
   playerCode,
   playerName,
@@ -33,7 +33,7 @@ export default function CScoreEditModal({
   currentScore,
   onClose,
   onSaved,
-}: CScoreEditModalProps) {
+}: CScoreEditSidePanelProps) {
   const [questions, setQuestions] = useState<QuestionOption[]>([]);
   const [questionCode, setQuestionCode] = useState("");
   const [points, setPoints] = useState("0");

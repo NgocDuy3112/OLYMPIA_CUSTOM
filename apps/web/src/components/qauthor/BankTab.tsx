@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { LayoutGrid, List, Plus, Search } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
-import { EditBankSidebar, type BankFormKind, type BankFormValue } from "./EditBankSidebar";
+import { EditBankSidePanel, type BankFormKind, type BankFormValue } from "./EditBankSidePanel";
 import {
   BANK_PAGE_SIZE,
   genBankCode,
@@ -218,7 +218,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
         cell: (info) => {
           const q = info.row.original;
           return (
-            <span className="whitespace-nowrap font-mono text-xs">
+            <span className="whitespace-nowrap  text-xs">
               {q.bank_code}
               {q.round_hint && (
                 <span className="ml-1 text-muted-foreground">· {q.round_hint}</span>
@@ -277,13 +277,13 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
         cell: (info) =>
           info.getValue() ? (
             <span
-              className="font-mono text-xs text-success"
+              className=" text-xs text-success"
               title={info.getValue()!}
             >
               Có media
             </span>
           ) : (
-            <span className="font-mono text-xs text-muted-foreground">Chưa có</span>
+            <span className=" text-xs text-muted-foreground">Chưa có</span>
           ),
       }),
     ];
@@ -291,7 +291,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
 
   return (
     <div className="flex flex-col gap-4">
-      <EditBankSidebar
+      <EditBankSidePanel
         open={sidebar !== null}
         mode="create"
         kind={sidebar?.kind ?? "kd"}
@@ -410,7 +410,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               <NativeSelect
                 value={vdDomain}
                 onChange={(e) => setVdDomain(e.target.value)}
-                className="font-mono"
+                className=""
               >
                 <option value="">Mọi lĩnh vực</option>
                 {["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"].map((d) => (
@@ -420,7 +420,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               <NativeSelect
                 value={vdLevel}
                 onChange={(e) => setVdLevel(e.target.value)}
-                className="font-mono"
+                className=""
               >
                 <option value="">Mọi mức</option>
                 {[20, 30, 40, 50].map((l) => (
@@ -446,7 +446,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               return (
                 <div key={setCode} className="rounded-lg bg-background/40 border border-border p-3 flex flex-col gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm text-warning">{setCode}</span>
+                    <span className=" text-sm text-warning">{setCode}</span>
                     {key && <span className="text-sm text-foreground">KEY: {key.answer}</span>}
                     <span className="text-xs text-muted-foreground">{hints.length}/8 hint{missing.length > 0 && ` · thiếu ${missing.join(",")}`}</span>
                     <Button

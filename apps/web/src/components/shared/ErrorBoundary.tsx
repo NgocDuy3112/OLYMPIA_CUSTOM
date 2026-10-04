@@ -36,10 +36,10 @@ export class ErrorBoundary extends React.Component<
             <p className="font-bold text-destructive">
               Trang gặp lỗi — gửi đoạn này cho dev
             </p>
-            <p className="text-sm font-mono break-all text-destructive/80">
+            <p className="text-sm  break-all text-destructive/80">
               {String(this.state.error.message)}
             </p>
-            <pre className="text-[11px] font-mono text-muted-foreground whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
+            <pre className="text-[11px]  text-muted-foreground whitespace-pre-wrap break-all max-h-48 overflow-y-auto">
               {this.state.error.stack}
             </pre>
             <div>

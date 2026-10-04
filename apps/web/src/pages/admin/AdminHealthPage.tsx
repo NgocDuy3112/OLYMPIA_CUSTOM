@@ -119,8 +119,8 @@ const AdminHealthPage = () => {
               <HealthDot ok={r.ok} />
               <p className="font-semibold text-foreground">{r.name}</p>
             </div>
-            <p className="text-xs text-muted-foreground font-mono break-all">{r.url}</p>
-            <p className="text-xs text-muted-foreground font-mono break-all">{r.detail}</p>
+            <p className="text-xs text-muted-foreground  break-all">{r.url}</p>
+            <p className="text-xs text-muted-foreground  break-all">{r.detail}</p>
           </div>
         ))}
       </div>

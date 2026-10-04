@@ -4,7 +4,7 @@ import { API_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
-import { SetFillPanel } from "@/components/qauthor/SetFillPanel";
+import { SetFillSidePanel } from "@/components/qauthor/SetFillSidePanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -86,7 +86,7 @@ const QAuthorSetsPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <SetFillPanel setCode={openCode} onClose={() => setOpenCode(null)} onChanged={fetchSets} />
+      <SetFillSidePanel setCode={openCode} onClose={() => setOpenCode(null)} onChanged={fetchSets} />
       <SidePanel
         open={showCreate}
         onClose={() => setShowCreate(false)}
@@ -126,14 +126,14 @@ const QAuthorSetsPage = () => {
             value={matchCode}
             onChange={(e) => setMatchCode(e.target.value.toUpperCase())}
             placeholder="VD: OC4_M01T (gán sau cũng được)"
-            className={`${formInputClass} font-mono`}
+            className={`${formInputClass} `}
           />
         </div>
         <p className="text-xs text-muted-foreground">1 bộ thuộc đúng 1 mã trận.</p>
       </SidePanel>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="font-mono text-sm text-muted-foreground">
+        <span className=" text-sm text-muted-foreground">
           {sets.length} bộ
         </span>
         <div className="flex gap-2 shrink-0">
@@ -188,7 +188,7 @@ const QAuthorSetsPage = () => {
                   </span>
                 )}
               </div>
-              <p className="font-mono text-xs text-muted-foreground">{s.setCode}</p>
+              <p className=" text-xs text-muted-foreground">{s.setCode}</p>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-1.5 rounded-full bg-accent overflow-hidden">
                   <div
@@ -196,12 +196,12 @@ const QAuthorSetsPage = () => {
                     style={{ width: `${s.expected ? Math.min((s.filled / s.expected) * 100, 100) : 0}%` }}
                   />
                 </div>
-                <span className="font-mono text-xs text-muted-foreground whitespace-nowrap">
+                <span className=" text-xs text-muted-foreground whitespace-nowrap">
                   {s.filled}/{s.expected}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Trận: <span className="font-mono text-foreground/80">{s.matchCode ?? "— chưa gán —"}</span>
+                Trận: <span className=" text-foreground/80">{s.matchCode ?? "— chưa gán —"}</span>
               </p>
             </Button>
           ))}

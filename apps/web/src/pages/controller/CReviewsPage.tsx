@@ -134,7 +134,7 @@ const CReviewsPage = () => {
           value={matchCode}
           onChange={(e) => setMatchCode(e.target.value)}
           placeholder="Mã trận đấu"
-          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground font-mono text-sm"
+          className="flex-1 px-3 py-2 rounded-lg bg-accent/50 border border-border text-foreground  text-sm"
         />
         <NativeSelect
           value={status}
@@ -164,7 +164,7 @@ const CReviewsPage = () => {
         return (
           <div key={r.id} className="rounded-xl bg-accent/50 border border-border p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <p className="font-mono text-sm text-role-controller">{r.questionCode}</p>
+              <p className=" text-sm text-role-controller">{r.questionCode}</p>
               <p className="text-xs text-muted-foreground">{r.status}</p>
             </div>
             {r.candidates.map((c) => {

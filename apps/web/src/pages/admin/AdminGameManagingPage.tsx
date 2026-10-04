@@ -9,7 +9,7 @@ import { emptyScheduleForm, type ScheduleFormValue } from "@/components/admin/sc
 import { isoToLocalInput } from "@/components/admin/scheduleUtils";
 import { QuestionsCard } from "@/components/admin/QuestionsCard";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
-import { EditMatchQuestionPanel, type MatchQuestionEditValue } from "@/components/admin/EditMatchQuestionPanel";
+import { EditMatchQuestionSidePanel, type MatchQuestionEditValue } from "@/components/admin/EditMatchQuestionSidePanel";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -542,7 +542,7 @@ const AdminGameManagingPage = () => {
           <section key={g.key} className="flex flex-col gap-2.5">
             <div className="flex items-center gap-2">
               <h2 className="text-sm font-semibold text-foreground/80">{g.title}</h2>
-              <span className="px-1.5 py-0.5 rounded bg-accent text-[11px] font-mono text-muted-foreground">
+              <span className="px-1.5 py-0.5 rounded bg-accent text-[11px]  text-muted-foreground">
                 {g.items.length}
               </span>
               <div className="flex-1 border-t border-border" />
@@ -568,7 +568,7 @@ const AdminGameManagingPage = () => {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground/80">
-              Câu hỏi — <span className="font-mono text-brand">{selectedCode}</span>
+              Câu hỏi — <span className=" text-brand">{selectedCode}</span>
             </h2>
             <div className="flex-1 border-t border-border" />
           </div>
@@ -583,7 +583,7 @@ const AdminGameManagingPage = () => {
         </div>
       )}
 
-      <EditMatchQuestionPanel
+      <EditMatchQuestionSidePanel
         item={editingQuestion}
         matchCode={selectedCode}
         saving={savingQuestionEdit}
