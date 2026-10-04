@@ -189,9 +189,6 @@ const CQualifierPage = () => {
           </ol>
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Controller điều phối live. Soạn đề chi tiết nằm ở QAuthor.
-      </p>
     </div>
   );
 };

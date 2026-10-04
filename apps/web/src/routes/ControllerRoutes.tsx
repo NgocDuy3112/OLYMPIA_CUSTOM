@@ -91,13 +91,13 @@ const ControllerRoutes = () => {
 
   return (
     <AuthGuard requiredRole="operator" requiredScope="controller">
+      <GameWebSocketProvider
+        config={{
+          role: "controller",
+          matchCode,
+        }}
+      >
       <ControllerLayout>
-        <GameWebSocketProvider
-          config={{
-            role: "controller",
-            matchCode,
-          }}
-        >
           <ControllerAutoNavigator />
           <Routes>
             <Route
@@ -124,8 +124,8 @@ const ControllerRoutes = () => {
             <Route path="/gm/:matchCode?" element={<GiaiMaPage />} />
             <Route path="*" element={<Navigate to="/operator/controller/overview" replace />} />
           </Routes>
-        </GameWebSocketProvider>
       </ControllerLayout>
+      </GameWebSocketProvider>
     </AuthGuard>
   );
 };

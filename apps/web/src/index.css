@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -198,7 +197,7 @@
     @apply border-border outline-ring/50;
   }
   html {
-    @apply font-sans;
+    @apply font-app;
   }
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -363,8 +362,8 @@ body.overlay-mode::before {
 }
 
 @theme inline {
-  --font-heading: var(--font-sans);
-  --font-sans: 'Inter Variable', sans-serif;
+  --font-heading: var(--font-app);
+  --font-app: system-ui, -apple-system, "Segoe UI", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
