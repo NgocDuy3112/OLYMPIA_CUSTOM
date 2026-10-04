@@ -1,14 +1,9 @@
 #!/bin/bash
 set -e
 
-# Fresh DB install (single path — old DB is gone).
-#
-# Usage: ./scripts/rebuild.sh
 
 cd "$(dirname "$0")/.."
 
-# Tự dò mọi configs/.env* (trừ *.example), source hết để lấy DB_USER/DB_NAME,
-# rồi truyền từng file vào compose qua --env-file. Thêm file mới không sửa script.
 ENV_FILES=(configs/.env.*)
 ENV_ARGS=()
 for f in "${ENV_FILES[@]}"; do
@@ -28,7 +23,7 @@ DB_NAME="${POSTGRES_DB_NAME}"
 
 podman compose \
   "${ENV_ARGS[@]}" \
-  -f docker-compose-dev.yaml up -d --build --force-recreate
+  -f docker-compose-dev.yaml up -d --build --no-cache --force-recreate
 
 podman image prune -f
 

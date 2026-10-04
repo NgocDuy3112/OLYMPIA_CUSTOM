@@ -4,9 +4,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 RUN apk add --no-cache libc6-compat
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+ENV NODE_ENV=production
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/package.json
 COPY apps/web/package.json apps/web/package.json
 
