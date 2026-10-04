@@ -40,7 +40,9 @@ export async function createApp() {
       transport:
         env.NODE_ENV !== "production"
           ? { target: "pino-pretty", options: { colorize: true } }
-          : undefined,
+          : env.LOG_FILE
+            ? { target: "pino/file", options: { destination: env.LOG_FILE, mkdir: true } }
+            : undefined,
     },
   });
 

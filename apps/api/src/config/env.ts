@@ -7,6 +7,7 @@ const envSchema = z.object({
     .enum(["development", "production", "test"])
     .default("development"),
   LOG_LEVEL: z.string().default("info"),
+  LOG_FILE: z.string().optional(),
   AGENT_URL: z.string().default("http://localhost:8100"),
   BOT_EXECUTOR_URL: z.string().default("http://localhost:8200"),
 
