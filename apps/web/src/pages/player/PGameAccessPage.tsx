@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "@/configs";
+import { apiCall, apiGet } from "@/api/client";
 import { setMatchCode, setPlayerCode } from "@/utils/storage";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -77,26 +77,16 @@ const PGameAccessPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/matches/join`, {
+      const data = await apiCall<{ matchSlug: string }>("/matches/join", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ pin: pinCode }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Invalid PIN");
-      }
-
-      if (data.status === "success" && data.data) {
+      if (data.data) {
         setMatchCode(data.data.matchSlug);
         try {
-          const me = await fetch(`${API_BASE_URL}/auth/me`, {
-            credentials: "include",
-          }).then((r) => r.json());
-          const userCode = me?.data?.userCode as string | undefined;
+          const me = await apiGet<{ userCode?: string }>("/auth/me");
+          const userCode = me.data?.userCode;
           if (userCode) setPlayerCode(userCode);
         } catch {
         }

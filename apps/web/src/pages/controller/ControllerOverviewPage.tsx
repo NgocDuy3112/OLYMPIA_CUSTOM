@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, Clock, CheckCircle2, Search, Monitor, Copy, Check, ExternalLink } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import {
+  ApiError,
+  apiGet,
+  type ApiResponse,
+} from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode, setMatchCode } from "@/utils/storage";
 import { OVERLAYS, overlayUrl } from "@/pages/overlay/overlayList";
@@ -16,6 +20,19 @@ import {
 } from "@/components/ui/input-group";
 
 const logger = createLogger("ControllerOverviewPage");
+
+/** GET ênvelope, nhưng lỗi HTTP/envelope trả về `{ data: null }` thay vì ném — giữ hành vi "im lặng, hiển thị 0". */
+async function softGet<T>(path: string): Promise<ApiResponse<T>> {
+  try {
+    const res = await apiGet<T>(path);
+    return res ?? { status: "error", message: "", data: null };
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return { status: "error", message: "", data: null };
+    }
+    throw err;
+  }
+}
 
 interface OverviewStats {
   players: number;
@@ -68,22 +85,13 @@ const ControllerOverviewPage = () => {
     if (!code) return;
     setLoading(true);
     try {
-      const [sbRes, pRes, qRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/scoreboard/${encodeURIComponent(code)}`, {
-          credentials: "include",
-        }),
-        fetch(
-          `${API_BASE_URL}/score-reviews?match_code=${encodeURIComponent(code)}&status=pending`,
-          { credentials: "include" },
+      const [sbJson, pJson, qJson] = await Promise.all([
+        softGet<any>(`/scoreboard/${encodeURIComponent(code)}`),
+        softGet<any>(
+          `/score-reviews?match_code=${encodeURIComponent(code)}&status=pending`,
         ),
-        fetch(
-          `${API_BASE_URL}/questions?match_code=${encodeURIComponent(code)}`,
-          { credentials: "include" },
-        ),
+        softGet<any>(`/questions?match_code=${encodeURIComponent(code)}`),
       ]);
-      const sbJson = await sbRes.json().catch(() => null);
-      const pJson = await pRes.json().catch(() => null);
-      const qJson = await qRes.json().catch(() => null);
       const board = sbJson?.data?.scoreboard ?? sbJson?.data ?? [];
       setStats({
         players: Array.isArray(board) ? board.length : 0,

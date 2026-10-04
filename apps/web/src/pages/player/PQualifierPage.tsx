@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { CheckCircle2, Send, Trophy } from "lucide-react";
-import { API_BASE_URL, WS_BASE_URL } from "@/configs";
+import { ApiError, apiCall, apiGet } from "@/api/client";
+import { WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import PQuestionBoard from "@/components/player/PQuestionBoard";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { parseWebSocketMessage } from "@/types/websocket";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("PQualifierPage");
 
@@ -31,12 +33,6 @@ interface Standing {
   correctCount: number;
   avgCorrectTimeSec: number;
   rank: number;
-}
-
-interface ApiResponse {
-  status: "success" | "error";
-  message: string;
-  data: unknown;
 }
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
@@ -76,11 +72,9 @@ const PQualifierPage = () => {
     if (!code) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/qualifier/${encodeURIComponent(code)}/questions`,
-        { credentials: "include" },
+      const json = await apiGet<Record<string, unknown>[]>(
+        `/qualifier/${encodeURIComponent(code)}/questions`,
       );
-      const json: ApiResponse = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {
         const rows = (json.data as Record<string, unknown>[]).map(toQuestion);
         setQuestions(rows);
@@ -110,11 +104,9 @@ const PQualifierPage = () => {
   const fetchStandings = useCallback(async () => {
     if (!code) return;
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/qualifier/${encodeURIComponent(code)}/standings?limit=16`,
-        { credentials: "include" },
+      const json = await apiGet<Standing[]>(
+        `/qualifier/${encodeURIComponent(code)}/standings?limit=16`,
       );
-      const json: ApiResponse = await res.json();
       if (json.status === "success" && Array.isArray(json.data)) {
         setStandings(json.data as Standing[]);
       } else {
@@ -180,24 +172,21 @@ const PQualifierPage = () => {
       if (responseTimeMs > 10_000) return;
       setSubmitting(true);
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/qualifier/${encodeURIComponent(code)}/questions/${encodeURIComponent(questionCode)}/attempt`,
+        await apiCall(
+          `/qualifier/${encodeURIComponent(code)}/questions/${encodeURIComponent(questionCode)}/attempt`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify({ selectedOption: letter, responseTimeMs }),
           },
         );
-        const json: ApiResponse = await res.json();
-        if (res.ok) {
-          setSubmitted((p) => ({ ...p, [questionCode]: true }));
-        } else {
-          alert(`Nộp thất bại: ${json.message ?? "Lỗi không xác định"}`);
-        }
+        setSubmitted((p) => ({ ...p, [questionCode]: true }));
       } catch (err) {
-        logger.error("Error submitting attempt:", err);
-        alert("Lỗi kết nối khi nộp bài");
+        if (err instanceof ApiError) {
+          notifyError(`Nộp thất bại: ${err.message}`);
+        } else {
+          logger.error("Error submitting attempt:", err);
+          notifyError("Lỗi kết nối khi nộp bài");
+        }
       } finally {
         setSubmitting(false);
       }

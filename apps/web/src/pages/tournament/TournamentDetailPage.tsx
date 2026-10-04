@@ -9,7 +9,7 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 import {
   PublicLayout,
   TabNavigation,
@@ -89,49 +89,32 @@ const TournamentDetailPage: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        const tournamentResponse = await fetch(
-          `${API_BASE_URL}/tournaments/${code}`,
-          { credentials: "include" },
-        );
-
-        if (!tournamentResponse.ok) {
-          throw new Error("Tournament not found");
-        }
-
-        const tournamentData = await tournamentResponse.json();
-        if (tournamentData.status === "success" && tournamentData.data) {
+        const tournamentData = await apiGet<
+          Tournament & {
+            players?: TournamentPlayer[];
+            matches?: TournamentMatch[];
+          }
+        >(`/tournaments/${code}`);
+        if (tournamentData.data) {
           setTournament(tournamentData.data);
           setPlayers(tournamentData.data.players || []);
           setMatches(tournamentData.data.matches || []);
         }
 
         try {
-          const standingsResponse = await fetch(
-            `${API_BASE_URL}/tournaments/${code}/standings`,
-            { credentials: "include" },
+          const standingsData = await apiGet<{ standings?: any[] }>(
+            `/tournaments/${code}/standings`,
           );
-          if (standingsResponse.ok) {
-            const standingsData = await standingsResponse.json();
-            if (standingsData.status === "success" && standingsData.data) {
-              setStandings(standingsData.data.standings || []);
-            }
+          if (standingsData.data) {
+            setStandings(standingsData.data.standings || []);
           }
         } catch {
         }
 
         try {
-          const meResponse = await fetch(
-            `${API_BASE_URL}/tournaments/${code}/me`,
-            { credentials: "include" },
-          );
-
-          if (meResponse.ok) {
-            const meData = await meResponse.json();
-            if (meData.status === "success") {
-              setIsAuthenticated(true);
-              setMyMembership(meData.data);
-            }
-          }
+          const meData = await apiGet<MyMembership>(`/tournaments/${code}/me`);
+          setIsAuthenticated(true);
+          setMyMembership(meData.data);
         } catch {
         }
       } catch (err) {

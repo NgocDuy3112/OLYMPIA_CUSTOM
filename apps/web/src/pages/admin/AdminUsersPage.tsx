@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiCall } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +22,7 @@ import {
 } from "@/components/admin/UserSidePanels";
 import { UserRowActions } from "@/components/admin/UserRowActions";
 import { FilterSelect } from "@/components/shared/FilterSelect";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("AdminUsersPage");
 
@@ -33,12 +34,6 @@ interface UserData {
   operator_scopes?: string | null;
   created_at: string;
   updated_at: string;
-}
-
-interface ApiResponse {
-  status: "success" | "error";
-  message: string;
-  data: Record<string, unknown> | Record<string, unknown>[] | null;
 }
 
 const toUserData = (r: Record<string, unknown>): UserData => ({
@@ -80,27 +75,30 @@ const AdminUsersPage = () => {
     setUsersLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/users`, {
-        headers: authHeaders(),
-        credentials: "include",
-      });
-      const json: ApiResponse = await res.json().catch(() => null);
-      if (res.ok && json?.status === "success" && Array.isArray(json.data)) {
+      const json = await apiCall<Record<string, unknown>[]>(
+        "/users",
+        { headers: authHeaders() },
+      );
+      if (Array.isArray(json.data)) {
         setUsers((json.data as Record<string, unknown>[]).map(toUserData));
-      } else {
-        const msg = `Tải danh sách thất bại (HTTP ${res.status}): ${json?.message ?? res.statusText}`;
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        const msg = `Tải danh sách thất bại (HTTP ${err.status}): ${err.message}`;
         logger.warn("Fetch users failed:", msg);
         setFetchError(
-          res.status === 401
+          err.status === 401
             ? "Hết phiên đăng nhập — đăng nhập lại rồi tải lại trang."
-            : res.status === 403
+            : err.status === 403
               ? "Tài khoản không có quyền admin."
               : msg,
         );
+      } else {
+        logger.error("Error fetching users:", err);
+        setFetchError(
+          "Không kết nối được API — kiểm tra API có đang chạy không.",
+        );
       }
-    } catch (err) {
-      logger.error("Error fetching users:", err);
-      setFetchError("Không kết nối được API — kiểm tra API có đang chạy không.");
     } finally {
       setUsersLoading(false);
     }
@@ -110,7 +108,7 @@ const AdminUsersPage = () => {
     async (value: UserEditValue) => {
       if (!editingUser) return;
       if (value.password && value.password.length < 8) {
-        alert("Mật khẩu mới tối thiểu 8 ký tự.");
+        notifyError("Mật khẩu mới tối thiểu 8 ký tự.");
         return;
       }
       setSavingEdit(true);
@@ -119,32 +117,24 @@ const AdminUsersPage = () => {
         if (value.name.trim()) body.userName = value.name.trim();
         if (value.email.trim()) body.email = value.email.trim();
         if (value.password) body.password = value.password;
-        const res = await fetch(
-          `${API_BASE_URL}/users/${editingUser.user_code}`,
-          {
-            method: "PUT",
-            headers: authHeaders(),
-            credentials: "include",
-            body: JSON.stringify(body),
-          },
-        );
-        const json = await res.json();
-        if (res.ok) {
-          setEditingUser(null);
-          await fetchUsers();
-        } else {
-          alert(
-            `Thất bại: ${json.detail ?? json.message ?? "Lỗi không xác định"}`,
-          );
-        }
+        await apiCall(`/users/${editingUser.user_code}`, {
+          method: "PUT",
+          body: JSON.stringify(body),
+        });
+        setEditingUser(null);
+        await fetchUsers();
       } catch (err) {
-        logger.error("Error patching user:", err);
-        alert("Lỗi kết nối khi sửa thông tin");
+        if (err instanceof ApiError) {
+          notifyError(`Thất bại: ${err.message}`);
+        } else {
+          logger.error("Error patching user:", err);
+          notifyError("Lỗi kết nối khi sửa thông tin");
+        }
       } finally {
         setSavingEdit(false);
       }
     },
-    [authHeaders, editingUser, fetchUsers],
+    [editingUser, fetchUsers],
   );
 
   const createUser = useCallback(
@@ -152,103 +142,99 @@ const AdminUsersPage = () => {
       if (!value.name.trim() || value.password.length < 8) return;
       setSavingAdd(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/users`, {
+        const payload = {
+          userName: value.name.trim(),
+          password: value.password,
+          role: value.role,
+          scopes: value.role === "operator" ? value.scopes : undefined,
+        };
+        await apiCall("/users", {
           method: "POST",
-          headers: authHeaders(),
-          credentials: "include",
-          body: JSON.stringify({
-            userName: value.name.trim(),
-            password: value.password,
-            role: value.role,
-            scopes: value.role === "operator" ? value.scopes : undefined,
-          }),
+          body: JSON.stringify(payload),
         });
-        const json = await res.json();
-        if (res.ok) {
-          setShowAdd(false);
-          await fetchUsers();
-        } else {
-          alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
-        }
+        setShowAdd(false);
+        await fetchUsers();
       } catch (err) {
-        logger.error("Error creating user:", err);
-        alert("Lỗi kết nối khi tạo người dùng");
+        if (err instanceof ApiError) {
+          notifyError(`Tạo thất bại: ${err.message}`);
+        } else {
+          logger.error("Error creating user:", err);
+          notifyError("Lỗi kết nối khi tạo người dùng");
+        }
       } finally {
         setSavingAdd(false);
       }
     },
-    [authHeaders, fetchUsers],
+    [fetchUsers],
   );
 
   const saveRole = useCallback(
     async (value: UserRoleValue) => {
       if (!roleUser) return;
       if (value.role === "operator" && value.scopes.length === 0) {
-        alert("Chọn ít nhất 1 scope cho operator");
+        notifyError("Chọn ít nhất 1 scope cho operator");
         return;
       }
       setSavingRole(true);
       try {
-        const resRole = await fetch(
-          `${API_BASE_URL}/users/${encodeURIComponent(roleUser.user_code)}`,
-          {
+        try {
+          await apiCall(`/users/${encodeURIComponent(roleUser.user_code)}`, {
             method: "PUT",
-            headers: authHeaders(),
-            credentials: "include",
             body: JSON.stringify({ role: value.role }),
-          },
-        );
-        const jsonRole = await resRole.json();
-        if (!resRole.ok) {
-          alert(`Đổi vai trò thất bại: ${jsonRole.message ?? "Lỗi"}`);
-          return;
+          });
+        } catch (err) {
+          if (err instanceof ApiError) {
+            notifyError(`Đổi vai trò thất bại: ${err.message}`);
+            return;
+          }
+          throw err;
         }
         if (value.role === "operator") {
-          const resScopes = await fetch(
-            `${API_BASE_URL}/users/${encodeURIComponent(roleUser.user_code)}/operator`,
-            {
-              method: "PUT",
-              headers: authHeaders(),
-              credentials: "include",
-              body: JSON.stringify({ scopes: value.scopes }),
-            },
-          );
-          const jsonScopes = await resScopes.json();
-          if (!resScopes.ok) {
-            alert(`Cấp scope thất bại: ${jsonScopes.message ?? "Lỗi"}`);
-            return;
+          try {
+            await apiCall(
+              `/users/${encodeURIComponent(roleUser.user_code)}/operator`,
+              {
+                method: "PUT",
+                body: JSON.stringify({ scopes: value.scopes }),
+              },
+            );
+          } catch (err) {
+            if (err instanceof ApiError) {
+              notifyError(`Cấp scope thất bại: ${err.message}`);
+              return;
+            }
+            throw err;
           }
         }
         setRoleUser(null);
         await fetchUsers();
       } catch (err) {
         logger.error("Error updating role:", err);
-        alert("Lỗi kết nối khi đổi vai trò");
+        notifyError("Lỗi kết nối khi đổi vai trò");
       } finally {
         setSavingRole(false);
       }
     },
-    [roleUser, authHeaders, fetchUsers],
+    [roleUser, fetchUsers],
   );
 
   const confirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     setSavingDelete(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/users/${encodeURIComponent(deleteTarget.user_code)}`,
-        { method: "DELETE", headers: authHeaders(), credentials: "include" },
-      );
-      const json = await res.json();
-      if (res.ok) {
-        setDeleteTarget(null);
-        await fetchUsers();
-      } else {
-        alert(`Xoá thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
+      await apiCall(`/users/${encodeURIComponent(deleteTarget.user_code)}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      setDeleteTarget(null);
+      await fetchUsers();
     } catch (err) {
-      logger.error("Error deleting user:", err);
-      alert("Lỗi kết nối khi xoá người dùng");
+      if (err instanceof ApiError) {
+        notifyError(`Xoá thất bại: ${err.message}`);
+      } else {
+        logger.error("Error deleting user:", err);
+        notifyError("Lỗi kết nối khi xoá người dùng");
+      }
     } finally {
       setSavingDelete(false);
     }

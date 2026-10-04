@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiCall, apiGet } from "@/api/client";
 import {
   TournamentFormSidePanel,
   type TournamentFormValue,
@@ -57,16 +57,8 @@ const TournamentListPage: React.FC = () => {
   const fetchTournaments = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/tournaments`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch tournaments");
-      }
-
-      const data = await response.json();
-      if (data.status === "success" && data.data) {
+      const data = await apiGet<Tournament[]>("/tournaments");
+      if (data.data) {
         setTournaments(data.data);
       }
     } catch (err) {
@@ -90,16 +82,10 @@ const TournamentListPage: React.FC = () => {
     setSavingCreate(true);
     setCreateError(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/tournaments`, {
+      await apiCall("/tournaments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(v),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.message || "Failed to save tournament");
-      }
       setShowCreate(false);
       await fetchTournaments();
     } catch (err) {
@@ -115,19 +101,16 @@ const TournamentListPage: React.FC = () => {
     }
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/tournaments/${tournamentCode}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        },
-      );
+      await apiCall(`/tournaments/${tournamentCode}`, {
+        method: "DELETE",
+      }).catch((err) => {
+        if (err instanceof ApiError) return null;
+        throw err;
+      });
 
-      if (response.ok) {
-        setTournaments((prev) =>
-          prev.filter((t) => t.tournamentCode !== tournamentCode),
-        );
-      }
+      setTournaments((prev) =>
+        prev.filter((t) => t.tournamentCode !== tournamentCode),
+      );
     } catch (err) {
       console.error("Failed to delete tournament:", err);
     }

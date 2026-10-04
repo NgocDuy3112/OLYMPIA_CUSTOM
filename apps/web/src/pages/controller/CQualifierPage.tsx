@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Search, Trophy } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import {
+  ApiError,
+  apiCall,
+  apiGet,
+  type ApiResponse,
+} from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +15,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { getMatchCode } from "@/utils/storage";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("CQualifierPage");
 
@@ -31,10 +37,17 @@ interface Standing {
   rank: number;
 }
 
-interface ApiResponse {
-  status: "success" | "error";
-  message: string;
-  data: unknown;
+/** GET ênvelope, nhưng lỗi HTTP/envelope trả về `{ data: null }` thay vì ném — giữ hành vi danh sách rỗng im lặng. */
+async function softGet<T>(path: string): Promise<ApiResponse<T>> {
+  try {
+    const res = await apiGet<T>(path);
+    return res ?? { status: "error", message: "", data: null };
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return { status: "error", message: "", data: null };
+    }
+    throw err;
+  }
 }
 
 const toQuestion = (row: Record<string, unknown>): QualifierQuestion => ({
@@ -62,14 +75,10 @@ const CQualifierPage = () => {
     if (!code) return;
     setLoading(true);
     try {
-      const [qRes, sRes] = await Promise.all([
-        fetch(`${API_BASE_URL}${base()}/questions`, { credentials: "include" }),
-        fetch(`${API_BASE_URL}${base()}/standings?limit=16`, {
-          credentials: "include",
-        }),
+      const [qJson, sJson] = await Promise.all([
+        softGet<Record<string, unknown>[]>(`${base()}/questions`),
+        softGet<Standing[]>(`${base()}/standings?limit=16`),
       ]);
-      const qJson: ApiResponse = await qRes.json().catch(() => ({ status: "error", message: "", data: null }));
-      const sJson: ApiResponse = await sRes.json().catch(() => ({ status: "error", message: "", data: null }));
       setQuestions(
         qJson.status === "success" && Array.isArray(qJson.data)
           ? (qJson.data as Record<string, unknown>[]).map(toQuestion)
@@ -97,16 +106,19 @@ const CQualifierPage = () => {
     if (!window.confirm(`Chốt + chấm ${open.length} câu đang mở?`)) return;
     setClosingAll(true);
     try {
-      const res = await fetch(`${API_BASE_URL}${base()}/close-all`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const json: ApiResponse = await res.json().catch(() => ({ status: "error", message: "", data: null }));
-      if (!res.ok) alert(`Chốt thất bại: ${json.message ?? "Lỗi không xác định"}`);
+      try {
+        await apiCall(`${base()}/close-all`, { method: "POST" });
+      } catch (err) {
+        if (err instanceof ApiError) {
+          notifyError(`Chốt thất bại: ${err.message}`);
+        } else {
+          throw err;
+        }
+      }
       await fetchAll();
     } catch (err) {
       logger.error("Error closing all:", err);
-      alert("Lỗi kết nối khi chốt");
+      notifyError("Lỗi kết nối khi chốt");
     } finally {
       setClosingAll(false);
     }

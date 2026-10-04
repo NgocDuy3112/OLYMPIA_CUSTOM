@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import {
+  ApiError,
+  apiCall,
+  apiGet,
+  getApiErrorMessage,
+} from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,14 +48,15 @@ const AdminMcpTokensPage = () => {
   const fetchTokens = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/mcp-tokens`, {
-        credentials: "include",
+      const json = await apiGet<McpTokenMeta[]>("/mcp-tokens").catch((err) => {
+        if (err instanceof ApiError) {
+          logger.warn("Fetch tokens failed:", err.message);
+          return null;
+        }
+        throw err;
       });
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
+      if (json) {
         setTokens(json.data ?? []);
-      } else {
-        logger.warn("Fetch tokens failed:", json.message);
       }
     } catch (err) {
       logger.error("Error fetching tokens:", err);
@@ -61,14 +67,17 @@ const AdminMcpTokensPage = () => {
 
   const fetchIdentities = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/mcp-tokens/identities`, {
-        credentials: "include",
-      });
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
+      const json = await apiGet<Identity[]>("/mcp-tokens/identities").catch(
+        (err) => {
+          if (err instanceof ApiError) {
+            logger.warn("Fetch identities failed:", err.message);
+            return null;
+          }
+          throw err;
+        },
+      );
+      if (json) {
         setIdentities(json.data ?? []);
-      } else {
-        logger.warn("Fetch identities failed:", json.message);
       }
     } catch (err) {
       logger.error("Error fetching identities:", err);
@@ -84,43 +93,38 @@ const AdminMcpTokensPage = () => {
     setError(null);
     setFreshToken(null);
     try {
-      const res = await fetch(`${API_BASE_URL}/mcp-tokens`, {
+      const json = await apiCall<{ token: string }>("/mcp-tokens", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), userCode }),
       });
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
-        setFreshToken(json.data.token);
-        setName("");
-        setUserCode("");
-        void fetchTokens();
-      } else {
-        setError(json.message ?? "Tạo token thất bại");
-      }
+      setFreshToken(json.data!.token);
+      setName("");
+      setUserCode("");
+      void fetchTokens();
     } catch (err) {
-      logger.error("Error creating token:", err);
-      setError("Lỗi mạng");
+      if (err instanceof ApiError) {
+        setError(getApiErrorMessage(err, "Tạo token thất bại"));
+      } else {
+        logger.error("Error creating token:", err);
+        setError("Lỗi mạng");
+      }
     }
   };
 
   const revokeToken = useCallback(async (tokenName: string) => {
     if (!window.confirm(`Thu hồi token "${tokenName}"?`)) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/mcp-tokens/${encodeURIComponent(tokenName)}`, {
+      await apiCall(`/mcp-tokens/${encodeURIComponent(tokenName)}`, {
         method: "DELETE",
-        credentials: "include",
       });
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
-        void fetchTokens();
-      } else {
-        setError(json.message ?? "Thu hồi thất bại");
-      }
+      void fetchTokens();
     } catch (err) {
-      logger.error("Error revoking token:", err);
-      setError("Lỗi mạng");
+      if (err instanceof ApiError) {
+        setError(getApiErrorMessage(err, "Thu hồi thất bại"));
+      } else {
+        logger.error("Error revoking token:", err);
+        setError("Lỗi mạng");
+      }
     }
   }, [fetchTokens]);
 

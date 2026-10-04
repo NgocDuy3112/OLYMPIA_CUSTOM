@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 import { setUserCode, setUserName, setUserRole } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
 
@@ -23,24 +23,21 @@ const AuthCallbackPage: React.FC = () => {
 
     const verifySession = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/auth/me`, {
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          throw new Error("Session verification failed");
-        }
-
-        const data = await response.json();
-        if (data.status === "success" && data.data) {
-          setUserRole(data.data.role);
-          setUserCode(data.data.userCode);
-          setUserName(data.data.userName);
+        const data = await apiGet<{
+          role: string;
+          userCode: string;
+          userName: string;
+        }>("/auth/me");
+        if (data.data) {
+          const userData = data.data;
+          setUserRole(userData.role);
+          setUserCode(userData.userCode);
+          setUserName(userData.userName);
 
           setState("success");
 
           setTimeout(() => {
-            const role = data.data.role;
+            const role = userData.role;
             if (role === "admin") {
               navigate("/admin");
             } else if (role === "mc") {

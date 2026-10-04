@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiGet } from "@/api/client";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -22,15 +22,15 @@ const SReplayMatchPage: React.FC = () => {
 
     const fetchMatchInfo = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/matches/${matchCode}`, {
-          credentials: "include",
-        });
+        const data = await apiGet<MatchInfo>(`/matches/${matchCode}`).catch(
+          (err) => {
+            if (err instanceof ApiError) return null;
+            throw err;
+          },
+        );
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === "success" && data.data) {
-            setMatchInfo(data.data);
-          }
+        if (data?.data) {
+          setMatchInfo(data.data);
         }
       } catch (err) {
         console.error("Failed to fetch match info:", err);

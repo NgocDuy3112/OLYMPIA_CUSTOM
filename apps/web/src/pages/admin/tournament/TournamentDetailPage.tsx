@@ -7,7 +7,7 @@ import {
   ListChecks,
   GitBranch,
 } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiCall, apiGet } from "@/api/client";
 import TournamentBracket from "@/components/admin/TournamentBracket";
 import QualifierManager from "@/components/admin/QualifierManager";
 import GroupStageManager from "@/components/admin/GroupStageManager";
@@ -52,16 +52,8 @@ const TournamentDetailPage: React.FC = () => {
   const loadTournament = React.useCallback(async () => {
     if (!code) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/tournaments/${code}`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("Tournament not found");
-      }
-
-      const data = await response.json();
-      if (data.status === "success" && data.data) {
+      const data = await apiGet<Tournament>(`/tournaments/${code}`);
+      if (data.data) {
         setTournament(data.data);
       }
     } finally {
@@ -82,16 +74,10 @@ const TournamentDetailPage: React.FC = () => {
     setSavingEdit(true);
     setEditError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/tournaments/${code}`, {
+      await apiCall(`/tournaments/${code}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(v),
       });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.message || "Failed to save tournament");
-      }
       setShowEdit(false);
       await loadTournament();
     } catch (err) {

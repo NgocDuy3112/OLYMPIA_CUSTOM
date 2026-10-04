@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend, ApiError } from "@/api/client";
 import { clearAuthSession } from "@/utils/storage";
 
 export type GlobalRole = "admin" | "operator" | "player" | "spectator";
@@ -34,23 +34,12 @@ export function useAuth(): UseAuthReturn {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        setUser(null);
-        return;
-      }
-
-      const data = await response.json();
-      if (data.status === "success" && data.data) {
-        setUser(data.data);
-      } else {
-        setUser(null);
-      }
+      const data = await apiGet<AuthUser>(`/auth/me`);
+      setUser(data.data ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Auth check failed");
+      // HTTP/envelope lỗi: chỉ setUser(null) như trước, không ghi error.
+      if (!(err instanceof ApiError))
+        setError(err instanceof Error ? err.message : "Auth check failed");
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -59,10 +48,10 @@ export function useAuth(): UseAuthReturn {
 
   const logout = useCallback(async () => {
     try {
-      await fetch(`${API_BASE_URL}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
+      await apiSend<unknown>("POST", "/auth/logout");
+    } catch (err) {
+      // HTTP lỗi: bỏ qua như trước (lỗi mạng vẫn reject).
+      if (!(err instanceof ApiError)) throw err;
     } finally {
       setUser(null);
       clearAuthSession();

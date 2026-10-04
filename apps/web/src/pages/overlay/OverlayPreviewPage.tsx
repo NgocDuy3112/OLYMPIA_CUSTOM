@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 import { OVERLAYS, overlayUrl, type OverlayItem } from "./overlayList";
 
 const OVERLAY_ICONS: Record<string, React.ReactNode> = {
@@ -35,17 +35,14 @@ const OverlayPreviewPage: React.FC = () => {
 
     const fetchMatch = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/matches`, {
-          credentials: "include",
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === "success" && Array.isArray(data.data)) {
-            const found = (data.data as { matchCode: string; matchName: string }[]).find(
-              (m) => m.matchCode === matchCode,
-            );
-            if (found) setMatchInfo(found);
-          }
+        const data = await apiGet<{ matchCode: string; matchName: string }[]>(
+          "/matches",
+        );
+        if (Array.isArray(data.data)) {
+          const found = data.data.find(
+            (m) => m.matchCode === matchCode,
+          );
+          if (found) setMatchInfo(found);
         }
       } catch {
       }

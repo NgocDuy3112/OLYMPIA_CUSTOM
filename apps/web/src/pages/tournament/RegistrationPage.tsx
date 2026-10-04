@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_BASE_URL } from "@/configs";
+import { apiCall, apiGet } from "@/api/client";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
   Trophy,
@@ -102,31 +102,14 @@ const RegistrationPage: React.FC = () => {
 
     const fetchData = async () => {
       try {
-        const tournamentResponse = await fetch(
-          `${API_BASE_URL}/tournaments/${code}`,
-          { credentials: "include" },
-        );
-
-        if (!tournamentResponse.ok) {
-          throw new Error("Tournament not found");
-        }
-
-        const tournamentData = await tournamentResponse.json();
-        if (tournamentData.status === "success" && tournamentData.data) {
+        const tournamentData = await apiGet<Tournament>(`/tournaments/${code}`);
+        if (tournamentData.data) {
           setTournament(tournamentData.data);
         }
 
         try {
-          const meResponse = await fetch(
-            `${API_BASE_URL}/tournaments/${code}/me`,
-            { credentials: "include" },
-          );
-          if (meResponse.ok) {
-            const meData = await meResponse.json();
-            if (meData.status === "success") {
-              setMyMembership(meData.data);
-            }
-          }
+          const meData = await apiGet<MyMembership>(`/tournaments/${code}/me`);
+          setMyMembership(meData.data);
         } catch {
         }
       } catch (err) {
@@ -148,19 +131,7 @@ const RegistrationPage: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/tournaments/${code}/register`,
-        {
-          method: "POST",
-          credentials: "include",
-        },
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to register");
-      }
-
+      await apiCall(`/tournaments/${code}/register`, { method: "POST" });
       setShowSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to register");

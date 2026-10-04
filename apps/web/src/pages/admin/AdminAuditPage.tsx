@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiGet } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { FilterSelect } from "@/components/shared/FilterSelect";
 import { Button } from "@/components/ui/button";
@@ -86,7 +86,6 @@ const ACTIONS = [
 
 const AdminAuditPage = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState("");
   const [actor, setActor] = useState("");
@@ -100,15 +99,17 @@ const AdminAuditPage = () => {
       if (actor.trim()) params.set("actor", actor.trim());
       if (match.trim()) params.set("match", match.trim());
       params.set("limit", "100");
-      const res = await fetch(`${API_BASE_URL}/audit-logs?${params}`, {
-        credentials: "include",
+      const json = await apiGet<{ logs?: AuditLog[] }>(
+        `/audit-logs?${params}`,
+      ).catch((err) => {
+        if (err instanceof ApiError) {
+          logger.warn("Fetch audit logs failed:", err.message);
+          return null;
+        }
+        throw err;
       });
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
-        setLogs(json.data.logs ?? []);
-        setTotal(json.data.total ?? 0);
-      } else {
-        logger.warn("Fetch audit logs failed:", json.message);
+      if (json) {
+        setLogs(json.data!.logs ?? []);
       }
     } catch (err) {
       logger.error("Error fetching audit logs:", err);
@@ -124,9 +125,6 @@ const AdminAuditPage = () => {
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className=" text-sm text-muted-foreground">
-          ({total} log)
-        </span>
         <Button
           size="icon"
           variant="secondary"

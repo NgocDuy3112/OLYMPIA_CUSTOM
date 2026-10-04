@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 
 const isRemoteUrl = (value: string) => /^https?:\/\//i.test(value);
 
@@ -7,14 +7,8 @@ const MAX_RETRY = 1;
 
 export async function resolveAvatarUrl(key: string): Promise<string> {
   const path = key.split("/").map(encodeURIComponent).join("/");
-  const res = await fetch(`${API_BASE_URL}/media/presign/${path}`, {
-    credentials: "include",
-  });
-  const json = await res.json();
-  if (!res.ok || json.status !== "success") {
-    throw new Error(json.message ?? "Không tạo được URL avatar");
-  }
-  return json.data.url as string;
+  const json = await apiGet<{ url: string }>(`/media/presign/${path}`);
+  return json.data!.url;
 }
 
 export function useAvatarSrc(

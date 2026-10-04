@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bot, Check, RefreshCw, Search, X } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiCall, apiGet } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("CReviewsPage");
 
@@ -45,12 +46,13 @@ const CReviewsPage = () => {
     try {
       const params = new URLSearchParams({ match_code: code });
       if (status !== "all") params.set("status", status);
-      const res = await fetch(
-        `${API_BASE_URL}/score-reviews?${params.toString()}`,
-        { credentials: "include" },
-      );
-      const json = await res.json();
-      if (json.status === "success" && Array.isArray(json.data)) {
+      const json = await apiGet<Review[]>(
+        `/score-reviews?${params.toString()}`,
+      ).catch((err) => {
+        if (err instanceof ApiError) return null;
+        throw err;
+      });
+      if (json && Array.isArray(json.data)) {
         setReviews(json.data as Review[]);
       } else {
         setReviews([]);
@@ -76,19 +78,18 @@ const CReviewsPage = () => {
 
   const askOcee = useCallback(async (reviewId: string) => {
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/score-reviews/${encodeURIComponent(reviewId)}/ocee`,
-        { method: "POST", credentials: "include" },
+      const json = await apiCall<{ text?: string }>(
+        `/score-reviews/${encodeURIComponent(reviewId)}/ocee`,
+        { method: "POST" },
       );
-      const json = await res.json();
-      if (res.ok) {
-        setOcee((prev) => ({ ...prev, [reviewId]: json.data?.text ?? "" }));
-      } else {
-        alert(`OCee thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
+      setOcee((prev) => ({ ...prev, [reviewId]: json.data?.text ?? "" }));
     } catch (err) {
-      logger.error("Error asking ocee:", err);
-      alert("Lỗi kết nối OCee");
+      if (err instanceof ApiError) {
+        notifyError(`OCee thất bại: ${err.message}`);
+      } else {
+        logger.error("Error asking ocee:", err);
+        notifyError("Lỗi kết nối OCee");
+      }
     }
   }, []);
 
@@ -97,29 +98,26 @@ const CReviewsPage = () => {
       const d = decisions[review.id] ?? {};
       const missing = review.candidates.filter((c) => d[c.userCode] !== "dung" && d[c.userCode] !== "sai");
       if (missing.length > 0) {
-        alert(`Còn thiếu: ${missing.map(label).join(", ")}`);
+        notifyError(`Còn thiếu: ${missing.map(label).join(", ")}`);
         return;
       }
       setSaving(review.id);
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/score-reviews/${encodeURIComponent(review.id)}/decision`,
+        await apiCall(
+          `/score-reviews/${encodeURIComponent(review.id)}/decision`,
           {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
             body: JSON.stringify({ decisions: d }),
           },
         );
-        const json = await res.json();
-        if (res.ok) {
-          await fetchReviews();
-        } else {
-          alert(`Chốt thất bại: ${json.message ?? "Lỗi không xác định"}`);
-        }
+        await fetchReviews();
       } catch (err) {
-        logger.error("Error submitting decision:", err);
-        alert("Lỗi kết nối khi chốt");
+        if (err instanceof ApiError) {
+          notifyError(`Chốt thất bại: ${err.message}`);
+        } else {
+          logger.error("Error submitting decision:", err);
+          notifyError("Lỗi kết nối khi chốt");
+        }
       } finally {
         setSaving(null);
       }

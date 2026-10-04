@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Pencil, LogOut, Trophy, Camera, X } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend } from "@/api/client";
 import { useAvatarSrc } from "@/hooks/useAvatarSrc";
 import { putFileWithProgress } from "@/lib/upload";
 import { MediaUploadButton } from "@/components/shared/MediaFilePicker";
@@ -49,15 +49,11 @@ const ProfilePage: React.FC = () => {
   useEffect(() => {
     const fetchMe = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/users/me`, {
-          credentials: "include",
-        });
-        const json = await res.json();
-        if (!res.ok || json.status !== "success") {
-          throw new Error(json.message ?? "Không tải được hồ sơ");
+        const json = await apiGet<MeProfile>("/users/me");
+        if (json.data) {
+          setProfile(json.data);
+          setUserName(json.data.userName ?? "");
         }
-        setProfile(json.data);
-        setUserName(json.data.userName ?? "");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Lỗi không xác định");
       } finally {
@@ -66,11 +62,8 @@ const ProfilePage: React.FC = () => {
     };
     const fetchTournaments = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/tournaments/me`, {
-          credentials: "include",
-        });
-        const json = await res.json();
-        if (res.ok && json.status === "success" && Array.isArray(json.data)) {
+        const json = await apiGet<MyTournament[]>("/tournaments/me");
+        if (Array.isArray(json.data)) {
           setTournaments(json.data);
         }
       } catch {
@@ -87,16 +80,7 @@ const ProfilePage: React.FC = () => {
     setError(null);
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/users/me`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ userName: userName.trim() }),
-      });
-      const json = await res.json();
-      if (!res.ok || json.status !== "success") {
-        throw new Error(json.message ?? "Cập nhật thất bại");
-      }
+      await apiSend("PATCH", "/users/me", { userName: userName.trim() });
       setProfile((prev) =>
         prev ? { ...prev, userName: userName.trim() } : prev,
       );
@@ -126,27 +110,13 @@ const ProfilePage: React.FC = () => {
     setUploadingAvatar(true);
     try {
       const key = `avatars/${profile?.userCode}/${Date.now()}_${file.name}`;
-      const presignRes = await fetch(
-        `${API_BASE_URL}/media/presign-put/?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(file.type)}`,
-        { credentials: "include" },
+      const presignJson = await apiGet<{ url: string }>(
+        `/media/presign-put/?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(file.type)}`,
       );
-      const presignJson = await presignRes.json();
-      if (!presignRes.ok || presignJson.status !== "success") {
-        throw new Error(presignJson.message ?? "Không tạo được upload URL");
-      }
-      const putUrl: string = presignJson.data.url;
+      const putUrl: string = presignJson.data!.url;
       setUploadPct(0);
       await putFileWithProgress(putUrl, file, setUploadPct);
-      const patchRes = await fetch(`${API_BASE_URL}/users/me`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ avatarUrl: key }),
-      });
-      const patchJson = await patchRes.json();
-      if (!patchRes.ok || patchJson.status !== "success") {
-        throw new Error(patchJson.message ?? "Lưu avatar thất bại");
-      }
+      await apiSend("PATCH", "/users/me", { avatarUrl: key });
       setProfile((prev) => (prev ? { ...prev, avatarUrl: key } : prev));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload avatar thất bại");

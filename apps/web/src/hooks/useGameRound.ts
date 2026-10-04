@@ -11,7 +11,7 @@ import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
 import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 import { mapQuestionApiPayload } from "@/utils/questionMapper";
-import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 
@@ -196,18 +196,10 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
       const questionCode = resolveQuestionCode(index);
 
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}&question_code=${encodeURIComponent(questionCode)}`,
-          { credentials: "include" },
+        const data = await apiGet<any>(
+          `/questions/?match_code=${encodeURIComponent(matchCode)}&question_code=${encodeURIComponent(questionCode)}`,
         );
 
-        if (!res.ok) {
-          const mapped = mapQuestionApiPayload(null, questionCode);
-          setCurrentQuestion(mapped);
-          return mapped;
-        }
-
-        const data = await res.json();
         let payload: any = null;
 
         if (Array.isArray(data.data)) {
@@ -335,10 +327,7 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
     if (!matchCode) return;
 
     try {
-      const res = await fetch(`${API_BASE_URL}/scoreboard/${matchCode}`, {
-        credentials: "include",
-      });
-      const json = await res.json();
+      const json = await apiGet<any>(`/scoreboard/${matchCode}`);
 
       let scoreboardArr: any[] = [];
       if (Array.isArray(json.data)) scoreboardArr = json.data;
@@ -424,12 +413,9 @@ export function useGameRound(config: GameRoundConfig): UseGameRoundReturn {
 
     const questionCode = currentQuestion.questionCode;
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/answers/${encodeURIComponent(matchCode)}/${encodeURIComponent(questionCode)}`,
-        { credentials: "include" },
+      const json = await apiGet<any>(
+        `/answers/${encodeURIComponent(matchCode)}/${encodeURIComponent(questionCode)}`,
       );
-      if (!res.ok) return;
-      const json = await res.json();
       const rows = Array.isArray(json.data) ? json.data : [];
       const answersPayload = rows
         .filter(

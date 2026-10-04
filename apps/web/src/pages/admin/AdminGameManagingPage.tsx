@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Plus, RefreshCw, Search } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiCall, apiGet, apiSend } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { setMatchCode as persistMatchCode } from "@/utils/storage";
 import { ScheduleMatchCard, type SlotPlayer } from "@/components/admin/ScheduleMatchCard";
@@ -18,14 +18,9 @@ import {
 } from "@/components/ui/input-group";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { MatchData, QuestionData } from "@/components/admin/gameTypes";
+import { notifyError, notifySuccess } from "@/lib/notify";
 
 const logger = createLogger("AdminSchedule");
-
-interface ApiResponse {
-  status: "success" | "error";
-  message: string;
-  data: Record<string, unknown> | Record<string, unknown>[] | null;
-}
 
 interface BackendMatch {
   id: string;
@@ -57,9 +52,6 @@ const toMatchData = (m: BackendMatch): MatchData => ({
   tournament_id: m.tournamentId ?? null,
   phase_id: m.phaseId ?? null,
 });
-
-const req = (url: string, init?: RequestInit) =>
-  fetch(url, { credentials: "include", ...init });
 
 function dayKeyOf(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -101,26 +93,33 @@ const AdminGameManagingPage = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [mRes, tRes] = await Promise.all([
-        req(`${API_BASE_URL}/matches`),
-        req(`${API_BASE_URL}/tournaments`),
+      const [mJson, tJson] = await Promise.all([
+        apiGet<BackendMatch[]>("/matches").catch((err) => {
+          if (err instanceof ApiError) {
+            logger.warn("Fetch matches failed:", err.message);
+            return null;
+          }
+          throw err;
+        }),
+        apiGet<TournamentOpt[]>("/tournaments").catch((err) => {
+          if (err instanceof ApiError) return null;
+          throw err;
+        }),
       ]);
-      const mJson: ApiResponse = await mRes.json();
-      const tJson: ApiResponse = await tRes.json().catch(() => null);
       let rows: BackendMatch[] = [];
-      if (mJson.status === "success" && Array.isArray(mJson.data)) {
-        rows = mJson.data as unknown as BackendMatch[];
+      if (mJson && mJson.status === "success" && Array.isArray(mJson.data)) {
+        rows = mJson.data;
         setAllMatches(rows.map(toMatchData));
         const map: Record<string, string> = {};
         rows.forEach((r) => {
           map[r.matchCode] = r.matchSlug;
         });
         setSlugByCode(map);
-      } else {
+      } else if (mJson) {
         logger.warn("Fetch matches failed:", mJson.message);
       }
       if (tJson && tJson.status === "success" && Array.isArray(tJson.data)) {
-        const tours = tJson.data as unknown as TournamentOpt[];
+        const tours = tJson.data;
         setTournaments(tours);
         const tmap: Record<string, string> = {};
         tours.forEach((t) => {
@@ -131,13 +130,15 @@ const AdminGameManagingPage = () => {
       if (rows.length > 0) {
         const settled = await Promise.allSettled(
           rows.map((r) =>
-            req(`${API_BASE_URL}/matches/${encodeURIComponent(r.matchSlug)}`).then((res) => res.json()),
+            apiGet<{ players?: SlotPlayer[] }>(
+              `/matches/${encodeURIComponent(r.matchSlug)}`,
+            ),
           ),
         );
         const pmap: Record<string, SlotPlayer[]> = {};
         settled.forEach((s, i) => {
           if (s.status === "fulfilled" && s.value?.status === "success" && s.value.data && !Array.isArray(s.value.data)) {
-            const players = (s.value.data as { players?: SlotPlayer[] }).players ?? [];
+            const players = s.value.data.players ?? [];
             pmap[rows[i].matchCode] = players;
           }
         });
@@ -160,12 +161,16 @@ const AdminGameManagingPage = () => {
     if (!code) return;
     setQuestionsLoading(true);
     try {
-      const res = await req(`${API_BASE_URL}/questions?match_code=${encodeURIComponent(code)}`);
-      const json: ApiResponse = await res.json();
-      if (json.status === "success" && Array.isArray(json.data)) {
-        setQuestions(json.data as unknown as QuestionData[]);
-      } else if (json.status === "success" && json.data && !Array.isArray(json.data)) {
-        setQuestions([json.data as unknown as QuestionData]);
+      const json = await apiGet<QuestionData[] | QuestionData>(
+        `/questions?match_code=${encodeURIComponent(code)}`,
+      ).catch((err) => {
+        if (err instanceof ApiError) return null;
+        throw err;
+      });
+      if (json && json.status === "success" && Array.isArray(json.data)) {
+        setQuestions(json.data);
+      } else if (json && json.status === "success" && json.data && !Array.isArray(json.data)) {
+        setQuestions([json.data]);
       } else {
         setQuestions([]);
       }
@@ -216,78 +221,72 @@ const AdminGameManagingPage = () => {
     for (let i = 0; i < codes.length; i++) {
       const code = codes[i].trim();
       if (!code) continue;
-      await req(`${API_BASE_URL}/matches/${encodeURIComponent(slug)}/players`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userCode: code, position: i + 1 }),
-      }).catch(() => null);
+      await apiSend(
+        "POST",
+        `/matches/${encodeURIComponent(slug)}/players`,
+        { userCode: code, position: i + 1 },
+      ).catch(() => null);
     }
   }, []);
 
   const handleSubmitForm = useCallback(
     async (v: ScheduleFormValue) => {
       if (!v.matchName.trim()) {
-        alert("Vui lòng nhập tên trận đấu.");
+        notifyError("Vui lòng nhập tên trận đấu.");
         return;
       }
       setSaving(true);
       try {
         const scheduledAt = v.scheduledAt ? new Date(v.scheduledAt).toISOString() : null;
         if (!editingCode) {
-          const res = await req(`${API_BASE_URL}/matches`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              matchName: v.matchName.trim(),
-              ...(v.tournamentCode ? { tournamentCode: v.tournamentCode } : {}),
-              ...(scheduledAt ? { scheduledAt } : {}),
-              ...(v.venue.trim() ? { venue: v.venue.trim() } : {}),
-              ...(v.matchLabel.trim() ? { matchLabel: v.matchLabel.trim() } : {}),
-              ...(v.phaseId ? { phaseId: v.phaseId } : {}),
-            }),
-          });
-          const json = await res.json();
-          if (!res.ok) {
-            alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
-            return;
-          }
+          const payload = {
+            matchName: v.matchName.trim(),
+            ...(v.tournamentCode ? { tournamentCode: v.tournamentCode } : {}),
+            ...(scheduledAt ? { scheduledAt } : {}),
+            ...(v.venue.trim() ? { venue: v.venue.trim() } : {}),
+            ...(v.matchLabel.trim() ? { matchLabel: v.matchLabel.trim() } : {}),
+            ...(v.phaseId ? { phaseId: v.phaseId } : {}),
+          };
+          const json = await apiCall<{ matchSlug: string; matchCode: string }>(
+            "/matches",
+            { method: "POST", body: JSON.stringify(payload) },
+          );
           const created = json.data as { matchSlug: string; matchCode: string };
           await syncPlayers(created.matchSlug, v.playerCodes);
           setSelectedCode(created.matchCode);
           void fetchQuestions(created.matchCode);
-          alert(`Lên lịch thành công — mã: ${created.matchCode}`);
+          notifySuccess(`Lên lịch thành công — mã: ${created.matchCode}`);
         } else {
           const slug = slugByCode[editingCode];
           if (!slug) {
-            alert("Không xác định được trận — tải lại trang.");
+            notifyError("Không xác định được trận — tải lại trang.");
             return;
           }
-          const res = await req(`${API_BASE_URL}/matches/${encodeURIComponent(slug)}`, {
+          const payload = {
+            matchName: v.matchName.trim(),
+            ...(v.tournamentCode ? { tournamentCode: v.tournamentCode } : {}),
+            scheduledAt,
+            venue: v.venue.trim() || null,
+            matchLabel: v.matchLabel.trim() || null,
+            phaseId: v.phaseId || null,
+          };
+          await apiCall(`/matches/${encodeURIComponent(slug)}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              matchName: v.matchName.trim(),
-              ...(v.tournamentCode ? { tournamentCode: v.tournamentCode } : {}),
-              scheduledAt,
-              venue: v.venue.trim() || null,
-              matchLabel: v.matchLabel.trim() || null,
-              phaseId: v.phaseId || null,
-            }),
+            body: JSON.stringify(payload),
           });
-          const json = await res.json();
-          if (!res.ok) {
-            alert(`Lưu thất bại: ${json.message ?? "Lỗi không xác định"}`);
-            return;
-          }
           await syncPlayers(slug, v.playerCodes);
-          alert("Lưu lịch thi đấu thành công");
+          notifySuccess("Lưu lịch thi đấu thành công");
         }
         setShowForm(false);
         setEditingCode(null);
         await fetchAll();
       } catch (err) {
-        logger.error("Error saving schedule:", err);
-        alert("Lỗi kết nối khi lưu");
+        if (err instanceof ApiError) {
+          notifyError(`${editingCode ? "Lưu" : "Tạo"} thất bại: ${err.message}`);
+        } else {
+          logger.error("Error saving schedule:", err);
+          notifyError("Lỗi kết nối khi lưu");
+        }
       } finally {
         setSaving(false);
       }
@@ -299,25 +298,23 @@ const AdminGameManagingPage = () => {
     async (m: MatchData) => {
       const slug = m.match_slug ?? slugByCode[m.match_code];
       if (!slug) {
-        alert("Không xác định được trận.");
+        notifyError("Không xác định được trận.");
         return;
       }
       if (!confirm(`Xác nhận hoàn thành trận "${m.match_name}" (${m.match_code})?`)) return;
       try {
-        const res = await req(`${API_BASE_URL}/matches/${encodeURIComponent(slug)}`, {
+        await apiCall(`/matches/${encodeURIComponent(slug)}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ matchStatus: "finished" }),
         });
-        const json = await res.json();
-        if (json.status === "success" || res.ok) {
-          await fetchAll();
-        } else {
-          alert(`Lỗi: ${json.message ?? "Không thể hoàn thành"}`);
-        }
+        await fetchAll();
       } catch (err) {
-        logger.error("Error finishing match:", err);
-        alert("Lỗi kết nối khi hoàn thành trận đấu");
+        if (err instanceof ApiError) {
+          notifyError(`Lỗi: ${err.message}`);
+        } else {
+          logger.error("Error finishing match:", err);
+          notifyError("Lỗi kết nối khi hoàn thành trận đấu");
+        }
       }
     },
     [slugByCode, fetchAll],
@@ -325,16 +322,12 @@ const AdminGameManagingPage = () => {
 
   const uploadMediaViaPresign = useCallback(async (questionCode: string, file: File) => {
     const key = `questions/${questionCode}/${file.name}`;
-    const presignRes = await req(
-      `${API_BASE_URL}/media/presign-question/?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(file.type || "image/png")}`,
+    const presignJson = await apiGet<{ url: string; key?: string }>(
+      `/media/presign-question/?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(file.type || "image/png")}`,
     );
-    const presignJson = await presignRes.json();
-    if (!presignRes.ok || presignJson.status !== "success") {
-      throw new Error(presignJson.message ?? "Không lấy được presigned URL");
-    }
-    const putRes = await fetch(presignJson.data.url, { method: "PUT", body: file });
+    const putRes = await fetch(presignJson.data!.url, { method: "PUT", body: file });
     if (!putRes.ok) throw new Error(`Upload S3 thất bại (HTTP ${putRes.status})`);
-    return (presignJson.data.key as string) ?? key;
+    return presignJson.data!.key ?? key;
   }, []);
 
   const patchQuestion = useCallback(
@@ -347,32 +340,28 @@ const AdminGameManagingPage = () => {
           try {
             mediaUrl = await uploadMediaViaPresign(editingQuestion.question_code, mediaFile);
           } catch (err) {
-            alert(err instanceof Error ? err.message : "Upload media thất bại — giữ URL cũ");
+            notifyError(err instanceof Error ? err.message : "Upload media thất bại — giữ URL cũ");
           }
         }
-        const res = await req(
-          `${API_BASE_URL}/questions/${encodeURIComponent(selectedCode)}/${encodeURIComponent(editingQuestion.question_code)}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              content: value.content.trim() || null,
-              answer: value.answer.trim() || null,
-              explanation: value.explanation.trim() || null,
-              media_url: mediaUrl,
-            }),
-          },
+        const payload = {
+          content: value.content.trim() || null,
+          answer: value.answer.trim() || null,
+          explanation: value.explanation.trim() || null,
+          media_url: mediaUrl,
+        };
+        await apiCall(
+          `/questions/${encodeURIComponent(selectedCode)}/${encodeURIComponent(editingQuestion.question_code)}`,
+          { method: "PATCH", body: JSON.stringify(payload) },
         );
-        const json: ApiResponse = await res.json();
-        if (json.status === "success") {
-          setEditingQuestion(null);
-          await fetchQuestions(selectedCode);
-        } else {
-          alert(`Thất bại: ${json.message ?? "Lỗi không xác định"}`);
-        }
+        setEditingQuestion(null);
+        await fetchQuestions(selectedCode);
       } catch (err) {
-        logger.error("Error patching question:", err);
-        alert("Lỗi kết nối khi sửa câu hỏi");
+        if (err instanceof ApiError) {
+          notifyError(`Thất bại: ${err.message}`);
+        } else {
+          logger.error("Error patching question:", err);
+          notifyError("Lỗi kết nối khi sửa câu hỏi");
+        }
       } finally {
         setSavingQuestionEdit(false);
       }

@@ -7,7 +7,12 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { API_BASE_URL, WS_BASE_URL } from "@/configs";
+import {
+  ApiError,
+  apiGet,
+  type ApiResponse,
+} from "@/api/client";
+import { WS_BASE_URL } from "@/configs";
 import { createLogger } from "@/utils/logger";
 import { parseWebSocketMessage } from "@/types/websocket";
 
@@ -32,10 +37,17 @@ interface Standing {
   rank: number;
 }
 
-interface ApiResponse {
-  status: "success" | "error";
-  message: string;
-  data: unknown;
+/** GET ênvelope, nhưng lỗi HTTP/envelope trả về `{ data: null }` thay vì ném — giữ hành vi danh sách rỗng im lặng. */
+async function softGet<T>(path: string): Promise<ApiResponse<T>> {
+  try {
+    const res = await apiGet<T>(path);
+    return res ?? { status: "error", message: "", data: null };
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return { status: "error", message: "", data: null };
+    }
+    throw err;
+  }
 }
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
@@ -67,14 +79,10 @@ const MQualifierPage = () => {
     if (!code) return;
     setLoading(true);
     try {
-      const [qRes, sRes] = await Promise.all([
-        fetch(`${API_BASE_URL}${base()}/questions`, { credentials: "include" }),
-        fetch(`${API_BASE_URL}${base()}/standings?limit=16`, {
-          credentials: "include",
-        }),
+      const [qJson, sJson] = await Promise.all([
+        softGet<Record<string, unknown>[]>(`${base()}/questions`),
+        softGet<Standing[]>(`${base()}/standings?limit=16`),
       ]);
-      const qJson: ApiResponse = await qRes.json().catch(() => ({ status: "error", message: "", data: null }));
-      const sJson: ApiResponse = await sRes.json().catch(() => ({ status: "error", message: "", data: null }));
       setQuestions(
         qJson.status === "success" && Array.isArray(qJson.data)
           ? (qJson.data as Record<string, unknown>[]).map(toQuestion)

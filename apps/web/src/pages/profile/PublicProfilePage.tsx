@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 import { PublicLayout } from "@/components/layout";
 import { useAvatarSrc } from "@/hooks/useAvatarSrc";
 import { Card } from "@/components/ui/card";
@@ -25,13 +25,9 @@ const PublicProfilePage: React.FC = () => {
     if (!userCode) return;
     const fetchProfile = async () => {
       try {
-        const res = await fetch(
-          `${API_BASE_URL}/users/by-code/${encodeURIComponent(userCode)}`,
+        const json = await apiGet<PublicProfile>(
+          `/users/by-code/${encodeURIComponent(userCode)}`,
         );
-        const json = await res.json();
-        if (!res.ok || json.status !== "success") {
-          throw new Error(json.message ?? "Không tìm thấy người dùng");
-        }
         setProfile(json.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Lỗi không xác định");

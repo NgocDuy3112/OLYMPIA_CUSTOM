@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Layers, Plus, RefreshCw } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiCall, apiGet } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { SetFillSidePanel } from "@/components/qauthor/SetFillSidePanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("QAuthorSetsPage");
 
@@ -32,9 +33,11 @@ const QAuthorSetsPage = () => {
   const fetchSets = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/question-sets`, { credentials: "include" });
-      const json = await res.json();
-      if (json.status === "success" && Array.isArray(json.data)) {
+      const json = await apiGet<SetCard[]>("/question-sets").catch((err) => {
+        if (err instanceof ApiError) return null;
+        throw err;
+      });
+      if (json && Array.isArray(json.data)) {
         setSets(json.data as SetCard[]);
       } else {
         setSets([]);
@@ -53,32 +56,30 @@ const QAuthorSetsPage = () => {
 
   const createSet = useCallback(async () => {
     if (!name.trim()) {
-      alert("Nhập tên bộ đề (VD: Bộ đề 1).");
+      notifyError("Nhập tên bộ đề (VD: Bộ đề 1).");
       return;
     }
     setCreating(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/question-sets`, {
+      const payload = {
+        setName: name.trim(),
+        matchCode: matchCode.trim() ? matchCode.trim().toUpperCase() : undefined,
+      };
+      await apiCall("/question-sets", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          setName: name.trim(),
-          matchCode: matchCode.trim() ? matchCode.trim().toUpperCase() : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
-      const json = await res.json();
-      if (res.ok) {
-        setName("");
-        setMatchCode("");
-        setShowCreate(false);
-        await fetchSets();
-      } else {
-        alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
+      setName("");
+      setMatchCode("");
+      setShowCreate(false);
+      await fetchSets();
     } catch (err) {
-      logger.error("Error creating set:", err);
-      alert("Lỗi kết nối khi tạo bộ đề");
+      if (err instanceof ApiError) {
+        notifyError(`Tạo thất bại: ${err.message}`);
+      } else {
+        logger.error("Error creating set:", err);
+        notifyError("Lỗi kết nối khi tạo bộ đề");
+      }
     } finally {
       setCreating(false);
     }

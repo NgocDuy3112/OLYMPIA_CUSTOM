@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 import { PublicLayout } from "@/components/layout";
 import { TournamentCard } from "@/components/tournament";
 import { Spinner } from "@/components/ui/spinner";
@@ -28,16 +28,8 @@ const SMatchListPage: React.FC = () => {
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/tournaments`, {
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch tournaments");
-        }
-
-        const data = await response.json();
-        if (data.status === "success" && data.data) {
+        const data = await apiGet<Tournament[]>("/tournaments");
+        if (data.data) {
           setTournaments(data.data);
         }
       } catch (err) {

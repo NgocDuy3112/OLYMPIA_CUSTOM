@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { RefreshCw, RotateCcw } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiCall, apiGet } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
 import {
   createDataTableColumns,
 } from "@/components/shared/data-table-core";
+import { notifyError } from "@/lib/notify";
 
 const logger = createLogger("AdminCheckpointsPage");
 
@@ -71,17 +72,16 @@ const AdminCheckpointsPage = () => {
     if (!matchCode.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/checkpoints/${encodeURIComponent(matchCode.trim())}`,
-        { credentials: "include" },
-      );
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
-        setCheckpoints(Array.isArray(json.data) ? json.data : []);
-      } else {
-        logger.warn("Fetch checkpoints failed:", json.message);
-        setCheckpoints([]);
-      }
+      const json = await apiGet<Checkpoint[]>(
+        `/checkpoints/${encodeURIComponent(matchCode.trim())}`,
+      ).catch((err) => {
+        if (err instanceof ApiError) {
+          logger.warn("Fetch checkpoints failed:", err.message);
+          return null;
+        }
+        throw err;
+      });
+      setCheckpoints(json && Array.isArray(json.data) ? json.data : []);
     } catch (err) {
       logger.error("Error fetching checkpoints:", err);
       setCheckpoints([]);
@@ -100,20 +100,19 @@ const AdminCheckpointsPage = () => {
       return;
     setRestoring(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/checkpoints/${encodeURIComponent(matchCode.trim())}/restore`,
-        { method: "POST", credentials: "include" },
+      await apiCall(
+        `/checkpoints/${encodeURIComponent(matchCode.trim())}/restore`,
+        { method: "POST" },
       );
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
-        alert("Đã khôi phục snapshot");
-        await fetchCheckpoints();
-      } else {
-        alert(`Khôi phục thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
+      notifyError("Đã khôi phục snapshot");
+      await fetchCheckpoints();
     } catch (err) {
-      logger.error("Error restoring checkpoint:", err);
-      alert("Lỗi kết nối khi khôi phục");
+      if (err instanceof ApiError) {
+        notifyError(`Khôi phục thất bại: ${err.message}`);
+      } else {
+        logger.error("Error restoring checkpoint:", err);
+        notifyError("Lỗi kết nối khi khôi phục");
+      }
     } finally {
       setRestoring(false);
     }

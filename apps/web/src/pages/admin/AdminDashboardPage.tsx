@@ -10,6 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
+import { apiGet } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { Button } from "@/components/ui/button";
 
@@ -72,6 +73,7 @@ interface DashboardState {
   approvedBank: number;
   rejectedBank: number;
   bankByRound: BankRoundStat[];
+  newUsers7d: number;
   recentLogs: AuditLog[];
   totalLogs: number;
   actionCounts: { action: string; count: number }[];
@@ -98,6 +100,7 @@ const initialState: DashboardState = {
   approvedBank: 0,
   rejectedBank: 0,
   bankByRound: [],
+  newUsers7d: 0,
   recentLogs: [],
   totalLogs: 0,
   actionCounts: [],
@@ -178,29 +181,21 @@ const AdminDashboardPage = () => {
     if (!silent) setLoading(true);
     try {
       const roundReqs = BANK_ROUNDS.flatMap((g) => [
-        fetch(`${API_BASE_URL}/bank/search?round_hints=${encodeURIComponent(g.rounds)}&status=approved&limit=1&page=1`, {
-          credentials: "include",
-        }).then((r) => r.json()),
-        fetch(`${API_BASE_URL}/bank/search?round_hints=${encodeURIComponent(g.rounds)}&status=pending&limit=1&page=1`, {
-          credentials: "include",
-        }).then((r) => r.json()),
+        apiGet<{ total?: number }>(
+          `/bank/search?round_hints=${encodeURIComponent(g.rounds)}&status=approved&limit=1&page=1`,
+        ),
+        apiGet<{ total?: number }>(
+          `/bank/search?round_hints=${encodeURIComponent(g.rounds)}&status=pending&limit=1&page=1`,
+        ),
       ]);
       const [tRes, mRes, uRes, bPen, bApp, bRej, aRes, ...roundRes] = await Promise.allSettled([
-        fetch(`${API_BASE_URL}/tournaments`, { credentials: "include" }).then((r) => r.json()),
-        fetch(`${API_BASE_URL}/matches`, { credentials: "include" }).then((r) => r.json()),
-        fetch(`${API_BASE_URL}/users`, { credentials: "include" }).then((r) => r.json()),
-        fetch(`${API_BASE_URL}/bank/search?status=pending&limit=1&page=1`, {
-          credentials: "include",
-        }).then((r) => r.json()),
-        fetch(`${API_BASE_URL}/bank/search?status=approved&limit=1&page=1`, {
-          credentials: "include",
-        }).then((r) => r.json()),
-        fetch(`${API_BASE_URL}/bank/search?status=rejected&limit=1&page=1`, {
-          credentials: "include",
-        }).then((r) => r.json()),
-        fetch(`${API_BASE_URL}/audit-logs?limit=100`, { credentials: "include" }).then((r) =>
-          r.json(),
-        ),
+        apiGet<Tournament[]>("/tournaments"),
+        apiGet<MatchRow[]>("/matches"),
+        apiGet<UserRow[]>("/users"),
+        apiGet<{ total?: number }>("/bank/search?status=pending&limit=1&page=1"),
+        apiGet<{ total?: number }>("/bank/search?status=approved&limit=1&page=1"),
+        apiGet<{ total?: number }>("/bank/search?status=rejected&limit=1&page=1"),
+        apiGet<{ logs?: AuditLog[]; total?: number }>("/audit-logs?limit=100"),
         ...roundReqs,
       ]);
 
@@ -246,6 +241,9 @@ const AdminDashboardPage = () => {
         .map(([action, count]) => ({ action, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 6);
+
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const newUsers7d = users.filter((u) => u.createdAt && new Date(u.createdAt).getTime() >= weekAgo).length;
 
       const trend: DayBucket[] = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
@@ -293,10 +291,8 @@ const AdminDashboardPage = () => {
         apiOk = (apiH.body as { status?: string } | null)?.status === "healthy";
         const agentStatus = (agentH.body as { status?: string } | null)?.status;
         agentOk = agentStatus === "ok" || agentStatus === "healthy";
-      } catch {
-      }
-
-      setState({ tournaments, matches, users, pendingBank, approvedBank, rejectedBank, bankByRound, recentLogs, totalLogs, actionCounts, trend, apiOk, agentOk, apiMs, agentMs, checkedAt: new Date().toLocaleTimeString("vi-VN") });
+      } catch {}
+      setState({ tournaments, matches, users, pendingBank, approvedBank, rejectedBank, bankByRound, newUsers7d, recentLogs, totalLogs, actionCounts, trend, apiOk, agentOk, apiMs, agentMs, checkedAt: new Date().toLocaleTimeString("vi-VN") });
     } catch (err) {
       logger.error("Error loading dashboard:", err);
     } finally {
@@ -345,9 +341,6 @@ const AdminDashboardPage = () => {
   const maxRole = Math.max(1, ...roleBars.map((b) => b.value));
   const maxAction = Math.max(1, ...state.actionCounts.map((a) => a.count));
 
-  const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const newUsers7d = state.users.filter((u) => u.createdAt && new Date(u.createdAt).getTime() >= weekAgo).length;
-
   const tNameById = new Map(state.tournaments.map((t) => [t.id, t.tournamentName]));
   const mtCount = new Map<string, number>();
   state.matches.forEach((m) => {
@@ -363,7 +356,15 @@ const AdminDashboardPage = () => {
   const maxRoundApproved = Math.max(1, ...state.bankByRound.map((b) => b.approved));
   const maxTrend = Math.max(1, ...state.trend.map((b) => b.total));
 
-  const healthDesc = `API ${state.apiOk === null ? "—" : state.apiOk ? `OK${state.apiMs !== null ? ` · ${state.apiMs}ms` : ""}` : "LỖI"} · Agent ${state.agentOk === null ? "—" : state.agentOk ? `OK${state.agentMs !== null ? ` · ${state.agentMs}ms` : ""}` : "LỖI"}${state.checkedAt ? ` · ${state.checkedAt}` : ""}`;
+  const serviceStatus = (ok: boolean | null, ms: number | null) => {
+    if (ok === null) return "—";
+    if (!ok) return "LỖI";
+    return ms === null ? "OK" : `OK · ${ms}ms`;
+  };
+  const healthDesc =
+    `API ${serviceStatus(state.apiOk, state.apiMs)} · ` +
+    `Agent ${serviceStatus(state.agentOk, state.agentMs)}` +
+    (state.checkedAt ? ` · ${state.checkedAt}` : "");
 
   const needsAttention: { label: string; path: string }[] = [];
   if (state.pendingBank > 0)
@@ -426,7 +427,7 @@ const AdminDashboardPage = () => {
           icon={<Users size={14} />}
           label="Người dùng"
           value={state.users.length}
-          sub={`${roleCount("player")} thí sinh · ${roleCount("admin")} admin · C${scopeCount("controller")}/Q${scopeCount("qauthor")}/M${scopeCount("mc")} · +${newUsers7d}/7 ngày`}
+          sub={`${roleCount("player")} thí sinh · ${roleCount("admin")} admin · C${scopeCount("controller")}/Q${scopeCount("qauthor")}/M${scopeCount("mc")} · +${state.newUsers7d}/7 ngày`}
           onClick={() => navigate("/admin/users")}
         />
         <StatCard

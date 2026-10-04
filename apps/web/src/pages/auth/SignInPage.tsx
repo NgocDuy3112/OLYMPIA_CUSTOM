@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
+import { apiCall } from "@/api/client";
 import { API_BASE_URL } from "@/configs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,16 +96,10 @@ const SignInPage = () => {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      await apiCall("/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
-      const json = await res.json();
-      if (!res.ok || json.status !== "success") {
-        throw new Error(json.message ?? "Đăng nhập thất bại");
-      }
       navigate("/profile");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
@@ -118,20 +113,15 @@ const SignInPage = () => {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/auth/staff-login`, {
+      const payload = {
+        username,
+        password: staffPassword,
+        expectRole: staffRole,
+      };
+      const json = await apiCall<{ operatorScopes?: string }>("/auth/staff-login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          username,
-          password: staffPassword,
-          expectRole: staffRole,
-        }),
+        body: JSON.stringify(payload),
       });
-      const json = await res.json();
-      if (!res.ok || json.status !== "success") {
-        throw new Error(json.message ?? "Đăng nhập thất bại");
-      }
       if (staffRole === "admin") {
         navigate("/admin");
         return;
