@@ -1,9 +1,5 @@
 import { randomUUID } from "node:crypto";
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+import { createServer } from "node:http";
 import {
   ActionRowBuilder,
   ButtonBuilder,
@@ -19,12 +15,20 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import Redis from "ioredis";
 import { z } from "zod";
 import { getEnv } from "../config/env.js";
+import { readJson, sendJson } from "../http.js";
+import { resolveChannel } from "../channels.js";
+import { createValkeyClient } from "../valkey.js";
+import { createLogger } from "../logger.js";
 import {
   loadVerify,
   saveVerify,
   setVerifyFields,
   type VerifyRecord,
 } from "./verify-store.js";
+
+const log = createLogger("mcp");
+
+const MAX_BODY_BYTES = 512 * 1024;
 
 const text = (payload: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(payload, null, 2) }],
@@ -38,17 +42,12 @@ function allowedChannels(): Set<string> {
   return new Set([env.NOTIFICATION_CHANNEL_ID, ...extra]);
 }
 
-async function resolveChannel(
+async function resolveAllowedChannel(
   client: Client,
   channelId: string,
 ): Promise<TextChannel | null> {
   if (!allowedChannels().has(channelId)) return null;
-  try {
-    const ch = await client.channels.fetch(channelId);
-    return ch?.isTextBased() ? (ch as TextChannel) : null;
-  } catch {
-    return null;
-  }
+  return resolveChannel(client, null, channelId);
 }
 
 function verifyButtons(id: string): ActionRowBuilder<ButtonBuilder>[] {
@@ -84,7 +83,7 @@ export function createDiscordMcpServer(client: Client, valkey: Redis): McpServer
       },
     },
     async ({ channelId, text: body }) => {
-      const channel = await resolveChannel(client, channelId);
+      const channel = await resolveAllowedChannel(client, channelId);
       if (!channel) return text({ error: "Kênh không hợp lệ hoặc ngoài allowlist." });
       const msg = await channel.send(body);
       return text({ messageId: msg.id, channelId });
@@ -104,7 +103,7 @@ export function createDiscordMcpServer(client: Client, valkey: Redis): McpServer
     },
     async ({ question, context, channelId, requestKey }) => {
       const target = channelId?.trim() || env.NOTIFICATION_CHANNEL_ID;
-      const channel = await resolveChannel(client, target);
+      const channel = await resolveAllowedChannel(client, target);
       if (!channel) return text({ error: "Kênh không hợp lệ hoặc ngoài allowlist." });
       const id =
         requestKey?.trim() ||
@@ -190,6 +189,20 @@ function requiredRoles(): Set<string> {
   );
 }
 
+function extractRoleIds(member: ButtonInteraction["member"]): string[] {
+  if (!member || typeof member !== "object" || !("roles" in member)) return [];
+  const memberRoles = (member as { roles: unknown }).roles;
+  if (Array.isArray(memberRoles)) {
+    return memberRoles.filter((id): id is string => typeof id === "string");
+  }
+  if (memberRoles && typeof memberRoles === "object" && "cache" in memberRoles) {
+    return [
+      ...((memberRoles as { cache: Map<string, { id: string }> }).cache.values()),
+    ].map((r) => r.id);
+  }
+  return [];
+}
+
 export async function handleVerifyButton(
   interaction: ButtonInteraction,
 ): Promise<boolean> {
@@ -211,18 +224,8 @@ export async function handleVerifyButton(
   }
   const roles = requiredRoles();
   if (roles.size > 0) {
-    const member = interaction.member;
-    let ids: string[] = [];
-    if (member && typeof member === "object" && "roles" in member) {
-      const mr = (member as { roles: unknown }).roles;
-      if (Array.isArray(mr)) ids = mr.filter((x): x is string => typeof x === "string");
-      else if (mr && typeof mr === "object" && "cache" in mr) {
-        ids = [...((mr as { cache: Map<string, { id: string }> }).cache.values())].map(
-          (r) => r.id,
-        );
-      }
-    }
-    if (!ids.some((id) => roles.has(id))) {
+    const roleIds = extractRoleIds(interaction.member);
+    if (!roleIds.some((id) => roles.has(id))) {
       await interaction.reply({ content: "Bạn không có quyền xác nhận.", ephemeral: true });
       return true;
     }
@@ -250,14 +253,7 @@ let _valkey: Redis | null = null;
 
 function getVerifyValkey(): Redis {
   if (!_valkey) {
-    const env = getEnv();
-    _valkey = new Redis({
-      host: env.VALKEY_HOST,
-      port: env.VALKEY_PORT,
-      password: env.VALKEY_PASSWORD || undefined,
-      username: env.VALKEY_USER || undefined,
-      maxRetriesPerRequest: null,
-    });
+    _valkey = createValkeyClient({ maxRetriesPerRequest: null });
   }
   return _valkey;
 }
@@ -282,7 +278,7 @@ function startReminders(client: Client): void {
           if (rec.reminds >= env.VERIFY_MAX_REMIND) continue;
           const age = Date.now() - Date.parse(rec.lastRemind || new Date().toISOString());
           if (age < env.VERIFY_REMIND_SEC * 1000) continue;
-          const channel = await resolveChannel(client, rec.channelId);
+          const channel = await resolveAllowedChannel(client, rec.channelId);
           if (!channel) continue;
           await channel.send(`⏳ Nhắc xác nhận (${rec.reminds + 1}): ${rec.question.slice(0, 500)}`);
           await setVerifyFields(valkey, id, {
@@ -292,7 +288,7 @@ function startReminders(client: Client): void {
         }
       } while (cursor !== "0");
     } catch (err) {
-      console.error("[Discord] reminder tick failed:", err);
+      log.error("[Discord] reminder tick failed:", err);
     }
   };
   setInterval(tick, 60_000).unref();
@@ -302,7 +298,7 @@ export async function startDiscordMcp(client: Client): Promise<void> {
   const server = createDiscordMcpServer(client, getVerifyValkey());
   startReminders(client);
   await server.connect(new StdioServerTransport());
-  console.error("[Discord] MCP stdio ready");
+  log.info("[Discord] MCP stdio ready");
 }
 
 function httpTokens(): Set<string> {
@@ -319,32 +315,6 @@ function httpTokens(): Set<string> {
     }
   }
   return out;
-}
-
-function readJson(req: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let raw = "";
-    req.on("data", (chunk: Buffer) => {
-      raw += chunk.toString();
-      if (raw.length > 512 * 1024) {
-        reject(new Error("Body too large"));
-        req.destroy();
-      }
-    });
-    req.on("end", () => {
-      try {
-        resolve(raw ? JSON.parse(raw) : {});
-      } catch {
-        reject(new Error("Invalid JSON"));
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
-function sendJson(res: ServerResponse, status: number, data: unknown): void {
-  res.writeHead(status, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(data));
 }
 
 export async function startDiscordMcpHttp(client: Client): Promise<void> {
@@ -369,7 +339,7 @@ export async function startDiscordMcpHttp(client: Client): Promise<void> {
           return;
         }
       }
-      const body = await readJson(req);
+      const body = await readJson(req, MAX_BODY_BYTES);
       const mcp = createDiscordMcpServer(client, getVerifyValkey());
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined,
@@ -377,7 +347,7 @@ export async function startDiscordMcpHttp(client: Client): Promise<void> {
       await mcp.connect(transport);
       await transport.handleRequest(req, res, body);
     } catch (err) {
-      console.error("[Discord] MCP http failed:", err);
+      log.error("[Discord] MCP http failed:", err);
       if (!res.headersSent) sendJson(res, 500, { error: "MCP failed" });
       else res.end();
     }
@@ -385,7 +355,7 @@ export async function startDiscordMcpHttp(client: Client): Promise<void> {
   await new Promise<void>((resolve) =>
     server.listen(env.MCP_HTTP_PORT, env.MCP_HTTP_HOST, resolve),
   );
-  console.error(
+  log.info(
     `[Discord] MCP http on ${env.MCP_HTTP_HOST}:${env.MCP_HTTP_PORT}`,
   );
 }

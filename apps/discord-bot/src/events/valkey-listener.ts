@@ -1,8 +1,12 @@
 import { Client, EmbedBuilder, TextChannel } from "discord.js";
 import type Redis from "ioredis";
 import { postScoreReview } from "./score-review.js";
+import { resolveChannel } from "../channels.js";
+import { createLogger } from "../logger.js";
 
 const VALKEY_CHANNEL = "oc:live-events";
+
+const log = createLogger("listener");
 
 interface LiveEvent {
   type: string;
@@ -223,22 +227,13 @@ async function sendEmbed(
   embed: EmbedBuilder,
   channelId?: string,
 ) {
-  let channel: TextChannel | null = null;
-  if (channelId) {
-    try {
-      const fetched = await client.channels.fetch(channelId);
-      if (fetched?.isTextBased()) channel = fetched as TextChannel;
-    } catch {
-      channel = null;
-    }
-  }
-  channel ??= getChannel();
+  const channel = await resolveChannel(client, getChannel, channelId);
   if (!channel) return;
 
   try {
     await channel.send({ embeds: [embed] });
   } catch (error) {
-    console.error("[Discord] Failed to send embed:", error);
+    log.error("[Discord] Failed to send embed:", error);
   }
 }
 
@@ -250,10 +245,10 @@ export function startValkeyListener(
 ) {
   void subscriber.subscribe(VALKEY_CHANNEL, (err) => {
     if (err) {
-      console.error("[Discord] Subscribe error:", err);
+      log.error("[Discord] Subscribe error:", err);
       return;
     }
-    console.error(`[Discord] Subscribed to ${VALKEY_CHANNEL}`);
+    log.info(`[Discord] Subscribed to ${VALKEY_CHANNEL}`);
   });
 
   subscriber.on("message", (_channel: string, message: string) => {
@@ -287,7 +282,7 @@ export function startValkeyListener(
         void sendEmbed(client, getChannel, embed, event.channel_id);
       }
     } catch (error) {
-      console.error("[Discord] Failed to process event:", error);
+      log.error("[Discord] Failed to process event:", error);
     }
   });
 }

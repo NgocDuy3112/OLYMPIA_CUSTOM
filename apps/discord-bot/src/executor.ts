@@ -1,8 +1,13 @@
 
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer } from "node:http";
 import type { Client, GuildMember } from "discord.js";
+import { readJson, sendJson } from "./http.js";
+import { createLogger } from "./logger.js";
 
 const EXECUTOR_PORT = Number(process.env.EXECUTOR_PORT ?? 8200);
+const MAX_BODY_BYTES = 64 * 1024;
+
+const log = createLogger("executor");
 
 interface AssignBody {
   guildId: string;
@@ -15,32 +20,6 @@ interface RemoveRoleBody {
   guildId: string;
   discordUserId: string;
   roleId: string;
-}
-
-function readJson(req: IncomingMessage): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    let raw = "";
-    req.on("data", (chunk: Buffer) => {
-      raw += chunk.toString();
-      if (raw.length > 64 * 1024) {
-        reject(new Error("Body too large"));
-        req.destroy();
-      }
-    });
-    req.on("end", () => {
-      try {
-        resolve(raw ? JSON.parse(raw) : {});
-      } catch {
-        reject(new Error("Invalid JSON"));
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
-function sendJson(res: ServerResponse, status: number, data: unknown) {
-  res.writeHead(status, { "Content-Type": "application/json" });
-  res.end(JSON.stringify(data));
 }
 
 async function fetchMember(
@@ -63,7 +42,8 @@ async function handleAssign(client: Client, body: AssignBody) {
     try {
       await member.setNickname(body.nickname);
       nicknameChanged = true;
-    } catch {
+    } catch (err) {
+      log.warn(`setNickname failed for member ${body.discordUserId}:`, err);
     }
   }
   return {
@@ -103,7 +83,7 @@ export function startExecutor(client: Client) {
         sendJson(res, 404, { status: "error", message: "Not found" });
         return;
       }
-      const body = (await readJson(req)) as Record<string, string>;
+      const body = (await readJson(req, MAX_BODY_BYTES)) as Record<string, string>;
       if (req.url === "/discord/assign") {
         const result = await handleAssign(client, body as unknown as AssignBody);
         sendJson(res, 200, { status: "success", data: result });
@@ -127,7 +107,7 @@ export function startExecutor(client: Client) {
   });
 
   server.listen(EXECUTOR_PORT, "127.0.0.1", () => {
-    console.error(`[Discord] Executor listening on 127.0.0.1:${EXECUTOR_PORT}`);
+    log.info(`[Discord] Executor listening on 127.0.0.1:${EXECUTOR_PORT}`);
   });
   return server;
 }

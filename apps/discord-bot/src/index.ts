@@ -1,5 +1,8 @@
 import { startBot } from "./bot.js";
 import { startDiscordMcp, startDiscordMcpHttp } from "./mcp/server.js";
+import { createLogger } from "./logger.js";
+
+const log = createLogger("main");
 
 async function main(): Promise<void> {
   const client = await startBot();
@@ -11,6 +14,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error("Bot failed to start:", err);
+  log.error("Bot failed to start:", err);
   process.exit(1);
 });

@@ -8,7 +8,6 @@ import {
   type SlashCommandBuilder,
   type ChatInputCommandInteraction,
 } from "discord.js";
-import Redis from "ioredis";
 import { getEnv } from "./config/env.js";
 import { pingCommand } from "./commands/ping.js";
 import { createStatusCommand } from "./commands/status.js";
@@ -17,25 +16,20 @@ import { handleReviewButton } from "./events/score-review.js";
 import { handleVerifyButton } from "./mcp/server.js";
 import { loginBot } from "./api-session.js";
 import { startExecutor } from "./executor.js";
+import { createValkeyClient } from "./valkey.js";
+import { createLogger } from "./logger.js";
 
 interface Command {
   data: SlashCommandBuilder;
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
 }
 
+const log = createLogger("bot");
+
 
 async function createValkeyClients() {
-  const env = getEnv();
-  const opts = {
-    host: env.VALKEY_HOST,
-    port: env.VALKEY_PORT,
-    password: env.VALKEY_PASSWORD || undefined,
-    username: env.VALKEY_USER || undefined,
-  };
-
   const makeClient = () =>
-    new Redis({
-      ...opts,
+    createValkeyClient({
       maxRetriesPerRequest: null,
       enableReadyCheck: true,
       retryStrategy(times) {
@@ -78,14 +72,14 @@ export async function startBot() {
   commands.set(statusCmd.data.name, statusCmd as Command);
 
   discordClient.once(Events.ClientReady, (c) => {
-    console.error(`✅ Logged in as ${c.user.tag}`);
+    log.info(`✅ Logged in as ${c.user.tag}`);
 
     c.application.commands
       .set(commands.map((cmd) => cmd.data.toJSON()))
       .then(() => {
-        console.error("✅ Slash commands registered");
+        log.info("✅ Slash commands registered");
       })
-      .catch(console.error);
+      .catch((err) => log.error(err));
 
     const getChannel = () => {
       return (
@@ -106,7 +100,7 @@ export async function startBot() {
           await interaction.reply({ content: "Nút không còn hiệu lực.", ephemeral: true });
         }
       } catch (err) {
-        console.error("Review button failed:", err);
+        log.error("Review button failed:", err);
       }
       return;
     }
@@ -117,7 +111,7 @@ export async function startBot() {
     try {
       await command.execute(interaction);
     } catch (err) {
-      console.error(`Command ${interaction.commandName} failed:`, err);
+      log.error(`Command ${interaction.commandName} failed:`, err);
       const reply = { content: "❌ Command failed", ephemeral: true };
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp(reply);
@@ -131,9 +125,9 @@ export async function startBot() {
 
   try {
     await loginBot();
-    console.error("[Discord] API session ready");
+    log.info("[Discord] API session ready");
   } catch (err) {
-    console.error(
+    log.error(
       "[Discord] API session failed (callbacks sẽ 403):",
       err instanceof Error ? err.message : err,
     );
@@ -142,7 +136,7 @@ export async function startBot() {
   const executor = startExecutor(discordClient);
 
   const shutdown = () => {
-    console.error("Shutting down bot...");
+    log.info("Shutting down bot...");
     executor.close();
     valkeySub.disconnect();
     valkey.disconnect();

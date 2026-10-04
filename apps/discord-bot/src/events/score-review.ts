@@ -7,6 +7,7 @@ import {
   type Client,
   type TextChannel,
 } from "discord.js";
+import { resolveChannel } from "../channels.js";
 
 interface ReviewCandidate {
   user_code: string;
@@ -117,16 +118,7 @@ export async function postScoreReview(
   const state: ReviewState = { request, decisions: {} };
   states.set(request.review_id, state);
 
-  let channel: TextChannel | null = null;
-  if (channelId) {
-    try {
-      const fetched = await client.channels.fetch(channelId);
-      if (fetched?.isTextBased()) channel = fetched as TextChannel;
-    } catch {
-      channel = null;
-    }
-  }
-  channel ??= getChannel();
+  const channel = await resolveChannel(client, getChannel, channelId);
   if (!channel) return;
 
   const msg = await channel.send({ embeds: [buildEmbed(state)], components: buildRows(state) });
