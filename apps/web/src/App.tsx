@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toast";
 import { ENABLE_OVERLAY } from "@/configs";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
-const AdminMcpTokensPage = lazy(() => import("@/pages/admin/AdminMcpTokensPage"));
+const SettingsPage = lazy(() => import("@/pages/settings/SettingsPage"));
 
 const PlayerRoutes = lazy(() => import("@/routes/PlayerRoutes"));
 const AdminRoutes = lazy(() => import("@/routes/AdminRoutes"));
@@ -51,14 +51,16 @@ function App() {
             <Route path="/operator/qauthor/*" element={<QAuthorRoutes />} />
             <Route path="/operator/mc/*" element={<MCRoutes />} />
             <Route
-              path="/operator/mcp-tokens"
+              path="/settings"
               element={
-                <AuthGuard requiredRole="operator">
-                  <div className="min-h-screen p-4 sm:p-6 max-w-5xl mx-auto">
-                    <AdminMcpTokensPage />
-                  </div>
+                <AuthGuard>
+                  <SettingsPage />
                 </AuthGuard>
               }
+            />
+            <Route
+              path="/operator/mcp-tokens"
+              element={<Navigate to="/settings" replace />}
             />
             <Route path="/info/rules" element={<RulesPage />} />
             <Route path="/tournament/*" element={<TournamentRoutes />} />
