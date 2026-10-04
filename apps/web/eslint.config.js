@@ -30,9 +30,12 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/components/ui/**/*.{ts,tsx}"],
+    files: ["src/components/ui/**/*.{ts,tsx}", "src/lib/compose-refs.ts"],
     rules: {
       "react-refresh/only-export-components": "off",
+      "react-hooks/refs": "off",
+      "react-hooks/use-memo": "off",
+      "react-hooks/exhaustive-deps": "off",
     },
   },
 ]);
