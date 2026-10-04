@@ -43,18 +43,18 @@ export function scoreQualifierQuestion(
   attempts: QualifierAttemptInput[],
   totalPlayers?: number,
 ): QualifierQuestionResult {
-  let x = 0;
-  for (const a of attempts) if (a.isCorrect) x++;
-  const y = attempts.length - x;
-  const { perCorrect, perWrong } = qualifierQuestionPoints(x, y);
+  let correctCount = 0;
+  for (const a of attempts) if (a.isCorrect) correctCount++;
+  const wrongCount = attempts.length - correctCount;
+  const { perCorrect, perWrong } = qualifierQuestionPoints(correctCount, wrongCount);
   const points: Record<string, number> = {};
   for (const a of attempts) points[a.playerId] = a.isCorrect ? perCorrect : perWrong;
-  const z =
+  const noAnswerCount =
     totalPlayers === undefined ? 0 : Math.max(0, totalPlayers - attempts.length);
   return {
-    correctCount: x,
-    wrongCount: y,
-    noAnswerCount: z,
+    correctCount,
+    wrongCount,
+    noAnswerCount,
     perCorrect,
     perWrong,
     points,

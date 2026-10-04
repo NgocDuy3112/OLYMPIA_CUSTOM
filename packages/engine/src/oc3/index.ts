@@ -3,9 +3,13 @@ import type {
   TournamentEngine,
   ScoreDelta,
   BroadcastPayload,
-  ReplayPayload,
 } from "../types.js";
-import type { OC3State, OC3Action, OC3Phase } from "./types.js";
+import type {
+  OC3State,
+  OC3Action,
+  OC3Phase,
+  OC3ActionResult,
+} from "./types.js";
 import { OC3_CONFIG } from "./config.js";
 import { success } from "../core/result.js";
 import type { Result } from "../core/result.js";
@@ -146,19 +150,15 @@ export class OC3Engine
         },
       ]);
     }
-    const result = this.handleActionLegacy(state, action);
+    const result = this.dispatchAction(state, action);
     const scoreDeltas = this.calculateScore(action, result.state);
     return success(result.state, result.broadcasts, scoreDeltas);
   }
 
-  private handleActionLegacy(
+  private dispatchAction(
     state: OC3State,
     action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     switch (action.type) {
       case "buzz":
         return this.handleBuzz(state, action);
@@ -183,11 +183,7 @@ export class OC3Engine
   private handleBuzz(
     state: OC3State,
     action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     const { userCode } = action;
     const now = Date.now();
 
@@ -218,11 +214,7 @@ export class OC3Engine
   private handleAnswer(
     state: OC3State,
     action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     const { userCode, payload } = action;
     const answer = (payload.answer as string) || "";
     const questionCode = String(
@@ -268,11 +260,7 @@ export class OC3Engine
   private handleSendQuestion(
     state: OC3State,
     action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     const { payload } = action;
     const question = {
       questionCode: (payload.question_code as string) || "",
@@ -292,11 +280,7 @@ export class OC3Engine
   private handleStartTimer(
     state: OC3State,
     action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     const { payload } = action;
     const timer = {
       timeLimit: Number(payload.time_limit) || 30,
@@ -314,11 +298,7 @@ export class OC3Engine
   private handleClearQuestion(
     state: OC3State,
     _action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     return {
       state: {
         ...state,
@@ -336,11 +316,7 @@ export class OC3Engine
   private handleVeDichPower(
     state: OC3State,
     action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     const { userCode, payload } = action;
     const power = payload.power as "star" | "shield";
     if (power !== "star" && power !== "shield") {
@@ -373,11 +349,7 @@ export class OC3Engine
   private handleKeywordSubmit(
     state: OC3State,
     action: OC3Action,
-  ): {
-    state: OC3State;
-    broadcasts: BroadcastPayload[];
-    scoreDeltas: ScoreDelta[];
-  } {
+  ): OC3ActionResult {
     const { userCode, payload } = action;
     const keyword = (payload.keyword_text as string) || "";
     const cluesOpened = Number(payload.clues_opened) || 0;
@@ -402,19 +374,6 @@ export class OC3Engine
       ],
       scoreDeltas: [],
     };
-  }
-
-
-  canBuzz(state: OC3State, _userCode: string): boolean {
-    return state.currentPhase === "bp" && state.currentQuestion !== null;
-  }
-
-  canSubmit(state: OC3State, _userCode: string): boolean {
-    return state.currentQuestion !== null;
-  }
-
-  canAdvance(state: OC3State): boolean {
-    return state.currentPhase !== null;
   }
 
 
@@ -507,48 +466,5 @@ export class OC3Engine
       default:
         return [];
     }
-  }
-
-
-  getSnapshotForReconnect(state: OC3State, _userCode: string): ReplayPayload[] {
-    const messages: ReplayPayload[] = [];
-
-    if (state.currentQuestion) {
-      messages.push({
-        type: "send_question",
-        question_code: state.currentQuestion.questionCode,
-        content: state.currentQuestion.content,
-        media_source: state.currentQuestion.mediaUrl,
-      });
-    }
-
-    if (state.timer) {
-      messages.push({
-        type: "start_the_timer",
-        time_limit: state.timer.timeLimit,
-        started_at: state.timer.startedAt,
-        phase: state.timer.phase,
-      });
-    }
-
-    if (state.veDichPowers.length > 0) {
-      messages.push({
-        type: "vd_powers_used",
-        used_powers: Object.fromEntries(
-          state.veDichPowers.map((p) => [p.userCode, p.power]),
-        ),
-      });
-    }
-
-    for (const winner of state.buzzerWinners) {
-      messages.push({
-        type: "buzzer_winner",
-        user_code: winner.userCode,
-        question_code: winner.questionCode,
-        match_code: state.matchCode,
-      });
-    }
-
-    return messages;
   }
 }

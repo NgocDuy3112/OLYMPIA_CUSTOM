@@ -9,6 +9,7 @@ import {
   kdrCorrectOnce,
   kdrWrongOnce,
 } from "./scoring.js";
+import { applyVeDichPower } from "../base/scoring.js";
 
 export class OC4Engine extends OC3Engine {
   override readonly id: string = OC4_CONFIG.id;
@@ -42,23 +43,10 @@ export class OC4Engine extends OC3Engine {
         const power = state.veDichPowers.find(
           (p) => p.userCode === delta.userCode,
         )?.power;
-        return { ...delta, points: this.applyPower(delta.points, power) };
+        return { ...delta, points: applyVeDichPower(delta.points, power) };
       });
     }
 
     return super.calculateScore(action, state);
-  }
-
-  private applyPower(
-    points: number,
-    power: "star" | "shield" | undefined,
-  ): number {
-    if (!power) return points;
-    if (points > 0)
-      return power === "star"
-        ? Math.round(points * 1.5)
-        : Math.round(points * 0.5);
-    if (points < 0 && power === "shield") return 0;
-    return points;
   }
 }

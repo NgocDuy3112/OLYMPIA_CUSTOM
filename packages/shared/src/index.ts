@@ -1,9 +1,5 @@
 export type TournamentFormat = "oc3" | "oc4";
 
-export const OC_MATCH_RE = /^OC(\d+)_M/;
-export const OC_QUESTION_RE = /^OC(\d+)_Q/;
-export const OC_TOURNAMENT_RE = /^OC(\d+)_T/;
-
 export function ocNumberFromFormat(format?: string | null): string {
     const m = String(format ?? "")
         .trim()
@@ -36,13 +32,6 @@ export function makeTournamentCode(
     suffix: string,
 ): string {
     return `OC${ocNumber}_T_${suffix}`;
-}
-
-export function questionPrefixForMatch(
-    matchCode: string | null | undefined,
-    round: string,
-): string {
-    return `${ocPrefixFromCode(matchCode)}_Q_${round}`;
 }
 
 export * from "./ws.js";

@@ -39,7 +39,7 @@ export function vdrScore(
   questionCode: string,
   correct: boolean,
 ): ScoreDelta {
-  const points = extractVdPoints(questionCode);
+  const points = vdPointsFromQuestionCode(questionCode);
   return {
     userCode,
     points: correct ? points : -points,
@@ -52,7 +52,7 @@ export function vdcResolve(
   correctCodes: string[],
   questionCode: string,
 ): ScoreDelta[] {
-  const points = extractVdPoints(questionCode);
+  const points = vdPointsFromQuestionCode(questionCode);
   return playerCodes.map((code) => ({
     userCode: code,
     points: correctCodes.includes(code) ? points : -points,
@@ -116,7 +116,7 @@ export function applyVeDichPower(
 }
 
 
-function extractVdPoints(questionCode: string): number {
+function vdPointsFromQuestionCode(questionCode: string): number {
   const parts = questionCode.split("_");
   const last = parts[parts.length - 1];
   const n = parseInt(last, 10);

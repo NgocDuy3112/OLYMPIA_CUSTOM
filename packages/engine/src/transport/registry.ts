@@ -17,11 +17,3 @@ export function getEngine(format: string): AnyEngine {
   }
   return engine;
 }
-
-export function registerEngine(format: string, engine: AnyEngine): void {
-  engines.set(format, engine);
-}
-
-export function hasEngine(format: string): boolean {
-  return engines.has(format);
-}

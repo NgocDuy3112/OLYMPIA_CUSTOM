@@ -2,7 +2,6 @@ import type {
   BroadcastPayload,
   BuzzerWinner,
   QuestionState,
-  ReplayPayload,
   ScoreDelta,
   TimerState,
   VeDichPower,
@@ -55,5 +54,3 @@ export interface OC3ActionResult {
   broadcasts: BroadcastPayload[];
   scoreDeltas: ScoreDelta[];
 }
-
-export type OC3ReplayPayload = ReplayPayload;

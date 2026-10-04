@@ -34,6 +34,7 @@ describe("failure", () => {
 
   it("carries optional details", () => {
     const result = failure("E", "msg", { phase: "x" });
+    expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.details).toEqual({ phase: "x" });
     }
