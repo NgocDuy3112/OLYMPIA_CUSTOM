@@ -1,5 +1,6 @@
 import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "@oc/db";
 import { db, matches, questionBank, questions } from "@oc/db";
+import { clampLimit, clampOffset } from "../../utils/pagination.js";
 
 export type BankStatus = "pending" | "approved" | "rejected";
 
@@ -171,8 +172,8 @@ function buildBankConds(params: BankSearchParams): SQL[] {
 
 export const drizzleBankRepo: BankRepo = {
     async search(params): Promise<BankRow[]> {
-        const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
-        const offset = Math.max(params.offset ?? 0, 0);
+        const limit = clampLimit(params.limit);
+        const offset = clampOffset(params.offset);
         const conds = buildBankConds(params);
         const rows = await db
             .select()
@@ -192,8 +193,8 @@ export const drizzleBankRepo: BankRepo = {
     async searchPaged(
         params,
     ): Promise<BankSearchResult<BankRowWithUsage>> {
-        const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
-        const offset = Math.max(params.offset ?? 0, 0);
+        const limit = clampLimit(params.limit, 20);
+        const offset = clampOffset(params.offset);
         const conds = buildBankConds(params);
         const [totalRows, pageRows] = await Promise.all([
             db
@@ -382,8 +383,8 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
     const searchRows = (params: BankSearchParams): BankRow[] => {
         const q = params.q?.trim().toLowerCase() ?? "";
         const roundHint = params.roundHint?.trim() ?? "";
-        const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
-        const offset = Math.max(params.offset ?? 0, 0);
+        const limit = clampLimit(params.limit);
+        const offset = clampOffset(params.offset);
         let out = [...rows];
         if (q) {
             out = out.filter((r) =>
@@ -422,8 +423,8 @@ export function createInMemoryBankRepo(seed: BankRow[] = []): BankRepo & { rows:
             return withUsage(searchRows(params));
         },
         async searchPaged(params) {
-            const limit = Math.min(Math.max(params.limit ?? 20, 1), 100);
-            const offset = Math.max(params.offset ?? 0, 0);
+            const limit = clampLimit(params.limit, 20);
+            const offset = clampOffset(params.offset);
             const q = params.q?.trim().toLowerCase() ?? "";
             const roundHint = params.roundHint?.trim() ?? "";
             let out = [...rows];

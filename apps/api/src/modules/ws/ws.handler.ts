@@ -169,7 +169,7 @@ async function handleEngineAction(
     userCode: (data.user_code as string) || conn.userCode,
     matchCode: conn.matchCode,
     phase:
-      (data.phase as string) || (state as any).currentPhase || engine.phases[0],
+      (data.phase as string) || state.currentPhase || engine.phases[0],
     payload: data as Record<string, unknown>,
   };
   const result = engine.handleAction(state as never, action as never);

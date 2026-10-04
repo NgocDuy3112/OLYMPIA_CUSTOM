@@ -4,7 +4,7 @@ import {
   isCorrectOption,
   normalizeMathAnswer,
 } from "@oc/engine";
-import { isOperatorLike, requireAuth } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, reqSession } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { drizzleQuestionRepo } from "../question/question.repo.js";
 import { drizzleAnswerRepo } from "../answer/answer.repo.js";
@@ -38,10 +38,7 @@ export async function gradeRoutes(app: FastifyInstance) {
     "/grade",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (request as unknown as { session: {
-        role: string;
-        operatorScopes?: string | null;
-      } }).session;
+      const session = reqSession(request);
       if (!isStaffSession(session)) throw new AppError(403, "Staff only");
       const body = request.body as {
         candidate?: unknown;
@@ -64,10 +61,7 @@ export async function gradeRoutes(app: FastifyInstance) {
     "/grade/question",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (request as unknown as { session: {
-        role: string;
-        operatorScopes?: string | null;
-      } }).session;
+      const session = reqSession(request);
       if (!isStaffSession(session)) throw new AppError(403, "Staff only");
 
       const body = request.body as {

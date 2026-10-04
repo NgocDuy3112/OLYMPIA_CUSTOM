@@ -1,5 +1,6 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { isOperatorLike, requireAuth, requireScope } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, requireScope, reqSession } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { manager } from "../ws/ws.manager.js";
 import {
@@ -10,6 +11,7 @@ import {
   drizzleQualifierRepo,
   type QualifierRepo,
 } from "./qualifier.repo.js";
+import { clampLimit } from "../../utils/pagination.js";
 
 const OPTIONS = ["A", "B", "C", "D", "E", "F"] as const;
 
@@ -66,13 +68,9 @@ export async function qualifierRoutes(
       const { tournamentCode } = request.params as { tournamentCode: string };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
-      const session = (request as unknown as { session: { role: string; operatorScopes?: string | null } }).session;
+      const session = reqSession(request);
       const rows = await repo.listQuestions(t.id);
       return reply.send({
         status: "success",
@@ -98,48 +96,24 @@ export async function qualifierRoutes(
       };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       if (!raw.questionCode || !raw.content) {
-        return reply.code(400).send({
-          status: "error",
-          message: "questionCode, content required",
-          data: null,
-        });
+        throw new AppError(400, "questionCode, content required");
       }
       if (!validateOptions(raw.options)) {
-        return reply.code(400).send({
-          status: "error",
-          message: "options must be 4-6 non-empty strings",
-          data: null,
-        });
+        throw new AppError(400, "options must be 4-6 non-empty strings");
       }
       if (!validateOptionLetter(raw.correctOption)) {
-        return reply.code(400).send({
-          status: "error",
-          message: "correctOption must be one of A-F",
-          data: null,
-        });
+        throw new AppError(400, "correctOption must be one of A-F");
       }
       const idx = (OPTIONS as readonly string[]).indexOf(raw.correctOption);
       if (idx >= raw.options.length) {
-        return reply.code(400).send({
-          status: "error",
-          message: "correctOption exceeds options length",
-          data: null,
-        });
+        throw new AppError(400, "correctOption exceeds options length");
       }
       const position = Number(raw.position ?? 0);
       if (!Number.isInteger(position) || position < 1 || position > 16) {
-        return reply.code(400).send({
-          status: "error",
-          message: "position must be integer 1-16",
-          data: null,
-        });
+        throw new AppError(400, "position must be integer 1-16");
       }
       try {
         const created = await repo.createQuestion({
@@ -152,7 +126,7 @@ export async function qualifierRoutes(
           mediaUrl: raw.mediaUrl,
           position,
         });
-        const session = (request as unknown as { session: { userCode?: string } }).session;
+        const session = reqSession(request);
         void writeAudit({
           actionType: "MATCH_CREATED",
           actorCode: session?.userCode ?? null,
@@ -174,11 +148,7 @@ export async function qualifierRoutes(
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Create failed";
         const code = /unique|duplicate|uq_qualifier/i.test(msg) ? 409 : 400;
-        return reply.code(code).send({
-          status: "error",
-          message: msg,
-          data: null,
-        });
+        throw new AppError(code, msg);
       }
     },
   );
@@ -201,26 +171,14 @@ export async function qualifierRoutes(
       };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const q = await repo.findQuestion(t.id, questionCode);
       if (!q) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Question not found",
-          data: null,
-        });
+        throw new AppError(404, "Question not found");
       }
       if (q.status !== "open") {
-        return reply.code(400).send({
-          status: "error",
-          message: "Closed question cannot be edited",
-          data: null,
-        });
+        throw new AppError(400, "Closed question cannot be edited");
       }
       const updates: {
         content?: string;
@@ -233,21 +191,13 @@ export async function qualifierRoutes(
       if (raw.content !== undefined) updates.content = raw.content;
       if (raw.options !== undefined) {
         if (!validateOptions(raw.options)) {
-          return reply.code(400).send({
-            status: "error",
-            message: "options must be 4-6 non-empty strings",
-            data: null,
-          });
+          throw new AppError(400, "options must be 4-6 non-empty strings");
         }
         updates.options = raw.options.map((o) => o.trim());
       }
       if (raw.correctOption !== undefined) {
         if (!validateOptionLetter(raw.correctOption)) {
-          return reply.code(400).send({
-            status: "error",
-            message: "correctOption must be one of A-F",
-            data: null,
-          });
+          throw new AppError(400, "correctOption must be one of A-F");
         }
         updates.correctOption = raw.correctOption;
       }
@@ -256,21 +206,13 @@ export async function qualifierRoutes(
       if (raw.position !== undefined) {
         const p = Number(raw.position);
         if (!Number.isInteger(p) || p < 1 || p > 16) {
-          return reply.code(400).send({
-            status: "error",
-            message: "position must be integer 1-16",
-            data: null,
-          });
+          throw new AppError(400, "position must be integer 1-16");
         }
         updates.position = p;
       }
       const ok = await repo.updateQuestion(q.id, updates);
       if (!ok) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Nothing to update",
-          data: null,
-        });
+        throw new AppError(400, "Nothing to update");
       }
       void manager.broadcast(`qualifier_${tournamentCode}`, {
         type: "qualifier_updated",
@@ -295,27 +237,15 @@ export async function qualifierRoutes(
       };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const q = await repo.findQuestion(t.id, questionCode);
       if (!q) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Question not found",
-          data: null,
-        });
+        throw new AppError(404, "Question not found");
       }
       const ok = await repo.softDeleteQuestion(q.id);
       if (!ok) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Delete failed",
-          data: null,
-        });
+        throw new AppError(400, "Delete failed");
       }
       void manager.broadcast(`qualifier_${tournamentCode}`, {
         type: "qualifier_deleted",
@@ -344,43 +274,23 @@ export async function qualifierRoutes(
       };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const q = await repo.findQuestion(t.id, questionCode);
       if (!q) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Question not found",
-          data: null,
-        });
+        throw new AppError(404, "Question not found");
       }
       if (!validateOptionLetter(raw.selectedOption)) {
-        return reply.code(400).send({
-          status: "error",
-          message: "selectedOption must be one of A-F",
-          data: null,
-        });
+        throw new AppError(400, "selectedOption must be one of A-F");
       }
       const ms = Number(raw.responseTimeMs ?? 0);
       if (!Number.isFinite(ms) || ms < 0) {
-        return reply.code(400).send({
-          status: "error",
-          message: "responseTimeMs must be >= 0",
-          data: null,
-        });
+        throw new AppError(400, "responseTimeMs must be >= 0");
       }
       if (isQualifierTimeout(ms)) {
-        return reply.code(400).send({
-          status: "error",
-          message: `Time limit ${QUALIFIER_TIME_LIMIT_MS}ms exceeded`,
-          data: null,
-        });
+        throw new AppError(400, `Time limit ${QUALIFIER_TIME_LIMIT_MS}ms exceeded`);
       }
-      const session = (request as unknown as { session: { userId: string } }).session;
+      const session = reqSession(request);
       try {
         await repo.submitAttempt({
           questionId: q.id,
@@ -396,11 +306,7 @@ export async function qualifierRoutes(
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Submit failed";
         const code = msg === "Question closed" ? 400 : 400;
-        return reply.code(code).send({
-          status: "error",
-          message: msg,
-          data: null,
-        });
+        throw new AppError(code, msg);
       }
     },
   );
@@ -415,30 +321,18 @@ export async function qualifierRoutes(
       };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const q = await repo.findQuestion(t.id, questionCode);
       if (!q) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Question not found",
-          data: null,
-        });
+        throw new AppError(404, "Question not found");
       }
       if (q.status === "closed") {
-        return reply.code(400).send({
-          status: "error",
-          message: "Already closed",
-          data: null,
-        });
+        throw new AppError(400, "Already closed");
       }
       const n = await repo.countMembers(t.id);
       const result = await repo.closeAndScore(q.id, n);
-      const session = (request as unknown as { session: { userCode?: string } }).session;
+      const session = reqSession(request);
       void writeAudit({
         actionType: "MATCH_STATE_CHANGE",
         actorCode: session?.userCode ?? null,
@@ -472,13 +366,9 @@ export async function qualifierRoutes(
       const { limit } = request.query as { limit?: string };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
-      const n = Math.min(Math.max(Number(limit ?? 16) || 16, 1), 100);
+      const n = clampLimit(limit, 16);
       const rows = await repo.standings(t.id, n);
       return reply.send({
         status: "success",
@@ -495,11 +385,7 @@ export async function qualifierRoutes(
       const { tournamentCode } = request.params as { tournamentCode: string };
       const t = await resolveTournament(tournamentCode);
       if (!t) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const n = await repo.countMembers(t.id);
       const open = (await repo.listQuestions(t.id)).filter(
@@ -520,7 +406,7 @@ export async function qualifierRoutes(
           per_wrong: result.perWrong,
         });
       }
-      const session = (request as unknown as { session: { userCode?: string } }).session;
+      const session = reqSession(request);
       void writeAudit({
         actionType: "MATCH_STATE_CHANGE",
         actorCode: session?.userCode ?? null,

@@ -1,10 +1,11 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
 import {
   drizzleUserRepo,
   type UserRepo,
   type UserRow,
 } from "./user.repo.js";
-import { requireAuth, requireRole, hashPassword } from "../auth/auth.service.js";
+import { requireAuth, requireRole, hashPassword, reqSession } from "../auth/auth.service.js";
 
 function toPublicProfile(row: UserRow) {
   return {
@@ -37,12 +38,10 @@ export async function userRoutes(
     "/users/me",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (request as any).session as { userId: string };
+      const session = reqSession(request) as { userId: string };
       const row = await repo.findById(session.userId);
       if (!row) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
       return reply.send({
         status: "success",
@@ -56,7 +55,7 @@ export async function userRoutes(
     "/users/me",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (request as any).session as { userId: string };
+      const session = reqSession(request) as { userId: string };
       const body = request.body as { userName?: unknown; avatarUrl?: unknown };
       const updates: { userName?: string; avatarUrl?: string | null } = {};
       if (typeof body.userName === "string" && body.userName.trim()) {
@@ -68,15 +67,11 @@ export async function userRoutes(
         updates.avatarUrl = body.avatarUrl.trim().slice(0, 500);
       }
       if (Object.keys(updates).length === 0) {
-        return reply
-          .code(400)
-          .send({ status: "error", message: "Nothing to update", data: null });
+        throw new AppError(400, "Nothing to update");
       }
       const result = await repo.updateById(session.userId, updates);
       if (!result) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
       return reply.send({
         status: "success",
@@ -90,9 +85,7 @@ export async function userRoutes(
     const { userCode } = request.params as { userCode: string };
     const row = await repo.findByCode(userCode);
     if (!row) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "User not found", data: null });
+      throw new AppError(404, "User not found");
     }
     return reply.send({
       status: "success",
@@ -124,9 +117,7 @@ export async function userRoutes(
       const { userCode } = request.params as { userCode: string };
       const row = await repo.findByCode(userCode);
       if (!row) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
       return reply.send({
         status: "success",
@@ -155,25 +146,13 @@ export async function userRoutes(
       const role = typeof body.role === "string" ? body.role : "player";
       const allowed = ["admin", "operator", "agent", "player", "spectator"];
       if (!userName) {
-        return reply.code(400).send({
-          status: "error",
-          message: "userName required",
-          data: null,
-        });
+        throw new AppError(400, "userName required");
       }
       if (password.length < 8) {
-        return reply.code(400).send({
-          status: "error",
-          message: "password must be at least 8 characters",
-          data: null,
-        });
+        throw new AppError(400, "password must be at least 8 characters");
       }
       if (!allowed.includes(role)) {
-        return reply.code(400).send({
-          status: "error",
-          message: `Invalid role. Must be one of: ${allowed.join(", ")}`,
-          data: null,
-        });
+        throw new AppError(400, `Invalid role. Must be one of: ${allowed.join(", ")}`);
       }
       const validScopes = ["qauthor", "controller", "mc"];
       const scopes =
@@ -184,19 +163,11 @@ export async function userRoutes(
             )
           : [];
       if ((role === "operator" || role === "agent") && scopes.length === 0) {
-        return reply.code(400).send({
-          status: "error",
-          message: `${role} cần ít nhất 1 scope: ${validScopes.join(", ")}`,
-          data: null,
-        });
+        throw new AppError(400, `${role} cần ít nhất 1 scope: ${validScopes.join(", ")}`);
       }
       const existing = email ? await repo.findByEmail(email) : null;
       if (existing) {
-        return reply.code(409).send({
-          status: "error",
-          message: "Email đã tồn tại",
-          data: null,
-        });
+        throw new AppError(409, "Email đã tồn tại");
       }
       try {
         const userCode = `OC_U_${String(Date.now()).slice(-6)}`;
@@ -216,9 +187,7 @@ export async function userRoutes(
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Create failed";
-        return reply
-          .code(/unique|duplicate/i.test(msg) ? 409 : 400)
-          .send({ status: "error", message: msg, data: null });
+        throw new AppError(/unique|duplicate/i.test(msg) ? 409 : 400, msg);
       }
     },
   );
@@ -239,11 +208,7 @@ export async function userRoutes(
       if (body.userName) updates.userName = body.userName;
       if (typeof body.password === "string" && body.password) {
         if (body.password.length < 8) {
-          return reply.code(400).send({
-            status: "error",
-            message: "password must be at least 8 characters",
-            data: null,
-          });
+          throw new AppError(400, "password must be at least 8 characters");
         }
         updates.passwordHash = await hashPassword(body.password);
       }
@@ -251,22 +216,14 @@ export async function userRoutes(
         const email = body.email.trim().toLowerCase();
         const taken = await repo.findByEmail(email);
         if (taken && taken.userCode !== userCode) {
-          return reply.code(409).send({
-            status: "error",
-            message: "Email đã tồn tại",
-            data: null,
-          });
+          throw new AppError(409, "Email đã tồn tại");
         }
         updates.email = email;
       }
       if (body.role) {
         const allowed = ["admin", "operator", "agent", "player", "spectator"];
         if (!allowed.includes(body.role)) {
-          return reply.code(400).send({
-            status: "error",
-            message: `Invalid role. Must be one of: ${allowed.join(", ")}`,
-            data: null,
-          });
+          throw new AppError(400, `Invalid role. Must be one of: ${allowed.join(", ")}`);
         }
         updates.role = body.role as UserRow["role"];
         if (body.role !== "operator" && body.role !== "agent") {
@@ -275,9 +232,7 @@ export async function userRoutes(
       }
       const result = await repo.updateByCode(userCode, updates);
       if (!result) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
       return reply.send({
         status: "success",
@@ -300,17 +255,11 @@ export async function userRoutes(
           )
         : [];
       if (scopes.length === 0) {
-        return reply.code(400).send({
-          status: "error",
-          message: `scopes must be a non-empty array of: ${validScopes.join(", ")}`,
-          data: null,
-        });
+        throw new AppError(400, `scopes must be a non-empty array of: ${validScopes.join(", ")}`);
       }
       const result = await repo.grantOperator(userCode, scopes);
       if (!result) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
       return reply.send({
         status: "success",
@@ -327,9 +276,7 @@ export async function userRoutes(
       const { userCode } = request.params as { userCode: string };
       const result = await repo.softDeleteByCode(userCode);
       if (!result) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
       return reply.send({
         status: "success",

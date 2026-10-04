@@ -7,6 +7,7 @@ import {
   auditDir,
   type AuditEntry,
 } from "./audit.service.js";
+import { clampLimit, clampOffset } from "../../utils/pagination.js";
 
 export { writeAudit } from "./audit.service.js";
 
@@ -51,8 +52,8 @@ export async function auditRoutes(app: FastifyInstance) {
         limit?: string;
         offset?: string;
       };
-      const limit = Math.min(Math.max(Number(query.limit) || 50, 1), 200);
-      const offset = Math.max(Number(query.offset) || 0, 0);
+      const limit = clampLimit(query.limit, 50, 200);
+      const offset = clampOffset(query.offset);
 
       const all = await readAuditFiles();
       const filtered = all.filter((e) => {

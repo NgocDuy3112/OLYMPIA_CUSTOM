@@ -1,5 +1,6 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { requireAuth } from "../auth/auth.service.js";
+import { requireAuth, reqSession } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { getEnv } from "../../config/env.js";
 import { drizzleDiscordRepo, type DiscordRepo } from "./discord.repo.js";
@@ -72,11 +73,7 @@ export async function discordRoutes(
       const { code } = request.params as { code: string };
       const tournament = await resolveTournament(code);
       if (!tournament) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const rows = await repo.listTournamentMembers(tournament.id);
       return reply.send({ status: "success", message: "OK", data: rows });
@@ -89,30 +86,18 @@ export async function discordRoutes(
     async (request, reply) => {
       const { code } = request.params as { code: string };
       const body = request.body as { userCode: string };
-      const session = (request as unknown as { session: { userId: string; role: string; userCode: string } }).session;
+      const session = reqSession(request);
 
       const tournament = await resolveTournament(code);
       if (!tournament) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
-        return reply.code(403).send({
-          status: "error",
-          message: gate.message,
-          data: null,
-        });
+        throw new AppError(403, gate.message);
       }
       if (!tournament.discordGuildId) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Tournament has no discord_guild_id configured",
-          data: null,
-        });
+        throw new AppError(400, "Tournament has no discord_guild_id configured");
       }
 
       const target = await repo.findMemberByUserCode(
@@ -121,28 +106,16 @@ export async function discordRoutes(
       );
 
       if (!target) {
-        return reply.code(404).send({
-          status: "error",
-          message: "User is not registered in this tournament",
-          data: null,
-        });
+        throw new AppError(404, "User is not registered in this tournament");
       }
       if (!target.discordUserId) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Member has no discord_user_id linked",
-          data: null,
-        });
+        throw new AppError(400, "Member has no discord_user_id linked");
       }
 
       const roleMap = parseRoleMap(tournament.discordRoleMap);
       const roleId = roleMap[target.role];
       if (!roleId) {
-        return reply.code(400).send({
-          status: "error",
-          message: `No Discord role mapped for tournament role '${target.role}'`,
-          data: null,
-        });
+        throw new AppError(400, `No Discord role mapped for tournament role '${target.role}'`);
       }
 
       const result = await callBot("/discord/assign", {
@@ -171,23 +144,15 @@ export async function discordRoutes(
       const body = request.body as {
         mapping: Array<{ discordUserId: string; nickname: string }>;
       };
-      const session = (request as unknown as { session: { userId: string; role: string; userCode: string } }).session;
+      const session = reqSession(request);
 
       const tournament = await resolveTournament(code);
       if (!tournament) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
-        return reply.code(403).send({
-          status: "error",
-          message: gate.message,
-          data: null,
-        });
+        throw new AppError(403, gate.message);
       }
 
       let updated = 0;
@@ -214,23 +179,15 @@ export async function discordRoutes(
     async (request, reply) => {
       const { code } = request.params as { code: string };
       const body = request.body as { matchCode?: string; startsAt?: string };
-      const session = (request as unknown as { session: { userId: string; role: string; userCode: string } }).session;
+      const session = reqSession(request);
 
       const tournament = await resolveTournament(code);
       if (!tournament) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
-        return reply.code(403).send({
-          status: "error",
-          message: gate.message,
-          data: null,
-        });
+        throw new AppError(403, gate.message);
       }
 
       const playerRows = await repo.listPlayerDiscord(tournament.id);
@@ -264,30 +221,18 @@ export async function discordRoutes(
     async (request, reply) => {
       const { code } = request.params as { code: string };
       const body = request.body as { userCode: string; matchCode?: string };
-      const session = (request as unknown as { session: { userId: string; role: string; userCode: string } }).session;
+      const session = reqSession(request);
 
       const tournament = await resolveTournament(code);
       if (!tournament) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
       const gate = await gateFor(tournament.id, session);
       if (!gate.ok) {
-        return reply.code(403).send({
-          status: "error",
-          message: gate.message,
-          data: null,
-        });
+        throw new AppError(403, gate.message);
       }
       if (!tournament.discordGuildId) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Tournament has no discord_guild_id configured",
-          data: null,
-        });
+        throw new AppError(400, "Tournament has no discord_guild_id configured");
       }
 
       const target = await repo.findMemberByUserCode(
@@ -296,21 +241,13 @@ export async function discordRoutes(
       );
 
       if (!target || !target.discordUserId) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Member not found or has no discord_user_id",
-          data: null,
-        });
+        throw new AppError(404, "Member not found or has no discord_user_id");
       }
 
       const roleMap = parseRoleMap(tournament.discordRoleMap);
       const roleId = roleMap[target.role];
       if (!roleId) {
-        return reply.code(400).send({
-          status: "error",
-          message: `No Discord role mapped for tournament role '${target.role}'`,
-          data: null,
-        });
+        throw new AppError(400, `No Discord role mapped for tournament role '${target.role}'`);
       }
 
       const result = await callBot("/discord/remove-role", {

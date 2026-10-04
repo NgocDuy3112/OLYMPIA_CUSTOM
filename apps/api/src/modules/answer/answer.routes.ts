@@ -1,5 +1,6 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { isOperatorLike, requireAuth } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, reqSession } from "../auth/auth.service.js";
 import { resolveBuzzIds, resolveMatchId } from "../../state/id-cache.js";
 import { drizzleAnswerRepo, type AnswerRepo } from "./answer.repo.js";
 
@@ -20,16 +21,7 @@ export async function answerRoutes(
         has_buzzed?: boolean;
         timestamp?: number;
       };
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            userCode: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const scopes = (session.operatorScopes ?? "")
         .split(",")
         .map((s) => s.trim())
@@ -41,10 +33,7 @@ export async function answerRoutes(
       const effectiveUserCode =
         isStaff && body.user_code ? body.user_code : session.userCode;
       if (!body.match_code || !body.question_code || !effectiveUserCode) {
-        return reply.code(400).send({
-          status: "error",
-          message: "match_code, question_code required",
-        });
+        throw new AppError(400, "match_code, question_code required");
       }
       const ids = await resolveBuzzIds(
         app.valkey,
@@ -53,20 +42,14 @@ export async function answerRoutes(
         body.question_code,
       );
       if (!ids.matchId || !ids.playerId || !ids.questionId)
-        return reply.code(404).send({
-          status: "error",
-          message: "Match, player, or question not found",
-        });
+        throw new AppError(404, "Match, player, or question not found");
       const existing = await repo.findExisting(
         ids.matchId,
         ids.playerId,
         ids.questionId,
       );
       if (existing)
-        return reply.code(409).send({
-          status: "error",
-          message: "Player already answered this question",
-        });
+        throw new AppError(409, "Player already answered this question");
       const row = await repo.create({
         matchId: ids.matchId,
         playerId: ids.playerId,
@@ -88,20 +71,9 @@ export async function answerRoutes(
       const { matchCode } = request.params as { matchCode: string };
       const matchId = await resolveMatchId(app.valkey, matchCode);
       if (!matchId) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Match not found", data: null });
+        throw new AppError(404, "Match not found");
       }
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            userCode: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const rows = await repo.listByMatch(matchId);
       const scopes = (session.operatorScopes ?? "")
         .split(",")
@@ -131,15 +103,7 @@ export async function answerRoutes(
         matchCode: string;
         questionCode: string;
       };
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const scopes = (session.operatorScopes ?? "")
         .split(",")
         .map((s) => s.trim())
@@ -151,11 +115,7 @@ export async function answerRoutes(
             scopes.includes("qauthor") ||
             scopes.includes("mc")));
       if (!isStaff) {
-        return reply.code(403).send({
-          status: "error",
-          message: "Staff only",
-          data: null,
-        });
+        throw new AppError(403, "Staff only");
       }
       const ids = await resolveBuzzIds(
         app.valkey,
@@ -164,11 +124,7 @@ export async function answerRoutes(
         questionCode,
       );
       if (!ids.matchId || !ids.questionId) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Match or question not found",
-          data: null,
-        });
+        throw new AppError(404, "Match or question not found");
       }
       const rows = await repo.listByQuestion(ids.matchId, ids.questionId);
       return reply.send({ status: "success", message: "OK", data: rows });

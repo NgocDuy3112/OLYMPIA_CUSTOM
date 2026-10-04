@@ -1,3 +1,4 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
 import { requireAuth } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
@@ -17,9 +18,7 @@ export async function recordRoutes(
 
       const matchId = await resolveMatchId(app.valkey, matchCode);
       if (!matchId) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Match not found", data: null });
+        throw new AppError(404, "Match not found");
       }
 
       const rows = await repo.listByMatch(matchId, questionCode);

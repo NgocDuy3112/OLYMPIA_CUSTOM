@@ -138,9 +138,7 @@ export async function scoreReviewRoutes(
       const { id } = request.params as { id: string };
       const review = await repo.findById(id);
       if (!review) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Review not found", data: null });
+        throw new AppError(404, "Review not found");
       }
       return reply.send({ status: "success", message: "OK", data: review });
     },
@@ -157,19 +155,11 @@ export async function scoreReviewRoutes(
       };
       const code = match_code ?? matchCode;
       if (!code) {
-        return reply.code(400).send({
-          status: "error",
-          message: "match_code is required",
-          data: null,
-        });
+        throw new AppError(400, "match_code is required");
       }
       const matchId = await resolveMatchId(app.valkey, code);
       if (!matchId) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Match not found",
-          data: null,
-        });
+        throw new AppError(404, "Match not found");
       }
       const rows = await repo.listByMatch(matchId, status);
       return reply.send({ status: "success", message: "OK", data: rows });
@@ -189,33 +179,21 @@ export async function scoreReviewRoutes(
     };
     const review = await repo.findById(id);
     if (!review) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Review not found", data: null });
+      throw new AppError(404, "Review not found");
     }
     if (review.status !== "pending") {
-      return reply.code(409).send({
-        status: "error",
-        message: `Review already ${review.status}`,
-        data: null,
-      });
+      throw new AppError(409, `Review already ${review.status}`);
     }
     if (review.expiresAt && new Date(review.expiresAt) < new Date()) {
       await repo.markExpired(id);
-      return reply
-        .code(410)
-        .send({ status: "error", message: "Review expired", data: null });
+      throw new AppError(410, "Review expired");
     }
     const decisions = (body.decisions ?? {}) as Record<string, string>;
     const candidates = (review.candidates ?? []) as ScoreReviewCandidate[];
     for (const c of candidates) {
       const v = decisions[c.userCode];
       if (v !== "dung" && v !== "sai") {
-        return reply.code(400).send({
-          status: "error",
-          message: `Missing decision for ${label(c.position, c.userName)}`,
-          data: null,
-        });
+        throw new AppError(400, `Missing decision for ${label(c.position, c.userName)}`);
       }
     }
     const decidedBy =
@@ -257,16 +235,10 @@ export async function scoreReviewRoutes(
     const { id } = request.params as { id: string };
     const review = await repo.findById(id);
     if (!review) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Review not found", data: null });
+      throw new AppError(404, "Review not found");
     }
     if (review.status !== "pending") {
-      return reply.code(409).send({
-        status: "error",
-        message: `Review already ${review.status}`,
-        data: null,
-      });
+      throw new AppError(409, `Review already ${review.status}`);
     }
     const candidates = (review.candidates ?? []) as ScoreReviewCandidate[];
     const questionContent = await repo.findQuestionContent(review.questionId);
@@ -322,11 +294,7 @@ export async function scoreReviewRoutes(
         data: suggestion,
       });
     } catch (err) {
-      return reply.code(502).send({
-        status: "error",
-        message: err instanceof Error ? err.message : "OCee unavailable",
-        data: null,
-      });
+      throw new AppError(502, err instanceof Error ? err.message : "OCee unavailable");
     }
   });
 }

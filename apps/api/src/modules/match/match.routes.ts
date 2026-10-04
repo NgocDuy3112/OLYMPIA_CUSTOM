@@ -1,5 +1,6 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { requireRole, requireAuth, requireScope, uuidOrNull } from "../auth/auth.service.js";
+import { requireRole, requireAuth, requireScope, uuidOrNull, reqSession } from "../auth/auth.service.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleMatchRepo, type MatchRepo } from "./match.repo.js";
 
@@ -27,25 +28,13 @@ export async function matchRoutes(
         phaseId?: string;
       };
       if (!body.matchName) {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: "matchName is required",
-            data: null,
-          });
+        throw new AppError(400, "matchName is required");
       }
       if (body.scheduledAt && Number.isNaN(Date.parse(body.scheduledAt))) {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: "scheduledAt must be a valid date-time",
-            data: null,
-          });
+        throw new AppError(400, "scheduledAt must be a valid date-time");
       }
 
-      const session = (request as any).session;
+      const session = reqSession(request);
       let created;
       try {
         created = await repo.create({
@@ -58,11 +47,7 @@ export async function matchRoutes(
           phaseId: body.phaseId?.trim() || null,
         });
       } catch (err) {
-        return reply.code(400).send({
-          status: "error",
-          message: err instanceof Error ? err.message : "Create failed",
-          data: null,
-        });
+        throw new AppError(400, err instanceof Error ? err.message : "Create failed");
       }
 
       const auditSession = session as { userCode?: string } | undefined;
@@ -90,9 +75,7 @@ export async function matchRoutes(
     const { slug } = request.params as { slug: string };
     const row = await repo.findBySlug(slug);
     if (!row) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Match not found", data: null });
+      throw new AppError(404, "Match not found");
     }
     const players = await repo.listPlayers(row.id);
     return reply.send({
@@ -120,13 +103,7 @@ export async function matchRoutes(
         phaseId?: string | null;
       };
       if (body.scheduledAt && Number.isNaN(Date.parse(body.scheduledAt))) {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: "scheduledAt must be a valid date-time",
-            data: null,
-          });
+        throw new AppError(400, "scheduledAt must be a valid date-time");
       }
       const updated = await repo.update(slug, {
         matchName: body.matchName,
@@ -141,12 +118,10 @@ export async function matchRoutes(
         phaseId: body.phaseId === null ? null : (body.phaseId?.trim() || undefined),
       });
       if (!updated) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Match not found", data: null });
+        throw new AppError(404, "Match not found");
       }
       if (body.matchStatus) {
-        const session = (request as any).session as { userCode?: string } | undefined;
+        const session = reqSession(request) as { userCode?: string } | undefined;
         void writeAudit({
           actionType: "MATCH_STATE_CHANGE",
           actorCode: session?.userCode ?? null,
@@ -167,38 +142,20 @@ export async function matchRoutes(
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const body = request.body as { pin: string };
-      const session = (request as any).session;
+      const session = reqSession(request);
 
       if (!body.pin || body.pin.length !== 6) {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: "PIN must be 6 digits",
-            data: null,
-          });
+        throw new AppError(400, "PIN must be 6 digits");
       }
 
       const match = await repo.findByPin(body.pin);
 
       if (!match) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Invalid PIN",
-            data: null,
-          });
+        throw new AppError(404, "Invalid PIN");
       }
 
       if (match.matchStatus === "finished" || match.matchStatus === "completed") {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: "Match has already ended",
-            data: null,
-          });
+        throw new AppError(400, "Match has already ended");
       }
 
       return reply.send({
@@ -226,11 +183,7 @@ export async function matchRoutes(
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed";
         const status = message.includes("not found") ? 404 : 403;
-        return reply.code(status).send({
-          status: "error",
-          message,
-          data: null,
-        });
+        throw new AppError(status, message);
       }
       return reply.send({
         status: "success",

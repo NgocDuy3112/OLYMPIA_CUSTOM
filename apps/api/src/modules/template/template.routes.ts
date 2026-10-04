@@ -1,5 +1,6 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { requireRole } from "../auth/auth.service.js";
+import { requireRole, reqSession } from "../auth/auth.service.js";
 import { applyTemplate, generateNextRound } from "./template.service.js";
 import { BUILTIN_TEMPLATES, getBuiltinTemplate } from "./templates.json.js";
 import { drizzleTemplateRepo } from "./template.repo.js";
@@ -14,9 +15,7 @@ export async function templateRoutes(app: FastifyInstance) {
     const template = getBuiltinTemplate(id);
 
     if (!template) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Template not found", data: null });
+      throw new AppError(404, "Template not found");
     }
 
     return reply.send({ status: "success", message: "OK", data: template });
@@ -30,38 +29,26 @@ export async function templateRoutes(app: FastifyInstance) {
       const body = request.body as { templateId: string };
 
       if (!body.templateId) {
-        return reply.code(400).send({
-          status: "error",
-          message: "templateId is required",
-          data: null,
-        });
+        throw new AppError(400, "templateId is required");
       }
 
-      const session = (request as any).session;
+      const session = reqSession(request);
 
       const template = getBuiltinTemplate(body.templateId);
 
       if (!template) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Template not found",
-          data: null,
-        });
+        throw new AppError(404, "Template not found");
       }
 
       const tournament = await drizzleTemplateRepo.findTournamentByCode(code);
 
       if (!tournament) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Tournament not found",
-          data: null,
-        });
+        throw new AppError(404, "Tournament not found");
       }
 
       const result = await applyTemplate(
         code,
-        template.config as any,
+        template.config,
         session.userId,
         { repo: drizzleTemplateRepo },
       );
@@ -91,11 +78,7 @@ export async function templateRoutes(app: FastifyInstance) {
       const body = request.body as { currentPhase: number };
 
       if (!body.currentPhase) {
-        return reply.code(400).send({
-          status: "error",
-          message: "currentPhase is required",
-          data: null,
-        });
+        throw new AppError(400, "currentPhase is required");
       }
 
       try {
@@ -106,11 +89,7 @@ export async function templateRoutes(app: FastifyInstance) {
           data: result,
         });
       } catch (err) {
-        return reply.code(400).send({
-          status: "error",
-          message: err instanceof Error ? err.message : "Failed to generate next round",
-          data: null,
-        });
+        throw new AppError(400, err instanceof Error ? err.message : "Failed to generate next round");
       }
     },
   );

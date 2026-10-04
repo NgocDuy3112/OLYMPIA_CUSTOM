@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireRole } from "../auth/auth.service.js";
+import { requireRole, reqSession } from "../auth/auth.service.js";
 import { AppError } from "../../utils/errors.js";
 import { drizzleUserRepo, type UserRepo } from "../user/user.repo.js";
 import {
@@ -68,11 +68,7 @@ export async function mcpTokenRoutes(
         throw new AppError(400, "Identity phải là operator hoặc admin");
       }
 
-      const session = (
-        request as unknown as {
-          session?: { userCode?: string; role?: string };
-        }
-      ).session;
+      const session = reqSession(request);
       const creatorRank = ROLE_RANK[session?.role ?? ""] ?? 0;
       if (creatorRank < identityRank) {
         throw new AppError(
@@ -109,11 +105,7 @@ export async function mcpTokenRoutes(
       const entries = await readTokenFile();
       const entry = entries.find((e) => e.name === name && !e.revoked);
       if (!entry) throw new AppError(404, "Token not found");
-      const session = (
-        request as unknown as {
-          session?: { userCode?: string; role?: string };
-        }
-      ).session;
+      const session = reqSession(request);
       if (session?.role === "operator" && entry.createdBy !== session.userCode) {
         throw new AppError(403, "Chỉ thu hồi token mình đã cấp");
       }

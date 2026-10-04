@@ -1,5 +1,6 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { getEnv } from "../config/env.js";
+import { reqSession } from "../modules/auth/session.js";
 
 export class AppError extends Error {
   constructor(
@@ -17,11 +18,7 @@ export function errorHandler(
   request: FastifyRequest,
   reply: FastifyReply,
 ) {
-  const session = (
-    request as unknown as {
-      session?: { userCode?: string; role?: string };
-    }
-  ).session;
+  const session = reqSession(request);
   const ctx = {
     err: error,
     method: request.method,

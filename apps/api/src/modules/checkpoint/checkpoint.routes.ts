@@ -1,3 +1,4 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
 import { requireRole, requireAuth } from "../auth/auth.service.js";
 import { restoreFromCheckpoint } from "../../state/checkpoint.service.js";
@@ -27,17 +28,11 @@ export async function checkpointRoutes(
     async (request, reply) => {
       const { matchCode } = request.params as { matchCode: string };
       if (!(await repo.matchCodeExists(matchCode))) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Match not found", data: null });
+        throw new AppError(404, "Match not found");
       }
       const ok = await restoreFromCheckpoint(app.valkey, matchCode, { repo });
       if (!ok) {
-        return reply.code(404).send({
-          status: "error",
-          message: "No checkpoint found for match",
-          data: null,
-        });
+        throw new AppError(404, "No checkpoint found for match");
       }
       const count = await repo.count(matchCode);
       return reply.send({

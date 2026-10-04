@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { isOperatorLike, requireAuth, requireScope } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, requireScope, reqSession } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleQuestionRepo } from "../question/question.repo.js";
@@ -65,7 +65,7 @@ export async function questionSetRoutes(
   });
 
   app.post("/question-sets", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can create sets");
     const body = request.body as { setName?: unknown; matchCode?: unknown };
     const setName = typeof body.setName === "string" ? body.setName.trim().slice(0, 100) : "";
@@ -103,7 +103,7 @@ export async function questionSetRoutes(
   });
 
   app.patch("/question-sets/:code", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can edit sets");
     const { code } = request.params as { code: string };
     const set = await needSet(code);
@@ -125,7 +125,7 @@ export async function questionSetRoutes(
   });
 
   app.delete("/question-sets/:code", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can delete sets");
     const { code } = request.params as { code: string };
     const set = await needSet(code);
@@ -136,7 +136,7 @@ export async function questionSetRoutes(
   });
 
   app.post("/question-sets/:code/items", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can fill sets");
     const { code } = request.params as { code: string };
     const set = await needSet(code);
@@ -171,7 +171,7 @@ export async function questionSetRoutes(
   });
 
   app.post("/question-sets/:code/pick-gm-set", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can fill sets");
     const { code } = request.params as { code: string };
     const set = await needSet(code);
@@ -197,7 +197,7 @@ export async function questionSetRoutes(
   });
 
   app.delete("/question-sets/:code/items/:slot", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can edit sets");
     const { code, slot } = request.params as { code: string; slot: string };
     const set = await needSet(code);
@@ -208,7 +208,7 @@ export async function questionSetRoutes(
   });
 
   app.post("/question-sets/:code/ready", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can ready sets");
     const { code } = request.params as { code: string };
     const set = await needSet(code);
@@ -226,7 +226,7 @@ export async function questionSetRoutes(
   });
 
   app.post("/question-sets/:code/reopen", { preHandler: [requireAuth(app)] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     if (!canEditSets(session)) return err(reply, 403, "Only admin or qauthor can reopen sets");
     const { code } = request.params as { code: string };
     const set = await needSet(code);
@@ -237,7 +237,7 @@ export async function questionSetRoutes(
   });
 
   app.post("/question-sets/:code/activate", { preHandler: [requireScope(app, "controller")] }, async (request, reply) => {
-    const session = (request as unknown as { session: Session }).session;
+    const session = reqSession(request);
     const { code } = request.params as { code: string };
     const set = await needSet(code);
     if (!set) return err(reply, 404, "Question set not found");

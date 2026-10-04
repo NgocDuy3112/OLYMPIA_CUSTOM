@@ -1,35 +1,26 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { isOperatorLike, requireAuth, requireRole } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, requireRole, reqSession } from "../auth/auth.service.js";
 
 export async function mediaRoutes(app: FastifyInstance) {
   app.post(
     "/media/upload",
     { preHandler: [requireRole(app, "admin")] },
     async (request, reply) => {
-      return reply
-        .code(501)
-        .send({
-          status: "error",
-          message: "File upload not yet implemented",
-          data: null,
-        });
+      throw new AppError(501, "File upload not yet implemented");
     },
   );
 
   app.get("/media/presign/*", async (request, reply) => {
     const { "*": key } = request.params as { "*": string };
     if (!key) {
-      return reply
-        .code(400)
-        .send({ status: "error", message: "Missing key", data: null });
+      throw new AppError(400, "Missing key");
     }
     try {
       const url = await app.s3PresignGet(key);
       return reply.send({ status: "success", message: "OK", data: { url } });
     } catch {
-      return reply
-        .code(503)
-        .send({ status: "error", message: "S3 not available", data: null });
+      throw new AppError(503, "S3 not available");
     }
   });
 
@@ -42,26 +33,16 @@ export async function mediaRoutes(app: FastifyInstance) {
         contentType?: string;
       };
       if (!key || !key.startsWith("avatars/")) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Key must start with avatars/",
-          data: null,
-        });
+        throw new AppError(400, "Key must start with avatars/");
       }
       if (contentType && !contentType.startsWith("image/")) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Only image content types allowed",
-          data: null,
-        });
+        throw new AppError(400, "Only image content types allowed");
       }
       try {
         const url = await app.s3PresignPut(key, contentType);
         return reply.send({ status: "success", message: "OK", data: { url } });
       } catch {
-        return reply
-          .code(503)
-          .send({ status: "error", message: "S3 not available", data: null });
+        throw new AppError(503, "S3 not available");
       }
     },
   );
@@ -70,11 +51,7 @@ export async function mediaRoutes(app: FastifyInstance) {
     "/media/presign-question/",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (
-        request as unknown as {
-          session: { role: string; operatorScopes?: string | null };
-        }
-      ).session;
+      const session = reqSession(request);
       const scopes = (session.operatorScopes ?? "")
         .split(",")
         .map((s) => s.trim())
@@ -83,22 +60,14 @@ export async function mediaRoutes(app: FastifyInstance) {
         session.role === "admin" ||
         (isOperatorLike(session.role) && scopes.includes("qauthor"));
       if (!allowed) {
-        return reply.code(403).send({
-          status: "error",
-          message: "Only admin or qauthor can upload question media",
-          data: null,
-        });
+        throw new AppError(403, "Only admin or qauthor can upload question media");
       }
       const { key, contentType } = request.query as {
         key?: string;
         contentType?: string;
       };
       if (!key || !key.startsWith("questions/")) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Key must start with questions/",
-          data: null,
-        });
+        throw new AppError(400, "Key must start with questions/");
       }
       if (contentType) {
         const ok =
@@ -106,20 +75,14 @@ export async function mediaRoutes(app: FastifyInstance) {
           contentType.startsWith("audio/") ||
           contentType.startsWith("video/");
         if (!ok) {
-          return reply.code(400).send({
-            status: "error",
-            message: "Only image/audio/video content types allowed",
-            data: null,
-          });
+          throw new AppError(400, "Only image/audio/video content types allowed");
         }
       }
       try {
         const url = await app.s3PresignPut(key, contentType);
         return reply.send({ status: "success", message: "OK", data: { url, key } });
       } catch {
-        return reply
-          .code(503)
-          .send({ status: "error", message: "S3 not available", data: null });
+        throw new AppError(503, "S3 not available");
       }
     },
   );

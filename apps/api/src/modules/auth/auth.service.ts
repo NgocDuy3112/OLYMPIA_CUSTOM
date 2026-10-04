@@ -1,6 +1,5 @@
 
 import type { FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
-import { randomBytes } from "node:crypto";
 import { argon2id, argon2Verify } from "hash-wasm";
 import {
   drizzleUserRepo,
@@ -10,11 +9,43 @@ import {
 import { getEnv } from "../../config/env.js";
 import { AppError } from "../../utils/errors.js";
 import { writeAudit } from "../audit/audit.service.js";
+import {
+  COOKIE_NAME,
+  SESSION_TTL,
+  createSession,
+  createUserSession,
+  deleteSession,
+  getSession,
+  touchSession,
+} from "./session.js";
+import {
+  checkLoginRateLimit,
+  clearFailedLogins,
+  recordFailedLogin,
+} from "./login-rate.js";
 
-
-const SESSION_PREFIX = "session:";
-const SESSION_TTL = 86400;
-const COOKIE_NAME = "sid";
+// Re-export the session, guard, and login-rate helpers from their new
+// sibling modules so existing import paths keep working.
+export type { SessionData } from "./session.js";
+export {
+  reqSession,
+  createSession,
+  getSession,
+  deleteSession,
+  touchSession,
+} from "./session.js";
+export {
+  requireAuth,
+  requireRole,
+  requireScope,
+  isStaffRole,
+  isOperatorLike,
+} from "./guards.js";
+export {
+  checkLoginRateLimit,
+  recordFailedLogin,
+  clearFailedLogins,
+} from "./login-rate.js";
 
 export function uuidOrNull(id: string | null | undefined): string | null {
   return id &&
@@ -129,22 +160,6 @@ function issueSessionCookie(
   return reply.send({ status: "success", message: "OK", data: data ?? null });
 }
 
-async function createUserSession(
-  app: FastifyInstance,
-  user: UserRow,
-): Promise<string> {
-  return createSession(app.valkey, {
-    userId: user.id,
-    userCode: user.userCode,
-    role: user.role,
-    operatorScopes: user.operatorScopes,
-    email: user.email,
-    userName: user.userName,
-    createdAt: Date.now(),
-    lastSeen: Date.now(),
-  });
-}
-
 export function serviceSession(
   app: FastifyInstance,
   repo: UserRepo = drizzleUserRepo,
@@ -177,111 +192,6 @@ export function serviceSession(
       data: { sid, expiresIn: SESSION_TTL },
     });
   };
-}
-
-
-const LOGIN_MAX_ATTEMPTS = 10;
-const LOGIN_WINDOW_SEC = 15 * 60;
-const LOGIN_BLOCK_SEC = 15 * 60;
-
-function loginAttemptKey(id: string): string {
-  return `login:attempts:${id}`;
-}
-
-function loginBlockKey(id: string): string {
-  return `login:block:${id}`;
-}
-
-async function checkLoginRateLimit(
-  valkey: any,
-  id: string,
-): Promise<void> {
-  if (!valkey) return;
-  const blocked = await valkey.get(loginBlockKey(id));
-  if (blocked) {
-    throw new AppError(429, "Too many login attempts, try again later");
-  }
-}
-
-async function recordFailedLogin(valkey: any, id: string): Promise<void> {
-  if (!valkey) return;
-  const key = loginAttemptKey(id);
-  const count = await valkey.incr(key);
-  if (count === 1) await valkey.expire(key, LOGIN_WINDOW_SEC);
-  if (count >= LOGIN_MAX_ATTEMPTS) {
-    await valkey.set(loginBlockKey(id), "1", "EX", LOGIN_BLOCK_SEC);
-    await valkey.del(key);
-  }
-}
-
-async function clearFailedLogins(valkey: any, id: string): Promise<void> {
-  if (!valkey) return;
-  await valkey.del(loginAttemptKey(id));
-}
-
-
-interface SessionData {
-  userId: string;
-  userCode: string;
-  role: string;
-  operatorScopes?: string | null;
-  email: string;
-  userName: string;
-  matchCode?: string;
-  createdAt: number;
-  lastSeen: number;
-}
-
-
-function generateSessionId(): string {
-  return randomBytes(32).toString("base64url");
-}
-
-export async function createSession(
-  valkey: any,
-  data: SessionData,
-): Promise<string> {
-  const sid = generateSessionId();
-  await valkey.set(
-    `${SESSION_PREFIX}${sid}`,
-    JSON.stringify(data),
-    "EX",
-    SESSION_TTL,
-  );
-  return sid;
-}
-
-export async function getSession(
-  valkey: any,
-  sid: string,
-): Promise<SessionData | null> {
-  const raw = await valkey.get(`${SESSION_PREFIX}${sid}`);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as SessionData;
-  } catch {
-    return null;
-  }
-}
-
-export async function deleteSession(valkey: any, sid: string): Promise<void> {
-  await valkey.del(`${SESSION_PREFIX}${sid}`);
-}
-
-export async function touchSession(valkey: any, sid: string): Promise<void> {
-  const raw = await valkey.get(`${SESSION_PREFIX}${sid}`);
-  if (!raw) return;
-  try {
-    const data = JSON.parse(raw) as SessionData;
-    data.lastSeen = Date.now();
-    await valkey.set(
-      `${SESSION_PREFIX}${sid}`,
-      JSON.stringify(data),
-      "EX",
-      SESSION_TTL,
-    );
-  } catch {
-  }
 }
 
 
@@ -406,15 +316,11 @@ export function googleCallback(
 export function getMe(app: FastifyInstance) {  return async (request: FastifyRequest, reply: FastifyReply) => {
     const sid = request.cookies?.[COOKIE_NAME];
     if (!sid) {
-      return reply
-        .code(401)
-        .send({ status: "error", message: "Not authenticated", data: null });
+      throw new AppError(401, "Not authenticated");
     }
     const session = await getSession(app.valkey, sid);
     if (!session) {
-      return reply
-        .code(401)
-        .send({ status: "error", message: "Session expired", data: null });
+      throw new AppError(401, "Session expired");
     }
     await touchSession(app.valkey, sid);
     let operatorScopes = session.operatorScopes ?? null;
@@ -576,14 +482,9 @@ export function staffLogin(app: FastifyInstance) {
 
     if (cred) {
       if (expectRole && credRole !== expectRole) {
-        return reply.code(403).send({
-          status: "error",
-          message:
-            expectRole === "admin"
+        throw new AppError(403, expectRole === "admin"
               ? "Tài khoản operator — dùng trang đăng nhập operator"
-              : "Tài khoản admin — dùng trang đăng nhập admin",
-          data: null,
-        });
+              : "Tài khoản admin — dùng trang đăng nhập admin");
       }
       await clearFailedLogins(app.valkey, rateKey);
       void writeAudit({ actionType: "LOGIN", actorCode: cred.username.toUpperCase() });
@@ -614,25 +515,16 @@ export function staffLogin(app: FastifyInstance) {
     if (!found || found.isDeleted) await deny();
     const row = found as NonNullable<typeof found>;
     if (row.role !== "admin" && row.role !== "operator" && row.role !== "agent") {
-      return reply.code(403).send({
-        status: "error",
-        message: "Tài khoản thí sinh/khán giả — dùng trang đăng nhập chính",
-        data: null,
-      });
+      throw new AppError(403, "Tài khoản thí sinh/khán giả — dùng trang đăng nhập chính");
     }
     if (!row.passwordHash) await deny();
     if (!(await verifyPassword(body.password as string, row.passwordHash as string))) {
       await deny();
     }
     if (expectRole && row.role !== expectRole) {
-      return reply.code(403).send({
-        status: "error",
-        message:
-          expectRole === "admin"
+      throw new AppError(403, expectRole === "admin"
             ? "Tài khoản operator — dùng trang đăng nhập operator"
-            : "Tài khoản admin — dùng trang đăng nhập admin",
-        data: null,
-      });
+            : "Tài khoản admin — dùng trang đăng nhập admin");
     }
     await clearFailedLogins(app.valkey, rateKey);
     void writeAudit({ actionType: "LOGIN", actorCode: row.userCode });
@@ -644,71 +536,3 @@ export function staffLogin(app: FastifyInstance) {
   };
 }
 
-
-export function isStaffRole(role: string): boolean {
-  return role === "admin" || role === "operator";
-}
-
-export function isOperatorLike(role?: string | null): boolean {
-  return role === "operator" || role === "agent";
-}
-
-export function requireAuth(app: FastifyInstance) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    const sid = request.cookies?.[COOKIE_NAME];
-    if (!sid) {
-      return reply
-        .code(401)
-        .send({ status: "error", message: "Not authenticated", data: null });
-    }
-    const session = await getSession(app.valkey, sid);
-    if (!session) {
-      return reply
-        .code(401)
-        .send({ status: "error", message: "Session expired", data: null });
-    }
-    (request as any).session = session;
-  };
-}
-
-export function requireRole(app: FastifyInstance, ...roles: string[]) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    await requireAuth(app)(request, reply);
-    if (reply.sent) return;
-    const session = (request as any).session as SessionData;
-    if (!roles.includes(session.role) && session.role !== "admin") {
-      return reply.code(403).send({
-        status: "error",
-        message: `Role '${session.role}' is not allowed`,
-        data: null,
-      });
-    }
-  };
-}
-
-export function requireScope(app: FastifyInstance, ...scopes: string[]) {
-  return async (request: FastifyRequest, reply: FastifyReply) => {
-    await requireAuth(app)(request, reply);
-    if (reply.sent) return;
-    const session = (request as any).session as SessionData;
-    if (session.role === "admin") return;
-    let scopeList: string[] = [];
-    if (session.operatorScopes) {
-      scopeList = session.operatorScopes.split(",").map((s) => s.trim());
-    } else if (session.userId.startsWith("staff:")) {
-      const sid = request.cookies?.[COOKIE_NAME];
-      if (sid && app.valkey) {
-        const raw = await app.valkey.get(`staff:scopes:${sid}`);
-        if (raw) scopeList = raw.split(",").map((s: string) => s.trim());
-      }
-    }
-    const ok = scopes.some((s) => scopeList.includes(s));
-    if (!isOperatorLike(session.role) || !ok) {
-      return reply.code(403).send({
-        status: "error",
-        message: `Missing required scope: ${scopes.join(" or ")}`,
-        data: null,
-      });
-    }
-  };
-}

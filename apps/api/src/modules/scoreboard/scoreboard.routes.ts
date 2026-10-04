@@ -10,7 +10,7 @@ import {
   bpResolve,
 } from "@oc/engine";
 import { resolveMatchId, resolveUserId } from "../../state/id-cache.js";
-import { requireScope } from "../auth/auth.service.js";
+import { requireScope, reqSession } from "../auth/auth.service.js";
 import { AppError } from "../../utils/errors.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleScoreRepo, type ScoreRepo } from "./score.repo.js";
@@ -24,9 +24,7 @@ export async function scoreboardRoutes(
     const { matchCode } = request.params as { matchCode: string };
     const matchId = await resolveMatchId(app.valkey, matchCode);
     if (!matchId) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Match not found", data: null });
+      throw new AppError(404, "Match not found");
     }
 
     const scoreboard = await repo.scoreboard(matchId);
@@ -117,7 +115,7 @@ export async function scoreboardRoutes(
           questionCode,
         }));
       if (rows.length > 0) await repo.insertRecords(rows);
-      const session = (request as any).session as { userCode?: string } | undefined;
+      const session = reqSession(request) as { userCode?: string } | undefined;
       void writeAudit({
         actionType: "SCORE_CHANGE",
         actorCode: session?.userCode ?? null,

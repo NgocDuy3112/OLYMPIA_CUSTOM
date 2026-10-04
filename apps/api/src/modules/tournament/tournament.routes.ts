@@ -1,5 +1,6 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { requireRole, requireAuth, uuidOrNull } from "../auth/auth.service.js";
+import { requireRole, requireAuth, uuidOrNull, reqSession } from "../auth/auth.service.js";
 import {
   drizzleTournamentRepo,
   type TournamentRepo,
@@ -32,16 +33,10 @@ export async function tournamentRoutes(
       };
 
       if (!body.tournamentName) {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: "tournamentName is required",
-            data: null,
-          });
+        throw new AppError(400, "tournamentName is required");
       }
 
-      const session = (request as any).session;
+      const session = reqSession(request);
 
       const emptyToNull = (v: unknown): string | null =>
         typeof v === "string" && v.trim() ? v.trim() : null;
@@ -71,9 +66,7 @@ export async function tournamentRoutes(
     const tournament = await repo.findByCode(slug);
 
     if (!tournament) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Tournament not found", data: null });
+      throw new AppError(404, "Tournament not found");
     }
 
     const players = await repo.listMembers(tournament.id);
@@ -121,13 +114,7 @@ export async function tournamentRoutes(
       const result = await repo.update(slug, updates);
 
       if (!result) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Tournament not found",
-            data: null,
-          });
+        throw new AppError(404, "Tournament not found");
       }
 
       return reply.send({
@@ -146,13 +133,7 @@ export async function tournamentRoutes(
       const deleted = await repo.softDelete(slug);
 
       if (!deleted) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Tournament not found",
-            data: null,
-          });
+        throw new AppError(404, "Tournament not found");
       }
 
       return reply.send({
@@ -176,13 +157,7 @@ export async function tournamentRoutes(
       };
 
       if (!body.userCode) {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: "userCode is required",
-            data: null,
-          });
+        throw new AppError(400, "userCode is required");
       }
 
       const validRoles = ["controller", "mc", "qauthor", "player", "spectator"];
@@ -192,33 +167,19 @@ export async function tournamentRoutes(
       const tournament = await repo.findByCode(slug);
 
       if (!tournament) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Tournament not found",
-            data: null,
-          });
+        throw new AppError(404, "Tournament not found");
       }
 
       const user = await repo.findUserByCode(body.userCode);
 
       if (!user) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
 
       const existing = await repo.findMember(tournament.id, user.id);
 
       if (existing) {
-        return reply
-          .code(409)
-          .send({
-            status: "error",
-            message: "Player already in tournament",
-            data: null,
-          });
+        throw new AppError(409, "Player already in tournament");
       }
 
       await repo.addMember({
@@ -251,21 +212,13 @@ export async function tournamentRoutes(
       const tournament = await repo.findByCode(slug);
 
       if (!tournament) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Tournament not found",
-            data: null,
-          });
+        throw new AppError(404, "Tournament not found");
       }
 
       const user = await repo.findUserByCode(userCode);
 
       if (!user) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "User not found", data: null });
+        throw new AppError(404, "User not found");
       }
 
       await repo.removeMember(tournament.id, user.id);
@@ -283,18 +236,12 @@ export async function tournamentRoutes(
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const { slug } = request.params as { slug: string };
-      const session = (request as any).session;
+      const session = reqSession(request);
 
       const tournament = await repo.findByCode(slug);
 
       if (!tournament) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Tournament not found",
-            data: null,
-          });
+        throw new AppError(404, "Tournament not found");
       }
 
       const membership = await repo.findMember(tournament.id, session.userId);
@@ -314,30 +261,18 @@ export async function tournamentRoutes(
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const { slug } = request.params as { slug: string };
-      const session = (request as any).session;
+      const session = reqSession(request);
 
       const tournament = await repo.findByCode(slug);
 
       if (!tournament) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Tournament not found",
-            data: null,
-          });
+        throw new AppError(404, "Tournament not found");
       }
 
       const existing = await repo.findMember(tournament.id, session.userId);
 
       if (existing) {
-        return reply
-          .code(409)
-          .send({
-            status: "error",
-            message: "Already registered for this tournament",
-            data: null,
-          });
+        throw new AppError(409, "Already registered for this tournament");
       }
 
       if (tournament.maxPlayers) {
@@ -345,13 +280,7 @@ export async function tournamentRoutes(
         const maxCount = Number(tournament.maxPlayers);
 
         if (currentCount >= maxCount) {
-          return reply
-            .code(400)
-            .send({
-              status: "error",
-              message: "Tournament is full",
-              data: null,
-            });
+          throw new AppError(400, "Tournament is full");
         }
       }
 
@@ -373,7 +302,7 @@ export async function tournamentRoutes(
     "/tournaments/me",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (request as any).session as { userId: string };
+      const session = reqSession(request) as { userId: string };
       const rows = await repo.listMyTournaments(session.userId);
       return reply.send({ status: "success", message: "OK", data: rows });
     },
@@ -388,29 +317,17 @@ export async function tournamentRoutes(
         userId: string;
       };
       const body = request.body as { role: string };
-      const session = (request as any).session;
+      const session = reqSession(request);
 
       const validRoles = ["controller", "mc", "qauthor", "player", "spectator"];
       if (!body.role || !validRoles.includes(body.role)) {
-        return reply
-          .code(400)
-          .send({
-            status: "error",
-            message: `Invalid role. Must be one of: ${validRoles.join(", ")}`,
-            data: null,
-          });
+        throw new AppError(400, `Invalid role. Must be one of: ${validRoles.join(", ")}`);
       }
 
       const tournament = await repo.findByCode(slug);
 
       if (!tournament) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "Tournament not found",
-            data: null,
-          });
+        throw new AppError(404, "Tournament not found");
       }
 
       const tournamentId = tournament.id;
@@ -426,25 +343,13 @@ export async function tournamentRoutes(
         requestUserMembership.role === "controller";
 
       if (!isAdmin && !isController) {
-        return reply
-          .code(403)
-          .send({
-            status: "error",
-            message: "Only admin or controller can assign roles",
-            data: null,
-          });
+        throw new AppError(403, "Only admin or controller can assign roles");
       }
 
       const targetMembership = await repo.findMember(tournamentId, userId);
 
       if (!targetMembership) {
-        return reply
-          .code(404)
-          .send({
-            status: "error",
-            message: "User is not registered in this tournament",
-            data: null,
-          });
+        throw new AppError(404, "User is not registered in this tournament");
       }
 
       await repo.updateMemberRole(targetMembership.id, body.role);
@@ -461,9 +366,7 @@ export async function tournamentRoutes(
     const { code } = request.params as { code: string };
     const tournament = await repo.findByCode(code);
     if (!tournament) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Tournament not found", data: null });
+      throw new AppError(404, "Tournament not found");
     }
     const data = await repo.bracket(tournament.id);
     const idToCode = new Map(data.matches.map((m) => [m.id, m.matchCode]));
@@ -504,11 +407,7 @@ export async function tournamentRoutes(
     const tournament = await repo.findByCode(code);
 
     if (!tournament) {
-      return reply.code(404).send({
-        status: "error",
-        message: "Tournament not found",
-        data: null,
-      });
+      throw new AppError(404, "Tournament not found");
     }
 
     const standings = await repo.standings(tournament.id);

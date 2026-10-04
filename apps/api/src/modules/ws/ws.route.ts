@@ -15,10 +15,10 @@ export async function wsRoute(app: FastifyInstance) {
     "/ws/:matchCode",
     { websocket: true },
     async (socket: WebSocket, request) => {
-      const matchCode = (request.params as any).matchCode as string;
+      const matchCode = (request.params as { matchCode: string }).matchCode;
 
       const cookies = parseCookies(request.headers.cookie || "");
-      const sid = cookies[COOKIE_NAME] || (request.query as any).sid;
+      const sid = cookies[COOKIE_NAME] || (request.query as { sid?: string }).sid;
 
       if (!sid) {
         socket.close(4001, "Missing authentication");

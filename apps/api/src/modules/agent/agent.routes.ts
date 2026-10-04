@@ -1,6 +1,7 @@
 
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { requireScope } from "../auth/auth.service.js";
+import { requireScope, reqSession } from "../auth/auth.service.js";
 import { forwardAgentAsk, AgentRateLimitError } from "./agent.gateway.js";
 import { writeAudit } from "../audit/audit.service.js";
 
@@ -22,18 +23,10 @@ export async function agentRoutes(app: FastifyInstance) {
             : "";
       const question = typeof body.question === "string" ? body.question : "";
       if (!question.trim()) {
-        return reply.code(400).send({
-          status: "error",
-          message: "question is required",
-          data: null,
-        });
+        throw new AppError(400, "question is required");
       }
       const effectiveMatch = matchCode.trim() || "BANK_REVIEW";
-      const session = (
-        request as unknown as {
-          session: { userCode?: string; role?: string; operatorScopes?: string | null };
-        }
-      ).session;
+      const session = reqSession(request);
       const userCode = session?.userCode ?? "anonymous";
       const scopes = (session?.operatorScopes ?? "").split(",").map((s) => s.trim());
       const agentRole =
@@ -67,17 +60,9 @@ export async function agentRoutes(app: FastifyInstance) {
         });
       } catch (err) {
         if (err instanceof AgentRateLimitError) {
-          return reply.code(429).send({
-            status: "error",
-            message: "Bạn hỏi quá nhanh, thử lại sau một phút.",
-            data: null,
-          });
+          throw new AppError(429, "Bạn hỏi quá nhanh, thử lại sau một phút.");
         }
-        return reply.code(502).send({
-          status: "error",
-          message: err instanceof Error ? err.message : "Agent unavailable",
-          data: null,
-        });
+        throw new AppError(502, err instanceof Error ? err.message : "Agent unavailable");
       }
     },
   );

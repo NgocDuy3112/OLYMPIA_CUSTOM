@@ -1,5 +1,6 @@
+import { AppError } from "../../utils/errors.js";
 import type { FastifyInstance } from "fastify";
-import { isOperatorLike, requireAuth, uuidOrNull } from "../auth/auth.service.js";
+import { isOperatorLike, requireAuth, uuidOrNull, reqSession } from "../auth/auth.service.js";
 import { resolveMatchId } from "../../state/id-cache.js";
 import { writeAudit } from "../audit/audit.service.js";
 import { drizzleQuestionRepo, type QuestionRepo } from "./question.repo.js";
@@ -22,6 +23,7 @@ import {
   type RawItem,
   type RowIssue,
 } from "./bank-import.js";
+import { clampLimit, clampPage } from "../../utils/pagination.js";
 
 export async function questionRoutes(
   app: FastifyInstance,
@@ -96,33 +98,19 @@ export async function questionRoutes(
       };
     const code = match_code ?? matchCode;
     if (!code) {
-      return reply
-        .code(400)
-        .send({ status: "error", message: "match_code is required", data: null });
+      throw new AppError(400, "match_code is required");
     }
     const matchId = await resolveMatchId(app.valkey, code);
     if (!matchId) {
-      return reply
-        .code(404)
-        .send({ status: "error", message: "Match not found", data: null });
+      throw new AppError(404, "Match not found");
     }
     const qCode = question_code ?? questionCode;
-    const session = (
-      request as unknown as {
-        session: {
-          userId: string;
-          role: string;
-          operatorScopes?: string | null;
-        };
-      }
-    ).session;
+    const session = reqSession(request);
     const canSee = await canSeeAnswer(session, matchId);
     if (qCode) {
       const row = await repo.findByCode(matchId, qCode);
       if (!row) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Question not found", data: null });
+        throw new AppError(404, "Question not found");
       }
       return reply.send({
         status: "success",
@@ -145,19 +133,9 @@ export async function questionRoutes(
       const { matchCode } = request.params as { matchCode: string };
       const matchId = await resolveMatchId(app.valkey, matchCode);
       if (!matchId) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Match not found", data: null });
+        throw new AppError(404, "Match not found");
       }
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const canSee = await canSeeAnswer(session, matchId);
       const rows = await repo.listByMatchId(matchId);
       return reply.send({
@@ -178,25 +156,13 @@ export async function questionRoutes(
       };
       const matchId = await resolveMatchId(app.valkey, matchCode);
       if (!matchId) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Match not found", data: null });
+        throw new AppError(404, "Match not found");
       }
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const canSee = await canSeeAnswer(session, matchId);
       const row = await repo.findByCode(matchId, questionCode);
       if (!row) {
-        return reply
-          .code(404)
-          .send({ status: "error", message: "Question not found", data: null });
+        throw new AppError(404, "Question not found");
       }
       return reply.send({
         status: "success",
@@ -224,26 +190,16 @@ export async function questionRoutes(
         media_url?: string;
         options?: string[] | string;
       };
-      const session = (request as unknown as {
-        session: { userId: string; role: string; operatorScopes?: string | null; userCode?: string };
-      }).session;
+      const session = reqSession(request);
       const matchCode = raw.matchCode ?? raw.match_code ?? "";
       const questionCode = raw.questionCode ?? raw.question_code ?? "";
       if (!matchCode || !questionCode || !raw.content || !raw.answer) {
-        return reply.code(400).send({
-          status: "error",
-          message: "matchCode, questionCode, content, answer required",
-          data: null,
-        });
+        throw new AppError(400, "matchCode, questionCode, content, answer required");
       }
       const check = await canWriteQuestions(session, matchCode);
       if (!check.ok || !check.matchId) {
         const status = check.message === "Match not found" ? 404 : 403;
-        return reply.code(status).send({
-          status: "error",
-          message: check.message ?? "Forbidden",
-          data: null,
-        });
+        throw new AppError(status, check.message ?? "Forbidden");
       }
       const options = Array.isArray(raw.options)
         ? JSON.stringify(raw.options)
@@ -292,17 +248,11 @@ export async function questionRoutes(
         media_url?: string | null;
         options?: string[] | string | null;
       };
-      const session = (request as unknown as {
-        session: { userId: string; role: string; operatorScopes?: string | null; userCode?: string };
-      }).session;
+      const session = reqSession(request);
       const check = await canWriteQuestions(session, matchCode);
       if (!check.ok || !check.matchId) {
         const status = check.message === "Match not found" ? 404 : 403;
-        return reply.code(status).send({
-          status: "error",
-          message: check.message ?? "Forbidden",
-          data: null,
-        });
+        throw new AppError(status, check.message ?? "Forbidden");
       }
       const result = await repo.update(check.matchId, questionCode, {
         content: raw.content,
@@ -313,19 +263,11 @@ export async function questionRoutes(
         options: raw.options,
       });
       if (!result) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Nothing to update",
-          data: null,
-        });
+        throw new AppError(400, "Nothing to update");
       }
       const row = await repo.findByCode(check.matchId, questionCode);
       if (!row) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Question not found",
-          data: null,
-        });
+        throw new AppError(404, "Question not found");
       }
       void writeAudit({
         actionType: "QUESTION_USED",
@@ -347,17 +289,11 @@ export async function questionRoutes(
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
       const { matchCode } = request.params as { matchCode: string };
-      const session = (request as unknown as {
-        session: { userId: string; role: string; operatorScopes?: string | null; userCode?: string };
-      }).session;
+      const session = reqSession(request);
       const check = await canWriteQuestions(session, matchCode);
       if (!check.ok || !check.matchId) {
         const status = check.message === "Match not found" ? 404 : 403;
-        return reply.code(status).send({
-          status: "error",
-          message: check.message ?? "Forbidden",
-          data: null,
-        });
+        throw new AppError(status, check.message ?? "Forbidden");
       }
       await repo.softDeleteAll(check.matchId);
       void writeAudit({
@@ -382,25 +318,15 @@ export async function questionRoutes(
         matchCode: string;
         questionCode: string;
       };
-      const session = (request as unknown as {
-        session: { userId: string; role: string; operatorScopes?: string | null; userCode?: string };
-      }).session;
+      const session = reqSession(request);
       const check = await canWriteQuestions(session, matchCode);
       if (!check.ok || !check.matchId) {
         const status = check.message === "Match not found" ? 404 : 403;
-        return reply.code(status).send({
-          status: "error",
-          message: check.message ?? "Forbidden",
-          data: null,
-        });
+        throw new AppError(status, check.message ?? "Forbidden");
       }
       const deleted = await repo.softDeleteOne(check.matchId, questionCode);
       if (!deleted) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Question not found",
-          data: null,
-        });
+        throw new AppError(404, "Question not found");
       }
       void writeAudit({
         actionType: "QUESTION_USED",
@@ -425,23 +351,10 @@ export async function questionRoutes(
         matchCode: string;
         questionCode: string;
       };
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-            userCode?: string;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const matchId = await resolveMatchId(app.valkey, matchCode);
       if (!matchId) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Match not found",
-          data: null,
-        });
+        throw new AppError(404, "Match not found");
       }
       const scopes = getScopes(session);
       const isController =
@@ -450,20 +363,12 @@ export async function questionRoutes(
       if (!isController) {
         const role = await repo.findTournamentRole(session.userId, matchId);
         if (role !== "controller") {
-          return reply.code(403).send({
-            status: "error",
-            message: "Controller only",
-            data: null,
-          });
+          throw new AppError(403, "Controller only");
         }
       }
       const ok = await repo.markUsed(matchId, questionCode);
       if (!ok) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Question not found",
-          data: null,
-        });
+        throw new AppError(404, "Question not found");
       }
       void writeAudit({
         actionType: "QUESTION_USED",
@@ -502,21 +407,13 @@ export async function questionRoutes(
           page?: string;
           used?: string;
         };
-      const session = (
-        request as unknown as {
-          session?: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const canSee =
         session?.role === "admin" ||
         (isOperatorLike(session?.role) &&
           getScopes(session ?? {}).includes("qauthor"));
-      const pageSize = Math.min(Math.max(Number(limit) || 20, 1), 100);
-      const pageNum = Math.max(Number(page) || 1, 1);
+      const pageSize = clampLimit(limit, 20);
+      const pageNum = clampPage(page);
       const paged = await bankRepo.searchPaged({
         q,
         roundHint: roundHint ?? round_hint,
@@ -611,56 +508,27 @@ export async function questionRoutes(
         round?: string;
         slot?: string;
       };
-      const session = (
-        request as unknown as {
-          session?: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-            userCode?: string;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const matchCode = raw.matchCode ?? raw.match_code ?? "";
       const round = String(raw.round ?? "").trim().toUpperCase();
       if (!matchCode || !round) {
-        return reply.code(400).send({
-          status: "error",
-          message: "matchCode and round required",
-          data: null,
-        });
+        throw new AppError(400, "matchCode and round required");
       }
       if (!/^[A-Z0-9_]{1,20}$/.test(round)) {
-        return reply.code(400).send({
-          status: "error",
-          message: "round must be A-Z/0-9/_ (e.g. KD_C, GM, BP, VD)",
-          data: null,
-        });
+        throw new AppError(400, "round must be A-Z/0-9/_ (e.g. KD_C, GM, BP, VD)");
       }
       const actorCode = session?.userCode ?? null;
       if (!session) {
-        return reply.code(401).send({
-          status: "error",
-          message: "Not authenticated",
-          data: null,
-        });
+        throw new AppError(401, "Not authenticated");
       }
       const check = await canWriteQuestions(session, matchCode);
       if (!check.ok || !check.matchId) {
         const status = check.message === "Match not found" ? 404 : 403;
-        return reply.code(status).send({
-          status: "error",
-          message: check.message ?? "Forbidden",
-          data: null,
-        });
+        throw new AppError(status, check.message ?? "Forbidden");
       }
       const matchId = (await canWriteQuestions(session, matchCode)).matchId;
       if (!matchId) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Match not found",
-          data: null,
-        });
+        throw new AppError(404, "Match not found");
       }
       const bankId = raw.bankId ?? raw.bank_id ?? "";
       const bankCode = raw.bankCode ?? raw.bank_code ?? "";
@@ -669,19 +537,11 @@ export async function questionRoutes(
         let setCode = String(raw.setCode ?? raw.set_code ?? "").trim().toUpperCase();
         if (!setCode) {
           if (!bankCode) {
-            return reply.code(400).send({
-              status: "error",
-              message: "GM chỉ pick cả set: cần setCode (hoặc bankCode KEY)",
-              data: null,
-            });
+            throw new AppError(400, "GM chỉ pick cả set: cần setCode (hoặc bankCode KEY)");
           }
           const keyRow = await bankRepo.findByCode(bankCode);
           if (!keyRow || keyRow.hintIndex !== "KEY" || !keyRow.setCode) {
-            return reply.code(404).send({
-              status: "error",
-              message: "KEY row with set_code not found",
-              data: null,
-            });
+            throw new AppError(404, "KEY row with set_code not found");
           }
           setCode = keyRow.setCode;
         }
@@ -690,21 +550,13 @@ export async function questionRoutes(
         const order = ["KEY", "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"];
         const missing = order.filter((h) => !byHint.has(h));
         if (missing.length > 0) {
-          return reply.code(422).send({
-            status: "error",
-            message: `GM set ${setCode} incomplete, missing ${missing.join(",")}`,
-            data: null,
-          });
+          throw new AppError(422, `GM set ${setCode} incomplete, missing ${missing.join(",")}`);
         }
         const slots = order.map((h) => (h === "KEY" ? "GM_KEY" : `GM_${h}`));
         for (const s of slots) {
           const taken = await repo.findBySlot(matchId, s);
           if (taken) {
-            return reply.code(409).send({
-              status: "error",
-              message: `slot ${s} already filled by ${taken.questionCode}`,
-              data: null,
-            });
+            throw new AppError(409, `slot ${s} already filled by ${taken.questionCode}`);
           }
         }
         const created: { slot: string; questionCode: string; bankCode: string }[] = [];
@@ -745,58 +597,34 @@ export async function questionRoutes(
         });
       }
       if (!bankId && !bankCode) {
-        return reply.code(400).send({
-          status: "error",
-          message: "bankId or bankCode required",
-          data: null,
-        });
+        throw new AppError(400, "bankId or bankCode required");
       }
       const bankRow = bankId
         ? await bankRepo.findById(bankId)
         : await bankRepo.findByCode(bankCode);
       if (!bankRow) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Bank question not found",
-          data: null,
-        });
+        throw new AppError(404, "Bank question not found");
       }
       if (bankRow.status !== "approved") {
-        return reply.code(422).send({
-          status: "error",
-          message: `Bank question is ${bankRow.status}, only approved rows can be picked`,
-          data: null,
-        });
+        throw new AppError(422, `Bank question is ${bankRow.status}, only approved rows can be picked`);
       }
       const slot = String(raw.slot ?? "").trim().toUpperCase() || null;
       if (slot) {
         const pattern = SLOT_PATTERNS[round];
         if (!pattern || !pattern.test(slot)) {
-          return reply.code(400).send({
-            status: "error",
-            message: `slot ${slot} invalid for round ${round}`,
-            data: null,
-          });
+          throw new AppError(400, `slot ${slot} invalid for round ${round}`);
         }
         const taken = await repo.findBySlot(matchId, slot);
         if (taken) {
-          return reply.code(409).send({
-            status: "error",
-            message: `slot ${slot} already filled by ${taken.questionCode}`,
-            data: null,
-          });
+          throw new AppError(409, `slot ${slot} already filled by ${taken.questionCode}`);
         }
         const slotErr = matchSlotToRow(round, slot, bankRow);
         if (slotErr) {
-          return reply.code(422).send({ status: "error", message: slotErr, data: null });
+          throw new AppError(422, slotErr);
         }
       }
       if (round === "GM") {
-        return reply.code(422).send({
-          status: "error",
-          message: "GM chỉ pick cả set: cần setCode (hoặc bankCode KEY)",
-          data: null,
-        });
+        throw new AppError(422, "GM chỉ pick cả set: cần setCode (hoặc bankCode KEY)");
       }
       const suffix = `${Date.now().toString(36).toUpperCase()}`;
       const questionCode = makeQuestionCode(
@@ -805,11 +633,7 @@ export async function questionRoutes(
       );
       const existing = await repo.findByCode(matchId, questionCode);
       if (existing) {
-        return reply.code(409).send({
-          status: "error",
-          message: "Generated question code collided, retry",
-          data: null,
-        });
+        throw new AppError(409, "Generated question code collided, retry");
       }
       await repo.create({
         matchId,
@@ -856,21 +680,9 @@ export async function questionRoutes(
     "/bank",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       if (!isBankWriter(session)) {
-        return reply.code(403).send({
-          status: "error",
-          message: "Only admin or qauthor can write bank",
-          data: null,
-        });
+        throw new AppError(403, "Only admin or qauthor can write bank");
       }
       const raw = request.body as {
         bankCode?: string;
@@ -894,18 +706,10 @@ export async function questionRoutes(
       };
       const bankCode = String(raw.bankCode ?? "").trim().toUpperCase();
       if (!/^QB_[A-Z0-9_]{1,20}$/.test(bankCode)) {
-        return reply.code(400).send({
-          status: "error",
-          message: "bankCode must match QB_* (A-Z/0-9/_, max 20 chars)",
-          data: null,
-        });
+        throw new AppError(400, "bankCode must match QB_* (A-Z/0-9/_, max 20 chars)");
       }
       if (!raw.content?.trim() || !raw.answer?.trim()) {
-        return reply.code(400).send({
-          status: "error",
-          message: "content and answer required",
-          data: null,
-        });
+        throw new AppError(400, "content and answer required");
       }
       const options = Array.isArray(raw.options)
         ? JSON.stringify(raw.options)
@@ -949,11 +753,7 @@ export async function questionRoutes(
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Create failed";
         const code = /unique|duplicate/i.test(msg) ? 409 : 400;
-        return reply.code(code).send({
-          status: "error",
-          message: msg,
-          data: null,
-        });
+        throw new AppError(code, msg);
       }
     },
   );
@@ -962,21 +762,9 @@ export async function questionRoutes(
     "/bank/import",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       if (!isBankWriter(session)) {
-        return reply.code(403).send({
-          status: "error",
-          message: "Only admin or qauthor can write bank",
-          data: null,
-        });
+        throw new AppError(403, "Only admin or qauthor can write bank");
       }
 
       const body = request.body as { items?: unknown; rows?: unknown };
@@ -1002,18 +790,10 @@ export async function questionRoutes(
               : {},
         }));
       } else {
-        return reply.code(400).send({
-          status: "error",
-          message: `items (raw Excel) hoặc rows (field-name) required, tối đa ${MAX_IMPORT_ROWS} dòng`,
-          data: null,
-        });
+        throw new AppError(400, `items (raw Excel) hoặc rows (field-name) required, tối đa ${MAX_IMPORT_ROWS} dòng`);
       }
       if (items.length === 0) {
-        return reply.code(400).send({
-          status: "error",
-          message: "Không có dòng nào để import",
-          data: null,
-        });
+        throw new AppError(400, "Không có dòng nào để import");
       }
 
       const { rows, issues } = normalizeRows(items);
@@ -1149,24 +929,12 @@ export async function questionRoutes(
       },
     },
     async (request, reply) => {
-      const session = (
-        request as unknown as {
-          session?: { role: string; operatorScopes?: string | null; userCode?: string };
-        }
-      ).session;
+      const session = reqSession(request);
       if (!session) {
-        return reply.code(401).send({
-          status: "error",
-          message: "Not authenticated",
-          data: null,
-        });
+        throw new AppError(401, "Not authenticated");
       }
       if (!isBankWriter(session)) {
-        return reply.code(403).send({
-          status: "error",
-          message: "Only admin or qauthor can write bank",
-          data: null,
-        });
+        throw new AppError(403, "Only admin or qauthor can write bank");
       }
       const { id } = request.params as { id: string };
       const raw = request.body as {
@@ -1227,11 +995,7 @@ export async function questionRoutes(
       const contentChanged = raw.content !== undefined || raw.answer !== undefined;
       const ok = await bankRepo.update(id, updates);
       if (!ok) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Bank question not found or nothing to update",
-          data: null,
-        });
+        throw new AppError(404, "Bank question not found or nothing to update");
       }
       if (before?.status === "approved" && contentChanged) {
         await bankRepo.review(id, {
@@ -1258,26 +1022,14 @@ export async function questionRoutes(
     "/bank/:id",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (
-        request as unknown as {
-          session: { role: string; operatorScopes?: string | null };
-        }
-      ).session;
+      const session = reqSession(request);
       if (!isBankWriter(session)) {
-        return reply.code(403).send({
-          status: "error",
-          message: "Only admin or qauthor can write bank",
-          data: null,
-        });
+        throw new AppError(403, "Only admin or qauthor can write bank");
       }
       const { id } = request.params as { id: string };
       const ok = await bankRepo.softDelete(id);
       if (!ok) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Bank question not found",
-          data: null,
-        });
+        throw new AppError(404, "Bank question not found");
       }
       emitBankChanged();
       return reply.send({
@@ -1292,48 +1044,24 @@ export async function questionRoutes(
     "/bank/:id/review",
     { preHandler: [requireAuth(app)] },
     async (request, reply) => {
-      const session = (
-        request as unknown as {
-          session: {
-            userId: string;
-            role: string;
-            operatorScopes?: string | null;
-          };
-        }
-      ).session;
+      const session = reqSession(request);
       const canReview = session.role === "admin";
       if (!canReview) {
-        return reply.code(403).send({
-          status: "error",
-          message: "Only admin can review bank",
-          data: null,
-        });
+        throw new AppError(403, "Only admin can review bank");
       }
       const { id } = request.params as { id: string };
       const raw = request.body as { decision?: string; note?: string };
       const decision = String(raw.decision ?? "").trim().toLowerCase();
       if (decision !== "approved" && decision !== "rejected") {
-        return reply.code(400).send({
-          status: "error",
-          message: "decision must be approved or rejected",
-          data: null,
-        });
+        throw new AppError(400, "decision must be approved or rejected");
       }
       const note = String(raw.note ?? "").trim();
       if (decision === "rejected" && !note) {
-        return reply.code(400).send({
-          status: "error",
-          message: "note required when rejecting",
-          data: null,
-        });
+        throw new AppError(400, "note required when rejecting");
       }
       const row = await bankRepo.findById(id);
       if (!row) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Bank question not found",
-          data: null,
-        });
+        throw new AppError(404, "Bank question not found");
       }
       const ok = await bankRepo.review(id, {
         status: decision,
@@ -1341,11 +1069,7 @@ export async function questionRoutes(
         reviewedBy: uuidOrNull(session.userId),
       });
       if (!ok) {
-        return reply.code(404).send({
-          status: "error",
-          message: "Bank question not found",
-          data: null,
-        });
+        throw new AppError(404, "Bank question not found");
       }
       emitBankChanged();
       return reply.send({
