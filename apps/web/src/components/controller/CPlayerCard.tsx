@@ -5,6 +5,7 @@ import WifiSignal from "../shared/WifiSignal";
 import type { PlayerStatus } from "@/types/player";
 import CScoreEditSidePanel from "@/components/controller/CScoreEditSidePanel";
 import { Button } from "@/components/ui/button";
+import type { WebSocketPayload } from "@/types/websocket";
 
 interface CPlayerCardProps {
   player: PlayerStatus;
@@ -18,7 +19,7 @@ interface CPlayerCardProps {
   disabled?: boolean;
   onEditScore?: (playerCode: string, newScore: number) => void;
   matchCode?: string;
-  sendMessage?: (msg: any) => void;
+  sendMessage?: (msg: WebSocketPayload) => void;
   isHovered?: boolean;
   isDimmed?: boolean;
   onHover?: (playerCode: string | null) => void;

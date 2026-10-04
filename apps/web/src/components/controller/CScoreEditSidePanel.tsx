@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend, ApiError } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import { notifyError } from "@/lib/notify";
+import { notifyApiError } from "@/lib/notify";
 
 const logger = createLogger("CScoreEditSidePanel");
 
@@ -43,22 +43,20 @@ export default function CScoreEditSidePanel({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    const apply = (data?: QuestionOption[] | null) => {
+      if (cancelled) return;
+      const list = Array.isArray(data) ? data : [];
+      setQuestions(list);
+      setQuestionCode((value) => value || list[0]?.question_code || "");
+    };
     setLoading(true);
-    fetch(
-      `${API_BASE_URL}/questions/?match_code=${encodeURIComponent(matchCode)}`,
-      {
-        credentials: "include",
-      },
+    apiGet<QuestionOption[]>(
+      `/questions/?match_code=${encodeURIComponent(matchCode)}`,
     )
-      .then((response) => response.json())
-      .then((json) => {
-        if (cancelled) return;
-        const list = Array.isArray(json.data) ? json.data : [];
-        setQuestions(list);
-        setQuestionCode((value) => value || list[0]?.question_code || "");
-      })
+      .then((json) => apply(json.data))
       .catch((err) => {
-        logger.error("Error fetching questions:", err);
+        if (err instanceof ApiError) apply(null); // lỗi HTTP: vẫn set rỗng như trước
+        else logger.error("Error fetching questions:", err);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -73,32 +71,24 @@ export default function CScoreEditSidePanel({
     if (!questionCode || !Number.isInteger(score) || score % 5 !== 0) return;
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/scoreboard/controller-adjust`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          match_code: matchCode,
-          user_code: playerCode,
-          question_code: questionCode,
-          points: score,
-          reason: "controller_question_score_adjust",
-        }),
-      });
-      const json = await response.json();
-      if (!response.ok || json.status !== "success")
-        throw new Error(json.detail ?? json.message ?? "Không thể cập nhật điểm");
+      const payload = {
+        match_code: matchCode,
+        user_code: playerCode,
+        question_code: questionCode,
+        points: score,
+        reason: "controller_question_score_adjust",
+      };
+      const json = await apiSend<{
+        scoreboard?: { user_code: string; cumulative_score: number }[];
+      }>("PATCH", "/scoreboard/controller-adjust", payload);
       const scoreboard = json.data?.scoreboard ?? [];
       const updated = scoreboard.find(
-        (entry: { user_code: string; cumulative_score: number }) =>
-          entry.user_code === playerCode,
+        (entry) => entry.user_code === playerCode,
       );
       onSaved(updated?.cumulative_score ?? currentScore);
       onClose();
     } catch (error) {
-      notifyError(error instanceof Error ? error.message : "Không thể cập nhật điểm");
+      notifyApiError(error, "Không thể cập nhật điểm");
     } finally {
       setSaving(false);
     }

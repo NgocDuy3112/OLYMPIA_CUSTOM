@@ -1,11 +1,5 @@
-import { API_BASE_URL } from "@/configs";
+import { apiCall } from "@/api/client";
 import { putFileWithProgress } from "@/lib/upload";
-
-interface PresignResponse {
-  status: "success" | "error";
-  message: string;
-  data: unknown;
-}
 
 export async function uploadQuestionMedia(
   code: string,
@@ -19,15 +13,10 @@ export async function uploadQuestionMedia(
   if (!okType) throw new Error("Chỉ nhận ảnh/audio/video.");
   if (file.size > 50 * 1024 * 1024) throw new Error("File tối đa 50MB.");
   const key = `questions/${code}.${extOf(file)}`;
-  const presignRes = await fetch(
-    `${API_BASE_URL}/media/presign-question/?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(file.type)}`,
-    { credentials: "include" },
+  const presign = await apiCall<{ url: string }>(
+    `/media/presign-question/?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(file.type)}`,
   );
-  const presignJson: PresignResponse = await presignRes.json();
-  if (!presignRes.ok || presignJson.status !== "success") {
-    throw new Error(presignJson.message ?? "Không tạo được upload URL");
-  }
-  const putUrl = (presignJson.data as { url: string }).url;
+  const putUrl = presign.data!.url;
   await putFileWithProgress(putUrl, file, onProgress);
   return key;
 }

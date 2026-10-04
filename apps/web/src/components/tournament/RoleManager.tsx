@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { API_BASE_URL } from "@/configs";
+import { apiSend, getApiErrorMessage } from "@/api/client";
 import { UserCog, Loader2 } from "lucide-react";
 import { NativeSelect } from "@/components/ui/native-select";
 
@@ -45,24 +45,15 @@ export const RoleManager: React.FC<RoleManagerProps> = ({
     setError(null);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/tournaments/${tournamentCode}/players/${userId}/role`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ role: newRole }),
-        },
+      await apiSend<unknown>(
+        "PUT",
+        `/tournaments/${tournamentCode}/players/${userId}/role`,
+        { role: newRole },
       );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to update role");
-      }
 
       onRoleUpdated?.(userId, newRole);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update role");
+      setError(getApiErrorMessage(err, "Failed to update role"));
     } finally {
       setUpdatingUserId(null);
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend, ApiError, getApiErrorMessage } from "@/api/client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -52,17 +52,11 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
   useEffect(() => {
     const fetchTemplates = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/templates`, {
-          credentials: "include",
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === "success") {
-            setTemplates(data.data);
-          }
-        }
+        const data = await apiGet<Template[]>(`/templates`);
+        setTemplates(data.data!);
       } catch (err) {
-        setError("Failed to load templates");
+        // Lỗi HTTP/envelope: bỏ qua như trước; lỗi khác vẫn báo lỗi tải.
+        if (!(err instanceof ApiError)) setError("Failed to load templates");
       } finally {
         setIsLoading(false);
       }
@@ -78,24 +72,15 @@ export const ConfigWizard: React.FC<ConfigWizardProps> = ({
     setError(null);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/tournaments/${tournamentCode}/apply-template`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ templateId: selectedTemplate.id }),
-        },
+      await apiSend<unknown>(
+        "POST",
+        `/tournaments/${tournamentCode}/apply-template`,
+        { templateId: selectedTemplate.id },
       );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Failed to apply template");
-      }
 
       onComplete?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to apply template");
+      setError(getApiErrorMessage(err, "Failed to apply template"));
     } finally {
       setIsApplying(false);
     }

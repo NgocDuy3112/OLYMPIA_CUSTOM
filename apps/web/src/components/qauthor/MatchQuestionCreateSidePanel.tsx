@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { Plus } from "lucide-react";
+import { Bot, Plus } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import {
   FormField,
@@ -10,6 +10,8 @@ import { RenderMedia } from "@/components/shared/RenderMedia";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useOceeReview } from "@/hooks/useOceeReview";
+import { OceeOpinion } from "./OceeOpinion";
 
 export interface MatchQuestionCreateValue {
   questionCode: string;
@@ -45,10 +47,19 @@ export function MatchQuestionCreateSidePanel({
   onCreate,
 }: MatchQuestionCreateSidePanelProps) {
   const [value, setValue] = useState<MatchQuestionCreateValue>(EMPTY);
+  const {
+    asking: askingOcee,
+    opinion: oceeOpinion,
+    ask: askOcee,
+    clear: clearOcee,
+  } = useOceeReview();
 
   useEffect(() => {
-    if (open) setValue(EMPTY);
-  }, [open ]);
+    if (open) {
+      setValue(EMPTY);
+      clearOcee();
+    }
+  }, [open, clearOcee]);
 
   const set =
     (key: keyof MatchQuestionCreateValue) =>
@@ -68,6 +79,22 @@ export function MatchQuestionCreateSidePanel({
       wide
       footer={
         <div className="flex gap-2 justify-end">
+          <Button
+            variant="secondary"
+            onClick={() =>
+              void askOcee({
+                content: value.content,
+                answer: value.answer,
+                context: value.questionCode.trim()
+                  ? `mã câu ${value.questionCode.trim()}`
+                  : undefined,
+              })
+            }
+            disabled={askingOcee || saving}
+            className="gap-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
+          >
+            <Bot size={14} /> {askingOcee ? "Đang hỏi…" : "Nhờ OCee kiểm tra"}
+          </Button>
           <Button
             variant="ghost"
             onClick={onClose}
@@ -152,6 +179,7 @@ export function MatchQuestionCreateSidePanel({
           </div>
         </div>
       )}
+      {oceeOpinion && <OceeOpinion text={oceeOpinion} />}
     </SidePanel>
   );
 }

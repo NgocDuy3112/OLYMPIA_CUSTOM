@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Flag, LayoutTemplate, Plus, RefreshCw, Trophy } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend } from "@/api/client";
 import { MatchScheduleForm } from "./MatchScheduleForm";
 import { ScheduleMatchCard, type SlotPlayer } from "./ScheduleMatchCard";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { emptyScheduleForm, type ScheduleFormValue } from "./scheduleFormState";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
+import { notifyApiFailure, notifyError } from "@/lib/notify";
 
 interface BracketMatch {
   matchCode: string;
@@ -70,20 +71,22 @@ export function GroupStageManager({
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [bRes, sRes, tRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/tournaments/${tournamentCode}/bracket`, { credentials: "include" }),
-        fetch(`${API_BASE_URL}/tournaments/${tournamentCode}/standings`, { credentials: "include" }),
-        fetch(`${API_BASE_URL}/templates`, { credentials: "include" }),
+      // Lỗi từng endpoint: bỏ qua như trước (đọc thất bại không toast).
+      const [bJson, sJson, tJson] = await Promise.all([
+        apiGet<{ phases: BracketPhase[]; matches: BracketMatch[] }>(
+          `/tournaments/${tournamentCode}/bracket`,
+        ).catch(() => null),
+        apiGet<{ standings: StandingRow[] }>(
+          `/tournaments/${tournamentCode}/standings`,
+        ).catch(() => null),
+        apiGet<BuiltinTemplate[]>(`/templates`).catch(() => null),
       ]);
-      const bJson = await bRes.json().catch(() => null);
-      if (bRes.ok && bJson?.status === "success") {
-        setPhases((bJson.data.phases ?? []).filter((p: BracketPhase) => p.phaseType === "group_stage"));
-        setMatches(bJson.data.matches ?? []);
+      if (bJson) {
+        setPhases((bJson.data!.phases ?? []).filter((p: BracketPhase) => p.phaseType === "group_stage"));
+        setMatches(bJson.data!.matches ?? []);
       }
-      const sJson = await sRes.json().catch(() => null);
-      if (sRes.ok && sJson?.status === "success") setStandings(sJson.data.standings ?? []);
-      const tJson = await tRes.json().catch(() => null);
-      if (tRes.ok && tJson?.status === "success" && Array.isArray(tJson.data)) setTemplates(tJson.data);
+      if (sJson) setStandings(sJson.data!.standings ?? []);
+      if (tJson && Array.isArray(tJson.data)) setTemplates(tJson.data);
     } finally {
       setLoading(false);
     }
@@ -131,14 +134,9 @@ export function GroupStageManager({
     if (!confirm(`Áp template "${templateId}" để dựng vòng cho giải?`)) return;
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/tournaments/${tournamentCode}/apply-template`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ templateId }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) alert(`Thất bại: ${json?.message ?? "?"}`);
+      await apiSend<unknown>("POST", `/tournaments/${tournamentCode}/apply-template`, {
+        templateId,
+      }).catch((err) => notifyApiFailure(err, "Thất bại", "không kết nối được"));
       await fetchAll();
     } finally {
       setSaving(false);
@@ -149,18 +147,13 @@ export function GroupStageManager({
     const key = `${phase.id}-${round}-${index}`;
     setFilling(key);
     try {
-      const res = await fetch(`${API_BASE_URL}/matches`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          matchName: `${phase.phaseName} - Round ${round} - Match ${index}`,
-          tournamentCode,
-          phaseId: phase.id,
-        }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) alert(`Tạo thất bại: ${json?.message ?? "?"}`);
+      await apiSend<unknown>("POST", "/matches", {
+        matchName: `${phase.phaseName} - Round ${round} - Match ${index}`,
+        tournamentCode,
+        phaseId: phase.id,
+      }).catch((err) =>
+        notifyApiFailure(err, "Tạo thất bại", "không kết nối được"),
+      );
       await fetchAll();
     } finally {
       setFilling(null);
@@ -169,37 +162,30 @@ export function GroupStageManager({
 
   const handleSubmit = async (v: ScheduleFormValue) => {
     if (!v.matchName.trim()) {
-      alert("Nhập tên trận.");
+      notifyError("Nhập tên trận.");
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/matches`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          matchName: v.matchName.trim(),
-          tournamentCode,
-          ...(v.scheduledAt ? { scheduledAt: new Date(v.scheduledAt).toISOString() } : {}),
-          ...(v.venue.trim() ? { venue: v.venue.trim() } : {}),
-          ...(v.matchLabel.trim() ? { matchLabel: v.matchLabel.trim() } : {}),
-          ...(v.phaseId ? { phaseId: v.phaseId } : {}),
-        }),
+      const json = await apiSend<{ matchSlug: string }>("POST", "/matches", {
+        matchName: v.matchName.trim(),
+        tournamentCode,
+        ...(v.scheduledAt ? { scheduledAt: new Date(v.scheduledAt).toISOString() } : {}),
+        ...(v.venue.trim() ? { venue: v.venue.trim() } : {}),
+        ...(v.matchLabel.trim() ? { matchLabel: v.matchLabel.trim() } : {}),
+        ...(v.phaseId ? { phaseId: v.phaseId } : {}),
+      }).catch((err) => {
+        notifyApiFailure(err, "Tạo thất bại", "không kết nối được");
+        return null;
       });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) {
-        alert(`Tạo thất bại: ${json?.message ?? "?"}`);
-        return;
-      }
+      if (!json) return;
+      const matchSlug = json.data!.matchSlug;
       for (let i = 0; i < v.playerCodes.length; i++) {
         const code = v.playerCodes[i].trim();
         if (!code) continue;
-        await fetch(`${API_BASE_URL}/matches/${json.data.matchSlug}/players`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ userCode: code, position: i + 1 }),
+        await apiSend<unknown>("POST", `/matches/${matchSlug}/players`, {
+          userCode: code,
+          position: i + 1,
         }).catch(() => null);
       }
       setShowForm(false);
@@ -211,12 +197,10 @@ export function GroupStageManager({
 
   const handleFinish = async (matchSlug: string, matchName: string) => {
     if (!confirm(`Hoàn thành "${matchName}"?`)) return;
-    await fetch(`${API_BASE_URL}/matches/${matchSlug}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ matchStatus: "finished" }),
-    });
+    // Không kiểm tra res.ok như trước — bỏ qua lỗi.
+    await apiSend<unknown>("PUT", `/matches/${matchSlug}`, {
+      matchStatus: "finished",
+    }).catch(() => null);
     await fetchAll();
   };
 

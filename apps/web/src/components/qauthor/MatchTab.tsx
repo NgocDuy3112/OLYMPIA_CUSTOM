@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, Search } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend, ApiError } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { normalizeQuestionRow } from "@/utils/questionMapper";
@@ -22,6 +22,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Progress } from "@/components/ui/progress";
+import { notifyApiFailure, notifyError, notifySuccess } from "@/lib/notify";
 
 const logger = createLogger("MatchTab");
 
@@ -116,12 +117,6 @@ const ROUND_OF_SLOT: Record<PickRound, string> = {
   VD: "VD",
 };
 
-interface ApiResponse {
-  status: "success" | "error";
-  message: string;
-  data: Record<string, unknown> | Record<string, unknown>[] | null;
-}
-
 export const MatchTab = () => {
   const [matchCode, setMatchCode] = useState(readStoredMatchCode());
   const [questions, setQuestions] = useState<QuestionData[]>([]);
@@ -154,15 +149,11 @@ export const MatchTab = () => {
     if (!code) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/questions?match_code=${encodeURIComponent(code)}`,
-        { credentials: "include" },
+      const json = await apiGet<Record<string, unknown>[]>(
+        `/questions?match_code=${encodeURIComponent(code)}`,
       );
-      const json: ApiResponse = await res.json();
-      if (json.status === "success" && Array.isArray(json.data)) {
-        setQuestions(
-          (json.data as Record<string, unknown>[]).map(toQuestionData),
-        );
+      if (Array.isArray(json.data)) {
+        setQuestions(json.data.map(toQuestionData));
       } else {
         setQuestions([]);
       }
@@ -184,36 +175,30 @@ export const MatchTab = () => {
   const createQuestion = useCallback(async (value: MatchQuestionCreateValue) => {
     const code = matchCode.trim();
     if (!code || !value.questionCode.trim() || !value.content.trim() || !value.answer.trim()) {
-      alert("Nhập mã trận, mã câu hỏi, nội dung và đáp án.");
+      notifyError("Nhập mã trận, mã câu hỏi, nội dung và đáp án.");
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          matchCode: code,
-          questionCode: value.questionCode.trim(),
-          content: value.content.trim(),
-          answer: value.answer.trim(),
-          explanation: value.explanation.trim() || undefined,
-          hintText: value.hintText.trim() || undefined,
-          mediaUrl: value.mediaUrl.trim() || undefined,
-          options: value.options.trim() || undefined,
-        }),
-      });
-      const json = await res.json();
-      if (res.ok) {
-        setShowCreate(false);
-        await fetchQuestions();
-      } else {
-        alert(`Tạo thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
+      const payload = {
+        matchCode: code,
+        questionCode: value.questionCode.trim(),
+        content: value.content.trim(),
+        answer: value.answer.trim(),
+        explanation: value.explanation.trim() || undefined,
+        hintText: value.hintText.trim() || undefined,
+        mediaUrl: value.mediaUrl.trim() || undefined,
+        options: value.options.trim() || undefined,
+      };
+      await apiSend<unknown>("POST", "/questions", payload);
+      setShowCreate(false);
+      await fetchQuestions();
     } catch (err) {
-      logger.error("Error creating question:", err);
-      alert("Lỗi kết nối khi tạo câu hỏi");
+      if (err instanceof ApiError) notifyApiFailure(err, "Tạo thất bại");
+      else {
+        logger.error("Error creating question:", err);
+        notifyError("Lỗi kết nối khi tạo câu hỏi");
+      }
     } finally {
       setSaving(false);
     }
@@ -224,20 +209,18 @@ export const MatchTab = () => {
     const code = matchCode.trim();
     setDeleteSaving(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/questions/${encodeURIComponent(code)}/${encodeURIComponent(deleting.question_code)}`,
-        { method: "DELETE", credentials: "include" },
+      await apiSend<unknown>(
+        "DELETE",
+        `/questions/${encodeURIComponent(code)}/${encodeURIComponent(deleting.question_code)}`,
       );
-      const json = await res.json();
-      if (res.ok) {
-        setDeleting(null);
-        await fetchQuestions();
-      } else {
-        alert(`Xoá thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
+      setDeleting(null);
+      await fetchQuestions();
     } catch (err) {
-      logger.error("Error deleting question:", err);
-      alert("Lỗi kết nối khi xoá câu hỏi");
+      if (err instanceof ApiError) notifyApiFailure(err, "Xoá thất bại");
+      else {
+        logger.error("Error deleting question:", err);
+        notifyError("Lỗi kết nối khi xoá câu hỏi");
+      }
     } finally {
       setDeleteSaving(false);
     }
@@ -263,18 +246,13 @@ export const MatchTab = () => {
         params.set("status", "approved");
         params.set("limit", "100");
         params.set("page", "1");
-        const res = await fetch(
-          `${API_BASE_URL}/bank/search?${params.toString()}`,
-          { credentials: "include" },
-        );
-        const json = await res.json();
-        const data = json.data as
-          | { rows: Record<string, unknown>[]; total?: number }
-          | null;
-        if (json.status === "success" && data) {
-          setBankQuestions(
-            (data.rows as Record<string, unknown>[]).map(toBankData),
-          );
+        const json = await apiGet<{
+          rows: Record<string, unknown>[];
+          total?: number;
+        }>(`/bank/search?${params.toString()}`);
+        const data = json.data;
+        if (data) {
+          setBankQuestions(data.rows.map(toBankData));
           setBankTotal(data.total ?? data.rows.length);
         } else {
           setBankQuestions([]);
@@ -306,33 +284,31 @@ export const MatchTab = () => {
   const reuseFromBank = useCallback(async (q: BankData, slotOverride?: string) => {
     const code = matchCode.trim();
     if (!code) {
-      alert("Nhập mã trận đấu hiện tại trước khi thêm vào trận.");
+      notifyError("Nhập mã trận đấu hiện tại trước khi thêm vào trận.");
       return;
     }
     const slot = slotOverride ?? selSlot;
     if (!slot) {
-      alert("Chọn 1 slot trống trong lưới vòng trước.");
+      notifyError("Chọn 1 slot trống trong lưới vòng trước.");
       return;
     }
     const round = ROUND_OF_SLOT[roundOfSlot(slot)];
     setAddingId(q.bank_code);
     try {
-      const res = await fetch(`${API_BASE_URL}/questions/pick`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ matchCode: code, bankCode: q.bank_code, round, slot }),
+      await apiSend<unknown>("POST", "/questions/pick", {
+        matchCode: code,
+        bankCode: q.bank_code,
+        round,
+        slot,
       });
-      const json = await res.json();
-      if (res.ok) {
-        setAddedCodes((prev) => new Set(prev).add(q.bank_code));
-        await fetchQuestions();
-      } else {
-        alert(`Thêm thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
+      setAddedCodes((prev) => new Set(prev).add(q.bank_code));
+      await fetchQuestions();
     } catch (err) {
-      logger.error("Error adding to match:", err);
-      alert("Lỗi kết nối khi thêm vào trận");
+      if (err instanceof ApiError) notifyApiFailure(err, "Thêm thất bại");
+      else {
+        logger.error("Error adding to match:", err);
+        notifyError("Lỗi kết nối khi thêm vào trận");
+      }
     } finally {
       setAddingId(null);
     }
@@ -342,30 +318,30 @@ export const MatchTab = () => {
     const code = matchCode.trim();
     if (!pendingGmSet?.set_code) return;
     if (!code) {
-      alert("Nhập mã trận trước khi pick set.");
+      notifyError("Nhập mã trận trước khi pick set.");
       return;
     }
     setAddingId(pendingGmSet.bank_code);
     try {
-      const res = await fetch(`${API_BASE_URL}/questions/pick`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ matchCode: code, round: "GM", setCode: pendingGmSet.set_code }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) {
-        alert(`Pick set thất bại: ${json?.message ?? "Lỗi không xác định"}`);
-        return;
-      }
-      const created = (json?.data?.created ?? []) as { slot: string; questionCode: string }[];
+      const payload = {
+        matchCode: code,
+        round: "GM",
+        setCode: pendingGmSet.set_code,
+      };
+      const json = await apiSend<{
+        created?: { slot: string; questionCode: string }[];
+      }>("POST", "/questions/pick", payload);
+      const created = json.data?.created ?? [];
       setAddedCodes((prev) => new Set([...prev, pendingGmSet.bank_code]));
       setPendingGmSet(null);
-      alert(`Đã pick set ${pendingGmSet.set_code} (${created.length} câu).`);
+      notifySuccess(`Đã pick set ${pendingGmSet.set_code} (${created.length} câu).`);
       await fetchQuestions();
     } catch (err) {
-      logger.error("Error picking GM set:", err);
-      alert("Lỗi kết nối khi pick set");
+      if (err instanceof ApiError) notifyApiFailure(err, "Pick set thất bại");
+      else {
+        logger.error("Error picking GM set:", err);
+        notifyError("Lỗi kết nối khi pick set");
+      }
     } finally {
       setAddingId(null);
     }

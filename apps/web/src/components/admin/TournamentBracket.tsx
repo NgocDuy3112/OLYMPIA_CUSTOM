@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Flag, Trophy } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend } from "@/api/client";
 import { Button } from "@/components/ui/button";
+import { notifyApiFailure } from "@/lib/notify";
 
 interface BracketPlayer {
   userCode: string;
@@ -145,14 +146,15 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
   const fetchBracket = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/tournaments/${tournamentCode}/bracket`, {
-        credentials: "include",
-      });
-      const json = await res.json();
-      if (res.ok && json.status === "success") {
-        setPhases(json.data.phases ?? []);
-        setMatches(json.data.matches ?? []);
-        setEdges(json.data.edges ?? []);
+      const json = await apiGet<{
+        phases: BracketPhase[];
+        matches: BracketMatch[];
+        edges: BracketEdge[];
+      }>(`/tournaments/${tournamentCode}/bracket`).catch(() => null);
+      if (json) {
+        setPhases(json.data!.phases ?? []);
+        setMatches(json.data!.matches ?? []);
+        setEdges(json.data!.edges ?? []);
       }
     } finally {
       setLoading(false);
@@ -247,17 +249,14 @@ export function TournamentBracket({ tournamentCode }: { tournamentCode: string }
     if (!confirm(`Sinh vòng tiếp theo (sau phase ${maxPhase}) từ kết quả hiện tại?`)) return;
     setGenerating(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/tournaments/${tournamentCode}/generate-next-round`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ currentPhase: maxPhase }),
-      });
-      const json = await res.json();
-      if (!res.ok) alert(`Thất bại: ${json.message ?? "Lỗi"}`);
-      else {
-        await fetchBracket();
-      }
+      await apiSend<unknown>(
+        "POST",
+        `/tournaments/${tournamentCode}/generate-next-round`,
+        { currentPhase: maxPhase },
+      );
+      await fetchBracket();
+    } catch (err) {
+      notifyApiFailure(err, "Thất bại", "không kết nối được");
     } finally {
       setGenerating(false);
     }

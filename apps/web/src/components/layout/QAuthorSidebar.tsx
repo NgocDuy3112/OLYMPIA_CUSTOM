@@ -2,9 +2,6 @@ import React from "react";
 import {
   Database,
   Swords,
-  ListOrdered,
-  Bot,
-  KeyRound,
   HelpCircle,
 } from "lucide-react";
 import { ShellSidebar, type ShellNavGroup } from "./ShellSidebar";
@@ -20,13 +17,7 @@ export const QAuthorSidebar: React.FC = () => {
           icon: <Database size={18} />,
         },
         { label: "Câu hỏi trận", path: "/operator/qauthor/match", icon: <Swords size={18} /> },
-        { label: "Vòng loại", path: "/operator/qauthor/qualifier", icon: <ListOrdered size={18} /> },
-        { label: "AI Agent", path: "/operator/qauthor/agent", icon: <Bot size={18} /> },
       ],
-    },
-    {
-      label: "Hệ thống",
-      items: [{ label: "MCP Tokens", path: "/operator/mcp-tokens", icon: <KeyRound size={18} /> }],
     },
   ];
 

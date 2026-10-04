@@ -4,7 +4,6 @@ import {
   Play,
   ClipboardCheck,
   HelpCircle,
-  KeyRound,
   Gamepad2,
 } from "lucide-react";
 import { getMatchCode } from "@/utils/storage";
@@ -30,10 +29,6 @@ export const ControllerSidebar: React.FC = () => {
         { label: "Vòng loại", path: "/operator/controller/qualifier", icon: <HelpCircle size={18} /> },
         { label: "Duyệt điểm", path: "/operator/controller/reviews", icon: <ClipboardCheck size={18} /> },
       ],
-    },
-    {
-      label: "Hệ thống",
-      items: [{ label: "MCP Tokens", path: "/operator/mcp-tokens", icon: <KeyRound size={18} /> }],
     },
   ];
 

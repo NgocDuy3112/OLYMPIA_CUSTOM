@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { QualifierOptionsInput } from "./QualifierOptionsInput";
+import { notifyError } from "@/lib/notify";
 
 export interface EditableQualifier {
   questionCode: string;
@@ -80,7 +81,7 @@ export function EditQualifierSidePanel({
             onClick={() => {
               const filled = optionList.map((s) => s.trim());
               if (filled.some((s) => !s)) {
-                alert("Nhập đủ phương án.");
+                notifyError("Nhập đủ phương án.");
                 return;
               }
               void onSave({ ...value, options: JSON.stringify(filled) });

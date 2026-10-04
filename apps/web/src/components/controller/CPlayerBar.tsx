@@ -7,6 +7,7 @@ import { requestScoreReview } from "@/api/scoreReviews";
 import CScoreEditSidePanel from "@/components/controller/CScoreEditSidePanel";
 import { Button } from "@/components/ui/button";
 import { notifyError } from "@/lib/notify";
+import type { WebSocketPayload } from "@/types/websocket";
 
 interface CPlayerBarProps {
   player: PlayerStatus;
@@ -22,7 +23,7 @@ interface CPlayerBarProps {
   disableReason?: string;
   onEditScore?: (playerCode: string, newScore: number) => void;
   matchCode?: string;
-  sendMessage?: (msg: any) => void;
+  sendMessage?: (msg: WebSocketPayload) => void;
   questionCode?: string;
   onReviewRequested?: (reviewId: string) => void;
 

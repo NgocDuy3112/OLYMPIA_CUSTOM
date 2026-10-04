@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Lock, Pencil, Plus, RefreshCw, Trash2, Trophy, XCircle } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend, ApiError } from "@/api/client";
 import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
 import { EditQualifierSidePanel, type QualifierEditValue } from "@/components/qauthor/EditQualifierSidePanel";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/input-group";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
+import { notifyApiFailure, notifyError } from "@/lib/notify";
 
 interface QualifierQuestion {
   id?: string;
@@ -53,14 +54,17 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [qRes, sRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/questions`, { credentials: "include" }),
-        fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/standings?limit=16`, { credentials: "include" }),
+      // Lỗi từng endpoint: bỏ qua như trước (đọc thất bại không toast).
+      const [qJson, sJson] = await Promise.all([
+        apiGet<QualifierQuestion[]>(`/qualifier/${tournamentCode}/questions`).catch(
+          () => null,
+        ),
+        apiGet<StandingRow[]>(
+          `/qualifier/${tournamentCode}/standings?limit=16`,
+        ).catch(() => null),
       ]);
-      const qJson = await qRes.json().catch(() => null);
-      if (qRes.ok && qJson?.status === "success" && Array.isArray(qJson.data)) setQuestions(qJson.data);
-      const sJson = await sRes.json().catch(() => null);
-      if (sRes.ok && sJson?.status === "success" && Array.isArray(sJson.data)) setStandings(sJson.data);
+      if (qJson && Array.isArray(qJson.data)) setQuestions(qJson.data);
+      if (sJson && Array.isArray(sJson.data)) setStandings(sJson.data);
     } finally {
       setLoading(false);
     }
@@ -80,10 +84,11 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
   const confirmCloseAll = async () => {
     setCloseSaving(true);
     try {
-      await fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/close-all`, {
-        method: "POST",
-        credentials: "include",
-      });
+      // Không kiểm tra res.ok như trước — bỏ qua lỗi.
+      await apiSend<unknown>(
+        "POST",
+        `/qualifier/${tournamentCode}/close-all`,
+      ).catch(() => null);
       setPendingCloseAll(false);
       await fetchAll();
     } finally {
@@ -95,12 +100,12 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
     if (!pendingClose) return;
     setCloseSaving(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/qualifier/${tournamentCode}/questions/${pendingClose.questionCode}/close`,
-        { method: "POST", credentials: "include" },
+      await apiSend<unknown>(
+        "POST",
+        `/qualifier/${tournamentCode}/questions/${pendingClose.questionCode}/close`,
+      ).catch((err) =>
+        notifyApiFailure(err, "Lỗi", "không kết nối được"),
       );
-      const json = await res.json().catch(() => null);
-      if (!res.ok) alert(`Lỗi: ${json?.message ?? "?"}`);
       setPendingClose(null);
       await fetchAll();
     } finally {
@@ -112,10 +117,11 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
     if (!deleting) return;
     setDeleteSaving(true);
     try {
-      await fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/questions/${deleting.questionCode}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      // Không kiểm tra res.ok như trước — bỏ qua lỗi.
+      await apiSend<unknown>(
+        "DELETE",
+        `/qualifier/${tournamentCode}/questions/${deleting.questionCode}`,
+      ).catch(() => null);
       setDeleting(null);
       await fetchAll();
     } finally {
@@ -138,33 +144,26 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
     if (!editing) return;
     const options = parseOptions(value.options);
     if (!options || options.length < 4 || options.length > 6) {
-      alert("Options phải 4-6 phương án.");
+      notifyError("Options phải 4-6 phương án.");
       return;
     }
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/qualifier/${tournamentCode}/questions/${encodeURIComponent(editing.questionCode)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            content: value.content.trim() || undefined,
-            options,
-            correctOption: value.correctOption,
-            position: Number(value.position) || undefined,
-          }),
-        },
+      const payload = {
+        content: value.content.trim() || undefined,
+        options,
+        correctOption: value.correctOption,
+        position: Number(value.position) || undefined,
+      };
+      await apiSend<unknown>(
+        "PATCH",
+        `/qualifier/${tournamentCode}/questions/${encodeURIComponent(editing.questionCode)}`,
+        payload,
       );
-      const json = await res.json();
-      if (res.ok) {
-        setEditing(null);
-        await fetchAll();
-      } else {
-        alert(`Lưu thất bại: ${json.message ?? "Lỗi không xác định"}`);
-      }
-    } catch {
-      alert("Lỗi kết nối khi sửa câu hỏi");
+      setEditing(null);
+      await fetchAll();
+    } catch (err) {
+      if (err instanceof ApiError) notifyApiFailure(err, "Lưu thất bại");
+      else notifyError("Lỗi kết nối khi sửa câu hỏi");
     }
   };
 
@@ -172,36 +171,33 @@ export function QualifierManager({ tournamentCode }: { tournamentCode: string })
     const used = new Set(questions.map((q) => q.position));
     const pos = Array.from({ length: 16 }, (_, i) => i + 1).find((p) => !used.has(p));
     if (!pos) {
-      alert("Đã đủ 16 câu.");
+      notifyError("Đã đủ 16 câu.");
       return;
     }
     if (!form.content.trim() || form.options.some((o) => !o.trim())) {
-      alert("Nhập nội dung + đủ 4 đáp án.");
+      notifyError("Nhập nội dung + đủ 4 đáp án.");
       return;
     }
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/qualifier/${tournamentCode}/questions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          questionCode: `VL_${String(pos).padStart(2, "0")}`,
-          content: form.content.trim(),
-          options: form.options.map((o) => o.trim()),
-          correctOption: form.correct,
-          explanation: form.explanation.trim() || undefined,
-          position: pos,
-        }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok) {
-        alert(`Lỗi: ${json?.message ?? "?"}`);
-        return;
-      }
+      const payload = {
+        questionCode: `VL_${String(pos).padStart(2, "0")}`,
+        content: form.content.trim(),
+        options: form.options.map((o) => o.trim()),
+        correctOption: form.correct,
+        explanation: form.explanation.trim() || undefined,
+        position: pos,
+      };
+      await apiSend<unknown>(
+        "POST",
+        `/qualifier/${tournamentCode}/questions`,
+        payload,
+      );
       setForm({ content: "", options: ["", "", "", ""], correct: "A", explanation: "" });
       setShowForm(false);
       await fetchAll();
+    } catch (err) {
+      notifyApiFailure(err, "Lỗi", "không kết nối được");
     } finally {
       setSaving(false);
     }

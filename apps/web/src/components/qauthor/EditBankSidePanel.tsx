@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent } from "react";
-import { Search } from "lucide-react";
+import { Bot, Search } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { FormField, formInputClass } from "@/components/shared/ui/form";
 import { RenderMedia } from "@/components/shared/RenderMedia";
@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
-import { API_BASE_URL } from "@/configs";
+import { apiGetOrNull } from "@/api/client";
 import type { BankData } from "./bankTypes";
 import { Progress } from "@/components/ui/progress";
+import { useOceeReview } from "@/hooks/useOceeReview";
+import { OceeOpinion } from "./OceeOpinion";
 
 export type BankFormKind = "kd" | "bp" | "vd" | "gm-key" | "gm-hint";
 
@@ -77,15 +79,30 @@ export function EditBankSidePanel({ open, mode, kind, preset, initial, saving, u
   const [value, setValue] = useState<BankFormValue>(EMPTY);
   const [dupNote, setDupNote] = useState("");
   const [checkingDup, setCheckingDup] = useState(false);
+  const [formInited, setFormInited] = useState(false);
+  const {
+    asking: askingOcee,
+    opinion: oceeOpinion,
+    ask: askOcee,
+    clear: clearOcee,
+  } = useOceeReview();
 
   const defaultRound = (kind === "gm-key" || kind === "gm-hint") ? "GM"
     : kind === "vd" ? "VD"
     : kind === "bp" ? "BP"
     : (preset?.roundHint || "KD_C");
 
+  // Khởi tạo form đúng một lần cho mỗi lần mở panel: reset khi props đổi
+  // giữa chừng sẽ xoá mất nội dung người dùng đang gõ.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setFormInited(false);
+      return;
+    }
+    if (formInited) return;
+    setFormInited(true);
     setDupNote("");
+    clearOcee();
     if (mode === "edit" && initial) {
       const c0 = initial.citations?.[0];
       setValue({
@@ -113,7 +130,7 @@ export function EditBankSidePanel({ open, mode, kind, preset, initial, saving, u
       });
     }
   },
-  [open, mode, kind, initial]);
+  [open, formInited, mode, kind, initial, defaultRound, preset, clearOcee]);
 
   const set =
     (key: keyof BankFormValue) =>
@@ -130,10 +147,9 @@ export function EditBankSidePanel({ open, mode, kind, preset, initial, saving, u
     setDupNote("");
     try {
       const params = new URLSearchParams({ q, limit: "5" });
-      const res = await fetch(`${API_BASE_URL}/bank/search?${params.toString()}`, {
-        credentials: "include",
-      });
-      const json = await res.json();
+      const json = await apiGetOrNull<{ total?: number }>(
+        `/bank/search?${params.toString()}`,
+      );
       const total = json?.data?.total ?? 0;
       setDupNote(
         total > 0
@@ -155,6 +171,20 @@ export function EditBankSidePanel({ open, mode, kind, preset, initial, saving, u
       title={mode === "create" ? `Tạo câu ${KIND_TITLE[kind]}` : `Sửa ${initial?.bank_code ?? ""}`}
       footer={
         <div className="flex gap-2 justify-end">
+          <Button
+            variant="secondary"
+            onClick={() =>
+              void askOcee({
+                content: value.content,
+                answer: value.answer,
+                context: KIND_TITLE[kind],
+              })
+            }
+            disabled={askingOcee || saving}
+            className="gap-1 bg-primary hover:bg-primary/90 disabled:opacity-50 text-sm"
+          >
+            <Bot size={14} /> {askingOcee ? "Đang hỏi…" : "Nhờ OCee kiểm tra"}
+          </Button>
           <Button
             variant="ghost"
             onClick={() => void checkDuplicate()}
@@ -345,6 +375,7 @@ export function EditBankSidePanel({ open, mode, kind, preset, initial, saving, u
         <p className="text-xs text-warning">Sẽ xóa media khi lưu.</p>
       )}
 
+      {oceeOpinion && <OceeOpinion text={oceeOpinion} />}
       {dupNote && <p className="text-xs text-warning">{dupNote}</p>}
     </SidePanel>
   );

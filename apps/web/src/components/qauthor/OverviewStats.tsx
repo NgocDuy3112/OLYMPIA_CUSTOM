@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { HelpCircle, Clock, CheckCircle2 } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGetOrNull } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { getMatchCode as readStoredMatchCode } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
@@ -8,47 +8,46 @@ import { Input } from "@/components/ui/input";
 
 const logger = createLogger("OverviewStats");
 
+const countRows = (value: unknown): number =>
+  Array.isArray(value) ? value.length : 0;
+
 export const OverviewStats = () => {
   const [matchCode, setMatchCode] = useState(readStoredMatchCode());
   const [stats, setStats] = useState({ questions: 0, pending: 0, decided: 0 });
   const [loading, setLoading] = useState(false);
 
-  const fetchStats = useCallback(async () => {
-    const code = matchCode.trim();
+  const fetchStats = useCallback(async (rawCode: string) => {
+    const code = rawCode.trim();
     if (!code) return;
     setLoading(true);
     try {
-      const [qRes, pRes, dRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/questions?match_code=${encodeURIComponent(code)}`, {
-          credentials: "include",
-        }),
-        fetch(
-          `${API_BASE_URL}/score-reviews?match_code=${encodeURIComponent(code)}&status=pending`,
-          { credentials: "include" },
+      const [qJson, pJson, dJson] = await Promise.all([
+        apiGetOrNull<Record<string, unknown>[]>(
+          `/questions?match_code=${encodeURIComponent(code)}`,
         ),
-        fetch(
-          `${API_BASE_URL}/score-reviews?match_code=${encodeURIComponent(code)}&status=decided`,
-          { credentials: "include" },
+        apiGetOrNull<Record<string, unknown>[]>(
+          `/score-reviews?match_code=${encodeURIComponent(code)}&status=pending`,
+        ),
+        apiGetOrNull<Record<string, unknown>[]>(
+          `/score-reviews?match_code=${encodeURIComponent(code)}&status=decided`,
         ),
       ]);
-      const qJson = await qRes.json().catch(() => null);
-      const pJson = await pRes.json().catch(() => null);
-      const dJson = await dRes.json().catch(() => null);
       setStats({
-        questions: Array.isArray(qJson?.data) ? qJson.data.length : 0,
-        pending: Array.isArray(pJson?.data) ? pJson.data.length : 0,
-        decided: Array.isArray(dJson?.data) ? dJson.data.length : 0,
+        questions: countRows(qJson?.data),
+        pending: countRows(pJson?.data),
+        decided: countRows(dJson?.data),
       });
     } catch (err) {
       logger.error("Error fetching overview:", err);
     } finally {
       setLoading(false);
     }
-  }, [matchCode]);
-
-  useEffect(() => {
-    if (matchCode.trim()) void fetchStats();
   }, []);
+
+  // Tải một lần lúc mount với mã trận đang lưu; bấm "Tải" để nạp lại theo ô nhập.
+  useEffect(() => {
+    void fetchStats(readStoredMatchCode());
+  }, [fetchStats]);
 
   return (
     <div className="bg-accent/50 border border-border rounded-xl p-4 flex flex-col gap-3">
@@ -61,7 +60,7 @@ export const OverviewStats = () => {
         />
         <Button
           variant="default"
-          onClick={() => void fetchStats()}
+          onClick={() => void fetchStats(matchCode)}
           disabled={loading || !matchCode.trim()}
           className="bg-success hover:bg-success/90 disabled:opacity-50 text-xs text-success-foreground"
         >

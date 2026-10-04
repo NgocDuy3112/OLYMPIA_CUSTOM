@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { ChevronsUpDown, LogOut, Settings } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -166,6 +166,10 @@ export const ShellSidebar: React.FC<ShellSidebarProps> = ({
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => go("/settings")}>
+                  <Settings size={16} />
+                  <span>Cài đặt</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
                   <LogOut size={16} />
                   <span>Đăng xuất</span>

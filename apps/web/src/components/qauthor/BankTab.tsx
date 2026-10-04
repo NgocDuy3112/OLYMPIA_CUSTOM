@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { LayoutGrid, List, Plus, Search } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { ApiError, apiGetOrNull, apiSend } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { EditBankSidePanel, type BankFormKind, type BankFormValue } from "./EditBankSidePanel";
 import {
@@ -35,7 +35,7 @@ const helper = createDataTableColumns<BankData>();
 
 function citationErrorOf(v: BankFormValue): string {
   if (v.citationUrl.trim() && !/^https?:\/\//i.test(v.citationUrl.trim())) {
-    return "Link nguồn phải bắt đầu http(s)://.";
+    return "Link nguồn phải bắt đầu bằng http(s)://.";
   }
   return "";
 }
@@ -51,6 +51,14 @@ function buildCitations(v: BankFormValue): { source: string; url: string; access
 
 export type BankRoundGroup = "kd" | "gm" | "bp" | "vd";
 
+type BankFilters = {
+  query: string;
+  used: "all" | "only" | "unused";
+  reviewStatus: "" | "pending" | "approved" | "rejected";
+  vdDomain: string;
+  vdLevel: string;
+};
+
 const GROUP_ROUNDS: Record<BankRoundGroup, string> = {
   kd: "KD_C,KD_R",
   gm: "GM",
@@ -62,6 +70,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
   const [group] = useState<BankRoundGroup>(initialGroup);
   const [rows, setRows] = useState<BankData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [queryInput, setQueryInput] = useState("");
   const [query, setQuery] = useState("");
   const [used, setUsed] = useState<"all" | "only" | "unused">("all");
   const [reviewStatus, setReviewStatus] = useState<"" | "pending" | "approved" | "rejected">("");
@@ -92,13 +101,13 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     preset?: Partial<BankFormValue>;
   } | null>(null);
 
-  const fetchBank = useCallback(async (p = 1) => {
+  const loadBank = useCallback(async (p: number, f: BankFilters) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (query.trim()) params.set("q", query.trim());
-      if (used !== "all") params.set("used", used);
-      if (reviewStatus) params.set("status", reviewStatus);
+      if (f.query) params.set("q", f.query);
+      if (f.used !== "all") params.set("used", f.used);
+      if (f.reviewStatus) params.set("status", f.reviewStatus);
       const gr = GROUP_ROUNDS[group];
       if (group === "kd") {
         params.set("round_hints", gr);
@@ -106,24 +115,21 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
         params.set("round_hint", gr);
       }
       if (group === "vd") {
-        if (vdDomain) params.set("domain", vdDomain);
-        if (vdLevel) params.set("difficulty", vdLevel);
+        if (f.vdDomain) params.set("domain", f.vdDomain);
+        if (f.vdLevel) params.set("difficulty", f.vdLevel);
       }
       params.set("limit", String(BANK_PAGE_SIZE));
       params.set("page", String(p));
-      const res = await fetch(`${API_BASE_URL}/bank/search?${params.toString()}`, {
-        credentials: "include",
-      });
-      const json = await res.json();
-      const data = json.data as {
+      const json = await apiGetOrNull<{
         rows: Record<string, unknown>[];
         total: number;
         limit: number;
         page: number;
         pages: number;
-      } | null;
-      if (json.status === "success" && data) {
-        setRows((data.rows as Record<string, unknown>[]).map(toBankData));
+      }>(`/bank/search?${params.toString()}`);
+      const data = json?.data ?? null;
+      if (data) {
+        setRows(data.rows.map(toBankData));
         setTotal(data.total);
         setPages(data.pages);
         setPage(data.page);
@@ -138,11 +144,30 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     } finally {
       setLoading(false);
     }
-  }, [query, used, group, vdDomain, vdLevel, reviewStatus]);
+  }, [group]);
+
+  const filters = useMemo<BankFilters>(
+    () => ({ query, used, reviewStatus, vdDomain, vdLevel }),
+    [query, used, reviewStatus, vdDomain, vdLevel],
+  );
 
   useEffect(() => {
-    void fetchBank(1);
-  }, [group, vdDomain, vdLevel, reviewStatus]);
+    void loadBank(1, filters);
+  }, [loadBank, filters]);
+
+  const applySearch = useCallback(() => {
+    const next = queryInput.trim();
+    if (next === query) {
+      void loadBank(1, filters);
+      return;
+    }
+    setQuery(next);
+  }, [queryInput, query, loadBank, filters]);
+
+  const refreshBank = useCallback(
+    () => loadBank(1, filters),
+    [loadBank, filters],
+  );
 
   const saveSidebar = useCallback(async (v: BankFormValue) => {
     if (!sidebar) return;
@@ -166,40 +191,35 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
     setFormError("");
     setSaving(true);
     try {
-  const roundHint = v.roundHint.trim() || GROUP_ROUNDS[group].split(",")[0];
-  const bankCode = genBankCode(roundHint);
-  const res = await fetch(`${API_BASE_URL}/bank`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({
-      bankCode,
-      content: v.content.trim(),
-      answer: v.answer.trim(),
-      explanation: v.explanation.trim() || undefined,
-      roundHint,
-      domain: v.domain || undefined,
-      difficulty: v.difficulty ? Number(v.difficulty) : undefined,
-      setCode: v.setCode || undefined,
-      hintIndex: v.hintIndex || undefined,
-      citations: buildCitations(v),
-    }),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message ?? "Tạo thất bại");
-  const id = String(json.data?.id ?? "");
-  if (v.mediaFile) {
-    setUploadPct(0);
-    const key = await uploadQuestionMedia(bankCode, v.mediaFile, setUploadPct);
-    await fetch(`${API_BASE_URL}/bank/${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ media_url: key }),
-    });
-  }
-  setSidebar(null);
-  await fetchBank(1);
+      const roundHint = v.roundHint.trim() || GROUP_ROUNDS[group].split(",")[0];
+      const bankCode = genBankCode(roundHint);
+      const payload = {
+        bankCode,
+        content: v.content.trim(),
+        answer: v.answer.trim(),
+        explanation: v.explanation.trim() || undefined,
+        roundHint,
+        domain: v.domain || undefined,
+        difficulty: v.difficulty ? Number(v.difficulty) : undefined,
+        setCode: v.setCode || undefined,
+        hintIndex: v.hintIndex || undefined,
+        citations: buildCitations(v),
+      };
+      const json = await apiSend<{ id?: string }>("POST", "/bank", payload);
+      const id = String(json.data?.id ?? "");
+      if (v.mediaFile) {
+        setUploadPct(0);
+        const key = await uploadQuestionMedia(bankCode, v.mediaFile, setUploadPct);
+        await apiSend("PATCH", `/bank/${encodeURIComponent(id)}`, {
+          media_url: key,
+        }).catch((error: unknown) => {
+          // Như bản cũ: HTTP lỗi thì bỏ qua để không chặn đóng panel, lỗi mạng vẫn nổi lên form.
+          if (error instanceof ApiError) return;
+          throw error;
+        });
+      }
+      setSidebar(null);
+      await refreshBank();
     } catch (err) {
       logger.error("Error saving bank:", err);
       setFormError(err instanceof Error ? err.message : "Lỗi kết nối khi lưu");
@@ -207,7 +227,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
       setSaving(false);
       setUploadPct(null);
     }
-  }, [sidebar, fetchBank, group]);
+  }, [sidebar, refreshBank, group]);
 
 
   const columns: DataTableColumn<BankData>[] = React.useMemo(() => {
@@ -344,15 +364,15 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
           )}
           <InputGroup className="h-9 flex-1">
             <InputGroupInput
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={queryInput}
+              onChange={(e) => setQueryInput(e.target.value)}
               placeholder="Tìm theo mã / nội dung / đáp án…"
               className="text-sm"
             />
             <InputGroupAddon align="inline-end">
               <InputGroupButton
                 variant="default"
-                onClick={() => void fetchBank(1)}
+                onClick={applySearch}
                 disabled={loading}
                 className="disabled:opacity-50 text-sm"
               >
@@ -473,7 +493,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
               <DataTablePager
                 page={page - 1}
                 count={Math.max(1, pages)}
-                go={(p) => void fetchBank(p + 1)}
+                go={(p) => void loadBank(p + 1, filters)}
               />
             }
           />
@@ -486,7 +506,7 @@ export const BankTab = ({ initialGroup = "kd" }: { initialGroup?: BankRoundGroup
             serverPagination={{
               page: page - 1,
               pageCount: pages,
-              onPageChange: (p) => void fetchBank(p + 1),
+              onPageChange: (p) => void loadBank(p + 1, filters),
             }}
           />
         )}

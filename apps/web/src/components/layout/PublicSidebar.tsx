@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Trophy, LogIn, LogOut, User, Swords, BookOpen, ChevronsUpDown } from "lucide-react";
+import { Trophy, LogIn, LogOut, Settings, User, Swords, BookOpen, ChevronsUpDown } from "lucide-react";
 import { useSidebar, SidebarMenuButton } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
@@ -95,6 +95,10 @@ export const PublicSidebar: React.FC<PublicSidebarProps> = ({
             <span>Hồ sơ</span>
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem onClick={() => go("/settings")}>
+          <Settings size={16} />
+          <span>Cài đặt</span>
+        </DropdownMenuItem>
         <DropdownMenuItem
           variant="destructive"
           onClick={() => {

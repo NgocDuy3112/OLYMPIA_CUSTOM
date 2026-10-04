@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Plus, Search, Trash2 } from "lucide-react";
 import { SidePanel } from "@/components/shared/ui/SidePanel";
 import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
-import { API_BASE_URL } from "@/configs";
+import { apiCall, apiGet, ApiError } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import {
   SET_ROUND_TABS,
@@ -26,6 +26,7 @@ import {
   createDataTableColumns,
   type DataTableColumn,
 } from "@/components/shared/data-table-core";
+import { notifyApiFailure, notifyError } from "@/lib/notify";
 
 
 const logger = createLogger("SetFillSidePanel");
@@ -86,13 +87,12 @@ export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePan
     if (!setCode) return;
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/question-sets/${encodeURIComponent(setCode)}`, {
-        credentials: "include",
-      });
-      const json = await res.json();
-      if (json.status === "success" && json.data) {
-        setDetail(json.data as SetDetailView);
-        setMatchEdit((json.data as SetDetailView).matchCode ?? "");
+      const json = await apiGet<SetDetailView>(
+        `/question-sets/${encodeURIComponent(setCode)}`,
+      );
+      if (json.data) {
+        setDetail(json.data);
+        setMatchEdit(json.data.matchCode ?? "");
       } else {
         setDetail(null);
       }
@@ -126,20 +126,18 @@ export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePan
       if (!setCode) return false;
       setSaving(true);
       try {
-        const res = await fetch(`${API_BASE_URL}/question-sets/${encodeURIComponent(setCode)}${path}`, {
-          credentials: "include",
-          ...init,
-        });
-        const json = await res.json().catch(() => null);
-        if (!res.ok || json?.status !== "success") {
-          alert(`Thất bại: ${json?.message ?? `HTTP ${res.status}`}`);
-          return false;
-        }
+        await apiCall<unknown>(
+          `/question-sets/${encodeURIComponent(setCode)}${path}`,
+          init,
+        );
         await refresh();
         return true;
       } catch (err) {
-        logger.error("Error calling set API:", err);
-        alert("Lỗi kết nối");
+        if (err instanceof ApiError) notifyApiFailure(err, "Thất bại");
+        else {
+          logger.error("Error calling set API:", err);
+          notifyError("Lỗi kết nối");
+        }
         return false;
       } finally {
         setSaving(false);
@@ -166,11 +164,10 @@ export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePan
       params.set("status", "approved");
       params.set("limit", "20");
       params.set("page", "1");
-      const res = await fetch(`${API_BASE_URL}/bank/search?${params.toString()}`, {
-        credentials: "include",
-      });
-      const json = await res.json();
-      const rows = (json?.data?.rows ?? []) as Record<string, unknown>[];
+      const json = await apiGet<{ rows?: Record<string, unknown>[] }>(
+        `/bank/search?${params.toString()}`,
+      );
+      const rows = json.data?.rows ?? [];
       setBankRows(rows.map(toBankData));
     } catch (err) {
       logger.error("Error searching bank:", err);
@@ -189,11 +186,10 @@ export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePan
         limit: "100",
         page: "1",
       });
-      const res = await fetch(`${API_BASE_URL}/bank/search?${params.toString()}`, {
-        credentials: "include",
-      });
-      const json = await res.json();
-      const rows = (json?.data?.rows ?? []) as Record<string, unknown>[];
+      const json = await apiGet<{ rows?: Record<string, unknown>[] }>(
+        `/bank/search?${params.toString()}`,
+      );
+      const rows = json.data?.rows ?? [];
       setGmRows(rows.map(toBankData));
     } catch (err) {
       logger.error("Error loading GM sets:", err);
@@ -216,7 +212,6 @@ export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePan
       if (!pickSlot) return;
       const okCall = await callSet("/items", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ round, slot: pickSlot, bankCode }),
       });
       if (okCall) setPickSlot(null);
@@ -228,7 +223,6 @@ export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePan
     async (gmSetCode: string) => {
       const okCall = await callSet("/pick-gm-set", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ setCode: gmSetCode }),
       });
       if (okCall) setPickSlot(null);
@@ -239,7 +233,6 @@ export function SetFillSidePanel({ setCode, onClose, onChanged }: SetFillSidePan
   const saveMatchCode = useCallback(async () => {
     await callSet("", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ matchCode: matchEdit.trim() || null }),
     });
   }, [callSet, matchEdit]);

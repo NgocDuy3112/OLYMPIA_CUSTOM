@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Layers, Zap } from "lucide-react";
-import { API_BASE_URL } from "@/configs";
+import { apiGet, apiSend, ApiError } from "@/api/client";
 import { createLogger } from "@/utils/logger";
 import { ConfirmActionSidePanel } from "@/components/shared/ui/ConfirmActionSidePanel";
 import { Button } from "@/components/ui/button";
-import { notifyError, notifySuccess } from "@/lib/notify";
+import { notifyApiFailure, notifyError, notifySuccess } from "@/lib/notify";
 
 const logger = createLogger("MatchSetPicker");
 
@@ -33,12 +33,10 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
     if (!matchCode) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/question-sets?matchCode=${encodeURIComponent(matchCode)}`,
-        { credentials: "include" },
+      const json = await apiGet<SetRow[]>(
+        `/question-sets?matchCode=${encodeURIComponent(matchCode)}`,
       );
-      const json = await res.json();
-      setSets(json.status === "success" && Array.isArray(json.data) ? json.data : []);
+      setSets(Array.isArray(json.data) ? json.data : []);
     } catch (err) {
       logger.error("Error fetching sets:", err);
       setSets([]);
@@ -55,27 +53,21 @@ export function MatchSetPicker({ matchCode, onChanged }: MatchSetPickerProps) {
     if (!activating) return;
     setSaving(true);
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/question-sets/${encodeURIComponent(activating.setCode)}/activate`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ matchCode }),
-        },
+      const json = await apiSend<unknown>(
+        "POST",
+        `/question-sets/${encodeURIComponent(activating.setCode)}/activate`,
+        { matchCode },
       );
-      const json = await res.json().catch(() => null);
-      if (!res.ok || json?.status !== "success") {
-        notifyError(`Kích hoạt thất bại: ${json?.message ?? `HTTP ${res.status}`}`);
-        return;
-      }
       setActivating(null);
       await fetchSets();
       onChanged();
       notifySuccess(json.message ?? "Đã kích hoạt");
     } catch (err) {
-      logger.error("Error activating set:", err);
-      notifyError("Lỗi kết nối khi kích hoạt");
+      if (err instanceof ApiError) notifyApiFailure(err, "Kích hoạt thất bại");
+      else {
+        logger.error("Error activating set:", err);
+        notifyError("Lỗi kết nối khi kích hoạt");
+      }
     } finally {
       setSaving(false);
     }
