@@ -17,6 +17,9 @@ import {
   createDataTableColumns,
   type DataTableColumn,
 } from "@/components/shared/data-table-core";
+import { useConfirm } from "@/hooks/useConfirm";
+import { notifyError, notifySuccess } from "@/lib/notify";
+import { formInputClass } from "@/components/shared/ui/form";
 
 const logger = createLogger("AdminMcpTokensPage");
 
@@ -40,10 +43,12 @@ const AdminMcpTokensPage = () => {
   const [tokens, setTokens] = useState<McpTokenMeta[]>([]);
   const [identities, setIdentities] = useState<Identity[]>([]);
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [userCode, setUserCode] = useState("");
   const [freshToken, setFreshToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const {confirm, dialog} = useConfirm();
 
   const fetchTokens = useCallback(async () => {
     setLoading(true);
@@ -90,47 +95,67 @@ const AdminMcpTokensPage = () => {
   }, [fetchTokens, fetchIdentities]);
 
   const createToken = async () => {
+    if (creating) return;
     setError(null);
     setFreshToken(null);
+    setCreating(true);
     try {
       const json = await apiCall<{ token: string }>("/mcp-tokens", {
         method: "POST",
         body: JSON.stringify({ name: name.trim(), userCode }),
       });
-      setFreshToken(json.data!.token);
+      const token = json.data?.token;
+      if (!token) {
+        setError("Không thể tạo token từ server");
+        return;
+      }
+      setFreshToken(token);
       setName("");
       setUserCode("");
       void fetchTokens();
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(getApiErrorMessage(err, "Tạo token thất bại"));
+        setError(getApiErrorMessage(err, "Không thể tạo token"));
       } else {
-        logger.error("Error creating token:", err);
+        logger.error("Error creating token:", err instanceof Error ? err.message : err);
         setError("Lỗi mạng");
       }
+    } finally {
+      setCreating(false);
     }
   };
 
   const revokeToken = useCallback(async (tokenName: string) => {
-    if (!window.confirm(`Thu hồi token "${tokenName}"?`)) return;
+    const ok = await confirm({
+      title: "Gỡ bỏ MCP token",
+      description: `Bạn có đồng ý thu hồi token ${tokenName} không?`,
+      confirmLabel: "Gỡ bỏ token",
+      tone: "danger"
+    });
+    if (!ok) return;
     try {
       await apiCall(`/mcp-tokens/${encodeURIComponent(tokenName)}`, {
         method: "DELETE",
       });
+      notifySuccess(`Đã thu hồi token ${tokenName}`);
       void fetchTokens();
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(getApiErrorMessage(err, "Thu hồi thất bại"));
+        notifyError(`Thu hồi thất bại: ${getApiErrorMessage(err, "Lỗi không xác định")}`);
       } else {
-        logger.error("Error revoking token:", err);
-        setError("Lỗi mạng");
+        logger.error("Error revoking token:", err instanceof Error ? err.message : err);
+        notifyError("Lỗi kết nối khi thu hồi token");
       }
     }
-  }, [fetchTokens]);
+  }, [fetchTokens, confirm]);
 
   const copyToken = async () => {
-    if (freshToken) {
+    if (!freshToken) return;
+    try {
       await navigator.clipboard.writeText(freshToken);
+      notifySuccess("Đã copy token");
+    } catch {
+      notifyError("Token chưa được copy");
     }
   };
 
@@ -138,7 +163,7 @@ const AdminMcpTokensPage = () => {
     () => [
       helper.accessor("name", {
         header: "Tên",
-        cell: (info) => <span className="">{info.getValue()}</span>,
+        cell: (info) => <span className="text-xs">{info.getValue()}</span>,
       }),
       helper.accessor("userCode", {
         header: "Identity",
@@ -146,11 +171,10 @@ const AdminMcpTokensPage = () => {
           const u = info.getValue();
           const id = identities.find((i) => i.userCode === u);
           return (
-            <span className=" text-xs">
+            <span className="text-xs">
               {u}
               <span className="text-muted-foreground">
-                {" "}
-                · {id ? `${id.userName} · ${id.role}` : u}
+                - {id ? `${id.userName} - ${id.role}` : "-"}
               </span>
             </span>
           );
@@ -159,18 +183,17 @@ const AdminMcpTokensPage = () => {
       helper.accessor("createdBy", {
         header: "Người cấp",
         cell: (info) => (
-          <span className=" text-xs">{info.getValue() ?? "-"}</span>
+          <span className="text-xs">{info.getValue() ?? "-"}</span>
         ),
       }),
       helper.accessor("createdAt", {
         header: "Ngày cấp",
-        cell: (info) => (
-          <span className=" text-xs">
-            {info.getValue()
-              ? new Date(info.getValue()!).toLocaleString("vi-VN")
-              : "-"}
-          </span>
-        ),
+        cell: (info) => {
+          const v = info.getValue();
+          return (
+            <span className="text-xs">{v ? new Date(v).toLocaleString("vi-VN") : "-"}</span>
+          )
+        },
       }),
       helper.display({
         id: "actions",
@@ -184,6 +207,7 @@ const AdminMcpTokensPage = () => {
               onClick={() => void revokeToken(info.row.original.name)}
               className="text-destructive hover:bg-destructive/10"
               title="Thu hồi"
+              aria-label={`Thu hồi token ${info.row.original.name}`}
             >
               <Trash2 size={16} />
             </Button>
@@ -197,7 +221,7 @@ const AdminMcpTokensPage = () => {
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className=" text-sm text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           ({tokens.length} token)
         </span>
         <Button
@@ -223,7 +247,7 @@ const AdminMcpTokensPage = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="vd qauthor-a"
-              className="h-9 outline-none focus:border-ring"
+              className={formInputClass}
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
@@ -244,14 +268,14 @@ const AdminMcpTokensPage = () => {
           <Button
             variant="default"
             onClick={() => void createToken()}
-            disabled={!name.trim() || !userCode}
+            disabled={creating || !name.trim() || !userCode}
             className="disabled:opacity-50"
           >
-            Cấp
+            {creating ? "Đang tạo token..." : "Tạo token"}
           </Button>
         </div>
         {identities.length === 0 && (
-          <p className="text-xs text-warning/80">
+          <p className="text-xs text-warning">
             Chưa có user role operator/admin — tạo user trước.
           </p>
         )}
@@ -262,7 +286,7 @@ const AdminMcpTokensPage = () => {
               Token hiện 1 lần duy nhất — copy ngay:
             </p>
             <div className="flex gap-2 items-center">
-              <code className="flex-1 break-all  text-xs bg-background/40 rounded px-2 py-2">
+              <code className="flex-1 break-all text-xs bg-background/40 rounded px-2 py-2">
                 {freshToken}
               </code>
               <Button
@@ -284,6 +308,8 @@ const AdminMcpTokensPage = () => {
         emptyText="Chưa có token nào"
         pageSize={20}
       />
+
+      {dialog}
     </div>
   );
 };

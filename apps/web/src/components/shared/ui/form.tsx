@@ -11,10 +11,9 @@ export const formLabelClass = "text-xs font-medium text-brand";
 
 export const formHintClass = "text-xs text-muted-foreground";
 
-export const formSectionClass =
-  "text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+export const formSectionClass = "text-xs font-semibold uppercase tracking-wide text-muted-foreground";
 
-export const formInputClass = "h-9";
+export const formInputClass = "h-9 outline-none focus:border-ring";
 
 interface FormFieldProps {
   label: string;

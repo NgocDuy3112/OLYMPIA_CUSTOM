@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useTable,
   type PaginationState,
@@ -120,6 +121,25 @@ export function DataTablePager({
   );
 }
 
+function TableSkeleton({ rows, cols }: { rows: number, cols: number }) {
+  return (
+    <>
+      {Array.from({ length: rows }).map((_, r) => (
+        <TableRow key={`sk-${r}`}>
+          {Array.from({ length: cols }).map((_, c) => (
+            <TableCell key={`sk-${r}-${c}`}>
+              <Skeleton
+                className="h-4"
+                style={{ width: `${70 + ((r + c) % 4) * 8}%` }}
+              />
+            </TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
 export function DataTable<TData extends RowData>({
   columns,
   data,
@@ -157,17 +177,17 @@ export function DataTable<TData extends RowData>({
   const colCount = columns.length;
   const pagerTarget = serverPagination
     ? {
-        page: serverPagination.page,
-        count: Math.max(1, serverPagination.pageCount),
-        go: serverPagination.onPageChange,
-      }
+      page: serverPagination.page,
+      count: Math.max(1, serverPagination.pageCount),
+      go: serverPagination.onPageChange,
+    }
     : pageSize
       ? {
-          page: pagination.pageIndex,
-          count: Math.max(1, Math.ceil(data.length / pagination.pageSize)),
-          go: (p: number) =>
-            setPagination((prev) => ({ ...prev, pageIndex: p })),
-        }
+        page: pagination.pageIndex,
+        count: Math.max(1, Math.ceil(data.length / pagination.pageSize)),
+        go: (p: number) =>
+          setPagination((prev) => ({ ...prev, pageIndex: p })),
+      }
       : null;
 
   return (
@@ -208,11 +228,10 @@ export function DataTable<TData extends RowData>({
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={colCount} className="h-24 text-center text-muted-foreground">
-                  Đang tải…
-                </TableCell>
-              </TableRow>
+              <TableSkeleton
+                rows={Math.min(pageSize ?? 5, 8)}
+                cols={colCount}
+              />
             ) : rows.length ? (
               rows.map((row) => (
                 <TableRow

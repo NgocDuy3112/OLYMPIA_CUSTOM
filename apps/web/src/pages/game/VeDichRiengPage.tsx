@@ -3,7 +3,7 @@ import { useRoleSession } from "@/hooks/useRoleSession";
 
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SVeDichPage } from "@/components/shared/SVeDichPage";
-import { AdminVeDichRiengView } from "@/components/controller/AdminVeDichRiengView";
+import { ControllerVeDichRiengView } from "@/components/controller/ControllerVeDichRiengView";
 import { PlayerVeDichRiengView } from "@/components/player/PlayerVeDichRiengView";
 
 const MCVeDichRiengView = () => {
@@ -19,7 +19,7 @@ const MCVeDichRiengView = () => {
 
 const VeDichRiengPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "controller") return <AdminVeDichRiengView />;
+  if (role === "controller") return <ControllerVeDichRiengView />;
   if (role === "mc") return <MCVeDichRiengView />;
   return <PlayerVeDichRiengView />;
 };

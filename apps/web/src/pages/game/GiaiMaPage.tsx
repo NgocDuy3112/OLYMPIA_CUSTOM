@@ -3,7 +3,7 @@ import { useRoleSession } from "@/hooks/useRoleSession";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SGiaiMaPage } from "@/components/shared/SGiaiMaPage";
 
-import { AdminGiaiMaView } from "@/components/controller/AdminGiaiMaView";
+import { ControllerGiaiMaView } from "@/components/controller/ControllerGiaiMaView";
 import { PlayerGiaiMaView } from "@/components/player/PlayerGiaiMaView";
 
 const MCGiaiMaView = () => {
@@ -13,7 +13,7 @@ const MCGiaiMaView = () => {
 
 const GiaiMaPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "controller") return <AdminGiaiMaView />;
+  if (role === "controller") return <ControllerGiaiMaView />;
   if (role === "mc") return <MCGiaiMaView />;
   return <PlayerGiaiMaView />;
 };

@@ -20,7 +20,7 @@ const QUESTION_PREFIX = "OC3_Q_BP";
 const MAX_QUESTION_INDEX = 5;
 const TIME_LIMIT = 30;
 
-export const AdminButPhaView = () => {
+export const ControllerButPhaView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
 

@@ -17,6 +17,23 @@ export const notifyError = (message: string) =>
 export const notifySuccess = (message: string) =>
   toast.add({ type: "success", title: message, timeout: 4000 });
 
+export const notifyInfo = (message: string) =>
+  toast.add({
+    type: "info",
+    title: "Thông tin",
+    description: message,
+    timeout: 4500,
+  });
+
+export const notifyWarning = (message: string) =>
+  toast.add({
+    type: "warning",
+    title: "Cần chú ý",
+    description: message,
+    timeout: 6000,
+    priority: "high",
+  });
+
 /** Bắt lỗi API rồi báo ra toast — thay cho `try/catch` + `json.message` lặp lại. */
 export const notifyApiError = (error: unknown, fallback: string) =>
   notifyError(getApiErrorMessage(error, fallback));

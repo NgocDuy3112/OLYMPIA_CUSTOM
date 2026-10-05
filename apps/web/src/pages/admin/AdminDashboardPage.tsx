@@ -13,7 +13,6 @@ import {
   RefreshCw,
   ScrollText,
   Trophy,
-  Users,
   Wrench,
 } from "lucide-react";
 import { API_BASE_URL } from "@/configs";
@@ -52,12 +51,6 @@ interface MatchRow {
   createdAt?: string;
 }
 
-interface UserRow {
-  userCode: string;
-  role: string;
-  operatorScopes?: string | null;
-}
-
 interface AuditLog {
   id: string;
   actionType: string;
@@ -76,10 +69,8 @@ interface BankRoundStat {
 interface DashboardState {
   tournaments: Tournament[];
   matches: MatchRow[];
-  users: UserRow[];
   pendingBank: number;
   approvedBank: number;
-  rejectedBank: number;
   bankByRound: BankRoundStat[];
   recentLogs: AuditLog[];
   totalLogs: number;
@@ -100,10 +91,8 @@ const BANK_ROUNDS = [
 const initialState: DashboardState = {
   tournaments: [],
   matches: [],
-  users: [],
   pendingBank: 0,
   approvedBank: 0,
-  rejectedBank: 0,
   bankByRound: [],
   recentLogs: [],
   totalLogs: 0,
@@ -178,15 +167,13 @@ const AdminDashboardPage = () => {
           `/bank/search?round_hints=${encodeURIComponent(round.rounds)}&status=pending&limit=1&page=1`,
         ),
       ]);
-      const [tRes, mRes, uRes, bPen, bApp, bRej, aRes, ...roundRes] =
+      const [tRes, mRes, bPen, bApp, aRes, ...roundRes] =
         await Promise.allSettled([
           apiGet<Tournament[]>("/tournaments"),
           apiGet<MatchRow[]>("/matches"),
-          apiGet<UserRow[]>("/users"),
           apiGet<{ total?: number }>("/bank/search?status=pending&limit=1&page=1"),
           apiGet<{ total?: number }>("/bank/search?status=approved&limit=1&page=1"),
-          apiGet<{ total?: number }>("/bank/search?status=rejected&limit=1&page=1"),
-          apiGet<{ logs?: AuditLog[]; total?: number }>("/audit-logs?limit=8"),
+          apiGet<{ logs?: AuditLog[]; total?: number }>("/audit-logs?limit=30"),
           ...roundReqs,
         ]);
 
@@ -197,10 +184,6 @@ const AdminDashboardPage = () => {
       const matches =
         mRes.status === "fulfilled" && mRes.value?.status === "success" && Array.isArray(mRes.value.data)
           ? mRes.value.data
-          : [];
-      const users =
-        uRes.status === "fulfilled" && uRes.value?.status === "success" && Array.isArray(uRes.value.data)
-          ? uRes.value.data
           : [];
       const bankTotal = (result: unknown) =>
         typeof result === "object" && result !== null &&
@@ -247,10 +230,8 @@ const AdminDashboardPage = () => {
       setState({
         tournaments,
         matches,
-        users,
         pendingBank: bPen.status === "fulfilled" ? bankTotal(bPen.value) : 0,
         approvedBank: bApp.status === "fulfilled" ? bankTotal(bApp.value) : 0,
-        rejectedBank: bRej.status === "fulfilled" ? bankTotal(bRej.value) : 0,
         bankByRound,
         recentLogs: logs,
         totalLogs:
@@ -337,12 +318,14 @@ const AdminDashboardPage = () => {
   ];
 
   const tournamentNames = new Map(state.tournaments.map((tournament) => [tournament.id, tournament.tournamentName]));
-  const orderedLogs = [...state.recentLogs].sort((a, b) =>
-    new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
-  );
+  const orderedLogs = state.recentLogs
+    .filter((log) => log.actionType !== "LOGIN")
+    .sort((a, b) =>
+      new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime(),
+    );
 
   return (
-    <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 pb-8 text-foreground">
+    <div className="mx-auto flex w-full max-w-375 flex-col gap-5 pb-8 text-foreground">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand">Olympia Custom · Admin</p>
@@ -367,7 +350,7 @@ const AdminDashboardPage = () => {
         </div>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Chỉ số vận hành">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3" aria-label="Chỉ số vận hành">
         <MetricCard
           label="Trận đang diễn ra"
           value={liveMatches.length}
@@ -391,14 +374,6 @@ const AdminDashboardPage = () => {
           icon={<ClipboardCheck size={18} />}
           tone={state.pendingBank > 0 ? "amber" : "green"}
           onClick={() => navigate("/admin/bank-review")}
-        />
-        <MetricCard
-          label="Tài khoản"
-          value={state.users.length}
-          detail="Quản lý người dùng và quyền truy cập"
-          icon={<Users size={18} />}
-          tone="blue"
-          onClick={() => navigate("/admin/users")}
         />
       </section>
 
@@ -455,13 +430,20 @@ const AdminDashboardPage = () => {
           </CardHeader>
           <CardContent className="pt-3">
             {priorityMatches.length === 0 ? (
-              <EmptyState
-                icon={<CalendarDays size={19} />}
-                title="Chưa có trận cần theo dõi"
-                description="Tạo trận hoặc kiểm tra lịch để bắt đầu vận hành."
-                action="Mở lịch thi đấu"
-                onAction={() => navigate("/admin/game-managing")}
-              />
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-muted-foreground">
+                    <CalendarDays size={16} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium">Không có trận cần theo dõi</p>
+                    <p className="text-xs text-muted-foreground">Các trận đang chạy hoặc sắp diễn ra sẽ hiện tại đây.</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => navigate("/admin/game-managing")} className="gap-1.5">
+                  Mở lịch <ArrowRight size={14} />
+                </Button>
+              </div>
             ) : (
               <div className="divide-y divide-border/70">
                 {priorityMatches.map((match) => (
@@ -571,8 +553,9 @@ const AdminDashboardPage = () => {
         </div>
       </section>
 
-      <section className="grid items-start gap-4 lg:grid-cols-12">
-        <Card className="lg:col-span-7">
+      {(activeTournaments.length > 0 || orderedLogs.length > 0) && (
+      <section className={`grid items-start gap-4 ${activeTournaments.length > 0 && orderedLogs.length > 0 ? "lg:grid-cols-12" : "lg:grid-cols-1"}`}>
+        {activeTournaments.length > 0 && <Card className={orderedLogs.length > 0 ? "lg:col-span-7" : ""}>
           <CardHeader className="border-b border-border/70">
             <div className="flex items-start gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
@@ -590,15 +573,6 @@ const AdminDashboardPage = () => {
             </CardAction>
           </CardHeader>
           <CardContent className="pt-3">
-            {activeTournaments.length === 0 ? (
-              <EmptyState
-                icon={<Trophy size={19} />}
-                title="Chưa có giải đang hoạt động"
-                description="Các giải đã tạo sẽ xuất hiện ở đây khi được mở."
-                action="Quản lý giải đấu"
-                onAction={() => navigate("/admin/tournaments")}
-              />
-            ) : (
               <div className="divide-y divide-border/70">
                 {activeTournaments.slice(0, 5).map((tournament) => {
                   const progress = tournamentProgress.get(tournament.id) ?? { total: 0, completed: 0 };
@@ -632,11 +606,10 @@ const AdminDashboardPage = () => {
                   );
                 })}
               </div>
-            )}
           </CardContent>
-        </Card>
+        </Card>}
 
-        <Card className="lg:col-span-5">
+        {orderedLogs.length > 0 && <Card className={activeTournaments.length > 0 ? "lg:col-span-5" : ""}>
           <CardHeader className="border-b border-border/70">
             <div className="flex items-start gap-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-brand">
@@ -654,13 +627,6 @@ const AdminDashboardPage = () => {
             </CardAction>
           </CardHeader>
           <CardContent className="pt-3">
-            {orderedLogs.length === 0 ? (
-              <div className="flex min-h-36 flex-col items-center justify-center gap-2 text-center">
-                <span className="flex size-9 items-center justify-center rounded-full bg-accent text-muted-foreground"><ScrollText size={17} /></span>
-                <p className="text-sm font-medium">Chưa có hoạt động</p>
-                <p className="text-xs text-muted-foreground">Các thay đổi gần nhất sẽ xuất hiện tại đây.</p>
-              </div>
-            ) : (
               <div className="divide-y divide-border/70">
                 {orderedLogs.slice(0, 5).map((log) => (
                   <div key={log.id} className="flex items-start gap-3 py-3">
@@ -680,10 +646,10 @@ const AdminDashboardPage = () => {
                   </div>
                 ))}
               </div>
-            )}
           </CardContent>
-        </Card>
+        </Card>}
       </section>
+      )}
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-4">
         <p className="text-xs text-muted-foreground">
@@ -741,28 +707,5 @@ const MetricCard = ({
     </button>
   );
 };
-
-const EmptyState = ({
-  icon,
-  title,
-  description,
-  action,
-  onAction,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action: string;
-  onAction: () => void;
-}) => (
-  <div className="flex min-h-48 flex-col items-center justify-center gap-2 px-4 py-8 text-center">
-    <span className="flex size-10 items-center justify-center rounded-full bg-accent text-muted-foreground">{icon}</span>
-    <p className="text-sm font-semibold">{title}</p>
-    <p className="max-w-sm text-xs text-muted-foreground">{description}</p>
-    <Button variant="outline" size="sm" onClick={onAction} className="mt-2 gap-1.5">
-      {action} <ArrowRight size={14} />
-    </Button>
-  </div>
-);
 
 export default AdminDashboardPage;

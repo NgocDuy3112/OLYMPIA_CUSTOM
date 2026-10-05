@@ -6,7 +6,7 @@ import { VeDichRound } from "@/types/veDich";
 
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SVeDichPickPage } from "@/components/shared/SVeDichPickPage";
-import { AdminVeDichPickView } from "@/components/controller/AdminVeDichPickView";
+import { ControllerVeDichPickView } from "@/components/controller/ControllerVeDichPickView";
 import { PlayerVeDichPickView } from "@/components/player/PlayerVeDichPickView";
 
 const MCVeDichPickView = ({ round }: { round: VeDichRound }) => {
@@ -26,7 +26,7 @@ interface VeDichPickPageProps {
 }
 const VeDichPickPage = ({ round }: VeDichPickPageProps) => {
   const { role } = useGameWebSocket();
-  if (role === "controller") return <AdminVeDichPickView />;
+  if (role === "controller") return <ControllerVeDichPickView />;
   if (role === "mc") return <MCVeDichPickView round={round} />;
   return <PlayerVeDichPickView round={round} />;
 };

@@ -3,6 +3,7 @@ import { Paperclip } from "lucide-react";
 import { StatusBadge } from "@/components/shared/StatusBadges";
 import { useAvatarSrc } from "@/hooks/useAvatarSrc";
 import type { BankData } from "./bankTypes";
+import { CardSkeletonGrid } from "../shared/CardSkeleton";
 
 interface BankCardGridProps {
   rows: BankData[];
@@ -79,9 +80,7 @@ export function BankCardGrid({
   pager,
 }: BankCardGridProps) {
   if (loading) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">Đang tải…</p>
-    );
+    return <CardSkeletonGrid count={6} />;
   }
   if (rows.length === 0) {
     return (

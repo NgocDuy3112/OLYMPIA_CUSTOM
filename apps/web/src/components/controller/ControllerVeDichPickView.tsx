@@ -30,9 +30,9 @@ import CVeDichPickLayout from "@/pages/controller/CVeDichPickLayout";
 import CPlayerBar from "@/components/controller/CPlayerBar";
 import CControlButton from "@/components/controller/CControlButton";
 
-const logger = createLogger("AdminVeDichPickView");
+const logger = createLogger("ControllerVeDichPickView");
 
-export const AdminVeDichPickView = () => {
+export const ControllerVeDichPickView = () => {
   const { matchCode: paramMatchCode } = useParams<{ matchCode: string }>();
   const currentMatchCode = getMatchCode() || paramMatchCode || "";
   const { lastMessage, sendMessage } = useGameWebSocket();

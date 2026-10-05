@@ -14,8 +14,8 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { getMatchCode } from "@/utils/storage";
 import { notifyError } from "@/lib/notify";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const logger = createLogger("CQualifierPage");
 
@@ -37,7 +37,6 @@ interface Standing {
   rank: number;
 }
 
-/** GET ênvelope, nhưng lỗi HTTP/envelope trả về `{ data: null }` thay vì ném — giữ hành vi danh sách rỗng im lặng. */
 async function softGet<T>(path: string): Promise<ApiResponse<T>> {
   try {
     const res = await apiGet<T>(path);
@@ -64,6 +63,7 @@ const CQualifierPage = () => {
   const [standings, setStandings] = useState<Standing[]>([]);
   const [loading, setLoading] = useState(false);
   const [closingAll, setClosingAll] = useState(false);
+  const {confirm, dialog} = useConfirm();
 
   const base = useCallback(
     () => `/qualifier/${encodeURIComponent(tournamentCode.trim())}`,
@@ -103,7 +103,11 @@ const CQualifierPage = () => {
   const closeAll = useCallback(async () => {
     const open = questions.filter((q) => q.status === "open");
     if (open.length === 0) return;
-    if (!window.confirm(`Chốt + chấm ${open.length} câu đang mở?`)) return;
+    const ok = await confirm({
+      title: "Xác nhận đáp án của các câu hỏi",
+      description: `Bạn có xác nhận cho ${open.length} câu hỏi này không?`,
+    });
+    if (!ok) return;
     setClosingAll(true);
     try {
       try {
@@ -122,11 +126,10 @@ const CQualifierPage = () => {
     } finally {
       setClosingAll(false);
     }
-  }, [base, fetchAll, questions]);
+  }, [base, fetchAll, questions, confirm]);
 
   const openCount = questions.filter((q) => q.status === "open").length;
-  const closedCount = questions.length - openCount;
-  void getMatchCode;
+  const codeMismatch = !tournamentCode.trim();
 
   return (
     <div className="flex flex-col gap-4">
@@ -152,17 +155,12 @@ const CQualifierPage = () => {
         <Button
           variant="default"
           onClick={() => void closeAll()}
-          disabled={closingAll || openCount === 0}
+          disabled={closingAll || openCount === 0 || codeMismatch}
           className="gap-1 bg-success hover:bg-success/90 disabled:opacity-50 text-sm font-semibold text-success-foreground"
         >
           {closingAll ? "Đang chốt…" : `Chốt + chấm ${openCount} câu mở`}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {loading
-          ? "Đang tải…"
-          : `${questions.length}/16 câu · ${closedCount} đã chốt · ${openCount} đang mở`}
-      </p>
       {questions.length > 0 && (
         <div className="rounded-xl bg-accent/50 border border-border p-4">
           <div className="flex gap-1.5 flex-wrap">
@@ -201,6 +199,7 @@ const CQualifierPage = () => {
           </ol>
         )}
       </div>
+      {dialog}
     </div>
   );
 };

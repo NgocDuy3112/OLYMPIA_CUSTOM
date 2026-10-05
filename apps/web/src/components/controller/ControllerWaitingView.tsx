@@ -31,7 +31,7 @@ import { SERIES_COLORS } from "@/lib/seriesColors";
 const PLAYER_COLORS = SERIES_COLORS;
 const logger = createLogger("WaitingPage");
 
-export const AdminWaitingView = () => {
+export const ControllerWaitingView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
   const storedMatchCode = getMatchCode();

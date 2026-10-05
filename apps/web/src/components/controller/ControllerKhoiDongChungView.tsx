@@ -11,7 +11,7 @@ import CControlButton from "@/components/controller/CControlButton";
 import CQuestionBoard from "@/components/controller/CQuestionBoard";
 import { Button } from "@/components/ui/button";
 
-export const AdminKhoiDongChungView = () => {
+export const ControllerKhoiDongChungView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
 

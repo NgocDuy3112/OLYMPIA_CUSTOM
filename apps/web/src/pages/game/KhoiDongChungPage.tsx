@@ -3,7 +3,7 @@ import { useRoleSession } from "@/hooks/useRoleSession";
 
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 import { SKhoiDongPage } from "@/components/shared/SKhoiDongPage";
-import { AdminKhoiDongChungView } from "@/components/controller/AdminKhoiDongChungView";
+import { ControllerKhoiDongChungView } from "@/components/controller/ControllerKhoiDongChungView";
 import { PlayerKhoiDongChungView } from "@/components/player/PlayerKhoiDongChungView";
 
 const MCKhoiDongChungView = () => {
@@ -19,7 +19,7 @@ const MCKhoiDongChungView = () => {
 
 const KhoiDongChungPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "controller") return <AdminKhoiDongChungView />;
+  if (role === "controller") return <ControllerKhoiDongChungView />;
   if (role === "mc") return <MCKhoiDongChungView />;
   return <PlayerKhoiDongChungView />;
 };

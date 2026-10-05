@@ -5,7 +5,7 @@ import { useRoleSession } from "@/hooks/useRoleSession";
 import { PBasePageLayout } from "@/pages/player/PBasePageLayout";
 
 import { SButPhaPage } from "@/components/shared/SButPhaPage";
-import { AdminButPhaView } from "@/components/controller/AdminButPhaView";
+import { ControllerButPhaView } from "@/components/controller/ControllerButPhaView";
 import { PlayerButPhaView } from "@/components/player/PlayerButPhaView";
 
 const MCButPhaView = () => {
@@ -16,7 +16,7 @@ const MCButPhaView = () => {
 
 const ButPhaPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "controller") return <AdminButPhaView />;
+  if (role === "controller") return <ControllerButPhaView />;
   if (role === "mc") return <MCButPhaView />;
   return <PlayerButPhaView />;
 };

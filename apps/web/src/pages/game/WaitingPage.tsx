@@ -5,7 +5,7 @@ import { useRoleSession } from "@/hooks/useRoleSession";
 import { useWaitingState } from "@/hooks/useWaitingState";
 
 import { WaitingView } from "@/components/shared/WaitingView";
-import { AdminWaitingView } from "@/components/controller/AdminWaitingView";
+import { ControllerWaitingView } from "@/components/controller/ControllerWaitingView";
 import { PlayerWaitingView } from "@/components/player/PlayerWaitingView";
 
 const MCWaitingView = () => {
@@ -24,7 +24,7 @@ const MCWaitingView = () => {
 
 const WaitingPage = () => {
   const { role } = useGameWebSocket();
-  if (role === "controller") return <AdminWaitingView />;
+  if (role === "controller") return <ControllerWaitingView />;
   if (role === "mc") return <MCWaitingView />;
   return <PlayerWaitingView />;
 };

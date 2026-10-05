@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formInputClass, formLabelClass } from "@/components/shared/ui/form";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const logger = createLogger("SettingsPage");
 
@@ -40,6 +41,7 @@ const SettingsPage = () => {
   const [freshToken, setFreshToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirm();
 
   const fetchTokens = useCallback(async () => {
     if (!user || !canUseMcp) return;
@@ -83,7 +85,9 @@ const SettingsPage = () => {
         method: "POST",
         body: JSON.stringify({ name: name.trim(), userCode: user.userCode }),
       });
-      setFreshToken(String(json.data?.token ?? ""));
+      const token = json.data?.token;
+      if (!token) { setError("Tạo token thất bại"); return; }
+      setFreshToken(token);
       setName("");
       await fetchTokens();
     } catch (err) {
@@ -100,12 +104,13 @@ const SettingsPage = () => {
 
   const revokeToken = useCallback(
     async (tokenName: string) => {
-      if (
-        !window.confirm(
-          `Thu hồi token "${tokenName}"? Các tích hợp đang dùng token này sẽ ngừng hoạt động.`,
-        )
-      )
-        return;
+      const ok = await confirm({
+        title: "Gỡ bỏ MCP token",
+        description: "Các tích hợp đang dùng token này sẽ ngừng hoạt động. Bạn có muốn gỡ bỏ không?",
+        confirmLabel: "Gỡ bỏ token",
+        tone: "danger"
+      });
+      if (!ok) return;
       setRevoking(tokenName);
       setError(null);
       try {
@@ -124,7 +129,7 @@ const SettingsPage = () => {
         setRevoking(null);
       }
     },
-    [fetchTokens],
+    [fetchTokens, confirm],
   );
 
   const copyToken = useCallback(async () => {
@@ -255,7 +260,6 @@ const SettingsPage = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     maxLength={50}
-                    placeholder="VD: laptop-ca-nhan"
                     className={formInputClass}
                   />
                 </label>
@@ -298,18 +302,17 @@ const SettingsPage = () => {
                           <p className="truncate text-xs text-muted-foreground">
                             {t.createdAt
                               ? new Date(t.createdAt).toLocaleString("vi-VN")
-                              : "—"}
+                              : "-"}
                             {t.createdBy && t.createdBy !== user.userCode
                               ? ` · cấp bởi ${t.createdBy}`
                               : ""}
                           </p>
                         </div>
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                            t.revoked
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.revoked
                               ? "bg-muted text-muted-foreground"
                               : "bg-success/20 text-success"
-                          }`}
+                            }`}
                         >
                           {t.revoked ? "Đã thu hồi" : "Đang hoạt động"}
                         </span>
@@ -333,6 +336,7 @@ const SettingsPage = () => {
             </div>
           )}
         </Card>
+        {dialog}
       </div>
     </PublicLayout>
   );

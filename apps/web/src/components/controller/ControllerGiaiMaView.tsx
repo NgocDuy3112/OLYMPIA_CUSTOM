@@ -30,7 +30,7 @@ import { buildKeywordBanner } from "@/utils/keywordBanner";
 import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
-import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
+import { endRoundAndReturnToWaiting } from "@/utils/controllerRoundNavigation";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { apiGetOrNull } from "@/api/client";
@@ -63,7 +63,54 @@ const DEFAULT_QUESTION: Question = {
   questionMediaURL: undefined,
 };
 
-export const AdminGiaiMaView = () => {
+const AdminClueCard: React.FC<{
+  index: number;
+  state: ClueState;
+  onClick: () => void;
+  disabled?: boolean;
+  hintContent?: RevealedHint;
+}> = ({ index, state, onClick, disabled, hintContent }) => {
+  const base =
+    "flex-1 h-24 sm:h-28 lg:h-36 xl:h-44 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
+  const styles: Record<ClueState, string> = {
+    idle: "bg-primary/40 border-primary text-foreground hover:bg-primary/70 shadow",
+    active:
+      "bg-primary border-brand text-foreground shadow-lg ring-2 ring-brand",
+    used: "bg-primary/70 border-primary text-foreground cursor-default",
+  };
+  const showHint =
+    (state === "active" || state === "used") &&
+    !!(hintContent?.text || hintContent?.mediaUrl);
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      onClick={state === "used" || disabled ? undefined : onClick}
+      disabled={disabled && state !== "active"}
+      className={`${base} ${styles[state]}`}
+      aria-pressed={state === "active"}
+      aria-label={`Gợi ý ${index}`}
+    >
+      {showHint ? (
+        <div className="flex items-center justify-center w-full h-full p-3">
+          {hintContent!.mediaUrl ? (
+            <RenderMedia mediaUrl={hintContent!.mediaUrl} />
+          ) : (
+            <span className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-center leading-snug">
+              {hintContent!.text}
+            </span>
+          )}
+        </div>
+      ) : (
+        <span className="font-display text-2xl sm:text-[30pt] lg:text-[40pt] xl:text-[50pt]">
+          {index}
+        </span>
+      )}
+    </Button>
+  );
+};
+
+export const ControllerGiaiMaView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
   const storedMatchCode = getMatchCode();
@@ -952,53 +999,6 @@ export const AdminGiaiMaView = () => {
     sendPlayersSnapshot,
     keywordSubmissions,
   ]);
-
-  const AdminClueCard: React.FC<{
-    index: number;
-    state: ClueState;
-    onClick: () => void;
-    disabled?: boolean;
-    hintContent?: RevealedHint;
-  }> = ({ index, state, onClick, disabled, hintContent }) => {
-    const base =
-      "flex-1 h-24 sm:h-28 lg:h-36 xl:h-44 flex items-center justify-center rounded-xl font-bold cursor-pointer transition-all duration-200 select-none border-2";
-    const styles: Record<ClueState, string> = {
-      idle: "bg-primary/40 border-primary text-foreground hover:bg-primary/70 shadow",
-      active:
-        "bg-primary border-brand text-foreground shadow-lg ring-2 ring-brand",
-      used: "bg-primary/70 border-primary text-foreground cursor-default",
-    };
-    const showHint =
-      (state === "active" || state === "used") &&
-      !!(hintContent?.text || hintContent?.mediaUrl);
-    return (
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={state === "used" || disabled ? undefined : onClick}
-        disabled={disabled && state !== "active"}
-        className={`${base} ${styles[state]}`}
-        aria-pressed={state === "active"}
-        aria-label={`Gợi ý ${index}`}
-      >
-        {showHint ? (
-          <div className="flex items-center justify-center w-full h-full p-3">
-            {hintContent!.mediaUrl ? (
-              <RenderMedia mediaUrl={hintContent!.mediaUrl} />
-            ) : (
-              <span className="text-base sm:text-lg lg:text-xl xl:text-2xl font-bold text-center leading-snug">
-                {hintContent!.text}
-              </span>
-            )}
-          </div>
-        ) : (
-          <span className="font-display text-2xl sm:text-[30pt] lg:text-[40pt] xl:text-[50pt]">
-            {index}
-          </span>
-        )}
-      </Button>
-    );
-  };
 
   const clueGrid = (
     <div className="flex flex-col gap-2 sm:gap-3 w-full">

@@ -36,7 +36,7 @@ import { compareVeDichCodes, getVeDichMeta } from "@/utils/veDichGrid";
 import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
-import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
+import { endRoundAndReturnToWaiting } from "@/utils/controllerRoundNavigation";
 import type { PlayerStatus } from "@/types/player";
 import type { Question } from "@/types/question";
 import { apiGetOrNull } from "@/api/client";
@@ -69,7 +69,7 @@ const getTimeLimitForPoints = (points: number): number => {
   }
 };
 
-export const AdminVeDichChungView = () => {
+export const ControllerVeDichChungView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
   const storedMatchCode = getMatchCode();

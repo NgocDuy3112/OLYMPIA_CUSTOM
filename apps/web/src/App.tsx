@@ -62,6 +62,10 @@ function App() {
               path="/operator/mcp-tokens"
               element={<Navigate to="/settings" replace />}
             />
+            <Route
+              path="/operator/mcp-tokens/*"
+              element={<Navigate to="/settings" replace />}
+            />
             <Route path="/info/rules" element={<RulesPage />} />
             <Route path="/tournament/*" element={<TournamentRoutes />} />
             <Route path="/profile" element={<ProfileRoutes />} />

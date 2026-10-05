@@ -20,7 +20,7 @@ const QUESTION_PREFIX = "OC3_Q_KD_R";
 const MAX_QUESTION_INDEX = 6;
 const TIME_LIMIT = 60;
 
-export const AdminKhoiDongRiengView = () => {
+export const ControllerKhoiDongRiengView = () => {
   const navigate = useNavigate();
   const { matchCode: urlMatchCode } = useParams<{ matchCode: string }>();
 

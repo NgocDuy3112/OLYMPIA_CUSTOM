@@ -15,7 +15,8 @@ import {
 import {
   createDataTableColumns,
 } from "@/components/shared/data-table-core";
-import { notifyError } from "@/lib/notify";
+import { notifyError, notifySuccess } from "@/lib/notify";
+import { useConfirm } from "@/hooks/useConfirm";
 
 const logger = createLogger("AdminCheckpointsPage");
 
@@ -67,6 +68,7 @@ const AdminCheckpointsPage = () => {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const {confirm, dialog} = useConfirm();
 
   const fetchCheckpoints = useCallback(async () => {
     if (!matchCode.trim()) return;
@@ -92,19 +94,20 @@ const AdminCheckpointsPage = () => {
 
   const handleRestore = useCallback(async () => {
     if (!matchCode.trim()) return;
-    if (
-      !window.confirm(
-        `Khôi phục Valkey từ checkpoint mới nhất của ${matchCode.trim()}?`,
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Khôi phục lại checkpoint",
+      description: `Bạn có đồng ý khôi phục lại dữ liệu mới nhất của trận ${matchCode.trim()}?`,
+      confirmLabel: "Khôi phục",
+      tone: "danger"
+    });
+    if (!ok) return;
     setRestoring(true);
     try {
       await apiCall(
         `/checkpoints/${encodeURIComponent(matchCode.trim())}/restore`,
         { method: "POST" },
       );
-      notifyError("Đã khôi phục snapshot");
+      notifySuccess("Đã khôi phục dữ liệu trận đấu");
       await fetchCheckpoints();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -116,7 +119,7 @@ const AdminCheckpointsPage = () => {
     } finally {
       setRestoring(false);
     }
-  }, [matchCode, fetchCheckpoints]);
+  }, [matchCode, fetchCheckpoints, confirm]);
 
   return (
     <div className="flex flex-col gap-4 p-1 sm:p-2 text-foreground">
@@ -157,6 +160,7 @@ const AdminCheckpointsPage = () => {
         emptyText="Nhập match code rồi bấm tải. Job snapshot chạy mỗi 30s, giữ 10 bản mới nhất."
         pageSize={20}
       />
+      {dialog}
     </div>
   );
 };

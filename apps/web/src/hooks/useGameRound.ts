@@ -9,7 +9,7 @@ import { loadControllerPlayersSnapshot } from "@/api/controllerPlayers";
 import { getMatchCode } from "@/utils/storage";
 import { calculateScore } from "@/api/scores";
 import { sendStartTimer } from "@/utils/wsStartTimer";
-import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
+import { endRoundAndReturnToWaiting } from "@/utils/controllerRoundNavigation";
 import { mapQuestionApiPayload } from "@/utils/questionMapper";
 import { apiGet } from "@/api/client";
 import type { PlayerStatus } from "@/types/player";
