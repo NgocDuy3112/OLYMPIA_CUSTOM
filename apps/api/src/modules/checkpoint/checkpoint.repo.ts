@@ -1,5 +1,5 @@
-import { desc, eq, sql } from "@oc/db";
-import { db, matches, matchCheckpoints } from "@oc/db";
+import { desc, eq, sql } from "./db";
+import { db, matches, matchCheckpoints } from "./db";
 
 export type CheckpointRow = typeof matchCheckpoints.$inferSelect;
 

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "@oc/db";
+import { and, desc, eq } from "./db";
 import {
     db,
     scoreReviews,
@@ -6,7 +6,7 @@ import {
     users,
     answers,
     matchPlayerPositions,
-} from "@oc/db";
+} from "./db";
 import { AppError } from "../../utils/errors.js";
 
 export interface ScoreReviewCandidate {

@@ -1,11 +1,11 @@
-import { and, eq } from "@oc/db";
+import { and, eq } from "./db";
 import {
   db,
   matches,
   tournaments,
   tournamentPhases,
   bracketEdges,
-} from "@oc/db";
+} from "./db";
 
 export interface TemplateTournamentRow {
   id: string;

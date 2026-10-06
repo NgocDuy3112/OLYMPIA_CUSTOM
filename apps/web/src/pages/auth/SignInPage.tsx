@@ -1,4 +1,5 @@
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
+import { useAuth, type OperatorScope } from "@/hooks/useAuth";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BaseAuthLayout } from "@/pages/auth/BaseAuthLayout";
 import { apiCall } from "@/api/client";
@@ -30,6 +31,13 @@ const STAFF_COPY: Record<
     placeholder: "Username",
   },
 };
+
+function homePathFor(user: {role: string, operatorScopes?: OperatorScope[] | null}): string {
+  if (user.role === "admin") return "/admin";
+  if (user.role === "operator") {
+    const scopes = 
+  }
+}
 
 const OPERATOR_HOME: { scope: string; path: string }[] = [
   { scope: "controller", path: "/operator/controller/overview" },

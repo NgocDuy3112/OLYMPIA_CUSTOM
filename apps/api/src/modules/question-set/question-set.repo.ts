@@ -1,5 +1,5 @@
-import { and, eq } from "@oc/db";
-import { db, questionSets, questionSetItems } from "@oc/db";
+import { and, eq } from "./db";
+import { db, questionSets, questionSetItems } from "./db";
 
 export interface QuestionSetRow {
   id: string;

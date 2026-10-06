@@ -1,5 +1,5 @@
-import { and, eq } from "@oc/db";
-import { db, records } from "@oc/db";
+import { and, eq } from "./db";
+import { db, records } from "./db";
 
 export type RecordRow = typeof records.$inferSelect;
 

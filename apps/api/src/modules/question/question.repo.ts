@@ -1,5 +1,5 @@
-import { and, eq } from "@oc/db";
-import { db, matches, questions, tournamentPlayers } from "@oc/db";
+import { and, eq } from "./db";
+import { db, matches, questions, tournamentPlayers } from "./db";
 
 export interface QuestionRow {
     id: string;

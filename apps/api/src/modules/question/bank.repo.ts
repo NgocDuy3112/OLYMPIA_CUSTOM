@@ -1,5 +1,5 @@
-import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "@oc/db";
-import { db, matches, questionBank, questions } from "@oc/db";
+import { and, desc, eq, ilike, inArray, or, sql, type SQL } from "./db";
+import { db, matches, questionBank, questions } from "./db";
 import { clampLimit, clampOffset } from "../../utils/pagination.js";
 
 export type BankStatus = "pending" | "approved" | "rejected";

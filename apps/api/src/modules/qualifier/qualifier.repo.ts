@@ -1,4 +1,4 @@
-import { and, eq, sql } from "@oc/db";
+import { and, eq, sql } from "./db";
 import {
   db,
   qualifierAttempts,
@@ -6,7 +6,7 @@ import {
   tournamentPlayers,
   tournaments,
   users,
-} from "@oc/db";
+} from "./db";
 import {
   rankQualifierPlayers,
   round3,

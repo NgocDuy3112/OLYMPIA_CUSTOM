@@ -3,11 +3,15 @@ import "./index.css";
 import App from "./App.tsx";
 import { migrateVdStorage } from "./utils/vdStorage";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "./contexts/AuthProvider.tsx";
 
 migrateVdStorage();
 
 createRoot(document.getElementById("root")!).render(
-  <TooltipProvider>
-    <App />
-  </TooltipProvider>
+  <AuthProvider>
+    <TooltipProvider>
+      <App />
+    </TooltipProvider>
+  </AuthProvider>
+  
 );

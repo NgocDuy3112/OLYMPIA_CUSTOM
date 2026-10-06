@@ -1,11 +1,11 @@
-import { and, desc, eq } from "@oc/db";
+import { and, desc, eq } from "./db";
 import {
     db,
     matches,
     matchPlayerPositions,
     tournaments,
     users,
-} from "@oc/db";
+} from "./db";
 import { makeMatchCode, ocNumberFromFormat } from "@oc/shared";
 
 export interface MatchRow {

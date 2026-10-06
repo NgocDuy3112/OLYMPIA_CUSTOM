@@ -1,10 +1,10 @@
-import { and, eq } from "@oc/db";
+import { and, eq } from "./db";
 import {
   db,
   tournaments,
   tournamentPlayers,
   users,
-} from "@oc/db";
+} from "./db";
 
 export interface DiscordTournamentRow {
   id: string;

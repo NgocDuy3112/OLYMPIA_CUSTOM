@@ -1,4 +1,4 @@
-import { and, eq, sql } from "@oc/db";
+import { and, eq, sql } from "./db";
 import {
     db,
     matches,
@@ -6,7 +6,7 @@ import {
     questions,
     records,
     users,
-} from "@oc/db";
+} from "./db";
 import { ocPrefixFromCode } from "@oc/shared";
 
 export interface ScoreboardEntry {

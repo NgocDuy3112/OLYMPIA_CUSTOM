@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or, sql } from "@oc/db";
+import { and, desc, eq, inArray, or, sql } from "./db";
 import {
   db,
   bracketEdges,
@@ -8,7 +8,7 @@ import {
   tournamentPhases,
   tournamentPlayers,
   users,
-} from "@oc/db";
+} from "./db";
 import { makeTournamentCode, ocNumberFromFormat } from "@oc/shared";
 
 export interface TournamentRow {
