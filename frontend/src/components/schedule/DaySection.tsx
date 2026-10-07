@@ -5,9 +5,10 @@ import { formatDay } from "@/lib/format"
 interface DaySectionProps {
     date: string
     matches: Match[]
+    onOpenMatch: (id: string) => void
 }
 
-export function DaySection({ date, matches }: DaySectionProps) {
+export function DaySection({ date, matches, onOpenMatch }: DaySectionProps) {
     return (
         <section className="flex flex-col gap-3">
             <div className="flex items-baseline justify-between">
@@ -17,7 +18,11 @@ export function DaySection({ date, matches }: DaySectionProps) {
                 </span>
             </div>
             {matches.map((match) => (
-                <MatchCard key={match.id} match={match} />
+                <MatchCard 
+                    key={match.id} 
+                    match={match} 
+                    onOpen={() => onOpenMatch(match.id)}
+                />
             ))}
         </section>
     )

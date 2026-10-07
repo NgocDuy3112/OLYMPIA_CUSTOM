@@ -6,9 +6,14 @@ import {
 } from "@/data/schedule"
 import { DaySection } from "@/components/schedule/DaySection"
 import { MatchCard } from "@/components/schedule/MatchCard"
+import { MatchDetail } from "@/components/schedule/MatchDetail"
 import { StandingsPanel } from "@/components/standings/StandingsPanel"
 import { ScheduleHeader } from "@/components/schedule/ScheduleHeader"
 import { formatDay } from "@/lib/format"
+import { Inbox } from "lucide-react"
+
+
+const STANDINGS_PREVIEW_COUNT = 4
 
 
 interface SchedulePageProps {
@@ -31,6 +36,8 @@ export function SchedulePage({
     )
 
     const [day, setDay] = useState<string>(days[0] ?? "")
+    const [openMatchId, setOpenMatchId] = useState<string | null>(null)
+    const openMatch = matches.find((m) => m.id == openMatchId) ?? null
 
     const goPrev = () => {
         const i = days.indexOf(day)
@@ -60,8 +67,17 @@ export function SchedulePage({
         return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
     }, [rest])
 
+    if (openMatch) {
+        return (
+            <MatchDetail
+                match={openMatch}
+                onBack={() => setOpenMatchId(null)}
+            />
+        )
+    }
+
     return (
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 md:py-10">
+        <div className="mx-auto flex w-full flex-col max-w-6xl gap-6 px-4 py-6 md:py-10">
             <ScheduleHeader
                 title={tournament.name}
                 dayLabel={formatDay(day)}
@@ -73,22 +89,49 @@ export function SchedulePage({
             {loading ? (
                 <ScheduleSkeleton />
             ) : (
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <div className="flex min-w-0 flex-col gap-6">
                         {liveMatch && (
                             <div className="flex flex-col gap-3">
-                                <MatchCard match={liveMatch} featured />
+                                <MatchCard
+                                    match={liveMatch}
+                                    featured
+                                    onOpen={() => setOpenMatchId(liveMatch.id)}
+                                />
                             </div>
                         )}
 
                         {groups.map(([date, list]) => (
-                            <DaySection key={date} date={date} matches={list} />
+                            <DaySection
+                                key={date}
+                                date={date}
+                                matches={list}
+                                onOpenMatch={setOpenMatchId}
+                            />
                         ))}
+
+                        {groups.length === 0 && !liveMatch && <EmptyState />}
                     </div>
 
-                    <StandingsPanel rows={standings} />
+                    <StandingsPanel
+                        rows={standings.slice(0, STANDINGS_PREVIEW_COUNT)}
+                        viewAllLink
+                    />
                 </div>
             )}
+        </div>
+    )
+}
+
+
+function EmptyState() {
+    return (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-12 text-center">
+            <Inbox className="size-6 text-muted-foreground" aria-hidden />
+            <p className="font-medium">Hôm nay thật yên bình</p>
+            <p className="text-sm text-muted-foreground">
+                Không có trận đấu nào diễn ra và hôm nay
+            </p>
         </div>
     )
 }

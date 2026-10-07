@@ -18,5 +18,12 @@ export function pointsForPlacement(placement: number): number {
 }
 
 export function carryOverPoints(prevPoints: number): number {
-    return Math.floor(prevPoints / 2)
+    return prevPoints / 2
+}
+
+export function placementLabel(placement: number): string {
+    const scored = PLACEMENT_TIERS.some(
+        (t) => placement >= t.min && placement <= t.max
+    )
+    return scored ? `Hạng ${placement}` : "Hạng còn lại"
 }

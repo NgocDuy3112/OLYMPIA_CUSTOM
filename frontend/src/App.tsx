@@ -31,6 +31,7 @@ function App() {
             <StandingsPage
               tournament={sampleTournament}
               rows={sampleStandings}
+              matches={sampleMatches}
               loading={loading}
             />
           }

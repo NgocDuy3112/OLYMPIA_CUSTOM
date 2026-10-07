@@ -28,7 +28,7 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
             onClick={onOpen}
         >
             <CardContent className="flex flex-col gap-1 sm:flex-row sm:gap-5">
-                <div className="flex shrink-0 flex-row items-center justify-center gap-1 self-stretch border-b border-border pb-2 sm:w-36 sm:flex-col sm:border-b-0 sm:border-r sm:gap-0 sm:pb-0">
+                <div className="flex shrink-0 flex-row items-center justify-center gap-3 self-stretch border-b border-border pb-2 sm:w-36 sm:flex-col sm:border-b-0 sm:border-r sm:gap-0 sm:pb-0">
                     <h3 className="font-heading text-lg font-semibold">
                         {match.round}
                     </h3>
@@ -66,9 +66,7 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                                         {player.name}
                                     </span>
                                     <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground">
-                                        {match.status === "UPCOMING"
-                                            ? "-"
-                                            : (player.score ?? 0)}
+                                        {match.status === "UPCOMING" ? "-" : (player.score ?? 0)}
                                     </span>
                                 </li>
                             )

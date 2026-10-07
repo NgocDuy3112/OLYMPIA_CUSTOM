@@ -21,11 +21,11 @@ export function PointsRulesPanel() {
     ]
 
     return (
-        <Card className="h-fit">
+        <Card className="h-fit [--card-spacing:--spacing(8)]">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-xl">
                     <Medal className="size-4" aria-hidden />
-                    Points rules
+                    Quy tắc tính điểm
                 </CardTitle>
                 <CardDescription>Dựa theo thứ hạng của mùa giải, các thí sinh sẽ tích luỹ được điểm số tương ứng</CardDescription>
             </CardHeader>
@@ -34,7 +34,7 @@ export function PointsRulesPanel() {
                     {rows.map((row) => (
                         <li
                             key={row.label}
-                            className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm"
+                            className="flex items-center justify-between rounded-md px-2 py-1.5 text-base"
                         >
                             <span className="text-muted-foreground">
                                 Hạng {row.label}
@@ -45,7 +45,7 @@ export function PointsRulesPanel() {
                         </li>
                     ))}
                 </ul>
-                <div className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                <div className="mt-3 border-t pt-3 text-sm text-muted-foreground">
                     <ul className="flex list-disc flex-col gap-1 pl-4">
                         <li>
                             Điểm xét duyệt cho mùa giải sau bằng tổng điểm tích luỹ tại mùa
