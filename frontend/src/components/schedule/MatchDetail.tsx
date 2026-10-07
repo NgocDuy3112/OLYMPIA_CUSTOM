@@ -1,4 +1,5 @@
 import { ArrowLeft } from "lucide-react"
+import { RoundChart } from "@/components/match/RoundChart"
 import { buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -25,7 +26,7 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
     const topScore = hasResults ? Math.max(...scores) : 0
 
     return (
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 md:py-10">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-6 md:py-10">
             <div>
                 <button
                     type="button"
@@ -37,7 +38,6 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
                 </button>
             </div>
 
-            {/* card — always visible */}
             <Card size="sm" className={cn(isLive && "ring-2 ring-destructive")}>
                 <CardContent className="flex flex-col gap-3 sm:flex-row sm:gap-5">
                     <div className="flex shrink-0 flex-row items-center justify-center gap-3 self-stretch border-b border-border pb-2 sm:w-fit sm:shrink-0 sm:flex-col sm:gap-0 sm:border-b-0 sm:border-r sm:px-2 sm:pb-0">
@@ -92,24 +92,29 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
                 </CardContent>
             </Card>
 
-            {/* tabs — below card, full width */}
             <Tabs defaultValue="general">
                 <TabsList className="w-full!">
-                    <TabsTrigger value="general">General</TabsTrigger>
-                    <TabsTrigger value="statistics">Statistics</TabsTrigger>
+                    <TabsTrigger value="general">Diễn biến</TabsTrigger>
+                    <TabsTrigger value="statistics">Thống kê</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="general" className="flex flex-col gap-4">
                     {match.status === "UPCOMING" && (
                         <p className="text-sm text-muted-foreground">
-                            Match has not started yet.
+                            Trận đấu sắp bắt đầu
                         </p>
                     )}
                     {match.status === "FINISHED" && (
                         <p className="text-sm text-muted-foreground">
-                            Match finished. See Statistics for score details.
+                            Trận đấu đã kết thúc
                         </p>
                     )}
+                    <div className="flex flex-col gap-2">
+                        <h3 className="font-heading text-base font-semibold">
+                            Điểm theo vòng thi
+                        </h3>
+                        <RoundChart players={players} />
+                    </div>
                 </TabsContent>
 
                 <TabsContent value="statistics" className="flex flex-col gap-4">
