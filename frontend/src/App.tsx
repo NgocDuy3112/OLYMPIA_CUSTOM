@@ -4,7 +4,9 @@ import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "./pages/NotFoundPage"
+import { MatchPage } from "./pages/MatchPage"
 import { sampleMatches, sampleStandings, sampleTournament } from "@/data/sample"
+
 
 function App() {
   const [loading, setLoading] = useState(true)
@@ -38,6 +40,7 @@ function App() {
               />
             }
           />
+          <Route path="/matches/:id" element={<MatchPage matches={sampleMatches} />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

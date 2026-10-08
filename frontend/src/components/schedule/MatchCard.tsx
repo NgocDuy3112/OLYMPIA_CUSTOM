@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "cn"
 import type { Match } from "@/data/schedule"
-import { orderMatchPlayers } from "@/lib/matchOrder"
+import { Trophy } from "lucide-react"
 import { STATUS_LABEL, STATUS_VARIANT } from "./status"
 
 interface MatchCardProps {
@@ -12,9 +12,9 @@ interface MatchCardProps {
 }
 
 export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
-    const players = orderMatchPlayers(match)
-    const isLive = match.status === "LIVE"
-    const winnerId = match.status === "FINISHED" ? players[0]?.id : undefined
+    const players = match.players
+    const isLive = (match.status === "LIVE")
+    const winnerId = (match.status === "FINISHED") ? match.players.find((p) => p.rank === 1)?.id : undefined
 
     return (
         <Card
@@ -56,15 +56,18 @@ export function MatchCard({ match, featured = false, onOpen }: MatchCardProps) {
                                     key={player.id}
                                     className={cn(
                                         "flex items-center gap-3 rounded-md px-2 py-1.5",
-                                        isWinner && "bg-muted font-semibold",
-                                        isLive &&
-                                        player.rank === 1 &&
-                                        "font-medium"
+                                        isLive && player.rank === 1 && "font-medium"
                                     )}
                                 >
                                     <span className="min-w-0 flex-1 truncate">
                                         {player.name}
                                     </span>
+                                    {isWinner && (
+                                        <Badge variant="default" className="shrink-0 gap-1">
+                                            <Trophy className="size-3" aria-hidden />
+                                            Nhất trận đấu
+                                        </Badge>
+                                    )}
                                     <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground">
                                         {match.status === "UPCOMING" ? "-" : (player.score ?? 0)}
                                     </span>

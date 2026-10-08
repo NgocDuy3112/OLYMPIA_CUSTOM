@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import {
     type Match,
     type StandingRow,
@@ -6,15 +7,13 @@ import {
 } from "@/data/schedule"
 import { DaySection } from "@/components/schedule/DaySection"
 import { MatchCard } from "@/components/schedule/MatchCard"
-import { MatchDetail } from "@/components/schedule/MatchDetail"
+import { StageTimeline } from "@/components/schedule/StageTimeline"
 import { StandingsPanel } from "@/components/standings/StandingsPanel"
 import { ScheduleHeader } from "@/components/schedule/ScheduleHeader"
 import { formatDay } from "@/lib/format"
 import { Inbox } from "lucide-react"
 
-
 const STANDINGS_PREVIEW_COUNT = 4
-
 
 interface SchedulePageProps {
     tournament: Tournament
@@ -36,8 +35,7 @@ export function SchedulePage({
     )
 
     const [day, setDay] = useState<string>(days[0] ?? "")
-    const [openMatchId, setOpenMatchId] = useState<string | null>(null)
-    const openMatch = matches.find((m) => m.id == openMatchId) ?? null
+    const navigate = useNavigate()
 
     const goPrev = () => {
         const i = days.indexOf(day)
@@ -67,17 +65,9 @@ export function SchedulePage({
         return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
     }, [rest])
 
-    if (openMatch) {
-        return (
-            <MatchDetail
-                match={openMatch}
-                onBack={() => setOpenMatchId(null)}
-            />
-        )
-    }
 
     return (
-        <div className="mx-auto flex w-full flex-col max-w-6xl gap-6 px-4 py-6 md:py-10">
+        <div className="mx-auto flex w-full flex-col max-w-360 gap-6 px-4 py-6 md:py-10">
             <ScheduleHeader
                 title={tournament.name}
                 dayLabel={formatDay(day)}
@@ -89,14 +79,18 @@ export function SchedulePage({
             {loading ? (
                 <ScheduleSkeleton />
             ) : (
-                <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)_360px]">
+                    <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
+                        <StageTimeline />
+                    </aside>
+                    
                     <div className="flex min-w-0 flex-col gap-6">
                         {liveMatch && (
                             <div className="flex flex-col gap-3">
                                 <MatchCard
                                     match={liveMatch}
                                     featured
-                                    onOpen={() => setOpenMatchId(liveMatch.id)}
+                                    onOpen={() => navigate(`/matches/${liveMatch.id}`)}
                                 />
                             </div>
                         )}
@@ -106,7 +100,7 @@ export function SchedulePage({
                                 key={date}
                                 date={date}
                                 matches={list}
-                                onOpenMatch={setOpenMatchId}
+                                onOpenMatch={(id) => navigate(`/matches/${id}`)}
                             />
                         ))}
 

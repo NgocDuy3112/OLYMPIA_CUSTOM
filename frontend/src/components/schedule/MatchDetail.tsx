@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Trophy } from "lucide-react"
 import { RoundChart } from "@/components/match/RoundChart"
 import { buttonVariants } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -6,7 +6,6 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "cn"
 import type { Match } from "@/data/schedule"
-import { orderMatchPlayers } from "@/lib/matchOrder"
 import { pointsForPlacement } from "@/lib/rankingPoints"
 import { STATUS_LABEL, STATUS_VARIANT } from "./status"
 
@@ -16,10 +15,10 @@ interface MatchDetailProps {
 }
 
 export function MatchDetail({ match, onBack }: MatchDetailProps) {
-    const players = orderMatchPlayers(match)
-    const isLive = match.status === "LIVE"
-    const hasResults = match.status !== "UPCOMING"
-    const winnerId = match.status === "FINISHED" ? players[0]?.id : undefined
+    const players = match.players
+    const isLive = (match.status === "LIVE")
+    const hasResults = (match.status !== "UPCOMING")
+    const winnerId = (match.status === "FINISHED") ? match.players.find((p) => p.rank === 1)?.id : undefined
 
     const scores = players.map((p) => p.score ?? 0)
     const totalScore = scores.reduce((sum, s) => sum + s, 0)
@@ -64,23 +63,24 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
                         <ul className="flex flex-col gap-2">
                             {players.map((player) => {
                                 const isWinner = player.id === winnerId
-                                const label = hasResults ? player.rank : player.seed
 
                                 return (
                                     <li
                                         key={player.id}
                                         className={cn(
                                             "flex items-center gap-3 rounded-md px-2 py-2",
-                                            isWinner && "bg-muted font-semibold",
                                             isLive && player.rank === 1 && "font-medium"
                                         )}
                                     >
-                                        <span className="w-5 shrink-0 text-right text-sm tabular-nums text-muted-foreground">
-                                            {label ?? "-"}
-                                        </span>
                                         <span className="min-w-0 flex-1 truncate text-base">
                                             {player.name}
                                         </span>
+                                        {isWinner && (
+                                            <Badge variant="default" className="shrink-0 gap-1">
+                                                <Trophy className="size-3" aria-hidden />
+                                                Nhất trận đấu
+                                            </Badge>
+                                        )}
                                         <span className="w-8 shrink-0 text-right text-base tabular-nums text-muted-foreground">
                                             {hasResults ? (player.score ?? 0) : "-"}
                                         </span>
