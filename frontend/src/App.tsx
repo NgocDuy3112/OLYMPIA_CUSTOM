@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { sampleMatches, sampleStandings, sampleTournament } from "@/data/sample"
@@ -14,31 +15,31 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route
-          path="/"
-          element={
-            <SchedulePage
-              tournament={sampleTournament}
-              matches={sampleMatches}
-              standings={sampleStandings}
-              loading={loading}
-            />
-          }
-        />
-        <Route
-          path="/standings"
-          element={
-            <StandingsPage
-              tournament={sampleTournament}
-              rows={sampleStandings}
-              matches={sampleMatches}
-              loading={loading}
-            />
-          }
-        />
+        <Route element={<AppShell />}>
+          <Route
+            path="/"
+            element={
+              <SchedulePage
+                tournament={sampleTournament}
+                matches={sampleMatches}
+                standings={sampleStandings}
+                loading={loading}
+              />
+            }
+          />
+          <Route
+            path="/standings"
+            element={
+              <StandingsPage
+                rows={sampleStandings}
+                matches={sampleMatches}
+                loading={loading}
+              />
+            }
+          />
+        </Route>
       </Routes>
     </BrowserRouter>
-
   )
 }
 

@@ -7,6 +7,8 @@ import { formatDay } from "@/lib/format"
 import { carryOverPoints, placementLabel } from "@/lib/rankingPoints"
 import { STATUS_LABEL, STATUS_VARIANT } from "@/components/schedule/status"
 import type { Match, StandingRow } from "@/data/schedule"
+import { DialogTitle } from "@/components/ui/dialog"
+
 
 interface PlayerDrawerProps {
     player: StandingRow
@@ -25,7 +27,7 @@ export function PlayerDrawer({
     const history = matches
         .filter((m) => m.players.some((p) => p.id === player.id))
         .sort((a, b) =>
-            (a.date + a.startTime).localeCompare(b.date + b.startTime)
+            (b.date + b.startTime).localeCompare(a.date + a.startTime)
         )
 
     return (
@@ -34,7 +36,7 @@ export function PlayerDrawer({
                 <DialogOverlay />
                 <DialogPrimitive.Popup
                     className={cn(
-                        "fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col gap-6 overflow-y-auto bg-popover p-6 text-sm text-popover-foreground shadow-lg ring-1 ring-foreground/10 duration-200 outline-none",
+                        "fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col gap-8 overflow-y-auto bg-popover p-6 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-200 outline-none",
                         "data-open:animate-in data-open:fade-in-0 data-open:slide-in-from-right",
                         "data-closed:animate-out data-closed:fade-out-0 data-closed:slide-out-to-right"
                     )}
@@ -42,12 +44,9 @@ export function PlayerDrawer({
                     {/* header */}
                     <div className="flex items-start justify-between gap-3">
                         <div className="flex flex-col gap-1">
-                            <h2 className="font-heading text-xl font-semibold">
+                            <DialogTitle className="font-heading text-3xl font-semibold">
                                 {player.name}
-                            </h2>
-                            <span className="text-xs text-muted-foreground">
-                                Hạng {player.rank} · {placementLabel(player.best)}
-                            </span>
+                            </DialogTitle>
                         </div>
                         <DialogPrimitive.Close className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                             <X className="size-4" aria-hidden />
@@ -55,17 +54,25 @@ export function PlayerDrawer({
                         </DialogPrimitive.Close>
                     </div>
 
-                    {/* stats */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <Stat label="Tổng điểm" value={player.points + carry} strong />
-                        <Stat label="Điểm mùa này" value={player.points} />
-                        <Stat label="Điểm mùa trước" value={player.prevPoints} />
-                        <Stat label="Cộng dồn (50%)" value={carry} />
+                    <div className="flex flex-col gap-3">
+                        <h3 className="text-xl font-semibold">Olympia Custom Points</h3>
+                        <div className="grid grid-cols-3 gap-1">
+                            <Stat label="Tổng điểm" value={player.points + carry} strong />
+                            <Stat label="Điểm mùa này" value={player.points} />
+                            <Stat label="Điểm mùa trước" value={player.prevPoints} />
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <h3 className="text-xl font-semibold">Thành tích thứ hạng</h3>
+                        <div className="grid grid-cols-2 gap-1">
+                            <Stat label="Hạng mùa này" value={`#${player.rank}`} />
+                            <Stat label="Hạng cao nhất" value={`#${player.best}`} />
+                        </div>
                     </div>
 
                     {/* history */}
                     <div className="flex flex-col gap-2">
-                        <h3 className="text-sm font-semibold">Lịch sử thi đấu</h3>
+                        <h2 className="text-xl font-semibold">Lịch sử thi đấu</h2>
                         {history.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 Chưa có trận nào.
@@ -80,25 +87,24 @@ export function PlayerDrawer({
                                     return (
                                         <li
                                             key={match.id}
-                                            className="flex items-center gap-3 rounded-md border border-border px-3 py-2"
+                                            className="flex flex-col gap-1 rounded-md border border-border px-3 py-2"
                                         >
-                                            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                                                {formatDay(match.date)}{" "}
-                                                {match.startTime}
-                                            </span>
-                                            <span className="min-w-0 flex-1 truncate">
-                                                {match.round}
-                                            </span>
-                                            <Badge
-                                                variant={STATUS_VARIANT[match.status]}
-                                            >
-                                                {STATUS_LABEL[match.status]}
-                                            </Badge>
-                                            <span className="shrink-0 text-xs font-medium tabular-nums">
-                                                {match.status === "UPCOMING"
-                                                    ? "–"
-                                                    : `#${p.rank} · ${p.score}`}
-                                            </span>
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="min-w-0 truncate font-medium">
+                                                    {match.round}
+                                                </span>
+                                                <Badge variant={STATUS_VARIANT[match.status]}>
+                                                    {STATUS_LABEL[match.status]}
+                                                </Badge>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                                                <span className="font-medium tabular-nums text-foreground">
+                                                    {match.status === "UPCOMING" ? "–" : `#${p.rank} · ${p.score}`}
+                                                </span>
+                                                <span className="tabular-nums">
+                                                    {formatDay(match.date)} · {match.startTime}
+                                                </span>
+                                            </div>
                                         </li>
                                     )
                                 })}
@@ -117,20 +123,20 @@ function Stat({
     strong = false,
 }: {
     label: string
-    value: number
+    value: number | string
     strong?: boolean
 }) {
     return (
-        <div className="flex flex-col gap-1 rounded-xl border border-border px-4 py-3">
-            <span className="text-xs text-muted-foreground">{label}</span>
+        <div className="flex flex-col gap-1 rounded-xl border border-border px-3 py-3 text-center">
             <span
                 className={cn(
-                    "font-heading text-xl font-semibold tabular-nums",
-                    strong && "text-foreground"
+                    "font-heading text-3xl font-bold tabular-nums leading-none",
+                    strong ? "text-foreground" : "text-muted-foreground"
                 )}
             >
                 {value}
             </span>
+            <span className="text-xs text-muted-foreground">{label}</span>
         </div>
     )
 }

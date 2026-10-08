@@ -7,7 +7,7 @@ export const STATUS_VARIANT: Record<MatchStatus, "outline" | "destructive" | "se
 }
 
 export const STATUS_LABEL: Record<MatchStatus, string> = {
-    UPCOMING: "Upcoming",
-    LIVE: "Live",
-    FINISHED: "Finished",
+    UPCOMING: "Sắp diễn ra",
+    LIVE: "Trực tiếp",
+    FINISHED: "Đã kết thúc",
 }

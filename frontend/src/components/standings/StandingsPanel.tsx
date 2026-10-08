@@ -51,10 +51,10 @@ export function StandingsPanel({
                         <TableRow>
                             <TableHead className="w-8">#</TableHead>
                             <TableHead>Thí sinh</TableHead>
-                            <TableHead>Tổng điểm</TableHead>
-                            <TableHead>Mùa này</TableHead>
+                            <TableHead className="text-center">Tổng điểm</TableHead>
+                            <TableHead className="text-center">Mùa này</TableHead>
                             {showPrev && (
-                                <TableHead>Mùa trước</TableHead>
+                                <TableHead className="text-center">Mùa trước</TableHead>
                             )}
                             {showBatch && (
                                 <TableHead>Thành tích</TableHead>
