@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom"
 import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
+import { NotFoundPage } from "./pages/NotFoundPage"
 import { sampleMatches, sampleStandings, sampleTournament } from "@/data/sample"
 
 function App() {
@@ -37,6 +38,7 @@ function App() {
               />
             }
           />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
