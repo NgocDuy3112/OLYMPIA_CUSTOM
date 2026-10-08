@@ -63,7 +63,6 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
                         <ul className="flex flex-col gap-2">
                             {players.map((player) => {
                                 const isWinner = player.id === winnerId
-
                                 return (
                                     <li
                                         key={player.id}

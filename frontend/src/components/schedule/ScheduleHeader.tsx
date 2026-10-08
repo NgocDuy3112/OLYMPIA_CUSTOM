@@ -1,15 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ArrowRight, Settings, Shield } from "lucide-react";
+import { ArrowLeft, ArrowRight, Settings } from "lucide-react";
 
 
 interface ScheduleHeaderProps {
     title?: string
     dayLabel?: string
-    tournamentLabel?: string
     onPrevDay?: () => void
     onNextDay?: () => void
     onToday?: () => void
-    onSelectTournament?: () => void
     onSettings?: () => void
 }
 
@@ -17,17 +15,14 @@ interface ScheduleHeaderProps {
 export function ScheduleHeader({
     title = "Sớm Nay",
     dayLabel = "Hôm nay",
-    tournamentLabel = "Tất Cả Giải Đấu",
     onPrevDay,
     onNextDay,
     onToday,
-    onSelectTournament,
     onSettings,
 }: ScheduleHeaderProps) {
     return (
         <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 md:px-6">
             <h1 className="font-heading text-2xl font-bold md:text-3xl">{title}</h1>
-
             <div className="flex items-center gap-2">
                 {/* date navigation pill */}
                 <div className="flex items-center overflow-hidden rounded-lg bg-secondary">
@@ -59,11 +54,6 @@ export function ScheduleHeader({
                     </Button>
                 </div>
 
-                {/* tournament selector */}
-                <Button variant="secondary" size="sm" onClick={onSelectTournament}>
-                    <Shield />
-                    {tournamentLabel}
-                </Button>
 
                 {/* settings */}
                 <Button
