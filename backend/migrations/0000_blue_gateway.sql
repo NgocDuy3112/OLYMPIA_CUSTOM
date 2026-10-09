@@ -21,7 +21,7 @@ CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"role" "user_role" NOT NULL,
 	"username" varchar(50),
-	"email" varchar(255) NOT NULL,
+	"email" varchar(255),
 	"email_verified" boolean DEFAULT false NOT NULL,
 	"display_name" varchar(100) NOT NULL,
 	"avatar_url" text,
@@ -33,7 +33,6 @@ CREATE TABLE "users" (
 	"disabled_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
-	CONSTRAINT "users_email_unique" UNIQUE("email"),
 	CONSTRAINT "users_role_identity_check" CHECK ((role = 'player' AND email IS NOT NULL) OR (role IN ('admin', 'operator') AND username IS NOT NULL))
 );
 --> statement-breakpoint

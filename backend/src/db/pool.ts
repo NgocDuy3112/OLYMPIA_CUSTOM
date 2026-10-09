@@ -7,6 +7,10 @@ export const pool = new pg.Pool({
     max: 10,
 });
 
+pool.on("error", (error) => {
+    console.error("Unexpected error on idle PostgreSQL client:", error);
+});
+
 export const db = drizzle(pool);
 
 export async function closePool(): Promise<void> {

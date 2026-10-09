@@ -27,14 +27,14 @@ export const env = {
 
     databaseUrl: required("DATABASE_URL"),
 
-    player: {
-        jwtSecret: required("PLAYER_JWT_SECRET"),
-        cookieDomain: optional("PLAYER_COOKIE_DOMAIN"),
+    gameplay: {
+        jwtSecret: required("GAMEPLAY_JWT_SECRET"),
+        cookieDomain: optional("GAMEPLAY_COOKIE_DOMAIN"),
     },
 
-    admin: {
-        jwtSecret: required("ADMIN_JWT_SECRET"),
-        cookieDomain: optional("ADMIN_COOKIE_DOMAIN"),
+    portal: {
+        jwtSecret: required("PORTAL_JWT_SECRET"),
+        cookieDomain: optional("PORTAL_COOKIE_DOMAIN"),
     },
 
     googleOidc: {
