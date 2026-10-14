@@ -15,6 +15,17 @@ import {
 import { sql } from "drizzle-orm";
 import { seasons } from "./reference.js";
 import { users } from "./auth.js";
+import { 
+    Seat, 
+    RoundConfig, 
+    MatchQuestion, 
+    MatchLive, 
+    MatchDiscord, 
+    AnswerValue,
+    Drafts,
+    ResultEntry,
+    MatchEventPayload
+} from "../../game/contracts/index.js";
 
 
 export const matchStatus = pgEnum("match_status", ["UPCOMING", "LIVE", "FINISHED"]);
@@ -35,11 +46,11 @@ export const matches = pgTable(
         label: text("label").notNull(),
         status: matchStatus("status").notNull().default("UPCOMING"),
 
-        players: jsonb("players").notNull(),
-        roundConfigs: jsonb("round_configs").notNull(),
-        questions: jsonb("questions").notNull(),
-        live: jsonb("live"),
-        discord: jsonb("discord"),
+        players: jsonb("players").$type<Seat[]>().notNull(),
+        roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),
+        questions: jsonb("questions").$type<MatchQuestion[]>().notNull(),
+        live: jsonb("live").$type<MatchLive>(),
+        discord: jsonb("discord").$type<MatchDiscord>(),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
@@ -67,8 +78,8 @@ export const answers = pgTable(
             .notNull()
             .references(() => users.id),
 
-        value: jsonb("value").notNull(),
-        drafts: jsonb("drafts"),
+        value: jsonb("value").$type<AnswerValue>().notNull(),
+        drafts: jsonb("drafts").$type<Drafts>(),
         firstAnsweredMs: integer("first_answered_ms"),
         answeredMs: integer("answered_ms"),
 
@@ -99,7 +110,7 @@ export const matchResults = pgTable(
         seasonId: uuid("season_id")
             .notNull()
             .references(() => seasons.id),
-        results: jsonb("results").notNull(),
+        results: jsonb("results").$type<ResultEntry[]>().notNull(),
         computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow()
     }
 );
@@ -191,7 +202,7 @@ export const matchEvents = pgTable(
             .references(() => users.id),
         roundId: text("round_id"),
         kind: matchEventKind("kind").notNull(),
-        payload: jsonb("payload").notNull(),
+        payload: jsonb("payload").$type<MatchEventPayload>().notNull(),
         at: timestamp("at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [

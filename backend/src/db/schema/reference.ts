@@ -14,6 +14,14 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./auth.js";
+import { 
+    Media, 
+    PlacementTier, 
+    QuestionPayload, 
+    SeasonRound, 
+    Stage, 
+    TournamentFormat 
+} from "../../game/contracts/index.js";
 
 
 export const visibility = pgEnum("visibility", ["PUBLIC", "PRIVATE"]);
@@ -33,9 +41,9 @@ export const tournaments = pgTable(
             .references(() => users.id),
 
         defaultTags: text("default_tags").array().notNull(),
-        defaultRounds: jsonb("default_rounds").notNull(),
-        defaultFormat: jsonb("default_format").notNull(),
-        defaultPlacementTiers: jsonb("default_placement_tiers").notNull(),
+        defaultRounds: jsonb("default_rounds").$type<SeasonRound[]>().notNull(),
+        defaultFormat: jsonb("default_format").$type<TournamentFormat>().notNull(),
+        defaultPlacementTiers: jsonb("default_placement_tiers").$type<PlacementTier[]>().notNull(),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
@@ -53,10 +61,10 @@ export const seasons = pgTable(
         name: text("name").notNull(),
         current: boolean("current").notNull().default(false),
 
-        rounds: jsonb("rounds").notNull(),
-        format: jsonb("format").notNull(),
-        placementTiers: jsonb("placement_tiers").notNull(),
-        stages: jsonb("stages").notNull(),
+        rounds: jsonb("rounds").$type<SeasonRound[]>().notNull(),
+        format: jsonb("format").$type<TournamentFormat>().notNull(),
+        placementTiers: jsonb("placement_tiers").$type<PlacementTier[]>().notNull(),
+        stages: jsonb("stages").$type<Stage[]>().notNull(),
 
         closedAt: timestamp("closed_at", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -90,8 +98,8 @@ export const questionBank = pgTable(
         kind: questionKind("kind").notNull(),
         questionText: text("question_text").notNull(),
         tag: varchar("tag", { length: 64 }).notNull(),
-        media: jsonb("media"), 
-        payload: jsonb("payload").notNull(),
+        media: jsonb("media").$type<Media>(), 
+        payload: jsonb("payload").$type<QuestionPayload>().notNull(),
         timeLimit: integer("time_limit"),
         status: questionStatus("status").notNull().default("DRAFT"),
 
