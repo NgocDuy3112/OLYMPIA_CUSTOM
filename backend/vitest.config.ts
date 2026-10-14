@@ -1,4 +1,5 @@
 import { defineConfig } from "vitest/config";
+import { deriveTestDatabaseUrl } from "./tests/helpers/test-db-url.ts";
 
 try {
     process.loadEnvFile("../configs/.env");
@@ -12,7 +13,7 @@ if (!devUrl) {
     throw new Error("DATABASE_URL is not set — refusing to run tests.");
 }
 
-const testUrl = devUrl.replace(/\/[^/?]+$/, "/olympia_test");
+const testUrl = deriveTestDatabaseUrl(process.env.DATABASE_URL);
 
 if (!testUrl.includes("test") || testUrl === devUrl) {
     throw new Error(
