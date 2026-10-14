@@ -1,7 +1,7 @@
 import argon2 from "argon2";
 import { eq } from "drizzle-orm";
 import { db } from "./pool.js";
-import { users } from "./schema.js";
+import { users } from "./schema/auth.js";
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -15,7 +15,7 @@ function seedConfig() {
             `SEED_ADMIN_PASSWORD must be at least ${MIN_PASSWORD_LENGTH} characters`
         );
     }
-    const username = process.env.SEED_ADMIN_USERNAME ?? "admin";
+    const username = process.env.SEED_ADMIN_USERNAME ?? "ADMIN";
     return { password, username };
 }
 
@@ -27,7 +27,7 @@ async function adminExists(username: string): Promise<boolean> {
         .where(eq(users.username, username))
         .limit(1);
 
-    if (existing && existing.role !== "admin") {
+    if (existing && existing.role !== "ADMIN") {
         throw new Error(
             `Username "${username}" is taken by a ${existing.role}; pick another via SEED_ADMIN_USERNAME`
         );
@@ -47,7 +47,7 @@ async function main() {
     const passwordHash = await argon2.hash(password);
 
     await db.insert(users).values({
-        role: "admin",
+        role: "ADMIN",
         username,
         displayName: username,
         passwordHash,

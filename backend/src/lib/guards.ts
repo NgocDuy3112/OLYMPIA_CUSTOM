@@ -1,7 +1,7 @@
 import type { FastifyRequest } from "fastify";
 import { eq } from "drizzle-orm";
 import { db } from "../db/pool.js";
-import { users } from "../db/schema.js";
+import { users } from "../db/schema/auth.js";
 import { COOKIE_NAMES, verifyToken, type Surface } from "./jwt.js";
 
 async function authenticate(request: FastifyRequest, surface: Surface) {
@@ -43,10 +43,10 @@ export function requireAuth(surface: Surface) {
     };
 }
 
-export function requireRole(surface: Surface, ...roles: Array<"admin" | "operator">) {
+export function requireRole(surface: Surface, ...roles: Array<"ADMIN" | "OPERATOR">) {
     return async (request: FastifyRequest) => {
         const user = await authenticate(request, surface);
-        if (!roles.includes(user.role as "admin" | "operator")) {
+        if (!roles.includes(user.role as "ADMIN" | "OPERATOR")) {
             throw request.server.httpErrors.forbidden("Insufficient role");
         }
         request.sessionUser = user;

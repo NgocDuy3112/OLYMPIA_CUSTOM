@@ -9,12 +9,12 @@ import {
     uniqueIndex,
     index,
     pgEnum,
-    pgTable
+    pgTable,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 
-export const userRole = pgEnum("user_role", ["admin", "operator", "player"])
+export const userRole = pgEnum("user_role", ["ADMIN", "OPERATOR", "PLAYER"]);
 
 
 export const users = pgTable(
@@ -28,6 +28,8 @@ export const users = pgTable(
         displayName: varchar("display_name", { length: 100 }).notNull(),
         avatarUrl: text("avatar_url"),
 
+        discordId: varchar("discord_id", { length: 30 }),
+
         passwordHash: text("password_hash"),
         totpSecret: text("totp_secret"),
         totpEnabledAt: timestamp("totp_enabled_at", { withTimezone: true }),
@@ -36,18 +38,18 @@ export const users = pgTable(
 
         disabledAt: timestamp("disabled_at", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [
         uniqueIndex("users_username_unique").on(table.username),
         uniqueIndex("users_email_unique").on(table.email),
+        uniqueIndex("users_discord_id_unique").on(table.discordId),
         check(
             "users_role_identity_check",
-            sql`(role = 'player' AND email IS NOT NULL) OR (role IN ('admin', 'operator') AND username IS NOT NULL)`
-        ),
+            sql`(role = 'PLAYER' AND email IS NOT NULL) OR (role IN ('ADMIN', 'OPERATOR') AND username IS NOT NULL)`
+        )
     ]
-)
-
+);
 
 export const oauthAccounts = pgTable(
     "oauth_accounts",
@@ -58,27 +60,33 @@ export const oauthAccounts = pgTable(
             .references(() => users.id, { onDelete: "cascade" }),
         provider: varchar("provider", { length: 32 }).notNull(),
         sub: text("sub").notNull(),
-        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
     },
-    (table) => [
-        uniqueIndex("oauth_provider_sub_unique").on(table.provider, table.sub),
-    ]
+    (table) => [uniqueIndex("oauth_provider_sub_unique").on(table.provider, table.sub)]
 );
 
-
-export const auditEvents = pgTable(
-    "audit_events",
+export const mcpKeys = pgTable(
+    "mcp_keys",
     {
         id: uuid("id").primaryKey().defaultRandom(),
-        actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
-        targetId: uuid("target_id").references(() => users.id, { onDelete: "set null" }),
-        action: varchar("action", { length: 100 }).notNull(),
-        ip: varchar("ip", { length: 45 }),
-        userAgent: text("user_agent"),
+        userId: uuid("user_id")
+            .notNull()
+            .references(() => users.id, { onDelete: "cascade" }),
+
+        label: text("label").notNull(),
+        prefix: varchar("prefix", { length: 20 }).notNull(),
+        keyHash: text("key_hash").notNull(), 
+        scopes: text("scopes").array().notNull().default(sql`'{READ}'`),
+
+        expiresAt: timestamp("expires_at", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+        lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+        lastIp: varchar("last_ip", { length: 45 }),
+        lastUserAgent: text("last_user_agent"),
+        revokedAt: timestamp("revoked_at", { withTimezone: true })
     },
     (table) => [
-        index("audit_events_actor_idx").on(table.actorId),
-        index("audit_events_target_idx").on(table.targetId),
+        uniqueIndex("mcp_keys_key_hash_unique").on(table.keyHash),
+        index("mcp_keys_user_idx").on(table.userId)
     ]
 );

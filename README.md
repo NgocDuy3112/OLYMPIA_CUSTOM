@@ -10,6 +10,7 @@ Currently, this app is currently in progress for v2.0; a completely new UI, back
 | fastify | https://github.com/fastify/fastify |
 | fastfiy-postgres | https://github.com/fastify/fastify-postgres |
 | fastify-jwt | https://github.com/fastify/fastify-jwt |
+| fastify/rate-limit | https://github.com/fastify/fastify-rate-limit |
 | drizzle-orm | https://github.com/drizzle-team/drizzle-orm |
 | argon2 | https://github.com/ranisalt/node-argon2 |
 | otplib | https://github.com/yeojz/otplib |
