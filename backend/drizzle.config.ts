@@ -1,7 +1,7 @@
 import { defineConfig } from "drizzle-kit";
 
 try {
-    process.loadEnvFile("configs/.env");
+    process.loadEnvFile("../configs/.env");
 } catch {
     // No local env file; DATABASE_URL may be set in the shell.
 }
