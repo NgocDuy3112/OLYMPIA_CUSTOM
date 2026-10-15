@@ -4,14 +4,16 @@ import { db } from "../../src/db/pool.js";
 import { tournaments, users } from "../../src/db/schema/index.js";
 import {
     createTournament,
+    deleteTournament,
     getBySlug,
+    getTournament,
     TournamentError,
     type CreateTournamentInput
 } from "../../src/modules/tournaments/index.js";
 
 
 afterAll(async () => {
-    await db.$client.end();        // the singleton's underlying pg Pool
+    await db.$client.end();
 });
 
 let ownerId: string;
@@ -85,5 +87,37 @@ describe("tournaments service", () => {
         await expect(getBySlug("no-such-cup")).rejects.toMatchObject({
             code: "NOT_FOUND"
         });
+    });
+});
+
+describe("tournaments service: soft delete", () => {
+    it("hides a soft-deleted tournament from getTournament and getBySlug", async () => {
+        const row = await createTournament(validTournament("cup-soft"), ownerId);
+
+        await deleteTournament(row.id);
+
+        await expect(getTournament(row.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
+        await expect(getBySlug("cup-soft")).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("keeps the slug occupied after soft delete (no reuse without purge)", async () => {
+        const row = await createTournament(validTournament("cup-locked"), ownerId);
+        await deleteTournament(row.id);
+
+        await expect(createTournament(validTournament("cup-locked"), ownerId)).rejects
+            .toMatchObject({ code: "SLUG_TAKEN" });
+    });
+
+    it("throws NOT_FOUND when deleting an unknown id", async () => {
+        await expect(
+            deleteTournament("00000000-0000-4000-8000-000000000000")
+        ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("throws NOT_FOUND when deleting twice", async () => {
+        const row = await createTournament(validTournament("cup-twice"), ownerId);
+        await deleteTournament(row.id);
+
+        await expect(deleteTournament(row.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
 });

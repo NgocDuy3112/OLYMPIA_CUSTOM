@@ -46,7 +46,8 @@ export const tournaments = pgTable(
         defaultPlacementTiers: jsonb("default_placement_tiers").$type<PlacementTier[]>().notNull(),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+        deletedAt: timestamp("deleted_at", { withTimezone: true })
     },
     (table) => [uniqueIndex("tournaments_slug_unique").on(table.slug)]
 );

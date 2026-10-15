@@ -16,6 +16,7 @@ import rateLimit from "@fastify/rate-limit";
 import { authRoutes } from "./modules/auth/routes.js";
 import { googleAuthRoutes } from "./modules/auth/google.js";
 import { adminRoutes } from "./modules/admin/routes.js";
+import { tournamentRoutes } from "./modules/tournaments/routes.js";
 
 const ALLOWED_ORIGINS = [
     "https://olympia-custom.io.vn",
@@ -43,6 +44,7 @@ export async function buildApp() {
     await app.register(authRoutes);
     await app.register(googleAuthRoutes);
     await app.register(adminRoutes);
+    await app.register(tournamentRoutes);
 
     app.get("/health", async () => ({ status: "ok" }));
 

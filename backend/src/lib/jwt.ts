@@ -16,7 +16,7 @@ export const COOKIE_NAMES: Record<Surface, string> = {
 export interface SessionToken {
     sub: string;
     role: "ADMIN" | "OPERATOR" | "PLAYER";
-    tv: number;
+    tokenVersion: number;
 }
 
 
@@ -85,7 +85,7 @@ export function verifyOauthPending(app: FastifyInstance, token: string): OauthPe
 
 export interface InviteToken {
     sub: string;
-    tv: number;
+    tokenVersion: number;
     purpose: "invite";
 }
 

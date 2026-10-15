@@ -28,7 +28,7 @@ export async function adminRoutes(app: FastifyInstance) {
     app.post(
         "/portal/operators",
         {
-            onRequest: [requireRole("PORTAL", "ADMIN")],
+            onRequest: [requireRole("PORTAL", ["ADMIN"])],
             schema: { body: createBody },
         },
         async (request, reply) => {

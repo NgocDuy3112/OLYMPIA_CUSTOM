@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { tournaments } from "../../db/schema/index.js";
 import { TournamentError } from "./errors.js";
+import { DrizzleQueryError } from "drizzle-orm/errors";
 import { CreateTournamentInput, UpdateTournamentInput, validate } from "./schemas.js";
 
 
@@ -11,8 +12,12 @@ function assertUniqueTags(tags: string[]): void {
     }
 }
 
+
 function isSlugConflict(error: unknown): boolean {
-    const e = error as { code?: string; constraint?: string };
+    const e = (error instanceof DrizzleQueryError ? error.cause : error) as {
+        code?: string;
+        constraint?: string;
+    };
     return e.code === "23505" && e.constraint === "tournaments_slug_unique";
 }
 
@@ -30,7 +35,7 @@ export async function createTournament(
             .values({
                 name: input.name,
                 slug: input.slug,
-                visibility: input.visibility,          // undefined → DB default 'PUBLIC'
+                visibility: input.visibility,
                 ownerId,
                 defaultTags: input.defaultTags,
                 defaultRounds: input.defaultRounds,
@@ -57,14 +62,13 @@ export async function updateTournament(
 
     if (patch.defaultTags) assertUniqueTags(patch.defaultTags);
 
-    const before = await getTournament(id);           // throws NOT_FOUND
-
     try {
         const [row] = await db
             .update(tournaments)
             .set({ ...patch, updatedAt: new Date() })
-            .where(eq(tournaments.id, id))
+            .where(and(eq(tournaments.id, id), isNull(tournaments.deletedAt)))
             .returning();
+        if (!row) throw new TournamentError("NOT_FOUND", `tournament ${id} not found`);
         return row;
     } catch (error) {
         if (isSlugConflict(error)) {
@@ -76,14 +80,32 @@ export async function updateTournament(
 
 
 export async function getTournament(id: string): Promise<typeof tournaments.$inferSelect> {
-    const [row] = await db.select().from(tournaments).where(eq(tournaments.id, id)).limit(1);
+    const [row] = await db
+        .select()
+        .from(tournaments)
+        .where(and(eq(tournaments.id, id), isNull(tournaments.deletedAt)))
+        .limit(1);
     if (!row) throw new TournamentError("NOT_FOUND", `tournament ${id} not found`);
     return row;
 }
 
 
 export async function getBySlug(slug: string): Promise<typeof tournaments.$inferSelect> {
-    const [row] = await db.select().from(tournaments).where(eq(tournaments.slug, slug)).limit(1);
+    const [row] = await db
+        .select()
+        .from(tournaments)
+        .where(and(eq(tournaments.slug, slug), isNull(tournaments.deletedAt)))
+        .limit(1);
     if (!row) throw new TournamentError("NOT_FOUND", `tournament "${slug}" not found`);
+    return row;
+}
+
+export async function deleteTournament(id: string): Promise<typeof tournaments.$inferSelect> {
+    const [row] = await db
+        .update(tournaments)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(tournaments.id, id), isNull(tournaments.deletedAt)))
+        .returning();
+    if (!row) throw new TournamentError("NOT_FOUND", `tournament ${id} not found`);
     return row;
 }

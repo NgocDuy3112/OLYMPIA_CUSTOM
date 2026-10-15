@@ -19,6 +19,6 @@ echo "==> Waiting for backend (boot migration runs here)"
 until curl -sf http://localhost:3000/health >/dev/null 2>&1; do sleep 1; done
 
 echo "==> Seeding admin"
-(cd backend && npm run seed:admin)
+(cd backend && npm run db:migrate && npm run seed:admin)
 
 echo "==> Done"

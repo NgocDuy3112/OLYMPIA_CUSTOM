@@ -10,3 +10,13 @@ export class TournamentError extends Error {
         this.name = "TournamentError";
     }
 }
+
+const STATUS_BY_CODE: Record<TournamentErrorCode, number> = {
+    VALIDATION: 400,
+    NOT_FOUND: 404,
+    SLUG_TAKEN: 409
+};
+
+export function toHttpStatus(code: TournamentErrorCode): number {
+    return STATUS_BY_CODE[code];
+}

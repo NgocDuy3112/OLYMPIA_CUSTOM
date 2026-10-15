@@ -256,7 +256,7 @@ export async function googleAuthRoutes(app: FastifyInstance) {
         const sessionToken = signToken(app, "GAMEPLAY", {
             sub: user.id,
             role: user.role,
-            tv: user.tokenVersion,
+            tokenVersion: user.tokenVersion,
         });
         setSessionCookie(reply, "GAMEPLAY", sessionToken);
         return reply.redirect("/");

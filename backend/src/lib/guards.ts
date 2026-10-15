@@ -4,6 +4,7 @@ import { db } from "../db/pool.js";
 import { users } from "../db/schema/auth.js";
 import { COOKIE_NAMES, verifyToken, type Surface } from "./jwt.js";
 
+
 async function authenticate(request: FastifyRequest, surface: Surface) {
     const app = request.server;
     const token = request.cookies[COOKIE_NAMES[surface]];
@@ -30,7 +31,7 @@ async function authenticate(request: FastifyRequest, surface: Surface) {
     if (user.disabledAt) {
         throw app.httpErrors.unauthorized("Account disabled");
     }
-    if (user.tokenVersion !== payload.tv) {
+    if (user.tokenVersion !== payload.tokenVersion) {
         throw app.httpErrors.unauthorized("Session revoked");
     }
 
@@ -43,7 +44,7 @@ export function requireAuth(surface: Surface) {
     };
 }
 
-export function requireRole(surface: Surface, ...roles: Array<"ADMIN" | "OPERATOR">) {
+export function requireRole(surface: Surface, roles: Array<"ADMIN" | "OPERATOR">) {
     return async (request: FastifyRequest) => {
         const user = await authenticate(request, surface);
         if (!roles.includes(user.role as "ADMIN" | "OPERATOR")) {

@@ -97,6 +97,6 @@ export async function finishMfa(
     return signToken(app, surface, {
         sub: user.id,
         role: user.role,
-        tv: user.tokenVersion,
+        tokenVersion: user.tokenVersion,
     });
 }

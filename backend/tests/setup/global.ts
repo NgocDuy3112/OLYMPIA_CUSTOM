@@ -29,6 +29,7 @@ export default async function globalSetup(): Promise<void> {
     const pool = new pg.Pool({ connectionString: testUrl });
     try {
         await pool.query("DROP SCHEMA public CASCADE");
+        await pool.query("DROP SCHEMA IF EXISTS drizzle CASCADE");
         await pool.query("CREATE SCHEMA public");
         await migrate(drizzle(pool), { migrationsFolder: "./migrations" }); // cwd = backend/
         console.log("[global-setup] schema reset + migrations applied");

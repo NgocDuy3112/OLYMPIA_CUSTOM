@@ -36,7 +36,7 @@ export async function createOperator(
 
     const inviteToken = signInvite(app, {
         sub: user!.id,
-        tv: user!.tokenVersion,
+        tokenVersion: user!.tokenVersion,
         purpose: "invite",
     });
 
@@ -77,7 +77,7 @@ export async function acceptInvite(
     if (!user || user.disabledAt) {
         throw app.httpErrors.badRequest("Invite link is invalid or expired");
     }
-    if (user.tokenVersion !== invite.tv) {
+    if (user.tokenVersion !== invite.tokenVersion) {
         throw app.httpErrors.badRequest("Invite link is no longer valid");
     }
     if (user.passwordHash) {
