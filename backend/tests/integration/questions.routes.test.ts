@@ -644,3 +644,121 @@ describe("DELETE — archive alias", () => {
         expect(res.statusCode).toBe(404);
     });
 });
+
+
+describe("GET …/eligible-questions — the assembly browse", () => {
+    const eligibleUrl = (tournamentId: string, suffix = "") =>
+        `/portal/tournaments/${tournamentId}/eligible-questions${suffix}`;
+
+    it("401 anonymous, 403 for a PLAYER", async () => {
+        const t = await makeTournament("eq-auth");
+
+        expect((await app.inject({ method: "GET", url: eligibleUrl(t.id) })).statusCode).toBe(401);
+        expect(
+            (await app.inject({ method: "GET", url: eligibleUrl(t.id), headers: auth(playerCookie) })).statusCode
+        ).toBe(403);
+    });
+
+    it("PRIVATE parent: 404 for an operator, 200 for an admin", async () => {
+        const t = await makeTournament("eq-priv", { visibility: "PRIVATE" }, adminCookie);
+
+        expect(
+            (await app.inject({ method: "GET", url: eligibleUrl(t.id), headers: auth(ownerCookie) })).statusCode
+        ).toBe(404);
+        expect(
+            (await app.inject({ method: "GET", url: eligibleUrl(t.id), headers: auth(adminCookie) })).statusCode
+        ).toBe(200);
+    });
+
+    it("returns own published + global published, excluding drafts", async () => {
+        const t = await makeTournament("eq-scope");
+
+        const own = (await app.inject({
+            method: "POST",
+            url: `/portal/tournaments/${t.id}/questions`,
+            headers: auth(ownerCookie),
+            payload: mc("eligible own")
+        })).json();
+        const draft = (await app.inject({
+            method: "POST",
+            url: `/portal/tournaments/${t.id}/questions`,
+            headers: auth(ownerCookie),
+            payload: mc("still a draft")
+        })).json();
+        const global = (await app.inject({
+            method: "POST",
+            url: "/portal/questions",
+            headers: auth(ownerCookie),
+            payload: { ...mc("eligible global"), tag: "GENERAL" }
+        })).json();
+
+        for (const id of [own.id, global.id]) {
+            await patchStatus(id, "PENDING", ownerCookie, id === global.id ? undefined : t.id);
+        }
+        // nested status endpoint for tournament questions, flat one for global
+        await patchStatus(own.id, "PUBLISHED", adminCookie, t.id);
+        await patchStatus(global.id, "PUBLISHED", adminCookie);
+
+        const res = await app.inject({
+            method: "GET",
+            url: eligibleUrl(t.id),
+            headers: auth(ownerCookie)
+        });
+
+        expect(res.statusCode).toBe(200);
+        const ids = res.json().items.map((q: { id: string }) => q.id);
+        expect(ids).toContain(own.id);
+        expect(ids).toContain(global.id);
+        expect(ids).not.toContain(draft.id);
+    });
+
+    it("filters by kinds and searches text", async () => {
+        const t = await makeTournament("eq-filters");
+        const text = (await app.inject({
+            method: "POST",
+            url: `/portal/tournaments/${t.id}/questions`,
+            headers: auth(ownerCookie),
+            payload: textQ("Đường lên đỉnh Olympia")
+        })).json();
+
+        await patchStatus(text.id, "PENDING", ownerCookie, t.id);
+        await patchStatus(text.id, "PUBLISHED", adminCookie, t.id);
+
+        const byKind = await app.inject({
+            method: "GET",
+            url: eligibleUrl(t.id, "?kinds=TEXT"),
+            headers: auth(ownerCookie)
+        });
+        expect(byKind.json().items.every((q: { kind: string }) => q.kind === "TEXT")).toBe(true);
+
+        const bySearch = await app.inject({
+            method: "GET",
+            url: eligibleUrl(t.id, "?search=duong%20len%20dinh"),
+            headers: auth(ownerCookie)
+        });
+        expect(bySearch.json().items.map((q: { id: string }) => q.id)).toContain(text.id);
+    });
+
+    it("400 for an invalid kinds value or a non-numeric limit", async () => {
+        const t = await makeTournament("eq-400");
+
+        expect(
+            (await app.inject({ method: "GET", url: eligibleUrl(t.id, "?kinds=BANANA"), headers: auth(ownerCookie) })).statusCode
+        ).toBe(400);
+        expect(
+            (await app.inject({ method: "GET", url: eligibleUrl(t.id, "?limit=abc"), headers: auth(ownerCookie) })).statusCode
+        ).toBe(400);
+    });
+
+    it("returns the pagination envelope", async () => {
+        const t = await makeTournament("eq-page");
+        const res = await app.inject({
+            method: "GET",
+            url: eligibleUrl(t.id, "?limit=5&offset=0"),
+            headers: auth(ownerCookie)
+        });
+
+        expect(Object.keys(res.json()).sort()).toEqual(["items", "limit", "offset", "total"]);
+        expect(res.json().limit).toBe(5);
+    });
+});

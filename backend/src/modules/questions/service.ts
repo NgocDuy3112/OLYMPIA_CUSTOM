@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { questionBank, tournaments } from "../../db/schema/index.js";
 import { QuestionError } from "./errors.js";
@@ -158,12 +158,40 @@ export async function transitionQuestion(
 }
 
 
+// Full-text search over question_text (search_vector, populated by 0004).
+// Tokens are sanitised so user input can never break tsquery syntax, and the
+// last token gets :* so a search box matches while the user is still typing.
+// NOTE: search_vector is intentionally NOT declared in the drizzle schema —
+// it is a generated column created by migration 0004, so declaring it would
+// make `db:generate` try to add it again.
+export function questionSearch(term: string) {
+    const tokens = term
+        .split(/\s+/)
+        .map((token) => token.replace(/[^\p{L}\p{N}]+/gu, ""))
+        .filter((token) => token.length > 0);
+
+    if (tokens.length === 0) return null;
+
+    const query = tokens
+        .map((token, index) => (index === tokens.length - 1 ? `${token}:*` : token))
+        .join(" & ");
+
+    const tsquery = sql`to_tsquery('simple', immutable_unaccent(${query}))`;
+
+    return {
+        condition: sql`"question_bank"."search_vector" @@ ${tsquery}`,
+        rank: sql`ts_rank("question_bank"."search_vector", ${tsquery})`
+    };
+}
+
+
 export interface ListFilters {
     // undefined = every scope · null = global bank only · string = that tournament
     tournamentId?: string | null;
     status?: QuestionStatusValue;
     kind?: QuestionKindValue;
     tag?: string;
+    search?: string;
 }
 
 
@@ -188,7 +216,10 @@ export async function listQuestions(
     filters: ListFilters,
     page: Page
 ): Promise<PageResult<QuestionRow>> {
+    const search = filters.search ? questionSearch(filters.search) : null;
     const conditions = filterConditions(filters);
+    if (search) conditions.push(search.condition);
+
     const where = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [totals] = await db
@@ -196,11 +227,15 @@ export async function listQuestions(
         .from(questionBank)
         .where(where);
 
+    const order = search
+        ? [desc(search.rank), desc(questionBank.createdAt), desc(questionBank.id)]
+        : [desc(questionBank.createdAt), desc(questionBank.id)];
+
     const items = await db
         .select()
         .from(questionBank)
         .where(where)
-        .orderBy(desc(questionBank.createdAt), desc(questionBank.id))
+        .orderBy(...order)
         .limit(page.limit)
         .offset(page.offset);
 
@@ -208,20 +243,57 @@ export async function listQuestions(
 }
 
 
-// The single visibility choke point for assembly (schema.md §question_bank):
-// only PUBLISHED questions, from the global bank or the assembly's own tournament.
-export async function listForAssembly(tournamentId: string): Promise<QuestionRow[]> {
-    return db
+// The single visibility rule for assembly (schema.md §question_bank):
+// PUBLISHED questions, from the global bank or the assembly's own tournament.
+// Shared by the paged read below and by the auto-pick query in assembly.ts.
+export function assemblyEligibility(tournamentId: string) {
+    return [
+        eq(questionBank.status, "PUBLISHED"),
+        or(
+            isNull(questionBank.tournamentId),
+            eq(questionBank.tournamentId, tournamentId)
+        )!
+    ];
+}
+
+
+export interface AssemblyFilters {
+    kinds?: QuestionKindValue[];
+    search?: string;
+}
+
+
+// Paged: an unpaged version returned every eligible row (18.7k at 25k bank size).
+export async function listForAssembly(
+    tournamentId: string,
+    filters: AssemblyFilters,
+    page: Page
+): Promise<PageResult<QuestionRow>> {
+    const conditions = assemblyEligibility(tournamentId);
+    const search = filters.search ? questionSearch(filters.search) : null;
+
+    if (filters.kinds && filters.kinds.length > 0) {
+        conditions.push(inArray(questionBank.kind, filters.kinds));
+    }
+    if (search) conditions.push(search.condition);
+
+    const where = and(...conditions);
+
+    const [totals] = await db.select({ total: count() }).from(questionBank).where(where);
+
+    const order = search
+        ? [desc(search.rank), desc(questionBank.createdAt), desc(questionBank.id)]
+        : [desc(questionBank.createdAt), desc(questionBank.id)];
+
+    const items = await db
         .select()
         .from(questionBank)
-        .where(and(
-            eq(questionBank.status, "PUBLISHED"),
-            or(
-                isNull(questionBank.tournamentId),
-                eq(questionBank.tournamentId, tournamentId)
-            )
-        ))
-        .orderBy(asc(questionBank.createdAt));
+        .where(where)
+        .orderBy(...order)
+        .limit(page.limit)
+        .offset(page.offset);
+
+    return pageResult(items, Number(totals?.total ?? 0), page);
 }
 
 

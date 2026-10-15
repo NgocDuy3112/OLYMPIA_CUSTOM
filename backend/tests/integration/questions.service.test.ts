@@ -206,6 +206,100 @@ describe("transitionQuestion", () => {
 });
 
 
+describe("question search (tsvector + unaccent)", () => {
+    const mcText = (text: string): CreateQuestionInput => ({
+        kind: "MC",
+        questionText: text,
+        tag: "THTH",
+        payload: { options: [{ id: "A", text: "4" }], correctSet: ["A"] }
+    });
+
+    it("matches accented text and unaccented queries alike", async () => {
+        const row = await createQuestion(
+            { tournamentId, actorId: ownerId },
+            mcText("Đường lên đỉnh Olympia là gì?")
+        );
+        await publish(row.id);
+
+        const accented = await listQuestions({ tournamentId, search: "Đường lên" }, page);
+        expect(accented.items.map((q) => q.id)).toContain(row.id);
+
+        // the point of unaccent: users type without diacritics
+        const unaccented = await listQuestions({ tournamentId, search: "duong len dinh" }, page);
+        expect(unaccented.items.map((q) => q.id)).toContain(row.id);
+    });
+
+    it("matches a partially typed last token (prefix)", async () => {
+        const row = await createQuestion(
+            { tournamentId, actorId: ownerId },
+            mcText("Điện Biên Phủ được giải phóng năm nào?")
+        );
+        await publish(row.id);
+
+        const typed = await listQuestions({ tournamentId, search: "dien bi" }, page);
+        expect(typed.items.map((q) => q.id)).toContain(row.id);
+    });
+
+    it("combines search with structured filters", async () => {
+        const matching = await createQuestion(
+            { tournamentId, actorId: ownerId },
+            mcText("Tìm kiếm chung MC")
+        );
+        const other = await createQuestion(
+            { tournamentId, actorId: ownerId },
+            {
+                kind: "TEXT",
+                questionText: "Tìm kiếm chung TEXT",
+                tag: "THTH",
+                payload: {
+                    acceptedAnswers: ["x"],
+                    normalize: { caseSensitive: false, trim: true, stripAccents: true }
+                }
+            }
+        );
+        await publish(matching.id);
+        await publish(other.id);
+
+        const textOnly = await listQuestions(
+            { tournamentId, kind: "TEXT", search: "tim kiem chung" },
+            page
+        );
+
+        const ids = textOnly.items.map((q) => q.id);
+        expect(ids).toContain(other.id);
+        expect(ids).not.toContain(matching.id);
+    });
+
+    it("returns nothing for a term that matches nothing (no false positives)", async () => {
+        const res = await listQuestions(
+            { tournamentId, search: "zzzznonexistentterm" },
+            page
+        );
+        expect(res.total).toBe(0);
+        expect(res.items).toHaveLength(0);
+    });
+
+    it("searches through the assembly-eligible read too", async () => {
+        const own = await createQuestion(
+            { tournamentId, actorId: ownerId },
+            mcText("Eligible search inside the tournament")
+        );
+        const global = await createQuestion(
+            { tournamentId: null, actorId: ownerId },
+            { ...mcText("Eligible search in the global bank"), tag: "GLOBAL" }
+        );
+        await publish(own.id);
+        await publish(global.id);
+
+        const res = await listForAssembly(tournamentId, { search: "eligible search" }, page);
+        const ids = res.items.map((q) => q.id);
+
+        expect(ids).toContain(own.id);
+        expect(ids).toContain(global.id);
+    });
+});
+
+
 describe("listQuestions — scope semantics", () => {
     it("null = global bank only; undefined = every scope", async () => {
         await createQuestion({ tournamentId: null, actorId: ownerId }, { ...mc("scope global"), tag: "GLOBAL" });
@@ -240,7 +334,7 @@ describe("listForAssembly — the visibility choke point", () => {
         const foreignPublished = await createQuestion({ tournamentId: otherTournamentId, actorId: otherId }, mc("asm foreign"));
         await publish(foreignPublished.id);
 
-        const ids = (await listForAssembly(tournamentId)).map((q) => q.id);
+        const ids = (await listForAssembly(tournamentId, {}, { limit: 50, offset: 0 })).items.map((q) => q.id);
 
         expect(ids).toContain(globalPublished.id);
         expect(ids).toContain(ownPublished.id);
@@ -248,5 +342,34 @@ describe("listForAssembly — the visibility choke point", () => {
         expect(ids).not.toContain(ownPending.id);
         expect(ids).not.toContain(ownArchived.id);
         expect(ids).not.toContain(foreignPublished.id);
+    });
+
+    it("is paged and can filter by kind", async () => {
+        const text = (name: string) =>
+            createQuestion(
+                { tournamentId, actorId: ownerId },
+                {
+                    kind: "TEXT",
+                    questionText: name,
+                    tag: "THTH",
+                    payload: {
+                        acceptedAnswers: ["x"],
+                        normalize: { caseSensitive: false, trim: true, stripAccents: true }
+                    }
+                }
+            );
+
+        const first = await text("paged text A");
+        const second = await text("paged text B");
+        await publish(first.id);
+        await publish(second.id);
+
+        const page = await listForAssembly(tournamentId, { kinds: ["TEXT"] }, { limit: 1, offset: 0 });
+
+        expect(Object.keys(page).sort()).toEqual(["items", "limit", "offset", "total"]);
+        expect(page.items).toHaveLength(1);
+        expect(page.limit).toBe(1);
+        expect(page.total).toBeGreaterThanOrEqual(2);
+        expect(page.items.every((q) => q.kind === "TEXT")).toBe(true);
     });
 });

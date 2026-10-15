@@ -7,6 +7,7 @@ import { QuestionError, toHttpStatus } from "./errors.js";
 import {
     BatchEnvelope,
     CreateQuestionInput,
+    EligibleListQuery,
     ListQuery,
     TransitionQuestionInput,
     UpdateQuestionInput
@@ -15,11 +16,13 @@ import {
     createQuestion,
     getQuestion,
     importQuestions,
+    listForAssembly,
     listQuestions,
     requireTournament,
     transitionQuestion,
     updateQuestion
 } from "./service.js";
+import type { QuestionKindValue } from "./payload.js";
 import type { ActorRole, QuestionStatusValue } from "./transitions.js";
 
 
@@ -152,7 +155,13 @@ export async function questionRoutes(app: FastifyInstance) {
 
             const query = request.query as ListQuery;
             return listQuestions(
-                { tournamentId, status: query.status, kind: query.kind, tag: query.tag },
+                {
+                    tournamentId,
+                    status: query.status,
+                    kind: query.kind,
+                    tag: query.tag,
+                    search: query.search
+                },
                 parsePage(query)
             );
         }
@@ -243,6 +252,32 @@ export async function questionRoutes(app: FastifyInstance) {
         }
     );
 
+    // Browse what a match may draw from: the tournament's own published
+    // questions plus the global bank. Read-only; PRIVATE → ADMIN only.
+    app.get(
+        "/portal/tournaments/:tournamentId/eligible-questions",
+        {
+            onRequest: staff,
+            schema: { params: tournamentParams, querystring: EligibleListQuery },
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId } = request.params as { tournamentId: string };
+
+            const parent = await requireTournament(tournamentId);
+            assertView(parent, user, tournamentId);
+
+            const query = request.query as EligibleListQuery;
+            const kinds = query.kinds?.split(",") as QuestionKindValue[] | undefined;
+
+            return listForAssembly(
+                tournamentId,
+                { kinds, search: query.search },
+                parsePage(query)
+            );
+        }
+    );
+
     // ─── global bank ──────────────────────────────────────────────────────────
 
     app.post(
@@ -284,7 +319,13 @@ export async function questionRoutes(app: FastifyInstance) {
         async (request) => {
             const query = request.query as ListQuery;
             return listQuestions(
-                { tournamentId: null, status: query.status, kind: query.kind, tag: query.tag },
+                {
+                    tournamentId: null,
+                    status: query.status,
+                    kind: query.kind,
+                    tag: query.tag,
+                    search: query.search
+                },
                 parsePage(query)
             );
         }

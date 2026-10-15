@@ -58,10 +58,20 @@ export const ListQuery = Type.Object({
     status: Type.Optional(QuestionStatus),
     kind: Type.Optional(QuestionKind),
     tag: Type.Optional(Type.String({ maxLength: 64 })),
+    search: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
     limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
     offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))
 });
 export type ListQuery = Static<typeof ListQuery>;
+
+// Eligible-for-assembly browse: scope comes from the URL (own + global bank).
+export const EligibleListQuery = Type.Object({
+    kinds: Type.Optional(Type.String({ pattern: "^(MC|TEXT|KEYWORD)(,(MC|TEXT|KEYWORD))*$" })),
+    search: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
+    limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
+    offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))
+});
+export type EligibleListQuery = Static<typeof EligibleListQuery>;
 
 
 export function validate(schema: TSchema, value: unknown): void {
