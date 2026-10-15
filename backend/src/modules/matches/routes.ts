@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
 import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
+import { auditFromRequest } from "../audit/service.js";
 import { PaginationError, parsePage } from "../../lib/pagination.js";
 import { MatchError, toHttpStatus } from "./errors.js";
 import {
@@ -216,7 +217,26 @@ export async function matchRoutes(app: FastifyInstance) {
             assertWrite(scope, user);
 
             const { status } = request.body as TransitionMatchInput;
-            return transitionMatch(seasonId, matchId, status);
+
+            const previous = await getMatch(seasonId, matchId);
+            const match = await transitionMatch(seasonId, matchId, status);
+
+            // Only real transitions are audited; a same-status no-op is not an event.
+            if (match.status !== previous.status) {
+                const action = match.status === "LIVE" ? "match_started" : "match_ended";
+                await auditFromRequest(request, action, {
+                    matchId: match.id,
+                    details: {
+                        seasonId,
+                        tournamentId,
+                        from: previous.status,
+                        to: match.status,
+                        label: match.label
+                    }
+                });
+            }
+
+            return match;
         }
     );
 

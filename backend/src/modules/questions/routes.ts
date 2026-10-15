@@ -23,6 +23,7 @@ import {
     updateQuestion
 } from "./service.js";
 import type { QuestionKindValue } from "./payload.js";
+import { auditFromRequest, type AuditAction } from "../audit/service.js";
 import type { ActorRole, QuestionStatusValue } from "./transitions.js";
 
 
@@ -69,6 +70,32 @@ function assertWrite(parent: ParentTournament, user: SessionUser): void {
             "Only the owner or an admin may manage this tournament's questions"
         );
     }
+}
+
+
+// The review gate is audited; content-only edits are not (doc volume rule).
+const GATE_ACTIONS: Partial<Record<string, AuditAction>> = {
+    PENDING: "question_submitted",
+    PUBLISHED: "question_published",
+    ARCHIVED: "question_archived"
+};
+
+async function auditGate(
+    request: Parameters<typeof auditFromRequest>[0],
+    question: { id: string; status: string; tag: string; kind: string },
+    tournamentId: string | null
+): Promise<void> {
+    const action = GATE_ACTIONS[question.status];
+    if (!action) return;
+
+    await auditFromRequest(request, action, {
+        details: {
+            questionId: question.id,
+            tournamentId,
+            tag: question.tag,
+            kind: question.kind
+        }
+    });
 }
 
 
@@ -226,7 +253,14 @@ export async function questionRoutes(app: FastifyInstance) {
             await getQuestion(questionId, { tournamentId });
 
             const { status } = request.body as TransitionQuestionInput;
-            return transitionQuestion(questionId, status as QuestionStatusValue, user.role as ActorRole);
+            const question = await transitionQuestion(
+                questionId,
+                status as QuestionStatusValue,
+                user.role as ActorRole
+            );
+            await auditGate(request, question, tournamentId);
+
+            return question;
         }
     );
 
@@ -246,7 +280,12 @@ export async function questionRoutes(app: FastifyInstance) {
             assertWrite(parent, user);
 
             await getQuestion(questionId, { tournamentId });
-            await transitionQuestion(questionId, "ARCHIVED", user.role as ActorRole);
+            const archived = await transitionQuestion(
+                questionId,
+                "ARCHIVED",
+                user.role as ActorRole
+            );
+            await auditGate(request, archived, tournamentId);
 
             return reply.code(204).send();
         }
@@ -361,7 +400,14 @@ export async function questionRoutes(app: FastifyInstance) {
             await getQuestion(questionId, { tournamentId: null });
 
             const { status } = request.body as TransitionQuestionInput;
-            return transitionQuestion(questionId, status as QuestionStatusValue, user.role as ActorRole);
+            const question = await transitionQuestion(
+                questionId,
+                status as QuestionStatusValue,
+                user.role as ActorRole
+            );
+            await auditGate(request, question, null);
+
+            return question;
         }
     );
 
@@ -373,7 +419,12 @@ export async function questionRoutes(app: FastifyInstance) {
             const { questionId } = request.params as { questionId: string };
 
             await getQuestion(questionId, { tournamentId: null });
-            await transitionQuestion(questionId, "ARCHIVED", user.role as ActorRole);
+            const archived = await transitionQuestion(
+                questionId,
+                "ARCHIVED",
+                user.role as ActorRole
+            );
+            await auditGate(request, archived, null);
 
             return reply.code(204).send();
         }

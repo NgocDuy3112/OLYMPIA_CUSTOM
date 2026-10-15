@@ -20,6 +20,7 @@ import { tournamentRoutes } from "./modules/tournaments/routes.js";
 import { seasonRoutes } from "./modules/seasons/routes.js";
 import { questionRoutes } from "./modules/questions/routes.js";
 import { matchRoutes } from "./modules/matches/routes.js";
+import { mcpKeyRoutes } from "./modules/mcp-keys/routes.js";
 
 const ALLOWED_ORIGINS = [
     "https://olympia-custom.io.vn",
@@ -52,6 +53,7 @@ export async function buildApp() {
     await app.register(seasonRoutes);
     await app.register(questionRoutes);
     await app.register(matchRoutes);
+    await app.register(mcpKeyRoutes);
 
     app.get("/health", async () => ({ status: "ok" }));
 
