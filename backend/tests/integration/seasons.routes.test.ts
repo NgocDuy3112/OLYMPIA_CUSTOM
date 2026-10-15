@@ -238,7 +238,7 @@ describe("GET …/seasons — list & read", () => {
             url: `/portal/tournaments/${t.id}/seasons`,
             headers: auth(ownerCookie),
         });
-        expect(before.json()).toHaveLength(2);
+        expect(before.json().items).toHaveLength(2);
 
         await app.inject({
             method: "DELETE",
@@ -251,8 +251,8 @@ describe("GET …/seasons — list & read", () => {
             url: `/portal/tournaments/${t.id}/seasons`,
             headers: auth(ownerCookie),
         });
-        expect(after.json()).toHaveLength(1);
-        expect(after.json()[0].name).toBe("Drop");
+        expect(after.json().items).toHaveLength(1);
+        expect(after.json().items[0].name).toBe("Drop");
     });
 
     it("404 listing seasons of an unknown tournament", async () => {

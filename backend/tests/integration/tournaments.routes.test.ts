@@ -523,3 +523,107 @@ describe("DELETE /portal/tournaments/:id (soft delete)", () => {
         expect(recreate.json()).toMatchObject({ error: "SLUG_TAKEN" });
     });
 });
+
+
+describe("GET /portal/tournaments — list", () => {
+    it("401 without a session", async () => {
+        const res = await app.inject({ method: "GET", url: "/portal/tournaments" });
+        expect(res.statusCode).toBe(401);
+    });
+
+    it("403 for a PLAYER", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/portal/tournaments",
+            headers: { cookie: `portal_session=${playerCookie}` },
+        });
+        expect(res.statusCode).toBe(403);
+    });
+
+    it("returns the pagination envelope and matches by search", async () => {
+        for (const slug of ["pglist-a", "pglist-b"]) {
+            await app.inject({
+                method: "POST",
+                url: "/portal/tournaments",
+                headers: { cookie: `portal_session=${ownerCookie}` },
+                payload: validTournament(slug),
+            });
+        }
+
+        const res = await app.inject({
+            method: "GET",
+            url: "/portal/tournaments?search=pglist-",
+            headers: { cookie: `portal_session=${ownerCookie}` },
+        });
+
+        expect(res.statusCode).toBe(200);
+        const body = res.json();
+        expect(Object.keys(body).sort()).toEqual(["items", "limit", "offset", "total"]);
+        expect(body.total).toBe(2);
+        expect(body.items.map((t: { slug: string }) => t.slug).sort()).toEqual(["pglist-a", "pglist-b"]);
+    });
+
+    it("paginates with limit and offset", async () => {
+        for (const slug of ["pgpage-a", "pgpage-b", "pgpage-c"]) {
+            await app.inject({
+                method: "POST",
+                url: "/portal/tournaments",
+                headers: { cookie: `portal_session=${ownerCookie}` },
+                payload: validTournament(slug),
+            });
+        }
+
+        const res = await app.inject({
+            method: "GET",
+            url: "/portal/tournaments?search=pgpage-&limit=2&offset=2",
+            headers: { cookie: `portal_session=${ownerCookie}` },
+        });
+
+        expect(res.json().total).toBe(3);
+        expect(res.json().items).toHaveLength(1);
+    });
+
+    it("400 for a non-numeric limit", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/portal/tournaments?limit=abc",
+            headers: { cookie: `portal_session=${ownerCookie}` },
+        });
+        expect(res.statusCode).toBe(400);
+    });
+
+    it("hides PRIVATE tournaments from operators but not from admins", async () => {
+        const secret = await app.inject({
+            method: "POST",
+            url: "/portal/tournaments",
+            headers: { cookie: `portal_session=${adminCookie}` },
+            payload: { ...validTournament("pgpriv-secret"), visibility: "PRIVATE" },
+        });
+        const secretId = secret.json().id;
+
+        const asOperator = await app.inject({
+            method: "GET",
+            url: "/portal/tournaments?search=pgpriv-",
+            headers: { cookie: `portal_session=${ownerCookie}` },
+        });
+        expect(asOperator.json().items.map((t: { id: string }) => t.id)).not.toContain(secretId);
+
+        const asAdmin = await app.inject({
+            method: "GET",
+            url: "/portal/tournaments?search=pgpriv-&visibility=PRIVATE",
+            headers: { cookie: `portal_session=${adminCookie}` },
+        });
+        expect(asAdmin.json().items.map((t: { id: string }) => t.id)).toContain(secretId);
+    });
+
+    it("filters by visibility explicitly", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/portal/tournaments?visibility=PUBLIC&search=pglist-",
+            headers: { cookie: `portal_session=${adminCookie}` },
+        });
+
+        expect(res.statusCode).toBe(200);
+        expect(res.json().items.every((t: { visibility: string }) => t.visibility === "PUBLIC")).toBe(true);
+    });
+});

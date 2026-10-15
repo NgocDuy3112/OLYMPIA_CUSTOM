@@ -1,13 +1,19 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
+import { PaginationError, parsePage } from "../../lib/pagination.js";
 import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { toHttpStatus, TournamentError } from "./errors.js";
-import { CreateTournamentInput, UpdateTournamentInput } from "./schemas.js";
+import {
+    CreateTournamentInput,
+    ListTournamentsQuery,
+    UpdateTournamentInput
+} from "./schemas.js";
 import {
     createTournament,
     deleteTournament,
     getBySlug,
     getTournament,
+    listTournaments,
     updateTournament
 } from "./service.js";
 
@@ -31,6 +37,10 @@ const slugParams = {
 
 export async function tournamentRoutes(app: FastifyInstance) {
     app.setErrorHandler((error, request, reply) => {
+        if (error instanceof PaginationError) {
+            reply.code(400).send({ error: "VALIDATION", message: error.message });
+            return;
+        }
         if (error instanceof TournamentError) {
             reply.code(toHttpStatus(error.code)).send({
                 error: error.code,
@@ -125,6 +135,27 @@ export async function tournamentRoutes(app: FastifyInstance) {
                 throw new TournamentError("NOT_FOUND", `tournament ${id} not found`);
             }
             return tournament;
+        }
+    );
+
+    // List — staff surface. PRIVATE tournaments are invisible to non-admins,
+    // matching the canViewTournament rule (404 → here: simply excluded).
+    app.get(
+        "/portal/tournaments",
+        {
+            onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
+            schema: { querystring: ListTournamentsQuery },
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const query = request.query as ListTournamentsQuery;
+
+            const visibility = user.role === "ADMIN" ? query.visibility : "PUBLIC";
+
+            return listTournaments(
+                { visibility, search: query.search },
+                parsePage(query)
+            );
         }
     );
 

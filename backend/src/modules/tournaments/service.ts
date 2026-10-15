@@ -1,9 +1,10 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, or } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { tournaments } from "../../db/schema/index.js";
 import { TournamentError } from "./errors.js";
 import { DrizzleQueryError } from "drizzle-orm/errors";
 import { CreateTournamentInput, UpdateTournamentInput, validate } from "./schemas.js";
+import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
 
 
 function assertUniqueTags(tags: string[]): void {
@@ -108,4 +109,46 @@ export async function deleteTournament(id: string): Promise<typeof tournaments.$
         .returning();
     if (!row) throw new TournamentError("NOT_FOUND", `tournament ${id} not found`);
     return row;
+}
+
+
+export interface ListFilters {
+    visibility?: "PUBLIC" | "PRIVATE";
+    search?: string;
+}
+
+
+export async function listTournaments(
+    filters: ListFilters,
+    page: Page
+): Promise<PageResult<typeof tournaments.$inferSelect>> {
+    const conditions = [isNull(tournaments.deletedAt)];
+
+    if (filters.visibility) {
+        conditions.push(eq(tournaments.visibility, filters.visibility));
+    }
+
+    if (filters.search) {
+        const pattern = `%${filters.search}%`;
+        conditions.push(
+            or(ilike(tournaments.name, pattern), ilike(tournaments.slug, pattern))!
+        );
+    }
+
+    const where = and(...conditions);
+
+    const [totals] = await db
+        .select({ total: count() })
+        .from(tournaments)
+        .where(where);
+
+    const items = await db
+        .select()
+        .from(tournaments)
+        .where(where)
+        .orderBy(desc(tournaments.createdAt), desc(tournaments.id))
+        .limit(page.limit)
+        .offset(page.offset);
+
+    return pageResult(items, Number(totals?.total ?? 0), page);
 }

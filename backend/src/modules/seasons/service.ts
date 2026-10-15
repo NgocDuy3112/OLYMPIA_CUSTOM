@@ -1,8 +1,9 @@
-import { and, asc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, count, eq, isNull, ne } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { seasons, tournaments } from "../../db/schema/index.js";
 import { SeasonError } from "./errors.js";
 import { CreateSeasonInput, UpdateSeasonInput, validate } from "./schemas.js";
+import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
 
 type SeasonRow = typeof seasons.$inferSelect;
 
@@ -64,17 +65,43 @@ export async function createSeason(
 }
 
 
-export async function listSeasons(tournamentId: string): Promise<SeasonRow[]> {
+export interface ListFilters {
+    current?: boolean;
+}
+
+
+export async function listSeasons(
+    tournamentId: string,
+    filters: ListFilters,
+    page: Page
+): Promise<PageResult<SeasonRow>> {
     await requireParent(tournamentId);
 
-    return db
+    const conditions = [
+        eq(seasons.tournamentId, tournamentId),
+        isNull(seasons.deletedAt)
+    ];
+
+    if (filters.current !== undefined) {
+        conditions.push(eq(seasons.current, filters.current));
+    }
+
+    const where = and(...conditions);
+
+    const [totals] = await db
+        .select({ total: count() })
+        .from(seasons)
+        .where(where);
+
+    const items = await db
         .select()
         .from(seasons)
-        .where(and(
-            eq(seasons.tournamentId, tournamentId),
-            isNull(seasons.deletedAt)
-        ))
-        .orderBy(asc(seasons.createdAt));
+        .where(where)
+        .orderBy(asc(seasons.createdAt))
+        .limit(page.limit)
+        .offset(page.offset);
+
+    return pageResult(items, Number(totals?.total ?? 0), page);
 }
 
 

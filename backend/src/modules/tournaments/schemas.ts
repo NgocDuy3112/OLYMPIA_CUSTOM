@@ -20,6 +20,14 @@ export const CreateTournamentInput = Type.Object({
 export type CreateTournamentInput = Static<typeof CreateTournamentInput>;
 
 export const UpdateTournamentInput = Type.Partial(CreateTournamentInput);
+
+export const ListTournamentsQuery = Type.Object({
+    visibility: Type.Optional(Type.Union([Type.Literal("PUBLIC"), Type.Literal("PRIVATE")])),
+    search: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
+    limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
+    offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))
+});
+export type ListTournamentsQuery = Static<typeof ListTournamentsQuery>;
 export type UpdateTournamentInput = Static<typeof UpdateTournamentInput>;
 
 export function validate(

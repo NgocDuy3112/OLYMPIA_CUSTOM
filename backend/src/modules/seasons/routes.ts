@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
+import { PaginationError, parsePage } from "../../lib/pagination.js";
 import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { SeasonError, toHttpStatus } from "./errors.js";
-import { CreateSeasonInput, UpdateSeasonInput } from "./schemas.js";
+import { CreateSeasonInput, ListSeasonsQuery, UpdateSeasonInput } from "./schemas.js";
 import {
     createSeason,
     deleteSeason,
@@ -36,6 +37,10 @@ const seasonParams = {
 export async function seasonRoutes(app: FastifyInstance) {
     // Scoped to this plugin; other modules keep their own handlers.
     app.setErrorHandler((error, request, reply) => {
+        if (error instanceof PaginationError) {
+            reply.code(400).send({ error: "VALIDATION", message: error.message });
+            return;
+        }
         if (error instanceof SeasonError) {
             reply.code(toHttpStatus(error.code)).send({
                 error: error.code,
@@ -82,7 +87,10 @@ export async function seasonRoutes(app: FastifyInstance) {
     // List — any portal staff; PRIVATE parent → ADMIN only.
     app.get(
         "/portal/tournaments/:tournamentId/seasons",
-        { onRequest: staff, schema: { params: tournamentParams } },
+        {
+            onRequest: staff,
+            schema: { params: tournamentParams, querystring: ListSeasonsQuery },
+        },
         async (request) => {
             const user = request.sessionUser!;
             const { tournamentId } = request.params as { tournamentId: string };
@@ -92,7 +100,10 @@ export async function seasonRoutes(app: FastifyInstance) {
                 throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
             }
 
-            return listSeasons(tournamentId);
+            const query = request.query as ListSeasonsQuery;
+            const current = query.current === undefined ? undefined : query.current === "true";
+
+            return listSeasons(tournamentId, { current }, parsePage(query));
         }
     );
 

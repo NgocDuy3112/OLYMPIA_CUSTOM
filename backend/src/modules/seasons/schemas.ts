@@ -20,6 +20,13 @@ export const CreateSeasonInput = Type.Object({
 export type CreateSeasonInput = Static<typeof CreateSeasonInput>;
 
 export const UpdateSeasonInput = Type.Partial(CreateSeasonInput);
+
+export const ListSeasonsQuery = Type.Object({
+    current: Type.Optional(Type.Union([Type.Literal("true"), Type.Literal("false")])),
+    limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
+    offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))
+});
+export type ListSeasonsQuery = Static<typeof ListSeasonsQuery>;
 export type UpdateSeasonInput = Static<typeof UpdateSeasonInput>;
 
 export function validate(
