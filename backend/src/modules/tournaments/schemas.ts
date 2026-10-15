@@ -1,3 +1,4 @@
+import "../../lib/typebox-formats.js";
 import { Type, Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {

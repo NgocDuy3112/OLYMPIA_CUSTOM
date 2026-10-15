@@ -69,7 +69,8 @@ export const seasons = pgTable(
 
         closedAt: timestamp("closed_at", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+        deletedAt: timestamp("deleted_at", { withTimezone: true })
     },
     (table) => [
         uniqueIndex("seasons_current_unique")

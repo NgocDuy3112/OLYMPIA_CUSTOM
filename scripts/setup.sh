@@ -16,9 +16,12 @@ exists=$("${COMPOSE[@]}" exec -T postgres psql -U postgres -tAc "SELECT 1 FROM p
 [ -n "$exists" ] || "${COMPOSE[@]}" exec -T postgres psql -U postgres -c "CREATE DATABASE \"${POSTGRES_DB}\""
 
 echo "==> Waiting for backend (boot migration runs here)"
+(cd backend && npm run db:generate && npm run db:migrate && npm run seed:admin)
+
+echo "==> Healthcheck the backend"
 until curl -sf http://localhost:3000/health >/dev/null 2>&1; do sleep 1; done
 
-echo "==> Seeding admin"
+
 (cd backend && npm run db:migrate && npm run seed:admin)
 
 echo "==> Done"

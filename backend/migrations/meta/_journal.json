@@ -8,6 +8,13 @@
       "when": 1791947799095,
       "tag": "0000_striped_thunderbolt",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792033080003,
+      "tag": "0001_seasons_soft_delete",
+      "breakpoints": true
     }
   ]
 }
