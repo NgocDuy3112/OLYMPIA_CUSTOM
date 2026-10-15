@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
-import { users, tournaments } from "../../db/schema/index.js";
+import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { SeasonError, toHttpStatus } from "./errors.js";
 import { CreateSeasonInput, UpdateSeasonInput } from "./schemas.js";
 import {
@@ -33,20 +33,6 @@ const seasonParams = {
 } as const;
 
 
-type SessionUser = typeof users.$inferSelect;
-type ParentTournament = typeof tournaments.$inferSelect;
-
-function canView(parent: ParentTournament, user: SessionUser): boolean {
-    if (parent.visibility === "PUBLIC") return true;
-    return user.role === "ADMIN";
-}
-
-function canWrite(parent: ParentTournament, user: SessionUser): boolean {
-    if (user.role === "ADMIN") return true;
-    return parent.visibility === "PUBLIC" && parent.ownerId === user.id;
-}
-
-
 export async function seasonRoutes(app: FastifyInstance) {
     // Scoped to this plugin; other modules keep their own handlers.
     app.setErrorHandler((error, request, reply) => {
@@ -75,10 +61,10 @@ export async function seasonRoutes(app: FastifyInstance) {
             const { tournamentId } = request.params as { tournamentId: string };
 
             const parent = await requireParent(tournamentId);
-            if (!canView(parent, user)) {
+            if (!canViewTournament(parent, user)) {
                 throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
             }
-            if (!canWrite(parent, user)) {
+            if (!canWriteTournament(parent, user)) {
                 throw app.httpErrors.forbidden(
                     "Only the owner or an admin may manage this tournament's seasons"
                 );
@@ -102,7 +88,7 @@ export async function seasonRoutes(app: FastifyInstance) {
             const { tournamentId } = request.params as { tournamentId: string };
 
             const parent = await requireParent(tournamentId);
-            if (!canView(parent, user)) {
+            if (!canViewTournament(parent, user)) {
                 throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
             }
 
@@ -122,7 +108,7 @@ export async function seasonRoutes(app: FastifyInstance) {
             };
 
             const parent = await requireParent(tournamentId);
-            if (!canView(parent, user)) {
+            if (!canViewTournament(parent, user)) {
                 throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
             }
 
@@ -145,10 +131,10 @@ export async function seasonRoutes(app: FastifyInstance) {
             };
 
             const parent = await requireParent(tournamentId);
-            if (!canView(parent, user)) {
+            if (!canViewTournament(parent, user)) {
                 throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
             }
-            if (!canWrite(parent, user)) {
+            if (!canWriteTournament(parent, user)) {
                 throw app.httpErrors.forbidden(
                     "Only the owner or an admin may manage this tournament's seasons"
                 );

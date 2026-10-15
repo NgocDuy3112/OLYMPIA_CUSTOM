@@ -1,5 +1,9 @@
 import { defineConfig } from "vitest/config";
-import { deriveTestDatabaseUrl } from "./tests/helpers/test-db-url.ts";
+import {
+    TEST_DATABASE_NAME,
+    assertTestDatabaseUrl,
+    deriveTestDatabaseUrl
+} from "./tests/helpers/test-db-url.ts";
 import { buildDatabaseUrl } from "./src/config/database-url.ts";
 
 try {
@@ -11,9 +15,16 @@ try {
 const devUrl = buildDatabaseUrl();
 const testUrl = deriveTestDatabaseUrl(devUrl);
 
-if (!testUrl.includes("test") || testUrl === devUrl) {
+assertTestDatabaseUrl(testUrl);
+
+// Point EVERY consumer at the test database — including src/config/env.ts,
+// which builds its URL from POSTGRES_* instead of reading DATABASE_URL.
+process.env.POSTGRES_DB = TEST_DATABASE_NAME;
+process.env.DATABASE_URL = testUrl;
+
+if (buildDatabaseUrl() !== testUrl) {
     throw new Error(
-        "Derived test URL is unsafe — refusing to destroy a non-test database."
+        "App database URL does not match the test database URL — refusing to run."
     );
 }
 
@@ -31,7 +42,8 @@ export default defineConfig({
         globalSetup: ["./tests/setup/global.ts"],   // once per run: drop schema + migrate
         setupFiles: ["./tests/setup/file.ts"],      // per file: truncate tables
         env: {
-            DATABASE_URL: testUrl
+            DATABASE_URL: testUrl,
+            POSTGRES_DB: TEST_DATABASE_NAME
         }
     }
 });

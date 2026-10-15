@@ -115,6 +115,7 @@ export const questionBank = pgTable(
     },
     (table) => [
         index("question_bank_status_idx").on(table.status),
-        index("question_bank_tag_idx").on(table.tag)
+        index("question_bank_tag_idx").on(table.tag),
+        index("question_bank_tournament_status_idx").on(table.tournamentId, table.status)
     ]
 );

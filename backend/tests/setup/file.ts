@@ -1,4 +1,8 @@
 import pg from "pg";
+import { assertTestDatabaseUrl } from "../helpers/test-db-url.js";
+
+// This file truncates every table — never let it point at a non-test database.
+assertTestDatabaseUrl(process.env.DATABASE_URL!);
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL! });
 

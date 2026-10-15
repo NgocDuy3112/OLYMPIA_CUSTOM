@@ -1,0 +1,1 @@
+CREATE INDEX "question_bank_tournament_status_idx" ON "question_bank" USING btree ("tournament_id","status");

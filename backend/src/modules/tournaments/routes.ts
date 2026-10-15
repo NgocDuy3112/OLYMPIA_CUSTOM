@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
-import { users } from "../../db/schema/index.js";
+import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { toHttpStatus, TournamentError } from "./errors.js";
 import { CreateTournamentInput, UpdateTournamentInput } from "./schemas.js";
 import {
@@ -27,17 +27,6 @@ const slugParams = {
     additionalProperties: false,
     properties: { slug: { type: "string", minLength: 1, maxLength: 100 } },
 } as const;
-
-
-type SessionUser = typeof users.$inferSelect;
-
-function canView(
-    tournament: { visibility: "PUBLIC" | "PRIVATE" },
-    user: SessionUser
-): boolean {
-    if (tournament.visibility === "PUBLIC") return true;
-    return user.role === "ADMIN";
-}
 
 
 export async function tournamentRoutes(app: FastifyInstance) {
@@ -95,7 +84,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
             if (patch.visibility === "PRIVATE" && user.role !== "ADMIN") {
                 throw app.httpErrors.forbidden("Only an admin may make a tournament private");
             }
-            if (user.role !== "ADMIN" && existing.ownerId !== user.id) {
+            if (!canWriteTournament(existing, user)) {
                 throw app.httpErrors.forbidden(
                     "Only the owner or an admin may edit this tournament"
                 );
@@ -132,7 +121,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
             const { id } = request.params as { id: string };
 
             const tournament = await getTournament(id);
-            if (!canView(tournament, user)) {
+            if (!canViewTournament(tournament, user)) {
                 throw new TournamentError("NOT_FOUND", `tournament ${id} not found`);
             }
             return tournament;
