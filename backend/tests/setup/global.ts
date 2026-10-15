@@ -2,9 +2,10 @@ import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { deriveTestDatabaseUrl } from "../helpers/test-db-url.js";
+import { buildDatabaseUrl } from "../../src/config/database-url.js";
 
 
-const testUrl = deriveTestDatabaseUrl(process.env.DATABASE_URL);
+const testUrl = deriveTestDatabaseUrl(buildDatabaseUrl());
 const dbName = testUrl.split("/").pop()!.split("?")[0];
 const adminUrl = testUrl.replace(/\/[^/?]+$/, "/postgres");
 

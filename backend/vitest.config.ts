@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import { deriveTestDatabaseUrl } from "./tests/helpers/test-db-url.ts";
+import { buildDatabaseUrl } from "./src/config/database-url.ts";
 
 try {
     process.loadEnvFile("../configs/.env");
@@ -7,19 +8,15 @@ try {
     // No local env file; variables may be set in the shell.
 }
 
-const devUrl = process.env.DATABASE_URL;
-
-if (!devUrl) {
-    throw new Error("DATABASE_URL is not set — refusing to run tests.");
-}
-
-const testUrl = deriveTestDatabaseUrl(process.env.DATABASE_URL);
+const devUrl = buildDatabaseUrl();
+const testUrl = deriveTestDatabaseUrl(devUrl);
 
 if (!testUrl.includes("test") || testUrl === devUrl) {
     throw new Error(
         "Derived test URL is unsafe — refusing to destroy a non-test database."
     );
 }
+
 
 export default defineConfig({
     server: {

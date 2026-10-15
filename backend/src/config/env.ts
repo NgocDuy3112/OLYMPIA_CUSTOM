@@ -1,3 +1,6 @@
+import { buildDatabaseUrl } from "./database-url.js";
+
+
 function required(variableName: string): string {
     const value = process.env[variableName];
     if (!value) throw new Error(`Missing required environment variable: ${variableName}`);
@@ -25,7 +28,7 @@ export const env = {
     isProduction: (process.env.NODE_ENV ?? "development") === "production",
     port: port(),
 
-    databaseUrl: required("DATABASE_URL"),
+    databaseUrl: buildDatabaseUrl(),
 
     gameplay: {
         jwtSecret: required("GAMEPLAY_JWT_SECRET"),
