@@ -53,7 +53,8 @@ export const matches = pgTable(
         discord: jsonb("discord").$type<MatchDiscord>(),
 
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+        deletedAt: timestamp("deleted_at", { withTimezone: true })
     },
     (table) => [
         index("matches_season_status_idx").on(table.seasonId, table.status),

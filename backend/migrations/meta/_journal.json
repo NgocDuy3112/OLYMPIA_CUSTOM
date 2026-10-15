@@ -22,6 +22,20 @@
       "when": 1792044007655,
       "tag": "0002_lovely_talos",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792047833596,
+      "tag": "0003_massive_black_crow",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792049306794,
+      "tag": "0004_question_search",
+      "breakpoints": true
     }
   ]
 }
