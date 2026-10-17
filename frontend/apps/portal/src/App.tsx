@@ -10,14 +10,6 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route
-          path="/"
-          element={
-            <RequireAuth>
-              <SessionProbe />
-            </RequireAuth>
-          }
-        />
-        <Route
           element={
             <RequireAuth>
               <PortalShell />
@@ -26,6 +18,7 @@ export default function App() {
         >
           <Route path="/" element={<SessionProbe />} />
         </Route>
+
         <Route
           path="/login"
           element={
