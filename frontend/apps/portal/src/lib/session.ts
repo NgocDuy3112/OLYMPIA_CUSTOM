@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 
+export const ME_QUERY_KEY = ["me"] as const
+
 export interface SessionUser {
     id: string
     username: string | null
@@ -13,7 +15,7 @@ export interface SessionUser {
 
 export function useMe() {
     return useQuery({
-        queryKey: ["me"],
+        queryKey: ME_QUERY_KEY,
         queryFn: () => api<SessionUser>("/portal/auth/me"),
         retry: false,
         staleTime: 5 * 60_000,
