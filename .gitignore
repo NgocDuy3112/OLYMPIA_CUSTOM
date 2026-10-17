@@ -1,5 +1,5 @@
 configs/
-data/
+/data/
 docs/
 logs/
 temp/

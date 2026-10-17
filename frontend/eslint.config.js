@@ -20,7 +20,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/components/ui/**'],
+    files: ['shared/ui/**'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },
