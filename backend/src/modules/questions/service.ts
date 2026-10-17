@@ -14,10 +14,10 @@ import { pageResult, type Page, type PageResult } from "../../lib/pagination.js"
 
 export { MAX_BATCH_SIZE };
 
-type QuestionRow = typeof questionBank.$inferSelect;
+export type QuestionRow = typeof questionBank.$inferSelect;
 
 export interface Scope {
-    tournamentId: string | null;   // null = global bank
+    tournamentId: string | null;
 }
 
 export interface WriteContext extends Scope {
@@ -58,8 +58,6 @@ function assertTagAllowed(parent: { defaultTags: string[] }, tag: string): void 
 }
 
 
-// Shared by the single-create path and the batch importer — one rulebook.
-// Shape + integrity first (no DB), then the scope rule once the parent is known.
 function assertQuestionPayload(input: CreateQuestionInput): void {
     validate(CreateQuestionInput, input);
     assertPayloadForKind(input.kind as QuestionKindValue, input.payload);
@@ -158,12 +156,6 @@ export async function transitionQuestion(
 }
 
 
-// Full-text search over question_text (search_vector, populated by 0004).
-// Tokens are sanitised so user input can never break tsquery syntax, and the
-// last token gets :* so a search box matches while the user is still typing.
-// NOTE: search_vector is intentionally NOT declared in the drizzle schema —
-// it is a generated column created by migration 0004, so declaring it would
-// make `db:generate` try to add it again.
 export function questionSearch(term: string) {
     const tokens = term
         .split(/\s+/)
@@ -464,14 +456,10 @@ export async function importQuestions(
     }
 
     errors.sort((a, b) => a.index - b.index);
-
-    // Nothing is written unless the whole file is clean and this is a commit.
     if (errors.length > 0 || dryRun) {
         return { dryRun, total: items.length, created: 0, ids: [], errors };
     }
 
-    // Chunked multi-row inserts: one round-trip per chunk instead of per row.
-    // ids are a SET (used for undo), so RETURNING order doesn't matter.
     const ids = await db.transaction(async (tx) => {
         const collected: string[] = [];
 
@@ -492,4 +480,67 @@ export async function importQuestions(
     });
 
     return { dryRun, total: items.length, created: ids.length, ids, errors: [] };
+}
+
+
+export function agentEligibility(tournamentId: string) {
+    return [
+        inArray(questionBank.status, ["PUBLISHED", "ARCHIVED"]),
+        or(
+            isNull(questionBank.tournamentId),
+            eq(questionBank.tournamentId, tournamentId)
+        )!
+    ];
+}
+
+export interface AgentFilters {
+    kind?: QuestionKindValue;
+    tag?: string;
+    search?: string;
+}
+
+export async function listForAgent(
+    tournamentId: string,
+    filters: AgentFilters,
+    page: Page
+): Promise<PageResult<QuestionRow>> {
+    const conditions = agentEligibility(tournamentId);
+    const search = filters.search ? questionSearch(filters.search) : null;
+
+    if (filters.kind) conditions.push(eq(questionBank.kind, filters.kind));
+    if (filters.tag) conditions.push(eq(questionBank.tag, filters.tag));
+    if (search) conditions.push(search.condition);
+
+    const where = and(...conditions);
+
+    const [totals] = await db.select({ total: count() }).from(questionBank).where(where);
+
+    const order = search
+        ? [desc(search.rank), desc(questionBank.createdAt), desc(questionBank.id)]
+        : [desc(questionBank.createdAt), desc(questionBank.id)];
+
+    const items = await db
+        .select()
+        .from(questionBank)
+        .where(where)
+        .orderBy(...order)
+        .limit(page.limit)
+        .offset(page.offset);
+
+    return pageResult(items, Number(totals?.total ?? 0), page);
+}
+
+
+export async function getForAgent(
+    tournamentId: string,
+    questionId: string
+): Promise<QuestionRow> {
+    const [row] = await db
+        .select()
+        .from(questionBank)
+        .where(and(eq(questionBank.id, questionId), ...agentEligibility(tournamentId)))
+        .limit(1);
+
+    if (!row) throw new QuestionError("NOT_FOUND", `question ${questionId} not found`);
+    return row;
 }

@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 COMPOSE=(podman compose --env-file configs/.env)
 
 echo "==> Starting stack"
-"${COMPOSE[@]}" up -d --build
+"${COMPOSE[@]}" up -d --build --force-recreate
 
 echo "==> Waiting for postgres"
 until "${COMPOSE[@]}" exec -T postgres pg_isready -U ${POSTGRES_USER} >/dev/null 2>&1; do sleep 1; done

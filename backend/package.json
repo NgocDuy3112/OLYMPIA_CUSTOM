@@ -14,7 +14,9 @@
         "db:studio": "drizzle-kit studio",
         "seed:admin": "tsx --env-file=../configs/.env src/db/seed.ts",
         "test": "vitest run",
-        "test:watch": "vitest"
+        "test:watch": "vitest",
+        "mcp:smoke": "tsx --env-file=../configs/.env scripts/mcp-smoke.ts",
+        "mcp:mint": "tsx --env-file=../configs/.env scripts/mint-mcp-key.ts claude-code"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.1146.0",
@@ -25,15 +27,20 @@
         "@fastify/rate-limit": "^11.2.1",
         "@fastify/sensible": "^6.0.7",
         "@fastify/websocket": "^11.3.3",
+        "@modelcontextprotocol/fastify": "^2.0.1",
+        "@modelcontextprotocol/node": "^2.1.1",
+        "@modelcontextprotocol/server": "^2.3.1",
         "@sinclair/typebox": "^0.34.52",
         "argon2": "^0.45.1",
         "drizzle-orm": "^0.45.2",
         "fastify": "^5.12.5",
         "openid-client": "^6.7.1",
         "otplib": "^13.5.0",
-        "pg": "^8.23.1"
+        "pg": "^8.23.1",
+        "zod": "^4.6.7"
     },
     "devDependencies": {
+        "@modelcontextprotocol/client": "^2.3.1",
         "@types/node": "^26.6.5",
         "@types/pg": "^8.23.1",
         "@types/ws": "^8.18.2",
