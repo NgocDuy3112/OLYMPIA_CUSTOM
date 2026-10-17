@@ -13,6 +13,7 @@
     "preview:portal": "vite preview --config apps/portal/vite.config.ts",
     "preview:gameplay": "vite preview --config apps/gameplay/vite.config.ts",
     "lint": "eslint .",
+    "test": "vitest run",
     "test:portal": "vitest run --config apps/portal/vitest.config.ts"
   },
   "dependencies": {
