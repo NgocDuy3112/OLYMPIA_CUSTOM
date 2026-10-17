@@ -1,13 +1,13 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { X } from "lucide-react"
 import { cn } from "cn"
-import { Badge } from "@/components/ui/badge"
-import { DialogOverlay } from "@/components/ui/dialog"
+import { Badge } from "@shared/ui/badge"
+import { DialogOverlay } from "@shared/ui/dialog"
 import { formatDay } from "@/lib/format"
 import { carryOverPoints } from "@/lib/rankingPoints"
 import { STATUS_LABEL, STATUS_VARIANT } from "@/components/schedule/status"
 import type { Match, StandingRow } from "@/data/schedule"
-import { DialogTitle } from "@/components/ui/dialog"
+import { DialogTitle } from "@shared/ui/dialog"
 
 
 interface PlayerDrawerProps {

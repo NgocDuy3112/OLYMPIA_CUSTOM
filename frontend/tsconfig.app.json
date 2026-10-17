@@ -22,7 +22,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["./shared/*"]
     },
     "strict": true,
   },

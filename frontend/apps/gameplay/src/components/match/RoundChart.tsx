@@ -5,7 +5,7 @@ import {
     ChartTooltip,
     ChartTooltipContent,
     type ChartConfig,
-} from "@/components/ui/chart"
+} from "@shared/ui/chart"
 import { ROUND_NAMES, type PlayerResult, type RoundName } from "@/data/schedule"
 
 

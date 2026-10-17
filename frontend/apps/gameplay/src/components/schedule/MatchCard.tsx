@@ -1,5 +1,5 @@
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@shared/ui/badge"
+import { Card, CardContent } from "@shared/ui/card"
 import { cn } from "cn"
 import type { Match } from "@/data/schedule"
 import { Trophy } from "lucide-react"

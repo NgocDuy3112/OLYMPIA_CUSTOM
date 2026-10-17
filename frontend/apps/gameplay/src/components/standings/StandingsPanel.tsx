@@ -5,7 +5,7 @@ import {
     CardDescription,
     CardHeader,
     CardTitle
-} from "@/components/ui/card"
+} from "@shared/ui/card"
 import {
     Table,
     TableBody,
@@ -13,7 +13,7 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from "@/components/ui/table"
+} from "@shared/ui/table"
 import { Trophy, ArrowRight, Medal } from "lucide-react"
 import { cn } from "cn"
 import { carryOverPoints, placementLabel } from "@/lib/rankingPoints"

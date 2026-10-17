@@ -4,6 +4,8 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/geist";
 
+@source "../../../shared";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

@@ -5,7 +5,7 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
-} from "@/components/ui/card"
+} from "@shared/ui/card"
 import { PLACEMENT_TIERS, pointsForPlacement } from "@/lib/rankingPoints"
 
 export function PointsRulesPanel() {

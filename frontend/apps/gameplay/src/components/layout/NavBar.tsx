@@ -1,13 +1,13 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
 import { ChevronDown } from "lucide-react"
 import { cn } from "cn"
-import { buttonVariants } from "../ui/button"
+import { buttonVariants } from "@shared/ui/button"
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@shared/ui/dropdown-menu"
 import { SEASONS, CURRENT_SEASON } from "@/data/seasons"
 
 
