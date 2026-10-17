@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import { setSessionCookie } from "../../lib/cookies.js";
+import { setSessionCookie, clearSessionCookie } from "../../lib/cookies.js";
 import { finishMfa, startLogin } from "./service.js";
+import { requireRole } from "../../lib/guards.js";
+import { toPublicUser } from "../../lib/public-user.js";
 
 
 const loginBody = {
@@ -52,4 +54,15 @@ export async function authRoutes(app: FastifyInstance) {
             return { ok: true };
         }
     );
+
+    app.get(
+        "/portal/auth/me",
+        { onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])] },
+        async (request) => toPublicUser(request.sessionUser!)
+    );
+
+    app.post("/portal/auth/logout", async (_request, reply) => {
+        clearSessionCookie(reply, "PORTAL");
+        return { ok: true };
+    });
 }
