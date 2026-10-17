@@ -14,7 +14,7 @@ import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { MatchPage } from "@/pages/MatchPage"
 import { LoginPage } from "./pages/LoginPage"
-import { SignupPage } from "./pages/SignUpPage"
+import { SignupPage } from "./pages/SignupPage"
 import {
   CURRENT_SEASON,
   findSeason,
