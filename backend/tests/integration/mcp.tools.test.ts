@@ -58,11 +58,11 @@ const mc = (text: string) => ({
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
-async function makeTournament(slug: string, visibility?: "PRIVATE"): Promise<string> {
+async function makeTournament(slug: string, visibility?: "PRIVATE", cookie = ownerCookie): Promise<string> {
     const res = await app.inject({
         method: "POST",
         url: "/portal/tournaments",
-        headers: auth(ownerCookie),
+        headers: auth(cookie),
         payload: { ...tournamentInput(slug), ...(visibility ? { visibility } : {}) }
     });
     if (res.statusCode !== 201) throw new Error(`tournament create: ${res.statusCode} ${res.body}`);
@@ -172,7 +172,7 @@ beforeAll(async () => {
     await revokeMcpKey(doomed.key.id);
 
     pubTournamentId = await makeTournament("mcp-pub");
-    privateTournamentId = await makeTournament("mcp-priv", "PRIVATE");
+    privateTournamentId = await makeTournament("mcp-priv", "PRIVATE", adminCookie);
     foreignTournamentId = await makeTournament("mcp-foreign");
 
     globalPublishedId = await createGlobal("global published");
