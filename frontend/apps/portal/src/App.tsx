@@ -2,7 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { RequireAuth, RedirectIfSignedIn } from "@/components/require-auth"
 import { LoginPage } from "@/pages/LoginPage"
 import { SignupPage } from "@/pages/SignupPage"
-import { SessionProbe } from "@/pages/SessionProbePage"
+import { TournamentsPage } from "@/pages/TournamentsPage"
+import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
 import { PortalShell } from "@/components/portal-shell"
 
 export default function App() {
@@ -16,7 +17,8 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route path="/" element={<SessionProbe />} />
+          <Route path="/" element={<TournamentsPage />} />
+          <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
         </Route>
 
         <Route

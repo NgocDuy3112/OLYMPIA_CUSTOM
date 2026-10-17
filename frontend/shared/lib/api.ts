@@ -1,3 +1,11 @@
+export interface PageResult<T> {
+    items: T[]
+    total: number
+    limit: number
+    offset: number
+}
+
+
 export class ApiError extends Error {
     constructor(public status: number, message: string) {
         super(message)
@@ -5,8 +13,7 @@ export class ApiError extends Error {
     }
 }
 
-// Same-origin in dev — Vite proxies /portal to the backend — so the httpOnly
-// session cookie rides along automatically and there's no CORS preflight.
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const res = await fetch(path, {
         ...init,
