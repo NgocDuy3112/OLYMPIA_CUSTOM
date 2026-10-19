@@ -5,7 +5,7 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "src/index.css",
+    "css": "apps/portal/src/index.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
@@ -13,11 +13,11 @@
   "iconLibrary": "lucide",
   "rtl": false,
   "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
+    "components": "@shared/ui",
+    "ui": "@shared/ui",
+    "lib": "@shared/lib",
+    "hooks": "@shared/hooks",
+    "utils": "@shared/lib/utils"
   },
   "menuColor": "default",
   "menuAccent": "subtle",

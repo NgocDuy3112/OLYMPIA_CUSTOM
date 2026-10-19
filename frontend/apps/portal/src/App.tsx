@@ -4,7 +4,9 @@ import { LoginPage } from "@/pages/LoginPage"
 import { SignupPage } from "@/pages/SignupPage"
 import { TournamentsPage } from "@/pages/TournamentsPage"
 import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
+import { SeasonsPage } from "./pages/SeasonsPage"
 import { PortalShell } from "@/components/portal-shell"
+
 
 export default function App() {
   return (
@@ -19,6 +21,7 @@ export default function App() {
         >
           <Route path="/" element={<TournamentsPage />} />
           <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
+          <Route path="/tournaments/:tournamentId/seasons" element={<SeasonsPage />} />
         </Route>
 
         <Route
