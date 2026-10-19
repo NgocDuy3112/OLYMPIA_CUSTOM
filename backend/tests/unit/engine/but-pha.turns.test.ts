@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
     butPhaTotal,
     closeQuestion,
+    elapsedSeconds,
+    openCurrentQuestion,
     startButPha,
     submitAnswer
 } from "../../../src/game/engine/turns/but-pha.js";
@@ -100,5 +102,45 @@ describe("but-pha — rules", () => {
         let s = startButPha(IDS);
         s = submitAnswer(s, { playerId: "a", correct: false, atS: 2 });
         expect(butPhaTotal(s, "a")).toBe(0);
+    });
+});
+
+describe("but-pha — the per-question clock", () => {
+    const NOW = "2026-01-01T00:00:00.000Z";
+    const at = (sec: number) => new Date(Date.parse(NOW) + sec * 1000).toISOString();
+
+    it("a fresh round has no clock running", () => {
+        expect(startButPha(IDS).questionOpenedAt).toBeNull();
+    });
+
+    it("opening the question starts the clock, and it cannot be started twice", () => {
+        const open = openCurrentQuestion(startButPha(IDS), NOW);
+        expect(open.questionOpenedAt).toBe(NOW);
+        expect(codeOf(() => openCurrentQuestion(open, NOW))).toBe("QUESTION_OPEN");
+    });
+
+    it("elapsed time is measured from the open moment", () => {
+        const open = openCurrentQuestion(startButPha(IDS), NOW);
+        expect(elapsedSeconds(open, NOW)).toBe(0);
+        expect(elapsedSeconds(open, at(3))).toBe(3);
+        expect(elapsedSeconds(open, at(30))).toBe(30);
+        expect(elapsedSeconds(open, at(30.5))).toBe(30.5);
+    });
+
+    it("elapsed time before the clock starts is an error", () => {
+        expect(codeOf(() => elapsedSeconds(startButPha(IDS), NOW))).toBe("QUESTION_NOT_OPEN");
+    });
+
+    it("closing a question clears the clock", () => {
+        const open = openCurrentQuestion(startButPha(IDS), NOW);
+        expect(closeQuestion(open).questionOpenedAt).toBeNull();
+    });
+
+    it("an answer at exactly 30 s is accepted; past 30 s is not", () => {
+        const open = openCurrentQuestion(startButPha(IDS), NOW);
+        const onTime = submitAnswer(open, { playerId: "a", correct: true, atS: 30 });
+        expect(butPhaTotal(onTime, "a")).toBe(5 * 4);          // base 5 at 30 s, 1st correct
+        const late = submitAnswer(open, { playerId: "b", correct: true, atS: 30.5 });
+        expect(butPhaTotal(late, "b")).toBe(0);
     });
 });

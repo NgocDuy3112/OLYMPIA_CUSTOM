@@ -17,9 +17,18 @@ export type Seat = Static<typeof SeatSchema>;
 
 // ─── §6 — AnswerValue ────────────────────────────────────────────────────────
 
-export const AnswerValueSchema = Type.Union([
+// A submitted answer is either a selection or typed text. An oral answer is a distinct
+// shape: the player said it out loud, so there is no typed content — only a verdict.
+export const SubmittedAnswerValueSchema = Type.Union([
     Type.Object({ picked: Type.Array(Type.String(), { minItems: 1 }) }),
     Type.Object({ text: Type.String({ minLength: 1 }) })
+]);
+export type SubmittedAnswerValue = Static<typeof SubmittedAnswerValueSchema>;
+
+export const AnswerValueSchema = Type.Union([
+    Type.Object({ picked: Type.Array(Type.String(), { minItems: 1 }) }),
+    Type.Object({ text: Type.String({ minLength: 1 }) }),
+    Type.Object({ oral: Type.Literal(true) })
 ]);
 export type AnswerValue = Static<typeof AnswerValueSchema>;
 
