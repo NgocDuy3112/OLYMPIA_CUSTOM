@@ -19,6 +19,7 @@ let tournamentId: string;
 let seasonId: string;
 let matchId: string;
 let hintIds: string[];
+let butPhaIds: string[];
 let keywordQuestionId: string;
 let playerIds: string[];
 
@@ -83,8 +84,10 @@ beforeAll(async () => {
 
     const hints = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => textQuestion("giai-ma", "hints", n));
     const keyword = keywordQuestion("giai-ma");
+    const butPha = [1, 2, 3, 4].map((n) => textQuestion("but-pha", "but-pha", n));
     hintIds = hints.map((q) => q._id);
     keywordQuestionId = keyword._id;
+    butPhaIds = butPha.map((q) => q._id);
 
     const [match] = await db.insert(matches).values({
         seasonId, stageId: "s1", scheduledAt: new Date(), label: "Live Match", status: "LIVE",
@@ -96,7 +99,7 @@ beforeAll(async () => {
             "giai-ma": { allowedKinds: ["TEXT", "KEYWORD"], scoring: { template: "keyword_derived", initial: 100, dropPerHint: 10, incorrect: 0 }, turns: [] },
             "but-pha": { allowedKinds: ["TEXT"], scoring: { template: "constant", points: 10 }, turns: [] }
         },
-        questions: [...hints, keyword]
+        questions: [...hints, keyword, ...butPha]
     }).returning();
     matchId = match.id;
 
@@ -119,6 +122,16 @@ const statusUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}
 async function live(): Promise<{ version: number; roundId: string; state: Record<string, unknown> }> {
     const res = await app.inject({ method: "GET", url: liveUrl(), headers: auth(ownerCookie) });
     return res.json();
+}
+
+// Pin the open question's clock `msAgo` into the past, as the real clock would after
+// time passes. Keeps but-pha points deterministic instead of timing-dependent.
+async function backdateQuestionClock(msAgo: number): Promise<void> {
+    const current = await live();
+    const state = current.state as Record<string, unknown>;
+    await db.update(matchLive)
+        .set({ state: { ...state, questionOpenedAt: new Date(Date.now() - msAgo).toISOString() } })
+        .where(eq(matchLive.matchId, matchId));
 }
 
 async function act(action: unknown) {
@@ -361,8 +374,10 @@ describe("round progression", () => {
         expect(res.json().error).toBe("WRONG_ROUND");
     });
 
-    it("a player cannot answer in a round that takes no answers yet", async () => {
-        expect((await answer(playerCookies[0], hintIds[3], "Hà Nội")).statusCode).toBe(409);
+    it("a player cannot answer before the round has started", async () => {
+        const res = await answer(playerCookies[0], hintIds[3], "Hà Nội");
+        expect(res.statusCode).toBe(409);
+        expect(res.json().message).toContain("has not started");
     });
 
     it("the keyword route is refused once the round has moved on", async () => {
@@ -392,6 +407,70 @@ describe("live actions — authorisation", () => {
     });
 });
 
+describe("but-pha round", () => {
+    it("the MC starts but-pha with the match's questions in position order", async () => {
+        const res = await act({ kind: "but-pha.start" });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().state.questionIds).toEqual(butPhaIds);
+    });
+
+    it("a player cannot answer before the question's clock starts", async () => {
+        const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
+        expect(res.statusCode).toBe(409);
+        expect(res.json().message).toContain("clock has not started");
+    });
+
+    it("the MC opens the first question", async () => {
+        const res = await act({ kind: "but-pha.openQuestion" });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().state.questionOpenedAt).not.toBeNull();
+    });
+
+    it("the first correct answer scores base x4", async () => {
+        await backdateQuestionClock(3_000);
+        const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
+        expect(res.statusCode).toBe(200);
+        expect(res.json().correct).toBe(true);
+        expect(res.json().points).toBe(60);          // base 15 x 4
+    });
+
+    it("the second correct answer scores base x3", async () => {
+        await backdateQuestionClock(7_000);
+        const res = await answer(playerCookies[1], butPhaIds[0], "Hà Nội");
+        expect(res.statusCode).toBe(200);
+        expect(res.json().points).toBe(30);          // base 10 x 3
+    });
+
+    it("a player cannot answer the same question twice", async () => {
+        const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
+        expect(res.statusCode).toBe(409);
+    });
+
+    it("the MC closes the question; the cursor advances and the clock clears", async () => {
+        const res = await act({ kind: "but-pha.closeQuestion" });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().state.cursor).toBe(1);
+        expect(res.json().state.questionOpenedAt).toBeNull();
+    });
+
+    it("an answer for a question that is no longer open is refused", async () => {
+        const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
+        expect(res.statusCode).toBe(409);
+    });
+
+    it("the MC ends the round", async () => {
+        const res = await act({ kind: "but-pha.endRound" });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().state.ended).toBe(true);
+    });
+
+    it("advancing past the last round returns 409 NO_NEXT_ROUND", async () => {
+        const res = await act({ kind: "round.advance" });
+        expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("NO_NEXT_ROUND");
+    });
+});
+
 describe("match end — the results are frozen once", () => {
     it("finishing the match returns 200 and writes the competitor results", async () => {
         const res = await app.inject({
@@ -403,20 +482,23 @@ describe("match end — the results are frozen once", () => {
 
         const [row] = await db.select().from(matchResults).where(eq(matchResults.matchId, matchId));
         expect(row.results).toHaveLength(2);
-        for (const entry of row.results) {
-            // Both players solved the keyword from one revealed hint, so both are on 90.
-            expect(entry.kind).toBe("user");
-            expect(entry.totalScore).toBe(90);
-            expect(entry.roundScores).toEqual({ "giai-ma": 90 });
-            expect(entry.rank).toBe(1);
-        }
+
+        // Both solved the giai-ma keyword from one revealed hint (90 each). In but-pha,
+        // player 0 was first correct (60) and player 1 second (30).
+        const p0 = row.results.find((r) => r.userId === playerIds[0])!;
+        const p1 = row.results.find((r) => r.userId === playerIds[1])!;
+        expect(p0).toMatchObject({ kind: "user", totalScore: 150, rank: 1 });
+        expect(p0.roundScores).toEqual({ "giai-ma": 90, "but-pha": 60 });
+        expect(p1).toMatchObject({ kind: "user", totalScore: 120, rank: 2 });
+        expect(p1.roundScores).toEqual({ "giai-ma": 90, "but-pha": 30 });
     });
 
     it("the per-question analytics grain is written for the round", async () => {
         const rows = await db.select().from(matchStats).where(eq(matchStats.matchId, matchId));
-        // hint 0 (both players) + hint 2 (one) + keyword (one player) + keyword (the MC's) = 5
-        expect(rows).toHaveLength(5);
-        expect(rows.every((r) => r.roundId === "giai-ma")).toBe(true);
+        // giai-ma: hint 0 (both) + hint 2 (one) + keyword (player) + keyword (MC) = 5
+        // but-pha: two answers on the first question = 2
+        expect(rows).toHaveLength(7);
+        expect(rows.filter((r) => r.roundId === "but-pha")).toHaveLength(2);
         expect(rows.every((r) => r.seasonId === seasonId)).toBe(true);
     });
 
@@ -427,6 +509,6 @@ describe("match end — the results are frozen once", () => {
         });
         expect(res.statusCode).toBe(200);
         expect((await db.select().from(matchResults).where(eq(matchResults.matchId, matchId)))).toHaveLength(1);
-        expect((await db.select().from(matchStats).where(eq(matchStats.matchId, matchId)))).toHaveLength(5);
+        expect((await db.select().from(matchStats).where(eq(matchStats.matchId, matchId)))).toHaveLength(7);
     });
 });
