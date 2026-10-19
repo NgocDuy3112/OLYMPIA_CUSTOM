@@ -227,3 +227,23 @@ export const matchEvents = pgTable(
         )
     ]
 );
+
+// Live round state for an in-progress match. One row per live match.
+// `version` is the optimistic-concurrency counter: every MC action must name the version
+// it was based on, and a stale one is rejected (HTTP 409). `state` holds the round
+// engine's pure state as JSON. Public match rows (`matches.live`) are unaffected.
+export const matchLive = pgTable(
+    "match_live",
+    {
+        matchId: uuid("match_id")
+            .primaryKey()
+            .references(() => matches.id, { onDelete: "cascade" }),
+        version: integer("version").notNull().default(0),
+        roundId: text("round_id").notNull(),
+        state: jsonb("state").$type<Record<string, unknown>>().notNull(),
+        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+    },
+    (table) => [
+        check("match_live_version_check", sql`version >= 0`)
+    ]
+);
