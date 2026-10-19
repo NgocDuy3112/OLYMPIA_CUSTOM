@@ -52,18 +52,19 @@ export const ButPhaOpenQuestion = Type.Object({ kind: Type.Literal("but-pha.open
 export const ButPhaCloseQuestion = Type.Object({ kind: Type.Literal("but-pha.closeQuestion") });
 export const ButPhaEndRound = Type.Object({ kind: Type.Literal("but-pha.endRound") });
 
-// Built by the player route, never sent by a client: the verdict is auto-matched and the
-// answer time is measured by the server.
-export const ButPhaSubmitAnswer = Type.Object({
-    kind: Type.Literal("but-pha.submitAnswer"),
-    playerId: Type.String(),
+// The controller's final verdicts for the open question. Points are computed at this
+// point, from the submission times recorded when players drafted their answers.
+export const ButPhaFinalize = Type.Object({
+    kind: Type.Literal("but-pha.finalize"),
     questionId: Type.String(),
-    correct: Type.Boolean(),
-    text: Type.String()
+    verdicts: Type.Array(
+        Type.Object({ playerId: Type.String(), correct: Type.Boolean() }),
+        { minItems: 1 }
+    )
 });
 
 export const ButPhaActionSchema = Type.Union([
-    ButPhaStart, ButPhaOpenQuestion, ButPhaCloseQuestion, ButPhaEndRound, ButPhaSubmitAnswer
+    ButPhaStart, ButPhaOpenQuestion, ButPhaCloseQuestion, ButPhaEndRound, ButPhaFinalize
 ]);
 export type ButPhaAction = Static<typeof ButPhaActionSchema>;
 
@@ -81,19 +82,20 @@ export const KhoiDongBeginPhase2 = Type.Object({ kind: Type.Literal("khoi-dong.b
 export const KhoiDongClosePhase2 = Type.Object({ kind: Type.Literal("khoi-dong.closePhase2") });
 export const KhoiDongEndRound = Type.Object({ kind: Type.Literal("khoi-dong.endRound") });
 
-// Built by the player route, never sent by a client.
-export const KhoiDongRecordTyped = Type.Object({
-    kind: Type.Literal("khoi-dong.recordTyped"),
-    playerId: Type.String(),
+// The controller's final verdicts for one phase-2 question's answers. The player's
+// submission wrote a draft; this confirms or overwrites it and awards the points.
+export const KhoiDongFinalize = Type.Object({
+    kind: Type.Literal("khoi-dong.finalize"),
     questionId: Type.String(),
-    correct: Type.Boolean(),
-    text: Type.String(),
-    atS: Type.Number({ minimum: 0 })   // measured by the server from phase 2's clock
+    verdicts: Type.Array(
+        Type.Object({ playerId: Type.String(), correct: Type.Boolean() }),
+        { minItems: 1 }
+    )
 });
 
 export const KhoiDongActionSchema = Type.Union([
     KhoiDongStart, KhoiDongRecordOral, KhoiDongTimeOutRun,
-    KhoiDongBeginPhase2, KhoiDongClosePhase2, KhoiDongEndRound, KhoiDongRecordTyped
+    KhoiDongBeginPhase2, KhoiDongClosePhase2, KhoiDongEndRound, KhoiDongFinalize
 ]);
 export type KhoiDongAction = Static<typeof KhoiDongActionSchema>;
 
@@ -113,12 +115,14 @@ export const LiveActionSchema = Type.Union([
     ButPhaOpenQuestion,
     ButPhaCloseQuestion,
     ButPhaEndRound,
+    ButPhaFinalize,
     KhoiDongStart,
     KhoiDongRecordOral,
     KhoiDongTimeOutRun,
     KhoiDongBeginPhase2,
     KhoiDongClosePhase2,
     KhoiDongEndRound,
+    KhoiDongFinalize,
     RoundAdvanceActionSchema
 ]);
 export type LiveAction = Static<typeof LiveActionSchema>;

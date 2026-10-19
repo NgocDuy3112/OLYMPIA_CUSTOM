@@ -4,34 +4,33 @@ import { requireAuth, requireRole } from "../../lib/guards.js";
 import { getMatch, getMatchById, requireMatchScope } from "../matches/service.js";
 import { nextRoundId, orderedMatchRounds } from "../matches/rounds.js";
 import { isSeatedInMatch } from "../matches/seats.js";
+import { auditFromRequest } from "../audit/service.js";
 import { canWriteTournament } from "../../lib/tournament-access.js";
-import { applyLiveAction, mutateLive, type Transition } from "./apply.js";
+import { applyLiveAction, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
-import { readLive, recordPlayerAnswer, LiveNotFoundError, pgLiveStore } from "./store.js";
+import { readLive, readPlayerAnswers, readQuestionAnswers, LiveNotFoundError, pgLiveStore } from "./store.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
 import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAction, type LiveAction } from "./actions.js";
 import { applyGiaiMaAction, type GiaiMaContext } from "./giai-ma.js";
 import { applyButPhaAction } from "./but-pha.js";
 import { applyKhoiDongAction } from "./khoi-dong.js";
-import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState } from "./state.js";
-import { canPlayerAnswer, giaiMaPoints, isWindowOpen, startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
+import { buildPlayerView, type PlayerView } from "./view.js";
+import { submitAnswer, submitKeyword, SubmitError } from "./submit.js";
 import {
-    elapsedSeconds,
-    openQuestionId,
-    QUESTION_LIMIT_S,
-    type ButPhaState
-} from "../../game/engine/turns/but-pha.js";
-import {
-    elapsedPhase2Seconds,
-    type KhoiDongState
-} from "../../game/engine/turns/khoi-dong-round.js";
-import { PHASE2_BUDGET_S } from "../../game/engine/turns/khoi-dong.js";
-import { autoMatch, type QuestionKind } from "../../game/engine/matching.js";
-import {
-    SubmittedAnswerValueSchema,
-    type SubmittedAnswerValue,
-    type MatchQuestion
-} from "../../game/contracts/index.js";
+    ackMessage,
+    ClientMessageSchema,
+    errorMessage,
+    requestIdOf,
+    viewMessage,
+    type ClientMessage,
+    type ServerMessage
+} from "./protocol.js";
+import { publish, subscribe } from "./hub.js";
+import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState } from "./state.js";
+import { startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
+import { openQuestionId, type ButPhaState } from "../../game/engine/turns/but-pha.js";
+import { type KhoiDongState } from "../../game/engine/turns/khoi-dong-round.js";
+import type { MatchQuestion } from "../../game/contracts/index.js";
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
@@ -167,6 +166,10 @@ function isRoundEnded(roundId: string, raw: unknown): boolean {
 
 export async function liveRoutes(app: FastifyInstance) {
     app.setErrorHandler((error, _request, reply) => {
+        if (error instanceof SubmitError) {
+            reply.code(error.status).send({ error: error.code, message: error.message });
+            return;
+        }
         if (error instanceof LiveConflictError) {
             reply.code(409).send({
                 error: "CONFLICT",
@@ -270,11 +273,33 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ? EMPTY_BUT_PHA
                                 : parseButPhaState(current.state);
 
+                            // Finalizing reads the drafts (and their times) inside this tx.
+                            let answerDrafts: AnswerDraft[] = [];
+                            if (action.kind === "but-pha.finalize") {
+                                answerDrafts = await tx.readAnswerDrafts(action.questionId);
+                            }
+
+                            // Strict blocking: the next question requires every answer of the
+                            // current one to have a final verdict.
+                            if (action.kind === "but-pha.closeQuestion") {
+                                const open = openQuestionId(engine);
+                                if (open !== null) {
+                                    const drafts = await tx.readAnswerDrafts(open);
+                                    if (drafts.some((d) => !d.judged)) {
+                                        throw new RuleError(
+                                            "UNJUDGED_ANSWERS",
+                                            "judge every submitted answer before closing the question"
+                                        );
+                                    }
+                                }
+                            }
+
                             const { state, facts } = applyButPhaAction(engine, action as ButPhaAction, {
                                 actorId: user.id,
                                 roundId: current.roundId,
                                 now: new Date().toISOString(),
-                                questionIds: roundQuestionIds(match, current.roundId)
+                                questionIds: roundQuestionIds(match, current.roundId),
+                                answerDrafts
                             });
                             return { state: state as unknown as Record<string, unknown>, facts };
                         }
@@ -295,7 +320,43 @@ export async function liveRoutes(app: FastifyInstance) {
                 }
             );
 
+            // Tell every connected player their view is stale.
+            await publish(matchId);
+
+            if (action.kind === "khoi-dong.finalize") {
+                await auditFromRequest(request, "answer_judged", {
+                    matchId,
+                    details: {
+                        roundId: next.roundId,
+                        questionId: action.questionId,
+                        verdicts: action.verdicts
+                    }
+                });
+            }
+
             return next;
+        }
+    );
+
+    // The answers for a question, with their drafts, so the controller can judge them.
+    app.get(
+        "/portal/tournaments/:tournamentId/seasons/:seasonId/matches/:matchId/live/answers",
+        {
+            onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
+            schema: {
+                params: matchParams,
+                querystring: {
+                    type: "object",
+                    required: ["questionId"],
+                    additionalProperties: false,
+                    properties: { questionId: { type: "string", pattern: UUID_PATTERN } }
+                }
+            },
+        },
+        async (request) => {
+            const { matchId } = request.params as { matchId: string };
+            const { questionId } = request.query as { questionId: string };
+            return { items: await readQuestionAnswers(matchId, questionId) };
         }
     );
 
@@ -315,6 +376,157 @@ export async function liveRoutes(app: FastifyInstance) {
     );
 
     // ── Player surface ────────────────────────────────────────────────────────
+
+    // The realtime channel: the same view as the GET, pushed whenever the round changes.
+    app.get(
+        "/gameplay/matches/:matchId/live/stream",
+        {
+            websocket: true,
+            onRequest: [requireAuth("GAMEPLAY")],
+            schema: { params: matchIdParams },
+        },
+        async (socket, request) => {
+            const user = request.sessionUser!;
+            const { matchId } = request.params as { matchId: string };
+
+            const send = async () => {
+                const match = await getMatchById(matchId);
+                const live = await readLive(matchId);
+                if (match.status !== "LIVE" || !live) {
+                    socket.send(JSON.stringify(errorMessage("UNAVAILABLE", "the match is not live")));
+                    return;
+                }
+
+                const state = live.state && Object.keys(live.state).length > 0
+                    ? parseRoundState(live.roundId, live.state)
+                    : null;
+
+                const view: PlayerView = state === null
+                    ? { matchId, roundId: live.roundId, version: live.version, stage: "pending", open: [], me: {} }
+                    : buildPlayerView({
+                          matchId,
+                          roundId: live.roundId,
+                          version: live.version,
+                          now: new Date().toISOString(),
+                          userId: user.id,
+                          state,
+                          submitted: await readPlayerAnswers(matchId, user.id)
+                      });
+
+                socket.send(JSON.stringify(viewMessage(view)));
+            };
+
+            // A seated player only.
+            const match = await getMatchById(matchId);
+            if (!isSeatedInMatch(match.players, user.id)) {
+                socket.close(4403, "not a player in this match");
+                return;
+            }
+
+            const unsubscribe = subscribe(matchId, { userId: user.id, push: send });
+            socket.on("close", unsubscribe);
+
+            // Inbound: one validated envelope per command.
+            socket.on("message", async (raw) => {
+                const reply = (message: ServerMessage) => {
+                    try { socket.send(JSON.stringify(message)); } catch { /* socket gone */ }
+                };
+
+                let parsed: unknown;
+                try {
+                    parsed = JSON.parse(String(raw));
+                } catch {
+                    reply(errorMessage("BAD_MESSAGE", "invalid JSON"));
+                    return;
+                }
+
+                if (!Value.Check(ClientMessageSchema, parsed)) {
+                    reply(errorMessage(
+                        "BAD_MESSAGE",
+                        "unknown or malformed message",
+                        requestIdOf(parsed)
+                    ));
+                    return;
+                }
+
+                const message = parsed as ClientMessage;
+                if (message.type === "buzz") {
+                    reply(errorMessage("UNKNOWN_MESSAGE", "buzz is not wired yet", message.requestId));
+                    return;
+                }
+
+                const common = {
+                    matchId,
+                    userId: user.id,
+                    questionId: message.data.questionId,
+                    value: message.data.value,
+                    ip: request.ip,
+                    userAgent: request.headers["user-agent"] ?? null
+                };
+
+                try {
+                    if (message.type === "answer") {
+                        reply(ackMessage("answer", await submitAnswer(common), message.requestId));
+                    } else {
+                        reply(ackMessage("keyword", await submitKeyword(common), message.requestId));
+                    }
+                } catch (error) {
+                    if (error instanceof SubmitError) {
+                        reply(errorMessage(error.code, error.message, message.requestId));
+                    } else {
+                        reply(errorMessage("INTERNAL", "something went wrong", message.requestId));
+                    }
+                }
+            });
+
+            await send();
+        }
+    );
+
+    // What this player should see: the shared flow plus their own private state.
+    app.get(
+        "/gameplay/matches/:matchId/live",
+        {
+            onRequest: [requireAuth("GAMEPLAY")],
+            schema: { params: matchIdParams },
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { matchId } = request.params as { matchId: string };
+
+            const match = await getMatchById(matchId);
+            if (match.status !== "LIVE") throw app.httpErrors.conflict("match is not LIVE");
+            if (!isSeatedInMatch(match.players, user.id)) {
+                throw app.httpErrors.forbidden("you are not a player in this match");
+            }
+
+            const live = await readLive(matchId);
+            if (!live) throw app.httpErrors.notFound("no live round");
+
+            // A round the MC has not started yet has an empty state; say so plainly.
+            if (!live.state || Object.keys(live.state).length === 0) {
+                return {
+                    matchId,
+                    roundId: live.roundId,
+                    version: live.version,
+                    stage: "pending",
+                    open: [],
+                    me: {}
+                };
+            }
+
+            return buildPlayerView({
+                matchId,
+                roundId: live.roundId,
+                version: live.version,
+                now: new Date().toISOString(),
+                userId: user.id,
+                state: parseRoundState(live.roundId, live.state),
+                submitted: await readPlayerAnswers(matchId, user.id)
+            });
+        }
+    );
+
     // A seated player submits a typed answer, only while the MC has its window open.
     // The answer is auto-matched and stored; it does not touch the round state, so it
     // never conflicts with the MC.
@@ -328,175 +540,14 @@ export async function liveRoutes(app: FastifyInstance) {
             const user = request.sessionUser!;
             const { matchId } = request.params as { matchId: string };
             const body = request.body as { questionId: string; value: unknown };
-
-            if (!Value.Check(SubmittedAnswerValueSchema, body.value)) {
-                throw app.httpErrors.badRequest("invalid answer value");
-            }
-            const value = body.value as SubmittedAnswerValue;
-
-            const match = await getMatchById(matchId);
-            if (match.status !== "LIVE") throw app.httpErrors.conflict("match is not LIVE");
-
-            if (!isSeatedInMatch(match.players, user.id)) {
-                throw app.httpErrors.forbidden("you are not a player in this match");
-            }
-
-            const live = await readLive(matchId);
-            if (!live) throw app.httpErrors.notFound("no live round");
-
-            // A round that the MC has not started has an empty state; say so plainly
-            // rather than failing to parse it.
-            if (!live.state || Object.keys(live.state).length === 0) {
-                throw app.httpErrors.conflict(`round ${live.roundId} has not started`);
-            }
-            const now = new Date().toISOString();
-
-            // ── giai-ma: answers are recorded, not scored; state does not change ──
-            if (live.roundId === "giai-ma") {
-                const state = parseGiaiMaState(live.state);
-
-                if (state.openHint !== body.questionId) {
-                    throw app.httpErrors.conflict("no answer window is open for this question");
-                }
-                if (!isWindowOpen(state, now)) {
-                    throw app.httpErrors.conflict("the answer window has closed");
-                }
-                if (!canPlayerAnswer(state, user.id, now)) {
-                    throw app.httpErrors.conflict("you can no longer answer this round");
-                }
-
-                const question = match.questions.find((c) => c._id === body.questionId);
-                if (!question) throw app.httpErrors.badRequest("question is not part of this match");
-
-                const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
-                await recordPlayerAnswer({
-                    matchId,
-                    questionId: body.questionId,
-                    userId: user.id,
-                    value,
-                    verdict: correct ? "CORRECT" : "INCORRECT"
-                });
-
-                // Instant feedback is required mid-round for hints.
-                return { correct };
-            }
-
-            // ── but-pha: the answer changes state (speed order, points) ──
-            if (live.roundId === "but-pha") {
-                if (!("text" in value)) {
-                    throw app.httpErrors.badRequest("a but-pha answer must be text");
-                }
-                const state = parseButPhaState(live.state);
-
-                const questionId = openQuestionId(state);
-                if (questionId === null) throw app.httpErrors.conflict("no question is open");
-                if (questionId !== body.questionId) {
-                    throw app.httpErrors.conflict("that question is not open");
-                }
-
-                let atS: number;
-                try {
-                    atS = elapsedSeconds(state, now);
-                } catch {
-                    throw app.httpErrors.conflict("the question's clock has not started");
-                }
-                if (atS > QUESTION_LIMIT_S) {
-                    throw app.httpErrors.conflict("the answer window has closed");
-                }
-
-                const question = match.questions.find((c) => c._id === questionId);
-                if (!question) throw app.httpErrors.badRequest("question is not part of this match");
-
-                const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
-
-                const next = await mutateLive(
-                    pgLiveStore<Record<string, unknown>>(matchId),
-                    (current): Transition<Record<string, unknown>> => {
-                        const engine = parseButPhaState(current.state);
-                        const { state: nextState, facts } = applyButPhaAction(
-                            engine,
-                            {
-                                kind: "but-pha.submitAnswer",
-                                playerId: user.id,
-                                questionId,
-                                correct,
-                                text: value.text
-                            },
-                            {
-                                actorId: user.id,
-                                roundId: current.roundId,
-                                now: new Date().toISOString(),
-                                questionIds: []
-                            }
-                        );
-                        return { state: nextState as unknown as Record<string, unknown>, facts };
-                    }
-                );
-
-                const points = (parseButPhaState(next.state).points[questionId] ?? {})[user.id] ?? 0;
-                return { correct, points };
-            }
-
-            // ── khoi-dong phase 2: typed, all players, one shared 60 s clock ──
-            if (live.roundId === "khoi-dong") {
-                if (!("text" in value)) {
-                    throw app.httpErrors.badRequest("a khoi-dong phase-2 answer must be text");
-                }
-                const state = parseKhoiDongState(live.state);
-                if (state.ended) throw app.httpErrors.conflict("the round has ended");
-                if (state.stage !== "phase2" || state.phase2 === null) {
-                    throw app.httpErrors.conflict("phase 2 is not open");
-                }
-                if (!state.phase2.questionIds.includes(body.questionId)) {
-                    throw app.httpErrors.conflict("that question is not in phase 2");
-                }
-
-                let atS: number;
-                try {
-                    atS = elapsedPhase2Seconds(state, now);
-                } catch {
-                    throw app.httpErrors.conflict("phase 2's clock has not started");
-                }
-                if (atS > PHASE2_BUDGET_S) {
-                    throw app.httpErrors.conflict("the answer window has closed");
-                }
-
-                const question = match.questions.find((c) => c._id === body.questionId);
-                if (!question) throw app.httpErrors.badRequest("question is not part of this match");
-
-                const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
-
-                await mutateLive(
-                    pgLiveStore<Record<string, unknown>>(matchId),
-                    (current): Transition<Record<string, unknown>> => {
-                        const engine = parseKhoiDongState(current.state);
-                        const { state: nextState, facts } = applyKhoiDongAction(
-                            engine,
-                            {
-                                kind: "khoi-dong.recordTyped",
-                                playerId: user.id,
-                                questionId: body.questionId,
-                                correct,
-                                text: value.text,
-                                atS
-                            },
-                            {
-                                actorId: user.id,
-                                roundId: current.roundId,
-                                now: new Date().toISOString(),
-                                playerIds: [],
-                                phase1QuestionIds: [],
-                                phase2QuestionIds: []
-                            }
-                        );
-                        return { state: nextState as unknown as Record<string, unknown>, facts };
-                    }
-                );
-
-                return { correct, points: correct ? 10 : 0 };
-            }
-
-            throw app.httpErrors.conflict(`round ${live.roundId} does not accept answers yet`);
+            return submitAnswer({
+                matchId,
+                userId: user.id,
+                questionId: body.questionId,
+                value: body.value,
+                ip: request.ip,
+                userAgent: request.headers["user-agent"] ?? null
+            });
         }
     );
 
@@ -512,67 +563,14 @@ export async function liveRoutes(app: FastifyInstance) {
             const user = request.sessionUser!;
             const { matchId } = request.params as { matchId: string };
             const body = request.body as { questionId: string; value: unknown };
-
-            if (!Value.Check(SubmittedAnswerValueSchema, body.value)) {
-                throw app.httpErrors.badRequest("invalid answer value");
-            }
-            const value = body.value as SubmittedAnswerValue;
-            if (!("text" in value)) {
-                throw app.httpErrors.badRequest("a keyword answer must be text");
-            }
-
-            const match = await getMatchById(matchId);
-            if (match.status !== "LIVE") throw app.httpErrors.conflict("match is not LIVE");
-            if (!isSeatedInMatch(match.players, user.id)) {
-                throw app.httpErrors.forbidden("you are not a player in this match");
-            }
-
-            const live = await readLive(matchId);
-            if (!live) throw app.httpErrors.notFound("no live round");
-            if (live.roundId !== "giai-ma") {
-                throw app.httpErrors.conflict(`round ${live.roundId} has no keyword submission`);
-            }
-
-            const keyword = match.questions.find(
-                (q) => q.kind === "KEYWORD" && q.roundId === live.roundId
-            );
-            if (!keyword) throw app.httpErrors.badRequest("this round has no keyword question");
-            if (keyword._id !== body.questionId) {
-                throw app.httpErrors.badRequest("question is not this round's keyword");
-            }
-
-            const correct = autoMatch("KEYWORD", keyword.payload, value);
-
-            const next = await mutateLive(
-                pgLiveStore<Record<string, unknown>>(matchId),
-                (current): Transition<Record<string, unknown>> => {
-                    const state = parseGiaiMaState(current.state);
-                    if (state.players.find((p) => p.id === user.id)?.keywordLocked) {
-                        throw new RuleError("ALREADY_SUBMITTED", "you already submitted a keyword");
-                    }
-                    const { state: nextState, facts } = applyGiaiMaAction(
-                        state,
-                        {
-                            kind: "giai-ma.submitKeyword",
-                            playerId: user.id,
-                            questionId: keyword._id,
-                            correct,
-                            text: value.text
-                        },
-                        {
-                            actorId: user.id,
-                            roundId: current.roundId,
-                            hintTurnId: "",
-                            submittedAnswers: {},
-                            now: new Date().toISOString(),
-                            keywordAutoMatched: true    // the player typed it; the server matched it
-                        }
-                    );
-                    return { state: nextState as unknown as Record<string, unknown>, facts };
-                }
-            );
-
-            return { correct, points: giaiMaPoints(parseGiaiMaState(next.state), user.id) };
+            return submitKeyword({
+                matchId,
+                userId: user.id,
+                questionId: body.questionId,
+                value: body.value,
+                ip: request.ip,
+                userAgent: request.headers["user-agent"] ?? null
+            });
         }
     );
 }

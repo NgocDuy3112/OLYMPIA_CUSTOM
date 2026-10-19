@@ -5,8 +5,8 @@ import {
     beginPhase2,
     closeTypedWindow,
     endKhoiDong,
+    finalizeTyped,
     recordOral,
-    recordTyped,
     startKhoiDong,
     timeOutRun
 } from "../../game/engine/turns/khoi-dong-round.js";
@@ -72,22 +72,23 @@ export function applyKhoiDongAction(
         case "khoi-dong.endRound":
             return { state: endKhoiDong(state), facts: [] };
 
-        case "khoi-dong.recordTyped": {
-            const next = recordTyped(state, {
-                playerId: action.playerId,
-                questionId: action.questionId,
-                correct: action.correct,
-                atS: action.atS   // server-measured; the engine rejects anything past 60 s
-            });
-            const facts: LiveFact[] = [{
-                type: "answer",
-                questionId: action.questionId,
-                userId: action.playerId,
-                value: { text: action.text },
-                verdict: action.correct ? "CORRECT" : "INCORRECT",
-                pointsAwarded: action.correct ? KHOI_DONG_POINTS : 0,
-                autoMatched: true
-            }];
+        case "khoi-dong.finalize": {
+            let next = state;
+            const facts: LiveFact[] = [];
+            for (const verdict of action.verdicts) {
+                next = finalizeTyped(next, {
+                    playerId: verdict.playerId,
+                    questionId: action.questionId,
+                    correct: verdict.correct
+                });
+                facts.push({
+                    type: "judge",
+                    questionId: action.questionId,
+                    userId: verdict.playerId,
+                    verdict: verdict.correct ? "CORRECT" : "INCORRECT",
+                    pointsAwarded: verdict.correct ? KHOI_DONG_POINTS : 0
+                });
+            }
             return { state: next, facts };
         }
 

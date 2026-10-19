@@ -13,6 +13,7 @@ import { env } from "./config/env.js";
 import jwt from "@fastify/jwt";
 import sensible from "@fastify/sensible";
 import rateLimit from "@fastify/rate-limit";
+import websocket from "@fastify/websocket";
 import { authRoutes } from "./modules/auth/routes.js";
 import { googleAuthRoutes } from "./modules/auth/google.js";
 import { adminRoutes } from "./modules/admin/routes.js";
@@ -48,6 +49,7 @@ export async function buildApp() {
     await app.register(jwt, { secret: env.gameplay.jwtSecret, namespace: "GAMEPLAY" });
     await app.register(jwt, { secret: env.portal.jwtSecret, namespace: "PORTAL" });
     await app.register(rateLimit, { global: false });
+    await app.register(websocket);
     await app.register(authRoutes);
     await app.register(googleAuthRoutes);
     await app.register(adminRoutes);

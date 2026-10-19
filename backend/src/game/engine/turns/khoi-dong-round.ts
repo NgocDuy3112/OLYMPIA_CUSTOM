@@ -114,6 +114,31 @@ export function recordTyped(
     return { ...state, phase2: submitPhase2(state.phase2, params) };
 }
 
+// The controller's final verdict for one player's phase-2 answer. Unlike recordTyped,
+// this does not check the clock: judging happens after the window.
+export function finalizeTyped(
+    state: KhoiDongState,
+    params: { playerId: string; questionId: string; correct: boolean }
+): KhoiDongState {
+    if (state.stage !== "phase2" || state.phase2 === null) fail("WRONG_STAGE", "phase 2 is not open");
+    if (state.ended) fail("ENDED", "the round has ended");
+    if (!state.phase2.questionIds.includes(params.questionId)) {
+        fail("INVALID_QUESTION", `question ${params.questionId} is not in phase 2`);
+    }
+
+    const mine = state.phase2.answers[params.playerId] ?? {};
+    return {
+        ...state,
+        phase2: {
+            ...state.phase2,
+            answers: {
+                ...state.phase2.answers,
+                [params.playerId]: { ...mine, [params.questionId]: params.correct }
+            }
+        }
+    };
+}
+
 export function closeTypedWindow(state: KhoiDongState): KhoiDongState {
     if (state.stage !== "phase2" || state.phase2 === null) fail("WRONG_STAGE", "phase 2 is not open");
     return { ...state, phase2: closePhase2(state.phase2) };

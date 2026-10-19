@@ -26,4 +26,14 @@ export interface EventFact {
     payload: MatchEventPayload;
 }
 
-export type LiveFact = AnswerFact | EventFact;
+// Finalizing a drafted answer: the controller confirms or overwrites the suggestion.
+// This UPDATES the row a player's submission created; it never inserts.
+export interface JudgeFact {
+    type: "judge";
+    questionId: string;
+    userId: string;
+    verdict: Verdict;
+    pointsAwarded: number;
+}
+
+export type LiveFact = AnswerFact | EventFact | JudgeFact;

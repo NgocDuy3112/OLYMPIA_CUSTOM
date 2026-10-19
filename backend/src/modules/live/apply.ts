@@ -27,6 +27,17 @@ export interface LiveTx<S> {
     // Verdicts submitted for a question, keyed by user. Read inside the transaction so a
     // resolve cannot miss a submission that landed just before it.
     readAnswers(questionId: string): Promise<Record<string, boolean>>;
+    // The raw drafts for a question, with submission times, so a controller action can
+    // judge inside the same transaction.
+    readAnswerDrafts(questionId: string): Promise<AnswerDraft[]>;
+}
+
+// A drafted answer awaiting the controller's verdict.
+export interface AnswerDraft {
+    userId: string;
+    suggestion: "CORRECT" | "INCORRECT" | null;
+    answeredMs: number | null;
+    judged: boolean;
 }
 
 export interface LiveStore<S> {

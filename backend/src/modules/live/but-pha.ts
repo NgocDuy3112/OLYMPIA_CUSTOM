@@ -3,21 +3,22 @@ import {
     closeQuestion,
     elapsedSeconds,
     endButPha,
+    finalizeQuestion,
     openCurrentQuestion,
     openQuestionId,
-    startButPha,
-    submitAnswer
+    startButPha
 } from "../../game/engine/turns/but-pha.js";
 import { fail } from "../../game/engine/turns/errors.js";
 import type { ButPhaAction } from "./actions.js";
 import type { LiveFact } from "./facts.js";
-import type { Transition } from "./apply.js";
+import type { AnswerDraft, Transition } from "./apply.js";
 
 export interface ButPhaContext {
     actorId: string;
     roundId: string;
     now: string;              // ISO time, for the per-question clock
     questionIds: string[];    // the round's questions, resolved server-side at start
+    answerDrafts: AnswerDraft[]; // the open question's drafts, read inside the transaction
 }
 
 export function applyButPhaAction(
@@ -38,31 +39,34 @@ export function applyButPhaAction(
         case "but-pha.endRound":
             return { state: endButPha(state), facts: [] };
 
-        case "but-pha.submitAnswer": {
+        case "but-pha.finalize": {
             const questionId = openQuestionId(state);
             if (questionId === null) fail("ENDED", "but-pha is over");
+            if (questionId !== action.questionId) {
+                fail("INVALID_QUESTION", `question ${action.questionId} is not the open question`);
+            }
 
-            // The server measures the time; a client never supplies it.
-            const atS = elapsedSeconds(state, ctx.now);
-            const next = submitAnswer(state, {
-                playerId: action.playerId,
-                correct: action.correct,
-                atS
+            // The submission times come from the drafts, read inside the transaction.
+            const times = new Map(ctx.answerDrafts.map((d) => [d.userId, d.answeredMs]));
+            const results = action.verdicts.map((verdict) => {
+                const answeredMs = times.get(verdict.playerId);
+                if (answeredMs === null || answeredMs === undefined) {
+                    fail("NO_ANSWER", `no submitted answer from ${verdict.playerId}`);
+                }
+                return { playerId: verdict.playerId, correct: verdict.correct, atS: answeredMs / 1000 };
             });
 
-            // Read back what was actually recorded: a late answer is forced wrong.
-            const recorded = next.answers[questionId].find((a) => a.playerId === action.playerId)!;
-            const pointsAwarded = next.points[questionId]?.[action.playerId] ?? 0;
+            const next = finalizeQuestion(state, results);
 
-            const facts: LiveFact[] = [{
-                type: "answer",
+            // Read back what the engine recorded: a late answer is forced wrong.
+            const recorded = new Map(next.answers[questionId].map((a) => [a.playerId, a.correct]));
+            const facts: LiveFact[] = results.map((r) => ({
+                type: "judge",
                 questionId,
-                userId: action.playerId,
-                value: { text: action.text },
-                verdict: recorded.correct ? "CORRECT" : "INCORRECT",
-                pointsAwarded,
-                autoMatched: true
-            }];
+                userId: r.playerId,
+                verdict: recorded.get(r.playerId) ? "CORRECT" : "INCORRECT",
+                pointsAwarded: next.points[questionId]?.[r.playerId] ?? 0
+            }));
             return { state: next, facts };
         }
 

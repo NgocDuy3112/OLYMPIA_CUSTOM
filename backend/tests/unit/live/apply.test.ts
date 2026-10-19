@@ -27,6 +27,9 @@ function memoryStore<S>(
                 },
                 async readAnswers(questionId: string) {
                     return structuredClone(answersByQuestion[questionId] ?? {});
+                },
+                async readAnswerDrafts() {
+                    return [];
                 }
             };
             const result = await fn(tx);

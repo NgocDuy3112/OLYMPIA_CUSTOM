@@ -83,6 +83,50 @@ export function closeQuestion(state: ButPhaState): ButPhaState {
     return { ...state, cursor, questionOpenedAt: null, ended: cursor >= QUESTION_COUNT };
 }
 
+// A player's answer, finalized by the controller. `atS` is the submission time, measured
+// from the question opening and stored in the answers ledger.
+export interface FinalResult {
+    playerId: string;
+    correct: boolean;
+    atS: number;
+}
+
+// Finalize the open question. Points are computed HERE, not at submission: the speed
+// multiplier ranks the answers the controller marked correct, by submission time.
+export function finalizeQuestion(state: ButPhaState, results: FinalResult[]): ButPhaState {
+    if (state.ended) fail("ENDED", "but-pha is over");
+    const qid = state.questionIds[state.cursor];
+    if (state.answers[qid]) {
+        fail("ALREADY_FINALIZED", `question ${qid} is already finalized`);
+    }
+    if (new Set(results.map((r) => r.playerId)).size !== results.length) {
+        fail("VALIDATION", "a player may be finalized only once per question");
+    }
+
+    const ordered = [...results].sort((a, b) => a.atS - b.atS);
+    const answers: Answer[] = [];
+    const pointsFor: Record<string, number> = {};
+    let correctSoFar = 0;
+
+    for (const result of ordered) {
+        const late = result.atS > QUESTION_LIMIT_S || result.atS < 0;
+        const correct = result.correct && !late;
+        if (correct) {
+            correctSoFar += 1;
+            pointsFor[result.playerId] = basePointsForTime(result.atS) * speedMultiplier(correctSoFar);
+        } else {
+            pointsFor[result.playerId] = 0;
+        }
+        answers.push({ playerId: result.playerId, correct, atS: result.atS });
+    }
+
+    return {
+        ...state,
+        answers: { ...state.answers, [qid]: answers },
+        points: { ...state.points, [qid]: pointsFor }
+    };
+}
+
 // The MC ends the round early.
 export function endButPha(state: ButPhaState): ButPhaState {
     if (state.ended) return state;

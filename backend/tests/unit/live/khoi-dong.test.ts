@@ -79,15 +79,29 @@ describe("applyKhoiDongAction — phase 2", () => {
         expect(s.phase2?.questionIds).toEqual(P2);
     });
 
-    it("a typed answer writes an auto-matched fact worth 10", () => {
+    it("finalizing writes the verdict into the state and a judge fact", () => {
         const s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
         const res = applyKhoiDongAction(s, {
-            kind: "khoi-dong.recordTyped", playerId: "p0", questionId: "b1", correct: true, text: "hanoi", atS: 5
+            kind: "khoi-dong.finalize",
+            questionId: "b1",
+            verdicts: [{ playerId: "p0", correct: true }, { playerId: "p1", correct: false }]
         }, ctx());
-        expect(res.facts[0]).toMatchObject({
-            type: "answer", questionId: "b1", userId: "p0",
-            value: { text: "hanoi" }, verdict: "CORRECT", pointsAwarded: 10, autoMatched: true
-        });
+
+        expect(res.state.phase2?.answers.p0).toEqual({ b1: true });
+        expect(res.state.phase2?.answers.p1).toEqual({ b1: false });
+        expect(res.facts).toEqual([
+            { type: "judge", questionId: "b1", userId: "p0", verdict: "CORRECT", pointsAwarded: 10 },
+            { type: "judge", questionId: "b1", userId: "p1", verdict: "INCORRECT", pointsAwarded: 0 }
+        ]);
+        expect(khoiDongPoints(res.state, "p0")).toBe(60 + 10);
+    });
+
+    it("finalizing rejects a question that is not in phase 2", () => {
+        const s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
+        expect(() => applyKhoiDongAction(s, {
+            kind: "khoi-dong.finalize", questionId: "zzz",
+            verdicts: [{ playerId: "p0", correct: true }]
+        }, ctx())).toThrow(RuleError);
     });
 
     it("endRound ends the round and closes the window", () => {
