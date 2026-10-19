@@ -1,6 +1,6 @@
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { matches, seasons, tournaments } from "../../db/schema/index.js";
+import { answers, matchLive, matchResults, matchStats, matches, seasons, tournaments } from "../../db/schema/index.js";
 import type { RoundConfig, Seat } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { buildQuestionCopies } from "./assembly.js";
@@ -11,11 +11,67 @@ import {
     validate
 } from "./schemas.js";
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
+import { nextRoundId, orderedMatchRounds } from "./rounds.js";
+import { buildMatchResults } from "./scoring.js";
 
 type MatchRow = typeof matches.$inferSelect;
 type SeasonRow = typeof seasons.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Compute and freeze a match's results at match end. Written once, never recomputed:
+// match_results holds the competitor totals and ranks; match_stats holds the per-question
+// analytics grain. Both are written in the caller's transaction with the status change.
+async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
+    const rows = await tx.select().from(answers).where(eq(answers.matchId, match.id));
+
+    const unjudged = rows.filter((r) => !r.judged);
+    if (unjudged.length > 0) {
+        throw new MatchError(
+            "NOT_READY",
+            `match ${match.id} has ${unjudged.length} answer(s) without a final verdict`
+        );
+    }
+
+    const questionById = new Map(match.questions.map((q) => [q._id, q]));
+    const competitors = (match.players as Seat[])
+        .filter((seat) => seat.kind === "user")
+        .map((seat) => ({ userId: seat.userId }));
+
+    const results = buildMatchResults({
+        competitors,
+        answers: rows.map((r) => ({
+            userId: r.userId,
+            roundId: questionById.get(r.questionId)?.roundId ?? "unknown",
+            pointsAwarded: r.pointsAwarded ?? 0
+        }))
+    });
+
+    // A repeated transition must not duplicate frozen rows.
+    await tx.insert(matchResults)
+        .values({ matchId: match.id, seasonId: match.seasonId, results })
+        .onConflictDoNothing();
+
+    if (rows.length > 0) {
+        await tx.insert(matchStats).values(rows.map((r) => {
+            const question = questionById.get(r.questionId);
+            return {
+                matchId: match.id,
+                seasonId: match.seasonId,
+                roundId: question?.roundId ?? "unknown",
+                questionId: r.questionId,
+                userId: r.userId,
+                tag: question?.tag ?? null,
+                basePoints: question?.points ?? null,
+                answered: true,
+                correct: r.verdict === "CORRECT",
+                verdict: r.verdict,
+                pointsAwarded: r.pointsAwarded
+            };
+        })).onConflictDoNothing();
+    }
+}
 
 const EDGES: Record<MatchStatusValue, MatchStatusValue[]> = {
     UPCOMING: ["LIVE"],
@@ -186,6 +242,17 @@ export async function getMatch(seasonId: string, matchId: string): Promise<Match
     return requireMatch(seasonId, matchId);
 }
 
+// Lookup by match id alone: the player surface knows its match, not the season.
+export async function getMatchById(matchId: string): Promise<MatchRow> {
+    const [row] = await db
+        .select()
+        .from(matches)
+        .where(and(eq(matches.id, matchId), isNull(matches.deletedAt)))
+        .limit(1);
+    if (!row) throw new MatchError("NOT_FOUND", `match ${matchId} not found`);
+    return row;
+}
+
 
 export async function updateMatch(
     seasonId: string,
@@ -301,12 +368,34 @@ export async function transitionMatch(
         }
     }
 
-    const [row] = await db
-        .update(matches)
-        .set({ status: next, updatedAt: new Date() })
-        .where(eq(matches.id, matchId))
-        .returning();
-    return row;
+    return db.transaction(async (tx) => {
+        const [row] = await tx
+            .update(matches)
+            .set({ status: next, updatedAt: new Date() })
+            .where(eq(matches.id, matchId))
+            .returning();
+
+        // Going LIVE opens the live round record at the season's first round. The round's
+        // engine state stays empty until the MC starts it. Idempotent: re-entering LIVE
+        // never clobbers an in-progress round.
+        if (next === "LIVE") {
+            const season = await requireSeason(seasonId);
+            const ordered = orderedMatchRounds(season.rounds, row.roundConfigs);
+            const first = nextRoundId(ordered, null);
+            if (first) {
+                await tx.insert(matchLive)
+                    .values({ matchId, version: 0, roundId: first, state: {} })
+                    .onConflictDoNothing();
+            }
+        }
+
+        // Match end freezes the results in the same transaction as the status change.
+        if (next === "FINISHED") {
+            await scoreMatch(tx, row);
+        }
+
+        return row;
+    });
 }
 
 
