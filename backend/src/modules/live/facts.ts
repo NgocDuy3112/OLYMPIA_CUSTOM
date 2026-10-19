@@ -10,7 +10,7 @@ export interface AnswerFact {
     type: "answer";
     questionId: string;
     userId: string;
-    value: { text: string } | { picked: string[] };
+    value: { text: string } | { picked: string[] } | { oral: true };
     verdict: Verdict;
     pointsAwarded: number;
     autoMatched: boolean;

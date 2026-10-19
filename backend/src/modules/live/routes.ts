@@ -9,14 +9,27 @@ import { applyLiveAction, mutateLive, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
 import { readLive, recordPlayerAnswer, LiveNotFoundError, pgLiveStore } from "./store.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
-import { LiveActionSchema, type LiveAction } from "./actions.js";
+import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAction, type LiveAction } from "./actions.js";
 import { applyGiaiMaAction, type GiaiMaContext } from "./giai-ma.js";
-import { LiveStateError, parseGiaiMaState } from "./state.js";
+import { applyButPhaAction } from "./but-pha.js";
+import { applyKhoiDongAction } from "./khoi-dong.js";
+import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState } from "./state.js";
 import { canPlayerAnswer, giaiMaPoints, isWindowOpen, startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
+import {
+    elapsedSeconds,
+    openQuestionId,
+    QUESTION_LIMIT_S,
+    type ButPhaState
+} from "../../game/engine/turns/but-pha.js";
+import {
+    elapsedPhase2Seconds,
+    type KhoiDongState
+} from "../../game/engine/turns/khoi-dong-round.js";
+import { PHASE2_BUDGET_S } from "../../game/engine/turns/khoi-dong.js";
 import { autoMatch, type QuestionKind } from "../../game/engine/matching.js";
 import {
-    AnswerValueSchema,
-    type AnswerValue,
+    SubmittedAnswerValueSchema,
+    type SubmittedAnswerValue,
     type MatchQuestion
 } from "../../game/contracts/index.js";
 
@@ -24,6 +37,50 @@ const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 
 // giai-ma.start replaces the state wholesale, so the incoming state is irrelevant.
 const EMPTY_GIAI_MA: GiaiMaState = startGiaiMa([], []);
+
+// khoi-dong.start replaces the state wholesale; this placeholder only satisfies the types.
+const EMPTY_KHOI_DONG: KhoiDongState = {
+    stage: "phase1", ended: false, order: [], activeIndex: 0, runs: {}, phase2: null, phase2OpenedAt: null
+};
+
+// but-pha.start replaces the state wholesale; this placeholder only satisfies the types.
+const EMPTY_BUT_PHA: ButPhaState = {
+    questionIds: [], cursor: 0, questionOpenedAt: null, answers: {}, points: {}, ended: false
+};
+
+// khoi-dong runs two turns: phase 1 (oral) then phase 2 (typed). The turn order comes from
+// the match's round config, so the split is server-authoritative, not client-chosen.
+function khoiDongContext(
+    match: { questions: MatchQuestion[]; roundConfigs: Record<string, { turns: Array<{ id: string }> }>; players: unknown },
+    roundId: string,
+    actorId: string,
+    now: string
+) {
+    const turns = match.roundConfigs[roundId]?.turns ?? [];
+    const questions = match.questions.filter((q) => q.roundId === roundId).sort((a, b) => a.position - b.position);
+    const idsForTurn = (turnId: string | undefined) =>
+        turnId === undefined ? [] : questions.filter((q) => q.turnId === turnId).map((q) => q._id);
+
+    return {
+        actorId,
+        roundId,
+        now,
+        playerIds: (match.players as Array<{ kind: string; userId?: string }>)
+            .filter((seat) => seat.kind === "user")
+            .map((seat) => seat.userId!),
+        phase1QuestionIds: idsForTurn(turns[0]?.id),
+        phase2QuestionIds: idsForTurn(turns[1]?.id)
+    };
+}
+
+// The match's questions for a round, in position order. Resolved server-side, so a client
+// never chooses which questions a round plays.
+function roundQuestionIds(match: { questions: MatchQuestion[] }, roundId: string): string[] {
+    return match.questions
+        .filter((q) => q.roundId === roundId)
+        .sort((a, b) => a.position - b.position)
+        .map((q) => q._id);
+}
 
 const matchParams = {
     type: "object",
@@ -100,11 +157,11 @@ function giaiMaContext(
 }
 
 function isRoundEnded(roundId: string, raw: unknown): boolean {
-    if (roundId === "giai-ma") {
-        const value = raw as Record<string, unknown> | null;
-        if (!value || Object.keys(value).length === 0) return false;   // never started
-        return parseGiaiMaState(raw).stage === "ended";
-    }
+    const value = raw as Record<string, unknown> | null;
+    if (!value || Object.keys(value).length === 0) return false;       // never started
+    if (roundId === "giai-ma") return parseGiaiMaState(raw).stage === "ended";
+    if (roundId === "but-pha") return parseButPhaState(raw).ended;
+    if (roundId === "khoi-dong") return parseKhoiDongState(raw).ended;
     return true;
 }
 
@@ -179,28 +236,61 @@ export async function liveRoutes(app: FastifyInstance) {
                             return { state: {}, facts: [], roundId: following };
                         }
 
-                        if (current.roundId !== "giai-ma") {
-                            throw new RuleError("WRONG_ROUND", `round ${current.roundId} has no controller actions yet`);
+                        // An action must belong to the round that is active.
+                        if (!action.kind.startsWith(`${current.roundId}.`)) {
+                            throw new RuleError(
+                                "WRONG_ROUND",
+                                `action ${action.kind} does not belong to round ${current.roundId}`
+                            );
                         }
 
-                        // Resolving reads the submitted answers INSIDE this transaction, so a
-                        // submission that landed just before it cannot be missed.
-                        let submittedAnswers: Record<string, boolean> = {};
-                        if (action.kind === "giai-ma.resolveHint") {
-                            const state = parseGiaiMaState(current.state);
-                            if (state.openHint === null) {
-                                throw new RuleError("NO_OPEN_HINT", "no hint window is open");
+                        if (current.roundId === "giai-ma") {
+                            // Resolving reads the submitted answers INSIDE this transaction, so a
+                            // submission that landed just before it cannot be missed.
+                            let submittedAnswers: Record<string, boolean> = {};
+                            if (action.kind === "giai-ma.resolveHint") {
+                                const state = parseGiaiMaState(current.state);
+                                if (state.openHint === null) {
+                                    throw new RuleError("NO_OPEN_HINT", "no hint window is open");
+                                }
+                                submittedAnswers = await tx.readAnswers(state.openHint);
                             }
-                            submittedAnswers = await tx.readAnswers(state.openHint);
+
+                            const ctx = giaiMaContext(app, match, action, current.roundId, user.id, submittedAnswers);
+                            const engine = action.kind === "giai-ma.start"
+                                ? EMPTY_GIAI_MA
+                                : parseGiaiMaState(current.state);
+
+                            const { state, facts } = applyGiaiMaAction(engine, action as GiaiMaAction, ctx);
+                            return { state: state as unknown as Record<string, unknown>, facts };
                         }
 
-                        const ctx = giaiMaContext(app, match, action, current.roundId, user.id, submittedAnswers);
-                        const engine = action.kind === "giai-ma.start"
-                            ? EMPTY_GIAI_MA
-                            : parseGiaiMaState(current.state);
+                        if (current.roundId === "but-pha") {
+                            const engine = action.kind === "but-pha.start"
+                                ? EMPTY_BUT_PHA
+                                : parseButPhaState(current.state);
 
-                        const { state, facts } = applyGiaiMaAction(engine, action, ctx);
-                        return { state: state as unknown as Record<string, unknown>, facts };
+                            const { state, facts } = applyButPhaAction(engine, action as ButPhaAction, {
+                                actorId: user.id,
+                                roundId: current.roundId,
+                                now: new Date().toISOString(),
+                                questionIds: roundQuestionIds(match, current.roundId)
+                            });
+                            return { state: state as unknown as Record<string, unknown>, facts };
+                        }
+
+                        if (current.roundId === "khoi-dong") {
+                            const engine = action.kind === "khoi-dong.start"
+                                ? EMPTY_KHOI_DONG
+                                : parseKhoiDongState(current.state);
+
+                            const { state, facts } = applyKhoiDongAction(engine, action as KhoiDongAction, {
+                                ...khoiDongContext(match, current.roundId, user.id, new Date().toISOString())
+                            });
+                            return { state: state as unknown as Record<string, unknown>, facts };
+                        }
+
+                        throw new RuleError("WRONG_ROUND", `round ${current.roundId} has no controller actions yet`);
                     },
                 }
             );
@@ -239,10 +329,10 @@ export async function liveRoutes(app: FastifyInstance) {
             const { matchId } = request.params as { matchId: string };
             const body = request.body as { questionId: string; value: unknown };
 
-            if (!Value.Check(AnswerValueSchema, body.value)) {
+            if (!Value.Check(SubmittedAnswerValueSchema, body.value)) {
                 throw app.httpErrors.badRequest("invalid answer value");
             }
-            const value = body.value as AnswerValue;
+            const value = body.value as SubmittedAnswerValue;
 
             const match = await getMatchById(matchId);
             if (match.status !== "LIVE") throw app.httpErrors.conflict("match is not LIVE");
@@ -253,37 +343,160 @@ export async function liveRoutes(app: FastifyInstance) {
 
             const live = await readLive(matchId);
             if (!live) throw app.httpErrors.notFound("no live round");
-            if (live.roundId !== "giai-ma") {
-                throw app.httpErrors.conflict(`round ${live.roundId} does not accept answers yet`);
-            }
 
-            const state = parseGiaiMaState(live.state);
+            // A round that the MC has not started has an empty state; say so plainly
+            // rather than failing to parse it.
+            if (!live.state || Object.keys(live.state).length === 0) {
+                throw app.httpErrors.conflict(`round ${live.roundId} has not started`);
+            }
             const now = new Date().toISOString();
 
-            if (state.openHint !== body.questionId) {
-                throw app.httpErrors.conflict("no answer window is open for this question");
-            }
-            if (!isWindowOpen(state, now)) {
-                throw app.httpErrors.conflict("the answer window has closed");
-            }
-            if (!canPlayerAnswer(state, user.id, now)) {
-                throw app.httpErrors.conflict("you can no longer answer this round");
+            // ── giai-ma: answers are recorded, not scored; state does not change ──
+            if (live.roundId === "giai-ma") {
+                const state = parseGiaiMaState(live.state);
+
+                if (state.openHint !== body.questionId) {
+                    throw app.httpErrors.conflict("no answer window is open for this question");
+                }
+                if (!isWindowOpen(state, now)) {
+                    throw app.httpErrors.conflict("the answer window has closed");
+                }
+                if (!canPlayerAnswer(state, user.id, now)) {
+                    throw app.httpErrors.conflict("you can no longer answer this round");
+                }
+
+                const question = match.questions.find((c) => c._id === body.questionId);
+                if (!question) throw app.httpErrors.badRequest("question is not part of this match");
+
+                const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
+                await recordPlayerAnswer({
+                    matchId,
+                    questionId: body.questionId,
+                    userId: user.id,
+                    value,
+                    verdict: correct ? "CORRECT" : "INCORRECT"
+                });
+
+                // Instant feedback is required mid-round for hints.
+                return { correct };
             }
 
-            const question = match.questions.find((candidate) => candidate._id === body.questionId);
-            if (!question) throw app.httpErrors.badRequest("question is not part of this match");
+            // ── but-pha: the answer changes state (speed order, points) ──
+            if (live.roundId === "but-pha") {
+                if (!("text" in value)) {
+                    throw app.httpErrors.badRequest("a but-pha answer must be text");
+                }
+                const state = parseButPhaState(live.state);
 
-            const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
-            await recordPlayerAnswer({
-                matchId,
-                questionId: body.questionId,
-                userId: user.id,
-                value,
-                verdict: correct ? "CORRECT" : "INCORRECT"
-            });
+                const questionId = openQuestionId(state);
+                if (questionId === null) throw app.httpErrors.conflict("no question is open");
+                if (questionId !== body.questionId) {
+                    throw app.httpErrors.conflict("that question is not open");
+                }
 
-            // Instant feedback is required mid-round for hints.
-            return { correct };
+                let atS: number;
+                try {
+                    atS = elapsedSeconds(state, now);
+                } catch {
+                    throw app.httpErrors.conflict("the question's clock has not started");
+                }
+                if (atS > QUESTION_LIMIT_S) {
+                    throw app.httpErrors.conflict("the answer window has closed");
+                }
+
+                const question = match.questions.find((c) => c._id === questionId);
+                if (!question) throw app.httpErrors.badRequest("question is not part of this match");
+
+                const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
+
+                const next = await mutateLive(
+                    pgLiveStore<Record<string, unknown>>(matchId),
+                    (current): Transition<Record<string, unknown>> => {
+                        const engine = parseButPhaState(current.state);
+                        const { state: nextState, facts } = applyButPhaAction(
+                            engine,
+                            {
+                                kind: "but-pha.submitAnswer",
+                                playerId: user.id,
+                                questionId,
+                                correct,
+                                text: value.text
+                            },
+                            {
+                                actorId: user.id,
+                                roundId: current.roundId,
+                                now: new Date().toISOString(),
+                                questionIds: []
+                            }
+                        );
+                        return { state: nextState as unknown as Record<string, unknown>, facts };
+                    }
+                );
+
+                const points = (parseButPhaState(next.state).points[questionId] ?? {})[user.id] ?? 0;
+                return { correct, points };
+            }
+
+            // ── khoi-dong phase 2: typed, all players, one shared 60 s clock ──
+            if (live.roundId === "khoi-dong") {
+                if (!("text" in value)) {
+                    throw app.httpErrors.badRequest("a khoi-dong phase-2 answer must be text");
+                }
+                const state = parseKhoiDongState(live.state);
+                if (state.ended) throw app.httpErrors.conflict("the round has ended");
+                if (state.stage !== "phase2" || state.phase2 === null) {
+                    throw app.httpErrors.conflict("phase 2 is not open");
+                }
+                if (!state.phase2.questionIds.includes(body.questionId)) {
+                    throw app.httpErrors.conflict("that question is not in phase 2");
+                }
+
+                let atS: number;
+                try {
+                    atS = elapsedPhase2Seconds(state, now);
+                } catch {
+                    throw app.httpErrors.conflict("phase 2's clock has not started");
+                }
+                if (atS > PHASE2_BUDGET_S) {
+                    throw app.httpErrors.conflict("the answer window has closed");
+                }
+
+                const question = match.questions.find((c) => c._id === body.questionId);
+                if (!question) throw app.httpErrors.badRequest("question is not part of this match");
+
+                const correct = autoMatch(question.kind as QuestionKind, question.payload, value);
+
+                await mutateLive(
+                    pgLiveStore<Record<string, unknown>>(matchId),
+                    (current): Transition<Record<string, unknown>> => {
+                        const engine = parseKhoiDongState(current.state);
+                        const { state: nextState, facts } = applyKhoiDongAction(
+                            engine,
+                            {
+                                kind: "khoi-dong.recordTyped",
+                                playerId: user.id,
+                                questionId: body.questionId,
+                                correct,
+                                text: value.text,
+                                atS
+                            },
+                            {
+                                actorId: user.id,
+                                roundId: current.roundId,
+                                now: new Date().toISOString(),
+                                playerIds: [],
+                                phase1QuestionIds: [],
+                                phase2QuestionIds: []
+                            }
+                        );
+                        return { state: nextState as unknown as Record<string, unknown>, facts };
+                    }
+                );
+
+                return { correct, points: correct ? 10 : 0 };
+            }
+
+            throw app.httpErrors.conflict(`round ${live.roundId} does not accept answers yet`);
         }
     );
 
@@ -300,10 +513,10 @@ export async function liveRoutes(app: FastifyInstance) {
             const { matchId } = request.params as { matchId: string };
             const body = request.body as { questionId: string; value: unknown };
 
-            if (!Value.Check(AnswerValueSchema, body.value)) {
+            if (!Value.Check(SubmittedAnswerValueSchema, body.value)) {
                 throw app.httpErrors.badRequest("invalid answer value");
             }
-            const value = body.value as AnswerValue;
+            const value = body.value as SubmittedAnswerValue;
             if (!("text" in value)) {
                 throw app.httpErrors.badRequest("a keyword answer must be text");
             }
