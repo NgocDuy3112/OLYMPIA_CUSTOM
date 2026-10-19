@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type SubmitEvent } from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import { cn } from "cn"
 
@@ -55,7 +55,7 @@ export function LoginForm({
   // Set by RequireAuth once it exists; harmless until then.
   const from = (location.state as { from?: string } | null)?.from ?? "/"
 
-  const submitCredentials = (event: React.FormEvent) => {
+  const submitCredentials = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     login.mutate(
@@ -74,7 +74,7 @@ export function LoginForm({
     )
   }
 
-  const submitCode = (event: React.FormEvent) => {
+  const submitCode = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (step.kind !== "code") return
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useState, type SubmitEvent } from "react"
 import { Link, useParams } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
@@ -37,7 +37,7 @@ function TournamentForm({ tournament }: { tournament: TournamentDetail }) {
     const [visibility, setVisibility] = useState(tournament.visibility)
     const [tags, setTags] = useState(tournament.defaultTags.join(", "))
 
-    const submit = (event: FormEvent) => {
+    const submit = (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault()
 
         const patch: TournamentUpdate = { name, slug }
@@ -144,6 +144,12 @@ export function TournamentDetailPage() {
                 </Link>
                 <h1 className="text-2xl font-bold">{data.name}</h1>
                 <p className="font-mono text-xs text-muted-foreground">{data.slug}</p>
+                <Link
+                    className="mt-2 w-fit text-sm underline underline-offset-2"
+                    to={`/tournaments/${data.id}/seasons`}
+                >
+                    Seasons →
+                </Link>
             </div>
 
             <div className="grid gap-8 lg:grid-cols-2">
