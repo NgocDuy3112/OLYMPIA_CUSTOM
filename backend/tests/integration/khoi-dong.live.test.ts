@@ -101,6 +101,8 @@ const actionUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}
 const liveUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/live`;
 const answerUrl = () => `/gameplay/matches/${matchId}/live/answers`;
 const statusUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/status`;
+const answersUrl = (questionId: string) =>
+    `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/live/answers?questionId=${questionId}`;
 
 async function live() {
     const res = await app.inject({ method: "GET", url: liveUrl(), headers: auth(ownerCookie) });
@@ -162,7 +164,7 @@ describe("khoi-dong — phase 1 (oral, one run per player)", () => {
     });
 });
 
-describe("khoi-dong — phase 2 (typed, shared 60 s)", () => {
+describe("khoi-dong — phase 2 (typed, draft then judge)", () => {
     it("the MC opens phase 2", async () => {
         const res = await act({ kind: "khoi-dong.beginPhase2" });
         expect(res.statusCode).toBe(200);
@@ -171,15 +173,87 @@ describe("khoi-dong — phase 2 (typed, shared 60 s)", () => {
         expect(res.json().state.phase2OpenedAt).not.toBeNull();
     });
 
-    it("a seated player types a correct answer, worth 10", async () => {
+    it("a player's typed answer becomes a draft, not a verdict", async () => {
         const res = await answer(playerCookies[0], phase2Ids[0], "ha noi");
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toMatchObject({ correct: true, points: 10 });
+        expect(res.json()).toMatchObject({ drafted: true, suggested: "CORRECT" });
+
+        const [row] = await db.select().from(answers)
+            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
+        expect(row.judged).toBe(false);
+        expect(row.verdict).toBeNull();
+        expect(row.drafts).toMatchObject({ auto: "CORRECT" });
     });
 
-    it("a player cannot answer the same question twice", async () => {
+    it("the controller can read the drafts before judging", async () => {
+        const res = await app.inject({
+            method: "GET", url: answersUrl(phase2Ids[0]), headers: auth(ownerCookie)
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().items).toHaveLength(1);
+        expect(res.json().items[0]).toMatchObject({ judged: false, drafts: { auto: "CORRECT" } });
+    });
+
+    it("a player may revise their draft before it is judged", async () => {
+        const res = await answer(playerCookies[0], phase2Ids[0], "Hải Phòng");
+        expect(res.statusCode).toBe(200);
+        expect(res.json().suggested).toBe("INCORRECT");
+        const rows = await db.select().from(answers)
+            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
+        expect(rows).toHaveLength(1);                              // revised in place
+        expect(rows[0].drafts).toMatchObject({ auto: "INCORRECT" });
+    });
+
+    it("judging an answer nobody submitted is rejected with 409 NO_ANSWER", async () => {
+        const res = await act({
+            kind: "khoi-dong.finalize", questionId: phase2Ids[0],
+            verdicts: [{ playerId: playerIds[1], correct: true }]
+        });
+        expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("NO_ANSWER");
+    });
+
+    it("the controller finalizes: the draft is replaced by a final verdict worth 10", async () => {
+        // the controller overwrites the incorrect draft with a correct verdict
+        const res = await act({
+            kind: "khoi-dong.finalize", questionId: phase2Ids[0],
+            verdicts: [{ playerId: playerIds[0], correct: true }]
+        });
+        expect(res.statusCode).toBe(200);
+
+        const [row] = await db.select().from(answers)
+            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
+        expect(row).toMatchObject({ judged: true, verdict: "CORRECT", pointsAwarded: 10 });
+        expect(res.json().state.phase2.answers[playerIds[0]][phase2Ids[0]]).toBe(true);
+    });
+
+    it("the player view shows the open batch and what the player has done", async () => {
+        const res = await app.inject({
+            method: "GET", url: `/gameplay/matches/${matchId}/live`,
+            headers: asPlayer(playerCookies[0])
+        });
+        expect(res.statusCode).toBe(200);
+        const view = res.json();
+        expect(view.roundId).toBe("khoi-dong");
+        expect(view.open.map((o: { questionId: string }) => o.questionId)).toEqual(phase2Ids);
+        expect(view.me.finalized).toContain(phase2Ids[0]);
+    });
+
+    it("a player who is not seated cannot read the view", async () => {
+        const [outsider] = await db.insert(users).values({
+            role: "PLAYER", email: "kd-outsider@example.com", displayName: "Out", tokenVersion: 0
+        }).returning();
+        const cookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
+        const res = await app.inject({
+            method: "GET", url: `/gameplay/matches/${matchId}/live`, headers: asPlayer(cookie)
+        });
+        expect(res.statusCode).toBe(403);
+    });
+
+    it("an answer cannot be re-drafted once it has a final verdict", async () => {
         const res = await answer(playerCookies[0], phase2Ids[0], "Hà Nội");
         expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("ALREADY_JUDGED");
     });
 
     it("the MC closes phase 2; further answers are refused", async () => {

@@ -407,7 +407,7 @@ describe("live actions — authorisation", () => {
     });
 });
 
-describe("but-pha round", () => {
+describe("but-pha round — draft, then finalize", () => {
     it("the MC starts but-pha with the match's questions in position order", async () => {
         const res = await act({ kind: "but-pha.start" });
         expect(res.statusCode).toBe(200);
@@ -426,36 +426,74 @@ describe("but-pha round", () => {
         expect(res.json().state.questionOpenedAt).not.toBeNull();
     });
 
-    it("the first correct answer scores base x4", async () => {
+    it("a typed answer becomes a draft carrying its submission time", async () => {
         await backdateQuestionClock(3_000);
         const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
         expect(res.statusCode).toBe(200);
-        expect(res.json().correct).toBe(true);
-        expect(res.json().points).toBe(60);          // base 15 x 4
+        expect(res.json()).toMatchObject({ drafted: true, suggested: "CORRECT" });
+
+        const [row] = await db.select().from(answers)
+            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, butPhaIds[0]), eq(answers.userId, playerIds[0])));
+        expect(row.judged).toBe(false);
+        expect(row.answeredMs).toBeGreaterThanOrEqual(3_000);      // the round's clock source
+        expect(row.pointsAwarded ?? 0).toBe(0);                    // nothing scores yet
     });
 
-    it("the second correct answer scores base x3", async () => {
+    it("a second player drafts in the same question", async () => {
         await backdateQuestionClock(7_000);
-        const res = await answer(playerCookies[1], butPhaIds[0], "Hà Nội");
+        const res = await answer(playerCookies[1], butPhaIds[0], "ha noi");
         expect(res.statusCode).toBe(200);
-        expect(res.json().points).toBe(30);          // base 10 x 3
     });
 
-    it("a player cannot answer the same question twice", async () => {
-        const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
+    it("but-pha allows only one attempt per question", async () => {
+        const res = await answer(playerCookies[0], butPhaIds[0], "Hải Phòng");
         expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("ALREADY_ANSWERED");
     });
 
-    it("the MC closes the question; the cursor advances and the clock clears", async () => {
+    it("the controller finalizes, and the points follow submission order", async () => {
+        const res = await act({
+            kind: "but-pha.finalize", questionId: butPhaIds[0],
+            verdicts: [{ playerId: playerIds[1], correct: true }, { playerId: playerIds[0], correct: true }]
+        });
+        expect(res.statusCode).toBe(200);
+
+        // player 0 submitted first (3 s, base 15 x4 = 60); player 1 second (7 s, base 10 x3 = 30)
+        const points = res.json().state.points[butPhaIds[0]];
+        expect(points[playerIds[0]]).toBe(60);
+        expect(points[playerIds[1]]).toBe(30);
+
+        const rows = await db.select().from(answers)
+            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, butPhaIds[0])));
+        expect(rows.every((r) => r.judged)).toBe(true);
+        expect(rows.find((r) => r.userId === playerIds[0])).toMatchObject({ verdict: "CORRECT", pointsAwarded: 60 });
+    });
+
+    it("the MC closes the question once every answer is judged", async () => {
         const res = await act({ kind: "but-pha.closeQuestion" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.cursor).toBe(1);
         expect(res.json().state.questionOpenedAt).toBeNull();
     });
 
-    it("an answer for a question that is no longer open is refused", async () => {
-        const res = await answer(playerCookies[0], butPhaIds[0], "Hà Nội");
+    it("closing a question with an unjudged answer is blocked", async () => {
+        await act({ kind: "but-pha.openQuestion" });
+        await backdateQuestionClock(20_000);
+        expect((await answer(playerCookies[1], butPhaIds[1], "Hà Nội")).statusCode).toBe(200);
+
+        const res = await act({ kind: "but-pha.closeQuestion" });
         expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("UNJUDGED_ANSWERS");
+    });
+
+    it("the controller may overwrite a correct draft with an incorrect verdict", async () => {
+        const res = await act({
+            kind: "but-pha.finalize", questionId: butPhaIds[1],
+            verdicts: [{ playerId: playerIds[1], correct: false }]
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().state.points[butPhaIds[1]][playerIds[1]]).toBe(0);
+        expect((await act({ kind: "but-pha.closeQuestion" })).statusCode).toBe(200);
     });
 
     it("the MC ends the round", async () => {
@@ -496,9 +534,9 @@ describe("match end — the results are frozen once", () => {
     it("the per-question analytics grain is written for the round", async () => {
         const rows = await db.select().from(matchStats).where(eq(matchStats.matchId, matchId));
         // giai-ma: hint 0 (both) + hint 2 (one) + keyword (player) + keyword (MC) = 5
-        // but-pha: two answers on the first question = 2
-        expect(rows).toHaveLength(7);
-        expect(rows.filter((r) => r.roundId === "but-pha")).toHaveLength(2);
+        // but-pha: two answers on question 1, one on question 2 = 3
+        expect(rows).toHaveLength(8);
+        expect(rows.filter((r) => r.roundId === "but-pha")).toHaveLength(3);
         expect(rows.every((r) => r.seasonId === seasonId)).toBe(true);
     });
 
@@ -509,6 +547,6 @@ describe("match end — the results are frozen once", () => {
         });
         expect(res.statusCode).toBe(200);
         expect((await db.select().from(matchResults).where(eq(matchResults.matchId, matchId)))).toHaveLength(1);
-        expect((await db.select().from(matchStats).where(eq(matchStats.matchId, matchId)))).toHaveLength(7);
+        expect((await db.select().from(matchStats).where(eq(matchStats.matchId, matchId)))).toHaveLength(8);
     });
 });
