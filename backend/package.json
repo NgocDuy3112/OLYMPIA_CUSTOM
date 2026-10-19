@@ -16,7 +16,8 @@
         "test": "vitest run",
         "test:watch": "vitest",
         "mcp:smoke": "tsx --env-file=../configs/.env scripts/mcp-smoke.ts",
-        "mcp:mint": "tsx --env-file=../configs/.env scripts/mint-mcp-key.ts claude-code"
+        "mcp:mint": "tsx --env-file=../configs/.env scripts/mint-mcp-key.ts claude-code",
+        "test:unit": "vitest run --config vitest.unit.config.ts"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.1146.0",
