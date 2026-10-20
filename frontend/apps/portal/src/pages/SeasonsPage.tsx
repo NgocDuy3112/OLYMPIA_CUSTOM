@@ -23,8 +23,7 @@ function emptyStage(): StageDraft {
     return { id: crypto.randomUUID(), title: "", start: "", end: "" }
 }
 
-// <input type="datetime-local"> yields "YYYY-MM-DDTHH:mm" — local, no zone.
-// The API wants a full ISO timestamp, so convert before sending.
+
 function toIso(local: string): string {
     return new Date(local).toISOString()
 }
@@ -165,7 +164,7 @@ function NewSeasonForm({ tournamentId }: { tournamentId: string }) {
     )
 }
 
-function SeasonsTable({ seasons }: { seasons: Season[] }) {
+function SeasonsTable({ tournamentId, seasons }: { tournamentId: string, seasons: Season[] }) {
     return (
         <Table>
             <TableHeader>
@@ -180,7 +179,11 @@ function SeasonsTable({ seasons }: { seasons: Season[] }) {
             <TableBody>
                 {seasons.map((season) => (
                     <TableRow key={season.id}>
-                        <TableCell className="font-medium">{season.name}</TableCell>
+                        <TableCell className="font-medium">
+                            <Link to={`/tournaments/${tournamentId}/seasons/${season.id}`}>
+                                {season.name}
+                            </Link>
+                        </TableCell>
                         <TableCell>{season.stages.length}</TableCell>
                         <TableCell>{season.rounds.length}</TableCell>
                         <TableCell className="text-muted-foreground">
@@ -196,6 +199,7 @@ function SeasonsTable({ seasons }: { seasons: Season[] }) {
         </Table>
     )
 }
+
 
 export function SeasonsPage() {
     const { tournamentId = "" } = useParams<{ tournamentId: string }>()
@@ -213,25 +217,19 @@ export function SeasonsPage() {
                 </Link>
                 <h1 className="text-2xl font-bold">Seasons</h1>
             </div>
-
             {isPending && (
                 <p className="text-sm text-muted-foreground">Loading seasons…</p>
             )}
-
             {isError && (
                 <p role="alert" className="text-sm text-destructive">
                     {error instanceof Error ? error.message : "Could not load seasons."}
                 </p>
             )}
-
             {data?.items.length === 0 && (
                 <p className="text-sm text-muted-foreground">No seasons yet.</p>
             )}
-
-            {data && data.items.length > 0 && <SeasonsTable seasons={data.items} />}
-
+            {data && data.items.length > 0 && <SeasonsTable tournamentId={tournamentId} seasons={data.items} />}
             <Separator />
-
             <NewSeasonForm tournamentId={tournamentId} />
         </div>
     )

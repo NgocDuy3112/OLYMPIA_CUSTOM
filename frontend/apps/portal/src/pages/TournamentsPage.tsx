@@ -1,7 +1,17 @@
 import { useState } from "react"
 import { Link } from "react-router-dom"
+import { SearchX, Trophy } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
+import {
+    Card,
+    CardAction,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import {
     Table,
@@ -12,6 +22,7 @@ import {
     TableRow,
 } from "@shared/ui/table"
 
+import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
 import { TOURNAMENTS_PAGE_SIZE, useTournaments, type Tournament } from "@/lib/tournaments"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 
@@ -39,101 +50,120 @@ export function TournamentsPage() {
     })
 
     const total = data?.total ?? 0
+    const items = data?.items ?? []
     const first = total === 0 ? 0 : offset + 1
     const last = Math.min(offset + TOURNAMENTS_PAGE_SIZE, total)
     const canGoBack = offset > 0
     const canGoForward = offset + TOURNAMENTS_PAGE_SIZE < total
 
     return (
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
-            <div className="flex flex-col gap-1">
-                <h1 className="text-2xl font-bold">Tournaments</h1>
-                <p className="text-sm text-muted-foreground">
-                    {data ? `${total} total` : "\u00a0"}
-                </p>
-            </div>
-
-            <Input
-                className="max-w-sm"
-                placeholder="Search by name or slug…"
-                value={searchInput}
-                onChange={(event) => {
-                    setSearchInput(event.target.value)
-                    // A new search starts from the first page, not the current offset.
-                    setOffset(0)
-                }}
+        <Page>
+            <PageHeader
+                title="Tournaments"
+                description={data ? `${total} tournament${total === 1 ? "" : "s"}` : undefined}
             />
 
-            {isPending && (
-                <p className="text-sm text-muted-foreground">Loading tournaments…</p>
-            )}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base">All tournaments</CardTitle>
+                    <CardDescription>Open one to manage its seasons.</CardDescription>
+                    <CardAction>
+                        <Input
+                            className="w-full sm:w-64"
+                            placeholder="Search…"
+                            value={searchInput}
+                            onChange={(event) => {
+                                setSearchInput(event.target.value)
+                                setOffset(0)
+                            }}
+                        />
+                    </CardAction>
+                </CardHeader>
 
-            {isError && (
-                <p role="alert" className="text-sm text-destructive">
-                    {error instanceof Error ? error.message : "Could not load tournaments."}
-                </p>
-            )}
-
-            {data?.items.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                    No tournaments match that search.
-                </p>
-            )}
-
-            {data && data.items.length > 0 && (
-                <>
-                    <Table className={isFetching ? "opacity-60 transition-opacity" : undefined}>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Name</TableHead>
-                                <TableHead>Slug</TableHead>
-                                <TableHead>Visibility</TableHead>
-                                <TableHead>Tags</TableHead>
-                                <TableHead>Created</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {data.items.map((tournament) => (
-                                <TableRow key={tournament.id}>
-                                    <TableCell className="font-medium">
-                                        <Link
-                                            className="underline-offset-2 hover:underline"
-                                            to={`/tournaments/${tournament.id}`}
-                                        >
-                                            {tournament.name}
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell className="font-mono text-xs">
-                                        {tournament.slug}
-                                    </TableCell>
-                                    <TableCell>
-                                        <VisibilityBadge visibility={tournament.visibility} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-wrap items-center gap-1">
-                                            {tournament.defaultTags
-                                                .slice(0, MAX_TAGS)
-                                                .map((tag) => (
-                                                    <Badge key={tag} variant="outline">
-                                                        {tag}
-                                                    </Badge>
-                                                ))}
-                                            {tournament.defaultTags.length > MAX_TAGS && (
-                                                <span className="text-xs text-muted-foreground">
-                                                    +{tournament.defaultTags.length - MAX_TAGS}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {dateFormat.format(new Date(tournament.createdAt))}
-                                    </TableCell>
+                <CardContent className="p-0">
+                    {isPending ? (
+                        <ListSkeleton />
+                    ) : isError ? (
+                        <ErrorPanel
+                            message={
+                                error instanceof Error
+                                    ? error.message
+                                    : "Could not load tournaments."
+                            }
+                        />
+                    ) : items.length === 0 ? (
+                        <EmptyState
+                            icon={search ? SearchX : Trophy}
+                            title={search ? "No tournaments match that search" : "No tournaments yet"}
+                            description={
+                                search
+                                    ? "Try a shorter term, or clear the search."
+                                    : "Once a tournament exists, its seasons and draws live here."
+                            }
+                            action={
+                                search ? (
+                                    <Button variant="outline" onClick={() => setSearchInput("")}>
+                                        Clear search
+                                    </Button>
+                                ) : undefined
+                            }
+                        />
+                    ) : (
+                        <Table className={isFetching ? "opacity-60 transition-opacity" : undefined}>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Name</TableHead>
+                                    <TableHead>Slug</TableHead>
+                                    <TableHead>Visibility</TableHead>
+                                    <TableHead>Tags</TableHead>
+                                    <TableHead>Created</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {items.map((tournament) => (
+                                    <TableRow key={tournament.id}>
+                                        <TableCell className="font-medium">
+                                            <Link
+                                                className="underline-offset-2 hover:underline"
+                                                to={`/tournaments/${tournament.id}`}
+                                            >
+                                                {tournament.name}
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell className="font-mono text-xs">
+                                            {tournament.slug}
+                                        </TableCell>
+                                        <TableCell>
+                                            <VisibilityBadge visibility={tournament.visibility} />
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-wrap items-center gap-1">
+                                                {tournament.defaultTags
+                                                    .slice(0, MAX_TAGS)
+                                                    .map((tag) => (
+                                                        <Badge key={tag} variant="outline">
+                                                            {tag}
+                                                        </Badge>
+                                                    ))}
+                                                {tournament.defaultTags.length > MAX_TAGS && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        +{tournament.defaultTags.length - MAX_TAGS}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {dateFormat.format(new Date(tournament.createdAt))}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
 
-                    <div className="flex items-center justify-between gap-4">
+                {items.length > 0 && total > TOURNAMENTS_PAGE_SIZE && (
+                    <CardFooter className="justify-between">
                         <p className="text-sm text-muted-foreground">
                             {first}–{last} of {total}
                         </p>
@@ -161,9 +191,9 @@ export function TournamentsPage() {
                                 Next
                             </Button>
                         </div>
-                    </div>
-                </>
-            )}
-        </div>
+                    </CardFooter>
+                )}
+            </Card>
+        </Page>
     )
 }
