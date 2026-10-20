@@ -64,6 +64,20 @@
       "when": 1792462612768,
       "tag": "0008_qualification_crowd_scoring",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792465826630,
+      "tag": "0009_reflective_warstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792471848456,
+      "tag": "0010_cold_captain_cross",
+      "breakpoints": true
     }
   ]
 }

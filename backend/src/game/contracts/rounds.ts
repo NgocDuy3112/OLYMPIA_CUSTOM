@@ -32,7 +32,6 @@ export const ScoringRuleSchema = Type.Union([
 ]);
 export type ScoringRule = Static<typeof ScoringRuleSchema>;
 
-// ─── §2 — TurnConfig / RoundConfig ───────────────────────────────────────────
 
 export const TurnConfigSchema = Type.Object({
     id: Type.String(),
@@ -45,7 +44,8 @@ export const TurnConfigSchema = Type.Object({
     timeBudgetSeconds: Type.Optional(Type.Integer()),
     timeLimitSeconds: Type.Optional(Type.Integer()),
     buzzWindowSeconds: Type.Optional(Type.Integer()),
-    pickCount: Type.Optional(Type.Integer())
+    pickCount: Type.Optional(Type.Integer()),
+    questionCount: Type.Optional(Type.Integer({ minimum: 0 }))
 });
 export type TurnConfig = Static<typeof TurnConfigSchema>;
 

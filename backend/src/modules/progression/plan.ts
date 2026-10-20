@@ -1,15 +1,3 @@
-// The tournament rulebook, as pure functions. No I/O, no randomness of its own: callers
-// inject an rng, so draws are reproducible in tests (and can be logged in production).
-//
-// Ties are broken differently per phase:
-//   - Phase 1 (qualification) uses a SECOND point system, not a tie-break turn.
-//     See `qualification.ts`.
-//   - Phase 2 onward (splitting re-rank, the ladder, the finale) uses a TIE-BREAK TURN:
-//     the tied players play one ve-dich Phase 1 turn, and those points only order them —
-//     the tie-break never changes anyone's match score. See `needsTiebreak` below.
-//
-// Phase progression: qualification -> splitting (x splittingRounds) -> ladder -> finale.
-import type { Progression } from "../../game/contracts/index.js";
 import { assertValidProgression, ProgressionError } from "../../game/contracts/index.js";
 
 export type Rng = () => number;
@@ -39,8 +27,7 @@ function shuffle<T>(items: T[], rng: Rng): T[] {
     return copy;
 }
 
-// One player from each tier per match. Every match therefore has exactly one S, A, B and C
-// (for the canonical 16/4 case).
+
 export function drawGroups(ranked: string[], groupSize: number, rng: Rng): string[][] {
     const tiers = tiersFor(ranked, groupSize).map((tier) => shuffle(tier, rng));
     const matchCount = groupSize;          // 16 / 4 = 4 matches
@@ -51,10 +38,7 @@ export function drawGroups(ranked: string[], groupSize: number, rng: Rng): strin
     return groups;
 }
 
-// ── Phase 2 ranking ───────────────────────────────────────────────────────────
 
-// Round 2 decides; round 1 breaks the tie. Ties beyond that keep the input order, so the
-// result is deterministic.
 export function rankPhase2(
     round1: Record<string, number>,
     round2: Record<string, number>
@@ -146,11 +130,7 @@ export function finalPlacements(params: {
     return rows;
 }
 
-// ── Ties ──────────────────────────────────────────────────────────────────────
 
-// Phase 2 onward: does the top score belong to more than one player? The ladder cannot
-// promote without a single winner, so this is what triggers a tie-break turn. Phase 1
-// does not use this — it has a second point system instead.
 export function needsTiebreak(scores: Array<{ playerId: string; score: number }>): string[] {
     if (scores.length === 0) return [];
     const top = Math.max(...scores.map((s) => s.score));
@@ -166,3 +146,27 @@ export function orderByTiebreak(
 }
 
 export { assertValidProgression, ProgressionError };
+
+
+export function unresolvedBlocks(
+    ordered: Array<{ playerId: string; key: string }>,
+    blockSize: number
+): string[][] {
+    const groups: string[][] = [];
+    let index = 0;
+
+    while (index < ordered.length) {
+        let end = index;
+        while (end + 1 < ordered.length && ordered[end + 1].key === ordered[index].key) {
+            end++;
+        }
+
+        const spansBlocks = Math.floor(index / blockSize) !== Math.floor(end / blockSize);
+        if (spansBlocks && end > index) {
+            groups.push(ordered.slice(index, end + 1).map((entry) => entry.playerId));
+        }
+        index = end + 1;
+    }
+
+    return groups;
+}

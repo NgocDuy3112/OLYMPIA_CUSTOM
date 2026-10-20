@@ -24,7 +24,8 @@ export type AuditAction =
     | "mcp_key_revoked"
     | "question_submitted"
     | "question_published"
-    | "question_archived";
+    | "question_archived"
+    | "season_drawn";
 
 export interface AuditEvent {
     action: AuditAction;
@@ -36,9 +37,7 @@ export interface AuditEvent {
     userAgent?: string | null;
 }
 
-// Best-effort by design: audit is observability, so a failing insert must never
-// break the operation it is recording. Callers still await, so tests and
-// ordering stay deterministic.
+
 export async function audit(event: AuditEvent): Promise<void> {
     try {
         await db.insert(auditEvents).values({

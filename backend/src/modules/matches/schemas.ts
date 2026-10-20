@@ -34,6 +34,7 @@ export type AutoPick = Static<typeof AutoPick>;
 
 export const CreateMatchInput = Type.Object({
     stageId: Type.String({ minLength: 1 }),
+    slot: Type.Optional(Type.Integer({ minimum: 1 })),
     label: Type.String({ minLength: 1 }),
     scheduledAt: IsoDateTime,
     players: Type.Optional(Type.Array(SeatSchema)),

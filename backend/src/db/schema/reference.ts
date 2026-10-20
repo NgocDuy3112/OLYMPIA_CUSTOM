@@ -22,7 +22,8 @@ import {
     QuestionPayload, 
     SeasonRound, 
     Stage, 
-    TournamentFormat 
+    TournamentFormat, 
+    RoundConfig
 } from "../../game/contracts/index.js";
 
 
@@ -75,6 +76,7 @@ export const seasons = pgTable(
 
         // Copied from the tournament at creation; frozen once qualification starts.
         progression: jsonb("progression").$type<Progression>(),
+        roundRules: jsonb("round_rules").$type<Record<string, RoundConfig>>(),
 
         // The 16 frozen question copies qualification is played on. Assembled from the bank
         // like a match, so a live event never depends on bank edits.

@@ -20,9 +20,7 @@ type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-// Compute and freeze a match's results at match end. Written once, never recomputed:
-// match_results holds the competitor totals and ranks; match_stats holds the per-question
-// analytics grain. Both are written in the caller's transaction with the status change.
+
 async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
     const rows = await tx.select().from(answers).where(eq(answers.matchId, match.id));
 
@@ -174,7 +172,8 @@ function assertSeats(players: Seat[], format: SeasonRow["format"]): void {
 export async function createMatch(
     tournamentId: string,
     seasonId: string,
-    input: CreateMatchInput
+    input: CreateMatchInput,
+    executor: Tx = db as unknown as Tx
 ): Promise<MatchRow> {
     validate(CreateMatchInput, input);
 
@@ -191,11 +190,12 @@ export async function createMatch(
         autoPick: input.autoPick ?? []
     });
 
-    const [row] = await db
+    const [row] = await executor
         .insert(matches)
         .values({
             seasonId,
             stageId: input.stageId,
+            slot: input.slot ?? null,
             label: input.label,
             scheduledAt: new Date(input.scheduledAt),
             status: "UPCOMING",

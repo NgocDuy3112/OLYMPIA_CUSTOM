@@ -9,7 +9,8 @@ export type ProgressionErrorCode =
     | "ALREADY_ANSWERED"
     | "NOT_ENROLLED"
     | "NOT_ENOUGH_PLAYERS"
-    | "TIES_UNRESOLVED";
+    | "TIES_UNRESOLVED"
+    | "NOT_ENOUGH_QUESTIONS";
 
 export class QualificationError extends Error {
     constructor(
@@ -33,7 +34,8 @@ const STATUS: Record<ProgressionErrorCode, number> = {
     ALREADY_ANSWERED: 409,
     NOT_ENROLLED: 403,
     NOT_ENOUGH_PLAYERS: 409,
-    TIES_UNRESOLVED: 409
+    TIES_UNRESOLVED: 409,
+    NOT_ENOUGH_QUESTIONS: 409
 };
 
 export function toHttpStatus(code: ProgressionErrorCode): number {

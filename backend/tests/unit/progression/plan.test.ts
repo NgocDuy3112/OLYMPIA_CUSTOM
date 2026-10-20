@@ -10,6 +10,7 @@ import {
     ProgressionError,
     rankPhase2,
     tiersFor,
+    unresolvedBlocks,
     type Rng
 } from "../../../src/modules/progression/plan.js";
 
@@ -205,5 +206,30 @@ describe("ties", () => {
 
     it("keeps input order when the tie-break also ties", () => {
         expect(orderByTiebreak(["c", "a"], { a: 5, c: 5 })).toEqual(["c", "a"]);
+    });
+});
+
+
+describe("unresolvedBlocks", () => {
+    const entry = (playerId: string, key: string) => ({ playerId, key });
+
+    it("ignores a tie that sits inside one block", () => {
+        const ordered = [
+            entry("p1", "10|5"), entry("p2", "10|5"),   // tie inside ranks 1–4
+            entry("p3", "9|5"), entry("p4", "9|5"),
+            entry("p5", "8|5"), entry("p6", "8|5"),
+            entry("p7", "7|5"), entry("p8", "7|5")
+        ];
+        expect(unresolvedBlocks(ordered, 4)).toEqual([]);
+    });
+
+    it("reports a tie that spans a block boundary", () => {
+        const ordered = [
+            entry("p1", "10|5"), entry("p2", "10|5"),
+            entry("p3", "10|5"), entry("p4", "10|5"),
+            entry("p5", "10|5"), entry("p6", "9|5"),   // five-way tie across ranks 4–5
+            entry("p7", "9|5"), entry("p8", "9|5")
+        ];
+        expect(unresolvedBlocks(ordered, 4)).toEqual([["p1", "p2", "p3", "p4", "p5"]]);
     });
 });

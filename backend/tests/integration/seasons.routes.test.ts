@@ -2,10 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { users } from "../../src/db/schema/index.js";
+import { seasons, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { CreateTournamentInput } from "../../src/modules/tournaments/index.js";
 import type { CreateSeasonInput } from "../../src/modules/seasons/index.js";
+import { eq } from "drizzle-orm";
 
 
 let app: FastifyInstance;
@@ -399,5 +400,68 @@ describe("DELETE …/seasons/:seasonId (soft delete)", () => {
         });
         expect(promote.statusCode).toBe(200);
         expect(promote.json().current).toBe(true);
+    });
+});
+
+
+describe("rules and progression freeze", () => {
+    const RULES = {
+        "r1": {
+            allowedKinds: ["MC"],
+            scoring: { template: "constant", points: 10 },
+            turns: [{ id: "phase1", mode: "text", delivery: "batch", questionCount: 4 }]
+        }
+    };
+
+    async function startedSeason(slug: string) {
+        const t = await makeTournament(slug);
+        const s = (await makeSeason(t.id, validSeason("Frozen"))).json();
+        // qualification has started: the rulebook must no longer move
+        await db.update(seasons).set({ qualificationQuestions: [] }).where(eq(seasons.id, s.id));
+        return { tournamentId: t.id, seasonId: s.id };
+    }
+
+    it("refuses roundRules alone once qualification started", async () => {
+        const { tournamentId, seasonId } = await startedSeason("sea-freeze-rules");
+
+        const res = await app.inject({
+            method: "PATCH",
+            url: `/portal/tournaments/${tournamentId}/seasons/${seasonId}`,
+            headers: auth(ownerCookie),
+            payload: { roundRules: RULES }
+        });
+
+        expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("CONFLICT");
+    });
+
+    it("refuses progression alone once qualification started", async () => {
+        const { tournamentId, seasonId } = await startedSeason("sea-freeze-prog");
+
+        const res = await app.inject({
+            method: "PATCH",
+            url: `/portal/tournaments/${tournamentId}/seasons/${seasonId}`,
+            headers: auth(ownerCookie),
+            payload: { progression: { advance: 9, questionCount: 16, groupSize: 3, splittingRounds: 2, finaleSize: 3 } }
+        });
+
+        expect(res.statusCode).toBe(409);
+    });
+
+    it("accepts roundRules before qualification starts, and still validates them", async () => {
+        const t = await makeTournament("sea-freeze-open");
+        const s = (await makeSeason(t.id, validSeason("Open"))).json();
+        const url = `/portal/tournaments/${t.id}/seasons/${s.id}`;
+
+        const ok = await app.inject({
+            method: "PATCH", url, headers: auth(ownerCookie), payload: { roundRules: RULES }
+        });
+        expect(ok.statusCode).toBe(200);
+
+        const bad = await app.inject({
+            method: "PATCH", url, headers: auth(ownerCookie),
+            payload: { roundRules: { "no-such-round": RULES["r1"] } }
+        });
+        expect(bad.statusCode).toBe(400);
     });
 });

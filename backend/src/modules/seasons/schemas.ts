@@ -5,7 +5,9 @@ import {
     SeasonRoundSchema,
     TournamentFormatSchema,
     PlacementTierSchema,
-    StageSchema
+    StageSchema,
+    ProgressionSchema,
+    RoundConfigSchema
 } from "../../game/contracts/index.js";
 import { SeasonError } from "./errors.js";
 
@@ -15,6 +17,8 @@ export const CreateSeasonInput = Type.Object({
     rounds: Type.Optional(Type.Array(SeasonRoundSchema)),
     format: Type.Optional(TournamentFormatSchema),
     placementTiers: Type.Optional(Type.Array(PlacementTierSchema)),
+    progression: Type.Optional(ProgressionSchema),
+    roundRules: Type.Optional(Type.Record(Type.String(), RoundConfigSchema)),
     current: Type.Optional(Type.Boolean())
 });
 export type CreateSeasonInput = Static<typeof CreateSeasonInput>;

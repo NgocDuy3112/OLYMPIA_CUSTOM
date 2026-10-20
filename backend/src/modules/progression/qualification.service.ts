@@ -29,17 +29,7 @@ const POINTS_PER_CORRECT = 1;
 
 type SeasonRow = typeof seasons.$inferSelect;
 
-async function requireSeason(seasonId: string): Promise<SeasonRow> {
-    const [row] = await db
-        .select()
-        .from(seasons)
-        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
-        .limit(1);
-    if (!row) throw new QualificationError("NOT_FOUND", `season ${seasonId} not found`);
-    return row;
-}
-
-async function requireProgression(seasonId: string): Promise<{ season: SeasonRow; progression: Progression }> {
+export async function requireProgression(seasonId: string): Promise<{ season: SeasonRow; progression: Progression }> {
     const season = await requireSeason(seasonId);
     if (!season.progression) {
         throw new QualificationError("NO_PROGRESSION", "this season has no progression configured");
@@ -53,6 +43,16 @@ async function requireProgression(seasonId: string): Promise<{ season: SeasonRow
         );
     }
     return { season, progression: season.progression };
+}
+
+async function requireSeason(seasonId: string): Promise<SeasonRow> {
+    const [row] = await db
+        .select()
+        .from(seasons)
+        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
+        .limit(1);
+    if (!row) throw new QualificationError("NOT_FOUND", `season ${seasonId} not found`);
+    return row;
 }
 
 async function isClosed(seasonId: string): Promise<boolean> {
@@ -183,8 +183,6 @@ export async function submitQualificationAnswer(params: {
     // Points are crowd-weighted across the whole field, so they are only computed at close.
     const answeredMs = params.answeredMs ?? null;
 
-    // Qualification is one attempt per question: a chosen option is final. The unique key
-    // (season, phase, question, user) makes this safe even under a race.
     const [existing] = await db.select({ userId: seasonPhaseAnswers.userId })
         .from(seasonPhaseAnswers)
         .where(and(
@@ -331,7 +329,6 @@ export async function closeQualification(
     return { rows: ranking.rows, advancing: advancing(ranking, progression.advance) };
 }
 
-// ── Reading ───────────────────────────────────────────────────────────────────
 
 // What a player may see: the question and its options, never the correct answer.
 export function sanitizeQuestion(question: MatchQuestion) {

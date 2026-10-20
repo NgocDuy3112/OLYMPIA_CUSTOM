@@ -1,0 +1,1 @@
+ALTER TABLE "seasons" ADD COLUMN "round_rules" jsonb;

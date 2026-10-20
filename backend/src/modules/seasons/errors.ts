@@ -1,4 +1,4 @@
-export type SeasonErrorCode = "VALIDATION" | "NOT_FOUND";
+export type SeasonErrorCode = "VALIDATION" | "NOT_FOUND" | "CONFLICT";
 
 export class SeasonError extends Error {
     constructor(
@@ -13,7 +13,8 @@ export class SeasonError extends Error {
 
 const STATUS_BY_CODE: Record<SeasonErrorCode, number> = {
     VALIDATION: 400,
-    NOT_FOUND: 404
+    NOT_FOUND: 404,
+    CONFLICT: 409
 };
 
 export function toHttpStatus(code: SeasonErrorCode): number {

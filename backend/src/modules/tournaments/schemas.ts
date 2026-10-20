@@ -4,7 +4,8 @@ import { Value } from "@sinclair/typebox/value";
 import {
     SeasonRoundSchema,
     TournamentFormatSchema,
-    PlacementTierSchema
+    PlacementTierSchema,
+    ProgressionSchema
 } from "../../game/contracts/index.js";
 import { TournamentError } from "./errors.js";
 
@@ -15,7 +16,8 @@ export const CreateTournamentInput = Type.Object({
     defaultTags: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
     defaultRounds: Type.Array(SeasonRoundSchema),
     defaultFormat: TournamentFormatSchema,
-    defaultPlacementTiers: Type.Array(PlacementTierSchema)
+    defaultPlacementTiers: Type.Array(PlacementTierSchema),
+    defaultProgression: Type.Optional(ProgressionSchema)
 });
 export type CreateTournamentInput = Static<typeof CreateTournamentInput>;
 

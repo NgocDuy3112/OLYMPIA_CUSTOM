@@ -15,6 +15,11 @@ import {
     setupQualification,
     submitQualificationAnswer
 } from "./qualification.service.js";
+import {
+    closeSplitting,
+    drawSplitRound,
+    type DrawSplitRoundInput
+} from "./splitting.service.js";
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
@@ -75,7 +80,7 @@ export async function progressionRoutes(app: FastifyInstance) {
         }
     }
 
-    // ── Enrollment ────────────────────────────────────────────────────────────
+
     app.post(
         "/portal/tournaments/:tournamentId/seasons/:seasonId/players",
         {
@@ -207,6 +212,49 @@ export async function progressionRoutes(app: FastifyInstance) {
         }
     );
 
+    // ── Splitting (staff) ─────────────────────────────────────────────────────
+    app.post(
+        "/portal/tournaments/:tournamentId/seasons/:seasonId/splitting/draw",
+        {
+            onRequest: staff,
+            schema: {
+                params: seasonParams,
+                body: {
+                    type: "object",
+                    required: ["round", "scheduledAt"],
+                    additionalProperties: false,
+                    properties: {
+                        round: { type: "integer", minimum: 1 },
+                        scheduledAt: { type: "string", minLength: 1 },
+                        label: { type: "string", minLength: 1 }
+                    }
+                }
+            }
+        },
+        async (request, reply) => {
+            const user = request.sessionUser!;
+            const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
+            const body = request.body as DrawSplitRoundInput;
+
+            await assertWrite(tournamentId, seasonId, user.id, user.role);
+            const result = await drawSplitRound(tournamentId, seasonId, body, user.id);
+
+            await auditFromRequest(request, "season_drawn", {
+                details: {
+                    phase: "splitting",
+                    seasonId,
+                    stageId: result.stageId,
+                    seed: result.seed,
+                    groups: result.groups,
+                    matchIds: result.matchIds
+                }
+            });
+
+            reply.code(201);
+            return result;
+        }
+    );
+
     app.post(
         "/gameplay/seasons/:seasonId/qualification/answers",
         {
@@ -241,6 +289,45 @@ export async function progressionRoutes(app: FastifyInstance) {
                 value: body.value as SubmittedAnswerValue,
                 answeredMs: body.answeredMs ?? null
             });
+        }
+    );
+
+    app.post(
+        "/portal/tournaments/:tournamentId/seasons/:seasonId/splitting/close",
+        {
+            onRequest: staff,
+            schema: {
+                params: seasonParams,
+                body: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        tieBreaks: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                required: ["players", "order"],
+                                additionalProperties: false,
+                                properties: { players: idList, order: idList }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
+            const body = request.body as { tieBreaks?: Array<{ players: string[]; order: string[] }> } | undefined;
+
+            await assertWrite(tournamentId, seasonId, user.id, user.role);
+            const result = await closeSplitting(seasonId, { tieBreaks: body?.tieBreaks });
+
+            await auditFromRequest(request, "season_closed", {
+                details: { phase: "splitting", seasonId, order: result.rows }
+            });
+
+            return result;
         }
     );
 }

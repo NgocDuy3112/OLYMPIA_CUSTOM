@@ -15,12 +15,12 @@ import {
 import { sql } from "drizzle-orm";
 import { seasons } from "./reference.js";
 import { users } from "./auth.js";
-import { 
-    Seat, 
-    RoundConfig, 
-    MatchQuestion, 
-    MatchLive, 
-    MatchDiscord, 
+import {
+    Seat,
+    RoundConfig,
+    MatchQuestion,
+    MatchLive,
+    MatchDiscord,
     AnswerValue,
     Drafts,
     ResultEntry,
@@ -45,7 +45,7 @@ export const matches = pgTable(
         scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
         label: text("label").notNull(),
         status: matchStatus("status").notNull().default("UPCOMING"),
-
+        slot: integer("slot"),
         players: jsonb("players").$type<Seat[]>().notNull(),
         roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),
         questions: jsonb("questions").$type<MatchQuestion[]>().notNull(),
@@ -59,6 +59,9 @@ export const matches = pgTable(
     (table) => [
         index("matches_season_status_idx").on(table.seasonId, table.status),
         index("matches_players_gin").using("gin", table.players),
+        uniqueIndex("matches_stage_slot_unique")
+            .on(table.seasonId, table.stageId, table.slot)
+            .where(sql`deleted_at IS NULL AND slot IS NOT NULL`),
         check(
             "matches_live_phase_check",
             sql`live IS NULL OR jsonb_typeof(live->'phase') = 'string'`
