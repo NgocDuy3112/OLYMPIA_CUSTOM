@@ -3,6 +3,16 @@ import { buildPlayerView, type SubmittedAnswer } from "../../../src/modules/live
 import { openHint, startGiaiMa } from "../../../src/game/engine/turns/giai-ma.js";
 import { openCurrentQuestion, startButPha, submitAnswer } from "../../../src/game/engine/turns/but-pha.js";
 import { startKhoiDong } from "../../../src/game/engine/turns/khoi-dong-round.js";
+import {
+    advanceTurn,
+    beginPhase2 as beginVeDichPhase2,
+    closeCurrentAnswer,
+    createVeDich,
+    openPhase2Question,
+    pickPhase2,
+    type PlayerState,
+    type VeDichQuestion
+} from "../../../src/game/engine/turns/ve-dich.js";
 import { beginPhase2, finishSetup } from "./helpers.js";
 
 const NOW = "2026-01-01T00:00:00.000Z";
@@ -113,7 +123,71 @@ describe("player view — khoi-dong", () => {
 
 describe("player view — an unknown round", () => {
     it("degrades to an empty view instead of throwing", () => {
-        const view = buildPlayerView(base({ roundId: "ve-dich" }));
+        const view = buildPlayerView(base({ roundId: "tie-break" }));
         expect(view).toMatchObject({ stage: "unknown", open: [], me: {} });
+    });
+});
+
+describe("player view — ve-dich", () => {
+    const VQ = (domain: string, value: number): VeDichQuestion => ({ id: `${domain}-${value}`, domain, value });
+    const POOL = [VQ("THTH", 50), VQ("THTH", 40), VQ("THTH", 30), VQ("THTH", 20)];
+    const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
+
+    const phase1 = () => createVeDich(POOL, [P("p0"), P("p1")]);
+
+    function phase2Open() {
+        let s = phase1();
+        s = advanceTurn(advanceTurn(s));
+        s = beginVeDichPhase2(s);
+        const current = s.players[0].id;
+        const ids = s.remaining.slice(0, 3).map((q) => q.id);
+        s = pickPhase2(s, current, ids);
+        s = openPhase2Question(s, ids[0]);
+        return { state: s, current, questionId: ids[0] };
+    }
+
+    it("phase 1 offers nothing to type; it says whose turn it is to pick", () => {
+        const mine = buildPlayerView(base({ roundId: "ve-dich", state: phase1(), userId: "p0" }));
+        const theirs = buildPlayerView(base({ roundId: "ve-dich", state: phase1(), userId: "p1" }));
+        expect(mine.stage).toBe("phase1");
+        expect(mine.open).toEqual([]);
+        expect(mine.me.isMyTurn).toBe(true);
+        expect(theirs.me.isMyTurn).toBe(false);
+        expect(mine.me.powersLeft).toEqual(["HOPE", "SHIELD"]);
+    });
+
+    it("phase 2: the answerer can answer and declare a power", () => {
+        const { state, current, questionId } = phase2Open();
+        const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: current }));
+        expect(view.stage).toBe("phase2");
+        expect(view.open[0].questionId).toBe(questionId);
+        expect(view.me).toMatchObject({ canAnswer: true, canDeclarePower: true, canBuzz: false, isAnswerer: true });
+    });
+
+    it("phase 2: others can buzz once the window opens, and see its deadline", () => {
+        const { state } = phase2Open();
+        const withBuzzWindow = closeCurrentAnswer(state, NOW);
+        const other = withBuzzWindow.players.find((p) => p.id !== withBuzzWindow.open!.answerer)!.id;
+
+        const view = buildPlayerView(base({ roundId: "ve-dich", state: withBuzzWindow, userId: other }));
+        expect(view.me.canBuzz).toBe(true);
+        expect(view.me.canAnswer).toBe(false);
+        expect(view.open[0].deadlineAt).toBe(at(5));         // the 5 s buzz window
+    });
+
+    it("phase 2: an expired buzz window offers no buzz", () => {
+        const { state } = phase2Open();
+        const withBuzzWindow = closeCurrentAnswer(state, NOW);
+        const other = withBuzzWindow.players.find((p) => p.id !== withBuzzWindow.open!.answerer)!.id;
+
+        const view = buildPlayerView(base({ roundId: "ve-dich", state: withBuzzWindow, userId: other, now: at(6) }));
+        expect(view.me.canBuzz).toBe(false);
+    });
+
+    it("an ended round says so and offers nothing", () => {
+        const ended = { ...phase1(), ended: true };
+        const view = buildPlayerView(base({ roundId: "ve-dich", state: ended }));
+        expect(view.stage).toBe("ended");
+        expect(view.me.isMyTurn).toBe(false);
     });
 });

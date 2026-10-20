@@ -30,7 +30,30 @@ export const KeywordCommand = Type.Object({
     })
 });
 
-// Buzz arrives with ve-dich, but the envelope is fixed now so clients need no change.
+// ve-dich commands. The player is always taken from the session, never from the message.
+export const PickCommand = Type.Object({
+    v: V,
+    type: Type.Literal("pick"),
+    requestId: Type.Optional(Type.String({ maxLength: 64 })),
+    data: Type.Object({ questionId: Type.String({ minLength: 1 }) })
+});
+
+export const PickBatchCommand = Type.Object({
+    v: V,
+    type: Type.Literal("pickBatch"),
+    requestId: Type.Optional(Type.String({ maxLength: 64 })),
+    data: Type.Object({
+        questionIds: Type.Array(Type.String({ minLength: 1 }), { minItems: 3, maxItems: 3 })
+    })
+});
+
+export const PowerCommand = Type.Object({
+    v: V,
+    type: Type.Literal("power"),
+    requestId: Type.Optional(Type.String({ maxLength: 64 })),
+    data: Type.Object({ power: Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")]) })
+});
+
 export const BuzzCommand = Type.Object({
     v: V,
     type: Type.Literal("buzz"),
@@ -38,7 +61,9 @@ export const BuzzCommand = Type.Object({
     data: Type.Object({ questionId: Type.String({ minLength: 1 }) })
 });
 
-export const ClientMessageSchema = Type.Union([AnswerCommand, KeywordCommand, BuzzCommand]);
+export const ClientMessageSchema = Type.Union([
+    AnswerCommand, KeywordCommand, PickCommand, PickBatchCommand, PowerCommand, BuzzCommand
+]);
 export type ClientMessage = Static<typeof ClientMessageSchema>;
 
 // ── Server → client ───────────────────────────────────────────────────────────
@@ -93,7 +118,7 @@ export function errorMessage(
 // Codes a client may see, so the frontend can switch on them without guessing.
 export const PROTOCOL_ERROR_CODES = [
     "BAD_MESSAGE",     // not JSON, wrong version, or an unknown/malformed command
-    "UNKNOWN_MESSAGE", // a recognised shape we do not act on yet (e.g. buzz)
+    "UNKNOWN_MESSAGE", // a valid command the server does not act on (reserved; none today)
     "UNAVAILABLE",     // the match is not live, or there is no round
     "NOT_SEATED", "NOT_LIVE", "NOT_STARTED", "NO_ROUND", "BAD_VALUE",
     "NO_WINDOW", "WINDOW_CLOSED", "LOCKED", "NOT_IN_MATCH", "NOT_OPEN",

@@ -23,7 +23,7 @@ import { applyGiaiMaAction } from "./giai-ma.js";
 import { mutateLive, type Transition } from "./apply.js";
 import { publish } from "./hub.js";
 import { pgLiveStore, readLive, recordPlayerAnswer, writeDraft } from "./store.js";
-import { parseButPhaState, parseGiaiMaState, parseKhoiDongState } from "./state.js";
+import { parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseVeDichState } from "./state.js";
 
 export type Suggestion = "CORRECT" | "INCORRECT";
 
@@ -68,7 +68,7 @@ const draftAudit = async (ctx: SubmitContext, roundId: string, suggestion: Sugge
     });
 };
 
-async function loadContext(ctx: SubmitContext) {
+export async function loadContext(ctx: SubmitContext) {
     const match = await getMatchById(ctx.matchId);
     if (match.status !== "LIVE") throw new SubmitError(409, "NOT_LIVE", "match is not LIVE");
     if (!isSeatedInMatch(match.players, ctx.userId)) {
@@ -199,6 +199,43 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         await writeDraft({
             matchId: ctx.matchId,
             questionId: ctx.questionId,
+            userId: ctx.userId,
+            value,
+            suggestion
+        });
+        await draftAudit(ctx, live.roundId, suggestion);
+        await publish(ctx.matchId);
+        return { drafted: true, suggested: suggestion };
+    }
+
+    if (live.roundId === "ve-dich") {
+        if (!("text" in value)) {
+            throw new SubmitError(400, "BAD_VALUE", "a ve-dich phase-1 answer must be text");
+        }
+        const state = parseVeDichState(live.state);
+        if (state.ended) throw new SubmitError(409, "ENDED", "the round has ended");
+        if (state.phase !== 1) throw new SubmitError(409, "PHASE_CLOSED", "phase 1 is over");
+
+        const open = state.open;
+        if (open === null || open.question.id !== ctx.questionId) {
+            throw new SubmitError(409, "NOT_OPEN", "that question is not open");
+        }
+        if (open.answerer !== ctx.userId) {
+            throw new SubmitError(409, "NOT_YOUR_TURN", "you are not answering this question");
+        }
+        if (open.stage !== "current") {
+            throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
+        }
+
+        const question = match.questions.find((q) => q._id === open.question.id);
+        if (!question) throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
+
+        const suggestion: Suggestion = autoMatch(question.kind as QuestionKind, question.payload, value)
+            ? "CORRECT" : "INCORRECT";
+
+        await writeDraft({
+            matchId: ctx.matchId,
+            questionId: open.question.id,
             userId: ctx.userId,
             value,
             suggestion

@@ -99,6 +99,53 @@ export const KhoiDongActionSchema = Type.Union([
 ]);
 export type KhoiDongAction = Static<typeof KhoiDongActionSchema>;
 
+// ── ve-dich ───────────────────────────────────────────────────────────────────
+// Controller actions drive the phases; players pick, declare powers, and buzz. Those
+// arrive as server-built actions, never from a client claiming a playerId.
+export const VeDichStart = Type.Object({ kind: Type.Literal("ve-dich.start") });
+export const VeDichBeginPhase2 = Type.Object({ kind: Type.Literal("ve-dich.beginPhase2") });
+export const VeDichOpenQuestion = Type.Object({
+    kind: Type.Literal("ve-dich.openQuestion"),
+    questionId: Type.String()
+});
+export const VeDichCloseCurrentAnswer = Type.Object({
+    kind: Type.Literal("ve-dich.closeCurrentAnswer")
+});
+export const VeDichResolve = Type.Object({
+    kind: Type.Literal("ve-dich.resolve"),
+    answerer: Type.Boolean(),
+    buzzer: Type.Optional(Type.Boolean())
+});
+export const VeDichAdvanceTurn = Type.Object({ kind: Type.Literal("ve-dich.advanceTurn") });
+export const VeDichEndRound = Type.Object({ kind: Type.Literal("ve-dich.endRound") });
+
+export const VeDichPick = Type.Object({
+    kind: Type.Literal("ve-dich.pick"),
+    playerId: Type.String(),
+    questionId: Type.String()
+});
+export const VeDichPickBatch = Type.Object({
+    kind: Type.Literal("ve-dich.pickBatch"),
+    playerId: Type.String(),
+    questionIds: Type.Array(Type.String(), { minItems: 3, maxItems: 3 })
+});
+export const VeDichDeclarePower = Type.Object({
+    kind: Type.Literal("ve-dich.declarePower"),
+    playerId: Type.String(),
+    power: Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")])
+});
+export const VeDichBuzz = Type.Object({
+    kind: Type.Literal("ve-dich.buzz"),
+    playerId: Type.String()
+});
+
+export const VeDichActionSchema = Type.Union([
+    VeDichStart, VeDichBeginPhase2, VeDichOpenQuestion, VeDichCloseCurrentAnswer,
+    VeDichResolve, VeDichAdvanceTurn, VeDichEndRound,
+    VeDichPick, VeDichPickBatch, VeDichDeclarePower, VeDichBuzz
+]);
+export type VeDichAction = Static<typeof VeDichActionSchema>;
+
 // Round-level action: close the current round and open the next.
 export const RoundAdvanceActionSchema = Type.Object({ kind: Type.Literal("round.advance") });
 export type RoundAdvanceAction = Static<typeof RoundAdvanceActionSchema>;
@@ -123,6 +170,13 @@ export const LiveActionSchema = Type.Union([
     KhoiDongClosePhase2,
     KhoiDongEndRound,
     KhoiDongFinalize,
+    VeDichStart,
+    VeDichBeginPhase2,
+    VeDichOpenQuestion,
+    VeDichCloseCurrentAnswer,
+    VeDichResolve,
+    VeDichAdvanceTurn,
+    VeDichEndRound,
     RoundAdvanceActionSchema
 ]);
 export type LiveAction = Static<typeof LiveActionSchema>;

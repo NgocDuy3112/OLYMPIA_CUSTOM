@@ -5,6 +5,7 @@ import { veDichPoints, type Power } from "../scoring/ve-dich.js";
 
 export const DOMAINS = ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"] as const;
 export const VALUES = [20, 30, 40, 50] as const;
+export const BUZZ_WINDOW_S = 5;
 
 export interface VeDichQuestion {
     id: string;        // e.g. "THTH-40"
@@ -27,6 +28,8 @@ export interface VeDichState {
     turnIndex: number;
     pendingPicks: VeDichQuestion[];
     open: OpenQuestion | null;
+    buzzOpenedAt: string | null;   // ISO time the 5 s buzz window opened
+    ended: boolean;
 }
 
 export interface OpenQuestion {
@@ -44,7 +47,8 @@ export type VeDichError =
     | { code: "NOT_HIGHEST"; message: string }
     | { code: "POWER_UNAVAILABLE"; message: string }
     | { code: "ALREADY_OPEN"; message: string }
-    | { code: "NOTHING_OPEN"; message: string };
+    | { code: "NOTHING_OPEN"; message: string }
+    | { code: "PHASE1_INCOMPLETE"; message: string };
 
 export class VeDichRuleError extends Error {
     constructor(public readonly detail: VeDichError) {
@@ -66,8 +70,39 @@ export function createVeDich(
         remaining: [...questions],
         turnIndex: 0,
         pendingPicks: [],
-        open: null
+        open: null,
+        buzzOpenedAt: null,
+        ended: false
     };
+}
+
+// Phase 1 is complete once no question is open and every player has had a turn.
+export function phase1Complete(state: VeDichState): boolean {
+    return state.phase === 1 && state.open === null && state.turnIndex >= state.players.length;
+}
+
+export function phase2Complete(state: VeDichState): boolean {
+    return state.phase === 2 && state.open === null && state.turnIndex >= state.players.length;
+}
+
+// Move to phase 2. The turn order is fixed HERE, by score at this moment (lowest first).
+export function beginPhase2(state: VeDichState): VeDichState {
+    if (state.phase !== 1) fail("WRONG_PHASE", "already in phase 2");
+    if (!phase1Complete(state)) fail("PHASE1_INCOMPLETE", "phase 1 is not complete");
+    return {
+        ...state,
+        phase: 2,
+        players: orderForPhase(state.players, 2),
+        turnIndex: 0,
+        pendingPicks: [],
+        open: null,
+        buzzOpenedAt: null
+    };
+}
+
+export function endVeDich(state: VeDichState): VeDichState {
+    if (state.ended) return state;
+    return { ...state, ended: true, open: null, buzzOpenedAt: null };
 }
 
 // Phase 1: highest score first. Phase 2: lowest score first.
@@ -112,7 +147,8 @@ export function pickPhase1(
             power: null,
             stage: "current",
             buzzer: null
-        }
+        },
+        buzzOpenedAt: null
     };
 }
 
@@ -191,19 +227,29 @@ export function openPhase2Question(state: VeDichState, questionId: string): VeDi
             power: null,
             stage: "current",
             buzzer: null
-        }
+        },
+        buzzOpenedAt: null
     };
 }
 
 // The current player's answer has been recorded and judged later. The buzz window opens now
 // regardless of correctness, per the rules. Buzzes are resolved by the server receive order;
 // the caller passes the first buzzer, and later buzzes are rejected by this function.
-export function closeCurrentAnswer(state: VeDichState): VeDichState {
+export function closeCurrentAnswer(state: VeDichState, openedAt: string): VeDichState {
     if (!state.open) fail("NOTHING_OPEN", "no question is open");
     if (state.phase !== 2) return state;      // Phase 1 has no buzz window
     if (state.open.stage !== "current") fail("ALREADY_OPEN", "the buzz window already happened");
 
-    return { ...state, open: { ...state.open, stage: "buzz" } };
+    return { ...state, open: { ...state.open, stage: "buzz" }, buzzOpenedAt: openedAt };
+}
+
+// Is the 5 s buzz window open at `nowIso`?
+export function isBuzzOpen(state: VeDichState, nowIso: string): boolean {
+    if (state.open === null || state.open.stage !== "buzz" || state.buzzOpenedAt === null) {
+        return false;
+    }
+    const elapsed = Date.parse(nowIso) - Date.parse(state.buzzOpenedAt);
+    return elapsed >= 0 && elapsed <= BUZZ_WINDOW_S * 1000;
 }
 
 export function buzz(state: VeDichState, playerId: string): VeDichState {
@@ -258,7 +304,8 @@ export function resolveQuestion(state: VeDichState, verdicts: Verdicts): VeDichS
         players: state.players.map((p) =>
             scoreDelta.has(p.id) ? { ...p, score: p.score + scoreDelta.get(p.id)! } : p
         ),
-        open: null
+        open: null,
+        buzzOpenedAt: null
     };
 }
 

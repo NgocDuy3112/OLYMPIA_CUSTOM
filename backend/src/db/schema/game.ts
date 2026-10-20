@@ -213,8 +213,10 @@ export const matchEvents = pgTable(
         uniqueIndex("match_events_buzz_unique")
             .on(table.matchId, table.questionId, table.userId)
             .where(sql`kind = 'BUZZ'`),
+        // One HOPE and one SHIELD per player across all of ve-dich — so the key is the
+        // power itself, not the round. The old key allowed only one power per round.
         uniqueIndex("match_events_power_unique")
-            .on(table.matchId, table.roundId, table.userId)
+            .on(table.matchId, table.userId, sql`(payload->>'power')`)
             .where(sql`kind = 'POWER'`),
         index("match_events_match_idx").on(table.matchId),
         check(

@@ -1,0 +1,2 @@
+DROP INDEX "match_events_power_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "match_events_power_unique" ON "match_events" USING btree ("match_id","user_id",(payload->>'power')) WHERE kind = 'POWER';

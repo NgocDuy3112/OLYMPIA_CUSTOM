@@ -3,6 +3,7 @@ import { Value } from "@sinclair/typebox/value";
 import type { GiaiMaState } from "../../game/engine/turns/giai-ma.js";
 import type { ButPhaState } from "../../game/engine/turns/but-pha.js";
 import type { KhoiDongState } from "../../game/engine/turns/khoi-dong-round.js";
+import type { VeDichState } from "../../game/engine/turns/ve-dich.js";
 
 // Runtime validation for state loaded from the database. The stored JSON is untrusted:
 // it may have been written by an older build. Bad state must fail loudly, never reach
@@ -114,13 +115,59 @@ export function parseKhoiDongState(raw: unknown): KhoiDongState {
     return raw as KhoiDongState;
 }
 
+// ── ve-dich ───────────────────────────────────────────────────────────────────
+
+const PowerSchema = Type.Union([Type.Literal("HOPE"), Type.Literal("SHIELD")]);
+
+export const VeDichQuestionSchema = Type.Object({
+    id: Type.String(),
+    domain: Type.String(),
+    value: Type.Integer()
+});
+
+export const VeDichPlayerSchema = Type.Object({
+    id: Type.String(),
+    score: Type.Integer(),
+    powersLeft: Type.Array(PowerSchema)
+});
+
+export const VeDichOpenSchema = Type.Object({
+    question: VeDichQuestionSchema,
+    answerer: Type.String(),
+    power: Type.Union([PowerSchema, Type.Null()]),
+    stage: Type.Union([Type.Literal("current"), Type.Literal("buzz")]),
+    buzzer: Type.Union([Type.String(), Type.Null()])
+});
+
+export const VeDichStateSchema = Type.Object({
+    phase: Type.Union([Type.Literal(1), Type.Literal(2)]),
+    players: Type.Array(VeDichPlayerSchema),
+    remaining: Type.Array(VeDichQuestionSchema),
+    turnIndex: Type.Integer({ minimum: 0 }),
+    pendingPicks: Type.Array(VeDichQuestionSchema),
+    open: Type.Union([VeDichOpenSchema, Type.Null()]),
+    buzzOpenedAt: Type.Union([Type.String(), Type.Null()]),
+    ended: Type.Boolean()
+});
+
+export function parseVeDichState(raw: unknown): VeDichState {
+    if (!Value.Check(VeDichStateSchema, raw)) {
+        const details = Array.from(Value.Errors(VeDichStateSchema, raw))
+            .slice(0, 5)
+            .map((e) => `${e.path || "<root>"}: ${e.message}`);
+        throw new LiveStateError("stored ve-dich state failed validation", details);
+    }
+    return raw as VeDichState;
+}
+
 // Parse the stored state for whatever round is active.
 export function parseRoundState(
     roundId: string,
     raw: unknown
-): GiaiMaState | ButPhaState | KhoiDongState {
+): GiaiMaState | ButPhaState | KhoiDongState | VeDichState {
     if (roundId === "giai-ma") return parseGiaiMaState(raw);
     if (roundId === "but-pha") return parseButPhaState(raw);
     if (roundId === "khoi-dong") return parseKhoiDongState(raw);
+    if (roundId === "ve-dich") return parseVeDichState(raw);
     throw new LiveStateError(`no state schema for round "${roundId}"`);
 }

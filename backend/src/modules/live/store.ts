@@ -184,6 +184,21 @@ export async function writeDraft(params: {
     }
 }
 
+// Each player's cumulative points in the match so far. ve-dich orders its first phase by
+// score, and everyone starts ve-dich at zero, so the seed must be the earlier rounds.
+export async function sumPointsByPlayer(matchId: string): Promise<Record<string, number>> {
+    const rows = await db
+        .select({ userId: answers.userId, points: answers.pointsAwarded })
+        .from(answers)
+        .where(eq(answers.matchId, matchId));
+
+    const sums: Record<string, number> = {};
+    for (const row of rows) {
+        sums[row.userId] = (sums[row.userId] ?? 0) + (row.points ?? 0);
+    }
+    return sums;
+}
+
 // Is the session behind a live socket still valid? Mirrors the HTTP guard: the account
 // must exist, not be disabled, and not have been revoked via tokenVersion.
 export async function isSessionActive(userId: string, tokenVersion: number): Promise<boolean> {

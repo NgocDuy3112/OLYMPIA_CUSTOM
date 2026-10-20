@@ -8,14 +8,17 @@ import { auditFromRequest } from "../audit/service.js";
 import { canWriteTournament } from "../../lib/tournament-access.js";
 import { applyLiveAction, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
-import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, LiveNotFoundError, pgLiveStore } from "./store.js";
+import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
-import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAction, type LiveAction } from "./actions.js";
+import { VeDichRuleError } from "../../game/engine/turns/ve-dich.js";
+import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAction, type LiveAction, type VeDichAction } from "./actions.js";
 import { applyGiaiMaAction, type GiaiMaContext } from "./giai-ma.js";
 import { applyButPhaAction } from "./but-pha.js";
 import { applyKhoiDongAction } from "./khoi-dong.js";
+import { applyVeDichAction } from "./ve-dich.js";
 import { buildPlayerView, type PlayerView } from "./view.js";
 import { submitAnswer, submitKeyword, SubmitError } from "./submit.js";
+import { submitVeDichCommand } from "./ve-dich-player.js";
 import {
     ackMessage,
     CLOSE_CODES,
@@ -29,10 +32,11 @@ import {
 import { publish, subscribe } from "./hub.js";
 import { attachHeartbeat } from "./heartbeat.js";
 import { attachSessionGuard } from "./session-guard.js";
-import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState } from "./state.js";
+import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState, parseVeDichState } from "./state.js";
 import { startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
 import { openQuestionId, type ButPhaState } from "../../game/engine/turns/but-pha.js";
 import { type KhoiDongState } from "../../game/engine/turns/khoi-dong-round.js";
+import type { VeDichState } from "../../game/engine/turns/ve-dich.js";
 import type { MatchQuestion } from "../../game/contracts/index.js";
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
@@ -41,6 +45,11 @@ const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 const EMPTY_GIAI_MA: GiaiMaState = startGiaiMa([], []);
 
 // khoi-dong.start replaces the state wholesale; this placeholder only satisfies the types.
+const EMPTY_VE_DICH: VeDichState = {
+    phase: 1, players: [], remaining: [], turnIndex: 0, pendingPicks: [],
+    open: null, buzzOpenedAt: null, ended: false
+};
+
 const EMPTY_KHOI_DONG: KhoiDongState = {
     stage: "phase1", ended: false, order: [], activeIndex: 0, runs: {}, phase2: null, phase2OpenedAt: null
 };
@@ -73,6 +82,14 @@ function khoiDongContext(
         phase1QuestionIds: idsForTurn(turns[0]?.id),
         phase2QuestionIds: idsForTurn(turns[1]?.id)
     };
+}
+
+// The 24 ve-dich questions: value from the question's points, domain from its tag.
+function veDichQuestions(match: { questions: MatchQuestion[] }) {
+    return match.questions
+        .filter((q) => q.roundId === "ve-dich")
+        .sort((a, b) => a.position - b.position)
+        .map((q) => ({ id: q._id, domain: q.tag, value: q.points }));
 }
 
 // The match's questions for a round, in position order. Resolved server-side, so a client
@@ -109,6 +126,24 @@ const actionBody = {
     properties: {
         expectedVersion: { type: "integer", minimum: 0 },
         action: { type: "object" },
+    },
+} as const;
+
+// A ve-dich player command. The command `type` picks which fields apply.
+const playerCommandBody = {
+    type: "object",
+    required: ["type"],
+    additionalProperties: false,
+    properties: {
+        type: { type: "string", enum: ["pick", "pickBatch", "power", "buzz"] },
+        questionId: { type: "string", pattern: UUID_PATTERN },
+        questionIds: {
+            type: "array",
+            items: { type: "string", pattern: UUID_PATTERN },
+            minItems: 3,
+            maxItems: 3
+        },
+        power: { type: "string", enum: ["HOPE", "SHIELD"] }
     },
 } as const;
 
@@ -164,6 +199,7 @@ function isRoundEnded(roundId: string, raw: unknown): boolean {
     if (roundId === "giai-ma") return parseGiaiMaState(raw).stage === "ended";
     if (roundId === "but-pha") return parseButPhaState(raw).ended;
     if (roundId === "khoi-dong") return parseKhoiDongState(raw).ended;
+    if (roundId === "ve-dich") return parseVeDichState(raw).ended;
     return true;
 }
 
@@ -184,6 +220,11 @@ export async function liveRoutes(app: FastifyInstance) {
         }
         if (error instanceof RuleError) {
             reply.code(409).send({ error: error.code, message: error.message });
+            return;
+        }
+        // ve-dich's engine predates the shared RuleError and carries its code in `detail`.
+        if (error instanceof VeDichRuleError) {
+            reply.code(409).send({ error: error.detail.code, message: error.message });
             return;
         }
         if (error instanceof LiveStateError) {
@@ -314,6 +355,37 @@ export async function liveRoutes(app: FastifyInstance) {
 
                             const { state, facts } = applyKhoiDongAction(engine, action as KhoiDongAction, {
                                 ...khoiDongContext(match, current.roundId, user.id, new Date().toISOString())
+                            });
+                            return { state: state as unknown as Record<string, unknown>, facts };
+                        }
+
+                        if (current.roundId === "ve-dich") {
+                            const engine = action.kind === "ve-dich.start"
+                                ? EMPTY_VE_DICH
+                                : parseVeDichState(current.state);
+
+                            // Resolving phase 1 finalizes the answerer's draft, so the engine
+                            // needs to know whether one exists.
+                            let drafts: AnswerDraft[] = [];
+                            if (action.kind === "ve-dich.resolve" && engine.open !== null) {
+                                drafts = await tx.readAnswerDrafts(engine.open.question.id);
+                            }
+
+                            // ve-dich orders phase 1 by score, so the seed is the cumulative
+                            // match score — everyone starts ve-dich itself at zero.
+                            const sums = action.kind === "ve-dich.start"
+                                ? await sumPointsByPlayer(matchId)
+                                : {};
+
+                            const { state, facts } = applyVeDichAction(engine, action as VeDichAction, {
+                                actorId: user.id,
+                                roundId: current.roundId,
+                                now: new Date().toISOString(),
+                                questions: veDichQuestions(match),
+                                players: (match.players as Array<{ kind: string; userId?: string }>)
+                                    .filter((seat) => seat.kind === "user")
+                                    .map((seat) => ({ id: seat.userId!, score: sums[seat.userId!] ?? 0 })),
+                                drafts
                             });
                             return { state: state as unknown as Record<string, unknown>, facts };
                         }
@@ -466,38 +538,56 @@ export async function liveRoutes(app: FastifyInstance) {
                 }
 
                 if (!Value.Check(ClientMessageSchema, parsed)) {
-                    reply(errorMessage(
-                        "BAD_MESSAGE",
-                        "unknown or malformed message",
-                        requestIdOf(parsed)
-                    ));
+                    reply(errorMessage("BAD_MESSAGE", "unknown or malformed message", requestIdOf(parsed)));
                     return;
                 }
 
                 const message = parsed as ClientMessage;
-                if (message.type === "buzz") {
-                    reply(errorMessage("UNKNOWN_MESSAGE", "buzz is not wired yet", message.requestId));
-                    return;
-                }
-
-                const common = {
+                const base = {
                     matchId,
                     userId: user.id,
-                    questionId: message.data.questionId,
-                    value: message.data.value,
                     ip: request.ip,
                     userAgent: request.headers["user-agent"] ?? null
                 };
 
                 try {
-                    if (message.type === "answer") {
-                        reply(ackMessage("answer", await submitAnswer(common), message.requestId));
-                    } else {
-                        reply(ackMessage("keyword", await submitKeyword(common), message.requestId));
+                    switch (message.type) {
+                        case "answer":
+                            reply(ackMessage("answer", await submitAnswer({
+                                ...base, questionId: message.data.questionId, value: message.data.value
+                            }), message.requestId));
+                            break;
+                        case "keyword":
+                            reply(ackMessage("keyword", await submitKeyword({
+                                ...base, questionId: message.data.questionId, value: message.data.value
+                            }), message.requestId));
+                            break;
+                        case "pick":
+                            reply(ackMessage("pick", await submitVeDichCommand({
+                                ...base, command: { type: "pick", questionId: message.data.questionId }
+                            }), message.requestId));
+                            break;
+                        case "pickBatch":
+                            reply(ackMessage("pickBatch", await submitVeDichCommand({
+                                ...base, command: { type: "pickBatch", questionIds: message.data.questionIds }
+                            }), message.requestId));
+                            break;
+                        case "power":
+                            reply(ackMessage("power", await submitVeDichCommand({
+                                ...base, command: { type: "power", power: message.data.power }
+                            }), message.requestId));
+                            break;
+                        case "buzz":
+                            reply(ackMessage("buzz", await submitVeDichCommand({
+                                ...base, command: { type: "buzz", questionId: message.data.questionId }
+                            }), message.requestId));
+                            break;
                     }
                 } catch (error) {
                     if (error instanceof SubmitError) {
                         reply(errorMessage(error.code, error.message, message.requestId));
+                    } else if (error instanceof VeDichRuleError) {
+                        reply(errorMessage(error.detail.code, error.message, message.requestId));
                     } else {
                         reply(errorMessage("INTERNAL", "something went wrong", message.requestId));
                     }
@@ -578,6 +668,51 @@ export async function liveRoutes(app: FastifyInstance) {
                 ip: request.ip,
                 userAgent: request.headers["user-agent"] ?? null
             });
+        }
+    );
+
+    // A seated player's ve-dich command, over HTTP (the socket carries the same commands).
+    app.post(
+        "/gameplay/matches/:matchId/live/commands",
+        {
+            onRequest: [requireAuth("GAMEPLAY")],
+            schema: { params: matchIdParams, body: playerCommandBody },
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { matchId } = request.params as { matchId: string };
+            const body = request.body as {
+                type: string;
+                questionId?: string;
+                questionIds?: string[];
+                power?: "HOPE" | "SHIELD";
+            };
+
+            const base = {
+                matchId,
+                userId: user.id,
+                ip: request.ip,
+                userAgent: request.headers["user-agent"] ?? null
+            };
+
+            if (body.type === "pick" || body.type === "buzz") {
+                if (!body.questionId) throw app.httpErrors.badRequest("questionId is required");
+                return submitVeDichCommand({ ...base, command: { type: body.type, questionId: body.questionId } });
+            }
+            if (body.type === "pickBatch") {
+                if (!body.questionIds || body.questionIds.length !== 3) {
+                    throw app.httpErrors.badRequest("questionIds must contain exactly 3 ids");
+                }
+                return submitVeDichCommand({ ...base, command: { type: "pickBatch", questionIds: body.questionIds } });
+            }
+            if (body.type === "power") {
+                if (body.power !== "HOPE" && body.power !== "SHIELD") {
+                    throw app.httpErrors.badRequest("power must be HOPE or SHIELD");
+                }
+                return submitVeDichCommand({ ...base, command: { type: "power", power: body.power } });
+            }
+
+            throw app.httpErrors.badRequest("unknown command");
         }
     );
 

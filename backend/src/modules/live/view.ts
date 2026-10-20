@@ -18,6 +18,7 @@ import {
     khoiDongPoints,
     type KhoiDongState
 } from "../../game/engine/turns/khoi-dong-round.js";
+import { isBuzzOpen, type VeDichState } from "../../game/engine/turns/ve-dich.js";
 
 export interface SubmittedAnswer {
     questionId: string;
@@ -145,6 +146,47 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
     };
 }
 
+function veDichView(input: ViewInput, state: VeDichState): PlayerView {
+    const player = state.players.find((p) => p.id === input.userId);
+    const open = state.open;
+
+    const openList: PlayerView["open"] = open === null
+        ? []
+        : [{
+              questionId: open.question.id,
+              // the deadline is the buzz window while it is open, otherwise none
+              deadlineAt: open.stage === "buzz" && state.buzzOpenedAt !== null
+                  ? plusSeconds(state.buzzOpenedAt, 5)
+                  : null
+          }];
+
+    const isMyTurn = !state.ended && open === null
+        && state.players[state.turnIndex]?.id === input.userId;
+
+    return {
+        matchId: input.matchId,
+        roundId: input.roundId,
+        version: input.version,
+        stage: state.ended ? "ended" : `phase${state.phase}`,
+        open: openList,
+        me: {
+            score: player?.score ?? 0,
+            powersLeft: player?.powersLeft ?? [],
+            isMyTurn,
+            pendingPicks: state.pendingPicks.map((q) => q.id),
+            isAnswerer: open?.answerer === input.userId,
+            canAnswer: open !== null && open.stage === "current" && open.answerer === input.userId,
+            canDeclarePower: open !== null && open.stage === "current"
+                && open.answerer === input.userId && open.power === null,
+            canBuzz: open !== null && open.stage === "buzz" && open.buzzer === null
+                && open.answerer !== input.userId && isBuzzOpen(state, input.now),
+            power: open?.power ?? null,
+            buzzer: open?.buzzer ?? null,
+            answerState: open === null ? "none" : stateOf(input.submitted, open.question.id)
+        }
+    };
+}
+
 export function buildPlayerView(input: ViewInput): PlayerView {
     switch (input.roundId) {
         case "giai-ma":
@@ -153,6 +195,8 @@ export function buildPlayerView(input: ViewInput): PlayerView {
             return butPhaView(input, input.state as ButPhaState);
         case "khoi-dong":
             return khoiDongView(input, input.state as KhoiDongState);
+        case "ve-dich":
+            return veDichView(input, input.state as VeDichState);
         default:
             return {
                 matchId: input.matchId,

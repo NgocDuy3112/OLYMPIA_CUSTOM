@@ -249,13 +249,15 @@ describe("live stream — submitting over the socket", () => {
         socket.close();
     });
 
-    it("the buzz envelope is accepted but not wired, and says so", async () => {
+    it("a ve-dich command during a giai-ma round is refused", async () => {
+        // The buzz envelope is valid, but this fixture is playing giai-ma: the round check
+        // rejects it before the engine is ever consulted.
         const socket = await connect(playerCookie);
         const next = inbox(socket);
         await next("view");
 
         socket.send(JSON.stringify({ v: 1, type: "buzz", data: { questionId: hintIds[1] } }));
-        expect(await next("error")).toMatchObject({ type: "error", data: { code: "UNKNOWN_MESSAGE" } });
+        expect(await next("error")).toMatchObject({ type: "error", data: { code: "NO_ROUND" } });
         socket.close();
     });
 
