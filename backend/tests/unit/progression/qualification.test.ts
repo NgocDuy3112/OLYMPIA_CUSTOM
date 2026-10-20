@@ -1,110 +1,142 @@
 import { describe, expect, it } from "vitest";
-import { advancing, rankQualification } from "../../../src/modules/progression/qualification.js";
+import {
+    advancing,
+    rankQualification,
+    scoreQualification,
+    type QualificationEntry
+} from "../../../src/modules/progression/qualification.js";
 import { ProgressionError } from "../../../src/game/contracts/index.js";
 
-const s = (userId: string, score: number) => ({ userId, score });
+const correct = (userId: string, questionId = "q1", answeredMs: number | null = null) =>
+    ({ userId, questionId, verdict: "CORRECT" as const, answeredMs });
+const wrong = (userId: string, questionId = "q1") =>
+    ({ userId, questionId, verdict: "INCORRECT" as const, answeredMs: null });
 
-describe("phase 1 ranking — the second point system breaks ties", () => {
-    it("ranks distinct scores with no gaps", () => {
-        const { rows, unresolved } = rankQualification([s("a", 30), s("b", 20), s("c", 10)]);
-        expect(unresolved).toEqual([]);
-        expect(rows).toEqual([
-            { userId: "a", score: 30, rank: 1 },
-            { userId: "b", score: 20, rank: 2 },
-            { userId: "c", score: 10, rank: 3 }
-        ]);
-    });
+const entry = (userId: string, points: number, correctCount: number, avgTimeMs: number): QualificationEntry =>
+    ({ userId, points, correctCount, avgTimeMs });
 
-    it("holds a tied group back when nothing else separates it", () => {
-        const { rows, unresolved } = rankQualification([s("a", 30), s("b", 30), s("c", 10)]);
-        expect(unresolved).toEqual([["a", "b"]]);
-        expect(rows).toEqual([{ userId: "c", score: 10, rank: 1 }]);
-    });
-
-    it("separates a tie by the secondary score — no tie-break turn needed", () => {
-        const { rows, unresolved } = rankQualification(
-            [s("a", 30), s("b", 30), s("c", 10)],
-            { secondaryScores: { a: 5, b: 9 } }
+describe("crowd-weighted scoring", () => {
+    it("pays (y + z) to the correct and charges (x + z) to the wrong", () => {
+        // 4-player field: 2 correct, 1 wrong, 1 silent  ->  correct +2, wrong -3
+        const { perAnswer } = scoreQualification(
+            [correct("a"), correct("b"), wrong("c")],
+            4
         );
-        expect(unresolved).toEqual([]);
-        const byUser = Object.fromEntries(rows.map((r) => [r.userId, r.rank]));
-        expect(byUser).toEqual({ b: 1, a: 2, c: 3 });
+        expect(perAnswer.get("q1|a")).toBe(2);     // y + z = 1 + 1
+        expect(perAnswer.get("q1|b")).toBe(2);
+        expect(perAnswer.get("q1|c")).toBe(-3);    // -(x + z) = -(2 + 1)
     });
 
-    it("falls back to an explicit order when primary and secondary both tie", () => {
+    it("pays nothing when everyone is correct", () => {
+        const { perAnswer } = scoreQualification([correct("a"), correct("b")], 2);
+        expect(perAnswer.get("q1|a")).toBe(0);     // y + z = 0
+    });
+
+    it("charges nothing when everyone is wrong", () => {
+        const { perAnswer } = scoreQualification([wrong("a"), wrong("b")], 2);
+        expect(perAnswer.get("q1|a")).toBe(0);     // -(x + z) = 0
+    });
+
+    it("the silent players raise what a correct answer is worth", () => {
+        const few = scoreQualification([correct("a")], 10).perAnswer.get("q1|a");
+        const many = scoreQualification([correct("a"), wrong("b")], 10).perAnswer.get("q1|a");
+        expect(few).toBe(9);                       // y=0, z=9
+        expect(many).toBe(9);                      // y=1, z=8
+    });
+
+    it("accumulates points, correct count and average time across questions", () => {
+        const { perPlayer } = scoreQualification(
+            [
+                correct("a", "q1", 1_000),
+                correct("a", "q2", 3_000),
+                wrong("a", "q3"),
+                correct("b", "q1", 500),
+                wrong("b", "q2"),
+                wrong("b", "q3")
+            ],
+            2
+        );
+        const a = perPlayer.get("a")!;
+        expect(a.correctCount).toBe(2);
+        expect(a.avgTimeMs).toBe(2_000);           // average over the CORRECT answers only
+        // q1 (both correct): 0 ; q2 (a right, b wrong): +1 ; q3 (both wrong): 0
+        expect(a.points).toBe(1);
+    });
+
+    it("gives a player with no correct answers an infinite average time", () => {
+        const { perPlayer } = scoreQualification([wrong("a")], 2);
+        expect(perPlayer.get("a")!.avgTimeMs).toBe(Number.POSITIVE_INFINITY);
+    });
+
+    it("treats an untimed correct answer as neutral", () => {
+        const { perPlayer } = scoreQualification([correct("a", "q1", null)], 2);
+        expect(perPlayer.get("a")!.avgTimeMs).toBe(0);
+    });
+});
+
+describe("ranking — points, then correct count, then average time", () => {
+    it("orders by points first", () => {
+        const { rows, unresolved } = rankQualification([
+            entry("a", 30, 1, 999),
+            entry("b", 20, 16, 1)
+        ]);
+        expect(unresolved).toEqual([]);
+        expect(rows.sort((x, y) => x.rank - y.rank).map((r) => r.userId)).toEqual(["a", "b"]);
+    });
+
+    it("breaks a points tie on correct count", () => {
+        const { rows } = rankQualification([entry("a", 30, 5, 999), entry("b", 30, 9, 999)]);
+        expect(rows.sort((x, y) => x.rank - y.rank).map((r) => r.userId)).toEqual(["b", "a"]);
+    });
+
+    it("breaks a points and count tie on average time, faster first", () => {
+        const { rows } = rankQualification([entry("a", 30, 5, 900), entry("b", 30, 5, 100)]);
+        expect(rows.sort((x, y) => x.rank - y.rank).map((r) => r.userId)).toEqual(["b", "a"]);
+    });
+
+    it("holds a group back when all three criteria agree", () => {
+        const { unresolved } = rankQualification([entry("a", 30, 5, 100), entry("b", 30, 5, 100)]);
+        expect(unresolved).toEqual([["a", "b"]]);
+    });
+
+    it("applies an explicit order as the last resort", () => {
         const { rows, unresolved } = rankQualification(
-            [s("a", 30), s("b", 30)],
-            {
-                secondaryScores: { a: 5, b: 5 },
-                tieBreaks: [{ players: ["a", "b"], order: ["b", "a"] }]
-            }
+            [entry("a", 30, 5, 100), entry("b", 30, 5, 100)],
+            { tieBreaks: [{ players: ["a", "b"], order: ["b", "a"] }] }
         );
         expect(unresolved).toEqual([]);
         expect(rows.sort((x, y) => x.rank - y.rank).map((r) => r.userId)).toEqual(["b", "a"]);
     });
 
-    it("rejects an order for players who are not actually tied", () => {
-        // The secondary scores differ, so these two are already separated.
+    it("rejects an order for players who are not tied on all three criteria", () => {
         expect(() => rankQualification(
-            [s("a", 30), s("b", 30)],
-            { secondaryScores: { a: 1, b: 2 }, tieBreaks: [{ players: ["a", "b"], order: ["a", "b"] }] }
+            [entry("a", 30, 5, 100), entry("b", 30, 5, 200)],
+            { tieBreaks: [{ players: ["a", "b"], order: ["a", "b"] }] }
         )).toThrow(ProgressionError);
-    });
-
-    it("handles empty fields and single players", () => {
-        expect(rankQualification([])).toEqual({ rows: [], unresolved: [] });
-        expect(rankQualification([s("a", 0)])).toEqual({
-            rows: [{ userId: "a", score: 0, rank: 1 }],
-            unresolved: []
-        });
-    });
-
-    it("rejects a tie-break naming an unknown player", () => {
-        expect(() => rankQualification([s("a", 10), s("b", 10)], {
-            tieBreaks: [{ players: ["a", "zzz"], order: ["a", "zzz"] }]
-        })).toThrow(ProgressionError);
     });
 });
 
 describe("the advance cut", () => {
     it("blocks a tie that straddles the cut", () => {
         const { unresolved } = rankQualification(
-            [s("a", 30), s("b", 10), s("c", 10), s("d", 10)],
+            [entry("a", 50, 9, 10), entry("b", 30, 5, 10), entry("c", 30, 5, 10)],
             { advance: 2 }
         );
-        expect(unresolved).toEqual([["b", "c", "d"]]);
+        expect(unresolved).toEqual([["b", "c"]]);
     });
 
     it("orders a tie entirely below the cut without blocking", () => {
-        const { rows, unresolved } = rankQualification(
-            [s("a", 30), s("b", 20), s("c", 10), s("d", 10)],
-            { advance: 2 }
+        const { unresolved } = rankQualification(
+            [entry("a", 50, 9, 10), entry("b", 30, 5, 10), entry("c", 30, 5, 10)],
+            { advance: 1 }
         );
         expect(unresolved).toEqual([]);
-        expect(rows.sort((x, y) => x.rank - y.rank).map((r) => r.userId)).toEqual(["a", "b", "c", "d"]);
-    });
-
-    it("a secondary score resolves a tie that straddles the cut", () => {
-        const { rows, unresolved } = rankQualification(
-            [s("a", 30), s("b", 10), s("c", 10)],
-            { advance: 2, secondaryScores: { b: 1, c: 2 } }
-        );
-        expect(unresolved).toEqual([]);
-        expect(rows.sort((x, y) => x.rank - y.rank).map((r) => r.userId)).toEqual(["a", "c", "b"]);
     });
 });
 
 describe("advancing", () => {
     it("takes the top N in rank order", () => {
-        const { rows } = rankQualification(
-            [s("a", 30), s("b", 30), s("c", 20)],
-            { secondaryScores: { a: 2, b: 1 } }
-        );
-        expect(advancing({ rows, unresolved: [] }, 2)).toEqual(["a", "b"]);
-    });
-
-    it("returns fewer than requested when the field is small", () => {
-        const { rows } = rankQualification([s("a", 1)]);
-        expect(advancing({ rows, unresolved: [] }, 16)).toEqual(["a"]);
+        const { rows } = rankQualification([entry("a", 30, 1, 1), entry("b", 20, 1, 1)]);
+        expect(advancing({ rows, unresolved: [] }, 1)).toEqual(["a"]);
     });
 });

@@ -57,6 +57,13 @@
       "when": 1792461385789,
       "tag": "0007_qualification",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792462612768,
+      "tag": "0008_qualification_crowd_scoring",
+      "breakpoints": true
     }
   ]
 }

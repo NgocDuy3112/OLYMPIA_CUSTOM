@@ -16,7 +16,13 @@ import {
 } from "../../game/contracts/index.js";
 import { autoMatch, type QuestionKind } from "../../game/engine/matching.js";
 import { QualificationError } from "./errors.js";
-import { advancing, rankQualification, type TieBreak } from "./qualification.js";
+import {
+    advancing,
+    rankQualification,
+    scoreQualification,
+    type QualificationAnswer,
+    type TieBreak
+} from "./qualification.js";
 
 export const QUALIFICATION_PHASE = "qualification";
 const POINTS_PER_CORRECT = 1;
@@ -148,7 +154,8 @@ export async function submitQualificationAnswer(params: {
     userId: string;
     questionId: string;
     value: SubmittedAnswerValue;
-}): Promise<{ verdict: "CORRECT" | "INCORRECT"; points: number }> {
+    answeredMs?: number | null;
+}): Promise<{ verdict: "CORRECT" | "INCORRECT" }> {
     const { season } = await requireProgression(params.seasonId);
 
     if (!season.qualificationQuestions) {
@@ -173,7 +180,8 @@ export async function submitQualificationAnswer(params: {
 
     const correct = autoMatch(question.kind as QuestionKind, question.payload, params.value);
     const verdict = correct ? "CORRECT" as const : "INCORRECT" as const;
-    const points = correct ? question.points : 0;
+    // Points are crowd-weighted across the whole field, so they are only computed at close.
+    const answeredMs = params.answeredMs ?? null;
 
     // Revision is allowed until the phase closes, so the last answer wins.
     await db.insert(seasonPhaseAnswers)
@@ -185,7 +193,8 @@ export async function submitQualificationAnswer(params: {
             value: params.value,
             verdict,
             autoMatched: true,
-            pointsAwarded: points
+            pointsAwarded: 0,
+            answeredMs
         })
         .onConflictDoUpdate({
             target: [
@@ -194,25 +203,29 @@ export async function submitQualificationAnswer(params: {
                 seasonPhaseAnswers.questionId,
                 seasonPhaseAnswers.userId
             ],
-            set: { value: params.value, verdict, autoMatched: true, pointsAwarded: points, submittedAt: new Date() }
+            set: { value: params.value, verdict, autoMatched: true, answeredMs, submittedAt: new Date() }
         });
 
-    return { verdict, points };
+    return { verdict };
 }
 
 // ── Closing ───────────────────────────────────────────────────────────────────
 
 export interface CloseQualificationOptions {
-    // Phase 1 breaks ties with a second point system, not a tie-break turn.
-    secondaryScores?: Record<string, number>;
-    // Only needed if the second system still cannot separate a group.
+    // Phase 1 has no tie-break turn: only needed if points, correct count AND average time
+    // all agree on a group at or above the cut.
     tieBreaks?: TieBreak[];
+}
+
+export interface ClosedQualification {
+    rows: Array<{ userId: string; points: number; correctCount: number; avgTimeMs: number; rank: number }>;
+    advancing: string[];
 }
 
 export async function closeQualification(
     seasonId: string,
     options: CloseQualificationOptions = {}
-): Promise<{ rows: Array<{ userId: string; score: number; rank: number }>; advancing: string[] }> {
+): Promise<ClosedQualification> {
     const { season, progression } = await requireProgression(seasonId);
 
     if (!season.qualificationQuestions) {
@@ -236,14 +249,27 @@ export async function closeQualification(
             eq(seasonPhaseAnswers.phaseId, QUALIFICATION_PHASE)
         ));
 
-    const scoreOf = new Map<string, number>();
-    for (const answer of answers) {
-        scoreOf.set(answer.userId, (scoreOf.get(answer.userId) ?? 0) + answer.pointsAwarded);
-    }
+    // z (silent players) is measured against the whole enrolled field, not just answerers.
+    const scored: QualificationAnswer[] = answers.map((a) => ({
+        userId: a.userId,
+        questionId: a.questionId,
+        verdict: a.verdict ?? "INCORRECT",
+        answeredMs: a.answeredMs
+    }));
 
-    const scores = roster.map((entry) => ({ userId: entry.userId, score: scoreOf.get(entry.userId) ?? 0 }));
-    const ranking = rankQualification(scores, {
-        secondaryScores: options.secondaryScores,
+    const { perAnswer, perPlayer } = scoreQualification(scored, roster.length);
+
+    const entries = roster.map((entry) => {
+        const score = perPlayer.get(entry.userId);
+        return {
+            userId: entry.userId,
+            points: score?.points ?? 0,
+            correctCount: score?.correctCount ?? 0,
+            avgTimeMs: score?.avgTimeMs ?? Number.POSITIVE_INFINITY
+        };
+    });
+
+    const ranking = rankQualification(entries, {
         tieBreaks: options.tieBreaks,
         advance: progression.advance
     });
@@ -251,26 +277,37 @@ export async function closeQualification(
     if (ranking.unresolved.length > 0) {
         throw new QualificationError(
             "TIES_UNRESOLVED",
-            "run a tie-break turn and supply the order for each tied group",
+            "points, correct count and average time all agree for these players; supply an order",
             ranking.unresolved.map((group) => group.join(", "))
         );
     }
 
-    try {
-        await db.transaction(async (tx) => {
-            await tx.insert(seasonPhaseResults)
-                .values(ranking.rows.map((row) => ({
-                    seasonId,
-                    phaseId: QUALIFICATION_PHASE,
-                    userId: row.userId,
-                    score: row.score,
-                    rank: row.rank
-                })))
-                .onConflictDoNothing();
-        });
-    } catch (error) {
-        throw error;
-    }
+    await db.transaction(async (tx) => {
+        await tx.insert(seasonPhaseResults)
+            .values(ranking.rows.map((row) => ({
+                seasonId,
+                phaseId: QUALIFICATION_PHASE,
+                userId: row.userId,
+                score: row.points,
+                correctCount: row.correctCount,
+                avgTimeMs: Number.isFinite(row.avgTimeMs) ? Math.round(row.avgTimeMs) : null,
+                rank: row.rank
+            })))
+            .onConflictDoNothing();
+
+        // Record each answer's crowd-weighted points for the ledger.
+        for (const [key, points] of perAnswer) {
+            const [questionId, userId] = key.split("|");
+            await tx.update(seasonPhaseAnswers)
+                .set({ pointsAwarded: points })
+                .where(and(
+                    eq(seasonPhaseAnswers.seasonId, seasonId),
+                    eq(seasonPhaseAnswers.phaseId, QUALIFICATION_PHASE),
+                    eq(seasonPhaseAnswers.questionId, questionId),
+                    eq(seasonPhaseAnswers.userId, userId)
+                ));
+        }
+    });
 
     return { rows: ranking.rows, advancing: advancing(ranking, progression.advance) };
 }

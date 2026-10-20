@@ -1,14 +1,100 @@
-// Ranking the qualification field (phase 1). Pure: scores in, places out.
+// Phase 1: qualification.
 //
-// Phase 1 does NOT use a tie-break turn. It breaks ties with a SECOND point system, so the
-// caller supplies `secondaryScores` per player. Only if both systems agree on a group does
-// it need an explicit order (`tieBreaks`), and a group that starts below the cut blocks
-// nobody.
+// Scoring is crowd-weighted per question. With x players correct, y wrong and z silent
+// (z = the rest of the enrolled field):
+//   correct -> +(y + z)      a question few others got is worth more to those who did
+//   wrong   -> -(x + z)      a question most others got costs more when you miss it
+//   silent  -> 0
+//
+// Ranking, in order: total points, then correct answers, then the average time taken on
+// the correct answers (faster is better). A group that still ties is unresolved: phase 1
+// has no tie-break turn, so the caller must supply an order.
 import { ProgressionError } from "../../game/contracts/index.js";
 
-export interface QualificationScore {
+export type PhaseVerdict = "CORRECT" | "INCORRECT";
+
+export interface QualificationAnswer {
     userId: string;
-    score: number;
+    questionId: string;
+    verdict: PhaseVerdict;
+    answeredMs?: number | null;
+}
+
+export interface QualificationEntry {
+    userId: string;
+    points: number;
+    correctCount: number;
+    avgTimeMs: number;      // Infinity when the player never answered correctly
+}
+
+export interface PlayerScore {
+    points: number;
+    correctCount: number;
+    avgTimeMs: number;
+}
+
+// Per-answer points, keyed `${questionId}|${userId}`, plus per-player totals.
+export function scoreQualification(
+    answers: QualificationAnswer[],
+    fieldSize: number
+): { perAnswer: Map<string, number>; perPlayer: Map<string, PlayerScore> } {
+    const byQuestion = new Map<string, QualificationAnswer[]>();
+    for (const answer of answers) {
+        const group = byQuestion.get(answer.questionId) ?? [];
+        group.push(answer);
+        byQuestion.set(answer.questionId, group);
+    }
+
+    const perAnswer = new Map<string, number>();
+    const perPlayer = new Map<string, PlayerScore>();
+    const ensure = (userId: string): PlayerScore => {
+        const existing = perPlayer.get(userId);
+        if (existing) return existing;
+        const created: PlayerScore = { points: 0, correctCount: 0, avgTimeMs: 0 };
+        perPlayer.set(userId, created);
+        return created;
+    };
+
+    // Times are averaged over the correct answers only.
+    const timeTotal = new Map<string, { sum: number; count: number }>();
+
+    for (const [questionId, group] of byQuestion) {
+        const x = group.filter((a) => a.verdict === "CORRECT").length;
+        const y = group.filter((a) => a.verdict === "INCORRECT").length;
+        const z = Math.max(0, fieldSize - x - y);
+
+        for (const answer of group) {
+            const score = ensure(answer.userId);
+            const penalty = x + z;
+            // Normalise -(0) so a question nobody got right is worth exactly zero.
+            const points = answer.verdict === "CORRECT" ? y + z : (penalty === 0 ? 0 : -penalty);
+
+            perAnswer.set(`${questionId}|${answer.userId}`, points);
+            score.points += points;
+
+            if (answer.verdict === "CORRECT") {
+                score.correctCount += 1;
+                const ms = answer.answeredMs ?? null;
+                if (ms !== null) {
+                    const entry = timeTotal.get(answer.userId) ?? { sum: 0, count: 0 };
+                    entry.sum += ms;
+                    entry.count += 1;
+                    timeTotal.set(answer.userId, entry);
+                }
+            }
+        }
+    }
+
+    for (const [userId, score] of perPlayer) {
+        const timed = timeTotal.get(userId);
+        score.avgTimeMs = score.correctCount === 0
+            ? Number.POSITIVE_INFINITY           // no correct answers: ranked last on time
+            : timed && timed.count > 0
+                ? timed.sum / timed.count
+                : 0;                             // correct but untimed: neutral
+    }
+
+    return { perAnswer, perPlayer };
 }
 
 export interface TieBreak {
@@ -18,46 +104,43 @@ export interface TieBreak {
 
 export interface RankedPlayer {
     userId: string;
-    score: number;
+    points: number;
+    correctCount: number;
+    avgTimeMs: number;
     rank: number;
 }
 
-export interface QualificationOptions {
-    // Phase 1 breaks ties with a SECOND point system (e.g. a speed or accuracy score)
-    // rather than a tie-break turn. Callers supply it per player; absent means zero.
-    secondaryScores?: Record<string, number>;
-    // A last resort, for a group the secondary score cannot separate: an explicit order.
+export interface QualificationRanking {
+    rows: RankedPlayer[];
+    unresolved: string[][];
+}
+
+export interface RankOptions {
     tieBreaks?: TieBreak[];
-    // Ties that start below this place cannot change who advances, so they do not block.
     advance?: number;
 }
 
-export interface QualificationRanking {
-    rows: RankedPlayer[];        // every player, ranked 1..N
-    unresolved: string[][];      // tied groups the caller must order
+// Compare by the three criteria, in order.
+export function compareEntries(a: QualificationEntry, b: QualificationEntry): number {
+    if (a.points !== b.points) return b.points - a.points;
+    if (a.correctCount !== b.correctCount) return b.correctCount - a.correctCount;
+    if (a.avgTimeMs !== b.avgTimeMs) return a.avgTimeMs - b.avgTimeMs;
+    return 0;
 }
 
-// Competition ranking: equal scores share a place unless an explicit order is supplied.
-// With an order, the group occupies consecutive places in exactly that order.
-//
-// `advance` bounds which ties actually matter: a tied group that starts below the cut
-// cannot change who advances or the seeding order above it, so it is ordered
-// deterministically instead of blocking the close.
+function keyOf(entry: QualificationEntry): string {
+    return `${entry.points}|${entry.correctCount}|${entry.avgTimeMs}`;
+}
+
+// A group that starts at or above the cut changes who advances; below it, nobody cares.
 export function rankQualification(
-    scores: QualificationScore[],
-    options: QualificationOptions = {}
+    entries: QualificationEntry[],
+    options: RankOptions = {}
 ): QualificationRanking {
-    const secondaryOf = options.secondaryScores ?? {};
-    const tieBreaks = options.tieBreaks ?? [];
     const advance = options.advance ?? Number.POSITIVE_INFINITY;
-
-    const secondary = (userId: string) => secondaryOf[userId] ?? 0;
-
-    const scoreOf = new Map(scores.map((s) => [s.userId, s.score]));
     const orderFor = new Map<string, string[]>();
 
-    // Validate the supplied orderings once, up front.
-    for (const tieBreak of tieBreaks) {
+    for (const tieBreak of options.tieBreaks ?? []) {
         if (new Set(tieBreak.players).size !== tieBreak.players.length) {
             throw new ProgressionError("a tie-break lists the same player twice");
         }
@@ -65,64 +148,62 @@ export function rankQualification(
             || new Set(tieBreak.order).size !== tieBreak.order.length) {
             throw new ProgressionError("a tie-break order must be a permutation of its players");
         }
-        for (const id of tieBreak.players) {
-            if (!scoreOf.has(id)) {
-                throw new ProgressionError(`tie-break names an unknown player ${id}`);
-            }
-            if (!tieBreak.order.includes(id)) {
-                throw new ProgressionError(`tie-break order omits ${id}`);
-            }
-        }
-        // Players are only "tied" when BOTH point systems agree.
-        const keys = new Set(tieBreak.players.map((id) => `${scoreOf.get(id)}|${secondary(id)}`));
+        const keys = new Set(
+            tieBreak.players.map((id) => {
+                const entry = entries.find((e) => e.userId === id);
+                if (!entry) throw new ProgressionError(`tie-break names an unknown player ${id}`);
+                return keyOf(entry);
+            })
+        );
         if (keys.size !== 1) {
             throw new ProgressionError("a tie-break group is not actually tied");
         }
         orderFor.set([...tieBreak.players].sort().join("|"), tieBreak.order);
     }
 
-    // Group by (primary, secondary): the secondary point system breaks the primary tie.
-    const groups = new Map<string, { score: number; secondary: number; players: string[] }>();
-    for (const entry of scores) {
-        const key = `${entry.score}|${secondary(entry.userId)}`;
-        const group = groups.get(key) ?? { score: entry.score, secondary: secondary(entry.userId), players: [] };
-        group.players.push(entry.userId);
+    const groups = new Map<string, QualificationEntry[]>();
+    for (const entry of entries) {
+        const key = keyOf(entry);
+        const group = groups.get(key) ?? [];
+        group.push(entry);
         groups.set(key, group);
     }
 
-    const ordered = [...groups.values()].sort(
-        (a, b) => b.score - a.score || b.secondary - a.secondary
-    );
+    const ordered = [...groups.values()].sort((a, b) => compareEntries(a[0], b[0]));
 
     const rows: RankedPlayer[] = [];
     const unresolved: string[][] = [];
     let place = 1;
 
     for (const group of ordered) {
-        if (group.players.length === 1) {
-            rows.push({ userId: group.players[0], score: group.score, rank: place });
-            place += 1;
+        const emit = (entry: QualificationEntry) => {
+            rows.push({
+                userId: entry.userId,
+                points: entry.points,
+                correctCount: entry.correctCount,
+                avgTimeMs: entry.avgTimeMs,
+                rank: place++
+            });
+        };
+
+        if (group.length === 1) {
+            emit(group[0]);
             continue;
         }
 
         if (place > advance) {
-            // Wholly below the cut: order deterministically, nobody downstream cares.
-            for (const userId of group.players) {
-                rows.push({ userId, score: group.score, rank: place });
-                place += 1;
-            }
+            for (const entry of group) emit(entry);   // below the cut: order does not matter
             continue;
         }
 
-        const order = orderFor.get([...group.players].sort().join("|"));
+        const order = orderFor.get(group.map((e) => e.userId).sort().join("|"));
         if (order === undefined) {
-            unresolved.push(group.players);
+            unresolved.push(group.map((e) => e.userId));
             continue;
         }
 
         for (const userId of order) {
-            rows.push({ userId, score: group.score, rank: place });
-            place += 1;
+            emit(group.find((e) => e.userId === userId)!);
         }
     }
 

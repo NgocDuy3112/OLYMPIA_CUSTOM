@@ -149,10 +149,6 @@ export async function progressionRoutes(app: FastifyInstance) {
                     type: "object",
                     additionalProperties: false,
                     properties: {
-                        secondaryScores: {
-                            type: "object",
-                            additionalProperties: { type: "number" }
-                        },
                         tieBreaks: {
                             type: "array",
                             items: {
@@ -170,22 +166,17 @@ export async function progressionRoutes(app: FastifyInstance) {
             const user = request.sessionUser!;
             const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
             const body = request.body as {
-                secondaryScores?: Record<string, number>;
                 tieBreaks?: Array<{ players: string[]; order: string[] }>;
             } | undefined;
 
             await assertWrite(tournamentId, seasonId, user.id, user.role);
-            const result = await closeQualification(seasonId, {
-                secondaryScores: body?.secondaryScores,
-                tieBreaks: body?.tieBreaks
-            });
+            const result = await closeQualification(seasonId, { tieBreaks: body?.tieBreaks });
 
             await auditFromRequest(request, "season_closed", {
                 details: {
                     phase: "qualification",
                     seasonId,
                     advancing: result.advancing,
-                    secondaryScores: body?.secondaryScores ?? {},
                     tieBreaks: body?.tieBreaks ?? []
                 }
             });
@@ -228,7 +219,8 @@ export async function progressionRoutes(app: FastifyInstance) {
                     additionalProperties: false,
                     properties: {
                         questionId: { type: "string", pattern: UUID_PATTERN },
-                        value: { type: "object" }
+                        value: { type: "object" },
+                        answeredMs: { type: "integer", minimum: 0 }
                     }
                 }
             }
@@ -236,7 +228,7 @@ export async function progressionRoutes(app: FastifyInstance) {
         async (request) => {
             const user = request.sessionUser!;
             const { seasonId } = request.params as { seasonId: string };
-            const body = request.body as { questionId: string; value: unknown };
+            const body = request.body as { questionId: string; value: unknown; answeredMs?: number };
 
             if (!Value.Check(SubmittedAnswerValueSchema, body.value)) {
                 throw app.httpErrors.badRequest("invalid answer value");
@@ -246,7 +238,8 @@ export async function progressionRoutes(app: FastifyInstance) {
                 seasonId,
                 userId: user.id,
                 questionId: body.questionId,
-                value: body.value as SubmittedAnswerValue
+                value: body.value as SubmittedAnswerValue,
+                answeredMs: body.answeredMs ?? null
             });
         }
     );

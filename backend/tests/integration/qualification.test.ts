@@ -156,85 +156,84 @@ describe("qualification — enrollment and setup", () => {
 });
 
 describe("qualification — answering", () => {
-    it("auto-matches a correct answer and awards one point", async () => {
-        const res = await answer(playerCookies[0], frozenIds[0], "a");
+    it("auto-matches a correct answer; points are not known until close", async () => {
+        const res = await answer(playerCookies[16], frozenIds[0], "a");
         expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual({ verdict: "CORRECT", points: 1 });
+        expect(res.json()).toEqual({ verdict: "CORRECT" });
     });
 
-    it("a wrong answer is recorded with no points, and can be revised", async () => {
-        const wrong = await answer(playerCookies[1], frozenIds[0], "b");
-        expect(wrong.json()).toEqual({ verdict: "INCORRECT", points: 0 });
+    it("a wrong answer is recorded and can be revised", async () => {
+        const wrong = await answer(playerCookies[17], frozenIds[0], "b");
+        expect(wrong.json()).toEqual({ verdict: "INCORRECT" });
 
-        const revised = await answer(playerCookies[1], frozenIds[0], "a");
-        expect(revised.json()).toEqual({ verdict: "CORRECT", points: 1 });
+        const revised = await answer(playerCookies[17], frozenIds[0], "a");
+        expect(revised.json()).toEqual({ verdict: "CORRECT" });
 
         const rows = await db.select().from(seasonPhaseAnswers).where(and(
             eq(seasonPhaseAnswers.seasonId, seasonId),
-            eq(seasonPhaseAnswers.userId, playerIds[1]),
+            eq(seasonPhaseAnswers.userId, playerIds[17]),
             eq(seasonPhaseAnswers.questionId, frozenIds[0])
         ));
         expect(rows).toHaveLength(1);                  // revised in place
     });
 
-    it("seeds the remaining field with deterministic scores", async () => {
-        // scores 16,15,…,2 for players 0..14 ; 1,1 for 15 and 16 (a tie across the cut) ; 0 for 17
-        const targets = [16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1, 0];
+    it("seeds every player across all sixteen questions", async () => {
+        // Player i answers questions j < i correctly; player 17 answers everything. Every
+        // question is answered by the whole field, so z = 0 and the crowd maths is exact.
         const rows: Array<typeof seasonPhaseAnswers.$inferInsert> = [];
 
-        for (let i = 0; i < targets.length; i++) {
-            const already = i === 0 || i === 1 ? 1 : 0;    // players 0 and 1 answered over HTTP
-            for (let q = already; q < targets[i]; q++) {
+        for (let i = 0; i < playerIds.length; i++) {
+            const correctCount = Math.min(i, 16);
+            for (let j = 0; j < frozenIds.length; j++) {
+                const isCorrect = j < correctCount;
                 rows.push({
                     seasonId,
                     phaseId: "qualification",
-                    questionId: frozenIds[q],
+                    questionId: frozenIds[j],
                     userId: playerIds[i],
-                    value: { picked: ["a"] },
-                    verdict: "CORRECT",
+                    value: { picked: [isCorrect ? "a" : "b"] },
+                    verdict: isCorrect ? "CORRECT" : "INCORRECT",
                     autoMatched: true,
-                    pointsAwarded: 1
+                    pointsAwarded: 0,
+                    answeredMs: 1_000 + i * 10
                 });
             }
         }
+        // The two answers already sent over HTTP match this pattern.
         await db.insert(seasonPhaseAnswers).values(rows).onConflictDoNothing();
     });
 });
 
 describe("qualification — closing", () => {
-    it("refuses to close while a tie straddles the cut and nothing separates it", async () => {
+    it("closes with no unresolved ties, advancing sixteen", async () => {
         const res = await app.inject({
             method: "POST", url: closeUrl(), headers: auth(ownerCookie), payload: {}
-        });
-        expect(res.statusCode).toBe(409);
-        expect(res.json().error).toBe("TIES_UNRESOLVED");
-        expect(res.json().details).toHaveLength(1);
-    });
-
-    it("closes once the second point system separates the tie, advancing sixteen", async () => {
-        // Phase 1 ties are broken by another point system, not a tie-break turn.
-        // player 16 scored higher on it than player 15
-        const res = await app.inject({
-            method: "POST", url: closeUrl(), headers: auth(ownerCookie),
-            payload: { secondaryScores: { [playerIds[15]]: 2, [playerIds[16]]: 7 } }
         });
         expect(res.statusCode).toBe(200);
 
         const body = res.json();
+        expect(body.rows).toHaveLength(18);
         expect(body.advancing).toHaveLength(16);
         expect(body.advancing).toContain(playerIds[16]);
-        expect(body.advancing).not.toContain(playerIds[15]);
-        expect(body.advancing).not.toContain(playerIds[17]);    // score 0
-        expect(body.rows).toHaveLength(18);
+        expect(body.advancing).toContain(playerIds[17]);
+        expect(body.advancing).not.toContain(playerIds[0]);
+        expect(body.advancing).not.toContain(playerIds[1]);
     });
 
-    it("writes the ranking once", async () => {
+    it("writes the crowd-weighted ranking once", async () => {
         const rows = await db.select().from(seasonPhaseResults).where(and(
             eq(seasonPhaseResults.seasonId, seasonId),
             eq(seasonPhaseResults.phaseId, "qualification")
         ));
         expect(rows).toHaveLength(18);
-        expect(rows.find((r) => r.userId === playerIds[0])).toMatchObject({ score: 16, rank: 1 });
+
+        // 16 correct: 136 points, and player 16 is faster than 17 on the tie-break criterion
+        const winner = rows.find((r) => r.userId === playerIds[16])!;
+        expect(winner).toMatchObject({ rank: 1, score: 136, correctCount: 16, avgTimeMs: 1_160 });
+
+        // no correct answers: everything wrong, and no average time to record
+        const last = rows.find((r) => r.userId === playerIds[0])!;
+        expect(last).toMatchObject({ rank: 18, score: -152, correctCount: 0, avgTimeMs: null });
     });
 
     it("refuses a second close and further answers", async () => {
@@ -253,6 +252,6 @@ describe("qualification — closing", () => {
         const res = await app.inject({ method: "GET", url: staffViewUrl(), headers: auth(ownerCookie) });
         expect(res.statusCode).toBe(200);
         expect(res.json()).toMatchObject({ closed: true, questionCount: 16, advance: 16, enrolled: 18 });
-        expect(res.json().results[0]).toMatchObject({ rank: 1, score: 16 });
+        expect(res.json().results[0]).toMatchObject({ rank: 1, score: 136, correctCount: 16 });
     });
 });

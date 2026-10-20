@@ -35,7 +35,14 @@ export const seasonPhaseAnswers = pgTable(
         value: jsonb("value").$type<AnswerValue>().notNull(),
         verdict: verdict("verdict"),
         autoMatched: boolean("auto_matched").notNull().default(false),
+
+        // Crowd-weighted points are only knowable once the whole field has answered, so
+        // this is filled in when the phase closes, not at submission.
         pointsAwarded: integer("points_awarded").notNull().default(0),
+        // Time taken on this answer; the third ranking criterion averages it over the
+        // answers that were correct.
+        answeredMs: integer("answered_ms"),
+
         submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [
@@ -58,7 +65,11 @@ export const seasonPhaseResults = pgTable(
         userId: uuid("user_id")
             .notNull()
             .references(() => users.id, { onDelete: "cascade" }),
-        score: integer("score").notNull(),
+        score: integer("score").notNull(),           // crowd-weighted points
+        correctCount: integer("correct_count").notNull().default(0),
+        // Average ms over the correct answers; NULL when the player had none (ranked last
+        // on this criterion).
+        avgTimeMs: integer("avg_time_ms"),
         rank: integer("rank").notNull(),
         computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow()
     },
