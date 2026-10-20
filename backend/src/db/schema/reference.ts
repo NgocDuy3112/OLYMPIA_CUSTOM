@@ -16,7 +16,9 @@ import { sql } from "drizzle-orm";
 import { users } from "./auth.js";
 import { 
     Media, 
+    MatchQuestion,
     PlacementTier, 
+    Progression,
     QuestionPayload, 
     SeasonRound, 
     Stage, 
@@ -45,6 +47,10 @@ export const tournaments = pgTable(
         defaultFormat: jsonb("default_format").$type<TournamentFormat>().notNull(),
         defaultPlacementTiers: jsonb("default_placement_tiers").$type<PlacementTier[]>().notNull(),
 
+        // How a tournament advances (qualification → splitting → ladder → finale). Copied
+        // to the season at creation. Nullable: seasons created before this existed.
+        defaultProgression: jsonb("default_progression").$type<Progression>(),
+
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
         deletedAt: timestamp("deleted_at", { withTimezone: true })
@@ -66,6 +72,13 @@ export const seasons = pgTable(
         format: jsonb("format").$type<TournamentFormat>().notNull(),
         placementTiers: jsonb("placement_tiers").$type<PlacementTier[]>().notNull(),
         stages: jsonb("stages").$type<Stage[]>().notNull(),
+
+        // Copied from the tournament at creation; frozen once qualification starts.
+        progression: jsonb("progression").$type<Progression>(),
+
+        // The 16 frozen question copies qualification is played on. Assembled from the bank
+        // like a match, so a live event never depends on bank edits.
+        qualificationQuestions: jsonb("qualification_questions").$type<MatchQuestion[]>(),
 
         closedAt: timestamp("closed_at", { withTimezone: true }),
         createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

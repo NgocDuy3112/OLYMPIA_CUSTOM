@@ -50,6 +50,13 @@
       "when": 1792457656414,
       "tag": "0006_ve_dich_power_index",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792461385789,
+      "tag": "0007_qualification",
+      "breakpoints": true
     }
   ]
 }

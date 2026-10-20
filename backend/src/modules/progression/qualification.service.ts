@@ -1,0 +1,340 @@
+import { randomUUID } from "node:crypto";
+import { and, eq, inArray, isNull } from "drizzle-orm";
+import { db } from "../../db/pool.js";
+import {
+    questionBank,
+    seasonPhaseAnswers,
+    seasonPhaseResults,
+    seasonPlayers,
+    seasons
+} from "../../db/schema/index.js";
+import {
+    assertValidProgression,
+    type MatchQuestion,
+    type Progression,
+    type SubmittedAnswerValue
+} from "../../game/contracts/index.js";
+import { autoMatch, type QuestionKind } from "../../game/engine/matching.js";
+import { QualificationError } from "./errors.js";
+import { advancing, rankQualification, type TieBreak } from "./qualification.js";
+
+export const QUALIFICATION_PHASE = "qualification";
+const POINTS_PER_CORRECT = 1;
+
+type SeasonRow = typeof seasons.$inferSelect;
+
+async function requireSeason(seasonId: string): Promise<SeasonRow> {
+    const [row] = await db
+        .select()
+        .from(seasons)
+        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
+        .limit(1);
+    if (!row) throw new QualificationError("NOT_FOUND", `season ${seasonId} not found`);
+    return row;
+}
+
+async function requireProgression(seasonId: string): Promise<{ season: SeasonRow; progression: Progression }> {
+    const season = await requireSeason(seasonId);
+    if (!season.progression) {
+        throw new QualificationError("NO_PROGRESSION", "this season has no progression configured");
+    }
+    try {
+        assertValidProgression(season.progression);
+    } catch (error) {
+        throw new QualificationError(
+            "NO_PROGRESSION",
+            error instanceof Error ? error.message : "invalid progression"
+        );
+    }
+    return { season, progression: season.progression };
+}
+
+async function isClosed(seasonId: string): Promise<boolean> {
+    const [row] = await db
+        .select({ userId: seasonPhaseResults.userId })
+        .from(seasonPhaseResults)
+        .where(and(
+            eq(seasonPhaseResults.seasonId, seasonId),
+            eq(seasonPhaseResults.phaseId, QUALIFICATION_PHASE)
+        ))
+        .limit(1);
+    return row !== undefined;
+}
+
+// ── Enrollment ────────────────────────────────────────────────────────────────
+
+export async function enrollPlayers(seasonId: string, userIds: string[]): Promise<number> {
+    await requireSeason(seasonId);
+    if (userIds.length === 0) return 0;
+
+    await db.insert(seasonPlayers)
+        .values(userIds.map((userId) => ({ seasonId, userId })))
+        .onConflictDoNothing();
+
+    return (await listEnrolled(seasonId)).length;
+}
+
+export async function listEnrolled(seasonId: string): Promise<Array<{ userId: string; enrolledAt: Date }>> {
+    return db
+        .select({ userId: seasonPlayers.userId, enrolledAt: seasonPlayers.enrolledAt })
+        .from(seasonPlayers)
+        .where(eq(seasonPlayers.seasonId, seasonId));
+}
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
+// Freeze the qualification questions into the season, exactly like match assembly copies
+// from the bank: a live event must never depend on a later bank edit.
+export async function setupQualification(
+    seasonId: string,
+    questionIds: string[],
+    tournamentId: string
+): Promise<MatchQuestion[]> {
+    const { season, progression } = await requireProgression(seasonId);
+
+    if (season.qualificationQuestions) {
+        throw new QualificationError("ALREADY_SETUP", "qualification is already set up");
+    }
+    if (await isClosed(seasonId)) {
+        throw new QualificationError("CLOSED", "qualification is already closed");
+    }
+    if (questionIds.length !== progression.questionCount) {
+        throw new QualificationError(
+            "VALIDATION",
+            `expected ${progression.questionCount} questions, got ${questionIds.length}`
+        );
+    }
+
+    const rows = await db.select().from(questionBank).where(inArray(questionBank.id, questionIds));
+    const byId = new Map(rows.map((r) => [r.id, r]));
+
+    const copies: MatchQuestion[] = questionIds.map((id, position) => {
+        const source = byId.get(id);
+        if (!source) throw new QualificationError("NOT_FOUND", `question ${id} not found`);
+        if (source.status !== "PUBLISHED") {
+            throw new QualificationError("VALIDATION", `question ${id} is ${source.status}, not PUBLISHED`);
+        }
+        if (source.tournamentId !== null && source.tournamentId !== tournamentId) {
+            throw new QualificationError("VALIDATION", `question ${id} belongs to another tournament`);
+        }
+        return {
+            _id: randomUUID(),
+            roundId: QUALIFICATION_PHASE,
+            turnId: QUALIFICATION_PHASE,
+            position,
+            mode: "text",
+            kind: source.kind,
+            questionText: source.questionText,
+            media: source.media ?? null,
+            timeLimit: source.timeLimit,
+            points: POINTS_PER_CORRECT,
+            tag: source.tag,
+            payload: source.payload,
+            sourceId: source.id
+        };
+    });
+
+    await db.update(seasons)
+        .set({ qualificationQuestions: copies, updatedAt: new Date() })
+        .where(eq(seasons.id, seasonId));
+
+    return copies;
+}
+
+// ── Answering ─────────────────────────────────────────────────────────────────
+
+export async function submitQualificationAnswer(params: {
+    seasonId: string;
+    userId: string;
+    questionId: string;
+    value: SubmittedAnswerValue;
+}): Promise<{ verdict: "CORRECT" | "INCORRECT"; points: number }> {
+    const { season } = await requireProgression(params.seasonId);
+
+    if (!season.qualificationQuestions) {
+        throw new QualificationError("NOT_SETUP", "qualification is not set up");
+    }
+    if (await isClosed(params.seasonId)) {
+        throw new QualificationError("CLOSED", "qualification is closed");
+    }
+
+    const [enrolled] = await db.select({ userId: seasonPlayers.userId })
+        .from(seasonPlayers)
+        .where(and(eq(seasonPlayers.seasonId, params.seasonId), eq(seasonPlayers.userId, params.userId)))
+        .limit(1);
+    if (!enrolled) {
+        throw new QualificationError("NOT_ENROLLED", "you are not enrolled in this season");
+    }
+
+    const question = season.qualificationQuestions.find((q) => q._id === params.questionId);
+    if (!question) {
+        throw new QualificationError("NOT_FOUND", "question is not part of this qualification");
+    }
+
+    const correct = autoMatch(question.kind as QuestionKind, question.payload, params.value);
+    const verdict = correct ? "CORRECT" as const : "INCORRECT" as const;
+    const points = correct ? question.points : 0;
+
+    // Revision is allowed until the phase closes, so the last answer wins.
+    await db.insert(seasonPhaseAnswers)
+        .values({
+            seasonId: params.seasonId,
+            phaseId: QUALIFICATION_PHASE,
+            questionId: params.questionId,
+            userId: params.userId,
+            value: params.value,
+            verdict,
+            autoMatched: true,
+            pointsAwarded: points
+        })
+        .onConflictDoUpdate({
+            target: [
+                seasonPhaseAnswers.seasonId,
+                seasonPhaseAnswers.phaseId,
+                seasonPhaseAnswers.questionId,
+                seasonPhaseAnswers.userId
+            ],
+            set: { value: params.value, verdict, autoMatched: true, pointsAwarded: points, submittedAt: new Date() }
+        });
+
+    return { verdict, points };
+}
+
+// ── Closing ───────────────────────────────────────────────────────────────────
+
+export interface CloseQualificationOptions {
+    // Phase 1 breaks ties with a second point system, not a tie-break turn.
+    secondaryScores?: Record<string, number>;
+    // Only needed if the second system still cannot separate a group.
+    tieBreaks?: TieBreak[];
+}
+
+export async function closeQualification(
+    seasonId: string,
+    options: CloseQualificationOptions = {}
+): Promise<{ rows: Array<{ userId: string; score: number; rank: number }>; advancing: string[] }> {
+    const { season, progression } = await requireProgression(seasonId);
+
+    if (!season.qualificationQuestions) {
+        throw new QualificationError("NOT_SETUP", "qualification is not set up");
+    }
+    if (await isClosed(seasonId)) {
+        throw new QualificationError("CLOSED", "qualification is already closed");
+    }
+
+    const roster = await listEnrolled(seasonId);
+    if (roster.length < progression.advance) {
+        throw new QualificationError(
+            "NOT_ENOUGH_PLAYERS",
+            `need at least ${progression.advance} players to advance that many, got ${roster.length}`
+        );
+    }
+
+    const answers = await db.select().from(seasonPhaseAnswers)
+        .where(and(
+            eq(seasonPhaseAnswers.seasonId, seasonId),
+            eq(seasonPhaseAnswers.phaseId, QUALIFICATION_PHASE)
+        ));
+
+    const scoreOf = new Map<string, number>();
+    for (const answer of answers) {
+        scoreOf.set(answer.userId, (scoreOf.get(answer.userId) ?? 0) + answer.pointsAwarded);
+    }
+
+    const scores = roster.map((entry) => ({ userId: entry.userId, score: scoreOf.get(entry.userId) ?? 0 }));
+    const ranking = rankQualification(scores, {
+        secondaryScores: options.secondaryScores,
+        tieBreaks: options.tieBreaks,
+        advance: progression.advance
+    });
+
+    if (ranking.unresolved.length > 0) {
+        throw new QualificationError(
+            "TIES_UNRESOLVED",
+            "run a tie-break turn and supply the order for each tied group",
+            ranking.unresolved.map((group) => group.join(", "))
+        );
+    }
+
+    try {
+        await db.transaction(async (tx) => {
+            await tx.insert(seasonPhaseResults)
+                .values(ranking.rows.map((row) => ({
+                    seasonId,
+                    phaseId: QUALIFICATION_PHASE,
+                    userId: row.userId,
+                    score: row.score,
+                    rank: row.rank
+                })))
+                .onConflictDoNothing();
+        });
+    } catch (error) {
+        throw error;
+    }
+
+    return { rows: ranking.rows, advancing: advancing(ranking, progression.advance) };
+}
+
+// ── Reading ───────────────────────────────────────────────────────────────────
+
+// What a player may see: the question and its options, never the correct answer.
+export function sanitizeQuestion(question: MatchQuestion) {
+    const payload = question.kind === "MC"
+        ? { options: (question.payload as { options: Array<{ id: string; text: string }> }).options }
+        : {};
+    return {
+        questionId: question._id,
+        kind: question.kind,
+        position: question.position,
+        questionText: question.questionText,
+        media: question.media,
+        timeLimit: question.timeLimit,
+        tag: question.tag,
+        payload
+    };
+}
+
+export async function getQualificationForPlayer(seasonId: string, userId: string) {
+    const { season } = await requireProgression(seasonId);
+    if (!season.qualificationQuestions) {
+        throw new QualificationError("NOT_SETUP", "qualification is not set up");
+    }
+
+    const [enrolled] = await db.select({ userId: seasonPlayers.userId })
+        .from(seasonPlayers)
+        .where(and(eq(seasonPlayers.seasonId, seasonId), eq(seasonPlayers.userId, userId)))
+        .limit(1);
+    if (!enrolled) {
+        throw new QualificationError("NOT_ENROLLED", "you are not enrolled in this season");
+    }
+
+    const answers = await db.select().from(seasonPhaseAnswers)
+        .where(and(
+            eq(seasonPhaseAnswers.seasonId, seasonId),
+            eq(seasonPhaseAnswers.phaseId, QUALIFICATION_PHASE),
+            eq(seasonPhaseAnswers.userId, userId)
+        ));
+
+    return {
+        closed: await isClosed(seasonId),
+        questions: season.qualificationQuestions.map(sanitizeQuestion),
+        answers: answers.map((a) => ({ questionId: a.questionId, verdict: a.verdict, points: a.pointsAwarded }))
+    };
+}
+
+export async function getQualificationForStaff(seasonId: string) {
+    const { season, progression } = await requireProgression(seasonId);
+    const results = await db.select().from(seasonPhaseResults)
+        .where(and(
+            eq(seasonPhaseResults.seasonId, seasonId),
+            eq(seasonPhaseResults.phaseId, QUALIFICATION_PHASE)
+        ));
+
+    return {
+        closed: results.length > 0,
+        questionCount: season.qualificationQuestions?.length ?? 0,
+        advance: progression.advance,
+        enrolled: (await listEnrolled(seasonId)).length,
+        results: results.sort((a, b) => a.rank - b.rank)
+    };
+}

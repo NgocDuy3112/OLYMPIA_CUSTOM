@@ -22,6 +22,7 @@ import { seasonRoutes } from "./modules/seasons/routes.js";
 import { questionRoutes } from "./modules/questions/routes.js";
 import { matchRoutes } from "./modules/matches/routes.js";
 import { liveRoutes } from "./modules/live/routes.js";
+import { progressionRoutes } from "./modules/progression/routes.js";
 import { mcpKeyRoutes } from "./modules/mcp-keys/routes.js";
 import { mcpRoutes } from "./modules/mcp/index.js";
 
@@ -68,6 +69,7 @@ export async function buildApp() {
     await app.register(questionRoutes);
     await app.register(matchRoutes);
     await app.register(liveRoutes);
+    await app.register(progressionRoutes);
     await app.register(mcpKeyRoutes);
     await app.register(mcpRoutes);
 
