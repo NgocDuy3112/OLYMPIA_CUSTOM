@@ -2,7 +2,7 @@
 // the match_live row, so concurrent actions serialize and a rollback leaves no trace.
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { answers, matchEvents, matchLive } from "../../db/schema/index.js";
+import { answers, matchEvents, matchLive, users } from "../../db/schema/index.js";
 import type { AnswerDraft, LiveRecord, LiveStore, LiveTx } from "./apply.js";
 import type { LiveFact } from "./facts.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
@@ -182,6 +182,18 @@ export async function writeDraft(params: {
                 : { firstAnsweredMs: params.answeredMs, answeredMs: params.answeredMs })
         });
     }
+}
+
+// Is the session behind a live socket still valid? Mirrors the HTTP guard: the account
+// must exist, not be disabled, and not have been revoked via tokenVersion.
+export async function isSessionActive(userId: string, tokenVersion: number): Promise<boolean> {
+    const [row] = await db
+        .select({ disabledAt: users.disabledAt, tokenVersion: users.tokenVersion })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+    return row !== undefined && row.disabledAt === null && row.tokenVersion === tokenVersion;
 }
 
 // A player's own answers in a match, so the player view knows what they have submitted.

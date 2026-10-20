@@ -8,7 +8,7 @@ import { auditFromRequest } from "../audit/service.js";
 import { canWriteTournament } from "../../lib/tournament-access.js";
 import { applyLiveAction, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
-import { readLive, readPlayerAnswers, readQuestionAnswers, LiveNotFoundError, pgLiveStore } from "./store.js";
+import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, LiveNotFoundError, pgLiveStore } from "./store.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
 import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAction, type LiveAction } from "./actions.js";
 import { applyGiaiMaAction, type GiaiMaContext } from "./giai-ma.js";
@@ -18,6 +18,7 @@ import { buildPlayerView, type PlayerView } from "./view.js";
 import { submitAnswer, submitKeyword, SubmitError } from "./submit.js";
 import {
     ackMessage,
+    CLOSE_CODES,
     ClientMessageSchema,
     errorMessage,
     requestIdOf,
@@ -26,6 +27,8 @@ import {
     type ServerMessage
 } from "./protocol.js";
 import { publish, subscribe } from "./hub.js";
+import { attachHeartbeat } from "./heartbeat.js";
+import { attachSessionGuard } from "./session-guard.js";
 import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState } from "./state.js";
 import { startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
 import { openQuestionId, type ButPhaState } from "../../game/engine/turns/but-pha.js";
@@ -419,12 +422,34 @@ export async function liveRoutes(app: FastifyInstance) {
             // A seated player only.
             const match = await getMatchById(matchId);
             if (!isSeatedInMatch(match.players, user.id)) {
-                socket.close(4403, "not a player in this match");
+                socket.close(CLOSE_CODES.NOT_SEATED, "not a player in this match");
                 return;
             }
 
+            // A half-open socket would otherwise sit in the hub forever, receiving pushes.
+            const stopHeartbeat = attachHeartbeat(socket);
             const unsubscribe = subscribe(matchId, { userId: user.id, push: send });
-            socket.on("close", unsubscribe);
+
+            // A socket outlives the request that opened it, so re-check the session
+            // (disabled account, revoked tokenVersion) the way HTTP does on every request.
+            let stopSessionGuard: () => void = () => {};
+            // Every exit path frees the heartbeat, the guard, and the hub entry.
+            const cleanup = () => {
+                stopHeartbeat();
+                stopSessionGuard();
+                unsubscribe();
+            };
+
+            const connectedAtVersion = user.tokenVersion;
+            stopSessionGuard = attachSessionGuard({
+                check: () => isSessionActive(user.id, connectedAtVersion),
+                onInvalid: () => {
+                    cleanup();
+                    try { socket.close(CLOSE_CODES.SESSION_ENDED, "session ended"); } catch { /* already closed */ }
+                }
+            });
+            socket.on("close", cleanup);
+            socket.on("error", cleanup);
 
             // Inbound: one validated envelope per command.
             socket.on("message", async (raw) => {
@@ -479,7 +504,12 @@ export async function liveRoutes(app: FastifyInstance) {
                 }
             });
 
-            await send();
+            try {
+                await send();
+            } catch {
+                cleanup();
+                try { socket.terminate(); } catch { /* already closed */ }
+            }
         }
     );
 

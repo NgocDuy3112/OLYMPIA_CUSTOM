@@ -49,7 +49,17 @@ export async function buildApp() {
     await app.register(jwt, { secret: env.gameplay.jwtSecret, namespace: "GAMEPLAY" });
     await app.register(jwt, { secret: env.portal.jwtSecret, namespace: "PORTAL" });
     await app.register(rateLimit, { global: false });
-    await app.register(websocket);
+    await app.register(websocket, {
+        // Live messages are tiny; the ws default of 100 MiB is an unnecessary opening.
+        options: { maxPayload: 16 * 1024 },
+        // Errors after the upgrade never reach onError or setErrorHandler: the plugin
+        // owns them here. Log at warn (not debug) so a genuine handler bug stays visible,
+        // and always terminate so the hub's subscriber is cleaned up via "close".
+        errorHandler: (error, socket, request) => {
+            request.log.warn({ err: error }, "websocket closed");
+            try { socket.terminate(); } catch { /* already closed */ }
+        }
+    });
     await app.register(authRoutes);
     await app.register(googleAuthRoutes);
     await app.register(adminRoutes);

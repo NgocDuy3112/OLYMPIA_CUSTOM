@@ -101,6 +101,15 @@ export const PROTOCOL_ERROR_CODES = [
     "NO_KEYWORD", "NOT_KEYWORD", "ALREADY_SUBMITTED", "INTERNAL"
 ] as const;
 
+// WebSocket close codes a client must handle. 4xxx is the application range; 1000/1006
+// are the browser's own normal/unclean codes.
+export const CLOSE_CODES = {
+    SESSION_ENDED: 4401,   // the session was revoked or the account disabled mid-connection
+    NOT_SEATED: 4403       // the caller is not a player in this match
+} as const;
+
+export type ServerCloseCode = (typeof CLOSE_CODES)[keyof typeof CLOSE_CODES];
+
 // Read a requestId off a message that failed validation, so the error can still be matched.
 export function requestIdOf(raw: unknown): string | undefined {
     if (typeof raw !== "object" || raw === null) return undefined;
