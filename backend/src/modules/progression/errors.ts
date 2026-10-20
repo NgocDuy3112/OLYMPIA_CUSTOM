@@ -6,6 +6,7 @@ export type ProgressionErrorCode =
     | "ALREADY_SETUP"
     | "NOT_SETUP"
     | "CLOSED"
+    | "ALREADY_ANSWERED"
     | "NOT_ENROLLED"
     | "NOT_ENOUGH_PLAYERS"
     | "TIES_UNRESOLVED";
@@ -29,6 +30,7 @@ const STATUS: Record<ProgressionErrorCode, number> = {
     ALREADY_SETUP: 409,
     NOT_SETUP: 409,
     CLOSED: 409,
+    ALREADY_ANSWERED: 409,
     NOT_ENROLLED: 403,
     NOT_ENOUGH_PLAYERS: 409,
     TIES_UNRESOLVED: 409

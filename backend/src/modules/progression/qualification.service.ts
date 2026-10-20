@@ -183,28 +183,47 @@ export async function submitQualificationAnswer(params: {
     // Points are crowd-weighted across the whole field, so they are only computed at close.
     const answeredMs = params.answeredMs ?? null;
 
-    // Revision is allowed until the phase closes, so the last answer wins.
-    await db.insert(seasonPhaseAnswers)
-        .values({
-            seasonId: params.seasonId,
-            phaseId: QUALIFICATION_PHASE,
-            questionId: params.questionId,
-            userId: params.userId,
-            value: params.value,
-            verdict,
-            autoMatched: true,
-            pointsAwarded: 0,
-            answeredMs
-        })
-        .onConflictDoUpdate({
-            target: [
-                seasonPhaseAnswers.seasonId,
-                seasonPhaseAnswers.phaseId,
-                seasonPhaseAnswers.questionId,
-                seasonPhaseAnswers.userId
-            ],
-            set: { value: params.value, verdict, autoMatched: true, answeredMs, submittedAt: new Date() }
-        });
+    // Qualification is one attempt per question: a chosen option is final. The unique key
+    // (season, phase, question, user) makes this safe even under a race.
+    const [existing] = await db.select({ userId: seasonPhaseAnswers.userId })
+        .from(seasonPhaseAnswers)
+        .where(and(
+            eq(seasonPhaseAnswers.seasonId, params.seasonId),
+            eq(seasonPhaseAnswers.phaseId, QUALIFICATION_PHASE),
+            eq(seasonPhaseAnswers.questionId, params.questionId),
+            eq(seasonPhaseAnswers.userId, params.userId)
+        ))
+        .limit(1);
+    if (existing) {
+        throw new QualificationError(
+            "ALREADY_ANSWERED",
+            "this question has already been answered and cannot be changed"
+        );
+    }
+
+    try {
+        await db.insert(seasonPhaseAnswers)
+            .values({
+                seasonId: params.seasonId,
+                phaseId: QUALIFICATION_PHASE,
+                questionId: params.questionId,
+                userId: params.userId,
+                value: params.value,
+                verdict,
+                autoMatched: true,
+                pointsAwarded: 0,
+                answeredMs
+            });
+    } catch (error) {
+        const cause = (error as { cause?: { code?: string } }).cause ?? error as { code?: string };
+        if (cause?.code === "23505") {
+            throw new QualificationError(
+                "ALREADY_ANSWERED",
+                "this question has already been answered and cannot be changed"
+            );
+        }
+        throw error;
+    }
 
     return { verdict };
 }

@@ -162,19 +162,22 @@ describe("qualification — answering", () => {
         expect(res.json()).toEqual({ verdict: "CORRECT" });
     });
 
-    it("a wrong answer is recorded and can be revised", async () => {
-        const wrong = await answer(playerCookies[17], frozenIds[0], "b");
-        expect(wrong.json()).toEqual({ verdict: "INCORRECT" });
+    it("a chosen option is final — a second answer is refused", async () => {
+        const first = await answer(playerCookies[17], frozenIds[0], "a");
+        expect(first.json()).toEqual({ verdict: "CORRECT" });
 
-        const revised = await answer(playerCookies[17], frozenIds[0], "a");
-        expect(revised.json()).toEqual({ verdict: "CORRECT" });
+        const again = await answer(playerCookies[17], frozenIds[0], "b");
+        expect(again.statusCode).toBe(409);
+        expect(again.json().error).toBe("ALREADY_ANSWERED");
 
+        // The first answer stands; nothing was overwritten.
         const rows = await db.select().from(seasonPhaseAnswers).where(and(
             eq(seasonPhaseAnswers.seasonId, seasonId),
             eq(seasonPhaseAnswers.userId, playerIds[17]),
             eq(seasonPhaseAnswers.questionId, frozenIds[0])
         ));
-        expect(rows).toHaveLength(1);                  // revised in place
+        expect(rows).toHaveLength(1);
+        expect(rows[0].verdict).toBe("CORRECT");
     });
 
     it("seeds every player across all sixteen questions", async () => {
