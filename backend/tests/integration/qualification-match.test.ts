@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
 import {
-    answers, matchClocks, matchResults, matches, questionBank, seasons, users
+    answers, matchClocks, matchResults, matches, questionBank, tournaments, users
 } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
@@ -15,20 +15,20 @@ let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookies: string[];
 let outsiderCookie: string;
-let seasonId: string;
+let tournamentId: string;
 let playerIds: string[];
 let ownerId: string;
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
 
-const seasonUrl = (suffix: string) =>
-    `/portal/seasons/${seasonId}${suffix}`;
+const tournamentUrl = (suffix: string) =>
+    `/portal/tournaments/${tournamentId}${suffix}`;
 
 const createQualification = (payload: Record<string, unknown> = {}) =>
     app.inject({
         method: "POST",
-        url: seasonUrl("/qualification-matches"),
+        url: tournamentUrl("/qualification-matches"),
         headers: auth(ownerCookie),
         payload: {
             label: "Qualification",
@@ -52,7 +52,7 @@ const answer = (matchId: string, cookie: string, questionId: string, picked: str
 const close = (matchId: string, payload: Record<string, unknown> = {}) =>
     app.inject({
         method: "POST",
-        url: seasonUrl(`/qualification-matches/${matchId}/close`),
+        url: tournamentUrl(`/qualification-matches/${matchId}/close`),
         headers: auth(ownerCookie),
         payload
     });
@@ -84,13 +84,13 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    // The season is the unit: it carries the identity the tournament had.
-    const seasonTags = ["THTH"];
-    const seasonSlug = "qm-tournament-season";
+    // The tournament is the unit: it carries the identity the tournament had.
+    const tournamentTags = ["THTH"];
+    const tournamentSlug = "qm-tournament-tournament";
 
-    const [season] = await db.insert(seasons).values({
-        ownerId, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
-        name: "QM Season",
+    const [tournament] = await db.insert(tournaments).values({
+        ownerId, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        name: "QM Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: {
             competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null,
@@ -99,7 +99,7 @@ beforeAll(async () => {
         placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: []
     }).returning();
-    seasonId = season.id;
+    tournamentId = tournament.id;
 
     await db.insert(questionBank).values(
         Array.from({ length: 12 }, (_, i) => ({
@@ -114,9 +114,9 @@ beforeAll(async () => {
         }))
     );
 
-    // The roster: everyone in the season may take a seat.
+    // The roster: everyone in the tournament may take a seat.
     const enrolled = await app.inject({
-        method: "POST", url: seasonUrl("/players"), headers: auth(ownerCookie),
+        method: "POST", url: tournamentUrl("/players"), headers: auth(ownerCookie),
         payload: { userIds: playerIds }
     });
     expect(enrolled.statusCode).toBe(200);
@@ -145,8 +145,8 @@ describe("the mass event — creating it", () => {
         expect(new Set(row.questions.map((q) => q._id)).size).toBe(8);
     });
 
-    it("refuses a season with no enrolled players", async () => {
-        const [empty] = await db.insert(seasons).values({
+    it("refuses a tournament with no enrolled players", async () => {
+        const [empty] = await db.insert(tournaments).values({
             ownerId,
             slug: "qm-empty",
             visibility: "PUBLIC",
@@ -163,7 +163,7 @@ describe("the mass event — creating it", () => {
 
         const res = await app.inject({
             method: "POST",
-            url: `/portal/seasons/${empty.id}/qualification-matches`,
+            url: `/portal/tournaments/${empty.id}/qualification-matches`,
             headers: auth(ownerCookie),
             payload: { label: "Q", scheduledAt: "2026-11-01T19:00:00.000Z", questionCount: 4 }
         });
@@ -337,7 +337,7 @@ describe("the mass event — closing it", () => {
     it("is never played live", async () => {
         const res = await app.inject({
             method: "PATCH",
-            url: seasonUrl(`/matches/${matchId}/status`),
+            url: tournamentUrl(`/matches/${matchId}/status`),
             headers: auth(ownerCookie),
             payload: { status: "LIVE" }
         });
@@ -346,7 +346,7 @@ describe("the mass event — closing it", () => {
 
     it("does not count towards the standings", async () => {
         const res = await app.inject({
-            method: "GET", url: seasonUrl("/standings"), headers: auth(ownerCookie)
+            method: "GET", url: tournamentUrl("/standings"), headers: auth(ownerCookie)
         });
         expect(res.statusCode).toBe(200);
 

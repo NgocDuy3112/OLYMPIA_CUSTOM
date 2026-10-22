@@ -17,7 +17,7 @@ import websocket from "@fastify/websocket";
 import { authRoutes } from "./modules/auth/routes.js";
 import { googleAuthRoutes } from "./modules/auth/google.js";
 import { adminRoutes } from "./modules/admin/routes.js";
-import { seasonRoutes } from "./modules/seasons/routes.js";
+import { tournamentRoutes } from "./modules/tournaments/routes.js";
 import { questionRoutes } from "./modules/questions/routes.js";
 import { matchRoutes } from "./modules/matches/routes.js";
 import { liveRoutes } from "./modules/live/routes.js";
@@ -68,7 +68,7 @@ export async function buildApp() {
     await app.register(authRoutes);
     await app.register(googleAuthRoutes);
     await app.register(adminRoutes);
-    await app.register(seasonRoutes);
+    await app.register(tournamentRoutes);
     await app.register(questionRoutes);
     await app.register(matchRoutes);
     await app.register(liveRoutes);

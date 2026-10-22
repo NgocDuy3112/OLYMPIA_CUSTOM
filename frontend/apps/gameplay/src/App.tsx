@@ -5,30 +5,30 @@ import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { MatchPage } from "@/pages/MatchPage"
-import { CURRENT_SEASON, findSeason, type Season } from "@/data/seasons"
+import { CURRENT_SEASON, findTournament, type Tournament } from "@/data/tournaments"
 
-interface SeasonContext { season: Season; loading: boolean }
+interface TournamentContext { tournament: Tournament; loading: boolean }
 
-function SeasonLayout({ loading }: { loading: boolean }) {
-    const { seasonId } = useParams()
-    const season = findSeason(seasonId)
-    if (!season) return <NotFoundPage />
-    return <Outlet context={{ season, loading }} />
+function TournamentLayout({ loading }: { loading: boolean }) {
+    const { tournamentId } = useParams()
+    const tournament = findTournament(tournamentId)
+    if (!tournament) return <NotFoundPage />
+    return <Outlet context={{ tournament, loading }} />
 }
 
 function ScheduleRoute() {
-    const { season, loading } = useOutletContext<SeasonContext>()
-    return <SchedulePage season={season} matches={season.matches} standings={season.standings} loading={loading} />
+    const { tournament, loading } = useOutletContext<TournamentContext>()
+    return <SchedulePage tournament={tournament} matches={tournament.matches} standings={tournament.standings} loading={loading} />
 }
 
 function StandingsRoute() {
-    const { season, loading } = useOutletContext<SeasonContext>()
-    return <StandingsPage rows={season.standings} matches={season.matches} loading={loading} />
+    const { tournament, loading } = useOutletContext<TournamentContext>()
+    return <StandingsPage rows={tournament.standings} matches={tournament.matches} loading={loading} />
 }
 
 function MatchRoute() {
-    const { season } = useOutletContext<SeasonContext>()
-    return <MatchPage matches={season.matches} />
+    const { tournament } = useOutletContext<TournamentContext>()
+    return <MatchPage matches={tournament.matches} />
 }
 
 function App() {
@@ -43,7 +43,7 @@ function App() {
             <Routes>
                 <Route element={<AppShell />}>
                     <Route path="/" element={<Navigate to={`/s/${CURRENT_SEASON.id}`} replace />} />
-                    <Route path="/s/:seasonId" element={<SeasonLayout loading={loading} />}>
+                    <Route path="/s/:tournamentId" element={<TournamentLayout loading={loading} />}>
                         <Route index element={<ScheduleRoute />} />
                         <Route path="standings" element={<StandingsRoute />} />
                         <Route path="matches/:id" element={<MatchRoute />} />

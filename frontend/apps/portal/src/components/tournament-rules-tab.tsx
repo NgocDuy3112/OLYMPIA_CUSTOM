@@ -3,24 +3,24 @@ import { Check, Pencil } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import type { SeasonDetail } from "@/lib/season"
+import type { TournamentDetail } from "@/lib/tournament"
 import { draftFrom, kindsLabel, pointsLabel, questionCountOf } from "@/lib/rules"
-import { SeasonRulesDialog } from "./season-rules-dialog"
+import { TournamentRulesDialog } from "./tournament-rules-dialog"
 
 // The rulebook, read. Every change happens in the dialog.
-export function SeasonRulesTab({
-    seasonId,
-    season,
+export function TournamentRulesTab({
+    tournamentId,
+    tournament,
     frozen,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
     frozen: boolean
 }) {
     const [editing, setEditing] = useState(false)
 
-    const rounds = [...season.rounds].sort((a, b) => a.order - b.order)
-    const shown = draftFrom(season)
+    const rounds = [...tournament.rounds].sort((a, b) => a.order - b.order)
+    const shown = draftFrom(tournament)
     const total = Object.values(shown).reduce((sum, config) => sum + questionCountOf(config), 0)
 
     return (
@@ -28,7 +28,7 @@ export function SeasonRulesTab({
             <CardHeader>
                 <CardTitle className="text-base">Round rules</CardTitle>
                 <CardDescription>
-                    What every match of this season plays. Only the fields the engine honours are editable.
+                    What every match of this tournament plays. Only the fields the engine honours are editable.
                 </CardDescription>
                 <CardAction>
                     <Button size="sm" variant="outline" onClick={() => setEditing(true)} disabled={frozen}>
@@ -92,15 +92,15 @@ export function SeasonRulesTab({
 
                 {frozen && (
                     <p className="text-sm text-muted-foreground">
-                        Frozen: a match has already been assembled for this season.
+                        Frozen: a match has already been assembled for this tournament.
                     </p>
                 )}
             </CardFooter>
 
             {editing && (
-                <SeasonRulesDialog
-                    seasonId={seasonId}
-                    season={season}
+                <TournamentRulesDialog
+                    tournamentId={tournamentId}
+                    tournament={tournament}
                     frozen={frozen}
                     open
                     onOpenChange={(open) => { if (!open) setEditing(false) }}

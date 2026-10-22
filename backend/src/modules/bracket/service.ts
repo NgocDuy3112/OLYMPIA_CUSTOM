@@ -9,14 +9,14 @@
 //
 // The rules themselves are pure (`src/game/engine/bracket.ts`); this module only gathers
 // the state they need. A stage without a role is not checked: the format is opt-in per
-// stage, so a season that is not a bracket is left alone.
+// stage, so a tournament that is not a bracket is left alone.
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import {
     matchResults,
     matches,
-    seasonPlayers,
-    seasons,
+    tournamentPlayers,
+    tournaments,
     users
 } from "../../db/schema/index.js";
 import type { ResultEntry, StageRole } from "../../game/contracts/index.js";
@@ -47,7 +47,7 @@ interface StageState {
 }
 
 // The matches of a stage, with the order they were won in.
-async function playedMatches(seasonId: string, stageId: string): Promise<PlayedMatch[]> {
+async function playedMatches(tournamentId: string, stageId: string): Promise<PlayedMatch[]> {
     const rows = await db
         .select({
             id: matches.id,
@@ -58,7 +58,7 @@ async function playedMatches(seasonId: string, stageId: string): Promise<PlayedM
         .from(matches)
         .innerJoin(matchResults, eq(matchResults.matchId, matches.id))
         .where(and(
-            eq(matches.seasonId, seasonId),
+            eq(matches.tournamentId, tournamentId),
             eq(matches.stageId, stageId),
             eq(matches.kind, "STANDARD"),
             isNull(matches.deletedAt)
@@ -85,13 +85,13 @@ async function playedMatches(seasonId: string, stageId: string): Promise<PlayedM
 }
 
 // The field's ranking, from the mass event: the rank order its result was written in.
-async function massEventRanking(seasonId: string): Promise<string[] | null> {
+async function massEventRanking(tournamentId: string): Promise<string[] | null> {
     const [row] = await db
         .select({ results: matchResults.results })
         .from(matches)
         .innerJoin(matchResults, eq(matchResults.matchId, matches.id))
         .where(and(
-            eq(matches.seasonId, seasonId),
+            eq(matches.tournamentId, tournamentId),
             eq(matches.kind, "QUALIFICATION"),
             isNull(matches.deletedAt)
         ))
@@ -135,14 +135,14 @@ async function nameOf(userIds: string[]): Promise<Map<string, string>> {
     return new Map(rows.map((row) => [row.id, row.displayName]));
 }
 
-// The number of places the season produces: the field that plays the bracket — the mass
+// The number of places the tournament produces: the field that plays the bracket — the mass
 // event's field, or the roster when there is no mass event.
-export async function seasonPlaces(seasonId: string): Promise<number> {
+export async function tournamentPlaces(tournamentId: string): Promise<number> {
     const [massEvent] = await db
         .select({ players: matches.players })
         .from(matches)
         .where(and(
-            eq(matches.seasonId, seasonId),
+            eq(matches.tournamentId, tournamentId),
             eq(matches.kind, "QUALIFICATION"),
             isNull(matches.deletedAt)
         ))
@@ -150,25 +150,25 @@ export async function seasonPlaces(seasonId: string): Promise<number> {
 
     if (massEvent) return (massEvent.players as Array<{ userId?: string }>).length;
 
-    const roster = await db.select({ userId: seasonPlayers.userId })
-        .from(seasonPlayers)
-        .where(eq(seasonPlayers.seasonId, seasonId));
+    const roster = await db.select({ userId: tournamentPlayers.userId })
+        .from(tournamentPlayers)
+        .where(eq(tournamentPlayers.tournamentId, tournamentId));
     return roster.length;
 }
 
 // Check a match's seats against the format of the stage it belongs to.
 export async function checkMatchAgainstFormat(params: {
-    seasonId: string;
+    tournamentId: string;
     stageId: string;
     slot: number | null;
     playerIds: string[];
 }): Promise<FormatCheck> {
-    const [season] = await db.select().from(seasons)
-        .where(and(eq(seasons.id, params.seasonId), isNull(seasons.deletedAt)))
+    const [tournament] = await db.select().from(tournaments)
+        .where(and(eq(tournaments.id, params.tournamentId), isNull(tournaments.deletedAt)))
         .limit(1);
-    if (!season) return { checked: false, problems: [] };
+    if (!tournament) return { checked: false, problems: [] };
 
-    const stages: StageState[] = (season.stages ?? []).map((stage) => ({
+    const stages: StageState[] = (tournament.stages ?? []).map((stage) => ({
         id: stage.id,
         role: stage.role
     }));
@@ -179,15 +179,15 @@ export async function checkMatchAgainstFormat(params: {
     const role = stages[index].role;
     if (!role) return { checked: false, problems: [] };
 
-    const tierSize = season.format.competitorsPerMatch;
+    const tierSize = tournament.format.competitorsPerMatch;
 
     // The state before this stage: the ranking, and the ladder.
-    let ranking = await massEventRanking(params.seasonId);
+    let ranking = await massEventRanking(params.tournamentId);
     let toFinale: string[] = [];
     let ladderAfter: LadderRound | null = null;
 
     for (const stage of stages.slice(0, index)) {
-        const played = await playedMatches(params.seasonId, stage.id);
+        const played = await playedMatches(params.tournamentId, stage.id);
 
         if (stage.role === "splitting") {
             if (ranking) ranking = rankAfter(ranking, played);

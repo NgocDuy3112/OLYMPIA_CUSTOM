@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../src/db/pool.js";
-import { matchResults, matches, seasons, tournaments } from "../src/db/schema/index.js";
+import { matchResults, matches, tournaments, tournaments } from "../src/db/schema/index.js";
 
 const slug = process.argv[2] ?? "demo";
 const round = Number(process.argv[3] ?? 1);
@@ -9,11 +9,11 @@ const stageId = `splitting-${round}`;
 const [tournament] = await db.select().from(tournaments).where(eq(tournaments.slug, slug)).limit(1);
 if (!tournament) throw new Error(`no tournament with slug "${slug}"`);
 
-const seasonRows = await db.select().from(seasons).where(eq(seasons.tournamentId, tournament.id));
+const tournamentRows = await db.select().from(tournaments).where(eq(tournaments.tournamentId, tournament.id));
 const rows = await db
     .select()
     .from(matches)
-    .where(and(eq(matches.seasonId, seasonRows[0].id), eq(matches.stageId, stageId), isNull(matches.deletedAt)));
+    .where(and(eq(matches.tournamentId, tournamentRows[0].id), eq(matches.stageId, stageId), isNull(matches.deletedAt)));
 
 if (rows.length === 0) throw new Error(`no matches for ${stageId} — draw that round first`);
 
@@ -32,7 +32,7 @@ for (const match of rows) {
 
     await db
         .insert(matchResults)
-        .values({ matchId: match.id, seasonId: match.seasonId, results })
+        .values({ matchId: match.id, tournamentId: match.tournamentId, results })
         .onConflictDoUpdate({
             target: matchResults.matchId,
             set: { results, computedAt: new Date() }

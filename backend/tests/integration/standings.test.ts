@@ -3,22 +3,22 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { questionBank, seasonPlayers, seasonStandings, seasons, users } from "../../src/db/schema/index.js";
+import { questionBank, tournamentPlayers, tournamentStandings, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { RoundConfig } from "../../src/game/contracts/index.js";
 
-// The season's places are decided by how far a player got: the last stage they reached,
+// The tournament's places are decided by how far a player got: the last stage they reached,
 // the match they were eliminated in, and their rank in it. The points never decide the
 // order — they are a statistic.
 
 let app: FastifyInstance;
 let ownerCookie: string;
-let seasonId: string;
+let tournamentId: string;
 let playerIds: string[];
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
-const seasonUrl = (suffix: string) =>
-    `/portal/seasons/${seasonId}${suffix}`;
+const tournamentUrl = (suffix: string) =>
+    `/portal/tournaments/${tournamentId}${suffix}`;
 
 const roundRules: Record<string, RoundConfig> = {
     "ve-dich": {
@@ -36,7 +36,7 @@ const STAGES = [
 const createMatch = (payload: Record<string, unknown>) =>
     app.inject({
         method: "POST",
-        url: seasonUrl("/matches"),
+        url: tournamentUrl("/matches"),
         headers: auth(ownerCookie),
         payload: {
             stageId: "round-1",
@@ -49,13 +49,13 @@ const createMatch = (payload: Record<string, unknown>) =>
 const setResults = (matchId: string, totals: Array<{ userId: string; score: number }>) =>
     app.inject({
         method: "POST",
-        url: seasonUrl(`/matches/${matchId}/results`),
+        url: tournamentUrl(`/matches/${matchId}/results`),
         headers: auth(ownerCookie),
         payload: { totals }
     });
 
 const standings = () =>
-    app.inject({ method: "GET", url: seasonUrl("/standings"), headers: auth(ownerCookie) });
+    app.inject({ method: "GET", url: tournamentUrl("/standings"), headers: auth(ownerCookie) });
 
 beforeAll(async () => {
     app = await buildApp();
@@ -76,14 +76,14 @@ beforeAll(async () => {
     ).returning();
     playerIds = players.map((row) => row.id);
 
-    // The season is the unit: it carries the identity the tournament had.
-    const seasonTags = ["THTH"];
-    const seasonOwner = owner.id;
-    const seasonSlug = "st-tournament-season";
+    // The tournament is the unit: it carries the identity the tournament had.
+    const tournamentTags = ["THTH"];
+    const tournamentOwner = owner.id;
+    const tournamentSlug = "st-tournament-tournament";
 
-    const [season] = await db.insert(seasons).values({
-        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
-        name: "ST Season",
+    const [tournament] = await db.insert(tournaments).values({
+        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        name: "ST Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: {
             competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null,
@@ -93,12 +93,12 @@ beforeAll(async () => {
         stages: STAGES,
         roundRules
     }).returning();
-    seasonId = season.id;
+    tournamentId = tournament.id;
 
-    // The roster: the season's field. Everyone enrolled is in the table, even the ones
+    // The roster: the tournament's field. Everyone enrolled is in the table, even the ones
     // who never played.
-    await db.insert(seasonPlayers).values(
-        playerIds.map((userId) => ({ seasonId, userId }))
+    await db.insert(tournamentPlayers).values(
+        playerIds.map((userId) => ({ tournamentId, userId }))
     );
 
     await db.insert(questionBank).values(
@@ -121,7 +121,7 @@ afterAll(async () => {
 
 
 describe("a match placed by hand", () => {
-    it("takes the season's rules and assembles the questions", async () => {
+    it("takes the tournament's rules and assembles the questions", async () => {
         const created = await createMatch({
             players: playerIds.slice(0, 4).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
         });
@@ -142,7 +142,7 @@ describe("a match placed by hand", () => {
         expect(created.json().error).toBe("VALIDATION");
     });
 
-    it("refuses a stage the season does not list", async () => {
+    it("refuses a stage the tournament does not list", async () => {
         const created = await createMatch({
             stageId: "mystery",
             players: playerIds.slice(0, 4).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
@@ -153,7 +153,7 @@ describe("a match placed by hand", () => {
 });
 
 
-describe("the season's places", () => {
+describe("the tournament's places", () => {
     let firstMatch: string;
     let secondMatch: string;
 
@@ -182,7 +182,7 @@ describe("the season's places", () => {
         expect(second.statusCode).toBe(201);
         secondMatch = second.json().id;
 
-        // In round 2 the player who was last in round 1 wins the match. The season's
+        // In round 2 the player who was last in round 1 wins the match. The tournament's
         // points do not order the field: three of them finish on 50 points, and only
         // the progress says who is first.
         await setResults(secondMatch, [
@@ -207,7 +207,7 @@ describe("the season's places", () => {
         expect(rows.slice(0, 4).map((row) => row.place)).toEqual([1, 2, 3, 4]);
         expect(rows.slice(0, 4).every((row) => row.stageTitle === "Round 2")).toBe(true);
 
-        // Three of them finished on 50 points in the season; only the progress orders
+        // Three of them finished on 50 points in the tournament; only the progress orders
         // them. The bonus follows the place.
         expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0, 0, 0]);
     });
@@ -225,9 +225,9 @@ describe("the season's places", () => {
         expect(rows[5].place).toBeNull();
     });
 
-    it("stores the places as the season's record", async () => {
-        const stored = await db.select().from(seasonStandings)
-            .where(eq(seasonStandings.seasonId, seasonId));
+    it("stores the places as the tournament's record", async () => {
+        const stored = await db.select().from(tournamentStandings)
+            .where(eq(tournamentStandings.tournamentId, tournamentId));
         expect(stored).toHaveLength(4);
         expect(stored.map((row) => row.rank).sort()).toEqual([1, 2, 3, 4]);
     });

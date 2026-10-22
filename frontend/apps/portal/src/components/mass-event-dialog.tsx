@@ -6,7 +6,7 @@ import {
 } from "@shared/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { ApiError } from "@shared/lib/api"
-import { useCloseMassEvent, useMassEvent } from "@/lib/season"
+import { useCloseMassEvent, useMassEvent } from "@/lib/tournament"
 
 
 // The mass event: how the field answered, and the ranking it produced. The ranking is
@@ -15,22 +15,22 @@ import { useCloseMassEvent, useMassEvent } from "@/lib/season"
 const TIER_NAMES = ["S", "A", "B", "C", "D", "E"]
 
 export function MassEventDialog({
-    seasonId,
+    tournamentId,
     matchId,
     label,
     seats,
     open,
     onOpenChange,
 }: {
-    seasonId: string
+    tournamentId: string
     matchId: string
     label: string
     seats: number
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const view = useMassEvent(seasonId, matchId)
-    const close = useCloseMassEvent(seasonId)
+    const view = useMassEvent(tournamentId, matchId)
+    const close = useCloseMassEvent(tournamentId)
 
     // The tied groups the close refused, and the order the staff gave them.
     const [orders, setOrders] = useState<Record<string, string[]>>({})

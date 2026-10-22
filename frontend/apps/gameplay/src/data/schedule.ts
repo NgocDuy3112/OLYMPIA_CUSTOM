@@ -36,7 +36,7 @@ export interface StandingRow {
     prevPoints: number
 }
 
-export interface Tournament {
+export interface TournamentIdentity {
     id: string
     name: string
     subtitle: string

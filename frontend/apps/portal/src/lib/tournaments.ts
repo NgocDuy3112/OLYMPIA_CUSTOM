@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, type PageResult } from "@shared/lib/api"
 
-// ── The season's shape ───────────────────────────────────────────────────────
+// ── The tournament's shape ───────────────────────────────────────────────────────
 
-export interface SeasonRound {
+export interface TournamentRound {
     id: string
     name: string
     order: number
@@ -24,8 +24,8 @@ export interface PlacementTier {
     points: number
 }
 
-// The scales a season can be set up with. A preset is a starting point, not a default:
-// the points for places are the season's own.
+// The scales a tournament can be set up with. A preset is a starting point, not a default:
+// the points for places are the tournament's own.
 export const PLACEMENT_SCALES = [
     {
         id: "olympia",
@@ -44,7 +44,7 @@ export const PLACEMENT_SCALES = [
     }
 ] as const
 
-// ── The season ────────────────────────────────────────────────────────────────
+// ── The tournament ────────────────────────────────────────────────────────────────
 
 // What a stage is for. The role tells the engine which rule the stage's matches must
 // follow, so the staff can place the matches by hand and still be checked against the
@@ -65,17 +65,17 @@ export interface Stage {
     end?: string
 }
 
-export interface Season {
+export interface Tournament {
     id: string
     name: string
     slug: string
     visibility: "PUBLIC" | "PRIVATE"
     ownerId: string
-    // The tags decide which questions of the global bank this season may assemble.
+    // The tags decide which questions of the global bank this tournament may assemble.
     tags: string[]
     current: boolean
     stages: Stage[]
-    rounds: SeasonRound[]
+    rounds: TournamentRound[]
     format: TournamentFormat
     placementTiers: PlacementTier[]
     closedAt: string | null
@@ -85,19 +85,19 @@ export interface Season {
 
 export const SEASONS_PAGE_SIZE = 20
 
-export interface SeasonFilters {
+export interface TournamentFilters {
     search?: string
     limit?: number
     offset?: number
 }
 
-export function useSeasons({
+export function useTournaments({
     search,
     limit = SEASONS_PAGE_SIZE,
     offset = 0,
-}: SeasonFilters = {}) {
+}: TournamentFilters = {}) {
     return useQuery({
-        queryKey: ["seasons", { search: search ?? "", limit, offset }],
+        queryKey: ["tournaments", { search: search ?? "", limit, offset }],
         queryFn: () => {
             const params = new URLSearchParams({
                 limit: String(limit),
@@ -105,30 +105,30 @@ export function useSeasons({
             })
             if (search) params.set("search", search)
 
-            return api<PageResult<Season>>(`/portal/seasons?${params.toString()}`)
+            return api<PageResult<Tournament>>(`/portal/tournaments?${params.toString()}`)
         },
     })
 }
 
-export interface SeasonCreate {
+export interface TournamentCreate {
     name: string
     tags?: string[]
     visibility?: "PUBLIC" | "PRIVATE"
     current?: boolean
 }
 
-export function useCreateSeason() {
+export function useCreateTournament() {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: (input: SeasonCreate) =>
-            api<Season>(`/portal/seasons`, {
+        mutationFn: (input: TournamentCreate) =>
+            api<Tournament>(`/portal/tournaments`, {
                 method: "POST",
                 body: JSON.stringify(input),
             }),
 
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["seasons"] })
+            void queryClient.invalidateQueries({ queryKey: ["tournaments"] })
         },
     })
 }

@@ -8,7 +8,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu"
-import { SEASONS, CURRENT_SEASON } from "@/data/seasons"
+import { SEASONS, CURRENT_SEASON } from "@/data/tournaments"
 
 
 const links = [
@@ -19,8 +19,8 @@ const links = [
 export function NavBar() {
     const { pathname } = useLocation()
     const navigate = useNavigate()
-    const seasonId = pathname.split("/")[2]            // /s/:seasonId/…
-    const viewingOtherSeason = Boolean(seasonId) && seasonId !== CURRENT_SEASON.id
+    const tournamentId = pathname.split("/")[2]            // /s/:tournamentId/…
+    const viewingOtherTournament = Boolean(tournamentId) && tournamentId !== CURRENT_SEASON.id
 
     return (
         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
@@ -53,7 +53,7 @@ export function NavBar() {
                         <DropdownMenuTrigger
                             className={cn(
                                 buttonVariants({ variant: "ghost", size: "sm" }),
-                                viewingOtherSeason &&
+                                viewingOtherTournament &&
                                 "bg-secondary font-medium text-secondary-foreground"
                             )}
                         >
@@ -61,20 +61,20 @@ export function NavBar() {
                             <ChevronDown className="size-3.5" aria-hidden />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                            {SEASONS.map((season) => (
+                            {SEASONS.map((tournament) => (
                                 <DropdownMenuItem
-                                    key={season.id}
-                                    onClick={() => navigate(`/s/${season.id}`)}
+                                    key={tournament.id}
+                                    onClick={() => navigate(`/s/${tournament.id}`)}
                                 >
                                     <span
                                         className={cn(
                                             "size-1.5 rounded-full",
-                                            season.current ? "bg-destructive" : "bg-transparent"
+                                            tournament.current ? "bg-destructive" : "bg-transparent"
                                         )}
                                         aria-hidden
                                     />
-                                    {season.name}
-                                    {season.current && (
+                                    {tournament.name}
+                                    {tournament.current && (
                                         <span className="ml-auto text-xs text-muted-foreground">
                                             Hiện tại
                                         </span>

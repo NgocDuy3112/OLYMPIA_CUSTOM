@@ -1,4 +1,4 @@
-// The season's standings: a placement table.
+// The tournament's standings: a placement table.
 //
 // The place of a player is how far they got — the last stage they played, the match
 // they were eliminated in, and their rank in it. The points are a statistic, not the
@@ -8,9 +8,9 @@ import { db } from "../../db/pool.js";
 import {
     matchResults,
     matches,
-    seasonPlayers,
-    seasonStandings,
-    seasons,
+    tournamentPlayers,
+    tournamentStandings,
+    tournaments,
     users
 } from "../../db/schema/index.js";
 import type { ResultEntry } from "../../game/contracts/index.js";
@@ -21,8 +21,8 @@ import {
     type StageRef
 } from "../../game/engine/scoring/standings.js";
 
-// The points matches of the season, with their results.
-async function seasonMatches(seasonId: string): Promise<MatchResultInput[]> {
+// The points matches of the tournament, with their results.
+async function tournamentMatches(tournamentId: string): Promise<MatchResultInput[]> {
     const rows = await db
         .select({
             matchId: matches.id,
@@ -33,7 +33,7 @@ async function seasonMatches(seasonId: string): Promise<MatchResultInput[]> {
         .from(matches)
         .innerJoin(matchResults, eq(matchResults.matchId, matches.id))
         .where(and(
-            eq(matches.seasonId, seasonId),
+            eq(matches.tournamentId, tournamentId),
             eq(matches.kind, "STANDARD"),
             isNull(matches.deletedAt)
         ))
@@ -50,43 +50,43 @@ async function seasonMatches(seasonId: string): Promise<MatchResultInput[]> {
     }));
 }
 
-// The season's stages, in order: this is the order of the season.
-async function seasonStages(seasonId: string): Promise<StageRef[]> {
-    const [row] = await db.select().from(seasons)
-        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
+// The tournament's stages, in order: this is the order of the tournament.
+async function tournamentStages(tournamentId: string): Promise<StageRef[]> {
+    const [row] = await db.select().from(tournaments)
+        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
         .limit(1);
     if (!row) return [];
     return (row.stages ?? []).map((stage) => ({ id: stage.id, title: stage.title }));
 }
 
-// The roster: everyone enrolled in the season.
-async function seasonRoster(seasonId: string): Promise<Array<{ userId: string; displayName: string }>> {
+// The roster: everyone enrolled in the tournament.
+async function tournamentRoster(tournamentId: string): Promise<Array<{ userId: string; displayName: string }>> {
     return db
-        .select({ userId: seasonPlayers.userId, displayName: users.displayName })
-        .from(seasonPlayers)
-        .innerJoin(users, eq(users.id, seasonPlayers.userId))
-        .where(eq(seasonPlayers.seasonId, seasonId));
+        .select({ userId: tournamentPlayers.userId, displayName: users.displayName })
+        .from(tournamentPlayers)
+        .innerJoin(users, eq(users.id, tournamentPlayers.userId))
+        .where(eq(tournamentPlayers.tournamentId, tournamentId));
 }
 
 // The table.
-export async function getStandings(seasonId: string): Promise<PlayerStanding[]> {
-    const [season] = await db.select().from(seasons)
-        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
+export async function getStandings(tournamentId: string): Promise<PlayerStanding[]> {
+    const [tournament] = await db.select().from(tournaments)
+        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
         .limit(1);
-    if (!season) return [];
+    if (!tournament) return [];
 
     return buildStandings({
-        stages: await seasonStages(seasonId),
-        matches: await seasonMatches(seasonId),
-        players: await seasonRoster(seasonId),
-        tiers: season.placementTiers ?? []
+        stages: await tournamentStages(tournamentId),
+        matches: await tournamentMatches(tournamentId),
+        players: await tournamentRoster(tournamentId),
+        tiers: tournament.placementTiers ?? []
     });
 }
 
-// Recompute and store the table. The stored row is the season's record of the places;
+// Recompute and store the table. The stored row is the tournament's record of the places;
 // the never-played are not in it (they have no place).
-export async function recomputeStandings(seasonId: string): Promise<PlayerStanding[]> {
-    const rows = await getStandings(seasonId);
+export async function recomputeStandings(tournamentId: string): Promise<PlayerStanding[]> {
+    const rows = await getStandings(tournamentId);
     const placed = rows.filter((row) => row.place !== null);
 
     // A seat can name a user that does not exist — the record points at a real player.
@@ -94,10 +94,10 @@ export async function recomputeStandings(seasonId: string): Promise<PlayerStandi
     const storable = placed.filter((row) => real.has(row.userId));
 
     await db.transaction(async (tx) => {
-        await tx.delete(seasonStandings).where(eq(seasonStandings.seasonId, seasonId));
+        await tx.delete(tournamentStandings).where(eq(tournamentStandings.tournamentId, tournamentId));
         if (storable.length > 0) {
-            await tx.insert(seasonStandings).values(storable.map((row) => ({
-                seasonId,
+            await tx.insert(tournamentStandings).values(storable.map((row) => ({
+                tournamentId,
                 userId: row.userId,
                 rank: row.place!,
                 placementPoints: row.placementPoints

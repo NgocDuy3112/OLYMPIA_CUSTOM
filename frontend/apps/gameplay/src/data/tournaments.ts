@@ -1,25 +1,21 @@
-import type { Match, StandingRow } from "@/data/schedule"
+import type { Match, StandingRow, TournamentIdentity } from "@/data/schedule"
 import type { Stage } from "@/data/stages"
 import { OLYMPIA_STAGES } from "@/data/stages"
-import { sampleTournament } from "@/data/sample/tournament"
+import { sampleTournament } from "@/data/sample/tournaments"
 import { sampleMatches } from "@/data/sample/matches"
 import { sampleStandings } from "@/data/sample/standings"
 
-export interface Season {
+export interface Tournament extends TournamentIdentity {
     id: string
     name: string
-    subtitle: string
-    venue: string
-    startDate: string
-    endDate: string
     current: boolean
     stages: Stage[]
     matches: Match[]
     standings: StandingRow[]
 }
 
-// ── Season 3 (the real sample data) ─────────────────────────
-const season3: Season = {
+// ── Tournament 3 (the real sample data) ─────────────────────────
+const tournament3: Tournament = {
     id: "2025-a",
     name: "Olympia Custom 3",
     current: true,
@@ -32,12 +28,12 @@ const season3: Season = {
     standings: sampleStandings,
 }
 
-// ── Season 2 (mock: same shape, shifted dates/names) ────────
-const season2: Season = {
+// ── Tournament 2 (mock: same shape, shifted dates/names) ────────
+const tournament2: Tournament = {
     id: "2024-b",
     name: "Olympia Custom 2",
     current: false,
-    subtitle: "Season 2 - Finals Weekend",
+    subtitle: "Tournament 2 - Finals Weekend",
     venue: sampleTournament.venue,
     startDate: "2024-06-14",
     endDate: "2024-06-15",
@@ -53,12 +49,12 @@ const season2: Season = {
     standings: sampleStandings,
 }
 
-// ── Season 1 (mock) ─────────────────────────────────────────
-const season1: Season = {
+// ── Tournament 1 (mock) ─────────────────────────────────────────
+const tournament1: Tournament = {
     id: "2023-a",
     name: "Olympia Custom 1",
     current: false,
-    subtitle: "Season 1 - Finals Weekend",
+    subtitle: "Tournament 1 - Finals Weekend",
     venue: sampleTournament.venue,
     startDate: "2023-06-14",
     endDate: "2023-06-15",
@@ -74,11 +70,11 @@ const season1: Season = {
     standings: sampleStandings,
 }
 
-export const SEASONS: Season[] = [season3, season2, season1]
+export const SEASONS: Tournament[] = [tournament3, tournament2, tournament1]
 
-export const CURRENT_SEASON: Season =
+export const CURRENT_SEASON: Tournament =
     SEASONS.find((s) => s.current) ?? SEASONS[0]
 
-export function findSeason(id: string | undefined): Season | undefined {
+export function findTournament(id: string | undefined): Tournament | undefined {
     return SEASONS.find((s) => s.id === id)
 }

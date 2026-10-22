@@ -3,30 +3,30 @@ import { AlertTriangle } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import type { SeasonDetail } from "@/lib/season"
-import { SeasonPointsDialog } from "./season-points-dialog"
+import type { TournamentDetail } from "@/lib/tournament"
+import { TournamentPointsDialog } from "./tournament-points-dialog"
 
 
-// The season's points for places. The season is the unit: the tournament hands down a
-// default, and the season — which knows how many places it produces — owns the scale.
-export function SeasonPointsCard({
-    seasonId,
-    season,
+// The tournament's points for places. The tournament is the unit: the tournament hands down a
+// default, and the tournament — which knows how many places it produces — owns the scale.
+export function TournamentPointsCard({
+    tournamentId,
+    tournament,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
 }) {
     const [editing, setEditing] = useState(false)
 
-    const tiers = season.placementTiers ?? []
-    const coverage = season.points
+    const tiers = tournament.placementTiers ?? []
+    const coverage = tournament.points
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="text-base">Points for places</CardTitle>
                 <CardDescription>
-                    What each place of this season is worth. The season owns its scale.
+                    What each place of this tournament is worth. The tournament owns its scale.
                 </CardDescription>
                 <CardAction>
                     <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
@@ -38,7 +38,7 @@ export function SeasonPointsCard({
             <CardContent className="p-0">
                 {tiers.length === 0 ? (
                     <p className="px-6 pb-6 text-sm text-muted-foreground">
-                        This season awards no points for places.
+                        This tournament awards no points for places.
                     </p>
                 ) : (
                     <Table>
@@ -74,16 +74,16 @@ export function SeasonPointsCard({
 
                 {coverage && coverage.beyond.length > 0 && (
                     <p className="flex items-center gap-2 px-6 pb-4 text-sm text-muted-foreground">
-                        The scale reaches place {coverage.beyond[0]}, and this season produces{" "}
+                        The scale reaches place {coverage.beyond[0]}, and this tournament produces{" "}
                         {coverage.places} places.
                     </p>
                 )}
             </CardContent>
 
             {editing && (
-                <SeasonPointsDialog
-                    seasonId={seasonId}
-                    season={season}
+                <TournamentPointsDialog
+                    tournamentId={tournamentId}
+                    tournament={tournament}
                     open
                     onOpenChange={(open) => { if (!open) setEditing(false) }}
                 />

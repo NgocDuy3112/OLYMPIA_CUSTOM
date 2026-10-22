@@ -2,23 +2,23 @@ import type { FastifyInstance } from "fastify";
 import { auditFromRequest } from "../audit/service.js";
 import {
     matchParams,
-    seasonErrorHandler,
-    seasonGuards,
-    seasonParams,
+    tournamentErrorHandler,
+    tournamentGuards,
+    tournamentParams,
     UUID_PATTERN
-} from "../season-shared.js";
+} from "../tournament-shared.js";
 import { enrollPlayers, listEnrolled } from "./service.js";
 
 export async function rosterRoutes(app: FastifyInstance) {
-    seasonErrorHandler(app);
-    const { staff, assertWrite, assertView } = seasonGuards();
+    tournamentErrorHandler(app);
+    const { staff, assertWrite, assertView } = tournamentGuards();
 
     app.post(
-        "/portal/seasons/:seasonId/players",
+        "/portal/tournaments/:tournamentId/players",
         {
             onRequest: staff,
             schema: {
-                params: seasonParams,
+                params: tournamentParams,
                 body: {
                     type: "object",
                     required: ["userIds"],
@@ -35,14 +35,14 @@ export async function rosterRoutes(app: FastifyInstance) {
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId } = request.params as { seasonId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
             const { userIds } = request.body as { userIds: string[] };
 
-            await assertWrite(seasonId, user.id, user.role);
-            const enrolled = await enrollPlayers(seasonId, userIds);
+            await assertWrite(tournamentId, user.id, user.role);
+            const enrolled = await enrollPlayers(tournamentId, userIds);
 
-            await auditFromRequest(request, "season_updated", {
-                details: { seasonId, enrolled }
+            await auditFromRequest(request, "tournament_updated", {
+                details: { tournamentId, enrolled }
             });
 
             return { enrolled };
@@ -50,14 +50,14 @@ export async function rosterRoutes(app: FastifyInstance) {
     );
 
     app.get(
-        "/portal/seasons/:seasonId/players",
-        { onRequest: staff, schema: { params: seasonParams } },
+        "/portal/tournaments/:tournamentId/players",
+        { onRequest: staff, schema: { params: tournamentParams } },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId } = request.params as { seasonId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
 
-            await assertView(seasonId, user.id, user.role);
-            return { items: await listEnrolled(seasonId) };
+            await assertView(tournamentId, user.id, user.role);
+            return { items: await listEnrolled(tournamentId) };
         }
     );
 }

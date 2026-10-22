@@ -1,45 +1,45 @@
-// The season's roster: who may take a seat in a match. Admin-enrolled, free-form.
+// The tournament's roster: who may take a seat in a match. Admin-enrolled, free-form.
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { seasonPlayers, users } from "../../db/schema/index.js";
-import { SeasonError } from "../seasons/errors.js";
+import { tournamentPlayers, users } from "../../db/schema/index.js";
+import { TournamentError } from "../tournaments/errors.js";
 
-export async function enrollPlayers(seasonId: string, userIds: string[]): Promise<number> {
+export async function enrollPlayers(tournamentId: string, userIds: string[]): Promise<number> {
     if (userIds.length === 0) return 0;
 
-    await db.insert(seasonPlayers)
-        .values(userIds.map((userId) => ({ seasonId, userId })))
+    await db.insert(tournamentPlayers)
+        .values(userIds.map((userId) => ({ tournamentId, userId })))
         .onConflictDoNothing();
 
-    return (await listEnrolled(seasonId)).length;
+    return (await listEnrolled(tournamentId)).length;
 }
 
 export async function listEnrolled(
-    seasonId: string
+    tournamentId: string
 ): Promise<Array<{ userId: string; displayName: string; enrolledAt: Date }>> {
     return db
         .select({
-            userId: seasonPlayers.userId,
+            userId: tournamentPlayers.userId,
             displayName: users.displayName,
-            enrolledAt: seasonPlayers.enrolledAt
+            enrolledAt: tournamentPlayers.enrolledAt
         })
-        .from(seasonPlayers)
-        .innerJoin(users, eq(users.id, seasonPlayers.userId))
-        .where(eq(seasonPlayers.seasonId, seasonId));
+        .from(tournamentPlayers)
+        .innerJoin(users, eq(users.id, tournamentPlayers.userId))
+        .where(eq(tournamentPlayers.tournamentId, tournamentId));
 }
 
 // The players of a match, in seat order.
 export async function requireEnrolled(
-    seasonId: string,
+    tournamentId: string,
     userIds: string[]
 ): Promise<string[]> {
-    const roster = await listEnrolled(seasonId);
+    const roster = await listEnrolled(tournamentId);
     const known = new Set(roster.map((row) => row.userId));
     const missing = userIds.filter((id) => !known.has(id));
     if (missing.length > 0) {
-        throw new SeasonError(
+        throw new TournamentError(
             "NOT_ENROLLED",
-            "these players are not enrolled in this season",
+            "these players are not enrolled in this tournament",
             missing
         );
     }

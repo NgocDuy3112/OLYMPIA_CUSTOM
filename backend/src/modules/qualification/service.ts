@@ -27,7 +27,7 @@ import {
     type QualificationAnswer,
     type TieBreak
 } from "../../game/engine/scoring/crowd.js";
-import { SeasonError } from "../seasons/errors.js";
+import { TournamentError } from "../tournaments/errors.js";
 import { assemblyEligibility } from "../questions/service.js";
 import { requireMatchScope, type MatchRow } from "../matches/service.js";
 import { listEnrolled, requireEnrolled } from "../roster/service.js";
@@ -49,9 +49,9 @@ export interface CloseQualificationOptions {
 
 async function requireQualificationMatch(matchId: string): Promise<MatchRow> {
     const [row] = await db.select().from(matches).where(eq(matches.id, matchId)).limit(1);
-    if (!row) throw new SeasonError("NOT_FOUND", `match ${matchId} not found`);
+    if (!row) throw new TournamentError("NOT_FOUND", `match ${matchId} not found`);
     if (row.kind !== "QUALIFICATION") {
-        throw new SeasonError("VALIDATION", `match ${matchId} is not a qualification match`);
+        throw new TournamentError("VALIDATION", `match ${matchId} is not a qualification match`);
     }
     return row;
 }
@@ -65,36 +65,36 @@ function seatedUsers(match: MatchRow): string[] {
 // ── Creating it ───────────────────────────────────────────────────────────────
 
 export async function createQualificationMatch(
-    seasonId: string,
+    tournamentId: string,
     input: CreateQualificationMatchInput
 ): Promise<MatchRow> {
-    const { season } = await requireMatchScope(seasonId);
+    const { tournament } = await requireMatchScope(tournamentId);
 
     if (!Number.isInteger(input.questionCount) || input.questionCount < 1) {
-        throw new SeasonError("VALIDATION", "questionCount must be a positive integer");
+        throw new TournamentError("VALIDATION", "questionCount must be a positive integer");
     }
     if (Number.isNaN(Date.parse(input.scheduledAt))) {
-        throw new SeasonError("VALIDATION", "scheduledAt must be an ISO date-time");
+        throw new TournamentError("VALIDATION", "scheduledAt must be an ISO date-time");
     }
 
-    const roster = await listEnrolled(seasonId);
+    const roster = await listEnrolled(tournamentId);
     if (roster.length === 0) {
-        throw new SeasonError("NOT_ENROLLED", "this season has no enrolled players");
+        throw new TournamentError("NOT_ENROLLED", "this tournament has no enrolled players");
     }
 
     const playerIds = input.playerIds && input.playerIds.length > 0
         ? input.playerIds
         : roster.map((row) => row.userId);
-    await requireEnrolled(seasonId, playerIds);
+    await requireEnrolled(tournamentId, playerIds);
 
     if (new Set(playerIds).size !== playerIds.length) {
-        throw new SeasonError("VALIDATION", "a player can only take one seat");
+        throw new TournamentError("VALIDATION", "a player can only take one seat");
     }
 
-    const questions = await pickQuestions(season, input.questionCount);
+    const questions = await pickQuestions(tournament, input.questionCount);
 
     const [row] = await db.insert(matches).values({
-        seasonId,
+        tournamentId,
         kind: "QUALIFICATION",
         stageId: input.stageId ?? "qualification",
         label: input.label,
@@ -110,16 +110,16 @@ export async function createQualificationMatch(
 
 // The question set is copied from the bank, so a running event never depends on later
 // bank edits.
-async function pickQuestions(season: { tags: string[] }, count: number): Promise<MatchQuestion[]> {
+async function pickQuestions(tournament: { tags: string[] }, count: number): Promise<MatchQuestion[]> {
     const rows = await db
         .select()
         .from(questionBank)
-        .where(and(...assemblyEligibility(season.tags), eq(questionBank.kind, "MC")))
+        .where(and(...assemblyEligibility(tournament.tags), eq(questionBank.kind, "MC")))
         .orderBy(sql`random()`)
         .limit(count);
 
     if (rows.length < count) {
-        throw new SeasonError(
+        throw new TournamentError(
             "NOT_ENOUGH_QUESTIONS",
             `the bank can supply ${rows.length} questions, the match needs ${count}`
         );
@@ -166,7 +166,7 @@ export async function getQualificationForPlayer(matchId: string, userId: string)
     const match = await requireQualificationMatch(matchId);
 
     if (!seatedUsers(match).includes(userId)) {
-        throw new SeasonError("NOT_ENROLLED", "you are not seated in this match");
+        throw new TournamentError("NOT_ENROLLED", "you are not seated in this match");
     }
 
     const rows = await db.select().from(answers)
@@ -199,15 +199,15 @@ export async function submitQualificationAnswer(params: {
     const match = await requireQualificationMatch(params.matchId);
 
     if (match.status === "FINISHED") {
-        throw new SeasonError("CLOSED", "this qualification match is closed");
+        throw new TournamentError("CLOSED", "this qualification match is closed");
     }
     if (!seatedUsers(match).includes(params.userId)) {
-        throw new SeasonError("NOT_ENROLLED", "you are not seated in this match");
+        throw new TournamentError("NOT_ENROLLED", "you are not seated in this match");
     }
 
     const question = match.questions.find((q) => q._id === params.questionId);
     if (!question) {
-        throw new SeasonError("NOT_FOUND", "question is not part of this match");
+        throw new TournamentError("NOT_FOUND", "question is not part of this match");
     }
 
     const correct = autoMatch(question.kind as QuestionKind, question.payload, params.value);
@@ -255,7 +255,7 @@ export async function submitQualificationAnswer(params: {
         const cause = (error as { cause?: { code?: string } }).cause
             ?? error as { code?: string };
         if (cause?.code === "23505") {
-            throw new SeasonError(
+            throw new TournamentError(
                 "ALREADY_ANSWERED",
                 "this question has already been answered and cannot be changed"
             );
@@ -276,12 +276,12 @@ export async function closeQualificationMatch(
     const match = await requireQualificationMatch(matchId);
 
     if (match.status === "FINISHED") {
-        throw new SeasonError("CLOSED", "this qualification match is already closed");
+        throw new TournamentError("CLOSED", "this qualification match is already closed");
     }
 
     const field = seatedUsers(match);
     if (field.length === 0) {
-        throw new SeasonError("NOT_SETUP", "this match has nobody seated");
+        throw new TournamentError("NOT_SETUP", "this match has nobody seated");
     }
 
     const rows = await db.select().from(answers).where(eq(answers.matchId, matchId));
@@ -309,7 +309,7 @@ export async function closeQualificationMatch(
     const ranking = rankQualification(entries, { tieBreaks: options.tieBreaks });
 
     if (ranking.unresolved.length > 0) {
-        throw new SeasonError(
+        throw new TournamentError(
             "TIES_UNRESOLVED",
             "points, correct count and average time all agree for these players; supply an order",
             ranking.unresolved.map((group) => group.join(", "))
@@ -328,7 +328,7 @@ export async function closeQualificationMatch(
         await db.transaction(async (tx) => {
             await tx.insert(matchResults).values({
                 matchId,
-                seasonId: match.seasonId,
+                tournamentId: match.tournamentId,
                 results
             });
 
@@ -353,7 +353,7 @@ export async function closeQualificationMatch(
         const cause = (error as { cause?: { code?: string } }).cause
             ?? error as { code?: string };
         if (cause?.code === "23505") {
-            throw new SeasonError("CLOSED", "this qualification match is already closed");
+            throw new TournamentError("CLOSED", "this qualification match is already closed");
         }
         throw error;
     }

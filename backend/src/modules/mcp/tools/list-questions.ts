@@ -3,13 +3,13 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { listForAgent } from "../../questions/service.js";
 import { audit, mcpAuditDetails } from "../../audit/service.js";
 import { actorFrom, requireScope } from "../actor.js";
-import { assertSeasonVisible } from "../access.js";
+import { assertTournamentVisible } from "../access.js";
 import { runTool } from "../result.js";
-import { requireSeason } from "../../seasons/service.js";
+import { requireTournament } from "../../tournaments/service.js";
 import { toAgentQuestion } from "../map.js";
 
 export const listQuestionsInput = z.object({
-    seasonId: z.uuid(),
+    tournamentId: z.uuid(),
     kind: z.enum(["MC", "TEXT", "KEYWORD"]).optional(),
     tag: z.string().max(64).optional(),
     search: z.string().min(1).max(200).optional(),
@@ -23,7 +23,7 @@ export function registerListQuestions(server: McpServer): void {
         {
             title: "List questions",
             description:
-                "List questions visible to operators: PUBLISHED and ARCHIVED, tagged for the given season. Answers are included. `usable` is true only for PUBLISHED questions.",
+                "List questions visible to operators: PUBLISHED and ARCHIVED, tagged for the given tournament. Answers are included. `usable` is true only for PUBLISHED questions.",
             inputSchema: listQuestionsInput,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false }
         },
@@ -31,11 +31,11 @@ export function registerListQuestions(server: McpServer): void {
             runTool(async () => {
                 const actor = actorFrom(ctx.http?.authInfo);
                 requireScope(actor, "READ");
-                await assertSeasonVisible(args.seasonId, actor.role);
-                const season = await requireSeason(args.seasonId);
+                await assertTournamentVisible(args.tournamentId, actor.role);
+                const tournament = await requireTournament(args.tournamentId);
 
                 const page = await listForAgent(
-                    season.tags,
+                    tournament.tags,
                     { kind: args.kind, tag: args.tag, search: args.search },
                     { limit: args.limit, offset: args.offset }
                 );
@@ -45,7 +45,7 @@ export function registerListQuestions(server: McpServer): void {
                     actorId: actor.userId,
                     details: mcpAuditDetails(actor.keyId, {
                         tool: "list_questions",
-                        seasonId: args.seasonId,
+                        tournamentId: args.tournamentId,
                         filters: { kind: args.kind, tag: args.tag, search: args.search },
                         total: page.total
                     })

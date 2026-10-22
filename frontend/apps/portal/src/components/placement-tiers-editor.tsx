@@ -1,10 +1,10 @@
 import { Button } from "@shared/ui/button"
 import { Input } from "@shared/ui/input"
-import { PLACEMENT_SCALES, type PlacementTier } from "@/lib/seasons"
+import { PLACEMENT_SCALES, type PlacementTier } from "@/lib/tournaments"
 
 
 // The points for places: the bands, each a range of places and what they are worth.
-// Shared by the tournament (the default for new seasons) and the season (its own).
+// Shared by the tournament (the default for new tournaments) and the tournament (its own).
 export function PlacementTiersEditor({
     tiers,
     onChange,

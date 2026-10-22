@@ -1,18 +1,18 @@
-import type { RoundConfig, SeasonRound } from "../../game/contracts/index.js";
+import type { RoundConfig, TournamentRound } from "../../game/contracts/index.js";
 
-// The rounds a match actually plays: those present in the season's round list AND in
-// the match's roundConfigs, in the season's declared order.
+// The rounds a match actually plays: those present in the tournament's round list AND in
+// the match's roundConfigs, in the tournament's declared order.
 export function orderedMatchRounds(
-    seasonRounds: SeasonRound[],
+    tournamentRounds: TournamentRound[],
     roundConfigs: Record<string, RoundConfig>
 ): string[] {
-    return [...seasonRounds]
+    return [...tournamentRounds]
         .sort((a, b) => a.order - b.order)
         .filter((round) => roundConfigs[round.id] !== undefined)
         .map((round) => round.id);
 }
 
-// The round after `current`, or null when the season's rounds are exhausted.
+// The round after `current`, or null when the tournament's rounds are exhausted.
 export function nextRoundId(ordered: string[], current: string | null): string | null {
     if (current === null) return ordered[0] ?? null;
     const index = ordered.indexOf(current);

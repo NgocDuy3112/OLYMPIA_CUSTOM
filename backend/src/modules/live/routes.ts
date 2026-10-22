@@ -5,7 +5,7 @@ import { getMatch, getMatchById, requireMatchScope } from "../matches/service.js
 import { nextRoundId, orderedMatchRounds } from "../matches/rounds.js";
 import { isSeatedInMatch } from "../matches/seats.js";
 import { auditFromRequest } from "../audit/service.js";
-import { canWriteSeason } from "../../lib/season-access.js";
+import { canWriteTournament } from "../../lib/tournament-access.js";
 import { applyLiveAction, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
 import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
@@ -103,10 +103,10 @@ function roundQuestionIds(match: { questions: MatchQuestion[] }, roundId: string
 
 const matchParams = {
     type: "object",
-    required: ["seasonId", "matchId"],
+    required: ["tournamentId", "matchId"],
     additionalProperties: false,
     properties: {
-        seasonId: { type: "string", pattern: UUID_PATTERN },
+        tournamentId: { type: "string", pattern: UUID_PATTERN },
         matchId: { type: "string", pattern: UUID_PATTERN },
     },
 } as const;
@@ -239,24 +239,24 @@ export async function liveRoutes(app: FastifyInstance) {
 
     // ── MC surface ────────────────────────────────────────────────────────────
     app.post(
-        "/portal/seasons/:seasonId/matches/:matchId/live/actions",
+        "/portal/tournaments/:tournamentId/matches/:matchId/live/actions",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
             schema: { params: matchParams, body: actionBody },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId, matchId } = request.params as {
-                seasonId: string; matchId: string;
+            const { tournamentId, matchId } = request.params as {
+                tournamentId: string; matchId: string;
             };
             const body = request.body as { expectedVersion: number; action: unknown };
 
-            const scope = await requireMatchScope(seasonId);
-            if (!canWriteSeason(scope.season, user)) {
+            const scope = await requireMatchScope(tournamentId);
+            if (!canWriteTournament(scope.tournament, user)) {
                 throw app.httpErrors.forbidden("Only the owner or an admin may drive a live match");
             }
 
-            const match = await getMatch(seasonId, matchId);
+            const match = await getMatch(tournamentId, matchId);
             if (match.status !== "LIVE") throw app.httpErrors.conflict("match is not LIVE");
 
             if (!Value.Check(LiveActionSchema, body.action)) {
@@ -264,7 +264,7 @@ export async function liveRoutes(app: FastifyInstance) {
             }
             const action = body.action as LiveAction;
 
-            const ordered = orderedMatchRounds(scope.season.rounds, match.roundConfigs);
+            const ordered = orderedMatchRounds(scope.tournament.rounds, match.roundConfigs);
 
             const next = await applyLiveAction(
                 pgLiveStore<Record<string, unknown>>(matchId),
@@ -277,7 +277,7 @@ export async function liveRoutes(app: FastifyInstance) {
                             }
                             const following = nextRoundId(ordered, current.roundId);
                             if (!following) {
-                                throw new RuleError("NO_NEXT_ROUND", "no further round in this season");
+                                throw new RuleError("NO_NEXT_ROUND", "no further round in this tournament");
                             }
                             return { state: {}, facts: [], roundId: following };
                         }
@@ -414,7 +414,7 @@ export async function liveRoutes(app: FastifyInstance) {
 
     // The answers for a question, with their drafts, so the controller can judge them.
     app.get(
-        "/portal/seasons/:seasonId/matches/:matchId/live/answers",
+        "/portal/tournaments/:tournamentId/matches/:matchId/live/answers",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
             schema: {
@@ -436,7 +436,7 @@ export async function liveRoutes(app: FastifyInstance) {
 
     // Read the current state and version. The console calls this after a 409.
     app.get(
-        "/portal/seasons/:seasonId/matches/:matchId/live",
+        "/portal/tournaments/:tournamentId/matches/:matchId/live",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
             schema: { params: matchParams },

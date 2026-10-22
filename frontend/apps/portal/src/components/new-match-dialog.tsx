@@ -4,29 +4,29 @@ import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
-import { useCreateMatch, useCreateQualificationMatch, useEnrolled } from "@/lib/season"
-import type { SeasonDetail } from "@/lib/season"
+import { useCreateMatch, useCreateQualificationMatch, useEnrolled } from "@/lib/tournament"
+import type { TournamentDetail } from "@/lib/tournament"
 
 // A match, placed by hand: the staff pick who plays whom.
 // The mass event is the same thing with the whole roster and a question set.
 export function NewMatchDialog({
-    seasonId,
-    season,
+    tournamentId,
+    tournament,
     seats,
     open,
     onOpenChange,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
     seats: number
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const enrolled = useEnrolled(seasonId)
-    const create = useCreateMatch(seasonId)
-    const createMass = useCreateQualificationMatch(seasonId)
+    const enrolled = useEnrolled(tournamentId)
+    const create = useCreateMatch(tournamentId)
+    const createMass = useCreateQualificationMatch(tournamentId)
 
-    const stages = season.stages ?? []
+    const stages = tournament.stages ?? []
 
     const [kind, setKind] = useState<"STANDARD" | "QUALIFICATION">("STANDARD")
     const [label, setLabel] = useState("")
@@ -77,7 +77,7 @@ export function NewMatchDialog({
                         <DialogTitle>New match</DialogTitle>
                         <DialogDescription>
                             {kind === "STANDARD"
-                                ? `Pick ${seats} players. The questions come from the season's rules.`
+                                ? `Pick ${seats} players. The questions come from the tournament's rules.`
                                 : "The mass event: everyone in the roster answers the same questions, once."}
                         </DialogDescription>
                     </DialogHeader>
@@ -114,7 +114,7 @@ export function NewMatchDialog({
                                 Stage
                                 {stages.length === 0 ? (
                                     <span className="text-sm text-destructive">
-                                        This season has no stages yet. Add them first — a match has
+                                        This tournament has no stages yet. Add them first — a match has
                                         to name one, and the stage order is what places the players.
                                     </span>
                                 ) : (

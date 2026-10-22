@@ -15,8 +15,8 @@ export type AuditAction =
     | "answer_drafted"
     | "answer_judged"
     | "match_ended"
-    | "season_closed"
-    | "season_tie_accepted"
+    | "tournament_closed"
+    | "tournament_tie_accepted"
     | "discord_link_transferred"
     | "mcp_tool_call"
     // additions this codebase needs now
@@ -25,8 +25,8 @@ export type AuditAction =
     | "question_submitted"
     | "question_published"
     | "question_archived"
-    | "season_drawn"
-    | "season_updated";
+    | "tournament_drawn"
+    | "tournament_updated";
 
 export interface AuditEvent {
     action: AuditAction;

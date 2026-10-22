@@ -1,37 +1,37 @@
 import type { FastifyInstance } from "fastify";
 import { auditFromRequest } from "../audit/service.js";
-import { seasonErrorHandler, seasonGuards, seasonParams } from "../season-shared.js";
+import { tournamentErrorHandler, tournamentGuards, tournamentParams } from "../tournament-shared.js";
 import { getStandings, recomputeStandings } from "./service.js";
 
 export async function standingsRoutes(app: FastifyInstance) {
-    seasonErrorHandler(app);
-    const { staff, assertWrite, assertView } = seasonGuards();
+    tournamentErrorHandler(app);
+    const { staff, assertWrite, assertView } = tournamentGuards();
 
     app.get(
-        "/portal/seasons/:seasonId/standings",
-        { onRequest: staff, schema: { params: seasonParams } },
+        "/portal/tournaments/:tournamentId/standings",
+        { onRequest: staff, schema: { params: tournamentParams } },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId } = request.params as { seasonId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
 
-            await assertView(seasonId, user.id, user.role);
-            return { rows: await getStandings(seasonId) };
+            await assertView(tournamentId, user.id, user.role);
+            return { rows: await getStandings(tournamentId) };
         }
     );
 
     // The table is recomputed whenever a match ends; this is the manual way to redo it.
     app.post(
-        "/portal/seasons/:seasonId/standings/recompute",
-        { onRequest: staff, schema: { params: seasonParams } },
+        "/portal/tournaments/:tournamentId/standings/recompute",
+        { onRequest: staff, schema: { params: tournamentParams } },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId } = request.params as { seasonId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
 
-            await assertWrite(seasonId, user.id, user.role);
-            const rows = await recomputeStandings(seasonId);
+            await assertWrite(tournamentId, user.id, user.role);
+            const rows = await recomputeStandings(tournamentId);
 
-            await auditFromRequest(request, "season_updated", {
-                details: { seasonId, standings: rows.length }
+            await auditFromRequest(request, "tournament_updated", {
+                details: { tournamentId, standings: rows.length }
             });
 
             return { rows };

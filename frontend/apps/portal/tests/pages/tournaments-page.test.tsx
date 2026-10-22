@@ -3,11 +3,11 @@ import { screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { MemoryRouter, Route, Routes } from "react-router-dom"
 
-import { SeasonsPage } from "@/pages/SeasonsPage"
+import { TournamentsPage } from "@/pages/TournamentsPage"
 import { renderWithProviders, stubFetch } from "../helpers/render"
 
 const SEASON = {
-    id: "s1", name: "2026 Season", slug: "2026-season", visibility: "PUBLIC",
+    id: "s1", name: "2026 Tournament", slug: "2026-tournament", visibility: "PUBLIC",
     ownerId: "u1", tags: ["THTH"], current: true,
     stages: [], rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: { competitorsPerMatch: 4 }, placementTiers: [], closedAt: null,
@@ -16,11 +16,11 @@ const SEASON = {
 
 const page = (items: unknown[]) => ({ items, total: items.length, limit: 100, offset: 0 })
 
-function renderSeasons() {
+function renderTournaments() {
     return renderWithProviders(
         <MemoryRouter initialEntries={["/"]}>
             <Routes>
-                <Route path="/" element={<SeasonsPage />} />
+                <Route path="/" element={<TournamentsPage />} />
             </Routes>
         </MemoryRouter>,
     )
@@ -30,38 +30,38 @@ afterEach(() => {
     vi.unstubAllGlobals()
 })
 
-describe("SeasonsPage", () => {
-    it("lists the seasons", async () => {
+describe("TournamentsPage", () => {
+    it("lists the tournaments", async () => {
         stubFetch({
-            "GET /portal/seasons?limit=20&offset=0": { body: page([SEASON]) },
+            "GET /portal/tournaments?limit=20&offset=0": { body: page([SEASON]) },
         })
-        renderSeasons()
+        renderTournaments()
 
-        expect(await screen.findByText("2026 Season")).toBeInTheDocument()
+        expect(await screen.findByText("2026 Tournament")).toBeInTheDocument()
         expect(screen.getByText("Current")).toBeInTheDocument()
         expect(screen.getByText("THTH")).toBeInTheDocument()
     })
 
-    it("creates a season with its name, tags and visibility", async () => {
+    it("creates a tournament with its name, tags and visibility", async () => {
         const user = userEvent.setup()
         const fetchMock = stubFetch({
-            "GET /portal/seasons?limit=20&offset=0": { body: page([]) },
-            "POST /portal/seasons": { body: SEASON },
+            "GET /portal/tournaments?limit=20&offset=0": { body: page([]) },
+            "POST /portal/tournaments": { body: SEASON },
         })
-        renderSeasons()
+        renderTournaments()
 
-        await user.click(screen.getByRole("button", { name: "New season" }))
-        await user.type(await screen.findByLabelText("Name"), "2027 Season")
+        await user.click(screen.getByRole("button", { name: "New tournament" }))
+        await user.type(await screen.findByLabelText("Name"), "2027 Tournament")
         await user.type(screen.getByLabelText("Tags"), "THTH, GDTT")
-        await user.click(screen.getByRole("button", { name: "Create season" }))
+        await user.click(screen.getByRole("button", { name: "Create tournament" }))
 
         const post = fetchMock.mock.calls.find(
-            ([url, init]) => url === "/portal/seasons" && init?.method === "POST"
+            ([url, init]) => url === "/portal/tournaments" && init?.method === "POST"
         )
-        if (!post) throw new Error("no POST to /portal/seasons")
+        if (!post) throw new Error("no POST to /portal/tournaments")
 
         expect(JSON.parse(post[1]?.body as string)).toEqual({
-            name: "2027 Season",
+            name: "2027 Tournament",
             tags: ["THTH", "GDTT"],
             visibility: "PUBLIC",
         })
@@ -69,10 +69,10 @@ describe("SeasonsPage", () => {
 
     it("shows an empty state", async () => {
         stubFetch({
-            "GET /portal/seasons?limit=20&offset=0": { body: page([]) },
+            "GET /portal/tournaments?limit=20&offset=0": { body: page([]) },
         })
-        renderSeasons()
+        renderTournaments()
 
-        expect(await screen.findByText("No seasons yet")).toBeInTheDocument()
+        expect(await screen.findByText("No tournaments yet")).toBeInTheDocument()
     })
 })

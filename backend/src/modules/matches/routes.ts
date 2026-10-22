@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
-import { canViewSeason, canWriteSeason } from "../../lib/season-access.js";
+import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { auditFromRequest } from "../audit/service.js";
 import { PaginationError, parsePage } from "../../lib/pagination.js";
 import { MatchError, toHttpStatus } from "./errors.js";
@@ -28,39 +28,39 @@ import type { MatchScope } from "./service.js";
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
-const seasonParams = {
+const tournamentParams = {
     type: "object",
-    required: ["seasonId"],
+    required: ["tournamentId"],
     additionalProperties: false,
     properties: {
-        seasonId: { type: "string", pattern: UUID_PATTERN },
+        tournamentId: { type: "string", pattern: UUID_PATTERN },
     },
 } as const;
 
 const matchParams = {
     type: "object",
-    required: ["seasonId", "matchId"],
+    required: ["tournamentId", "matchId"],
     additionalProperties: false,
     properties: {
-        seasonId: { type: "string", pattern: UUID_PATTERN },
+        tournamentId: { type: "string", pattern: UUID_PATTERN },
         matchId: { type: "string", pattern: UUID_PATTERN },
     },
 } as const;
 
 
-function assertView(scope: MatchScope, user: { role: string }, seasonId: string): void {
-    const viewable = canViewSeason(scope.season, user as never);
+function assertView(scope: MatchScope, user: { role: string }, tournamentId: string): void {
+    const viewable = canViewTournament(scope.tournament, user as never);
     if (!viewable) {
-        throw new MatchError("NOT_FOUND", `season ${seasonId} not found`);
+        throw new MatchError("NOT_FOUND", `tournament ${tournamentId} not found`);
     }
 }
 
 function assertWrite(scope: MatchScope, user: { role: string }): void {
-    const writable = canWriteSeason(scope.season, user as never);
+    const writable = canWriteTournament(scope.tournament, user as never);
     if (!writable) {
         throw new MatchError(
             "FORBIDDEN",
-            "Only the owner or an admin may manage this season's matches"
+            "Only the owner or an admin may manage this tournament's matches"
         );
     }
 }
@@ -86,21 +86,21 @@ export async function matchRoutes(app: FastifyInstance) {
     const staff = [requireRole("PORTAL", ["ADMIN", "OPERATOR"])];
 
     app.post(
-        "/portal/seasons/:seasonId/matches",
+        "/portal/tournaments/:tournamentId/matches",
         {
             onRequest: staff,
-            schema: { params: seasonParams, body: CreateMatchInput },
+            schema: { params: tournamentParams, body: CreateMatchInput },
         },
         async (request, reply) => {
             const user = request.sessionUser!;
-            const { seasonId } = request.params as { seasonId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
 
-            const scope = await requireMatchScope(seasonId);
-            assertView(scope, user, seasonId);
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
             assertWrite(scope, user);
 
             const row = await createMatch(
-                seasonId,
+                tournamentId,
                 request.body as CreateMatchInput
             );
             reply.code(201);
@@ -109,54 +109,54 @@ export async function matchRoutes(app: FastifyInstance) {
     );
 
     app.get(
-        "/portal/seasons/:seasonId/matches",
+        "/portal/tournaments/:tournamentId/matches",
         {
             onRequest: staff,
-            schema: { params: seasonParams, querystring: ListMatchesQuery },
+            schema: { params: tournamentParams, querystring: ListMatchesQuery },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId } = request.params as { seasonId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
 
-            const scope = await requireMatchScope(seasonId);
-            assertView(scope, user, seasonId);
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
 
             const query = request.query as ListMatchesQuery;
-            return listMatches(seasonId, { status: query.status }, parsePage(query));
+            return listMatches(tournamentId, { status: query.status }, parsePage(query));
         }
     );
 
     app.get(
-        "/portal/seasons/:seasonId/matches/:matchId",
+        "/portal/tournaments/:tournamentId/matches/:matchId",
         { onRequest: staff, schema: { params: matchParams } },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
+            const { tournamentId, matchId } = request.params as { tournamentId: string; matchId: string };
 
-            const scope = await requireMatchScope(seasonId);
-            assertView(scope, user, seasonId);
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
 
-            return getMatch(seasonId, matchId);
+            return getMatch(tournamentId, matchId);
         }
     );
 
     app.post(
-        "/portal/seasons/:seasonId/matches/:matchId/results",
+        "/portal/tournaments/:tournamentId/matches/:matchId/results",
         { onRequest: staff, schema: { params: matchParams, body: SetMatchResultsInput } },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
+            const { tournamentId, matchId } = request.params as { tournamentId: string; matchId: string };
 
-            const scope = await requireMatchScope(seasonId);
-            assertView(scope, user, seasonId);
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
             assertWrite(scope, user);
 
             const { totals } = request.body as SetMatchResultsInput;
-            const match = await setMatchResults(seasonId, matchId, totals);
+            const match = await setMatchResults(tournamentId, matchId, totals);
 
             await auditFromRequest(request, "match_ended", {
                 matchId: match.id,
-                details: { seasonId, manual: true, totals }
+                details: { tournamentId, manual: true, totals }
             });
 
             return match;
@@ -164,62 +164,62 @@ export async function matchRoutes(app: FastifyInstance) {
     );
 
     app.patch(
-        "/portal/seasons/:seasonId/matches/:matchId",
+        "/portal/tournaments/:tournamentId/matches/:matchId",
         {
             onRequest: staff,
             schema: { params: matchParams, body: UpdateMatchInput },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
+            const { tournamentId, matchId } = request.params as { tournamentId: string; matchId: string };
 
-            const scope = await requireMatchScope(seasonId);
-            assertView(scope, user, seasonId);
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
             assertWrite(scope, user);
 
-            await getMatch(seasonId, matchId);
-            return updateMatch(seasonId, matchId, request.body as UpdateMatchInput);
+            await getMatch(tournamentId, matchId);
+            return updateMatch(tournamentId, matchId, request.body as UpdateMatchInput);
         }
     );
 
     // Re-assembly while UPCOMING: replaces matches.questions[] entirely.
     app.post(
-        "/portal/seasons/:seasonId/matches/:matchId/assemble",
+        "/portal/tournaments/:tournamentId/matches/:matchId/assemble",
         {
             onRequest: staff,
             schema: { params: matchParams, body: AssembleMatchInput },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
+            const { tournamentId, matchId } = request.params as { tournamentId: string; matchId: string };
 
-            const scope = await requireMatchScope(seasonId);
-            assertView(scope, user, seasonId);
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
             assertWrite(scope, user);
 
-            await getMatch(seasonId, matchId);
-            return assembleMatch(seasonId, matchId, request.body as AssembleMatchInput);
+            await getMatch(tournamentId, matchId);
+            return assembleMatch(tournamentId, matchId, request.body as AssembleMatchInput);
         }
     );
 
     app.patch(
-        "/portal/seasons/:seasonId/matches/:matchId/status",
+        "/portal/tournaments/:tournamentId/matches/:matchId/status",
         {
             onRequest: staff,
             schema: { params: matchParams, body: TransitionMatchInput },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
+            const { tournamentId, matchId } = request.params as { tournamentId: string; matchId: string };
 
-            const scope = await requireMatchScope(seasonId);
-            assertView(scope, user, seasonId);
+            const scope = await requireMatchScope(tournamentId);
+            assertView(scope, user, tournamentId);
             assertWrite(scope, user);
 
             const { status } = request.body as TransitionMatchInput;
 
-            const previous = await getMatch(seasonId, matchId);
-            const match = await transitionMatch(seasonId, matchId, status);
+            const previous = await getMatch(tournamentId, matchId);
+            const match = await transitionMatch(tournamentId, matchId, status);
 
             // Only real transitions are audited; a same-status no-op is not an event.
             if (match.status !== previous.status) {
@@ -227,7 +227,7 @@ export async function matchRoutes(app: FastifyInstance) {
                 await auditFromRequest(request, action, {
                     matchId: match.id,
                     details: {
-                        seasonId,
+                        tournamentId,
                         from: previous.status,
                         to: match.status,
                         label: match.label
@@ -241,16 +241,16 @@ export async function matchRoutes(app: FastifyInstance) {
 
     // Soft delete — ADMIN only, and only while the match is still UPCOMING.
     app.delete(
-        "/portal/seasons/:seasonId/matches/:matchId",
+        "/portal/tournaments/:tournamentId/matches/:matchId",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN"])],
             schema: { params: matchParams },
         },
         async (request, reply) => {
-            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
+            const { tournamentId, matchId } = request.params as { tournamentId: string; matchId: string };
 
-            await requireMatchScope(seasonId);
-            await deleteMatch(seasonId, matchId);
+            await requireMatchScope(tournamentId);
+            await deleteMatch(tournamentId, matchId);
 
             return reply.code(204).send();
         }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { nextRoundId, orderedMatchRounds } from "../../../src/modules/matches/rounds.js";
-import type { RoundConfig, SeasonRound } from "../../../src/game/contracts/index.js";
+import type { RoundConfig, TournamentRound } from "../../../src/game/contracts/index.js";
 
-const SEASON: SeasonRound[] = [
+const SEASON: TournamentRound[] = [
     { id: "ve-dich", name: "Ve Dich", order: 3, chart: "bars" },
     { id: "khoi-dong", name: "Khoi Dong", order: 0, chart: "bars" },
     { id: "but-pha", name: "But Pha", order: 2, chart: "bars" },
@@ -15,7 +15,7 @@ const cfg = (): RoundConfig => ({
 const CONFIGS: Record<string, RoundConfig> = { "giai-ma": cfg(), "but-pha": cfg() };
 
 describe("orderedMatchRounds", () => {
-    it("orders by the season's order and keeps only rounds the match configures", () => {
+    it("orders by the tournament's order and keeps only rounds the match configures", () => {
         expect(orderedMatchRounds(SEASON, CONFIGS)).toEqual(["giai-ma", "but-pha"]);
     });
 
@@ -33,7 +33,7 @@ describe("nextRoundId", () => {
         expect(nextRoundId(["giai-ma", "but-pha"], "giai-ma")).toBe("but-pha");
     });
 
-    it("returns null at the end of the season", () => {
+    it("returns null at the end of the tournament", () => {
         expect(nextRoundId(["giai-ma", "but-pha"], "but-pha")).toBeNull();
     });
 

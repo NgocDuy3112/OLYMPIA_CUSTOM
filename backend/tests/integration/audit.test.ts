@@ -23,7 +23,7 @@ const eventsFor = (action: string, predicate: (details: Record<string, unknown>)
     db.select().from(auditEvents).where(eq(auditEvents.action, action))
         .then((rows) => rows.filter((row) => predicate((row.details ?? {}) as Record<string, unknown>)));
 
-const seasonInput = (name: string) => ({
+const tournamentInput = (name: string) => ({
     name,
     tags: ["THTH"],
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
@@ -38,16 +38,16 @@ const seasonInput = (name: string) => ({
     stages: [{ id: "stage-1", title: "Stage 1" }]
 });
 
-async function makeSeason(name: string): Promise<{ seasonId: string }> {
-    const season = await app.inject({
+async function makeTournament(name: string): Promise<{ tournamentId: string }> {
+    const tournament = await app.inject({
         method: "POST",
-        url: "/portal/seasons",
+        url: "/portal/tournaments",
         headers: auth(ownerCookie),
-        payload: seasonInput(name)
+        payload: tournamentInput(name)
     });
-    if (season.statusCode !== 201) throw new Error(`season: ${season.statusCode} ${season.body}`);
+    if (tournament.statusCode !== 201) throw new Error(`tournament: ${tournament.statusCode} ${tournament.body}`);
 
-    return { seasonId: season.json().id };
+    return { tournamentId: tournament.json().id };
 }
 
 async function makePublishedQuestion(): Promise<string> {
@@ -162,7 +162,7 @@ describe("audit wiring — MCP keys", () => {
 
 describe("audit wiring — the question review gate", () => {
     it("records submit / publish / archive, but not a send-back or a content edit", async () => {
-        const { seasonId } = await makeSeason("aud-gate");
+        const { tournamentId } = await makeTournament("aud-gate");
 
         const created = await app.inject({
             method: "POST",
@@ -213,12 +213,12 @@ describe("audit wiring — the question review gate", () => {
 
 describe("audit wiring — match lifecycle", () => {
     it("records match_started and match_ended, and ignores a same-status no-op", async () => {
-        const { seasonId } = await makeSeason("aud-match");
+        const { tournamentId } = await makeTournament("aud-match");
         const sourceId = await makePublishedQuestion();
 
         const created = await app.inject({
             method: "POST",
-            url: `/portal/seasons/${seasonId}/matches`,
+            url: `/portal/tournaments/${tournamentId}/matches`,
             headers: auth(ownerCookie),
             payload: {
                 stageId: "stage-1",
@@ -239,14 +239,14 @@ describe("audit wiring — match lifecycle", () => {
             }
         });
         const matchId = created.json().id;
-        const statusUrl = `/portal/seasons/${seasonId}/matches/${matchId}/status`;
+        const statusUrl = `/portal/tournaments/${tournamentId}/matches/${matchId}/status`;
 
         await app.inject({ method: "PATCH", url: statusUrl, headers: auth(ownerCookie), payload: { status: "LIVE" } });
         const started = await eventsFor("match_started", (d) => d.matchId === undefined || true);
         const mine = (await db.select().from(auditEvents).where(eq(auditEvents.action, "match_started")))
             .filter((row) => row.matchId === matchId);
         expect(mine).toHaveLength(1);
-        expect(mine[0].details).toMatchObject({ from: "UPCOMING", to: "LIVE", seasonId });
+        expect(mine[0].details).toMatchObject({ from: "UPCOMING", to: "LIVE", tournamentId });
         expect(started.length).toBeGreaterThan(0);
 
         await app.inject({ method: "PATCH", url: statusUrl, headers: auth(ownerCookie), payload: { status: "FINISHED" } });

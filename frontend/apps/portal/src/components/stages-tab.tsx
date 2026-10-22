@@ -2,30 +2,30 @@ import { useState } from "react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import type { SeasonDetail } from "@/lib/season"
-import { STAGE_ROLES } from "@/lib/seasons"
+import type { TournamentDetail } from "@/lib/tournament"
+import { STAGE_ROLES } from "@/lib/tournaments"
 import { EditStagesDialog } from "./edit-stages-dialog"
 
 
-// The season's stages, in order. This order is how far the rounds go, and it decides the
-// season's places: a player who got to a later stage placed above one who did not.
+// The tournament's stages, in order. This order is how far the rounds go, and it decides the
+// tournament's places: a player who got to a later stage placed above one who did not.
 export function StagesTab({
-    seasonId,
-    season,
+    tournamentId,
+    tournament,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
 }) {
     const [editing, setEditing] = useState(false)
 
-    const stages = season.stages ?? []
+    const stages = tournament.stages ?? []
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="text-base">Stages</CardTitle>
                 <CardDescription>
-                    The order of the season. A match belongs to a stage, and the last stage a
+                    The order of the tournament. A match belongs to a stage, and the last stage a
                     player reached is what places them.
                 </CardDescription>
                 <CardAction>
@@ -76,8 +76,8 @@ export function StagesTab({
 
             {editing && (
                 <EditStagesDialog
-                    seasonId={seasonId}
-                    season={season}
+                    tournamentId={tournamentId}
+                    tournament={tournament}
                     open
                     onOpenChange={(open) => { if (!open) setEditing(false) }}
                 />

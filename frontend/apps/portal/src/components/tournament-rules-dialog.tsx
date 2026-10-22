@@ -5,32 +5,32 @@ import {
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useUpdateSeason, type RoundConfig, type SeasonDetail } from "@/lib/season"
+import { useUpdateTournament, type RoundConfig, type TournamentDetail } from "@/lib/tournament"
 import { draftFrom, KINDS_LIST, questionCountOf, type Kind } from "@/lib/rules"
 
-// The season's rulebook, edited in a dialog. The read surface behind it stays a table
+// The tournament's rulebook, edited in a dialog. The read surface behind it stays a table
 // of text: one job per surface, one commit point per change.
-export function SeasonRulesDialog({
-    seasonId,
-    season,
+export function TournamentRulesDialog({
+    tournamentId,
+    tournament,
     frozen,
     open,
     onOpenChange,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
     frozen: boolean
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const update = useUpdateSeason(seasonId)
+    const update = useUpdateTournament(tournamentId)
 
     // The dialog is mounted when it opens, so the draft is derived from the server on
     // every opening: a previous draft can never show up again.
-    const [draft, setDraft] = useState(() => draftFrom(season))
+    const [draft, setDraft] = useState(() => draftFrom(tournament))
 
-    const rounds = [...season.rounds].sort((a, b) => a.order - b.order)
-    const saved = draftFrom(season)
+    const rounds = [...tournament.rounds].sort((a, b) => a.order - b.order)
+    const saved = draftFrom(tournament)
     const dirty = JSON.stringify(draft) !== JSON.stringify(saved)
     const total = Object.values(draft).reduce((sum, config) => sum + questionCountOf(config), 0)
 
@@ -66,7 +66,7 @@ export function SeasonRulesDialog({
                     <DialogHeader>
                         <DialogTitle>Round rules</DialogTitle>
                         <DialogDescription>
-                            What every match of this season plays. Only the fields the engine
+                            What every match of this tournament plays. Only the fields the engine
                             honours are editable.
                         </DialogDescription>
                     </DialogHeader>

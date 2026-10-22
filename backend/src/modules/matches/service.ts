@@ -1,6 +1,6 @@
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { answers, matchLive, matchResults, matchStats, matches, seasons } from "../../db/schema/index.js";
+import { answers, matchLive, matchResults, matchStats, matches, tournaments } from "../../db/schema/index.js";
 import type { ResultEntry, RoundConfig, Seat } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { buildQuestionCopies } from "./assembly.js";
@@ -13,12 +13,12 @@ import {
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
 import { nextRoundId, orderedMatchRounds } from "./rounds.js";
 import { buildMatchResults } from "./scoring.js";
-import { buildStageInputs, seasonRoundConfigs } from "./stage-inputs.js";
+import { buildStageInputs, tournamentRoundConfigs } from "./stage-inputs.js";
 import { recomputeStandings } from "../standings/service.js";
 import { checkMatchAgainstFormat } from "../bracket/service.js";
 
 export type MatchRow = typeof matches.$inferSelect;
-type SeasonRow = typeof seasons.$inferSelect;
+type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
 type MatchKind = "STANDARD" | "QUALIFICATION";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -51,7 +51,7 @@ async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
 
     // A repeated transition must not duplicate frozen rows.
     await tx.insert(matchResults)
-        .values({ matchId: match.id, seasonId: match.seasonId, results })
+        .values({ matchId: match.id, tournamentId: match.tournamentId, results })
         .onConflictDoNothing();
 
     if (rows.length > 0) {
@@ -59,7 +59,7 @@ async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
             const question = questionById.get(r.questionId);
             return {
                 matchId: match.id,
-                seasonId: match.seasonId,
+                tournamentId: match.tournamentId,
                 roundId: question?.roundId ?? "unknown",
                 questionId: r.questionId,
                 userId: r.userId,
@@ -82,37 +82,37 @@ const EDGES: Record<MatchStatusValue, MatchStatusValue[]> = {
 
 
 export interface MatchScope {
-    season: SeasonRow;
+    tournament: TournamentRow;
 }
 
-async function requireSeason(seasonId: string): Promise<SeasonRow> {
+async function requireTournament(tournamentId: string): Promise<TournamentRow> {
     const [row] = await db
         .select()
-        .from(seasons)
-        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
+        .from(tournaments)
+        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
         .limit(1);
-    if (!row) throw new MatchError("NOT_FOUND", `season ${seasonId} not found`);
+    if (!row) throw new MatchError("NOT_FOUND", `tournament ${tournamentId} not found`);
     return row;
 }
 
-export async function requireMatchScope(seasonId: string): Promise<MatchScope> {
-    const [season] = await db
+export async function requireMatchScope(tournamentId: string): Promise<MatchScope> {
+    const [tournament] = await db
         .select()
-        .from(seasons)
-        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
+        .from(tournaments)
+        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
         .limit(1);
-    if (!season) throw new MatchError("NOT_FOUND", `season ${seasonId} not found`);
+    if (!tournament) throw new MatchError("NOT_FOUND", `tournament ${tournamentId} not found`);
 
-    return { season };
+    return { tournament };
 }
 
-async function requireMatch(seasonId: string, matchId: string): Promise<MatchRow> {
+async function requireMatch(tournamentId: string, matchId: string): Promise<MatchRow> {
     const [row] = await db
         .select()
         .from(matches)
         .where(and(
             eq(matches.id, matchId),
-            eq(matches.seasonId, seasonId),
+            eq(matches.tournamentId, tournamentId),
             isNull(matches.deletedAt)
         ))
         .limit(1);
@@ -120,14 +120,14 @@ async function requireMatch(seasonId: string, matchId: string): Promise<MatchRow
     return row;
 }
 
-function assertRoundConfigKeys(season: SeasonRow, roundConfigs: Record<string, RoundConfig>): void {
-    const roundIds = new Set(season.rounds.map((round) => round.id));
+function assertRoundConfigKeys(tournament: TournamentRow, roundConfigs: Record<string, RoundConfig>): void {
+    const roundIds = new Set(tournament.rounds.map((round) => round.id));
     const unknown = Object.keys(roundConfigs).filter((id) => !roundIds.has(id));
 
     if (unknown.length > 0) {
         throw new MatchError(
             "VALIDATION",
-            "roundConfigs contains rounds that are not part of this season",
+            "roundConfigs contains rounds that are not part of this tournament",
             unknown.map((id) => `unknown round id "${id}"`)
         );
     }
@@ -135,7 +135,7 @@ function assertRoundConfigKeys(season: SeasonRow, roundConfigs: Record<string, R
 
 function assertSeats(
     players: Seat[],
-    format: SeasonRow["format"],
+    format: TournamentRow["format"],
     kind: MatchKind
 ): void {
     // A points match has a fixed number of seats. The mass event seats the whole roster,
@@ -154,7 +154,7 @@ function assertSeats(
     if (wrongKind.length > 0) {
         throw new MatchError(
             "VALIDATION",
-            "seats use kinds this season's format does not allow",
+            "seats use kinds this tournament's format does not allow",
             [`allowed: ${format.allowedSeatKinds.join(", ")}`]
         );
     }
@@ -169,7 +169,7 @@ function assertSeats(
 // The format: the stage's rule decides what may sit in a match. The staff place the
 // matches; the engine refuses the ones that break the bracket.
 async function assertFollowsFormat(params: {
-    seasonId: string;
+    tournamentId: string;
     stageId: string;
     slot: number | null;
     players: Seat[];
@@ -178,7 +178,7 @@ async function assertFollowsFormat(params: {
         "userId" in seat && seat.userId ? [seat.userId] : []);
 
     const check = await checkMatchAgainstFormat({
-        seasonId: params.seasonId,
+        tournamentId: params.tournamentId,
         stageId: params.stageId,
         slot: params.slot,
         playerIds
@@ -195,47 +195,47 @@ async function assertFollowsFormat(params: {
 
 
 export async function createMatch(
-    seasonId: string,
+    tournamentId: string,
     input: CreateMatchInput,
     executor: Tx = db as unknown as Tx
 ): Promise<MatchRow> {
     validate(CreateMatchInput, input);
 
-    const { season } = await requireMatchScope(seasonId);
+    const { tournament } = await requireMatchScope(tournamentId);
 
-    // A match created by hand carries no rulebook: it takes the season's rules, and its
+    // A match created by hand carries no rulebook: it takes the tournament's rules, and its
     // questions are assembled from them.
-    // The season's stages are its order: a match names one of them, so the standings can
+    // The tournament's stages are its order: a match names one of them, so the standings can
     // tell how far each player got.
-    const stages = season.stages ?? [];
+    const stages = tournament.stages ?? [];
     if (stages.length === 0) {
         throw new MatchError(
             "NOT_READY",
-            "this season has no stages yet — add them before creating matches"
+            "this tournament has no stages yet — add them before creating matches"
         );
     }
     if (!stages.some((stage) => stage.id === input.stageId)) {
         throw new MatchError(
             "VALIDATION",
-            `the stage "${input.stageId}" is not one of this season's stages`,
+            `the stage "${input.stageId}" is not one of this tournament's stages`,
             stages.map((stage) => stage.id)
         );
     }
 
-    // A match created by hand carries no rulebook: it takes the season's rules. A season
+    // A match created by hand carries no rulebook: it takes the tournament's rules. A tournament
     // without rules leaves the match empty — the staff assemble it later.
     const given = input.roundConfigs ?? {};
-    const hasRules = Object.keys(season.roundRules ?? {}).length > 0;
+    const hasRules = Object.keys(tournament.roundRules ?? {}).length > 0;
     const roundConfigs = Object.keys(given).length > 0
         ? given
         : hasRules
-            ? seasonRoundConfigs(season)
+            ? tournamentRoundConfigs(tournament)
             : {};
-    if (Object.keys(roundConfigs).length > 0) assertRoundConfigKeys(season, roundConfigs);
-    if (input.players) assertSeats(input.players, season.format, input.kind ?? "STANDARD");
+    if (Object.keys(roundConfigs).length > 0) assertRoundConfigKeys(tournament, roundConfigs);
+    if (input.players) assertSeats(input.players, tournament.format, input.kind ?? "STANDARD");
     if (input.players && (input.kind ?? "STANDARD") === "STANDARD") {
         await assertFollowsFormat({
-            seasonId,
+            tournamentId,
             stageId: input.stageId,
             slot: input.slot ?? null,
             players: input.players
@@ -249,11 +249,11 @@ export async function createMatch(
     const declaresQuestions = Object.values(roundConfigs).some((config) =>
         config.turns.some((turn) => (turn.questionCount ?? 0) > 0));
     if (entries.length === 0 && autoPick.length === 0 && declaresQuestions) {
-        entries = (await buildStageInputs(season, roundConfigs)).questions;
+        entries = (await buildStageInputs(tournament, roundConfigs)).questions;
     }
 
     const questions = await buildQuestionCopies({
-        season,
+        tournament,
         roundConfigs,
         entries,
         autoPick
@@ -262,7 +262,7 @@ export async function createMatch(
     const [row] = await executor
         .insert(matches)
         .values({
-            seasonId,
+            tournamentId,
             kind: input.kind ?? "STANDARD",
             stageId: input.stageId,
             slot: input.slot ?? null,
@@ -285,11 +285,11 @@ export interface ListFilters {
 }
 
 export async function listMatches(
-    seasonId: string,
+    tournamentId: string,
     filters: ListFilters,
     page: Page
 ): Promise<PageResult<MatchRow>> {
-    const conditions = [eq(matches.seasonId, seasonId), isNull(matches.deletedAt)];
+    const conditions = [eq(matches.tournamentId, tournamentId), isNull(matches.deletedAt)];
     if (filters.status) conditions.push(eq(matches.status, filters.status));
 
     const where = and(...conditions);
@@ -308,11 +308,11 @@ export async function listMatches(
 }
 
 
-export async function getMatch(seasonId: string, matchId: string): Promise<MatchRow> {
-    return requireMatch(seasonId, matchId);
+export async function getMatch(tournamentId: string, matchId: string): Promise<MatchRow> {
+    return requireMatch(tournamentId, matchId);
 }
 
-// Lookup by match id alone: the player surface knows its match, not the season.
+// Lookup by match id alone: the player surface knows its match, not the tournament.
 export async function getMatchById(matchId: string): Promise<MatchRow> {
     const [row] = await db
         .select()
@@ -325,13 +325,13 @@ export async function getMatchById(matchId: string): Promise<MatchRow> {
 
 
 export async function updateMatch(
-    seasonId: string,
+    tournamentId: string,
     matchId: string,
     patch: UpdateMatchInput
 ): Promise<MatchRow> {
     validate(UpdateMatchInput, patch);
 
-    const existing = await requireMatch(seasonId, matchId);
+    const existing = await requireMatch(tournamentId, matchId);
     if (existing.status !== "UPCOMING") {
         throw new MatchError(
             "IMMUTABLE",
@@ -339,17 +339,17 @@ export async function updateMatch(
         );
     }
 
-    const season = await requireSeason(seasonId);
-    if (patch.players) assertSeats(patch.players, season.format, existing.kind);
+    const tournament = await requireTournament(tournamentId);
+    if (patch.players) assertSeats(patch.players, tournament.format, existing.kind);
     if (patch.players && existing.kind === "STANDARD") {
         await assertFollowsFormat({
-            seasonId,
+            tournamentId,
             stageId: patch.stageId ?? existing.stageId,
             slot: existing.slot ?? null,
             players: patch.players
         });
     }
-    if (patch.roundConfigs) assertRoundConfigKeys(season, patch.roundConfigs);
+    if (patch.roundConfigs) assertRoundConfigKeys(tournament, patch.roundConfigs);
 
     const values: Partial<typeof matches.$inferInsert> = { updatedAt: new Date() };
     if (patch.stageId !== undefined) values.stageId = patch.stageId;
@@ -368,13 +368,13 @@ export async function updateMatch(
 
 
 export async function assembleMatch(
-    seasonId: string,
+    tournamentId: string,
     matchId: string,
     input: AssembleMatchInput
 ): Promise<MatchRow> {
     validate(AssembleMatchInput, input);
 
-    const existing = await requireMatch(seasonId, matchId);
+    const existing = await requireMatch(tournamentId, matchId);
     if (existing.status !== "UPCOMING") {
         throw new MatchError(
             "IMMUTABLE",
@@ -388,10 +388,10 @@ export async function assembleMatch(
         throw new MatchError("VALIDATION", "provide questions and/or autoPick");
     }
 
-    const season = await requireSeason(seasonId);
+    const tournament = await requireTournament(tournamentId);
 
     const questions = await buildQuestionCopies({
-        season,
+        tournament,
         roundConfigs: existing.roundConfigs,
         entries,
         autoPick
@@ -407,11 +407,11 @@ export async function assembleMatch(
 
 
 export async function setMatchResults(
-    seasonId: string,
+    tournamentId: string,
     matchId: string,
     totals: Array<{ userId: string; score: number }>
 ): Promise<MatchRow> {
-    const match = await requireMatch(seasonId, matchId);
+    const match = await requireMatch(tournamentId, matchId);
 
     if (match.status === "FINISHED") {
         throw new MatchError("VALIDATION", "match is already finished; results are frozen");
@@ -445,7 +445,7 @@ export async function setMatchResults(
     const row = await db.transaction(async (tx) => {
         await tx
             .insert(matchResults)
-            .values({ matchId, seasonId, results })
+            .values({ matchId, tournamentId, results })
             .onConflictDoUpdate({
                 target: matchResults.matchId,
                 set: { results, computedAt: new Date() }
@@ -463,7 +463,7 @@ export async function setMatchResults(
     // The standings are never typed in: they follow the points of the matches that were
     // played, so they are recomputed when a match ends.
     if (row.kind === "STANDARD") {
-        await recomputeStandings(seasonId);
+        await recomputeStandings(tournamentId);
     }
 
     return row;
@@ -471,11 +471,11 @@ export async function setMatchResults(
 
 
 export async function transitionMatch(
-    seasonId: string,
+    tournamentId: string,
     matchId: string,
     next: MatchStatusValue
 ): Promise<MatchRow> {
-    const existing = await requireMatch(seasonId, matchId);
+    const existing = await requireMatch(tournamentId, matchId);
 
     if (existing.status === next) return existing;
 
@@ -495,12 +495,12 @@ export async function transitionMatch(
     }
 
     if (next === "LIVE") {
-        const season = await requireSeason(seasonId);
+        const tournament = await requireTournament(tournamentId);
         const shortfalls: string[] = [];
 
-        if (existing.players.length !== season.format.competitorsPerMatch) {
+        if (existing.players.length !== tournament.format.competitorsPerMatch) {
             shortfalls.push(
-                `seats: ${existing.players.length}/${season.format.competitorsPerMatch}`
+                `seats: ${existing.players.length}/${tournament.format.competitorsPerMatch}`
             );
         }
         if (existing.questions.length === 0) {
@@ -523,12 +523,12 @@ export async function transitionMatch(
             .where(eq(matches.id, matchId))
             .returning();
 
-        // Going LIVE opens the live round record at the season's first round. The round's
+        // Going LIVE opens the live round record at the tournament's first round. The round's
         // engine state stays empty until the MC starts it. Idempotent: re-entering LIVE
         // never clobbers an in-progress round.
         if (next === "LIVE") {
-            const season = await requireSeason(seasonId);
-            const ordered = orderedMatchRounds(season.rounds, updated.roundConfigs);
+            const tournament = await requireTournament(tournamentId);
+            const ordered = orderedMatchRounds(tournament.rounds, updated.roundConfigs);
             const first = nextRoundId(ordered, null);
             if (first) {
                 await tx.insert(matchLive)
@@ -546,15 +546,15 @@ export async function transitionMatch(
     });
 
     if (next === "FINISHED" && row.kind === "STANDARD") {
-        await recomputeStandings(seasonId);
+        await recomputeStandings(tournamentId);
     }
 
     return row;
 }
 
 
-export async function deleteMatch(seasonId: string, matchId: string): Promise<MatchRow> {
-    const existing = await requireMatch(seasonId, matchId);
+export async function deleteMatch(tournamentId: string, matchId: string): Promise<MatchRow> {
+    const existing = await requireMatch(tournamentId, matchId);
 
     if (existing.status !== "UPCOMING") {
         throw new MatchError(

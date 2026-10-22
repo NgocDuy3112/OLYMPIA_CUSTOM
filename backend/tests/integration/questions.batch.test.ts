@@ -17,7 +17,7 @@ const portalCookie = (userId: string, role: "ADMIN" | "OPERATOR" | "PLAYER") =>
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-const validSeason = (name: string) => ({
+const validTournament = (name: string) => ({
     name,
     tags: ["THTH"],
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],

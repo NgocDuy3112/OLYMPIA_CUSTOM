@@ -294,7 +294,7 @@ describe("listQuestions — the bank", () => {
 
 
 describe("listForAssembly — the visibility choke point", () => {
-    it("returns the PUBLISHED questions of the season's tags only", async () => {
+    it("returns the PUBLISHED questions of the tournament's tags only", async () => {
         const globalPublished = await createQuestion({ actorId: ownerId }, { ...mc("asm global"), tag: "THTH" });
         await publish(globalPublished.id);
 
@@ -307,7 +307,7 @@ describe("listForAssembly — the visibility choke point", () => {
         const ownArchived = await createQuestion({ actorId: ownerId }, mc("asm archived"));
         await transitionQuestion(ownArchived.id, "ARCHIVED", "OPERATOR");
 
-        // A question of another tag is not this season's to assemble.
+        // A question of another tag is not this tournament's to assemble.
         const foreignPublished = await createQuestion({ actorId: otherId }, { ...mc("asm foreign"), tag: "OTHER" });
         await publish(foreignPublished.id);
 

@@ -191,7 +191,7 @@ export async function listQuestions(
 
 
 // The single visibility rule for assembly (schema.md §question_bank):
-// PUBLISHED questions, tagged with one of the season's own tags. The bank is global;
+// PUBLISHED questions, tagged with one of the tournament's own tags. The bank is global;
 // the tags are what scope it.
 // Shared by the paged read below and by the auto-pick query in assembly.ts.
 export function assemblyEligibility(tags: string[]) {

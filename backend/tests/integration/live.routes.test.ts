@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { answers, matchEvents, matchLive, matchResults, matchStats, matches, seasons, users } from "../../src/db/schema/index.js";
+import { answers, matchEvents, matchLive, matchResults, matchStats, matches, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
@@ -15,7 +15,7 @@ let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookies: string[];
 let outsiderCookie: string;
-let seasonId: string;
+let tournamentId: string;
 let matchId: string;
 let hintIds: string[];
 let butPhaIds: string[];
@@ -60,14 +60,14 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    // The season is the unit: it carries the identity the tournament had.
-    const seasonTags = ["THTH"];
-    const seasonOwner = owner.id;
-    const seasonSlug = "live-tournament-season";
+    // The tournament is the unit: it carries the identity the tournament had.
+    const tournamentTags = ["THTH"];
+    const tournamentOwner = owner.id;
+    const tournamentSlug = "live-tournament-tournament";
 
-    const [season] = await db.insert(seasons).values({
-        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
-        name: "Live Season",
+    const [tournament] = await db.insert(tournaments).values({
+        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        name: "Live Tournament",
         rounds: [
             { id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" },
             { id: "but-pha", name: "But Pha", order: 1, chart: "bars" }
@@ -76,7 +76,7 @@ beforeAll(async () => {
         placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();
-    seasonId = season.id;
+    tournamentId = tournament.id;
 
     const hints = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => textQuestion("giai-ma", "hints", n));
     const keyword = keywordQuestion("giai-ma");
@@ -86,7 +86,7 @@ beforeAll(async () => {
     butPhaIds = butPha.map((q) => q._id);
 
     const [match] = await db.insert(matches).values({
-        seasonId, stageId: "s1", scheduledAt: new Date(), label: "Live Match", status: "LIVE",
+        tournamentId, stageId: "s1", scheduledAt: new Date(), label: "Live Match", status: "LIVE",
         players: [
             { kind: "user", userId: playerIds[0], seed: 1 },
             { kind: "user", userId: playerIds[1], seed: 2 }
@@ -109,11 +109,11 @@ afterAll(async () => {
     await app.close();
 });
 
-const actionUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live/actions`;
-const liveUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live`;
+const actionUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`;
+const liveUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/live`;
 const answerUrl = () => `/gameplay/matches/${matchId}/live/answers`;
 const keywordUrl = () => `/gameplay/matches/${matchId}/live/keyword`;
-const statusUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/status`;
+const statusUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/status`;
 
 async function live(): Promise<{ version: number; roundId: string; state: Record<string, unknown> }> {
     const res = await app.inject({ method: "GET", url: liveUrl(), headers: auth(ownerCookie) });
@@ -533,7 +533,7 @@ describe("match end — the results are frozen once", () => {
         // but-pha: two answers on question 1, one on question 2 = 3
         expect(rows).toHaveLength(8);
         expect(rows.filter((r) => r.roundId === "but-pha")).toHaveLength(3);
-        expect(rows.every((r) => r.seasonId === seasonId)).toBe(true);
+        expect(rows.every((r) => r.tournamentId === tournamentId)).toBe(true);
     });
 
     it("finishing again is a no-op and does not duplicate the frozen rows", async () => {

@@ -75,7 +75,7 @@ describe("the coverage of a scale", () => {
         expect(coverage.covered).toBe(16);
     });
 
-    it("reports the places a scale reaches past the season", () => {
+    it("reports the places a scale reaches past the tournament", () => {
         const coverage = scaleCoverage(OLYMPIA, 8);
         expect(coverage.missing).toEqual([]);
         expect(coverage.beyond).toEqual([11, 14]);

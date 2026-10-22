@@ -18,7 +18,7 @@ import {
     Media, 
     PlacementTier, 
     QuestionPayload, 
-    SeasonRound, 
+    TournamentRound, 
     Stage, 
     TournamentFormat, 
     RoundConfig
@@ -30,8 +30,8 @@ export const questionKind = pgEnum("question_kind", ["MC", "TEXT", "KEYWORD"]);
 export const questionStatus = pgEnum("question_status", ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]);
 
 
-export const seasons = pgTable(
-    "seasons",
+export const tournaments = pgTable(
+    "tournaments",
     {
         id: uuid("id").primaryKey().defaultRandom(),
         name: text("name").notNull(),
@@ -41,16 +41,16 @@ export const seasons = pgTable(
             .notNull()
             .references(() => users.id),
 
-        // The tags decide which questions of the global bank this season may assemble.
+        // The tags decide which questions of the global bank this tournament may assemble.
         tags: text("tags").array().notNull(),
         current: boolean("current").notNull().default(false),
 
-        rounds: jsonb("rounds").$type<SeasonRound[]>().notNull(),
+        rounds: jsonb("rounds").$type<TournamentRound[]>().notNull(),
         format: jsonb("format").$type<TournamentFormat>().notNull(),
         placementTiers: jsonb("placement_tiers").$type<PlacementTier[]>().notNull(),
         stages: jsonb("stages").$type<Stage[]>().notNull(),
 
-        // The rulebook the season is played on. Frozen once a match has been assembled,
+        // The rulebook the tournament is played on. Frozen once a match has been assembled,
         // so a running event never depends on later edits.
         roundRules: jsonb("round_rules").$type<Record<string, RoundConfig>>(),
 
@@ -60,26 +60,26 @@ export const seasons = pgTable(
         deletedAt: timestamp("deleted_at", { withTimezone: true })
     },
     (table) => [
-        uniqueIndex("seasons_slug_unique").on(table.slug),
-        // One running season per owner.
-        uniqueIndex("seasons_current_unique")
+        uniqueIndex("tournaments_slug_unique").on(table.slug),
+        // One running tournament per owner.
+        uniqueIndex("tournaments_current_unique")
             .on(table.ownerId)
             .where(sql`current = true`)
     ]
 );
 
-export const seasonPlayers = pgTable(
-    "season_players",
+export const tournamentPlayers = pgTable(
+    "tournament_players",
     {
-        seasonId: uuid("season_id")
+        tournamentId: uuid("tournament_id")
             .notNull()
-            .references(() => seasons.id, { onDelete: "cascade" }),
+            .references(() => tournaments.id, { onDelete: "cascade" }),
         userId: uuid("user_id")
             .notNull()
             .references(() => users.id, { onDelete: "cascade" }),
         enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow()
     },
-    (table) => [primaryKey({ columns: [table.seasonId, table.userId] })]
+    (table) => [primaryKey({ columns: [table.tournamentId, table.userId] })]
 );
 
 export const questionBank = pgTable(

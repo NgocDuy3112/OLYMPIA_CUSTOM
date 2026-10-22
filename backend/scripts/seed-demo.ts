@@ -2,16 +2,16 @@ import { eq } from "drizzle-orm";
 import { db } from "../src/db/pool.js";
 import {
     questionBank,
-    seasonPhaseResults,
-    seasonPlayers,
-    seasons,
+    tournamentPhaseResults,
+    tournamentPlayers,
+    tournaments,
     tournaments,
     users
 } from "../src/db/schema/index.js";
 import type {
     Progression,
     RoundConfig,
-    SeasonRound,
+    TournamentRound,
     TournamentFormat
 } from "../src/game/contracts/index.js";
 
@@ -26,7 +26,7 @@ const PROGRESSION: Progression = {
     finaleSize: 4
 };
 
-const ROUNDS: SeasonRound[] = [
+const ROUNDS: TournamentRound[] = [
     { id: "khoi-dong", name: "Khởi động", order: 0, chart: "grid" },
     { id: "ve-dich", name: "Về đích", order: 1, chart: "grid" }
 ];
@@ -107,9 +107,9 @@ async function main() {
         ? players
         : await db.select().from(users).where(eq(users.role, "PLAYER")).limit(PLAYERS);
 
-    const [season] = await db.insert(seasons).values({
+    const [tournament] = await db.insert(tournaments).values({
         tournamentId: tournament.id,
-        name: "Demo Season 2026",
+        name: "Demo Tournament 2026",
         current: true,
         rounds: ROUNDS,
         format: FORMAT,
@@ -119,14 +119,14 @@ async function main() {
         roundRules: ROUND_RULES
     }).returning();
 
-    await db.insert(seasonPlayers)
-        .values(roster.map((player) => ({ seasonId: season.id, userId: player.id })))
+    await db.insert(tournamentPlayers)
+        .values(roster.map((player) => ({ tournamentId: tournament.id, userId: player.id })))
         .onConflictDoNothing();
 
     // Qualification closed: a descending ranking the draw can be seeded from.
-    await db.insert(seasonPhaseResults).values(
+    await db.insert(tournamentPhaseResults).values(
         roster.map((player, index) => ({
-            seasonId: season.id,
+            tournamentId: tournament.id,
             phaseId: "qualification",
             round: 1,
             userId: player.id,
@@ -139,10 +139,10 @@ async function main() {
 
     console.log("seeded");
     console.log(`  tournament ${tournament.id}`);
-    console.log(`  season     ${season.id}  (${roster.length} players, qualification closed)`);
+    console.log(`  tournament     ${tournament.id}  (${roster.length} players, qualification closed)`);
     console.log("\nwipe with:");
-    console.log(`  delete from matches where season_id in (select id from seasons where tournament_id='${tournament.id}');`);
-    console.log(`  delete from seasons where tournament_id='${tournament.id}';`);
+    console.log(`  delete from matches where tournament_id in (select id from tournaments where tournament_id='${tournament.id}');`);
+    console.log(`  delete from tournaments where tournament_id='${tournament.id}';`);
     console.log(`  delete from tournaments where id='${tournament.id}';`);
     console.log("  delete from question_bank where tag='DEMO';");
 }

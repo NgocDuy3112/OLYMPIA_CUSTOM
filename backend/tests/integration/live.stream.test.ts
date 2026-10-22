@@ -4,7 +4,7 @@ import WebSocket from "ws";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { matchLive, matches, seasons, users } from "../../src/db/schema/index.js";
+import { matchLive, matches, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import { openHint, startGiaiMa } from "../../src/game/engine/turns/giai-ma.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
@@ -15,7 +15,7 @@ let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookie: string;
 let outsiderCookie: string;
-let seasonId: string;
+let tournamentId: string;
 let matchId: string;
 let hintIds: string[];
 let baseUrl: string;
@@ -52,26 +52,26 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    // The season is the unit: it carries the identity the tournament had.
-    const seasonTags = ["THTH"];
-    const seasonOwner = owner.id;
-    const seasonSlug = "stream-tournament-season";
+    // The tournament is the unit: it carries the identity the tournament had.
+    const tournamentTags = ["THTH"];
+    const tournamentOwner = owner.id;
+    const tournamentSlug = "stream-tournament-tournament";
 
-    const [season] = await db.insert(seasons).values({
-        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
-        name: "Stream Season",
+    const [tournament] = await db.insert(tournaments).values({
+        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        name: "Stream Tournament",
         rounds: [{ id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 1, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
         placementTiers: [{ min: 1, max: 1, points: 10 }],
         stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();
-    seasonId = season.id;
+    tournamentId = tournament.id;
 
     const hints = [1, 2, 3, 4, 5, 6, 7, 8].map(hintQuestion);
     hintIds = hints.map((q) => q._id);
 
     const [match] = await db.insert(matches).values({
-        seasonId, stageId: "s1", scheduledAt: new Date(), label: "Stream Match", status: "LIVE",
+        tournamentId, stageId: "s1", scheduledAt: new Date(), label: "Stream Match", status: "LIVE",
         players: [{ kind: "user", userId: player.id, seed: 1 }],
         roundConfigs: { "giai-ma": { allowedKinds: ["TEXT"], scoring: { template: "keyword_derived", initial: 100, dropPerHint: 10, incorrect: 0 }, turns: [] } },
         questions: hints
@@ -91,8 +91,8 @@ afterAll(async () => {
 });
 
 const streamUrl = () => `${baseUrl}/gameplay/matches/${matchId}/live/stream`;
-const actionUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live/actions`;
-const liveUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live`;
+const actionUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`;
+const liveUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/live`;
 
 function nextMessage(socket: WebSocket, timeoutMs = 3000): Promise<any> {
     return new Promise((resolve, reject) => {

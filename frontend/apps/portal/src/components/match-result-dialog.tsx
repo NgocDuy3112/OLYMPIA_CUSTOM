@@ -4,24 +4,24 @@ import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
-import { useSetMatchResults } from "@/lib/season"
+import { useSetMatchResults } from "@/lib/tournament"
 
 export function MatchResultDialog({
-    seasonId,
+    tournamentId,
     matchId,
     label,
     players,
     open,
     onOpenChange,
 }: {
-    seasonId: string
+    tournamentId: string
     matchId: string
     label: string
     players: Array<{ userId: string; name: string }>
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const save = useSetMatchResults(seasonId)
+    const save = useSetMatchResults(tournamentId)
     const [scores, setScores] = useState<Record<string, string>>({})
 
     const submit = () => {

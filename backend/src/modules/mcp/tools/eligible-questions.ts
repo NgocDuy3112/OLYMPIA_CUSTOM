@@ -4,14 +4,14 @@ import { listForAssembly } from "../../questions/service.js";
 import type { QuestionKindValue } from "../../questions/payload.js";
 import { audit, mcpAuditDetails } from "../../audit/service.js";
 import { actorFrom, requireScope } from "../actor.js";
-import { assertSeasonVisible } from "../access.js";
+import { assertTournamentVisible } from "../access.js";
 import { runTool } from "../result.js";
-import { requireSeason } from "../../seasons/service.js";
+import { requireTournament } from "../../tournaments/service.js";
 import { toAgentQuestion } from "../map.js";
 
 
 export const eligibleQuestionsInput = z.object({
-    seasonId: z.uuid(),
+    tournamentId: z.uuid(),
     kind: z.enum(["MC", "TEXT", "KEYWORD"]).optional(),
     search: z.string().min(1).max(200).optional(),
     limit: z.number().int().min(1).max(100).default(20),
@@ -25,7 +25,7 @@ export function registerEligibleQuestions(server: McpServer): void {
         {
             title: "Eligible questions",
             description:
-                "Browse what a match may draw from: the PUBLISHED questions tagged for this season. Use this for assembly. Unlike list_questions, ARCHIVED is excluded.",
+                "Browse what a match may draw from: the PUBLISHED questions tagged for this tournament. Use this for assembly. Unlike list_questions, ARCHIVED is excluded.",
             inputSchema: eligibleQuestionsInput,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false }
         },
@@ -33,11 +33,11 @@ export function registerEligibleQuestions(server: McpServer): void {
             runTool(async () => {
                 const actor = actorFrom(ctx.http?.authInfo);
                 requireScope(actor, "READ");
-                await assertSeasonVisible(args.seasonId, actor.role);
-                const season = await requireSeason(args.seasonId);
+                await assertTournamentVisible(args.tournamentId, actor.role);
+                const tournament = await requireTournament(args.tournamentId);
 
                 const page = await listForAssembly(
-                    season.tags,
+                    tournament.tags,
                     {
                         kinds: args.kind ? [args.kind as QuestionKindValue] : undefined,
                         search: args.search
@@ -50,7 +50,7 @@ export function registerEligibleQuestions(server: McpServer): void {
                     actorId: actor.userId,
                     details: mcpAuditDetails(actor.keyId, {
                         tool: "eligible_questions",
-                        seasonId: args.seasonId,
+                        tournamentId: args.tournamentId,
                         filters: { kind: args.kind, search: args.search },
                         total: page.total
                     })

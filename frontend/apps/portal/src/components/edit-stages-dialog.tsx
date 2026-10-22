@@ -4,8 +4,8 @@ import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
-import { useUpdateSeason, type SeasonDetail } from "@/lib/season"
-import { STAGE_ROLES, type Stage, type StageRole } from "@/lib/seasons"
+import { useUpdateTournament, type TournamentDetail } from "@/lib/tournament"
+import { STAGE_ROLES, type Stage, type StageRole } from "@/lib/tournaments"
 
 interface StageDraft {
     id: string
@@ -34,23 +34,23 @@ function toDraft(stage: Stage): StageDraft {
     }
 }
 
-// The season's stages, edited in a dialog. The order of the list is the order of the
-// season, so the rows can be moved.
+// The tournament's stages, edited in a dialog. The order of the list is the order of the
+// tournament, so the rows can be moved.
 export function EditStagesDialog({
-    seasonId,
-    season,
+    tournamentId,
+    tournament,
     open,
     onOpenChange,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const update = useUpdateSeason(seasonId)
+    const update = useUpdateTournament(tournamentId)
 
     const [draft, setDraft] = useState<StageDraft[]>(() =>
-        (season.stages ?? []).map(toDraft))
+        (tournament.stages ?? []).map(toDraft))
 
     const patch = (index: number, change: Partial<StageDraft>) =>
         setDraft((current) =>
@@ -98,7 +98,7 @@ export function EditStagesDialog({
                     <DialogHeader>
                         <DialogTitle>Stages</DialogTitle>
                         <DialogDescription>
-                            The order of the season. The last stage a player reached is what
+                            The order of the tournament. The last stage a player reached is what
                             places them; the id is what a match names. A stage's rule is what the
                             engine checks its matches against.
                         </DialogDescription>

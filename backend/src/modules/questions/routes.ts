@@ -22,8 +22,8 @@ import {
 } from "./service.js";
 import type { QuestionKindValue } from "./payload.js";
 import { auditFromRequest, type AuditAction } from "../audit/service.js";
-import { requireSeason } from "../seasons/service.js";
-import { canViewSeason } from "../../lib/season-access.js";
+import { requireTournament } from "../tournaments/service.js";
+import { canViewTournament } from "../../lib/tournament-access.js";
 import type { ActorRole, QuestionStatusValue } from "./transitions.js";
 
 
@@ -135,37 +135,37 @@ export async function questionRoutes(app: FastifyInstance) {
         }
     );
 
-    // Browse what a season may assemble: the published questions of its own tags.
+    // Browse what a tournament may assemble: the published questions of its own tags.
     app.get(
-        "/portal/seasons/:seasonId/eligible-questions",
+        "/portal/tournaments/:tournamentId/eligible-questions",
         {
             onRequest: staff,
             schema: {
                 params: {
                     type: "object",
-                    required: ["seasonId"],
+                    required: ["tournamentId"],
                     additionalProperties: false,
-                    properties: { seasonId: { type: "string", pattern: UUID_PATTERN } }
+                    properties: { tournamentId: { type: "string", pattern: UUID_PATTERN } }
                 },
                 querystring: EligibleListQuery
             },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { seasonId } = request.params as { seasonId: string };
+            const { tournamentId } = request.params as { tournamentId: string };
 
-            const season = await requireSeason(seasonId).catch(() => {
-                throw new QuestionError("NOT_FOUND", `season ${seasonId} not found`);
+            const tournament = await requireTournament(tournamentId).catch(() => {
+                throw new QuestionError("NOT_FOUND", `tournament ${tournamentId} not found`);
             });
-            if (!canViewSeason(season, user)) {
-                throw new QuestionError("NOT_FOUND", `season ${seasonId} not found`);
+            if (!canViewTournament(tournament, user)) {
+                throw new QuestionError("NOT_FOUND", `tournament ${tournamentId} not found`);
             }
 
             const query = request.query as EligibleListQuery;
             const kinds = query.kinds?.split(",") as QuestionKindValue[] | undefined;
 
             return listForAssembly(
-                season.tags,
+                tournament.tags,
                 { kinds, search: query.search },
                 parsePage(query)
             );

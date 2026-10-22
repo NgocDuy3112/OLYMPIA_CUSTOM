@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { and, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { questionBank, seasons } from "../../db/schema/index.js";
+import { questionBank, tournaments } from "../../db/schema/index.js";
 import type { MatchQuestion, RoundConfig, ScoringRule } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { assemblyEligibility } from "../questions/service.js";
 import type { AssemblyEntry, AutoPick } from "./schemas.js";
 
-type SeasonRow = typeof seasons.$inferSelect;
+type TournamentRow = typeof tournaments.$inferSelect;
 type BankRow = typeof questionBank.$inferSelect;
 type QuestionKind = "MC" | "TEXT" | "KEYWORD";
 
@@ -29,18 +29,18 @@ export function basePoints(scoring: ScoringRule): number {
 
 
 function requireTurn(params: {
-    season: SeasonRow;
+    tournament: TournamentRow;
     roundConfigs: Record<string, RoundConfig>;
     roundId: string;
     turnId: string;
     where: string;
 }): { config: RoundConfig; mode: "oral" | "text" } {
-    const { season, roundConfigs, roundId, turnId, where } = params;
+    const { tournament, roundConfigs, roundId, turnId, where } = params;
 
-    if (!season.rounds.some((round) => round.id === roundId)) {
+    if (!tournament.rounds.some((round) => round.id === roundId)) {
         throw new MatchError(
             "VALIDATION",
-            `${where}: round "${roundId}" is not one of this season's rounds`
+            `${where}: round "${roundId}" is not one of this tournament's rounds`
         );
     }
 
@@ -93,12 +93,12 @@ function copyOf(params: {
 
 
 export async function buildQuestionCopies(params: {
-    season: SeasonRow;
+    tournament: TournamentRow;
     roundConfigs: Record<string, RoundConfig>;
     entries: AssemblyEntry[];
     autoPick: AutoPick[];
 }): Promise<MatchQuestion[]> {
-    const { season, roundConfigs, entries, autoPick } = params;
+    const { tournament, roundConfigs, entries, autoPick } = params;
 
     const copies: MatchQuestion[] = [];
     const nextPosition = new Map<string, number>();
@@ -124,7 +124,7 @@ export async function buildQuestionCopies(params: {
         for (const [index, entry] of entries.entries()) {
             const where = `questions[${index}]`;
             const { config, mode } = requireTurn({
-                season,
+                tournament,
                 roundConfigs,
                 roundId: entry.roundId,
                 turnId: entry.turnId,
@@ -141,10 +141,10 @@ export async function buildQuestionCopies(params: {
                     `${where}: question ${entry.sourceId} is ${source.status}, not PUBLISHED`
                 );
             }
-            if (!season.tags.includes(source.tag)) {
+            if (!tournament.tags.includes(source.tag)) {
                 throw new MatchError(
                     "VALIDATION",
-                    `${where}: question ${entry.sourceId} is not tagged for this season`
+                    `${where}: question ${entry.sourceId} is not tagged for this tournament`
                 );
             }
             if (!config.allowedKinds.includes(source.kind as QuestionKind)) {
@@ -170,7 +170,7 @@ export async function buildQuestionCopies(params: {
     for (const [index, request] of autoPick.entries()) {
         const where = `autoPick[${index}]`;
         const { config, mode } = requireTurn({
-            season,
+            tournament,
             roundConfigs,
             roundId: request.roundId,
             turnId: request.turnId,
@@ -179,7 +179,7 @@ export async function buildQuestionCopies(params: {
 
         // Same visibility rule as the paged read: one place, two consumers.
         const conditions = [
-            ...assemblyEligibility(season.tags),
+            ...assemblyEligibility(tournament.tags),
             inArray(questionBank.kind, config.allowedKinds as QuestionKind[])
         ];
 

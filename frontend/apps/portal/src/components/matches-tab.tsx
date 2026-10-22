@@ -3,7 +3,7 @@ import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useEnrolled, useMatches, type SeasonDetail } from "@/lib/season"
+import { useEnrolled, useMatches, type TournamentDetail } from "@/lib/tournament"
 import { MassEventDialog } from "./mass-event-dialog"
 import { MatchResultDialog } from "./match-result-dialog"
 import { NewMatchDialog } from "./new-match-dialog"
@@ -12,18 +12,18 @@ import { NewMatchDialog } from "./new-match-dialog"
 const short = (id: string) => id.slice(0, 8)
 
 
-// Every match of the season. The staff create them; the system plays and scores them.
+// Every match of the tournament. The staff create them; the system plays and scores them.
 export function MatchesTab({
-    seasonId,
-    season,
+    tournamentId,
+    tournament,
     seats,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
     seats: number
 }) {
-    const matches = useMatches(seasonId)
-    const enrolled = useEnrolled(seasonId)
+    const matches = useMatches(tournamentId)
+    const enrolled = useEnrolled(tournamentId)
 
     const [creating, setCreating] = useState(false)
     const [result, setResult] = useState<{ id: string; label: string; players: string[] } | null>(null)
@@ -127,8 +127,8 @@ export function MatchesTab({
 
             {creating && (
                 <NewMatchDialog
-                    seasonId={seasonId}
-                    season={season}
+                    tournamentId={tournamentId}
+                    tournament={tournament}
                     seats={seats}
                     open
                     onOpenChange={(open) => { if (!open) setCreating(false) }}
@@ -137,7 +137,7 @@ export function MatchesTab({
 
             {massEvent && (
                 <MassEventDialog
-                    seasonId={seasonId}
+                    tournamentId={tournamentId}
                     matchId={massEvent.id}
                     label={massEvent.label}
                     seats={seats}
@@ -148,7 +148,7 @@ export function MatchesTab({
 
             {result && (
                 <MatchResultDialog
-                    seasonId={seasonId}
+                    tournamentId={tournamentId}
                     matchId={result.id}
                     label={result.label}
                     players={result.players.map((userId) => ({ userId, name: nameOf(userId) }))}

@@ -1,11 +1,11 @@
-// The season's standings: a placement table, not a points league.
+// The tournament's standings: a placement table, not a points league.
 //
 // The place of a player is decided by HOW FAR THEY GOT, never by a sum of scores:
-//   - the season's stages are ordered (the season's stage list is that order);
+//   - the tournament's stages are ordered (the tournament's stage list is that order);
 //   - inside a stage, the matches are ordered by their slot;
 //   - inside a match, the player's own rank in that match decides.
 //
-// So the season's places are the concatenation of the stages, last first, and inside a
+// So the tournament's places are the concatenation of the stages, last first, and inside a
 // stage the slots, and inside a slot the match's own result. A player who never took a
 // seat has no place: they are listed at the bottom, with no points.
 //
@@ -32,7 +32,7 @@ export interface PlayerStanding {
     displayName: string;
     place: number | null;         // null for a player who never played
     matchesPlayed: number;
-    placementPoints: number;       // what the place is worth, from the season's tiers
+    placementPoints: number;       // what the place is worth, from the tournament's tiers
     stageId: string | null;        // the stage they got to
     stageTitle: string | null;
     slot: number | null;           // the match they were eliminated in
@@ -40,7 +40,7 @@ export interface PlayerStanding {
 }
 
 export interface BuildStandingsInput {
-    stages: StageRef[];            // the season's stages, in order
+    stages: StageRef[];            // the tournament's stages, in order
     matches: MatchResultInput[];   // the points matches that were played
     players: Array<{ userId: string; displayName: string }>;   // the roster
     tiers: PlacementTier[];
@@ -74,7 +74,7 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
 
     for (const match of input.matches) {
         const index = stageIndex.get(match.stageId);
-        if (index === undefined) continue;      // a match in a stage the season does not list
+        if (index === undefined) continue;      // a match in a stage the tournament does not list
 
         // A tie inside the match: equal ranks share a place and need a tie-break turn.
         const byRank = new Map<number, number>();
@@ -101,7 +101,7 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
         }
     }
 
-    // The order of the season's places: the last stage first, then the slots, then the
+    // The order of the tournament's places: the last stage first, then the slots, then the
     // match's own rank.
     const placed = [...progress.entries()]
         .map(([userId, value]) => ({ userId, value }))

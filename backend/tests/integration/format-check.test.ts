@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { matchResults, matches, questionBank, seasonPlayers, seasons, users } from "../../src/db/schema/index.js";
+import { matchResults, matches, questionBank, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
 // The format, checked against the matches the staff place: the engine never draws, but
@@ -11,12 +11,12 @@ import { signToken } from "../../src/lib/jwt.js";
 
 let app: FastifyInstance;
 let ownerCookie: string;
-let seasonId: string;
+let tournamentId: string;
 let playerIds: string[];      // in rank order: playerIds[0] is the best
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
-const seasonUrl = (suffix: string) =>
-    `/portal/seasons/${seasonId}${suffix}`;
+const tournamentUrl = (suffix: string) =>
+    `/portal/tournaments/${tournamentId}${suffix}`;
 
 const seat = (index: number) => ({
     kind: "user" as const,
@@ -27,7 +27,7 @@ const seat = (index: number) => ({
 const createMatch = (payload: Record<string, unknown>) =>
     app.inject({
         method: "POST",
-        url: seasonUrl("/matches"),
+        url: tournamentUrl("/matches"),
         headers: auth(ownerCookie),
         payload: {
             stageId: "splitting-1",
@@ -63,14 +63,14 @@ beforeAll(async () => {
     ).returning();
     playerIds = players.map((row) => row.id);
 
-    // The season is the unit: it carries the identity the tournament had.
-    const seasonTags = ["THTH"];
-    const seasonOwner = owner.id;
-    const seasonSlug = "fc-tournament-season";
+    // The tournament is the unit: it carries the identity the tournament had.
+    const tournamentTags = ["THTH"];
+    const tournamentOwner = owner.id;
+    const tournamentSlug = "fc-tournament-tournament";
 
-    const [season] = await db.insert(seasons).values({
-        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
-        name: "FC Season",
+    const [tournament] = await db.insert(tournaments).values({
+        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        name: "FC Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: {
             competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null,
@@ -87,9 +87,9 @@ beforeAll(async () => {
             }
         }
     }).returning();
-    seasonId = season.id;
+    tournamentId = tournament.id;
 
-    await db.insert(seasonPlayers).values(playerIds.map((userId) => ({ seasonId, userId })));
+    await db.insert(tournamentPlayers).values(playerIds.map((userId) => ({ tournamentId, userId })));
 
     await db.insert(questionBank).values(
         Array.from({ length: 8 }, (_, i) => ({
@@ -106,7 +106,7 @@ beforeAll(async () => {
 
     // The mass event, closed: its result is the field's ranking.
     const [massEvent] = await db.insert(matches).values({
-        seasonId,
+        tournamentId,
         kind: "QUALIFICATION",
         stageId: "qualification",
         label: "Qualification",
@@ -119,7 +119,7 @@ beforeAll(async () => {
 
     await db.insert(matchResults).values({
         matchId: massEvent.id,
-        seasonId,
+        tournamentId,
         results: playerIds.map((userId, index) => ({
             kind: "user" as const,
             userId,
@@ -160,8 +160,8 @@ describe("the tier draw", () => {
             stageId: "somewhere-else",
             players: [seat(0), seat(1), seat(2), seat(3)]
         });
-        // the stage is not in the season's list at all, so nothing is checked
+        // the stage is not in the tournament's list at all, so nothing is checked
         expect(res.statusCode).toBe(400);
-        expect(res.json().message).toContain("not one of this season's stages");
+        expect(res.json().message).toContain("not one of this tournament's stages");
     });
 });

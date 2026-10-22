@@ -5,17 +5,17 @@ import {
 } from "@shared/ui/dialog"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { Input } from "@shared/ui/input"
-import { useCreateSeason } from "@/lib/seasons"
+import { useCreateTournament } from "@/lib/tournaments"
 
-// A new season: the unit. It owns its roster, its stages, its rulebook and its points.
-export function NewSeasonDialog({
+// A new tournament: the unit. It owns its roster, its stages, its rulebook and its points.
+export function NewTournamentDialog({
     open,
     onOpenChange,
 }: {
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const create = useCreateSeason()
+    const create = useCreateTournament()
 
     const [name, setName] = useState("")
     const [tags, setTags] = useState("")
@@ -46,42 +46,42 @@ export function NewSeasonDialog({
                 <form onSubmit={submit}>
                     <FieldGroup>
                         <DialogHeader>
-                            <DialogTitle>New season</DialogTitle>
+                            <DialogTitle>New tournament</DialogTitle>
                             <DialogDescription>
-                                A season is one run: its roster, its stages, its matches and
+                                A tournament is one run: its roster, its stages, its matches and
                                 its standings.
                             </DialogDescription>
                         </DialogHeader>
 
                         <Field>
-                            <FieldLabel htmlFor="season-name">Name</FieldLabel>
+                            <FieldLabel htmlFor="tournament-name">Name</FieldLabel>
                             <Input
-                                id="season-name"
+                                id="tournament-name"
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
-                                placeholder="2026 Season"
+                                placeholder="2026 Tournament"
                                 required
                             />
                         </Field>
 
                         <Field>
-                            <FieldLabel htmlFor="season-tags">Tags</FieldLabel>
+                            <FieldLabel htmlFor="tournament-tags">Tags</FieldLabel>
                             <Input
-                                id="season-tags"
+                                id="tournament-tags"
                                 value={tags}
                                 onChange={(event) => setTags(event.target.value)}
                                 placeholder="THTH, GDTT"
                             />
                             <FieldDescription>
                                 Comma-separated. The questions of these tags are the ones this
-                                season may assemble.
+                                tournament may assemble.
                             </FieldDescription>
                         </Field>
 
                         <Field>
-                            <FieldLabel htmlFor="season-visibility">Visibility</FieldLabel>
+                            <FieldLabel htmlFor="tournament-visibility">Visibility</FieldLabel>
                             <select
-                                id="season-visibility"
+                                id="tournament-visibility"
                                 className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                                 value={visibility}
                                 onChange={(event) =>
@@ -92,7 +92,7 @@ export function NewSeasonDialog({
                                 <option value="PRIVATE">Private</option>
                             </select>
                             <FieldDescription>
-                                A private season is visible to admins and its owner only.
+                                A private tournament is visible to admins and its owner only.
                             </FieldDescription>
                         </Field>
 
@@ -110,7 +110,7 @@ export function NewSeasonDialog({
                                 Cancel
                             </Button>
                             <Button type="submit" disabled={create.isPending}>
-                                {create.isPending ? "Creating…" : "Create season"}
+                                {create.isPending ? "Creating…" : "Create tournament"}
                             </Button>
                         </DialogFooter>
                     </FieldGroup>

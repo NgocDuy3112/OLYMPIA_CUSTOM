@@ -7,7 +7,7 @@
 //               match takes one player from each tier.
 //   playoff   — the ladder: the winner of a match climbs a slot, the other three drop
 //               one; the losers of the bottom match are out.
-//   finale    — the four ladder winners, who take the season's places 1–4.
+//   finale    — the four ladder winners, who take the tournament's places 1–4.
 //
 // Everything here is a total function of its input: no I/O, so the rules are unit
 // testable on their own.

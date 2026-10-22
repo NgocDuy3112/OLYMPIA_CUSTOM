@@ -2,47 +2,47 @@ import "../../lib/typebox-formats.js";
 import { Type, Static } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
-    SeasonRoundSchema,
+    TournamentRoundSchema,
     TournamentFormatSchema,
     PlacementTierSchema,
     StageSchema,
     RoundConfigSchema
 } from "../../game/contracts/index.js";
-import { SeasonError } from "./errors.js";
+import { TournamentError } from "./errors.js";
 
-export const CreateSeasonInput = Type.Object({
+export const CreateTournamentInput = Type.Object({
     name: Type.String({ minLength: 1 }),
-    // The tags decide which questions of the global bank this season may assemble.
+    // The tags decide which questions of the global bank this tournament may assemble.
     tags: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     visibility: Type.Optional(Type.Union([Type.Literal("PUBLIC"), Type.Literal("PRIVATE")])),
     stages: Type.Optional(Type.Array(StageSchema)),
-    rounds: Type.Optional(Type.Array(SeasonRoundSchema)),
+    rounds: Type.Optional(Type.Array(TournamentRoundSchema)),
     format: Type.Optional(TournamentFormatSchema),
     placementTiers: Type.Optional(Type.Array(PlacementTierSchema)),
     roundRules: Type.Optional(Type.Record(Type.String(), RoundConfigSchema)),
     current: Type.Optional(Type.Boolean())
 });
-export type CreateSeasonInput = Static<typeof CreateSeasonInput>;
+export type CreateTournamentInput = Static<typeof CreateTournamentInput>;
 
-export const UpdateSeasonInput = Type.Partial(CreateSeasonInput);
+export const UpdateTournamentInput = Type.Partial(CreateTournamentInput);
 
-export const ListSeasonsQuery = Type.Object({
+export const ListTournamentsQuery = Type.Object({
     current: Type.Optional(Type.Union([Type.Literal("true"), Type.Literal("false")])),
     mine: Type.Optional(Type.Union([Type.Literal("true"), Type.Literal("false")])),
     limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
     offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))
 });
-export type ListSeasonsQuery = Static<typeof ListSeasonsQuery>;
-export type UpdateSeasonInput = Static<typeof UpdateSeasonInput>;
+export type ListTournamentsQuery = Static<typeof ListTournamentsQuery>;
+export type UpdateTournamentInput = Static<typeof UpdateTournamentInput>;
 
 export function validate(
-    schema: typeof CreateSeasonInput | typeof UpdateSeasonInput,
+    schema: typeof CreateTournamentInput | typeof UpdateTournamentInput,
     value: unknown
 ): void {
     if (!Value.Check(schema, value)) {
         const details = Array.from(Value.Errors(schema, value)).map(
             (e) => `${e.path || "<root>"}: ${e.message}`
         );
-        throw new SeasonError("VALIDATION", "Season payload failed validation", details);
+        throw new TournamentError("VALIDATION", "Tournament payload failed validation", details);
     }
 }

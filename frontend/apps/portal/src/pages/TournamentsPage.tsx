@@ -23,23 +23,23 @@ import {
 } from "@shared/ui/table"
 
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
-import { SEASONS_PAGE_SIZE, useSeasons } from "@/lib/seasons"
+import { SEASONS_PAGE_SIZE, useTournaments } from "@/lib/tournaments"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
-import { NewSeasonDialog } from "@/components/new-season-dialog"
+import { NewTournamentDialog } from "@/components/new-tournament-dialog"
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" })
 
 
-// The seasons of the portal. A season is the unit: its roster, its stages, its matches
+// The tournaments of the portal. A tournament is the unit: its roster, its stages, its matches
 // and its standings.
-export function SeasonsPage() {
+export function TournamentsPage() {
     const [searchInput, setSearchInput] = useState("")
     const [offset, setOffset] = useState(0)
     const [creating, setCreating] = useState(false)
 
     const search = useDebouncedValue(searchInput)
 
-    const { data, error, isPending, isError, isFetching } = useSeasons({
+    const { data, error, isPending, isError, isFetching } = useTournaments({
         search,
         limit: SEASONS_PAGE_SIZE,
         offset,
@@ -55,18 +55,18 @@ export function SeasonsPage() {
     return (
         <Page>
             <PageHeader
-                title="Seasons"
-                description={data ? `${total} season${total === 1 ? "" : "s"}` : undefined}
+                title="Tournaments"
+                description={data ? `${total} tournament${total === 1 ? "" : "s"}` : undefined}
                 actions={
                     <Button size="sm" onClick={() => setCreating(true)}>
-                        New season
+                        New tournament
                     </Button>
                 }
             />
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-base">All seasons</CardTitle>
+                    <CardTitle className="text-base">All tournaments</CardTitle>
                     <CardDescription>
                         One run of a show: its roster, its stages, its matches and its standings.
                     </CardDescription>
@@ -87,15 +87,15 @@ export function SeasonsPage() {
                     {isPending ? (
                         <ListSkeleton rows={3} />
                     ) : isError ? (
-                        <ErrorPanel message={error instanceof Error ? error.message : "Could not load the seasons."} />
+                        <ErrorPanel message={error instanceof Error ? error.message : "Could not load the tournaments."} />
                     ) : items.length === 0 ? (
                         <EmptyState
                             icon={searchInput ? SearchX : CalendarDays}
-                            title={searchInput ? "No season matches that search" : "No seasons yet"}
+                            title={searchInput ? "No tournament matches that search" : "No tournaments yet"}
                             description={
                                 searchInput
                                     ? "Try a different name."
-                                    : "Create the first season to start a run."
+                                    : "Create the first tournament to start a run."
                             }
                         />
                     ) : (
@@ -110,40 +110,40 @@ export function SeasonsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {items.map((season) => (
-                                    <TableRow key={season.id}>
+                                {items.map((tournament) => (
+                                    <TableRow key={tournament.id}>
                                         <TableCell className="font-medium">
                                             <Link
                                                 className="underline-offset-2 hover:underline"
-                                                to={`/seasons/${season.id}`}
+                                                to={`/tournaments/${tournament.id}`}
                                             >
-                                                {season.name}
+                                                {tournament.name}
                                             </Link>
                                         </TableCell>
                                         <TableCell>
                                             <span className="flex flex-wrap gap-1">
-                                                {season.tags.map((tag) => (
+                                                {tournament.tags.map((tag) => (
                                                     <Badge key={tag} variant="outline">
                                                         {tag}
                                                     </Badge>
                                                 ))}
                                             </span>
                                         </TableCell>
-                                        <TableCell>{season.stages.length}</TableCell>
+                                        <TableCell>{tournament.stages.length}</TableCell>
                                         <TableCell className="text-muted-foreground">
-                                            {dateFormat.format(new Date(season.createdAt))}
+                                            {dateFormat.format(new Date(tournament.createdAt))}
                                         </TableCell>
                                         <TableCell className="flex gap-2">
-                                            {season.current && <Badge>Current</Badge>}
-                                            {season.closedAt && (
+                                            {tournament.current && <Badge>Current</Badge>}
+                                            {tournament.closedAt && (
                                                 <Badge variant="secondary">Closed</Badge>
                                             )}
-                                            {season.visibility === "PRIVATE" && (
+                                            {tournament.visibility === "PRIVATE" && (
                                                 <Badge variant="outline">Private</Badge>
                                             )}
-                                            {!season.current &&
-                                                !season.closedAt &&
-                                                season.visibility !== "PRIVATE" && (
+                                            {!tournament.current &&
+                                                !tournament.closedAt &&
+                                                tournament.visibility !== "PRIVATE" && (
                                                     <span className="text-muted-foreground">—</span>
                                                 )}
                                         </TableCell>
@@ -180,7 +180,7 @@ export function SeasonsPage() {
             </Card>
 
             {creating && (
-                <NewSeasonDialog open onOpenChange={(open) => { if (!open) setCreating(false) }} />
+                <NewTournamentDialog open onOpenChange={(open) => { if (!open) setCreating(false) }} />
             )}
         </Page>
     )

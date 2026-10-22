@@ -1,4 +1,4 @@
-import type { RoundConfig, SeasonDetail } from "@/lib/season"
+import type { RoundConfig, TournamentDetail } from "@/lib/tournament"
 
 // The shape of a round's rules, and how to read them. Pure helpers, shared by the
 // read surface and the edit dialog.
@@ -16,10 +16,10 @@ export function emptyConfig(): RoundConfig {
     }
 }
 
-// The rules a season holds, or the template for one it doesn't have yet.
-export function draftFrom(season: SeasonDetail): Record<string, RoundConfig> {
+// The rules a tournament holds, or the template for one it doesn't have yet.
+export function draftFrom(tournament: TournamentDetail): Record<string, RoundConfig> {
     return Object.fromEntries(
-        season.rounds.map((round) => [round.id, season.roundRules?.[round.id] ?? emptyConfig()])
+        tournament.rounds.map((round) => [round.id, tournament.roundRules?.[round.id] ?? emptyConfig()])
     )
 }
 

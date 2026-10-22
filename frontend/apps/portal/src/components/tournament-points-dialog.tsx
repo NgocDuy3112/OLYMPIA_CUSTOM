@@ -4,27 +4,27 @@ import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/field"
-import { useUpdateSeason, type SeasonDetail } from "@/lib/season"
-import type { PlacementTier } from "@/lib/seasons"
+import { useUpdateTournament, type TournamentDetail } from "@/lib/tournament"
+import type { PlacementTier } from "@/lib/tournaments"
 import { PlacementTiersEditor } from "@/components/placement-tiers-editor"
 
 
-// The season's own points for places. The tournament hands a default down; a season may
-// change it, and the season is what knows how many places it produces.
-export function SeasonPointsDialog({
-    seasonId,
-    season,
+// The tournament's own points for places. The tournament hands a default down; a tournament may
+// change it, and the tournament is what knows how many places it produces.
+export function TournamentPointsDialog({
+    tournamentId,
+    tournament,
     open,
     onOpenChange,
 }: {
-    seasonId: string
-    season: SeasonDetail
+    tournamentId: string
+    tournament: TournamentDetail
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const update = useUpdateSeason(seasonId)
+    const update = useUpdateTournament(tournamentId)
 
-    const [tiers, setTiers] = useState<PlacementTier[]>(season.placementTiers ?? [])
+    const [tiers, setTiers] = useState<PlacementTier[]>(tournament.placementTiers ?? [])
 
     const save = () =>
         update.mutate(
@@ -39,17 +39,17 @@ export function SeasonPointsDialog({
                     <DialogHeader>
                         <DialogTitle>Points for places</DialogTitle>
                         <DialogDescription>
-                            What each place of this season is worth. The season owns its scale.
+                            What each place of this tournament is worth. The tournament owns its scale.
                         </DialogDescription>
                     </DialogHeader>
 
                     <FieldGroup>
                         <Field>
-                            <FieldLabel htmlFor="season-points">The scale</FieldLabel>
+                            <FieldLabel htmlFor="tournament-points">The scale</FieldLabel>
                             <PlacementTiersEditor tiers={tiers} onChange={setTiers} />
                             <FieldDescription>
-                                A place with no band scores nothing. This season produces{" "}
-                                {season.places ?? 0} places.
+                                A place with no band scores nothing. This tournament produces{" "}
+                                {tournament.places ?? 0} places.
                             </FieldDescription>
                         </Field>
                     </FieldGroup>

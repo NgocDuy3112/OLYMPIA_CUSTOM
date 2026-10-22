@@ -17,7 +17,7 @@ const portalCookie = (userId: string, role: "ADMIN" | "OPERATOR" | "PLAYER") =>
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-const validSeason = (name: string) => ({
+const validTournament = (name: string) => ({
     name,
     tags: ["THTH"],
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
@@ -53,18 +53,18 @@ const mc = (text: string) => ({
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
-async function makeSeason(
+async function makeTournament(
     name: string,
     opts: { visibility?: "PRIVATE" } = {},
     cookie = ownerCookie
 ): Promise<{ id: string }> {
     const res = await app.inject({
         method: "POST",
-        url: "/portal/seasons",
+        url: "/portal/tournaments",
         headers: auth(cookie),
-        payload: { ...validSeason(name), ...(opts.visibility ? { visibility: opts.visibility } : {}) },
+        payload: { ...validTournament(name), ...(opts.visibility ? { visibility: opts.visibility } : {}) },
     });
-    if (res.statusCode !== 201) throw new Error(`season: ${res.statusCode} ${res.body}`);
+    if (res.statusCode !== 201) throw new Error(`tournament: ${res.statusCode} ${res.body}`);
     return res.json();
 }
 
@@ -85,21 +85,21 @@ async function makeBankQuestion(text: string, cookie = ownerCookie): Promise<str
     return id;
 }
 
-const matchUrl = (seasonId: string, suffix = "") =>
-    `/portal/seasons/${seasonId}/matches${suffix}`;
+const matchUrl = (tournamentId: string, suffix = "") =>
+    `/portal/tournaments/${tournamentId}/matches${suffix}`;
 
-const createMatch = (seasonId: string, payload: object, cookie = ownerCookie) =>
+const createMatch = (tournamentId: string, payload: object, cookie = ownerCookie) =>
     app.inject({
         method: "POST",
-        url: matchUrl(seasonId),
+        url: matchUrl(tournamentId),
         headers: auth(cookie),
         payload,
     });
 
-const transition = (seasonId: string, matchId: string, status: string, cookie = ownerCookie) =>
+const transition = (tournamentId: string, matchId: string, status: string, cookie = ownerCookie) =>
     app.inject({
         method: "PATCH",
-        url: matchUrl(seasonId, `/${matchId}/status`),
+        url: matchUrl(tournamentId, `/${matchId}/status`),
         headers: auth(cookie),
         payload: { status },
     });
@@ -139,7 +139,7 @@ afterAll(async () => {
 
 describe("matches — authorization", () => {
     it("401 anonymous, 403 for a PLAYER", async () => {
-        const s = await makeSeason("m-auth");
+        const s = await makeTournament("m-auth");
 
         const anon = await app.inject({
             method: "POST",
@@ -151,12 +151,12 @@ describe("matches — authorization", () => {
         expect((await createMatch(s.id, matchBody(), playerCookie)).statusCode).toBe(403);
     });
 
-    it("403 for a non-owner operator, 404 for a PRIVATE season", async () => {
-        const s = await makeSeason("m-auth2");
+    it("403 for a non-owner operator, 404 for a PRIVATE tournament", async () => {
+        const s = await makeTournament("m-auth2");
 
         expect((await createMatch(s.id, matchBody(), otherCookie)).statusCode).toBe(403);
 
-        const priv = await makeSeason("S", { visibility: "PRIVATE" }, adminCookie);
+        const priv = await makeTournament("S", { visibility: "PRIVATE" }, adminCookie);
 
         expect((await createMatch(priv.id, matchBody(), ownerCookie)).statusCode).toBe(404);
         expect((await createMatch(priv.id, matchBody(), adminCookie)).statusCode).toBe(201);
@@ -166,7 +166,7 @@ describe("matches — authorization", () => {
 
 describe("matches — create & validation", () => {
     it("201 with defaults (empty seats and questions)", async () => {
-        const s = await makeSeason("m-create");
+        const s = await makeTournament("m-create");
 
         const res = await createMatch(s.id, matchBody());
 
@@ -179,7 +179,7 @@ describe("matches — create & validation", () => {
     });
 
     it("201 with a complete seat list, 400 when incomplete or duplicated", async () => {
-        const s = await makeSeason("m-seats");
+        const s = await makeTournament("m-seats");
 
         expect((await createMatch(s.id, matchBody({ players: seats() }))).statusCode).toBe(201);
 
@@ -206,7 +206,7 @@ describe("matches — create & validation", () => {
     });
 
     it("400 when roundConfigs references an unknown round", async () => {
-        const s = await makeSeason("m-rounds");
+        const s = await makeTournament("m-rounds");
 
         const res = await createMatch(s.id, matchBody({
             roundConfigs: { nope: roundConfigs().r1 }
@@ -217,7 +217,7 @@ describe("matches — create & validation", () => {
     });
 
     it("400 when the scheduledAt is not a date-time", async () => {
-        const s = await makeSeason("m-date");
+        const s = await makeTournament("m-date");
 
         const res = await createMatch(s.id, matchBody({ scheduledAt: "not-a-date" }));
         expect(res.statusCode).toBe(400);
@@ -227,7 +227,7 @@ describe("matches — create & validation", () => {
 
 describe("matches — assembly (explicit)", () => {
     it("copies a PUBLISHED bank question with provenance, mode and derived points", async () => {
-        const s = await makeSeason("m-asm");
+        const s = await makeTournament("m-asm");
         const sourceId = await makeBankQuestion("assembled question");
 
         const res = await createMatch(s.id, matchBody({
@@ -247,7 +247,7 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("allows the same bank question twice with distinct _id (khoi-dong pattern)", async () => {
-        const s = await makeSeason("m-dup-source");
+        const s = await makeTournament("m-dup-source");
         const sourceId = await makeBankQuestion("twice in one match");
 
         const res = await createMatch(s.id, matchBody({
@@ -266,7 +266,7 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("400 when the bank question is not PUBLISHED", async () => {
-        const s = await makeSeason("m-notpub");
+        const s = await makeTournament("m-notpub");
 
         const draft = await app.inject({
             method: "POST",
@@ -284,7 +284,7 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("400 when the kind is not allowed by the round config", async () => {
-        const s = await makeSeason("m-kind");
+        const s = await makeTournament("m-kind");
         const sourceId = await makeBankQuestion("an MC question");
 
         const res = await createMatch(s.id, matchBody({
@@ -297,7 +297,7 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("400 for an unknown turn or round", async () => {
-        const s = await makeSeason("m-unknown-turn");
+        const s = await makeTournament("m-unknown-turn");
         const sourceId = await makeBankQuestion("turn check");
 
         const badTurn = await createMatch(s.id, matchBody({
@@ -310,14 +310,14 @@ describe("matches — assembly (explicit)", () => {
             questions: [{ roundId: "r9", turnId: "turn-1", sourceId }]
         }));
         expect(badRound.statusCode).toBe(400);
-        expect(badRound.json().message).toContain("is not one of this season's rounds");
+        expect(badRound.json().message).toContain("is not one of this tournament's rounds");
     });
 });
 
 
 describe("matches — assembly (auto-pick)", () => {
     it("picks distinct PUBLISHED questions up to the requested count", async () => {
-        const s = await makeSeason("m-auto");
+        const s = await makeTournament("m-auto");
         await makeBankQuestion("auto one");
         await makeBankQuestion("auto two");
 
@@ -333,7 +333,7 @@ describe("matches — assembly (auto-pick)", () => {
     });
 
     it("400 when fewer questions are eligible than requested", async () => {
-        const s = await makeSeason("m-auto-short");
+        const s = await makeTournament("m-auto-short");
 
         // TEXT-only round: the global bank holds no TEXT questions in this file,
         // so the eligible pool is deterministic (global bank is eligible too).
@@ -364,7 +364,7 @@ describe("matches — assembly (auto-pick)", () => {
 
 describe("matches — re-assembly & freeze", () => {
     it("replaces the question set while UPCOMING", async () => {
-        const s = await makeSeason("m-reasm");
+        const s = await makeTournament("m-reasm");
         const first = await makeBankQuestion("first pick");
         const second = await makeBankQuestion("second pick");
 
@@ -386,7 +386,7 @@ describe("matches — re-assembly & freeze", () => {
     });
 
     it("derive points from the round's scoring template", async () => {
-        const s = await makeSeason("m-points");
+        const s = await makeTournament("m-points");
         const sourceId = await makeBankQuestion("keyword scoring");
 
         const created = await createMatch(s.id, matchBody({
@@ -398,7 +398,7 @@ describe("matches — re-assembly & freeze", () => {
     });
 
     it("freezes content, assembly and deletion once LIVE", async () => {
-        const s = await makeSeason("m-freeze");
+        const s = await makeTournament("m-freeze");
         const sourceId = await makeBankQuestion("frozen question");
 
         const created = await createMatch(s.id, matchBody({
@@ -439,7 +439,7 @@ describe("matches — re-assembly & freeze", () => {
 
 describe("matches — lifecycle", () => {
     it("409 NOT_READY when going LIVE without seats or questions", async () => {
-        const s = await makeSeason("m-ready");
+        const s = await makeTournament("m-ready");
 
         const created = await createMatch(s.id, matchBody());
         const matchId = created.json().id;
@@ -451,7 +451,7 @@ describe("matches — lifecycle", () => {
     });
 
     it("goes UPCOMING → LIVE → FINISHED and blocks backward or skipping moves", async () => {
-        const s = await makeSeason("m-lifecycle");
+        const s = await makeTournament("m-lifecycle");
         const sourceId = await makeBankQuestion("lifecycle question");
 
         const created = await createMatch(s.id, matchBody({
@@ -472,7 +472,7 @@ describe("matches — lifecycle", () => {
     });
 
     it("409 for a skip straight from UPCOMING to FINISHED", async () => {
-        const s = await makeSeason("m-skip");
+        const s = await makeTournament("m-skip");
         const created = await createMatch(s.id, matchBody());
 
         const res = await transition(s.id, created.json().id, "FINISHED");
@@ -483,7 +483,7 @@ describe("matches — lifecycle", () => {
 
 describe("matches — update, delete, list", () => {
     it("updates content while UPCOMING", async () => {
-        const s = await makeSeason("m-update");
+        const s = await makeTournament("m-update");
         const created = await createMatch(s.id, matchBody());
 
         const res = await app.inject({
@@ -498,7 +498,7 @@ describe("matches — update, delete, list", () => {
     });
 
     it("403 for a non-owner operator updating", async () => {
-        const s = await makeSeason("m-update403");
+        const s = await makeTournament("m-update403");
         const created = await createMatch(s.id, matchBody());
 
         const res = await app.inject({
@@ -511,7 +511,7 @@ describe("matches — update, delete, list", () => {
     });
 
     it("DELETE is ADMIN-only, soft, and hidden afterwards", async () => {
-        const s = await makeSeason("m-delete");
+        const s = await makeTournament("m-delete");
         const created = await createMatch(s.id, matchBody());
         const matchId = created.json().id;
 
@@ -538,7 +538,7 @@ describe("matches — update, delete, list", () => {
     });
 
     it("lists with the pagination envelope and a status filter", async () => {
-        const s = await makeSeason("m-list");
+        const s = await makeTournament("m-list");
         const sourceId = await makeBankQuestion("list question");
 
         await createMatch(s.id, matchBody({ label: "one" }));
@@ -576,7 +576,7 @@ describe("matches — update, delete, list", () => {
     });
 
     it("404 for an unknown match id", async () => {
-        const s = await makeSeason("m-404");
+        const s = await makeTournament("m-404");
 
         const res = await app.inject({
             method: "GET",
@@ -589,8 +589,8 @@ describe("matches — update, delete, list", () => {
 
 
 describe("matches — bank tenancy", () => {
-    it("accepts a question tagged for this season", async () => {
-        const s = await makeSeason("m-global");
+    it("accepts a question tagged for this tournament", async () => {
+        const s = await makeTournament("m-global");
 
         const created = await app.inject({
             method: "POST",
@@ -622,10 +622,10 @@ describe("matches — bank tenancy", () => {
         expect(res.json().questions[0].sourceId).toBe(globalId);
     });
 
-    it("400 for a question that is not tagged for this season", async () => {
-        const s = await makeSeason("m-tenancy");
+    it("400 for a question that is not tagged for this tournament", async () => {
+        const s = await makeTournament("m-tenancy");
 
-        // The bank is global; the season's tags decide what it may assemble.
+        // The bank is global; the tournament's tags decide what it may assemble.
         const foreignSource = await app.inject({
             method: "POST",
             url: "/portal/questions",
@@ -650,11 +650,11 @@ describe("matches — bank tenancy", () => {
         }));
 
         expect(res.statusCode).toBe(400);
-        expect(res.json().message).toContain("is not tagged for this season");
+        expect(res.json().message).toContain("is not tagged for this tournament");
     });
 
     it("auto-pick never reuses a question already placed by an explicit entry", async () => {
-        const s = await makeSeason("m-auto-exclude");
+        const s = await makeTournament("m-auto-exclude");
         const first = await makeBankQuestion("explicit pick");
         await makeBankQuestion("another candidate");
 
@@ -680,7 +680,7 @@ describe("matches — bank tenancy", () => {
 
 describe("matches — soft delete visibility", () => {
     it("excludes a deleted match from the list", async () => {
-        const s = await makeSeason("m-delist");
+        const s = await makeTournament("m-delist");
 
         const keep = await createMatch(s.id, matchBody({ label: "keep" }));
         const drop = await createMatch(s.id, matchBody({ label: "drop" }));

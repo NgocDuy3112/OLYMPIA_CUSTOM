@@ -8,7 +8,7 @@ import { IsoDateTime, UserKind, TeamKind } from "./primitives.js";
 // format:
 //   splitting — the tier draw: one player from each tier of the current ranking, per match
 //   playoff   — the ladder: the winner climbs a slot, the losers drop one
-//   finale   — the four ladder winners, and the season's places 1–4
+//   finale   — the four ladder winners, and the tournament's places 1–4
 export const StageRoleSchema = Type.Union([
     Type.Literal("splitting"),
     Type.Literal("playoff"),
@@ -16,8 +16,8 @@ export const StageRoleSchema = Type.Union([
 ]);
 export type StageRole = Static<typeof StageRoleSchema>;
 
-// A stage of the season. The list is ordered: that order is how far the rounds go, and
-// it decides the season's places.
+// A stage of the tournament. The list is ordered: that order is how far the rounds go, and
+// it decides the tournament's places.
 export const StageSchema = Type.Object({
     id: Type.String(),
     title: Type.String(),
@@ -27,15 +27,15 @@ export const StageSchema = Type.Object({
 });
 export type Stage = Static<typeof StageSchema>;
 
-// ─── §11 — SeasonRound ───────────────────────────────────────────────────────
+// ─── §11 — TournamentRound ───────────────────────────────────────────────────────
 
-export const SeasonRoundSchema = Type.Object({
+export const TournamentRoundSchema = Type.Object({
     id: Type.String(),
     name: Type.String(),
     order: Type.Integer(),
     chart: Type.String()
 });
-export type SeasonRound = Static<typeof SeasonRoundSchema>;
+export type TournamentRound = Static<typeof TournamentRoundSchema>;
 
 // ─── §12 — TournamentFormat ──────────────────────────────────────────────────
 

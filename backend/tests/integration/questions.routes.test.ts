@@ -7,21 +7,21 @@ import { signToken } from "../../src/lib/jwt.js";
 import type { CreateQuestionInput } from "../../src/modules/questions/index.js";
 
 
-// The question bank is global: one bank, and the seasons pick from it by their tags.
+// The question bank is global: one bank, and the tournaments pick from it by their tags.
 
 let app: FastifyInstance;
 let adminCookie: string;
 let ownerCookie: string;
 let otherCookie: string;
 let playerCookie: string;
-let seasonId: string;
+let tournamentId: string;
 
 const portalCookie = (userId: string, role: "ADMIN" | "OPERATOR" | "PLAYER") =>
     signToken(app, "PORTAL", { sub: userId, role, tokenVersion: 0 });
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-const validSeason = (name: string, tags = ["THTH"]) => ({
+const validTournament = (name: string, tags = ["THTH"]) => ({
     name,
     tags,
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
@@ -76,7 +76,7 @@ const publish = async (id: string) => {
     await patchStatus(id, "PUBLISHED", adminCookie);
 };
 
-const eligibleUrl = (id: string, suffix = "") => `/portal/seasons/${id}/eligible-questions${suffix}`;
+const eligibleUrl = (id: string, suffix = "") => `/portal/tournaments/${id}/eligible-questions${suffix}`;
 
 beforeAll(async () => {
     app = await buildApp();
@@ -98,11 +98,11 @@ beforeAll(async () => {
 
     const created = await app.inject({
         method: "POST",
-        url: "/portal/seasons",
+        url: "/portal/tournaments",
         headers: auth(ownerCookie),
-        payload: validSeason("Question Season"),
+        payload: validTournament("Question Tournament"),
     });
-    seasonId = created.json().id;
+    tournamentId = created.json().id;
 });
 
 afterAll(async () => {
@@ -139,7 +139,7 @@ describe("POST /portal/questions — the global bank", () => {
         expect((await create(mc(), otherCookie)).statusCode).toBe(201);
     });
 
-    it("accepts any tag — the season's tags scope the assembly, not the bank", async () => {
+    it("accepts any tag — the tournament's tags scope the assembly, not the bank", async () => {
         const res = await create({ ...mc(), tag: "VNTT" });
         expect(res.statusCode).toBe(201);
         expect(res.json().tag).toBe("VNTT");
@@ -445,8 +445,8 @@ describe("DELETE — archive alias", () => {
 });
 
 
-describe("GET /portal/seasons/:id/eligible-questions — the assembly browse", () => {
-    it("returns the season's published questions, and only those", async () => {
+describe("GET /portal/tournaments/:id/eligible-questions — the assembly browse", () => {
+    it("returns the tournament's published questions, and only those", async () => {
         const own = await create(mc("eligible own"));
         const draft = await create(mc("still a draft"));
         const other = await create({ ...mc("another tag"), tag: "VNTT" });
@@ -456,7 +456,7 @@ describe("GET /portal/seasons/:id/eligible-questions — the assembly browse", (
 
         const res = await app.inject({
             method: "GET",
-            url: eligibleUrl(seasonId),
+            url: eligibleUrl(tournamentId),
             headers: auth(ownerCookie),
         });
 
@@ -464,7 +464,7 @@ describe("GET /portal/seasons/:id/eligible-questions — the assembly browse", (
         const ids = res.json().items.map((q: { id: string }) => q.id);
         expect(ids).toContain(own.json().id);
         expect(ids).not.toContain(draft.json().id);
-        // the season's tags are THTH: a VNTT question is not its to assemble
+        // the tournament's tags are THTH: a VNTT question is not its to assemble
         expect(ids).not.toContain(other.json().id);
     });
 
@@ -474,20 +474,20 @@ describe("GET /portal/seasons/:id/eligible-questions — the assembly browse", (
 
         const byKind = await app.inject({
             method: "GET",
-            url: eligibleUrl(seasonId, "?kinds=TEXT"),
+            url: eligibleUrl(tournamentId, "?kinds=TEXT"),
             headers: auth(ownerCookie),
         });
         expect(byKind.json().items.every((q: { kind: string }) => q.kind === "TEXT")).toBe(true);
 
         const bySearch = await app.inject({
             method: "GET",
-            url: eligibleUrl(seasonId, "?search=duong%20len%20dinh"),
+            url: eligibleUrl(tournamentId, "?search=duong%20len%20dinh"),
             headers: auth(ownerCookie),
         });
         expect(bySearch.json().items.map((q: { id: string }) => q.id)).toContain(text.json().id);
     });
 
-    it("404 for a season that does not exist", async () => {
+    it("404 for a tournament that does not exist", async () => {
         const res = await app.inject({
             method: "GET",
             url: eligibleUrl("00000000-0000-4000-8000-000000000000"),

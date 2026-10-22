@@ -14,7 +14,7 @@ import {
     primaryKey
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { seasons } from "./reference.js";
+import { tournaments } from "./reference.js";
 import { users } from "./auth.js";
 import {
     Seat,
@@ -44,9 +44,9 @@ export const matches = pgTable(
     "matches",
     {
         id: uuid("id").primaryKey().defaultRandom(),
-        seasonId: uuid("season_id")
+        tournamentId: uuid("tournament_id")
             .notNull()
-            .references(() => seasons.id),
+            .references(() => tournaments.id),
         stageId: text("stage_id").notNull(),
         scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
         label: text("label").notNull(),
@@ -64,10 +64,10 @@ export const matches = pgTable(
         deletedAt: timestamp("deleted_at", { withTimezone: true })
     },
     (table) => [
-        index("matches_season_status_idx").on(table.seasonId, table.status),
+        index("matches_tournament_status_idx").on(table.tournamentId, table.status),
         index("matches_players_gin").using("gin", table.players),
         uniqueIndex("matches_stage_slot_unique")
-            .on(table.seasonId, table.stageId, table.slot)
+            .on(table.tournamentId, table.stageId, table.slot)
             .where(sql`deleted_at IS NULL AND slot IS NOT NULL`),
         check(
             "matches_live_phase_check",
@@ -139,21 +139,21 @@ export const matchResults = pgTable(
         matchId: uuid("match_id")
             .primaryKey()
             .references(() => matches.id),
-        seasonId: uuid("season_id")
+        tournamentId: uuid("tournament_id")
             .notNull()
-            .references(() => seasons.id),
+            .references(() => tournaments.id),
         results: jsonb("results").$type<ResultEntry[]>().notNull(),
         computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow()
     }
 );
 
 
-export const seasonStandings = pgTable(
-    "season_standings",
+export const tournamentStandings = pgTable(
+    "tournament_standings",
     {
-        seasonId: uuid("season_id")
+        tournamentId: uuid("tournament_id")
             .notNull()
-            .references(() => seasons.id),
+            .references(() => tournaments.id),
         userId: uuid("user_id").references(() => users.id),
         teamId: uuid("team_id"),
         rank: integer("rank").notNull(),
@@ -161,14 +161,14 @@ export const seasonStandings = pgTable(
         computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [
-        uniqueIndex("season_standings_user_unique")
-            .on(table.seasonId, table.userId)
+        uniqueIndex("tournament_standings_user_unique")
+            .on(table.tournamentId, table.userId)
             .where(sql`team_id IS NULL`),
-        uniqueIndex("season_standings_team_unique")
-            .on(table.seasonId, table.teamId)
+        uniqueIndex("tournament_standings_team_unique")
+            .on(table.tournamentId, table.teamId)
             .where(sql`user_id IS NULL`),
         check(
-            "season_standings_one_identity_check",
+            "tournament_standings_one_identity_check",
             sql`(user_id IS NULL) <> (team_id IS NULL)`
         )
     ]
@@ -180,9 +180,9 @@ export const matchStats = pgTable(
         matchId: uuid("match_id")
             .notNull()
             .references(() => matches.id),
-        seasonId: uuid("season_id")
+        tournamentId: uuid("tournament_id")
             .notNull()
-            .references(() => seasons.id),
+            .references(() => tournaments.id),
         roundId: text("round_id").notNull(),
         questionId: uuid("question_id"),
         userId: uuid("user_id").references(() => users.id),
@@ -208,7 +208,7 @@ export const matchStats = pgTable(
         uniqueIndex("match_stats_team_unique")
             .on(table.matchId, table.roundId, table.teamId)
             .where(sql`user_id IS NULL`),
-        index("match_stats_season_round_idx").on(table.seasonId, table.roundId),
+        index("match_stats_tournament_round_idx").on(table.tournamentId, table.roundId),
         check(
             "match_stats_one_identity_check",
             sql`(user_id IS NULL) <> (team_id IS NULL)`

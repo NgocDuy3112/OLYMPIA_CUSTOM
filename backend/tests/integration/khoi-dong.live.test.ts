@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { answers, matchLive, matchResults, matches, seasons, users } from "../../src/db/schema/index.js";
+import { answers, matchLive, matchResults, matches, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
@@ -14,7 +14,7 @@ import type { MatchQuestion } from "../../src/game/contracts/index.js";
 let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookies: string[];
-let seasonId: string;
+let tournamentId: string;
 let matchId: string;
 let playerIds: string[];
 let phase1Ids: string[];
@@ -46,20 +46,20 @@ beforeAll(async () => {
     playerIds = playerRows.map((u) => u.id);
     playerCookies = playerRows.map((u) => signToken(app, "GAMEPLAY", { sub: u.id, role: "PLAYER", tokenVersion: 0 }));
 
-    // The season is the unit: it carries the identity the tournament had.
-    const seasonTags = ["THTH"];
-    const seasonOwner = owner.id;
-    const seasonSlug = "kd-tournament-season";
+    // The tournament is the unit: it carries the identity the tournament had.
+    const tournamentTags = ["THTH"];
+    const tournamentOwner = owner.id;
+    const tournamentSlug = "kd-tournament-tournament";
 
-    const [season] = await db.insert(seasons).values({
-        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
-        name: "KD Season",
+    const [tournament] = await db.insert(tournaments).values({
+        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        name: "KD Tournament",
         rounds: [{ id: "khoi-dong", name: "Khoi Dong", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 2, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
         placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();
-    seasonId = season.id;
+    tournamentId = tournament.id;
 
     const p1 = [1, 2, 3, 4, 5, 6].map((n) => question("phase1", n));
     const p2 = [1, 2, 3, 4, 5, 6].map((n) => question("phase2", n));
@@ -67,7 +67,7 @@ beforeAll(async () => {
     phase2Ids = p2.map((q) => q._id);
 
     const [match] = await db.insert(matches).values({
-        seasonId, stageId: "s1", scheduledAt: new Date(), label: "KD Match", status: "LIVE",
+        tournamentId, stageId: "s1", scheduledAt: new Date(), label: "KD Match", status: "LIVE",
         players: [
             { kind: "user", userId: playerIds[0], seed: 1 },
             { kind: "user", userId: playerIds[1], seed: 2 }
@@ -93,12 +93,12 @@ afterAll(async () => {
     await app.close();
 });
 
-const actionUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live/actions`;
-const liveUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live`;
+const actionUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`;
+const liveUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/live`;
 const answerUrl = () => `/gameplay/matches/${matchId}/live/answers`;
-const statusUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/status`;
+const statusUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/status`;
 const answersUrl = (questionId: string) =>
-    `/portal/seasons/${seasonId}/matches/${matchId}/live/answers?questionId=${questionId}`;
+    `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`;
 
 async function live() {
     const res = await app.inject({ method: "GET", url: liveUrl(), headers: auth(ownerCookie) });

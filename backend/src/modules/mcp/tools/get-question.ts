@@ -3,14 +3,14 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { getForAgent } from "../../questions/service.js";
 import { audit, mcpAuditDetails } from "../../audit/service.js";
 import { actorFrom, requireScope } from "../actor.js";
-import { assertSeasonVisible } from "../access.js";
+import { assertTournamentVisible } from "../access.js";
 import { runTool } from "../result.js";
-import { requireSeason } from "../../seasons/service.js";
+import { requireTournament } from "../../tournaments/service.js";
 import { toAgentQuestion } from "../map.js";
 
 export const getQuestionInput = z.object({
     questionId: z.uuid(),
-    seasonId: z.uuid()
+    tournamentId: z.uuid()
 });
 
 export function registerGetQuestion(server: McpServer): void {
@@ -19,7 +19,7 @@ export function registerGetQuestion(server: McpServer): void {
         {
             title: "Get question",
             description:
-                "Fetch one question visible to operators (PUBLISHED or ARCHIVED, tagged for the given season). Answers are included.",
+                "Fetch one question visible to operators (PUBLISHED or ARCHIVED, tagged for the given tournament). Answers are included.",
             inputSchema: getQuestionInput,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false }
         },
@@ -27,10 +27,10 @@ export function registerGetQuestion(server: McpServer): void {
             runTool(async () => {
                 const actor = actorFrom(ctx.http?.authInfo);
                 requireScope(actor, "READ");
-                await assertSeasonVisible(args.seasonId, actor.role);
-                const season = await requireSeason(args.seasonId);
+                await assertTournamentVisible(args.tournamentId, actor.role);
+                const tournament = await requireTournament(args.tournamentId);
 
-                const row = await getForAgent(season.tags, args.questionId);
+                const row = await getForAgent(tournament.tags, args.questionId);
 
                 await audit({
                     action: "mcp_tool_call",
@@ -38,7 +38,7 @@ export function registerGetQuestion(server: McpServer): void {
                     details: mcpAuditDetails(actor.keyId, {
                         tool: "get_question",
                         questionId: args.questionId,
-                        seasonId: args.seasonId,
+                        tournamentId: args.tournamentId,
                         status: row.status
                     })
                 });

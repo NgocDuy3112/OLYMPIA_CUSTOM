@@ -2,29 +2,29 @@ import { Link, useParams } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader } from "@/components/page"
-import { useSeason } from "@/lib/season"
+import { useTournament } from "@/lib/tournament"
 import { MatchesTab } from "@/components/matches-tab"
-import { SeasonPointsCard } from "@/components/season-points-card"
-import { SeasonRulesTab } from "@/components/season-rules-tab"
+import { TournamentPointsCard } from "@/components/tournament-points-card"
+import { TournamentRulesTab } from "@/components/tournament-rules-tab"
 import { StagesTab } from "@/components/stages-tab"
 import { StandingsTab } from "@/components/standings-tab"
 import { ChevronRight } from "lucide-react"
 
 
-export function SeasonDetailPage() {
-    const { seasonId = "" } = useParams()
-    const season = useSeason(seasonId)
+export function TournamentDetailPage() {
+    const { tournamentId = "" } = useParams()
+    const tournament = useTournament(tournamentId)
 
-    if (season.isPending) return <p className="p-6 text-sm text-muted-foreground">Loading season…</p>
-    if (season.isError) return <p role="alert" className="p-6 text-sm text-destructive">{season.error.message}</p>
+    if (tournament.isPending) return <p className="p-6 text-sm text-muted-foreground">Loading tournament…</p>
+    if (tournament.isError) return <p role="alert" className="p-6 text-sm text-destructive">{tournament.error.message}</p>
 
-    const s = season.data
+    const s = tournament.data
     const frozen = s.closedAt !== null
 
     return (
         <Page>
             <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Link className="transition-colors hover:text-foreground" to="/">Seasons</Link>
+                <Link className="transition-colors hover:text-foreground" to="/">Tournaments</Link>
                 <ChevronRight className="size-3.5" />
                 <span className="text-foreground">{s.name}</span>
             </nav>
@@ -53,28 +53,28 @@ export function SeasonDetailPage() {
 
                 <TabsContent value="matches">
                     <MatchesTab
-                        seasonId={seasonId}
-                        season={s}
+                        tournamentId={tournamentId}
+                        tournament={s}
                         seats={s.format.competitorsPerMatch}
                     />
                 </TabsContent>
 
                 <TabsContent value="standings">
-                    <StandingsTab seasonId={seasonId} />
+                    <StandingsTab tournamentId={tournamentId} />
                 </TabsContent>
 
                 <TabsContent value="points">
-                    <SeasonPointsCard seasonId={seasonId} season={s} />
+                    <TournamentPointsCard tournamentId={tournamentId} tournament={s} />
                 </TabsContent>
 
                 <TabsContent value="stages">
-                    <StagesTab seasonId={seasonId} season={s} />
+                    <StagesTab tournamentId={tournamentId} tournament={s} />
                 </TabsContent>
 
                 <TabsContent value="rules">
-                    <SeasonRulesTab
-                        seasonId={seasonId}
-                        season={s}
+                    <TournamentRulesTab
+                        tournamentId={tournamentId}
+                        tournament={s}
                         frozen={frozen}
                     />
                 </TabsContent>

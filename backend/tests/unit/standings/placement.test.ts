@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildStandings, type MatchResultInput } from "../../../src/game/engine/scoring/standings.js";
 
-// The season's places are decided by how far a player got — never by a sum of points.
+// The tournament's places are decided by how far a player got — never by a sum of points.
 
 const STAGES = [
     { id: "round-1", title: "Round 1" },
@@ -44,7 +44,7 @@ const match = (
     };
 };
 
-describe("the season's places", () => {
+describe("the tournament's places", () => {
     it("puts the last stage's players first", () => {
         const rows = buildStandings({
             stages: STAGES,
@@ -141,7 +141,7 @@ describe("the season's places", () => {
         expect(rows[1].tieBreak).toBe("never played");
     });
 
-    it("ignores a match in a stage the season does not list", () => {
+    it("ignores a match in a stage the tournament does not list", () => {
         const rows = buildStandings({
             stages: STAGES,
             matches: [match("m1", "mystery", 1, [["a", 10]])],

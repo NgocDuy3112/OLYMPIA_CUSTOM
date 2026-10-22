@@ -1,9 +1,9 @@
 import type { PlacementTier } from "../../contracts/index.js";
 
-// The tournament's points: what a place of the season is worth.
+// The tournament's points: what a place of the tournament is worth.
 //
-// This is **the season's own** — a season that does not award points for places has no
-// scale at all, and a season with a different field or finale size needs its own bands.
+// This is **the tournament's own** — a tournament that does not award points for places has no
+// scale at all, and a tournament with a different field or finale size needs its own bands.
 // The scales below are presets, not defaults: the Olympia one belongs to the Olympia
 // show, and is a starting point rather than a rule.
 export interface PlacementScale {
@@ -28,16 +28,16 @@ export const OLYMPIA_SCALE: PlacementScale = {
     ]
 };
 
-// The scales a season can be set up with.
+// The scales a tournament can be set up with.
 export const PLACEMENT_SCALES: PlacementScale[] = [OLYMPIA_SCALE];
 
-// How well a scale covers the places a season produces. A place with no band scores
+// How well a scale covers the places a tournament produces. A place with no band scores
 // zero, silently — this is what catches that.
 export interface ScaleCoverage {
-    places: number;              // the places the season produces
+    places: number;              // the places the tournament produces
     covered: number;             // how many of them have a band
     missing: number[];           // the places that have none
-    beyond: number[];            // the places the scale reaches past the season
+    beyond: number[];            // the places the scale reaches past the tournament
 }
 
 export function scaleCoverage(
@@ -53,7 +53,7 @@ export function scaleCoverage(
         if (pointsForPlace(tiers, place) === 0) missing.push(place);
     }
 
-    // A season that has not played yet produces no places, so nothing is "beyond".
+    // A tournament that has not played yet produces no places, so nothing is "beyond".
     const beyond: number[] = places === 0 ? [] : [];
     if (places > 0) {
         for (const tier of tiers) {
@@ -65,7 +65,7 @@ export function scaleCoverage(
 }
 
 // The points a place is worth. A place outside the tiers is worth nothing, and so is
-// every place of a season with no scale.
+// every place of a tournament with no scale.
 export function pointsForPlace(tiers: PlacementTier[] | null | undefined, place: number): number {
     if (!tiers || tiers.length === 0) return 0;
     const tier = tiers.find((entry) => place >= entry.min && place <= entry.max);

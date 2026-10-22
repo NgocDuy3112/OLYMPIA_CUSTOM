@@ -1,5 +1,5 @@
-// One error type for the season's own flows: the roster, the mass event and the standings.
-export type SeasonErrorCode =
+// One error type for the tournament's own flows: the roster, the mass event and the standings.
+export type TournamentErrorCode =
     | "VALIDATION"
     | "NOT_FOUND"
     | "CONFLICT"
@@ -13,18 +13,18 @@ export type SeasonErrorCode =
     | "TIES_UNRESOLVED"
     | "NOT_ENOUGH_QUESTIONS";
 
-export class SeasonError extends Error {
+export class TournamentError extends Error {
     constructor(
-        public readonly code: SeasonErrorCode,
+        public readonly code: TournamentErrorCode,
         message: string,
         public readonly details: string[] = []
     ) {
         super(message);
-        this.name = "SeasonError";
+        this.name = "TournamentError";
     }
 }
 
-const STATUS_BY_CODE: Record<SeasonErrorCode, number> = {
+const STATUS_BY_CODE: Record<TournamentErrorCode, number> = {
     VALIDATION: 400,
     NOT_FOUND: 404,
     CONFLICT: 409,
@@ -39,6 +39,6 @@ const STATUS_BY_CODE: Record<SeasonErrorCode, number> = {
     NOT_ENOUGH_QUESTIONS: 409
 };
 
-export function toHttpStatus(code: SeasonErrorCode): number {
+export function toHttpStatus(code: TournamentErrorCode): number {
     return STATUS_BY_CODE[code];
 }

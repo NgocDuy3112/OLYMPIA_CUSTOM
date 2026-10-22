@@ -127,6 +127,13 @@
       "when": 1792644735197,
       "tag": "0017_drop_tournaments",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792647000000,
+      "tag": "0018_rename_tournaments",
+      "breakpoints": true
     }
   ]
 }

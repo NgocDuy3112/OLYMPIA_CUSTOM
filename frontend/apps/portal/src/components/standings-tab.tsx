@@ -1,15 +1,15 @@
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useRecomputeStandings, useStandings } from "@/lib/season"
+import { useRecomputeStandings, useStandings } from "@/lib/tournament"
 
 
-// The season's places. A player is placed by how far they got — the last stage they
+// The tournament's places. A player is placed by how far they got — the last stage they
 // reached, the match they were eliminated in, and their rank in it. The points are a
 // statistic, not the ranking key.
-export function StandingsTab({ seasonId }: { seasonId: string }) {
-    const standings = useStandings(seasonId)
-    const recompute = useRecomputeStandings(seasonId)
+export function StandingsTab({ tournamentId }: { tournamentId: string }) {
+    const standings = useStandings(tournamentId)
+    const recompute = useRecomputeStandings(tournamentId)
 
     if (standings.isPending) {
         return <p className="text-sm text-muted-foreground">Loading standings…</p>
@@ -25,7 +25,7 @@ export function StandingsTab({ seasonId }: { seasonId: string }) {
             <CardHeader>
                 <CardTitle className="text-base">Standings</CardTitle>
                 <CardDescription>
-                    The season's places, by how far each player got. The points are what the
+                    The tournament's places, by how far each player got. The points are what the
                     place is worth; the match points belong to the match.
                 </CardDescription>
                 <CardAction>
@@ -43,7 +43,7 @@ export function StandingsTab({ seasonId }: { seasonId: string }) {
             <CardContent className="p-0">
                 {rows.length === 0 ? (
                     <p className="px-6 pb-6 text-sm text-muted-foreground">
-                        No players are enrolled in this season yet.
+                        No players are enrolled in this tournament yet.
                     </p>
                 ) : (
                     <Table>
