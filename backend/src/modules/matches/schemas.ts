@@ -39,7 +39,8 @@ export const CreateMatchInput = Type.Object({
     label: Type.String({ minLength: 1 }),
     scheduledAt: IsoDateTime,
     players: Type.Optional(Type.Array(SeatSchema)),
-    roundConfigs: Type.Record(Type.String(), RoundConfigSchema),
+    // Optional: a match created by hand takes the season's saved rules.
+    roundConfigs: Type.Optional(Type.Record(Type.String(), RoundConfigSchema)),
     questions: Type.Optional(Type.Array(AssemblyEntry)),
     autoPick: Type.Optional(Type.Array(AutoPick))
 });

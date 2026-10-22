@@ -193,9 +193,8 @@ export async function createMatch(
 
     // A match created by hand carries no rulebook: it takes the season's rules, and its
     // questions are assembled from them.
-    const roundConfigs = Object.keys(input.roundConfigs).length > 0
-        ? input.roundConfigs
-        : seasonRoundConfigs(season);
+    const given = input.roundConfigs ?? {};
+    const roundConfigs = Object.keys(given).length > 0 ? given : seasonRoundConfigs(season);
     assertRoundConfigKeys(season, roundConfigs);
     if (input.players) assertSeats(input.players, season.format, input.kind ?? "STANDARD");
 

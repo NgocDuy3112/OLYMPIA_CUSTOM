@@ -3,8 +3,9 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { seasonStandings, seasons, tournaments, users } from "../../src/db/schema/index.js";
+import { questionBank, seasonStandings, seasons, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
+import type { RoundConfig } from "../../src/game/contracts/index.js";
 
 // The standings are never typed in: they follow the points of the matches that were
 // played, and they are recomputed when a match ends.
@@ -19,7 +20,7 @@ const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const seasonUrl = (suffix: string) =>
     `/portal/tournaments/${tournamentId}/seasons/${seasonId}${suffix}`;
 
-const roundConfigs = {
+const roundRules: Record<string, RoundConfig> = {
     "ve-dich": {
         allowedKinds: ["MC"],
         scoring: { template: "constant", points: 10 },
@@ -36,7 +37,6 @@ const createMatch = (payload: Record<string, unknown>) =>
             stageId: "stage-1",
             label: "Match",
             scheduledAt: "2026-03-01T10:00:00Z",
-            roundConfigs,
             ...payload
         }
     });
@@ -92,9 +92,23 @@ beforeAll(async () => {
             teamAggregation: null, teamCountAggregation: null
         },
         placementTiers: [{ min: 1, max: 2, points: 10 }],
-        stages: []
+        stages: [],
+        roundRules
     }).returning();
     seasonId = season.id;
+
+    await db.insert(questionBank).values(
+        Array.from({ length: 8 }, (_, i) => ({
+            kind: "MC" as const,
+            questionText: `Q${i}`,
+            tag: "THTH",
+            payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
+            timeLimit: 30,
+            status: "PUBLISHED" as const,
+            tournamentId: null,
+            createdBy: owner.id
+        }))
+    );
 });
 
 afterAll(async () => {
@@ -179,5 +193,30 @@ describe("the standings", () => {
         });
         expect(res.statusCode).toBe(200);
         expect(res.json().rows).toHaveLength(4);
+    });
+});
+
+
+describe("a match placed by hand", () => {
+    it("takes the season's rules and assembles the questions", async () => {
+        const created = await createMatch({
+            players: playerIds.map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
+        });
+        expect(created.statusCode).toBe(201);
+
+        const body = created.json();
+        expect(body.kind).toBe("STANDARD");
+        expect(body.roundConfigs).toHaveProperty("ve-dich");
+        // The rulebook asks for four questions in the only turn of the only round.
+        expect(body.questions).toHaveLength(4);
+        expect(body.questions[0].roundId).toBe("ve-dich");
+    });
+
+    it("refuses a group that is the wrong size for the format", async () => {
+        const created = await createMatch({
+            players: playerIds.slice(0, 3).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
+        });
+        expect(created.statusCode).toBe(400);
+        expect(created.json().error).toBe("VALIDATION");
     });
 });
