@@ -165,6 +165,14 @@ export async function updateSeason(
 
     const changesRules = patch.roundRules !== undefined
         && JSON.stringify(patch.roundRules) !== JSON.stringify(existing.roundRules);
+    const changesStages = patch.stages !== undefined
+        && JSON.stringify(patch.stages) !== JSON.stringify(existing.stages);
+
+    // The stages are the season's order. Changing it would rewrite the places, so it is
+    // frozen once the season is closed.
+    if (changesStages && existing.closedAt !== null) {
+        throw new SeasonError("CONFLICT", "the stages are frozen once the season is closed");
+    }
 
     if (changesRules && frozen) {
         throw new SeasonError(

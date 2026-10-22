@@ -5,8 +5,8 @@ import type { PlacementTier, SeasonRound, TournamentFormat } from "@/lib/tournam
 export interface Stage {
     id: string
     title: string
-    start: string
-    end: string
+    start?: string
+    end?: string
 }
 
 export interface Season {

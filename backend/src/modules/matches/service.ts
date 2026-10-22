@@ -193,6 +193,23 @@ export async function createMatch(
 
     // A match created by hand carries no rulebook: it takes the season's rules, and its
     // questions are assembled from them.
+    // The season's stages are its order: a match names one of them, so the standings can
+    // tell how far each player got.
+    const stages = season.stages ?? [];
+    if (stages.length === 0) {
+        throw new MatchError(
+            "NOT_READY",
+            "this season has no stages yet — add them before creating matches"
+        );
+    }
+    if (!stages.some((stage) => stage.id === input.stageId)) {
+        throw new MatchError(
+            "VALIDATION",
+            `the stage "${input.stageId}" is not one of this season's stages`,
+            stages.map((stage) => stage.id)
+        );
+    }
+
     const given = input.roundConfigs ?? {};
     const roundConfigs = Object.keys(given).length > 0 ? given : seasonRoundConfigs(season);
     assertRoundConfigKeys(season, roundConfigs);

@@ -3,11 +3,13 @@ import { IsoDateTime, UserKind, TeamKind } from "./primitives.js";
 
 // ─── §10 — Stage ─────────────────────────────────────────────────────────────
 
+// A stage of the season. The list is ordered: that order is how far the rounds go, and
+// it decides the season's places.
 export const StageSchema = Type.Object({
     id: Type.String(),
     title: Type.String(),
-    start: IsoDateTime,
-    end: IsoDateTime
+    start: Type.Optional(IsoDateTime),
+    end: Type.Optional(IsoDateTime)
 });
 export type Stage = Static<typeof StageSchema>;
 

@@ -3,7 +3,7 @@ import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useEnrolled, useMatches } from "@/lib/season"
+import { useEnrolled, useMatches, type SeasonDetail } from "@/lib/season"
 import { MatchResultDialog } from "./match-result-dialog"
 import { NewMatchDialog } from "./new-match-dialog"
 
@@ -15,10 +15,12 @@ const short = (id: string) => id.slice(0, 8)
 export function MatchesTab({
     tournamentId,
     seasonId,
+    season,
     seats,
 }: {
     tournamentId: string
     seasonId: string
+    season: SeasonDetail
     seats: number
 }) {
     const matches = useMatches(tournamentId, seasonId)
@@ -119,6 +121,7 @@ export function MatchesTab({
                 <NewMatchDialog
                     tournamentId={tournamentId}
                     seasonId={seasonId}
+                    season={season}
                     seats={seats}
                     open
                     onOpenChange={(open) => { if (!open) setCreating(false) }}

@@ -5,8 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useRecomputeStandings, useStandings } from "@/lib/season"
 
 
-// The points table. It is never typed in: it follows the points of the matches that were
-// played, and it is recomputed whenever a match ends.
+// The season's places. A player is placed by how far they got — the last stage they
+// reached, the match they were eliminated in, and their rank in it. The points are a
+// statistic, not the ranking key.
 export function StandingsTab({
     tournamentId,
     seasonId,
@@ -31,9 +32,8 @@ export function StandingsTab({
             <CardHeader>
                 <CardTitle className="text-base">Standings</CardTitle>
                 <CardDescription>
-                    {rows.length === 0
-                        ? "No points matches have been played yet."
-                        : "Points from every points match of the season."}
+                    The season's places, by how far each player got. Points are shown for
+                    reference — they do not decide the order.
                 </CardDescription>
                 <CardAction>
                     <Button
@@ -50,7 +50,7 @@ export function StandingsTab({
             <CardContent className="p-0">
                 {rows.length === 0 ? (
                     <p className="px-6 pb-6 text-sm text-muted-foreground">
-                        The table fills itself when a match ends.
+                        No players are enrolled in this season yet.
                     </p>
                 ) : (
                     <Table>
@@ -58,24 +58,40 @@ export function StandingsTab({
                             <TableRow>
                                 <TableHead className="w-16 pl-6">Place</TableHead>
                                 <TableHead>Player</TableHead>
+                                <TableHead>Got to</TableHead>
                                 <TableHead className="w-24 text-right">Matches</TableHead>
-                                <TableHead className="w-24 pr-6 text-right">Points</TableHead>
+                                <TableHead className="w-24 text-right">Points</TableHead>
+                                <TableHead className="w-20 text-right">Bonus</TableHead>
+                                <TableHead className="pr-6">Tie-break</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {rows.map((row) => (
                                 <TableRow key={row.userId}>
                                     <TableCell className="pl-6 tabular-nums">
+                                        {row.place ?? <span className="text-muted-foreground">—</span>}
+                                    </TableCell>
+                                    <TableCell>
                                         <span className="flex items-center gap-2">
-                                            {row.rank}
+                                            {row.displayName}
                                             {row.placementPoints > 0 && (
                                                 <Badge variant="outline">+{row.placementPoints}</Badge>
                                             )}
                                         </span>
                                     </TableCell>
-                                    <TableCell>{row.displayName}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {row.stageTitle
+                                            ? `${row.stageTitle}${row.slot !== null ? ` · match ${row.slot}` : ""}`
+                                            : "—"}
+                                    </TableCell>
                                     <TableCell className="text-right tabular-nums">{row.matchesPlayed}</TableCell>
-                                    <TableCell className="pr-6 text-right tabular-nums">{row.totalScore}</TableCell>
+                                    <TableCell className="text-right tabular-nums">{row.totalPoints}</TableCell>
+                                    <TableCell className="text-right tabular-nums">
+                                        {row.placementPoints > 0 ? `+${row.placementPoints}` : "—"}
+                                    </TableCell>
+                                    <TableCell className="pr-6 text-sm text-muted-foreground">
+                                        {row.tieBreak ?? "—"}
+                                    </TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>

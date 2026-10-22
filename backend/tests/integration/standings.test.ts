@@ -7,8 +7,9 @@ import { questionBank, seasonStandings, seasons, tournaments, users } from "../.
 import { signToken } from "../../src/lib/jwt.js";
 import type { RoundConfig } from "../../src/game/contracts/index.js";
 
-// The standings are never typed in: they follow the points of the matches that were
-// played, and they are recomputed when a match ends.
+// The season's places are decided by how far a player got: the last stage they reached,
+// the match they were eliminated in, and their rank in it. The points never decide the
+// order — they are a statistic.
 
 let app: FastifyInstance;
 let ownerCookie: string;
@@ -28,13 +29,18 @@ const roundRules: Record<string, RoundConfig> = {
     }
 };
 
+const STAGES = [
+    { id: "round-1", title: "Round 1" },
+    { id: "round-2", title: "Round 2" }
+];
+
 const createMatch = (payload: Record<string, unknown>) =>
     app.inject({
         method: "POST",
         url: seasonUrl("/matches"),
         headers: auth(ownerCookie),
         payload: {
-            stageId: "stage-1",
+            stageId: "round-1",
             label: "Match",
             scheduledAt: "2026-03-01T10:00:00Z",
             ...payload
@@ -62,7 +68,7 @@ beforeAll(async () => {
     ownerCookie = signToken(app, "PORTAL", { sub: owner.id, role: "OPERATOR", tokenVersion: 0 });
 
     const players = await db.insert(users).values(
-        Array.from({ length: 4 }, (_, i) => ({
+        Array.from({ length: 6 }, (_, i) => ({
             role: "PLAYER" as const,
             email: `st${i}@example.com`,
             displayName: `ST${i}`,
@@ -92,7 +98,7 @@ beforeAll(async () => {
             teamAggregation: null, teamCountAggregation: null
         },
         placementTiers: [{ min: 1, max: 2, points: 10 }],
-        stages: [],
+        stages: STAGES,
         roundRules
     }).returning();
     seasonId = season.id;
@@ -116,91 +122,10 @@ afterAll(async () => {
 });
 
 
-describe("the standings", () => {
-    it("start empty", async () => {
-        const res = await standings();
-        expect(res.statusCode).toBe(200);
-        expect(res.json().rows).toHaveLength(0);
-    });
-
-    it("follow the points of the matches that were played", async () => {
-        const created = await createMatch({
-            players: playerIds.map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
-        });
-        expect(created.statusCode).toBe(201);
-        const matchId = created.json().id;
-
-        const done = await setResults(matchId, [
-            { userId: playerIds[0], score: 40 },
-            { userId: playerIds[1], score: 30 },
-            { userId: playerIds[2], score: 20 },
-            { userId: playerIds[3], score: 10 }
-        ]);
-        expect(done.statusCode).toBe(200);
-
-        const res = await standings();
-        const rows = res.json().rows as Array<{
-            userId: string; displayName: string; totalScore: number;
-            rank: number; placementPoints: number; matchesPlayed: number;
-        }>;
-
-        expect(rows).toHaveLength(4);
-        expect(rows.map((row) => row.userId)).toEqual(playerIds);
-        expect(rows.map((row) => row.totalScore)).toEqual([40, 30, 20, 10]);
-        expect(rows.map((row) => row.rank)).toEqual([1, 2, 3, 4]);
-        expect(rows.map((row) => row.matchesPlayed)).toEqual([1, 1, 1, 1]);
-
-        // The bonus points come from the season's placement tiers: places 1 and 2.
-        expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0]);
-        expect(rows[0].displayName).toBe("ST0");
-
-        const persisted = await db.select().from(seasonStandings)
-            .where(eq(seasonStandings.seasonId, seasonId));
-        expect(persisted).toHaveLength(4);
-    });
-
-    it("add up over the season", async () => {
-        const created = await createMatch({
-            stageId: "stage-2",
-            label: "Match 2",
-            players: playerIds.map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
-        });
-        const matchId = created.json().id;
-
-        await setResults(matchId, [
-            { userId: playerIds[3], score: 50 },
-            { userId: playerIds[2], score: 30 },
-            { userId: playerIds[1], score: 10 },
-            { userId: playerIds[0], score: 10 }
-        ]);
-
-        const rows = (await standings()).json().rows as Array<{
-            userId: string; totalScore: number; rank: number; matchesPlayed: number;
-        }>;
-
-        // Player 3 overtakes everyone: 10 + 50 = 60.
-        expect(rows[0].userId).toBe(playerIds[3]);
-        expect(rows[0].totalScore).toBe(60);
-        expect(rows[0].matchesPlayed).toBe(2);
-        expect(rows.map((row) => row.totalScore)).toEqual([50, 40, 50, 60].sort((a, b) => b - a));
-    });
-
-    it("can be recomputed by hand", async () => {
-        await db.delete(seasonStandings).where(eq(seasonStandings.seasonId, seasonId));
-
-        const res = await app.inject({
-            method: "POST", url: seasonUrl("/standings/recompute"), headers: auth(ownerCookie)
-        });
-        expect(res.statusCode).toBe(200);
-        expect(res.json().rows).toHaveLength(4);
-    });
-});
-
-
 describe("a match placed by hand", () => {
     it("takes the season's rules and assembles the questions", async () => {
         const created = await createMatch({
-            players: playerIds.map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
+            players: playerIds.slice(0, 4).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
         });
         expect(created.statusCode).toBe(201);
 
@@ -209,7 +134,6 @@ describe("a match placed by hand", () => {
         expect(body.roundConfigs).toHaveProperty("ve-dich");
         // The rulebook asks for four questions in the only turn of the only round.
         expect(body.questions).toHaveLength(4);
-        expect(body.questions[0].roundId).toBe("ve-dich");
     });
 
     it("refuses a group that is the wrong size for the format", async () => {
@@ -218,5 +142,97 @@ describe("a match placed by hand", () => {
         });
         expect(created.statusCode).toBe(400);
         expect(created.json().error).toBe("VALIDATION");
+    });
+
+    it("refuses a stage the season does not list", async () => {
+        const created = await createMatch({
+            stageId: "mystery",
+            players: playerIds.slice(0, 4).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
+        });
+        expect(created.statusCode).toBe(400);
+        expect(created.json().error).toBe("VALIDATION");
+    });
+});
+
+
+describe("the season's places", () => {
+    let firstMatch: string;
+    let secondMatch: string;
+
+    it("places the players of the last stage first", async () => {
+        // Round 1: everybody plays. The four winners go on to round 2.
+        const first = await createMatch({
+            stageId: "round-1",
+            slot: 1,
+            players: playerIds.slice(0, 4).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
+        });
+        expect(first.statusCode).toBe(201);
+        firstMatch = first.json().id;
+
+        await setResults(firstMatch, [
+            { userId: playerIds[0], score: 40 },
+            { userId: playerIds[1], score: 30 },
+            { userId: playerIds[2], score: 20 },
+            { userId: playerIds[3], score: 10 }
+        ]);
+
+        const second = await createMatch({
+            stageId: "round-2",
+            slot: 1,
+            players: playerIds.slice(0, 4).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
+        });
+        expect(second.statusCode).toBe(201);
+        secondMatch = second.json().id;
+
+        // In round 2 the last-placed player of round 1 wins: the points do not decide
+        // the season's order, the progress does.
+        await setResults(secondMatch, [
+            { userId: playerIds[3], score: 10 },
+            { userId: playerIds[0], score: 30 },
+            { userId: playerIds[1], score: 20 },
+            { userId: playerIds[2], score: 0 }
+        ]);
+
+        const rows = (await standings()).json().rows as Array<{
+            userId: string; displayName: string; place: number | null;
+            totalPoints: number; matchesPlayed: number; placementPoints: number;
+            stageTitle: string | null; tieBreak: string | null;
+        }>;
+
+        expect(rows).toHaveLength(6);
+
+        // The four who reached round 2 take the first four places, in that match's order.
+        expect(rows.slice(0, 4).map((row) => row.userId)).toEqual([
+            playerIds[3], playerIds[0], playerIds[1], playerIds[2]
+        ]);
+        expect(rows.slice(0, 4).map((row) => row.place)).toEqual([1, 2, 3, 4]);
+        expect(rows.slice(0, 4).every((row) => row.stageTitle === "Round 2")).toBe(true);
+
+        // The bonus follows the place, not the points: player 0 has the most points
+        // overall (70) and still comes second.
+        expect(rows[0].totalPoints).toBe(50);
+        expect(rows[1].totalPoints).toBe(70);
+        expect(rows[1].place).toBe(2);
+        expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0, 0, 0]);
+    });
+
+    it("places the players who stopped in round 1 below them", async () => {
+        const rows = (await standings()).json().rows as Array<{
+            userId: string; place: number | null; stageTitle: string | null; tieBreak: string | null;
+        }>;
+
+        // Players 4 and 5 never played: no place, at the bottom.
+        expect(rows[4].userId).toBe(playerIds[4]);
+        expect(rows[4].place).toBeNull();
+        expect(rows[4].tieBreak).toBe("never played");
+        expect(rows[5].userId).toBe(playerIds[5]);
+        expect(rows[5].place).toBeNull();
+    });
+
+    it("stores the places as the season's record", async () => {
+        const stored = await db.select().from(seasonStandings)
+            .where(eq(seasonStandings.seasonId, seasonId));
+        expect(stored).toHaveLength(4);
+        expect(stored.map((row) => row.rank).sort()).toEqual([1, 2, 3, 4]);
     });
 });

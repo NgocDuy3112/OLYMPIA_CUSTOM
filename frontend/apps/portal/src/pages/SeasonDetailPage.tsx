@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader } from "@/components/page"
 import { useSeason } from "@/lib/season"
 import { MatchesTab } from "@/components/matches-tab"
+import { StagesTab } from "@/components/stages-tab"
 import { SeasonRulesTab } from "@/components/season-rules-tab"
 import { StandingsTab } from "@/components/standings-tab"
 import { ChevronRight } from "lucide-react"
@@ -50,6 +51,7 @@ export function SeasonDetailPage() {
             <Tabs defaultValue="matches">
                 <TabsList variant="line" className="justify-start gap-6 border-b">
                     <TabsTrigger value="matches">Matches</TabsTrigger>
+                    <TabsTrigger value="stages">Stages</TabsTrigger>
                     <TabsTrigger value="standings">Standings</TabsTrigger>
                     <TabsTrigger value="rules">Round rules</TabsTrigger>
                 </TabsList>
@@ -58,8 +60,13 @@ export function SeasonDetailPage() {
                     <MatchesTab
                         tournamentId={tournamentId}
                         seasonId={seasonId}
+                        season={s}
                         seats={s.format.competitorsPerMatch}
                     />
+                </TabsContent>
+
+                <TabsContent value="stages">
+                    <StagesTab tournamentId={tournamentId} seasonId={seasonId} season={s} />
                 </TabsContent>
 
                 <TabsContent value="standings">

@@ -63,13 +63,19 @@ export interface MatchSummary {
     questions: unknown[]
 }
 
+// A row of the season's standings. The place is how far the player got, not a sum of
+// points; the points are a statistic.
 export interface StandingRow {
     userId: string
     displayName: string
-    totalScore: number
+    place: number | null
+    totalPoints: number
     matchesPlayed: number
-    rank: number
     placementPoints: number
+    stageId: string | null
+    stageTitle: string | null
+    slot: number | null
+    tieBreak: string | null
 }
 
 
@@ -85,7 +91,7 @@ export function useSeason(tournamentId: string, seasonId: string) {
 export function useUpdateSeason(tournamentId: string, seasonId: string) {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: (patch: Partial<Pick<SeasonDetail, "roundRules">>) =>
+        mutationFn: (patch: Partial<Pick<SeasonDetail, "roundRules" | "stages">>) =>
             api<SeasonDetail>(`/portal/tournaments/${tournamentId}/seasons/${seasonId}`, {
                 method: "PATCH",
                 body: JSON.stringify(patch),

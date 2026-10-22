@@ -5,18 +5,21 @@ import {
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
 import { useCreateMatch, useCreateQualificationMatch, useEnrolled } from "@/lib/season"
+import type { SeasonDetail } from "@/lib/season"
 
 // A match, placed by hand: the staff pick who plays whom.
 // The mass event is the same thing with the whole roster and a question set.
 export function NewMatchDialog({
     tournamentId,
     seasonId,
+    season,
     seats,
     open,
     onOpenChange,
 }: {
     tournamentId: string
     seasonId: string
+    season: SeasonDetail
     seats: number
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -25,9 +28,11 @@ export function NewMatchDialog({
     const create = useCreateMatch(tournamentId, seasonId)
     const createMass = useCreateQualificationMatch(tournamentId, seasonId)
 
+    const stages = season.stages ?? []
+
     const [kind, setKind] = useState<"STANDARD" | "QUALIFICATION">("STANDARD")
     const [label, setLabel] = useState("")
-    const [stageId, setStageId] = useState("stage-1")
+    const [stageId, setStageId] = useState(stages[0]?.id ?? "")
     const [questionCount, setQuestionCount] = useState(16)
     const [picked, setPicked] = useState<string[]>(Array.from({ length: seats }, () => ""))
 
@@ -35,7 +40,10 @@ export function NewMatchDialog({
     const chosen = picked.filter(Boolean)
     const valid = kind === "QUALIFICATION"
         ? label.trim().length > 0 && questionCount > 0
-        : label.trim().length > 0 && chosen.length === seats && new Set(chosen).size === seats
+        : label.trim().length > 0
+            && stageId.length > 0
+            && chosen.length === seats
+            && new Set(chosen).size === seats
 
     const reset = () => {
         setLabel("")
@@ -55,7 +63,7 @@ export function NewMatchDialog({
         }
 
         create.mutate(
-            { label: label.trim(), stageId: stageId.trim() || "stage-1", scheduledAt, playerIds: chosen },
+            { label: label.trim(), stageId, scheduledAt, playerIds: chosen },
             options
         )
     }
@@ -104,13 +112,26 @@ export function NewMatchDialog({
 
                     {kind === "STANDARD" ? (
                         <>
-                            <label className="flex items-center gap-3 text-sm">
+                            <label className="flex flex-col gap-2 text-sm">
                                 Stage
-                                <Input
-                                    className="h-8 w-40"
-                                    value={stageId}
-                                    onChange={(event) => setStageId(event.target.value)}
-                                />
+                                {stages.length === 0 ? (
+                                    <span className="text-sm text-destructive">
+                                        This season has no stages yet. Add them first — a match has
+                                        to name one, and the stage order is what places the players.
+                                    </span>
+                                ) : (
+                                    <select
+                                        className="h-9 rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                                        value={stageId}
+                                        onChange={(event) => setStageId(event.target.value)}
+                                    >
+                                        {stages.map((stage, index) => (
+                                            <option key={stage.id} value={stage.id}>
+                                                {index + 1} · {stage.title}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </label>
 
                             <div className="flex flex-col gap-2">
