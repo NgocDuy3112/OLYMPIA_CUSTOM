@@ -323,7 +323,7 @@ describe("the mass event — closing it", () => {
         ));
         expect(rows).toHaveLength(5);
         // Player 0 answered every question right; each question was worth y + z.
-        expect(rows.map((row) => row.pointsAwarded).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
+        expect(rows.map((row) => row.pointsAwarded ?? 0).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
     });
 
     it("refuses to close twice", async () => {

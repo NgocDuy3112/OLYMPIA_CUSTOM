@@ -15,6 +15,7 @@ import { nextRoundId, orderedMatchRounds } from "./rounds.js";
 import { buildMatchResults } from "./scoring.js";
 import { buildStageInputs, seasonRoundConfigs } from "./stage-inputs.js";
 import { recomputeStandings } from "../standings/service.js";
+import { checkMatchAgainstFormat } from "../bracket/service.js";
 
 export type MatchRow = typeof matches.$inferSelect;
 type SeasonRow = typeof seasons.$inferSelect;
@@ -181,6 +182,34 @@ function assertSeats(
 }
 
 
+// The format: the stage's rule decides what may sit in a match. The staff place the
+// matches; the engine refuses the ones that break the bracket.
+async function assertFollowsFormat(params: {
+    seasonId: string;
+    stageId: string;
+    slot: number | null;
+    players: Seat[];
+}): Promise<void> {
+    const playerIds = params.players.flatMap((seat) =>
+        "userId" in seat && seat.userId ? [seat.userId] : []);
+
+    const check = await checkMatchAgainstFormat({
+        seasonId: params.seasonId,
+        stageId: params.stageId,
+        slot: params.slot,
+        playerIds
+    });
+
+    if (check.checked && check.problems.length > 0) {
+        throw new MatchError(
+            "VALIDATION",
+            `this match breaks the format of stage "${params.stageId}"`,
+            check.problems
+        );
+    }
+}
+
+
 export async function createMatch(
     tournamentId: string,
     seasonId: string,
@@ -221,6 +250,14 @@ export async function createMatch(
             : {};
     if (Object.keys(roundConfigs).length > 0) assertRoundConfigKeys(season, roundConfigs);
     if (input.players) assertSeats(input.players, season.format, input.kind ?? "STANDARD");
+    if (input.players && (input.kind ?? "STANDARD") === "STANDARD") {
+        await assertFollowsFormat({
+            seasonId,
+            stageId: input.stageId,
+            slot: input.slot ?? null,
+            players: input.players
+        });
+    }
 
     // The questions come from the rulebook, when it declares any. A rulebook that asks
     // for no questions leaves the match empty: the staff assemble it later.
@@ -322,6 +359,14 @@ export async function updateMatch(
 
     const season = await requireSeason(seasonId);
     if (patch.players) assertSeats(patch.players, season.format, existing.kind);
+    if (patch.players && existing.kind === "STANDARD") {
+        await assertFollowsFormat({
+            seasonId,
+            stageId: patch.stageId ?? existing.stageId,
+            slot: existing.slot ?? null,
+            players: patch.players
+        });
+    }
     if (patch.roundConfigs) assertRoundConfigKeys(season, patch.roundConfigs);
 
     const values: Partial<typeof matches.$inferInsert> = { updatedAt: new Date() };

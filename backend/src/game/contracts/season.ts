@@ -3,11 +3,25 @@ import { IsoDateTime, UserKind, TeamKind } from "./primitives.js";
 
 // ─── §10 — Stage ─────────────────────────────────────────────────────────────
 
+// What a stage is for. The role tells the engine which rule the stage's matches must
+// follow, so the staff can place the matches by hand and still be checked against the
+// format:
+//   splitting — the tier draw: one player from each tier of the current ranking, per match
+//   playoff   — the ladder: the winner climbs a slot, the losers drop one
+//   finale   — the four ladder winners, and the season's places 1–4
+export const StageRoleSchema = Type.Union([
+    Type.Literal("splitting"),
+    Type.Literal("playoff"),
+    Type.Literal("finale")
+]);
+export type StageRole = Static<typeof StageRoleSchema>;
+
 // A stage of the season. The list is ordered: that order is how far the rounds go, and
 // it decides the season's places.
 export const StageSchema = Type.Object({
     id: Type.String(),
     title: Type.String(),
+    role: Type.Optional(StageRoleSchema),
     start: Type.Optional(IsoDateTime),
     end: Type.Optional(IsoDateTime)
 });

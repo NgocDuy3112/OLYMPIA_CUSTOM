@@ -5,11 +5,12 @@ import {
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
 import { useUpdateSeason, type SeasonDetail } from "@/lib/season"
-import type { Stage } from "@/lib/seasons"
+import { STAGE_ROLES, type Stage, type StageRole } from "@/lib/seasons"
 
 interface StageDraft {
     id: string
     title: string
+    role: StageRole | ""
     start: string
     end: string
 }
@@ -27,6 +28,7 @@ function toDraft(stage: Stage): StageDraft {
     return {
         id: stage.id,
         title: stage.title,
+        role: stage.role ?? "",
         start: stage.start ? stage.start.slice(0, 10) : "",
         end: stage.end ? stage.end.slice(0, 10) : "",
     }
@@ -67,7 +69,7 @@ export function EditStagesDialog({
         })
 
     const add = () =>
-        setDraft((current) => [...current, { id: "", title: "", start: "", end: "" }])
+        setDraft((current) => [...current, { id: "", title: "", role: "", start: "", end: "" }])
 
     const remove = (index: number) =>
         setDraft((current) => current.filter((_, i) => i !== index))
@@ -78,6 +80,7 @@ export function EditStagesDialog({
             .map((stage) => ({
                 id: stage.id.trim(),
                 title: stage.title.trim(),
+                role: stage.role || undefined,
                 start: stage.start ? new Date(stage.start).toISOString() : undefined,
                 end: stage.end ? new Date(stage.end).toISOString() : undefined
             }))
@@ -98,7 +101,8 @@ export function EditStagesDialog({
                         <DialogTitle>Stages</DialogTitle>
                         <DialogDescription>
                             The order of the season. The last stage a player reached is what
-                            places them; the id is what a match names.
+                            places them; the id is what a match names. A stage's rule is what the
+                            engine checks its matches against.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -141,6 +145,24 @@ export function EditStagesDialog({
                                         placeholder="playoff"
                                         onChange={(event) => patch(index, { id: event.target.value })}
                                     />
+                                </label>
+
+                                <label className="flex flex-col gap-1">
+                                    <span className="text-xs text-muted-foreground">Rule</span>
+                                    <select
+                                        className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm"
+                                        value={stage.role}
+                                        onChange={(event) =>
+                                            patch(index, { role: event.target.value as StageRole | "" })
+                                        }
+                                    >
+                                        <option value="">none — not checked</option>
+                                        {STAGE_ROLES.map((role) => (
+                                            <option key={role.value} value={role.value}>
+                                                {role.label}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </label>
 
                                 <label className="flex flex-col gap-1">
