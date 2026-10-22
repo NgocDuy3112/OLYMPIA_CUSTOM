@@ -156,7 +156,6 @@ export const seasonStandings = pgTable(
             .references(() => seasons.id),
         userId: uuid("user_id").references(() => users.id),
         teamId: uuid("team_id"),
-        totalScore: integer("total_score").notNull(),
         rank: integer("rank").notNull(),
         placementPoints: integer("placement_points").notNull(),
         computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow()

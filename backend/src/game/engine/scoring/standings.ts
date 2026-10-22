@@ -30,7 +30,6 @@ export interface PlayerStanding {
     userId: string;
     displayName: string;
     place: number | null;         // null for a player who never played
-    totalPoints: number;           // the season's points: a statistic, not the key
     matchesPlayed: number;
     placementPoints: number;       // what the place is worth, from the season's tiers
     stageId: string | null;        // the stage they got to
@@ -74,9 +73,8 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
     const stageIndex = new Map(input.stages.map((stage, index) => [stage.id, index]));
     const stageTitle = new Map(input.stages.map((stage) => [stage.id, stage.title]));
 
-    // The furthest each player got, and their points along the way.
+    // The furthest each player got, and how many matches they played.
     const progress = new Map<string, Progress>();
-    const points = new Map<string, number>();
     const played = new Map<string, number>();
 
     for (const match of input.matches) {
@@ -90,7 +88,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
         }
 
         for (const entry of match.results) {
-            points.set(entry.userId, (points.get(entry.userId) ?? 0) + entry.totalScore);
             played.set(entry.userId, (played.get(entry.userId) ?? 0) + 1);
 
             const candidate: Progress = {
@@ -136,7 +133,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
             userId: entry.userId,
             displayName: input.players.find((row) => row.userId === entry.userId)?.displayName ?? entry.userId,
             place,
-            totalPoints: points.get(entry.userId) ?? 0,
             matchesPlayed: played.get(entry.userId) ?? 0,
             placementPoints: pointsForPlace(input.tiers, place),
             stageId: value.stageId,
@@ -158,7 +154,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
             userId: row.userId,
             displayName: row.displayName,
             place: null,
-            totalPoints: 0,
             matchesPlayed: 0,
             placementPoints: 0,
             stageId: null,

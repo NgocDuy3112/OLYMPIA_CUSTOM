@@ -99,7 +99,6 @@ export async function recomputeStandings(seasonId: string): Promise<PlayerStandi
             await tx.insert(seasonStandings).values(storable.map((row) => ({
                 seasonId,
                 userId: row.userId,
-                totalScore: row.totalPoints,
                 rank: row.place!,
                 placementPoints: row.placementPoints
             })));

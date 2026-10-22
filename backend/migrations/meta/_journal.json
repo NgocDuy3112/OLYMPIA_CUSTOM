@@ -99,6 +99,13 @@
       "when": 1792631874894,
       "tag": "0013_progression_removed",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792642325662,
+      "tag": "0014_drop_total_score",
+      "breakpoints": true
     }
   ]
 }

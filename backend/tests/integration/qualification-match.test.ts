@@ -354,13 +354,16 @@ describe("the mass event — closing it", () => {
         });
         expect(res.statusCode).toBe(200);
 
-        // The roster is listed, but nobody has a place and nobody has points: the mass
-        // event ranks the field, it is not a match for points.
-        const rows = res.json().rows as Array<{ place: number | null; totalPoints: number }>;
+        // The roster is listed, but nobody has a place and nobody has played a points
+        // match: the mass event ranks the field, it is not a match for points.
+        const rows = res.json().rows as Array<{
+            place: number | null;
+            matchesPlayed: number;
+        }>;
         expect(rows).toHaveLength(6);
         for (const row of rows) {
             expect(row.place).toBeNull();
-            expect(row.totalPoints).toBe(0);
+            expect(row.matchesPlayed).toBe(0);
         }
     });
 });

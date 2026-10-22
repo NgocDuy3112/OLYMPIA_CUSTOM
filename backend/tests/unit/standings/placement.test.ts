@@ -101,11 +101,8 @@ describe("the season's places", () => {
             tiers: []
         });
 
-        expect(rows[0].userId).toBe("b");
-        expect(rows[0].totalPoints).toBe(2);
-        expect(rows[1].userId).toBe("c");
-        expect(rows[2].userId).toBe("a");
-        expect(rows[2].totalPoints).toBe(100);
+        // "a" scored the most, and is last: the progress decides.
+        expect(rows.map((row) => row.userId)).toEqual(["b", "c", "a"]);
     });
 
     it("shares a place on a tie inside a match, and asks for a tie-break turn", () => {
@@ -140,7 +137,7 @@ describe("the season's places", () => {
         expect(rows.map((row) => row.userId)).toEqual(["a", "b"]);
         expect(rows[0].place).toBe(1);
         expect(rows[1].place).toBeNull();
-        expect(rows[1].totalPoints).toBe(0);
+        expect(rows[1].matchesPlayed).toBe(0);
         expect(rows[1].tieBreak).toBe("never played");
     });
 
@@ -169,8 +166,8 @@ describe("the season's places", () => {
 
         expect(rows.map((row) => row.place)).toEqual([1, 2, 3, 4]);
         expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0]);
-        // "d" has the most points by far, and the last place.
-        expect(rows[3].totalPoints).toBe(500);
+        // "d" scored the most by far, and has the last place.
+        expect(rows[3].userId).toBe("d");
     });
 
     it("says why a row sits below the row above it", () => {

@@ -69,7 +69,6 @@ export interface StandingRow {
     userId: string
     displayName: string
     place: number | null
-    totalPoints: number
     matchesPlayed: number
     placementPoints: number
     stageId: string | null

@@ -215,9 +215,8 @@ describe("the season's places", () => {
         expect(rows.slice(0, 4).map((row) => row.place)).toEqual([1, 2, 3, 4]);
         expect(rows.slice(0, 4).every((row) => row.stageTitle === "Round 2")).toBe(true);
 
-        // Three of them finish on 50 points; only the progress orders them. The bonus
-        // follows the place, not the points.
-        expect(rows.slice(0, 3).map((row) => row.totalPoints)).toEqual([50, 50, 50]);
+        // Three of them finished on 50 points in the season; only the progress orders
+        // them. The bonus follows the place.
         expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0, 0, 0]);
     });
 
