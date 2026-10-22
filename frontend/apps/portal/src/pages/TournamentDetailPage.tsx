@@ -77,6 +77,46 @@ export function TournamentDetailPage() {
 
             <Card className="[--card-spacing:--spacing(6)]">
                 <CardHeader>
+                    <CardTitle className="text-base">Tournament points</CardTitle>
+                    <CardDescription>
+                        What each place of the season is worth. A season inherits this unless
+                        it is given its own.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {data.defaultPlacementTiers.length === 0 ? (
+                        <p className="px-6 pb-6 text-sm text-muted-foreground">
+                            No points scale set.
+                        </p>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="pl-6">Place</TableHead>
+                                    <TableHead className="pr-6 text-right">Points</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {data.defaultPlacementTiers.map((tier) => (
+                                    <TableRow key={`${tier.min}-${tier.max}`}>
+                                        <TableCell className="pl-6">
+                                            {tier.min === tier.max
+                                                ? tier.min
+                                                : `${tier.min} – ${tier.max}`}
+                                        </TableCell>
+                                        <TableCell className="pr-6 text-right tabular-nums">
+                                            {tier.points}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card className="[--card-spacing:--spacing(6)]">
+                <CardHeader>
                     <CardTitle className="text-base">Seasons</CardTitle>
                     <CardDescription>
                         Each season inherits the configuration above, and may override it.

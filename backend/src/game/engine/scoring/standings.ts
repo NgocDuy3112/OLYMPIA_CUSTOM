@@ -13,6 +13,7 @@
 // a tie for a placement is settled by one ve-dich Phase 1 turn, whose points only order
 // the tied players and change no totals — so a tie is reported, never silently broken.
 import type { PlacementTier } from "../../contracts/index.js";
+import { pointsForPlace } from "./placement.js";
 
 export interface StageRef {
     id: string;
@@ -43,12 +44,6 @@ export interface BuildStandingsInput {
     matches: MatchResultInput[];   // the points matches that were played
     players: Array<{ userId: string; displayName: string }>;   // the roster
     tiers: PlacementTier[];
-}
-
-// The bonus for a place, from the season's tiers.
-function pointsForPlace(tiers: PlacementTier[], place: number): number {
-    const tier = tiers.find((entry) => place >= entry.min && place <= entry.max);
-    return tier?.points ?? 0;
 }
 
 // The furthest a player got: the latest stage, then the lowest slot, then the best rank.
