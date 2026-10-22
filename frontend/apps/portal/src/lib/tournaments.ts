@@ -40,6 +40,26 @@ export interface PlacementTier {
     points: number
 }
 
+// The scales a tournament can be set up with. A preset is a starting point, not a
+// default: the points for places are the tournament's own.
+export const PLACEMENT_SCALES = [
+    {
+        id: "olympia",
+        title: "Olympia",
+        description: "16 places, a finale of 4",
+        tiers: [
+            { min: 1, max: 1, points: 25 },
+            { min: 2, max: 2, points: 18 },
+            { min: 3, max: 3, points: 12 },
+            { min: 4, max: 4, points: 8 },
+            { min: 5, max: 7, points: 5 },
+            { min: 8, max: 10, points: 3 },
+            { min: 11, max: 13, points: 2 },
+            { min: 14, max: 16, points: 1 }
+        ]
+    }
+] as const
+
 export interface TournamentDetail extends Tournament {
     ownerId: string
     defaultRounds: SeasonRound[]
@@ -52,6 +72,7 @@ export interface TournamentUpdate {
     slug?: string
     visibility?: "PUBLIC" | "PRIVATE"
     defaultTags?: string[]
+    defaultPlacementTiers?: PlacementTier[]
 }
 
 export function useTournament(id: string) {

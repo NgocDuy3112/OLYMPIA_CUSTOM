@@ -5,7 +5,6 @@ import { TournamentError } from "./errors.js";
 import { DrizzleQueryError } from "drizzle-orm/errors";
 import { CreateTournamentInput, UpdateTournamentInput, validate } from "./schemas.js";
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
-import { OLYMPIA_PLACEMENT_TIERS } from "../../game/engine/scoring/placement.js";
 
 
 function assertUniqueTags(tags: string[]): void {
@@ -42,7 +41,8 @@ export async function createTournament(
                 defaultTags: input.defaultTags,
                 defaultRounds: input.defaultRounds,
                 defaultFormat: input.defaultFormat,
-                defaultPlacementTiers: input.defaultPlacementTiers ?? OLYMPIA_PLACEMENT_TIERS,
+                // No scale by default: the points for places are this tournament's own.
+                defaultPlacementTiers: input.defaultPlacementTiers ?? [],
             })
             .returning();
         return row;

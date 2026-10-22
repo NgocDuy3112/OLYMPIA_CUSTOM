@@ -86,7 +86,7 @@ export function TournamentDetailPage() {
                 <CardContent className="p-0">
                     {data.defaultPlacementTiers.length === 0 ? (
                         <p className="px-6 pb-6 text-sm text-muted-foreground">
-                            No points scale set.
+                            This tournament awards no points for places. Edit it to add a scale.
                         </p>
                     ) : (
                         <Table>

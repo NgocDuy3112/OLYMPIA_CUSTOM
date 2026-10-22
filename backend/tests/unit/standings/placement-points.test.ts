@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-    OLYMPIA_PLACEMENT_TIERS,
+    OLYMPIA_SCALE,
     pointsForPlace
 } from "../../../src/game/engine/scoring/placement.js";
+
+const OLYMPIA_PLACEMENT_TIERS = OLYMPIA_SCALE.tiers;
 
 // The tournament's points: what a place is worth.
 
@@ -27,6 +29,12 @@ describe("the Olympia placement scale", () => {
         for (const place of [14, 15, 16]) {
             expect(pointsForPlace(OLYMPIA_PLACEMENT_TIERS, place)).toBe(1);
         }
+    });
+
+    it("pays nothing when the tournament has no scale", () => {
+        expect(pointsForPlace([], 1)).toBe(0);
+        expect(pointsForPlace(null, 1)).toBe(0);
+        expect(pointsForPlace(undefined, 16)).toBe(0);
     });
 
     it("pays nothing outside the scale", () => {

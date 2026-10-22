@@ -15,7 +15,8 @@ export const CreateTournamentInput = Type.Object({
     defaultTags: Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
     defaultRounds: Type.Array(SeasonRoundSchema),
     defaultFormat: TournamentFormatSchema,
-    // Optional: a tournament without tiers uses the Olympia placement scale.
+    // Optional: the points for places are this tournament's own. A tournament without
+    // a scale awards no points for places.
     defaultPlacementTiers: Type.Optional(Type.Array(PlacementTierSchema))
 });
 export type CreateTournamentInput = Static<typeof CreateTournamentInput>;
