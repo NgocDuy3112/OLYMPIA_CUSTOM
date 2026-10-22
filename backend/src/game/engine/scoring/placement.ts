@@ -2,11 +2,10 @@ import type { PlacementTier } from "../../contracts/index.js";
 
 // The tournament's points: what a place of the season is worth.
 //
-// This is **per tournament** — a tournament that does not award points for places has
-// no scale at all, and a tournament with a different field or finale size needs its own
-// bands. The scales below are presets, not defaults: the Olympia one belongs to the
-// Olympia tournament, and a season inherits its tournament's scale unless it brings
-// its own.
+// This is **the season's own** — a season that does not award points for places has no
+// scale at all, and a season with a different field or finale size needs its own bands.
+// The scales below are presets, not defaults: the Olympia one belongs to the Olympia
+// show, and is a starting point rather than a rule.
 export interface PlacementScale {
     title: string;
     description: string;
@@ -29,7 +28,7 @@ export const OLYMPIA_SCALE: PlacementScale = {
     ]
 };
 
-// The scales a tournament can be set up with.
+// The scales a season can be set up with.
 export const PLACEMENT_SCALES: PlacementScale[] = [OLYMPIA_SCALE];
 
 // How well a scale covers the places a season produces. A place with no band scores

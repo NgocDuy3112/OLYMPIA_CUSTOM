@@ -4,7 +4,7 @@ import WebSocket from "ws";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { matchLive, matches, seasons, tournaments, users } from "../../src/db/schema/index.js";
+import { matchLive, matches, seasons, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import { openHint, startGiaiMa } from "../../src/game/engine/turns/giai-ma.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
@@ -15,7 +15,6 @@ let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookie: string;
 let outsiderCookie: string;
-let tournamentId: string;
 let seasonId: string;
 let matchId: string;
 let hintIds: string[];
@@ -53,17 +52,14 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    const [tournament] = await db.insert(tournaments).values({
-        name: "Stream Tournament", slug: "stream-tournament", visibility: "PUBLIC", ownerId: owner.id,
-        defaultTags: ["THTH"],
-        defaultRounds: [{ id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" }],
-        defaultFormat: { competitorsPerMatch: 1, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
-        defaultPlacementTiers: [{ min: 1, max: 1, points: 10 }]
-    }).returning();
-    tournamentId = tournament.id;
+    // The season is the unit: it carries the identity the tournament had.
+    const seasonTags = ["THTH"];
+    const seasonOwner = owner.id;
+    const seasonSlug = "stream-tournament-season";
 
     const [season] = await db.insert(seasons).values({
-        tournamentId, name: "Stream Season",
+        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
+        name: "Stream Season",
         rounds: [{ id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 1, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
         placementTiers: [{ min: 1, max: 1, points: 10 }],
@@ -95,8 +91,8 @@ afterAll(async () => {
 });
 
 const streamUrl = () => `${baseUrl}/gameplay/matches/${matchId}/live/stream`;
-const actionUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/live/actions`;
-const liveUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/live`;
+const actionUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live/actions`;
+const liveUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live`;
 
 function nextMessage(socket: WebSocket, timeoutMs = 3000): Promise<any> {
     return new Promise((resolve, reject) => {

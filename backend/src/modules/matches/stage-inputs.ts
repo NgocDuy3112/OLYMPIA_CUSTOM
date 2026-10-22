@@ -35,7 +35,6 @@ export function seasonRoundConfigs(season: SeasonRow): Record<string, RoundConfi
 
 export async function buildStageInputs(
     season: SeasonRow,
-    tournamentId: string,
     roundConfigs: Record<string, RoundConfig>
 ): Promise<StageInputs> {
     const questions: AssemblyEntry[] = [];
@@ -50,7 +49,7 @@ export async function buildStageInputs(
             if (count <= 0) continue;
 
             const conditions = [
-                ...assemblyEligibility(tournamentId),
+                ...assemblyEligibility(season.tags),
                 inArray(questionBank.kind, config.allowedKinds as ("MC" | "TEXT" | "KEYWORD")[])
             ];
             if (picked.length > 0) conditions.push(notInArray(questionBank.id, picked));

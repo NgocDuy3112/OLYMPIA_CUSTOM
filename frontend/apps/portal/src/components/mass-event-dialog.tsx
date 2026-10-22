@@ -15,7 +15,6 @@ import { useCloseMassEvent, useMassEvent } from "@/lib/season"
 const TIER_NAMES = ["S", "A", "B", "C", "D", "E"]
 
 export function MassEventDialog({
-    tournamentId,
     seasonId,
     matchId,
     label,
@@ -23,7 +22,6 @@ export function MassEventDialog({
     open,
     onOpenChange,
 }: {
-    tournamentId: string
     seasonId: string
     matchId: string
     label: string
@@ -31,8 +29,8 @@ export function MassEventDialog({
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const view = useMassEvent(tournamentId, seasonId, matchId)
-    const close = useCloseMassEvent(tournamentId, seasonId)
+    const view = useMassEvent(seasonId, matchId)
+    const close = useCloseMassEvent(seasonId)
 
     // The tied groups the close refused, and the order the staff gave them.
     const [orders, setOrders] = useState<Record<string, string[]>>({})

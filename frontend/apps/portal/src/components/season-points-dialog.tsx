@@ -5,28 +5,24 @@ import {
 } from "@shared/ui/dialog"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { useUpdateSeason, type SeasonDetail } from "@/lib/season"
-import type { PlacementTier } from "@/lib/tournaments"
+import type { PlacementTier } from "@/lib/seasons"
 import { PlacementTiersEditor } from "@/components/placement-tiers-editor"
 
 
 // The season's own points for places. The tournament hands a default down; a season may
 // change it, and the season is what knows how many places it produces.
 export function SeasonPointsDialog({
-    tournamentId,
     seasonId,
     season,
-    defaultTiers,
     open,
     onOpenChange,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
-    defaultTiers: PlacementTier[]
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const update = useUpdateSeason(tournamentId, seasonId)
+    const update = useUpdateSeason(seasonId)
 
     const [tiers, setTiers] = useState<PlacementTier[]>(season.placementTiers ?? [])
 
@@ -43,19 +39,14 @@ export function SeasonPointsDialog({
                     <DialogHeader>
                         <DialogTitle>Points for places</DialogTitle>
                         <DialogDescription>
-                            What each place of this season is worth. The tournament's default is{" "}
-                            {defaultTiers.length > 0 ? "below" : "not set"}.
+                            What each place of this season is worth. The season owns its scale.
                         </DialogDescription>
                     </DialogHeader>
 
                     <FieldGroup>
                         <Field>
                             <FieldLabel htmlFor="season-points">The scale</FieldLabel>
-                            <PlacementTiersEditor
-                                tiers={tiers}
-                                onChange={setTiers}
-                                inheritFrom={defaultTiers}
-                            />
+                            <PlacementTiersEditor tiers={tiers} onChange={setTiers} />
                             <FieldDescription>
                                 A place with no band scores nothing. This season produces{" "}
                                 {season.places ?? 0} places.

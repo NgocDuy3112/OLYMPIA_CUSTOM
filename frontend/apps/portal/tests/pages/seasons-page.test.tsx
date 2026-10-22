@@ -6,17 +6,11 @@ import { MemoryRouter, Route, Routes } from "react-router-dom"
 import { SeasonsPage } from "@/pages/SeasonsPage"
 import { renderWithProviders, stubFetch } from "../helpers/render"
 
-const TOURNAMENT = {
-    id: "t1", name: "Autumn Open", slug: "autumn-open", visibility: "PUBLIC",
-    ownerId: "u1", defaultTags: ["THTH"], defaultRounds: [], defaultFormat: {},
-    defaultPlacementTiers: [], createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-}
-
 const SEASON = {
-    id: "s1", tournamentId: "t1", name: "2026 Season", current: true,
+    id: "s1", name: "2026 Season", slug: "2026-season", visibility: "PUBLIC",
+    ownerId: "u1", tags: ["THTH"], current: true,
     stages: [], rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    format: {}, placementTiers: [], closedAt: null,
+    format: { competitorsPerMatch: 4 }, placementTiers: [], closedAt: null,
     createdAt: "2026-01-02T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z",
 }
 
@@ -24,9 +18,9 @@ const page = (items: unknown[]) => ({ items, total: items.length, limit: 100, of
 
 function renderSeasons() {
     return renderWithProviders(
-        <MemoryRouter initialEntries={["/tournaments/t1/seasons"]}>
+        <MemoryRouter initialEntries={["/"]}>
             <Routes>
-                <Route path="/tournaments/:tournamentId/seasons" element={<SeasonsPage />} />
+                <Route path="/" element={<SeasonsPage />} />
             </Routes>
         </MemoryRouter>,
     )
@@ -37,60 +31,48 @@ afterEach(() => {
 })
 
 describe("SeasonsPage", () => {
-    it("lists a tournament's seasons", async () => {
+    it("lists the seasons", async () => {
         stubFetch({
-            "GET /portal/tournaments/t1": { body: TOURNAMENT },
-            "GET /portal/tournaments/t1/seasons?limit=100": { body: page([SEASON]) },
+            "GET /portal/seasons?limit=20&offset=0": { body: page([SEASON]) },
         })
         renderSeasons()
 
         expect(await screen.findByText("2026 Season")).toBeInTheDocument()
         expect(screen.getByText("Current")).toBeInTheDocument()
+        expect(screen.getByText("THTH")).toBeInTheDocument()
     })
 
-    it("creates a season with converted stage timestamps", async () => {
+    it("creates a season with its name, tags and visibility", async () => {
         const user = userEvent.setup()
         const fetchMock = stubFetch({
-            "GET /portal/tournaments/t1": { body: TOURNAMENT },
-            "GET /portal/tournaments/t1/seasons?limit=100": { body: page([]) },
-            "POST /portal/tournaments/t1/seasons": { body: SEASON },
+            "GET /portal/seasons?limit=20&offset=0": { body: page([]) },
+            "POST /portal/seasons": { body: SEASON },
         })
         renderSeasons()
 
+        await user.click(screen.getByRole("button", { name: "New season" }))
         await user.type(await screen.findByLabelText("Name"), "2027 Season")
-        await user.click(screen.getByRole("button", { name: "Add stage" }))
-        await user.type(screen.getByLabelText("Stage 1 title"), "Group stage")
-        await user.type(screen.getByLabelText("Stage 1 start"), "2027-02-01T09:00")
-        await user.type(screen.getByLabelText("Stage 1 end"), "2027-02-28T18:00")
+        await user.type(screen.getByLabelText("Tags"), "THTH, GDTT")
         await user.click(screen.getByRole("button", { name: "Create season" }))
 
         const post = fetchMock.mock.calls.find(
-            ([url, init]) =>
-                url === "/portal/tournaments/t1/seasons" && init?.method === "POST"
+            ([url, init]) => url === "/portal/seasons" && init?.method === "POST"
         )
-        if (!post) throw new Error("no POST to /portal/tournaments/t1/seasons")
+        if (!post) throw new Error("no POST to /portal/seasons")
 
         expect(JSON.parse(post[1]?.body as string)).toEqual({
             name: "2027 Season",
-            current: false,
-            stages: [
-                {
-                    id: expect.any(String),
-                    title: "Group stage",
-                    start: new Date("2027-02-01T09:00").toISOString(),
-                    end: new Date("2027-02-28T18:00").toISOString(),
-                },
-            ],
+            tags: ["THTH", "GDTT"],
+            visibility: "PUBLIC",
         })
     })
 
     it("shows an empty state", async () => {
         stubFetch({
-            "GET /portal/tournaments/t1": { body: TOURNAMENT },
-            "GET /portal/tournaments/t1/seasons?limit=100": { body: page([]) },
+            "GET /portal/seasons?limit=20&offset=0": { body: page([]) },
         })
         renderSeasons()
 
-        expect(await screen.findByText("No seasons yet.")).toBeInTheDocument()
+        expect(await screen.findByText("No seasons yet")).toBeInTheDocument()
     })
 })

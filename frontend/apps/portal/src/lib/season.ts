@@ -87,57 +87,57 @@ export interface StandingRow {
 }
 
 
-export function useSeason(tournamentId: string, seasonId: string) {
+export function useSeason(seasonId: string) {
     return useQuery({
-        queryKey: ["season", tournamentId, seasonId],
+        queryKey: ["season", seasonId],
         queryFn: () =>
-            api<SeasonDetail>(`/portal/tournaments/${tournamentId}/seasons/${seasonId}`),
-        enabled: Boolean(tournamentId && seasonId),
+            api<SeasonDetail>(`/portal/seasons/${seasonId}`),
+        enabled: Boolean(seasonId),
     })
 }
 
-export function useUpdateSeason(tournamentId: string, seasonId: string) {
+export function useUpdateSeason(seasonId: string) {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: (patch: Partial<Pick<SeasonDetail, "roundRules" | "stages" | "placementTiers">>) =>
-            api<SeasonDetail>(`/portal/tournaments/${tournamentId}/seasons/${seasonId}`, {
+            api<SeasonDetail>(`/portal/seasons/${seasonId}`, {
                 method: "PATCH",
                 body: JSON.stringify(patch),
             }),
         onSuccess: (season) => {
-            queryClient.setQueryData(["season", tournamentId, seasonId], season)
-            void queryClient.invalidateQueries({ queryKey: ["seasons", tournamentId] })
+            queryClient.setQueryData(["season", seasonId], season)
+            void queryClient.invalidateQueries({ queryKey: ["seasons"] })
         },
     })
 }
 
 // ── The roster ────────────────────────────────────────────────────────────────
 
-export function useEnrolled(tournamentId: string, seasonId: string) {
+export function useEnrolled(seasonId: string) {
     return useQuery({
-        queryKey: ["enrolled", tournamentId, seasonId],
+        queryKey: ["enrolled", seasonId],
         queryFn: () =>
             api<{ items: Array<{ userId: string; displayName: string }> }>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/players`
+                `/portal/seasons/${seasonId}/players`
             ),
-        enabled: Boolean(tournamentId && seasonId),
+        enabled: Boolean(seasonId),
     })
 }
 
 // ── The matches ───────────────────────────────────────────────────────────────
 
-export function useMatches(tournamentId: string, seasonId: string) {
+export function useMatches(seasonId: string) {
     return useQuery({
-        queryKey: ["matches", tournamentId, seasonId],
+        queryKey: ["matches", seasonId],
         queryFn: () =>
             api<{ items: MatchSummary[]; total: number }>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches?limit=100`
+                `/portal/seasons/${seasonId}/matches?limit=100`
             ),
-        enabled: Boolean(tournamentId && seasonId),
+        enabled: Boolean(seasonId),
     })
 }
 
-export function useCreateMatch(tournamentId: string, seasonId: string) {
+export function useCreateMatch(seasonId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
@@ -147,7 +147,7 @@ export function useCreateMatch(tournamentId: string, seasonId: string) {
             scheduledAt: string
             playerIds: string[]
         }) =>
-            api<MatchSummary>(`/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches`, {
+            api<MatchSummary>(`/portal/seasons/${seasonId}/matches`, {
                 method: "POST",
                 body: JSON.stringify({
                     kind: "STANDARD",
@@ -162,13 +162,13 @@ export function useCreateMatch(tournamentId: string, seasonId: string) {
                 }),
             }),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId, seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["matches", seasonId] })
         },
     })
 }
 
 // The mass event: the whole roster answers the same question set, once.
-export function useCreateQualificationMatch(tournamentId: string, seasonId: string) {
+export function useCreateQualificationMatch(seasonId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
@@ -179,27 +179,27 @@ export function useCreateQualificationMatch(tournamentId: string, seasonId: stri
             playerIds?: string[]
         }) =>
             api<MatchSummary>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/qualification-matches`,
+                `/portal/seasons/${seasonId}/qualification-matches`,
                 { method: "POST", body: JSON.stringify(input) }
             ),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId, seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["matches", seasonId] })
         },
     })
 }
 
-export function useSetMatchResults(tournamentId: string, seasonId: string) {
+export function useSetMatchResults(seasonId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
         mutationFn: (input: { matchId: string; totals: Array<{ userId: string; score: number }> }) =>
-            api(`/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${input.matchId}/results`, {
+            api(`/portal/seasons/${seasonId}/matches/${input.matchId}/results`, {
                 method: "POST",
                 body: JSON.stringify({ totals: input.totals }),
             }),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId, seasonId] })
-            void queryClient.invalidateQueries({ queryKey: ["standings", tournamentId, seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["matches", seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["standings", seasonId] })
         },
     })
 }
@@ -225,19 +225,19 @@ export interface MassEventView {
     }>
 }
 
-export function useMassEvent(tournamentId: string, seasonId: string, matchId: string | null) {
+export function useMassEvent(seasonId: string, matchId: string | null) {
     return useQuery({
-        queryKey: ["mass-event", tournamentId, seasonId, matchId],
+        queryKey: ["mass-event", seasonId, matchId],
         queryFn: () =>
             api<MassEventView>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/qualification-matches/${matchId}`
+                `/portal/seasons/${seasonId}/qualification-matches/${matchId}`
             ),
-        enabled: Boolean(tournamentId && seasonId && matchId),
+        enabled: Boolean(seasonId && matchId),
     })
 }
 
 // Close the mass event. If the field ties, the staff order the tied group and try again.
-export function useCloseMassEvent(tournamentId: string, seasonId: string) {
+export function useCloseMassEvent(seasonId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
@@ -246,43 +246,43 @@ export function useCloseMassEvent(tournamentId: string, seasonId: string) {
             tieBreaks?: Array<{ players: string[]; order: string[] }>
         }) =>
             api<{ rows: Array<{ userId: string; rank: number; score: number }> }>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/qualification-matches/${input.matchId}/close`,
+                `/portal/seasons/${seasonId}/qualification-matches/${input.matchId}/close`,
                 {
                     method: "POST",
                     body: JSON.stringify(input.tieBreaks ? { tieBreaks: input.tieBreaks } : {}),
                 }
             ),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["mass-event", tournamentId, seasonId] })
-            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId, seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["mass-event", seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["matches", seasonId] })
         },
     })
 }
 
 // ── The standings ─────────────────────────────────────────────────────────────
 
-export function useStandings(tournamentId: string, seasonId: string) {
+export function useStandings(seasonId: string) {
     return useQuery({
-        queryKey: ["standings", tournamentId, seasonId],
+        queryKey: ["standings", seasonId],
         queryFn: () =>
             api<{ rows: StandingRow[] }>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/standings`
+                `/portal/seasons/${seasonId}/standings`
             ),
-        enabled: Boolean(tournamentId && seasonId),
+        enabled: Boolean(seasonId),
     })
 }
 
-export function useRecomputeStandings(tournamentId: string, seasonId: string) {
+export function useRecomputeStandings(seasonId: string) {
     const queryClient = useQueryClient()
 
     return useMutation({
         mutationFn: () =>
             api<{ rows: StandingRow[] }>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/standings/recompute`,
+                `/portal/seasons/${seasonId}/standings/recompute`,
                 { method: "POST" }
             ),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["standings", tournamentId, seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["standings", seasonId] })
         },
     })
 }

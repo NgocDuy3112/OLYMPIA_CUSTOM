@@ -11,7 +11,6 @@ export interface AgentQuestion {
     media: unknown;
     timeLimit: number | null;
     payload: unknown;
-    tournamentId: string | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -28,7 +27,6 @@ export function toAgentQuestion(row: QuestionRow): AgentQuestion {
         media: row.media,
         timeLimit: row.timeLimit,
         payload: row.payload,
-        tournamentId: row.tournamentId,
         createdAt: row.createdAt,
         updatedAt: row.updatedAt
     };

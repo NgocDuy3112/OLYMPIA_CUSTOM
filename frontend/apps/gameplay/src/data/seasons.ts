@@ -1,4 +1,4 @@
-import type { Match, StandingRow, Tournament } from "@/data/schedule"
+import type { Match, StandingRow } from "@/data/schedule"
 import type { Stage } from "@/data/stages"
 import { OLYMPIA_STAGES } from "@/data/stages"
 import { sampleTournament } from "@/data/sample/tournament"
@@ -8,8 +8,11 @@ import { sampleStandings } from "@/data/sample/standings"
 export interface Season {
     id: string
     name: string
+    subtitle: string
+    venue: string
+    startDate: string
+    endDate: string
     current: boolean
-    tournament: Tournament
     stages: Stage[]
     matches: Match[]
     standings: StandingRow[]
@@ -20,7 +23,10 @@ const season3: Season = {
     id: "2025-a",
     name: "Olympia Custom 3",
     current: true,
-    tournament: sampleTournament,
+    subtitle: sampleTournament.subtitle,
+    venue: sampleTournament.venue,
+    startDate: sampleTournament.startDate,
+    endDate: sampleTournament.endDate,
     stages: OLYMPIA_STAGES,
     matches: sampleMatches,
     standings: sampleStandings,
@@ -31,14 +37,10 @@ const season2: Season = {
     id: "2024-b",
     name: "Olympia Custom 2",
     current: false,
-    tournament: {
-        ...sampleTournament,
-        id: "olympia-custom-2",
-        name: "Olympia Custom 2",
-        subtitle: "Season 2 - Finals Weekend",
-        startDate: "2024-06-14",
-        endDate: "2024-06-15",
-    },
+    subtitle: "Season 2 - Finals Weekend",
+    venue: sampleTournament.venue,
+    startDate: "2024-06-14",
+    endDate: "2024-06-15",
     stages: OLYMPIA_STAGES.map((s) => ({
         ...s,
         start: s.start.replace("2025", "2024"),
@@ -56,14 +58,10 @@ const season1: Season = {
     id: "2023-a",
     name: "Olympia Custom 1",
     current: false,
-    tournament: {
-        ...sampleTournament,
-        id: "olympia-custom-1",
-        name: "Olympia Custom 1",
-        subtitle: "Season 1 - Finals Weekend",
-        startDate: "2023-06-14",
-        endDate: "2023-06-15",
-    },
+    subtitle: "Season 1 - Finals Weekend",
+    venue: sampleTournament.venue,
+    startDate: "2023-06-14",
+    endDate: "2023-06-15",
     stages: OLYMPIA_STAGES.map((s) => ({
         ...s,
         start: s.start.replace("2025", "2023"),

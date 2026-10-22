@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
 import {
-    answers, matchClocks, matchResults, matches, questionBank, seasons, tournaments, users
+    answers, matchClocks, matchResults, matches, questionBank, seasons, users
 } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
@@ -15,15 +15,15 @@ let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookies: string[];
 let outsiderCookie: string;
-let tournamentId: string;
 let seasonId: string;
 let playerIds: string[];
+let ownerId: string;
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
 
 const seasonUrl = (suffix: string) =>
-    `/portal/tournaments/${tournamentId}/seasons/${seasonId}${suffix}`;
+    `/portal/seasons/${seasonId}${suffix}`;
 
 const createQualification = (payload: Record<string, unknown> = {}) =>
     app.inject({
@@ -64,6 +64,7 @@ beforeAll(async () => {
     const [owner] = await db.insert(users).values({
         role: "OPERATOR", username: "qm-owner", displayName: "QM Owner", tokenVersion: 0
     }).returning();
+    ownerId = owner.id;
     ownerCookie = signToken(app, "PORTAL", { sub: owner.id, role: "OPERATOR", tokenVersion: 0 });
 
     const players = await db.insert(users).values(
@@ -83,20 +84,12 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    const [tournament] = await db.insert(tournaments).values({
-        name: "QM Tournament", slug: "qm-tournament", visibility: "PUBLIC", ownerId: owner.id,
-        defaultTags: ["THTH"],
-        defaultRounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
-        defaultFormat: {
-            competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null,
-            teamAggregation: null, teamCountAggregation: null
-        },
-        defaultPlacementTiers: [{ min: 1, max: 2, points: 10 }]
-    }).returning();
-    tournamentId = tournament.id;
+    // The season is the unit: it carries the identity the tournament had.
+    const seasonTags = ["THTH"];
+    const seasonSlug = "qm-tournament-season";
 
     const [season] = await db.insert(seasons).values({
-        tournamentId,
+        ownerId, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
         name: "QM Season",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: {
@@ -154,7 +147,10 @@ describe("the mass event — creating it", () => {
 
     it("refuses a season with no enrolled players", async () => {
         const [empty] = await db.insert(seasons).values({
-            tournamentId,
+            ownerId,
+            slug: "qm-empty",
+            visibility: "PUBLIC",
+            tags: ["THTH"],
             name: "QM Empty",
             rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
             format: {
@@ -167,7 +163,7 @@ describe("the mass event — creating it", () => {
 
         const res = await app.inject({
             method: "POST",
-            url: `/portal/tournaments/${tournamentId}/seasons/${empty.id}/qualification-matches`,
+            url: `/portal/seasons/${empty.id}/qualification-matches`,
             headers: auth(ownerCookie),
             payload: { label: "Q", scheduledAt: "2026-11-01T19:00:00.000Z", questionCount: 4 }
         });

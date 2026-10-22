@@ -14,18 +14,16 @@ const short = (id: string) => id.slice(0, 8)
 
 // Every match of the season. The staff create them; the system plays and scores them.
 export function MatchesTab({
-    tournamentId,
     seasonId,
     season,
     seats,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
     seats: number
 }) {
-    const matches = useMatches(tournamentId, seasonId)
-    const enrolled = useEnrolled(tournamentId, seasonId)
+    const matches = useMatches(seasonId)
+    const enrolled = useEnrolled(seasonId)
 
     const [creating, setCreating] = useState(false)
     const [result, setResult] = useState<{ id: string; label: string; players: string[] } | null>(null)
@@ -129,7 +127,6 @@ export function MatchesTab({
 
             {creating && (
                 <NewMatchDialog
-                    tournamentId={tournamentId}
                     seasonId={seasonId}
                     season={season}
                     seats={seats}
@@ -140,7 +137,6 @@ export function MatchesTab({
 
             {massEvent && (
                 <MassEventDialog
-                    tournamentId={tournamentId}
                     seasonId={seasonId}
                     matchId={massEvent.id}
                     label={massEvent.label}
@@ -152,7 +148,6 @@ export function MatchesTab({
 
             {result && (
                 <MatchResultDialog
-                    tournamentId={tournamentId}
                     seasonId={seasonId}
                     matchId={result.id}
                     label={result.label}

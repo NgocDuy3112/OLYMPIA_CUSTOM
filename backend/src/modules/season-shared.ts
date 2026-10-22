@@ -2,20 +2,16 @@
 // write to a season.
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../lib/guards.js";
-import { canViewTournament, canWriteTournament } from "../lib/tournament-access.js";
+import { canViewSeason, canWriteSeason } from "../lib/season-access.js";
 import { SeasonError, toHttpStatus } from "./seasons/errors.js";
-import { getSeason } from "./seasons/service.js";
 
 export const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
 export const seasonParams = {
     type: "object",
-    required: ["tournamentId", "seasonId"],
+    required: ["seasonId"],
     additionalProperties: false,
-    properties: {
-        tournamentId: { type: "string", pattern: UUID_PATTERN },
-        seasonId: { type: "string", pattern: UUID_PATTERN }
-    }
+    properties: { seasonId: { type: "string", pattern: UUID_PATTERN } }
 } as const;
 
 export const matchParams = {
@@ -39,26 +35,26 @@ export function seasonErrorHandler(app: FastifyInstance): void {
     });
 }
 
-// The staff of a tournament: they own its seasons.
+// The staff of the portal.
 export function seasonGuards() {
     const staff = [requireRole("PORTAL", ["ADMIN", "OPERATOR"])];
 
-    async function assertWrite(tournamentId: string, seasonId: string, userId: string, role: string) {
-        await getSeason(tournamentId, seasonId);
-        const { requireParent } = await import("./seasons/service.js");
-        const parent = await requireParent(tournamentId);
-        if (!canWriteTournament(parent, { id: userId, role } as never)) {
+    async function assertWrite(seasonId: string, userId: string, role: string) {
+        const { getSeason } = await import("./seasons/service.js");
+        const season = await getSeason(seasonId);
+        if (!canWriteSeason(season, { id: userId, role } as never)) {
             throw new SeasonError("FORBIDDEN", "only the owner or an admin may manage this season");
         }
+        return season;
     }
 
-    async function assertView(tournamentId: string, seasonId: string, userId: string, role: string) {
-        await getSeason(tournamentId, seasonId);
-        const { requireParent } = await import("./seasons/service.js");
-        const parent = await requireParent(tournamentId);
-        if (!canViewTournament(parent, { id: userId, role } as never)) {
+    async function assertView(seasonId: string, userId: string, role: string) {
+        const { getSeason } = await import("./seasons/service.js");
+        const season = await getSeason(seasonId);
+        if (!canViewSeason(season, { id: userId, role } as never)) {
             throw new SeasonError("NOT_FOUND", "season not found");
         }
+        return season;
     }
 
     return { staff, assertWrite, assertView };

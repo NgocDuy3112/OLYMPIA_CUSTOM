@@ -14,7 +14,7 @@ export async function rosterRoutes(app: FastifyInstance) {
     const { staff, assertWrite, assertView } = seasonGuards();
 
     app.post(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/players",
+        "/portal/seasons/:seasonId/players",
         {
             onRequest: staff,
             schema: {
@@ -35,10 +35,10 @@ export async function rosterRoutes(app: FastifyInstance) {
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
+            const { seasonId } = request.params as { seasonId: string };
             const { userIds } = request.body as { userIds: string[] };
 
-            await assertWrite(tournamentId, seasonId, user.id, user.role);
+            await assertWrite(seasonId, user.id, user.role);
             const enrolled = await enrollPlayers(seasonId, userIds);
 
             await auditFromRequest(request, "season_updated", {
@@ -50,13 +50,13 @@ export async function rosterRoutes(app: FastifyInstance) {
     );
 
     app.get(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/players",
+        "/portal/seasons/:seasonId/players",
         { onRequest: staff, schema: { params: seasonParams } },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
+            const { seasonId } = request.params as { seasonId: string };
 
-            await assertView(tournamentId, seasonId, user.id, user.role);
+            await assertView(seasonId, user.id, user.role);
             return { items: await listEnrolled(seasonId) };
         }
     );

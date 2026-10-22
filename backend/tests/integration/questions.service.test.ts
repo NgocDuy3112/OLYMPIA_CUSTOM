@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db } from "../../src/db/pool.js";
 import { users } from "../../src/db/schema/index.js";
-import { createTournament } from "../../src/modules/tournaments/index.js";
 import {
     createQuestion,
     getQuestion,
@@ -66,63 +65,46 @@ beforeAll(async () => {
     ownerId = rows[1].id;
     otherId = rows[2].id;
 
-    tournamentId = (await createTournament(tournamentInput("qs-cup-a"), ownerId)).id;
-    otherTournamentId = (await createTournament(tournamentInput("qs-cup-b"), otherId)).id;
 });
 
 
 describe("createQuestion", () => {
-    it("always creates as DRAFT and records the actor and scope", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("draft one"));
+    it("always creates as DRAFT and records the actor", async () => {
+        const row = await createQuestion({ actorId: ownerId }, mc("draft one"));
 
         expect(row.status).toBe("DRAFT");
         expect(row.createdBy).toBe(ownerId);
-        expect(row.tournamentId).toBe(tournamentId);
     });
 
     it("accepts any tag in the global bank", async () => {
-        const row = await createQuestion({ tournamentId: null, actorId: ownerId }, { ...mc("global"), tag: "ANYTHING" });
+        const row = await createQuestion({ actorId: ownerId }, { ...mc("global"), tag: "ANYTHING" });
 
-        expect(row.tournamentId).toBeNull();
         expect(row.tag).toBe("ANYTHING");
     });
 
-    it("rejects a tag outside the tournament's tags", async () => {
-        await expect(
-            createQuestion({ tournamentId, actorId: ownerId }, { ...mc("bad tag"), tag: "NOPE" })
-        ).rejects.toMatchObject({ code: "VALIDATION" });
+    it("accepts any tag in the global bank", async () => {
+        const row = await createQuestion({ actorId: ownerId }, { ...mc("any tag"), tag: "ANYTHING" });
+        expect(row.tag).toBe("ANYTHING");
     });
 
     it("rejects a payload that does not match the kind", async () => {
         await expect(
             createQuestion(
-                { tournamentId, actorId: ownerId },
+                { actorId: ownerId },
                 { ...mc("mismatch"), payload: { acceptedAnswers: ["x"], normalize: { caseSensitive: false, trim: true, stripAccents: true } } }
             )
         ).rejects.toMatchObject({ code: "VALIDATION" });
     });
 
-    it("404s when the tournament does not exist", async () => {
-        await expect(
-            createQuestion({ tournamentId: "00000000-0000-4000-8000-000000000000", actorId: ownerId }, mc())
-        ).rejects.toMatchObject({ code: "NOT_FOUND" });
-    });
 });
 
 
 describe("getQuestion", () => {
-    it("returns the row within its scope", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("scoped read"));
-        const found = await getQuestion(row.id, { tournamentId });
+    it("returns the row", async () => {
+        const row = await createQuestion({ actorId: ownerId }, mc("a read"));
+        const found = await getQuestion(row.id);
 
         expect(found.id).toBe(row.id);
-    });
-
-    it("404s on a scope mismatch", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("wrong scope"));
-
-        await expect(getQuestion(row.id, { tournamentId: null })).rejects.toMatchObject({ code: "NOT_FOUND" });
-        await expect(getQuestion(row.id, { tournamentId: otherTournamentId })).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
 
     it("404s for an unknown id", async () => {
@@ -135,14 +117,14 @@ describe("getQuestion", () => {
 
 describe("updateQuestion", () => {
     it("edits content while the question is not archived", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("before"));
+        const row = await createQuestion({ actorId: ownerId }, mc("before"));
         const updated = await updateQuestion(row.id, { questionText: "after" });
 
         expect(updated.questionText).toBe("after");
     });
 
     it("re-checks payload integrity against the existing kind", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("integrity"));
+        const row = await createQuestion({ actorId: ownerId }, mc("integrity"));
 
         await expect(
             updateQuestion(row.id, { payload: { options: [{ id: "A", text: "4" }], correctSet: ["Z"] } })
@@ -150,7 +132,7 @@ describe("updateQuestion", () => {
     });
 
     it("refuses to edit an archived question", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("archived edit"));
+        const row = await createQuestion({ actorId: ownerId }, mc("archived edit"));
         await transitionQuestion(row.id, "ARCHIVED", "ADMIN");
 
         await expect(updateQuestion(row.id, { questionText: "too late" })).rejects.toMatchObject({
@@ -162,7 +144,7 @@ describe("updateQuestion", () => {
 
 describe("transitionQuestion", () => {
     it("supports the reject path PENDING → ARCHIVED", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("reject me"));
+        const row = await createQuestion({ actorId: ownerId }, mc("reject me"));
 
         const pending = await transitionQuestion(row.id, "PENDING", "OPERATOR");
         expect(pending.status).toBe("PENDING");
@@ -172,7 +154,7 @@ describe("transitionQuestion", () => {
     });
 
     it("only an ADMIN may publish", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("gate"));
+        const row = await createQuestion({ actorId: ownerId }, mc("gate"));
         await transitionQuestion(row.id, "PENDING", "OPERATOR");
 
         await expect(transitionQuestion(row.id, "PUBLISHED", "OPERATOR")).rejects.toMatchObject({
@@ -184,14 +166,14 @@ describe("transitionQuestion", () => {
     });
 
     it("is a no-op for the same status (no write)", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("noop"));
+        const row = await createQuestion({ actorId: ownerId }, mc("noop"));
         const same = await transitionQuestion(row.id, "DRAFT", "ADMIN");
 
         expect(same.updatedAt.getTime()).toBe(row.updatedAt.getTime());
     });
 
     it("rejects illegal transitions", async () => {
-        const row = await createQuestion({ tournamentId, actorId: ownerId }, mc("illegal"));
+        const row = await createQuestion({ actorId: ownerId }, mc("illegal"));
         await publish(row.id);
 
         await expect(transitionQuestion(row.id, "DRAFT", "ADMIN")).rejects.toMatchObject({
@@ -216,37 +198,37 @@ describe("question search (tsvector + unaccent)", () => {
 
     it("matches accented text and unaccented queries alike", async () => {
         const row = await createQuestion(
-            { tournamentId, actorId: ownerId },
+            { actorId: ownerId },
             mcText("Đường lên đỉnh Olympia là gì?")
         );
         await publish(row.id);
 
-        const accented = await listQuestions({ tournamentId, search: "Đường lên" }, page);
+        const accented = await listQuestions({ search: "Đường lên" }, page);
         expect(accented.items.map((q) => q.id)).toContain(row.id);
 
         // the point of unaccent: users type without diacritics
-        const unaccented = await listQuestions({ tournamentId, search: "duong len dinh" }, page);
+        const unaccented = await listQuestions({ search: "duong len dinh" }, page);
         expect(unaccented.items.map((q) => q.id)).toContain(row.id);
     });
 
     it("matches a partially typed last token (prefix)", async () => {
         const row = await createQuestion(
-            { tournamentId, actorId: ownerId },
+            { actorId: ownerId },
             mcText("Điện Biên Phủ được giải phóng năm nào?")
         );
         await publish(row.id);
 
-        const typed = await listQuestions({ tournamentId, search: "dien bi" }, page);
+        const typed = await listQuestions({ search: "dien bi" }, page);
         expect(typed.items.map((q) => q.id)).toContain(row.id);
     });
 
     it("combines search with structured filters", async () => {
         const matching = await createQuestion(
-            { tournamentId, actorId: ownerId },
+            { actorId: ownerId },
             mcText("Tìm kiếm chung MC")
         );
         const other = await createQuestion(
-            { tournamentId, actorId: ownerId },
+            { actorId: ownerId },
             {
                 kind: "TEXT",
                 questionText: "Tìm kiếm chung TEXT",
@@ -261,7 +243,7 @@ describe("question search (tsvector + unaccent)", () => {
         await publish(other.id);
 
         const textOnly = await listQuestions(
-            { tournamentId, kind: "TEXT", search: "tim kiem chung" },
+            { kind: "TEXT", search: "tim kiem chung" },
             page
         );
 
@@ -272,7 +254,7 @@ describe("question search (tsvector + unaccent)", () => {
 
     it("returns nothing for a term that matches nothing (no false positives)", async () => {
         const res = await listQuestions(
-            { tournamentId, search: "zzzznonexistentterm" },
+            { search: "zzzznonexistentterm" },
             page
         );
         expect(res.total).toBe(0);
@@ -281,17 +263,17 @@ describe("question search (tsvector + unaccent)", () => {
 
     it("searches through the assembly-eligible read too", async () => {
         const own = await createQuestion(
-            { tournamentId, actorId: ownerId },
+            { actorId: ownerId },
             mcText("Eligible search inside the tournament")
         );
         const global = await createQuestion(
-            { tournamentId: null, actorId: ownerId },
-            { ...mcText("Eligible search in the global bank"), tag: "GLOBAL" }
+            { actorId: ownerId },
+            mcText("Eligible search in the bank")
         );
         await publish(own.id);
         await publish(global.id);
 
-        const res = await listForAssembly(tournamentId, { search: "eligible search" }, page);
+        const res = await listForAssembly(["THTH"], { search: "eligible search" }, page);
         const ids = res.items.map((q) => q.id);
 
         expect(ids).toContain(own.id);
@@ -300,41 +282,36 @@ describe("question search (tsvector + unaccent)", () => {
 });
 
 
-describe("listQuestions — scope semantics", () => {
-    it("null = global bank only; undefined = every scope", async () => {
-        await createQuestion({ tournamentId: null, actorId: ownerId }, { ...mc("scope global"), tag: "GLOBAL" });
-        const scoped = await createQuestion({ tournamentId, actorId: ownerId }, mc("scope local"));
+describe("listQuestions — the bank", () => {
+    it("lists every question of the global bank", async () => {
+        await createQuestion({ actorId: ownerId }, { ...mc("one"), tag: "GLOBAL" });
+        await createQuestion({ actorId: ownerId }, mc("two"));
 
-        const globalOnly = await listQuestions({ tournamentId: null }, page);
-        expect(globalOnly.items.every((q) => q.tournamentId === null)).toBe(true);
-
-        const everyScope = await listQuestions({}, page);
-        expect(everyScope.total).toBeGreaterThan(globalOnly.total);
-
-        const thisTournament = await listQuestions({ tournamentId }, page);
-        expect(thisTournament.items.map((q) => q.id)).toContain(scoped.id);
+        const every = await listQuestions({}, page);
+        expect(every.total).toBeGreaterThan(0);
     });
 });
 
 
 describe("listForAssembly — the visibility choke point", () => {
-    it("returns PUBLISHED questions from the global bank and the given tournament only", async () => {
-        const globalPublished = await createQuestion({ tournamentId: null, actorId: ownerId }, { ...mc("asm global"), tag: "GLOBAL" });
+    it("returns the PUBLISHED questions of the season's tags only", async () => {
+        const globalPublished = await createQuestion({ actorId: ownerId }, { ...mc("asm global"), tag: "THTH" });
         await publish(globalPublished.id);
 
-        const ownPublished = await createQuestion({ tournamentId, actorId: ownerId }, mc("asm own"));
+        const ownPublished = await createQuestion({ actorId: ownerId }, mc("asm own"));
         await publish(ownPublished.id);
 
-        const ownDraft = await createQuestion({ tournamentId, actorId: ownerId }, mc("asm draft"));
-        const ownPending = await createQuestion({ tournamentId, actorId: ownerId }, mc("asm pending"));
+        const ownDraft = await createQuestion({ actorId: ownerId }, mc("asm draft"));
+        const ownPending = await createQuestion({ actorId: ownerId }, mc("asm pending"));
         await transitionQuestion(ownPending.id, "PENDING", "OPERATOR");
-        const ownArchived = await createQuestion({ tournamentId, actorId: ownerId }, mc("asm archived"));
+        const ownArchived = await createQuestion({ actorId: ownerId }, mc("asm archived"));
         await transitionQuestion(ownArchived.id, "ARCHIVED", "OPERATOR");
 
-        const foreignPublished = await createQuestion({ tournamentId: otherTournamentId, actorId: otherId }, mc("asm foreign"));
+        // A question of another tag is not this season's to assemble.
+        const foreignPublished = await createQuestion({ actorId: otherId }, { ...mc("asm foreign"), tag: "OTHER" });
         await publish(foreignPublished.id);
 
-        const ids = (await listForAssembly(tournamentId, {}, { limit: 50, offset: 0 })).items.map((q) => q.id);
+        const ids = (await listForAssembly(["THTH"], {}, { limit: 50, offset: 0 })).items.map((q) => q.id);
 
         expect(ids).toContain(globalPublished.id);
         expect(ids).toContain(ownPublished.id);
@@ -347,7 +324,7 @@ describe("listForAssembly — the visibility choke point", () => {
     it("is paged and can filter by kind", async () => {
         const text = (name: string) =>
             createQuestion(
-                { tournamentId, actorId: ownerId },
+                { actorId: ownerId },
                 {
                     kind: "TEXT",
                     questionText: name,
@@ -364,7 +341,7 @@ describe("listForAssembly — the visibility choke point", () => {
         await publish(first.id);
         await publish(second.id);
 
-        const page = await listForAssembly(tournamentId, { kinds: ["TEXT"] }, { limit: 1, offset: 0 });
+        const page = await listForAssembly(["THTH"], { kinds: ["TEXT"] }, { limit: 1, offset: 0 });
 
         expect(Object.keys(page).sort()).toEqual(["items", "limit", "offset", "total"]);
         expect(page.items).toHaveLength(1);

@@ -9,12 +9,10 @@ import { SeasonRulesDialog } from "./season-rules-dialog"
 
 // The rulebook, read. Every change happens in the dialog.
 export function SeasonRulesTab({
-    tournamentId,
     seasonId,
     season,
     frozen,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
     frozen: boolean
@@ -101,7 +99,6 @@ export function SeasonRulesTab({
 
             {editing && (
                 <SeasonRulesDialog
-                    tournamentId={tournamentId}
                     seasonId={seasonId}
                     season={season}
                     frozen={frozen}

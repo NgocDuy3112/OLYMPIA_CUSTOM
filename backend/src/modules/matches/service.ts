@@ -1,6 +1,6 @@
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { answers, matchLive, matchResults, matchStats, matches, seasons, tournaments } from "../../db/schema/index.js";
+import { answers, matchLive, matchResults, matchStats, matches, seasons } from "../../db/schema/index.js";
 import type { ResultEntry, RoundConfig, Seat } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { buildQuestionCopies } from "./assembly.js";
@@ -19,7 +19,6 @@ import { checkMatchAgainstFormat } from "../bracket/service.js";
 
 export type MatchRow = typeof matches.$inferSelect;
 type SeasonRow = typeof seasons.$inferSelect;
-type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
 type MatchKind = "STANDARD" | "QUALIFICATION";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -84,7 +83,6 @@ const EDGES: Record<MatchStatusValue, MatchStatusValue[]> = {
 
 export interface MatchScope {
     season: SeasonRow;
-    tournament: TournamentRow;
 }
 
 async function requireSeason(seasonId: string): Promise<SeasonRow> {
@@ -97,29 +95,15 @@ async function requireSeason(seasonId: string): Promise<SeasonRow> {
     return row;
 }
 
-export async function requireMatchScope(
-    tournamentId: string,
-    seasonId: string
-): Promise<MatchScope> {
-    const [tournament] = await db
-        .select()
-        .from(tournaments)
-        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
-        .limit(1);
-    if (!tournament) throw new MatchError("NOT_FOUND", `tournament ${tournamentId} not found`);
-
+export async function requireMatchScope(seasonId: string): Promise<MatchScope> {
     const [season] = await db
         .select()
         .from(seasons)
-        .where(and(
-            eq(seasons.id, seasonId),
-            eq(seasons.tournamentId, tournamentId),
-            isNull(seasons.deletedAt)
-        ))
+        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
         .limit(1);
     if (!season) throw new MatchError("NOT_FOUND", `season ${seasonId} not found`);
 
-    return { season, tournament };
+    return { season };
 }
 
 async function requireMatch(seasonId: string, matchId: string): Promise<MatchRow> {
@@ -211,14 +195,13 @@ async function assertFollowsFormat(params: {
 
 
 export async function createMatch(
-    tournamentId: string,
     seasonId: string,
     input: CreateMatchInput,
     executor: Tx = db as unknown as Tx
 ): Promise<MatchRow> {
     validate(CreateMatchInput, input);
 
-    const { season } = await requireMatchScope(tournamentId, seasonId);
+    const { season } = await requireMatchScope(seasonId);
 
     // A match created by hand carries no rulebook: it takes the season's rules, and its
     // questions are assembled from them.
@@ -266,12 +249,11 @@ export async function createMatch(
     const declaresQuestions = Object.values(roundConfigs).some((config) =>
         config.turns.some((turn) => (turn.questionCount ?? 0) > 0));
     if (entries.length === 0 && autoPick.length === 0 && declaresQuestions) {
-        entries = (await buildStageInputs(season, tournamentId, roundConfigs)).questions;
+        entries = (await buildStageInputs(season, roundConfigs)).questions;
     }
 
     const questions = await buildQuestionCopies({
         season,
-        tournamentId,
         roundConfigs,
         entries,
         autoPick
@@ -410,7 +392,6 @@ export async function assembleMatch(
 
     const questions = await buildQuestionCopies({
         season,
-        tournamentId: season.tournamentId,
         roundConfigs: existing.roundConfigs,
         entries,
         autoPick

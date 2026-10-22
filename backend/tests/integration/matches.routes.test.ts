@@ -4,7 +4,6 @@ import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
 import { users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
-import type { CreateTournamentInput } from "../../src/modules/tournaments/index.js";
 
 
 let app: FastifyInstance;
@@ -18,19 +17,19 @@ const portalCookie = (userId: string, role: "ADMIN" | "OPERATOR" | "PLAYER") =>
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-const validTournament = (slug: string): CreateTournamentInput => ({
-    name: "Match Host",
-    slug,
-    defaultTags: ["THTH"],
-    defaultRounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    defaultFormat: {
+const validSeason = (name: string) => ({
+    name,
+    tags: ["THTH"],
+    rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
+    format: {
         competitorsPerMatch: 2,
         allowedSeatKinds: ["user"],
         teamSize: null,
         teamAggregation: null,
         teamCountAggregation: null
     },
-    defaultPlacementTiers: [{ min: 1, max: 2, points: 10 }]
+    placementTiers: [{ min: 1, max: 2, points: 10 }],
+    stages: [{ id: "stage-1", title: "Stage 1" }]
 });
 
 const roundConfigs = (overrides: Record<string, unknown> = {}) => ({
@@ -54,64 +53,53 @@ const mc = (text: string) => ({
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
-async function makeTournament(
-    slug: string,
+async function makeSeason(
+    name: string,
     opts: { visibility?: "PRIVATE" } = {},
     cookie = ownerCookie
 ): Promise<{ id: string }> {
     const res = await app.inject({
         method: "POST",
-        url: "/portal/tournaments",
+        url: "/portal/seasons",
         headers: auth(cookie),
-        payload: { ...validTournament(slug), ...(opts.visibility ? { visibility: opts.visibility } : {}) },
-    });
-    if (res.statusCode !== 201) throw new Error(`tournament: ${res.statusCode} ${res.body}`);
-    return res.json();
-}
-
-async function makeSeason(tournamentId: string, name = "Season 1", cookie = ownerCookie): Promise<{ id: string }> {
-    const res = await app.inject({
-        method: "POST",
-        url: `/portal/tournaments/${tournamentId}/seasons`,
-        headers: auth(cookie),
-        payload: { name, stages: [{ id: "stage-1", title: "Stage 1" }] },
+        payload: { ...validSeason(name), ...(opts.visibility ? { visibility: opts.visibility } : {}) },
     });
     if (res.statusCode !== 201) throw new Error(`season: ${res.statusCode} ${res.body}`);
     return res.json();
 }
 
-async function makeBankQuestion(tournamentId: string, text: string, cookie = ownerCookie): Promise<string> {
+async function makeBankQuestion(text: string, cookie = ownerCookie): Promise<string> {
     const created = await app.inject({
         method: "POST",
-        url: `/portal/tournaments/${tournamentId}/questions`,
+        url: `/portal/questions`,
         headers: auth(cookie),
         payload: mc(text),
     });
     if (created.statusCode !== 201) throw new Error(`question: ${created.statusCode} ${created.body}`);
 
     const id = created.json().id;
-    const base = `/portal/tournaments/${tournamentId}/questions/${id}/status`;
+    const base = `/portal/questions/${id}/status`;
 
     await app.inject({ method: "PATCH", url: base, headers: auth(cookie), payload: { status: "PENDING" } });
     await app.inject({ method: "PATCH", url: base, headers: auth(adminCookie), payload: { status: "PUBLISHED" } });
     return id;
 }
 
-const matchUrl = (tournamentId: string, seasonId: string, suffix = "") =>
-    `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches${suffix}`;
+const matchUrl = (seasonId: string, suffix = "") =>
+    `/portal/seasons/${seasonId}/matches${suffix}`;
 
-const createMatch = (tournamentId: string, seasonId: string, payload: object, cookie = ownerCookie) =>
+const createMatch = (seasonId: string, payload: object, cookie = ownerCookie) =>
     app.inject({
         method: "POST",
-        url: matchUrl(tournamentId, seasonId),
+        url: matchUrl(seasonId),
         headers: auth(cookie),
         payload,
     });
 
-const transition = (tournamentId: string, seasonId: string, matchId: string, status: string, cookie = ownerCookie) =>
+const transition = (seasonId: string, matchId: string, status: string, cookie = ownerCookie) =>
     app.inject({
         method: "PATCH",
-        url: matchUrl(tournamentId, seasonId, `/${matchId}/status`),
+        url: matchUrl(seasonId, `/${matchId}/status`),
         headers: auth(cookie),
         payload: { status },
     });
@@ -151,49 +139,36 @@ afterAll(async () => {
 
 describe("matches — authorization", () => {
     it("401 anonymous, 403 for a PLAYER", async () => {
-        const t = await makeTournament("m-auth");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-auth");
 
         const anon = await app.inject({
             method: "POST",
-            url: matchUrl(t.id, s.id),
+            url: matchUrl(s.id),
             payload: matchBody(),
         });
         expect(anon.statusCode).toBe(401);
 
-        expect((await createMatch(t.id, s.id, matchBody(), playerCookie)).statusCode).toBe(403);
+        expect((await createMatch(s.id, matchBody(), playerCookie)).statusCode).toBe(403);
     });
 
-    it("403 for a non-owner operator, 404 for a PRIVATE parent", async () => {
-        const t = await makeTournament("m-auth2");
-        const s = await makeSeason(t.id);
+    it("403 for a non-owner operator, 404 for a PRIVATE season", async () => {
+        const s = await makeSeason("m-auth2");
 
-        expect((await createMatch(t.id, s.id, matchBody(), otherCookie)).statusCode).toBe(403);
+        expect((await createMatch(s.id, matchBody(), otherCookie)).statusCode).toBe(403);
 
-        const priv = await makeTournament("m-priv", { visibility: "PRIVATE" }, adminCookie);
-        const privSeason = await makeSeason(priv.id, "S", adminCookie);
+        const priv = await makeSeason("S", { visibility: "PRIVATE" }, adminCookie);
 
-        expect((await createMatch(priv.id, privSeason.id, matchBody(), ownerCookie)).statusCode).toBe(404);
-        expect((await createMatch(priv.id, privSeason.id, matchBody(), adminCookie)).statusCode).toBe(201);
-    });
-
-    it("404 when the season belongs to another tournament", async () => {
-        const a = await makeTournament("m-cross-a");
-        const b = await makeTournament("m-cross-b");
-        const seasonOfA = await makeSeason(a.id);
-
-        const res = await createMatch(b.id, seasonOfA.id, matchBody());
-        expect(res.statusCode).toBe(404);
+        expect((await createMatch(priv.id, matchBody(), ownerCookie)).statusCode).toBe(404);
+        expect((await createMatch(priv.id, matchBody(), adminCookie)).statusCode).toBe(201);
     });
 });
 
 
 describe("matches — create & validation", () => {
     it("201 with defaults (empty seats and questions)", async () => {
-        const t = await makeTournament("m-create");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-create");
 
-        const res = await createMatch(t.id, s.id, matchBody());
+        const res = await createMatch(s.id, matchBody());
 
         expect(res.statusCode).toBe(201);
         const body = res.json();
@@ -204,16 +179,15 @@ describe("matches — create & validation", () => {
     });
 
     it("201 with a complete seat list, 400 when incomplete or duplicated", async () => {
-        const t = await makeTournament("m-seats");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-seats");
 
-        expect((await createMatch(t.id, s.id, matchBody({ players: seats() }))).statusCode).toBe(201);
+        expect((await createMatch(s.id, matchBody({ players: seats() }))).statusCode).toBe(201);
 
-        const tooFew = await createMatch(t.id, s.id, matchBody({ players: [seats()[0]] }));
+        const tooFew = await createMatch(s.id, matchBody({ players: [seats()[0]] }));
         expect(tooFew.statusCode).toBe(400);
         expect(tooFew.json().message).toContain("expected 2 seats");
 
-        const dupSeeds = await createMatch(t.id, s.id, matchBody({
+        const dupSeeds = await createMatch(s.id, matchBody({
             players: [
                 { kind: "user", userId: "00000000-0000-4000-8000-000000000001", seed: 1 },
                 { kind: "user", userId: "00000000-0000-4000-8000-000000000002", seed: 1 }
@@ -222,7 +196,7 @@ describe("matches — create & validation", () => {
         expect(dupSeeds.statusCode).toBe(400);
         expect(dupSeeds.json().message).toContain("seeds must be unique");
 
-        const wrongKind = await createMatch(t.id, s.id, matchBody({
+        const wrongKind = await createMatch(s.id, matchBody({
             players: [
                 { kind: "team", teamId: "00000000-0000-4000-8000-000000000003", seed: 1 },
                 { kind: "user", userId: "00000000-0000-4000-8000-000000000001", seed: 2 }
@@ -232,10 +206,9 @@ describe("matches — create & validation", () => {
     });
 
     it("400 when roundConfigs references an unknown round", async () => {
-        const t = await makeTournament("m-rounds");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-rounds");
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             roundConfigs: { nope: roundConfigs().r1 }
         }));
 
@@ -244,10 +217,9 @@ describe("matches — create & validation", () => {
     });
 
     it("400 when the scheduledAt is not a date-time", async () => {
-        const t = await makeTournament("m-date");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-date");
 
-        const res = await createMatch(t.id, s.id, matchBody({ scheduledAt: "not-a-date" }));
+        const res = await createMatch(s.id, matchBody({ scheduledAt: "not-a-date" }));
         expect(res.statusCode).toBe(400);
     });
 });
@@ -255,11 +227,10 @@ describe("matches — create & validation", () => {
 
 describe("matches — assembly (explicit)", () => {
     it("copies a PUBLISHED bank question with provenance, mode and derived points", async () => {
-        const t = await makeTournament("m-asm");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "assembled question");
+        const s = await makeSeason("m-asm");
+        const sourceId = await makeBankQuestion("assembled question");
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId }]
         }));
 
@@ -276,11 +247,10 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("allows the same bank question twice with distinct _id (khoi-dong pattern)", async () => {
-        const t = await makeTournament("m-dup-source");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "twice in one match");
+        const s = await makeSeason("m-dup-source");
+        const sourceId = await makeBankQuestion("twice in one match");
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             questions: [
                 { roundId: "r1", turnId: "turn-1", sourceId },
                 { roundId: "r1", turnId: "turn-1", sourceId }
@@ -296,17 +266,16 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("400 when the bank question is not PUBLISHED", async () => {
-        const t = await makeTournament("m-notpub");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-notpub");
 
         const draft = await app.inject({
             method: "POST",
-            url: `/portal/tournaments/${t.id}/questions`,
+            url: `/portal/questions`,
             headers: auth(ownerCookie),
             payload: mc("still a draft")
         });
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId: draft.json().id }]
         }));
 
@@ -315,11 +284,10 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("400 when the kind is not allowed by the round config", async () => {
-        const t = await makeTournament("m-kind");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "an MC question");
+        const s = await makeSeason("m-kind");
+        const sourceId = await makeBankQuestion("an MC question");
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             roundConfigs: roundConfigs({ allowedKinds: ["TEXT"] }),
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId }]
         }));
@@ -329,17 +297,16 @@ describe("matches — assembly (explicit)", () => {
     });
 
     it("400 for an unknown turn or round", async () => {
-        const t = await makeTournament("m-unknown-turn");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "turn check");
+        const s = await makeSeason("m-unknown-turn");
+        const sourceId = await makeBankQuestion("turn check");
 
-        const badTurn = await createMatch(t.id, s.id, matchBody({
+        const badTurn = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r1", turnId: "turn-9", sourceId }]
         }));
         expect(badTurn.statusCode).toBe(400);
         expect(badTurn.json().message).toContain("is not part of round");
 
-        const badRound = await createMatch(t.id, s.id, matchBody({
+        const badRound = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r9", turnId: "turn-1", sourceId }]
         }));
         expect(badRound.statusCode).toBe(400);
@@ -350,12 +317,11 @@ describe("matches — assembly (explicit)", () => {
 
 describe("matches — assembly (auto-pick)", () => {
     it("picks distinct PUBLISHED questions up to the requested count", async () => {
-        const t = await makeTournament("m-auto");
-        const s = await makeSeason(t.id);
-        await makeBankQuestion(t.id, "auto one");
-        await makeBankQuestion(t.id, "auto two");
+        const s = await makeSeason("m-auto");
+        await makeBankQuestion("auto one");
+        await makeBankQuestion("auto two");
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             autoPick: [{ roundId: "r1", turnId: "turn-1", count: 2 }]
         }));
 
@@ -367,8 +333,7 @@ describe("matches — assembly (auto-pick)", () => {
     });
 
     it("400 when fewer questions are eligible than requested", async () => {
-        const t = await makeTournament("m-auto-short");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-auto-short");
 
         // TEXT-only round: the global bank holds no TEXT questions in this file,
         // so the eligible pool is deterministic (global bank is eligible too).
@@ -378,15 +343,15 @@ describe("matches — assembly (auto-pick)", () => {
         };
         const created = await app.inject({
             method: "POST",
-            url: `/portal/tournaments/${t.id}/questions`,
+            url: `/portal/questions`,
             headers: auth(ownerCookie),
             payload: text
         });
-        const idle = `/portal/tournaments/${t.id}/questions/${created.json().id}/status`;
+        const idle = `/portal/questions/${created.json().id}/status`;
         await app.inject({ method: "PATCH", url: idle, headers: auth(ownerCookie), payload: { status: "PENDING" } });
         await app.inject({ method: "PATCH", url: idle, headers: auth(adminCookie), payload: { status: "PUBLISHED" } });
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             roundConfigs: roundConfigs({ allowedKinds: ["TEXT"] }),
             autoPick: [{ roundId: "r1", turnId: "turn-1", count: 3 }]
         }));
@@ -399,19 +364,18 @@ describe("matches — assembly (auto-pick)", () => {
 
 describe("matches — re-assembly & freeze", () => {
     it("replaces the question set while UPCOMING", async () => {
-        const t = await makeTournament("m-reasm");
-        const s = await makeSeason(t.id);
-        const first = await makeBankQuestion(t.id, "first pick");
-        const second = await makeBankQuestion(t.id, "second pick");
+        const s = await makeSeason("m-reasm");
+        const first = await makeBankQuestion("first pick");
+        const second = await makeBankQuestion("second pick");
 
-        const created = await createMatch(t.id, s.id, matchBody({
+        const created = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId: first }]
         }));
         const matchId = created.json().id;
 
         const res = await app.inject({
             method: "POST",
-            url: matchUrl(t.id, s.id, `/${matchId}/assemble`),
+            url: matchUrl(s.id, `/${matchId}/assemble`),
             headers: auth(ownerCookie),
             payload: { questions: [{ roundId: "r1", turnId: "turn-1", sourceId: second }] }
         });
@@ -422,11 +386,10 @@ describe("matches — re-assembly & freeze", () => {
     });
 
     it("derive points from the round's scoring template", async () => {
-        const t = await makeTournament("m-points");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "keyword scoring");
+        const s = await makeSeason("m-points");
+        const sourceId = await makeBankQuestion("keyword scoring");
 
-        const created = await createMatch(t.id, s.id, matchBody({
+        const created = await createMatch(s.id, matchBody({
             roundConfigs: roundConfigs({ scoring: { template: "keyword_derived", initial: 40, dropPerHint: 5, incorrect: 0 } }),
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId }]
         }));
@@ -435,21 +398,20 @@ describe("matches — re-assembly & freeze", () => {
     });
 
     it("freezes content, assembly and deletion once LIVE", async () => {
-        const t = await makeTournament("m-freeze");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "frozen question");
+        const s = await makeSeason("m-freeze");
+        const sourceId = await makeBankQuestion("frozen question");
 
-        const created = await createMatch(t.id, s.id, matchBody({
+        const created = await createMatch(s.id, matchBody({
             players: seats(),
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId }]
         }));
         const matchId = created.json().id;
 
-        expect((await transition(t.id, s.id, matchId, "LIVE")).statusCode).toBe(200);
+        expect((await transition(s.id, matchId, "LIVE")).statusCode).toBe(200);
 
         const edit = await app.inject({
             method: "PATCH",
-            url: matchUrl(t.id, s.id, `/${matchId}`),
+            url: matchUrl(s.id, `/${matchId}`),
             headers: auth(ownerCookie),
             payload: { label: "renamed while live" }
         });
@@ -458,7 +420,7 @@ describe("matches — re-assembly & freeze", () => {
 
         const reassemble = await app.inject({
             method: "POST",
-            url: matchUrl(t.id, s.id, `/${matchId}/assemble`),
+            url: matchUrl(s.id, `/${matchId}/assemble`),
             headers: auth(ownerCookie),
             payload: { questions: [{ roundId: "r1", turnId: "turn-1", sourceId }] }
         });
@@ -466,7 +428,7 @@ describe("matches — re-assembly & freeze", () => {
 
         const remove = await app.inject({
             method: "DELETE",
-            url: matchUrl(t.id, s.id, `/${matchId}`),
+            url: matchUrl(s.id, `/${matchId}`),
             headers: auth(adminCookie)
         });
         expect(remove.statusCode).toBe(409);
@@ -477,46 +439,43 @@ describe("matches — re-assembly & freeze", () => {
 
 describe("matches — lifecycle", () => {
     it("409 NOT_READY when going LIVE without seats or questions", async () => {
-        const t = await makeTournament("m-ready");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-ready");
 
-        const created = await createMatch(t.id, s.id, matchBody());
+        const created = await createMatch(s.id, matchBody());
         const matchId = created.json().id;
 
-        const res = await transition(t.id, s.id, matchId, "LIVE");
+        const res = await transition(s.id, matchId, "LIVE");
         expect(res.statusCode).toBe(409);
         expect(res.json().error).toBe("NOT_READY");
         expect(res.json().details.join(" ")).toContain("no questions assembled");
     });
 
     it("goes UPCOMING → LIVE → FINISHED and blocks backward or skipping moves", async () => {
-        const t = await makeTournament("m-lifecycle");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "lifecycle question");
+        const s = await makeSeason("m-lifecycle");
+        const sourceId = await makeBankQuestion("lifecycle question");
 
-        const created = await createMatch(t.id, s.id, matchBody({
+        const created = await createMatch(s.id, matchBody({
             players: seats(),
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId }]
         }));
         const matchId = created.json().id;
 
-        expect((await transition(t.id, s.id, matchId, "LIVE")).json().status).toBe("LIVE");
-        expect((await transition(t.id, s.id, matchId, "FINISHED")).json().status).toBe("FINISHED");
+        expect((await transition(s.id, matchId, "LIVE")).json().status).toBe("LIVE");
+        expect((await transition(s.id, matchId, "FINISHED")).json().status).toBe("FINISHED");
 
-        const backward = await transition(t.id, s.id, matchId, "LIVE");
+        const backward = await transition(s.id, matchId, "LIVE");
         expect(backward.statusCode).toBe(409);
         expect(backward.json().error).toBe("INVALID_TRANSITION");
 
-        const noop = await transition(t.id, s.id, matchId, "FINISHED");
+        const noop = await transition(s.id, matchId, "FINISHED");
         expect(noop.statusCode).toBe(200);
     });
 
     it("409 for a skip straight from UPCOMING to FINISHED", async () => {
-        const t = await makeTournament("m-skip");
-        const s = await makeSeason(t.id);
-        const created = await createMatch(t.id, s.id, matchBody());
+        const s = await makeSeason("m-skip");
+        const created = await createMatch(s.id, matchBody());
 
-        const res = await transition(t.id, s.id, created.json().id, "FINISHED");
+        const res = await transition(s.id, created.json().id, "FINISHED");
         expect(res.statusCode).toBe(409);
     });
 });
@@ -524,13 +483,12 @@ describe("matches — lifecycle", () => {
 
 describe("matches — update, delete, list", () => {
     it("updates content while UPCOMING", async () => {
-        const t = await makeTournament("m-update");
-        const s = await makeSeason(t.id);
-        const created = await createMatch(t.id, s.id, matchBody());
+        const s = await makeSeason("m-update");
+        const created = await createMatch(s.id, matchBody());
 
         const res = await app.inject({
             method: "PATCH",
-            url: matchUrl(t.id, s.id, `/${created.json().id}`),
+            url: matchUrl(s.id, `/${created.json().id}`),
             headers: auth(ownerCookie),
             payload: { label: "Rescheduled", scheduledAt: "2026-04-01T10:00:00Z" }
         });
@@ -540,13 +498,12 @@ describe("matches — update, delete, list", () => {
     });
 
     it("403 for a non-owner operator updating", async () => {
-        const t = await makeTournament("m-update403");
-        const s = await makeSeason(t.id);
-        const created = await createMatch(t.id, s.id, matchBody());
+        const s = await makeSeason("m-update403");
+        const created = await createMatch(s.id, matchBody());
 
         const res = await app.inject({
             method: "PATCH",
-            url: matchUrl(t.id, s.id, `/${created.json().id}`),
+            url: matchUrl(s.id, `/${created.json().id}`),
             headers: auth(otherCookie),
             payload: { label: "hijack" }
         });
@@ -554,50 +511,48 @@ describe("matches — update, delete, list", () => {
     });
 
     it("DELETE is ADMIN-only, soft, and hidden afterwards", async () => {
-        const t = await makeTournament("m-delete");
-        const s = await makeSeason(t.id);
-        const created = await createMatch(t.id, s.id, matchBody());
+        const s = await makeSeason("m-delete");
+        const created = await createMatch(s.id, matchBody());
         const matchId = created.json().id;
 
         const asOperator = await app.inject({
             method: "DELETE",
-            url: matchUrl(t.id, s.id, `/${matchId}`),
+            url: matchUrl(s.id, `/${matchId}`),
             headers: auth(ownerCookie)
         });
         expect(asOperator.statusCode).toBe(403);
 
         const asAdmin = await app.inject({
             method: "DELETE",
-            url: matchUrl(t.id, s.id, `/${matchId}`),
+            url: matchUrl(s.id, `/${matchId}`),
             headers: auth(adminCookie)
         });
         expect(asAdmin.statusCode).toBe(204);
 
         const read = await app.inject({
             method: "GET",
-            url: matchUrl(t.id, s.id, `/${matchId}`),
+            url: matchUrl(s.id, `/${matchId}`),
             headers: auth(ownerCookie)
         });
         expect(read.statusCode).toBe(404);
     });
 
     it("lists with the pagination envelope and a status filter", async () => {
-        const t = await makeTournament("m-list");
-        const s = await makeSeason(t.id);
-        const sourceId = await makeBankQuestion(t.id, "list question");
+        const s = await makeSeason("m-list");
+        const sourceId = await makeBankQuestion("list question");
 
-        await createMatch(t.id, s.id, matchBody({ label: "one" }));
-        await createMatch(t.id, s.id, matchBody({ label: "two" }));
-        const live = await createMatch(t.id, s.id, matchBody({
+        await createMatch(s.id, matchBody({ label: "one" }));
+        await createMatch(s.id, matchBody({ label: "two" }));
+        const live = await createMatch(s.id, matchBody({
             label: "three",
             players: seats(),
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId }]
         }));
-        await transition(t.id, s.id, live.json().id, "LIVE");
+        await transition(s.id, live.json().id, "LIVE");
 
         const all = await app.inject({
             method: "GET",
-            url: matchUrl(t.id, s.id),
+            url: matchUrl(s.id),
             headers: auth(ownerCookie)
         });
         expect(Object.keys(all.json()).sort()).toEqual(["items", "limit", "offset", "total"]);
@@ -605,7 +560,7 @@ describe("matches — update, delete, list", () => {
 
         const liveOnly = await app.inject({
             method: "GET",
-            url: matchUrl(t.id, s.id) + "?status=LIVE",
+            url: matchUrl(s.id) + "?status=LIVE",
             headers: auth(ownerCookie)
         });
         expect(liveOnly.json().total).toBe(1);
@@ -613,7 +568,7 @@ describe("matches — update, delete, list", () => {
 
         const paged = await app.inject({
             method: "GET",
-            url: matchUrl(t.id, s.id) + "?limit=1&offset=2",
+            url: matchUrl(s.id) + "?limit=1&offset=2",
             headers: auth(ownerCookie)
         });
         expect(paged.json().total).toBe(3);
@@ -621,12 +576,11 @@ describe("matches — update, delete, list", () => {
     });
 
     it("404 for an unknown match id", async () => {
-        const t = await makeTournament("m-404");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-404");
 
         const res = await app.inject({
             method: "GET",
-            url: matchUrl(t.id, s.id, "/00000000-0000-4000-8000-000000000000"),
+            url: matchUrl(s.id, "/00000000-0000-4000-8000-000000000000"),
             headers: auth(ownerCookie)
         });
         expect(res.statusCode).toBe(404);
@@ -635,15 +589,14 @@ describe("matches — update, delete, list", () => {
 
 
 describe("matches — bank tenancy", () => {
-    it("accepts a question from the global bank", async () => {
-        const t = await makeTournament("m-global");
-        const s = await makeSeason(t.id);
+    it("accepts a question tagged for this season", async () => {
+        const s = await makeSeason("m-global");
 
         const created = await app.inject({
             method: "POST",
             url: "/portal/questions",
             headers: auth(adminCookie),
-            payload: { ...mc("global bank question"), tag: "GENERAL" }
+            payload: { ...mc("bank question"), tag: "THTH" }
         });
         expect(created.statusCode).toBe(201);
 
@@ -661,7 +614,7 @@ describe("matches — bank tenancy", () => {
             payload: { status: "PUBLISHED" }
         });
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId: globalId }]
         }));
 
@@ -669,28 +622,43 @@ describe("matches — bank tenancy", () => {
         expect(res.json().questions[0].sourceId).toBe(globalId);
     });
 
-    it("400 for a question that belongs to another tournament", async () => {
-        const own = await makeTournament("m-tenancy-own");
-        const other = await makeTournament("m-tenancy-other", {}, adminCookie);
-        const season = await makeSeason(own.id);
+    it("400 for a question that is not tagged for this season", async () => {
+        const s = await makeSeason("m-tenancy");
 
-        const foreignSource = await makeBankQuestion(other.id, "foreign question", adminCookie);
+        // The bank is global; the season's tags decide what it may assemble.
+        const foreignSource = await app.inject({
+            method: "POST",
+            url: "/portal/questions",
+            headers: auth(ownerCookie),
+            payload: { ...mc("foreign question"), tag: "OTHER" }
+        }).then((res) => res.json().id);
+        await app.inject({
+            method: "PATCH",
+            url: `/portal/questions/${foreignSource}/status`,
+            headers: auth(ownerCookie),
+            payload: { status: "PENDING" }
+        });
+        await app.inject({
+            method: "PATCH",
+            url: `/portal/questions/${foreignSource}/status`,
+            headers: auth(adminCookie),
+            payload: { status: "PUBLISHED" }
+        });
 
-        const res = await createMatch(own.id, season.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId: foreignSource }]
         }));
 
         expect(res.statusCode).toBe(400);
-        expect(res.json().message).toContain("belongs to another tournament");
+        expect(res.json().message).toContain("is not tagged for this season");
     });
 
     it("auto-pick never reuses a question already placed by an explicit entry", async () => {
-        const t = await makeTournament("m-auto-exclude");
-        const s = await makeSeason(t.id);
-        const first = await makeBankQuestion(t.id, "explicit pick");
-        await makeBankQuestion(t.id, "another candidate");
+        const s = await makeSeason("m-auto-exclude");
+        const first = await makeBankQuestion("explicit pick");
+        await makeBankQuestion("another candidate");
 
-        const res = await createMatch(t.id, s.id, matchBody({
+        const res = await createMatch(s.id, matchBody({
             questions: [{ roundId: "r1", turnId: "turn-1", sourceId: first }],
             autoPick: [{ roundId: "r1", turnId: "turn-1", count: 1 }]
         }));
@@ -712,21 +680,20 @@ describe("matches — bank tenancy", () => {
 
 describe("matches — soft delete visibility", () => {
     it("excludes a deleted match from the list", async () => {
-        const t = await makeTournament("m-delist");
-        const s = await makeSeason(t.id);
+        const s = await makeSeason("m-delist");
 
-        const keep = await createMatch(t.id, s.id, matchBody({ label: "keep" }));
-        const drop = await createMatch(t.id, s.id, matchBody({ label: "drop" }));
+        const keep = await createMatch(s.id, matchBody({ label: "keep" }));
+        const drop = await createMatch(s.id, matchBody({ label: "drop" }));
 
         await app.inject({
             method: "DELETE",
-            url: matchUrl(t.id, s.id, `/${drop.json().id}`),
+            url: matchUrl(s.id, `/${drop.json().id}`),
             headers: auth(adminCookie)
         });
 
         const list = await app.inject({
             method: "GET",
-            url: matchUrl(t.id, s.id),
+            url: matchUrl(s.id),
             headers: auth(ownerCookie)
         });
 

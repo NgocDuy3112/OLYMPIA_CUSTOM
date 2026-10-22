@@ -65,11 +65,10 @@ function seatedUsers(match: MatchRow): string[] {
 // ── Creating it ───────────────────────────────────────────────────────────────
 
 export async function createQualificationMatch(
-    tournamentId: string,
     seasonId: string,
     input: CreateQualificationMatchInput
 ): Promise<MatchRow> {
-    const { season } = await requireMatchScope(tournamentId, seasonId);
+    const { season } = await requireMatchScope(seasonId);
 
     if (!Number.isInteger(input.questionCount) || input.questionCount < 1) {
         throw new SeasonError("VALIDATION", "questionCount must be a positive integer");
@@ -92,7 +91,7 @@ export async function createQualificationMatch(
         throw new SeasonError("VALIDATION", "a player can only take one seat");
     }
 
-    const questions = await pickQuestions(tournamentId, input.questionCount);
+    const questions = await pickQuestions(season, input.questionCount);
 
     const [row] = await db.insert(matches).values({
         seasonId,
@@ -111,11 +110,11 @@ export async function createQualificationMatch(
 
 // The question set is copied from the bank, so a running event never depends on later
 // bank edits.
-async function pickQuestions(tournamentId: string, count: number): Promise<MatchQuestion[]> {
+async function pickQuestions(season: { tags: string[] }, count: number): Promise<MatchQuestion[]> {
     const rows = await db
         .select()
         .from(questionBank)
-        .where(and(...assemblyEligibility(tournamentId), eq(questionBank.kind, "MC")))
+        .where(and(...assemblyEligibility(season.tags), eq(questionBank.kind, "MC")))
         .orderBy(sql`random()`)
         .limit(count);
 

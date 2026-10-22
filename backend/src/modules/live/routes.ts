@@ -5,7 +5,7 @@ import { getMatch, getMatchById, requireMatchScope } from "../matches/service.js
 import { nextRoundId, orderedMatchRounds } from "../matches/rounds.js";
 import { isSeatedInMatch } from "../matches/seats.js";
 import { auditFromRequest } from "../audit/service.js";
-import { canWriteTournament } from "../../lib/tournament-access.js";
+import { canWriteSeason } from "../../lib/season-access.js";
 import { applyLiveAction, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
 import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
@@ -103,10 +103,9 @@ function roundQuestionIds(match: { questions: MatchQuestion[] }, roundId: string
 
 const matchParams = {
     type: "object",
-    required: ["tournamentId", "seasonId", "matchId"],
+    required: ["seasonId", "matchId"],
     additionalProperties: false,
     properties: {
-        tournamentId: { type: "string", pattern: UUID_PATTERN },
         seasonId: { type: "string", pattern: UUID_PATTERN },
         matchId: { type: "string", pattern: UUID_PATTERN },
     },
@@ -240,20 +239,20 @@ export async function liveRoutes(app: FastifyInstance) {
 
     // ── MC surface ────────────────────────────────────────────────────────────
     app.post(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/matches/:matchId/live/actions",
+        "/portal/seasons/:seasonId/matches/:matchId/live/actions",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
             schema: { params: matchParams, body: actionBody },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId, matchId } = request.params as {
-                tournamentId: string; seasonId: string; matchId: string;
+            const { seasonId, matchId } = request.params as {
+                seasonId: string; matchId: string;
             };
             const body = request.body as { expectedVersion: number; action: unknown };
 
-            const scope = await requireMatchScope(tournamentId, seasonId);
-            if (!canWriteTournament(scope.tournament, user)) {
+            const scope = await requireMatchScope(seasonId);
+            if (!canWriteSeason(scope.season, user)) {
                 throw app.httpErrors.forbidden("Only the owner or an admin may drive a live match");
             }
 
@@ -415,7 +414,7 @@ export async function liveRoutes(app: FastifyInstance) {
 
     // The answers for a question, with their drafts, so the controller can judge them.
     app.get(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/matches/:matchId/live/answers",
+        "/portal/seasons/:seasonId/matches/:matchId/live/answers",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
             schema: {
@@ -437,7 +436,7 @@ export async function liveRoutes(app: FastifyInstance) {
 
     // Read the current state and version. The console calls this after a 409.
     app.get(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/matches/:matchId/live",
+        "/portal/seasons/:seasonId/matches/:matchId/live",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
             schema: { params: matchParams },

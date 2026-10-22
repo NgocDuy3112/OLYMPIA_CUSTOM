@@ -1,6 +1,6 @@
-import { and, asc, count, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, count, eq, isNull, ne, or } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { matches, seasons, tournaments } from "../../db/schema/index.js";
+import { matches, seasons, users } from "../../db/schema/index.js";
 import { SeasonError } from "./errors.js";
 import { CreateSeasonInput, UpdateSeasonInput, validate } from "./schemas.js";
 import { RoundConfig } from "../../game/contracts/index.js";
@@ -9,14 +9,30 @@ import { pageResult, type Page, type PageResult } from "../../lib/pagination.js"
 type SeasonRow = typeof seasons.$inferSelect;
 
 
-export async function requireParent(tournamentId: string): Promise<typeof tournaments.$inferSelect> {
-    const [row] = await db
-        .select()
-        .from(tournaments)
-        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
-        .limit(1);
-    if (!row) throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
-    return row;
+// A slug from a name: what the season is called in a URL.
+export function slugify(name: string): string {
+    return name
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 100);
+}
+
+// A slug nobody else has: the name's, then the name's with a number.
+async function uniqueSlug(name: string, exceptId?: string): Promise<string> {
+    const base = slugify(name) || "season";
+
+    for (let attempt = 0; attempt < 100; attempt++) {
+        const candidate = attempt === 0 ? base : `${base}-${attempt + 1}`;
+        const [taken] = await db.select({ id: seasons.id })
+            .from(seasons)
+            .where(eq(seasons.slug, candidate))
+            .limit(1);
+        if (!taken || taken.id === exceptId) return candidate;
+    }
+
+    throw new SeasonError("CONFLICT", `could not find a free slug for "${name}"`);
 }
 
 
@@ -45,15 +61,11 @@ function assertRoundRules(
     }
 }
 
-async function requireSeason(tournamentId: string, seasonId: string): Promise<SeasonRow> {
+export async function requireSeason(seasonId: string): Promise<SeasonRow> {
     const [row] = await db
         .select()
         .from(seasons)
-        .where(and(
-            eq(seasons.id, seasonId),
-            eq(seasons.tournamentId, tournamentId),
-            isNull(seasons.deletedAt)
-        ))
+        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
         .limit(1);
     if (!row) throw new SeasonError("NOT_FOUND", `season ${seasonId} not found`);
     return row;
@@ -61,32 +73,36 @@ async function requireSeason(tournamentId: string, seasonId: string): Promise<Se
 
 
 export async function createSeason(
-    tournamentId: string,
+    ownerId: string,
     input: CreateSeasonInput
 ): Promise<SeasonRow> {
     validate(CreateSeasonInput, input);
-    const parent = await requireParent(tournamentId);
-    const rounds = input.rounds ?? parent.defaultRounds;
-    if (input.roundRules) assertRoundRules(rounds, input.roundRules);
+    const slug = await uniqueSlug(input.name);
 
     return db.transaction(async (tx) => {
         if (input.current) {
             await tx.update(seasons)
                 .set({ current: false })
-                .where(and(
-                    eq(seasons.tournamentId, tournamentId),
-                    eq(seasons.current, true)
-                ));
+                .where(and(eq(seasons.ownerId, ownerId), eq(seasons.current, true)));
         }
 
         const [row] = await tx.insert(seasons).values({
-            tournamentId,
+            ownerId,
             name: input.name,
-            rounds: input.rounds ?? parent.defaultRounds,
-            format: input.format ?? parent.defaultFormat,
-            placementTiers: input.placementTiers ?? parent.defaultPlacementTiers,
+            slug,
+            visibility: input.visibility ?? "PUBLIC",
+            tags: input.tags ?? [],
+            rounds: input.rounds ?? [],
+            format: input.format ?? {
+                competitorsPerMatch: 4,
+                allowedSeatKinds: ["user"],
+                teamSize: null,
+                teamAggregation: null,
+                teamCountAggregation: null
+            },
+            placementTiers: input.placementTiers ?? [],
             roundRules: input.roundRules ?? null,
-            stages: input.stages,
+            stages: input.stages ?? [],
             current: input.current ?? false
         }).returning();
         return row;
@@ -96,23 +112,28 @@ export async function createSeason(
 
 export interface ListFilters {
     current?: boolean;
+    mine?: boolean;
+    ownerId?: string;
 }
 
 
+// The seasons of the portal: every public one, and the private ones of an admin.
 export async function listSeasons(
-    tournamentId: string,
     filters: ListFilters,
-    page: Page
+    page: Page,
+    viewer?: { id: string; role: string }
 ): Promise<PageResult<SeasonRow>> {
-    await requireParent(tournamentId);
-
-    const conditions = [
-        eq(seasons.tournamentId, tournamentId),
-        isNull(seasons.deletedAt)
-    ];
+    const conditions = [isNull(seasons.deletedAt)];
 
     if (filters.current !== undefined) {
         conditions.push(eq(seasons.current, filters.current));
+    }
+    if (filters.mine) {
+        conditions.push(eq(seasons.ownerId, filters.ownerId ?? ""));
+    }
+
+    if (viewer && viewer.role !== "ADMIN") {
+        conditions.push(or(eq(seasons.visibility, "PUBLIC"), eq(seasons.ownerId, viewer.id))!);
     }
 
     const where = and(...conditions);
@@ -134,9 +155,8 @@ export async function listSeasons(
 }
 
 
-export async function getSeason(tournamentId: string, seasonId: string): Promise<SeasonRow> {
-    await requireParent(tournamentId);
-    return requireSeason(tournamentId, seasonId);
+export async function getSeason(seasonId: string): Promise<SeasonRow> {
+    return requireSeason(seasonId);
 }
 
 
@@ -151,13 +171,11 @@ async function hasAssembledMatch(seasonId: string): Promise<boolean> {
 
 
 export async function updateSeason(
-    tournamentId: string,
     seasonId: string,
     patch: UpdateSeasonInput
 ): Promise<SeasonRow> {
     validate(UpdateSeasonInput, patch);
-    await requireParent(tournamentId);
-    const existing = await requireSeason(tournamentId, seasonId);
+    const existing = await requireSeason(seasonId);
 
     // The rulebook is frozen once a match has been assembled: a running event must not
     // depend on a later edit.
@@ -182,24 +200,26 @@ export async function updateSeason(
     }
     if (patch.roundRules) assertRoundRules(existing.rounds, patch.roundRules);
 
+    const values: Partial<typeof seasons.$inferInsert> = { ...patch, updatedAt: new Date() };
+    if (patch.name !== undefined) {
+        delete (values as { slug?: string }).slug;
+        values.slug = await uniqueSlug(patch.name, seasonId);
+    }
+
     return db.transaction(async (tx) => {
         if (patch.current === true) {
             await tx.update(seasons)
                 .set({ current: false })
                 .where(and(
-                    eq(seasons.tournamentId, tournamentId),
+                    eq(seasons.ownerId, existing.ownerId),
                     eq(seasons.current, true),
                     ne(seasons.id, seasonId)
                 ));
         }
 
         const [row] = await tx.update(seasons)
-            .set({ ...patch, updatedAt: new Date() })
-            .where(and(
-                eq(seasons.id, seasonId),
-                eq(seasons.tournamentId, tournamentId),
-                isNull(seasons.deletedAt)
-            ))
+            .set(values)
+            .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
             .returning();
         if (!row) throw new SeasonError("NOT_FOUND", `season ${seasonId} not found`);
         return row;
@@ -207,18 +227,22 @@ export async function updateSeason(
 }
 
 
-export async function deleteSeason(tournamentId: string, seasonId: string): Promise<SeasonRow> {
-    await requireParent(tournamentId);
-
+export async function deleteSeason(seasonId: string): Promise<SeasonRow> {
     const [row] = await db
         .update(seasons)
         .set({ deletedAt: new Date(), updatedAt: new Date(), current: false })
-        .where(and(
-            eq(seasons.id, seasonId),
-            eq(seasons.tournamentId, tournamentId),
-            isNull(seasons.deletedAt)
-        ))
+        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
         .returning();
     if (!row) throw new SeasonError("NOT_FOUND", `season ${seasonId} not found`);
     return row;
+}
+
+
+// The staff of a season: its owner, and the admins.
+export async function seasonStaff(seasonId: string): Promise<string[]> {
+    const [row] = await db.select({ ownerId: seasons.ownerId })
+        .from(seasons)
+        .where(and(eq(seasons.id, seasonId), isNull(seasons.deletedAt)))
+        .limit(1);
+    return row ? [row.ownerId] : [];
 }

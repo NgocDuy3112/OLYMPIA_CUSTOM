@@ -10,11 +10,9 @@ import { EditStagesDialog } from "./edit-stages-dialog"
 // The season's stages, in order. This order is how far the rounds go, and it decides the
 // season's places: a player who got to a later stage placed above one who did not.
 export function StagesTab({
-    tournamentId,
     seasonId,
     season,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
 }) {
@@ -78,7 +76,6 @@ export function StagesTab({
 
             {editing && (
                 <EditStagesDialog
-                    tournamentId={tournamentId}
                     seasonId={seasonId}
                     season={season}
                     open

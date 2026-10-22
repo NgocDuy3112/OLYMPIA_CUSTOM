@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { matchResults, matches, questionBank, seasonPlayers, seasons, tournaments, users } from "../../src/db/schema/index.js";
+import { matchResults, matches, questionBank, seasonPlayers, seasons, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
 // The format, checked against the matches the staff place: the engine never draws, but
@@ -11,13 +11,12 @@ import { signToken } from "../../src/lib/jwt.js";
 
 let app: FastifyInstance;
 let ownerCookie: string;
-let tournamentId: string;
 let seasonId: string;
 let playerIds: string[];      // in rank order: playerIds[0] is the best
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 const seasonUrl = (suffix: string) =>
-    `/portal/tournaments/${tournamentId}/seasons/${seasonId}${suffix}`;
+    `/portal/seasons/${seasonId}${suffix}`;
 
 const seat = (index: number) => ({
     kind: "user" as const,
@@ -64,20 +63,13 @@ beforeAll(async () => {
     ).returning();
     playerIds = players.map((row) => row.id);
 
-    const [tournament] = await db.insert(tournaments).values({
-        name: "FC Tournament", slug: "fc-tournament", visibility: "PUBLIC", ownerId: owner.id,
-        defaultTags: ["THTH"],
-        defaultRounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
-        defaultFormat: {
-            competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null,
-            teamAggregation: null, teamCountAggregation: null
-        },
-        defaultPlacementTiers: [{ min: 1, max: 4, points: 10 }]
-    }).returning();
-    tournamentId = tournament.id;
+    // The season is the unit: it carries the identity the tournament had.
+    const seasonTags = ["THTH"];
+    const seasonOwner = owner.id;
+    const seasonSlug = "fc-tournament-season";
 
     const [season] = await db.insert(seasons).values({
-        tournamentId,
+        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
         name: "FC Season",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: {

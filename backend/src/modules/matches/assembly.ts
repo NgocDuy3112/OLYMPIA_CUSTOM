@@ -94,12 +94,11 @@ function copyOf(params: {
 
 export async function buildQuestionCopies(params: {
     season: SeasonRow;
-    tournamentId: string;
     roundConfigs: Record<string, RoundConfig>;
     entries: AssemblyEntry[];
     autoPick: AutoPick[];
 }): Promise<MatchQuestion[]> {
-    const { season, tournamentId, roundConfigs, entries, autoPick } = params;
+    const { season, roundConfigs, entries, autoPick } = params;
 
     const copies: MatchQuestion[] = [];
     const nextPosition = new Map<string, number>();
@@ -142,10 +141,10 @@ export async function buildQuestionCopies(params: {
                     `${where}: question ${entry.sourceId} is ${source.status}, not PUBLISHED`
                 );
             }
-            if (source.tournamentId !== null && source.tournamentId !== tournamentId) {
+            if (!season.tags.includes(source.tag)) {
                 throw new MatchError(
                     "VALIDATION",
-                    `${where}: question ${entry.sourceId} belongs to another tournament`
+                    `${where}: question ${entry.sourceId} is not tagged for this season`
                 );
             }
             if (!config.allowedKinds.includes(source.kind as QuestionKind)) {
@@ -180,7 +179,7 @@ export async function buildQuestionCopies(params: {
 
         // Same visibility rule as the paged read: one place, two consumers.
         const conditions = [
-            ...assemblyEligibility(tournamentId),
+            ...assemblyEligibility(season.tags),
             inArray(questionBank.kind, config.allowedKinds as QuestionKind[])
         ];
 

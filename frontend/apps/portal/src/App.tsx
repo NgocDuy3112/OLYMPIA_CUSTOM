@@ -2,8 +2,6 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
 import { RequireAuth, RedirectIfSignedIn } from "@/components/require-auth"
 import { LoginPage } from "@/pages/LoginPage"
 import { SignupPage } from "@/pages/SignupPage"
-import { TournamentsPage } from "@/pages/TournamentsPage"
-import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
 import { SeasonsPage } from "./pages/SeasonsPage"
 import { SeasonDetailPage } from "@/pages/SeasonDetailPage"
 import { PortalShell } from "@/components/portal-shell"
@@ -20,10 +18,8 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route path="/" element={<TournamentsPage />} />
-          <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
-          <Route path="/tournaments/:tournamentId/seasons" element={<SeasonsPage />} />
-          <Route path="/tournaments/:tournamentId/seasons/:seasonId" element={<SeasonDetailPage />} />
+          <Route path="/" element={<SeasonsPage />} />
+          <Route path="/seasons/:seasonId" element={<SeasonDetailPage />} />
         </Route>
 
         <Route

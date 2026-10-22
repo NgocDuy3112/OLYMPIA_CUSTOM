@@ -1,6 +1,6 @@
 import { Button } from "@shared/ui/button"
 import { Input } from "@shared/ui/input"
-import { PLACEMENT_SCALES, type PlacementTier } from "@/lib/tournaments"
+import { PLACEMENT_SCALES, type PlacementTier } from "@/lib/seasons"
 
 
 // The points for places: the bands, each a range of places and what they are worth.
@@ -8,18 +8,12 @@ import { PLACEMENT_SCALES, type PlacementTier } from "@/lib/tournaments"
 export function PlacementTiersEditor({
     tiers,
     onChange,
-    inheritFrom,
 }: {
     tiers: PlacementTier[]
     onChange: (tiers: PlacementTier[]) => void
-    inheritFrom?: PlacementTier[]
 }) {
     const patch = (index: number, change: Partial<PlacementTier>) =>
-        onChange(tiers.map((tier, i) => (i === index ? { ...tier, ...change } : tier)))
-
-    const sameAsTournament = inheritFrom
-        ? JSON.stringify(tiers) === JSON.stringify(inheritFrom)
-        : false
+        onChange(tiers.map((tier, i) => (i === index ? { ...tier, ...change } : tier)));
 
     return (
         <div className="flex flex-col gap-2">
@@ -87,17 +81,6 @@ export function PlacementTiersEditor({
                         Use {scale.title}
                     </Button>
                 ))}
-
-                {inheritFrom && !sameAsTournament && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onChange(inheritFrom.map((tier) => ({ ...tier })))}
-                    >
-                        Same as the tournament
-                    </Button>
-                )}
 
                 {tiers.length > 0 && (
                     <Button

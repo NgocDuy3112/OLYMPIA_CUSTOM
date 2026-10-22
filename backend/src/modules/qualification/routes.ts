@@ -18,13 +18,12 @@ import {
     submitQualificationAnswer
 } from "./service.js";
 
-// The staff address a qualification match by tournament, season and match id.
+// The staff address a qualification match by season and match id.
 const qualificationMatchParams = {
     type: "object",
-    required: ["tournamentId", "seasonId", "matchId"],
+    required: ["seasonId", "matchId"],
     additionalProperties: false,
     properties: {
-        tournamentId: { type: "string", pattern: UUID_PATTERN },
         seasonId: { type: "string", pattern: UUID_PATTERN },
         matchId: { type: "string", pattern: UUID_PATTERN }
     }
@@ -43,7 +42,7 @@ export async function qualificationRoutes(app: FastifyInstance) {
     // ── The staff's side ───────────────────────────────────────────────────────
 
     app.post(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/qualification-matches",
+        "/portal/seasons/:seasonId/qualification-matches",
         {
             onRequest: staff,
             schema: {
@@ -64,7 +63,7 @@ export async function qualificationRoutes(app: FastifyInstance) {
         },
         async (request, reply) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
+            const { seasonId } = request.params as { seasonId: string };
             const body = request.body as {
                 label: string;
                 scheduledAt: string;
@@ -73,8 +72,8 @@ export async function qualificationRoutes(app: FastifyInstance) {
                 playerIds?: string[];
             };
 
-            await assertWrite(tournamentId, seasonId, user.id, user.role);
-            const match = await createQualificationMatch(tournamentId, seasonId, body);
+            await assertWrite(seasonId, user.id, user.role);
+            const match = await createQualificationMatch(seasonId, body);
 
             await auditFromRequest(request, "season_drawn", {
                 details: { seasonId, kind: "qualification", matchId: match.id }
@@ -86,21 +85,19 @@ export async function qualificationRoutes(app: FastifyInstance) {
     );
 
     app.get(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/qualification-matches/:matchId",
+        "/portal/seasons/:seasonId/qualification-matches/:matchId",
         { onRequest: staff, schema: { params: qualificationMatchParams } },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId, matchId } = request.params as {
-                tournamentId: string; seasonId: string; matchId: string;
-            };
+            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
 
-            await assertView(tournamentId, seasonId, user.id, user.role);
+            await assertView(seasonId, user.id, user.role);
             return getQualificationForStaff(matchId);
         }
     );
 
     app.post(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId/qualification-matches/:matchId/close",
+        "/portal/seasons/:seasonId/qualification-matches/:matchId/close",
         {
             onRequest: staff,
             schema: {
@@ -124,12 +121,10 @@ export async function qualificationRoutes(app: FastifyInstance) {
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId, matchId } = request.params as {
-                tournamentId: string; seasonId: string; matchId: string;
-            };
+            const { seasonId, matchId } = request.params as { seasonId: string; matchId: string };
             const body = request.body as { tieBreaks?: Array<{ players: string[]; order: string[] }> } | undefined;
 
-            await assertWrite(tournamentId, seasonId, user.id, user.role);
+            await assertWrite(seasonId, user.id, user.role);
             const result = await closeQualificationMatch(matchId, { tieBreaks: body?.tieBreaks });
 
             await auditFromRequest(request, "season_closed", {

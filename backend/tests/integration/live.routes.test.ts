@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { answers, matchEvents, matchLive, matchResults, matchStats, matches, seasons, tournaments, users } from "../../src/db/schema/index.js";
+import { answers, matchEvents, matchLive, matchResults, matchStats, matches, seasons, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { MatchQuestion } from "../../src/game/contracts/index.js";
 
@@ -15,7 +15,6 @@ let app: FastifyInstance;
 let ownerCookie: string;
 let playerCookies: string[];
 let outsiderCookie: string;
-let tournamentId: string;
 let seasonId: string;
 let matchId: string;
 let hintIds: string[];
@@ -61,17 +60,14 @@ beforeAll(async () => {
     }).returning();
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
-    const [tournament] = await db.insert(tournaments).values({
-        name: "Live Tournament", slug: "live-tournament", visibility: "PUBLIC", ownerId: owner.id,
-        defaultTags: ["THTH"],
-        defaultRounds: [{ id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" }],
-        defaultFormat: { competitorsPerMatch: 2, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
-        defaultPlacementTiers: [{ min: 1, max: 2, points: 10 }]
-    }).returning();
-    tournamentId = tournament.id;
+    // The season is the unit: it carries the identity the tournament had.
+    const seasonTags = ["THTH"];
+    const seasonOwner = owner.id;
+    const seasonSlug = "live-tournament-season";
 
     const [season] = await db.insert(seasons).values({
-        tournamentId, name: "Live Season",
+        ownerId: seasonOwner, visibility: "PUBLIC", tags: seasonTags, slug: seasonSlug,
+        name: "Live Season",
         rounds: [
             { id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" },
             { id: "but-pha", name: "But Pha", order: 1, chart: "bars" }
@@ -113,11 +109,11 @@ afterAll(async () => {
     await app.close();
 });
 
-const actionUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/live/actions`;
-const liveUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/live`;
+const actionUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live/actions`;
+const liveUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/live`;
 const answerUrl = () => `/gameplay/matches/${matchId}/live/answers`;
 const keywordUrl = () => `/gameplay/matches/${matchId}/live/keyword`;
-const statusUrl = () => `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/status`;
+const statusUrl = () => `/portal/seasons/${seasonId}/matches/${matchId}/status`;
 
 async function live(): Promise<{ version: number; roundId: string; state: Record<string, unknown> }> {
     const res = await app.inject({ method: "GET", url: liveUrl(), headers: auth(ownerCookie) });

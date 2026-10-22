@@ -18,7 +18,7 @@ function SeasonLayout({ loading }: { loading: boolean }) {
 
 function ScheduleRoute() {
     const { season, loading } = useOutletContext<SeasonContext>()
-    return <SchedulePage tournament={season.tournament} matches={season.matches} standings={season.standings} loading={loading} />
+    return <SchedulePage season={season} matches={season.matches} standings={season.standings} loading={loading} />
 }
 
 function StandingsRoute() {

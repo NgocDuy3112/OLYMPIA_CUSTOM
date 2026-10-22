@@ -7,15 +7,9 @@ import { useRecomputeStandings, useStandings } from "@/lib/season"
 // The season's places. A player is placed by how far they got — the last stage they
 // reached, the match they were eliminated in, and their rank in it. The points are a
 // statistic, not the ranking key.
-export function StandingsTab({
-    tournamentId,
-    seasonId,
-}: {
-    tournamentId: string
-    seasonId: string
-}) {
-    const standings = useStandings(tournamentId, seasonId)
-    const recompute = useRecomputeStandings(tournamentId, seasonId)
+export function StandingsTab({ seasonId }: { seasonId: string }) {
+    const standings = useStandings(seasonId)
+    const recompute = useRecomputeStandings(seasonId)
 
     if (standings.isPending) {
         return <p className="text-sm text-muted-foreground">Loading standings…</p>

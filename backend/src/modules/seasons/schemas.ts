@@ -12,7 +12,10 @@ import { SeasonError } from "./errors.js";
 
 export const CreateSeasonInput = Type.Object({
     name: Type.String({ minLength: 1 }),
-    stages: Type.Array(StageSchema),
+    // The tags decide which questions of the global bank this season may assemble.
+    tags: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
+    visibility: Type.Optional(Type.Union([Type.Literal("PUBLIC"), Type.Literal("PRIVATE")])),
+    stages: Type.Optional(Type.Array(StageSchema)),
     rounds: Type.Optional(Type.Array(SeasonRoundSchema)),
     format: Type.Optional(TournamentFormatSchema),
     placementTiers: Type.Optional(Type.Array(PlacementTierSchema)),
@@ -25,6 +28,7 @@ export const UpdateSeasonInput = Type.Partial(CreateSeasonInput);
 
 export const ListSeasonsQuery = Type.Object({
     current: Type.Optional(Type.Union([Type.Literal("true"), Type.Literal("false")])),
+    mine: Type.Optional(Type.Union([Type.Literal("true"), Type.Literal("false")])),
     limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
     offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))
 });

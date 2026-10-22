@@ -6,7 +6,6 @@ import { db } from "../../src/db/pool.js";
 import { auditEvents, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import { audit, mcpAuditDetails, type AuditAction } from "../../src/modules/audit/index.js";
-import type { CreateTournamentInput } from "../../src/modules/tournaments/index.js";
 
 
 let app: FastifyInstance;
@@ -24,44 +23,37 @@ const eventsFor = (action: string, predicate: (details: Record<string, unknown>)
     db.select().from(auditEvents).where(eq(auditEvents.action, action))
         .then((rows) => rows.filter((row) => predicate((row.details ?? {}) as Record<string, unknown>)));
 
-const tournamentInput = (slug: string): CreateTournamentInput => ({
-    name: "Audit Host",
-    slug,
-    defaultTags: ["THTH"],
-    defaultRounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    defaultFormat: {
+const seasonInput = (name: string) => ({
+    name,
+    tags: ["THTH"],
+    rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
+    format: {
         competitorsPerMatch: 2,
         allowedSeatKinds: ["user"],
         teamSize: null,
         teamAggregation: null,
         teamCountAggregation: null
     },
-    defaultPlacementTiers: [{ min: 1, max: 2, points: 10 }]
+    placementTiers: [{ min: 1, max: 2, points: 10 }],
+    stages: [{ id: "stage-1", title: "Stage 1" }]
 });
 
-async function makeTournamentAndSeason(slug: string): Promise<{ tournamentId: string; seasonId: string }> {
-    const tournament = await app.inject({
-        method: "POST",
-        url: "/portal/tournaments",
-        headers: auth(ownerCookie),
-        payload: tournamentInput(slug)
-    });
-    const tournamentId = tournament.json().id;
-
+async function makeSeason(name: string): Promise<{ seasonId: string }> {
     const season = await app.inject({
         method: "POST",
-        url: `/portal/tournaments/${tournamentId}/seasons`,
+        url: "/portal/seasons",
         headers: auth(ownerCookie),
-        payload: { name: "Season 1", stages: [{ id: "stage-1", title: "Stage 1" }] }
+        payload: seasonInput(name)
     });
+    if (season.statusCode !== 201) throw new Error(`season: ${season.statusCode} ${season.body}`);
 
-    return { tournamentId, seasonId: season.json().id };
+    return { seasonId: season.json().id };
 }
 
-async function makePublishedQuestion(tournamentId: string): Promise<string> {
+async function makePublishedQuestion(): Promise<string> {
     const created = await app.inject({
         method: "POST",
-        url: `/portal/tournaments/${tournamentId}/questions`,
+        url: `/portal/questions`,
         headers: auth(ownerCookie),
         payload: {
             kind: "MC",
@@ -72,7 +64,7 @@ async function makePublishedQuestion(tournamentId: string): Promise<string> {
     });
 
     const id = created.json().id;
-    const url = `/portal/tournaments/${tournamentId}/questions/${id}/status`;
+    const url = `/portal/questions/${id}/status`;
 
     await app.inject({ method: "PATCH", url, headers: auth(ownerCookie), payload: { status: "PENDING" } });
     await app.inject({ method: "PATCH", url, headers: auth(adminCookie), payload: { status: "PUBLISHED" } });
@@ -170,11 +162,11 @@ describe("audit wiring — MCP keys", () => {
 
 describe("audit wiring — the question review gate", () => {
     it("records submit / publish / archive, but not a send-back or a content edit", async () => {
-        const { tournamentId } = await makeTournamentAndSeason("aud-gate");
+        const { seasonId } = await makeSeason("aud-gate");
 
         const created = await app.inject({
             method: "POST",
-            url: `/portal/tournaments/${tournamentId}/questions`,
+            url: `/portal/questions`,
             headers: auth(ownerCookie),
             payload: {
                 kind: "MC",
@@ -184,12 +176,12 @@ describe("audit wiring — the question review gate", () => {
             }
         });
         const questionId = created.json().id;
-        const url = `/portal/tournaments/${tournamentId}/questions/${questionId}/status`;
+        const url = `/portal/questions/${questionId}/status`;
 
         // a plain content edit is not an audit event
         await app.inject({
             method: "PATCH",
-            url: `/portal/tournaments/${tournamentId}/questions/${questionId}`,
+            url: `/portal/questions/${questionId}`,
             headers: auth(ownerCookie),
             payload: { questionText: "edited, still not an event" }
         });
@@ -207,11 +199,11 @@ describe("audit wiring — the question review gate", () => {
         const published = await eventsFor("question_published", (d) => d.questionId === questionId);
         expect(published).toHaveLength(1);
         expect(published[0].actorId).toBe(adminId);            // the reviewer is recorded
-        expect(published[0].details).toMatchObject({ tournamentId, tag: "THTH", kind: "MC" });
+        expect(published[0].details).toMatchObject({ tag: "THTH", kind: "MC" });
 
         await app.inject({
             method: "DELETE",
-            url: `/portal/tournaments/${tournamentId}/questions/${questionId}`,
+            url: `/portal/questions/${questionId}`,
             headers: auth(ownerCookie)
         });
         expect(await eventsFor("question_archived", (d) => d.questionId === questionId)).toHaveLength(1);
@@ -221,12 +213,12 @@ describe("audit wiring — the question review gate", () => {
 
 describe("audit wiring — match lifecycle", () => {
     it("records match_started and match_ended, and ignores a same-status no-op", async () => {
-        const { tournamentId, seasonId } = await makeTournamentAndSeason("aud-match");
-        const sourceId = await makePublishedQuestion(tournamentId);
+        const { seasonId } = await makeSeason("aud-match");
+        const sourceId = await makePublishedQuestion();
 
         const created = await app.inject({
             method: "POST",
-            url: `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches`,
+            url: `/portal/seasons/${seasonId}/matches`,
             headers: auth(ownerCookie),
             payload: {
                 stageId: "stage-1",
@@ -247,7 +239,7 @@ describe("audit wiring — match lifecycle", () => {
             }
         });
         const matchId = created.json().id;
-        const statusUrl = `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches/${matchId}/status`;
+        const statusUrl = `/portal/seasons/${seasonId}/matches/${matchId}/status`;
 
         await app.inject({ method: "PATCH", url: statusUrl, headers: auth(ownerCookie), payload: { status: "LIVE" } });
         const started = await eventsFor("match_started", (d) => d.matchId === undefined || true);

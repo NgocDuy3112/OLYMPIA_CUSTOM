@@ -3,43 +3,23 @@ import { Button } from "@shared/ui/button"
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@shared/ui/field"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@shared/ui/field"
 import { Input } from "@shared/ui/input"
 import { useCreateSeason } from "@/lib/seasons"
 
-interface StageDraft {
-    id: string
-    title: string
-    start: string
-    end: string
-}
-
-function emptyStage(): StageDraft {
-    return { id: crypto.randomUUID(), title: "", start: "", end: "" }
-}
-
-function toIso(local: string): string {
-    return new Date(local).toISOString()
-}
-
-// A new season, created in a dialog. The seasons page stays a table you can read.
+// A new season: the unit. It owns its roster, its stages, its rulebook and its points.
 export function NewSeasonDialog({
-    tournamentId,
     open,
     onOpenChange,
 }: {
-    tournamentId: string
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const create = useCreateSeason(tournamentId)
+    const create = useCreateSeason()
 
     const [name, setName] = useState("")
-    const [current, setCurrent] = useState(false)
-    const [stages, setStages] = useState<StageDraft[]>([])
-
-    const updateStage = (id: string, patch: Partial<StageDraft>) =>
-        setStages((rows) => rows.map((row) => (row.id === id ? { ...row, ...patch } : row)))
+    const [tags, setTags] = useState("")
+    const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
 
     const submit = (event: SubmitEvent<HTMLFormElement>) => {
         event.preventDefault()
@@ -47,21 +27,13 @@ export function NewSeasonDialog({
         create.mutate(
             {
                 name,
-                current,
-                stages: stages
-                    .filter((stage) => stage.title && stage.start && stage.end)
-                    .map((stage) => ({
-                        id: stage.id,
-                        title: stage.title,
-                        start: toIso(stage.start),
-                        end: toIso(stage.end),
-                    })),
+                tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+                visibility
             },
             {
                 onSuccess: () => {
                     setName("")
-                    setCurrent(false)
-                    setStages([])
+                    setTags("")
                     onOpenChange(false)
                 },
             }
@@ -70,13 +42,14 @@ export function NewSeasonDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-xl">
+            <DialogContent>
                 <form onSubmit={submit}>
                     <FieldGroup>
                         <DialogHeader>
                             <DialogTitle>New season</DialogTitle>
                             <DialogDescription>
-                                Rounds, format, and placement tiers are inherited from the tournament.
+                                A season is one run: its roster, its stages, its matches and
+                                its standings.
                             </DialogDescription>
                         </DialogHeader>
 
@@ -85,83 +58,46 @@ export function NewSeasonDialog({
                             <Input
                                 id="season-name"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(event) => setName(event.target.value)}
                                 placeholder="2026 Season"
                                 required
                             />
                         </Field>
 
                         <Field>
-                            <FieldLabel htmlFor="season-current">Make current</FieldLabel>
-                            <input
-                                id="season-current"
-                                type="checkbox"
-                                checked={current}
-                                onChange={(e) => setCurrent(e.target.checked)}
+                            <FieldLabel htmlFor="season-tags">Tags</FieldLabel>
+                            <Input
+                                id="season-tags"
+                                value={tags}
+                                onChange={(event) => setTags(event.target.value)}
+                                placeholder="THTH, GDTT"
                             />
                             <FieldDescription>
-                                Only one season per tournament can be current.
+                                Comma-separated. The questions of these tags are the ones this
+                                season may assemble.
                             </FieldDescription>
                         </Field>
 
-                        <div className="flex flex-col gap-3">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Stages</span>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setStages((rows) => [...rows, emptyStage()])}
-                                >
-                                    Add stage
-                                </Button>
-                            </div>
-
-                            {stages.length === 0 && (
-                                <FieldDescription>No stages yet.</FieldDescription>
-                            )}
-
-                            {stages.map((stage, index) => (
-                                <div key={stage.id} className="flex flex-wrap items-end gap-2">
-                                    <Input
-                                        aria-label={`Stage ${index + 1} title`}
-                                        className="max-w-48"
-                                        placeholder="Group stage"
-                                        value={stage.title}
-                                        onChange={(e) => updateStage(stage.id, { title: e.target.value })}
-                                    />
-                                    <Input
-                                        aria-label={`Stage ${index + 1} start`}
-                                        type="datetime-local"
-                                        value={stage.start}
-                                        onChange={(e) => updateStage(stage.id, { start: e.target.value })}
-                                    />
-                                    <Input
-                                        aria-label={`Stage ${index + 1} end`}
-                                        type="datetime-local"
-                                        value={stage.end}
-                                        onChange={(e) => updateStage(stage.id, { end: e.target.value })}
-                                    />
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() =>
-                                            setStages((rows) => rows.filter((row) => row.id !== stage.id))
-                                        }
-                                    >
-                                        Remove
-                                    </Button>
-                                </div>
-                            ))}
-                        </div>
+                        <Field>
+                            <FieldLabel htmlFor="season-visibility">Visibility</FieldLabel>
+                            <select
+                                id="season-visibility"
+                                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                                value={visibility}
+                                onChange={(event) =>
+                                    setVisibility(event.target.value as "PUBLIC" | "PRIVATE")
+                                }
+                            >
+                                <option value="PUBLIC">Public</option>
+                                <option value="PRIVATE">Private</option>
+                            </select>
+                            <FieldDescription>
+                                A private season is visible to admins and its owner only.
+                            </FieldDescription>
+                        </Field>
 
                         {create.isError && (
-                            <FieldError>
-                                {create.error instanceof Error
-                                    ? create.error.message
-                                    : "Could not create the season."}
-                            </FieldError>
+                            <p className="text-sm text-destructive">{create.error.message}</p>
                         )}
 
                         <DialogFooter>

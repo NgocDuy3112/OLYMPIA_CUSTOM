@@ -30,8 +30,8 @@ export const questionKind = pgEnum("question_kind", ["MC", "TEXT", "KEYWORD"]);
 export const questionStatus = pgEnum("question_status", ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]);
 
 
-export const tournaments = pgTable(
-    "tournaments",
+export const seasons = pgTable(
+    "seasons",
     {
         id: uuid("id").primaryKey().defaultRandom(),
         name: text("name").notNull(),
@@ -41,26 +41,8 @@ export const tournaments = pgTable(
             .notNull()
             .references(() => users.id),
 
-        defaultTags: text("default_tags").array().notNull(),
-        defaultRounds: jsonb("default_rounds").$type<SeasonRound[]>().notNull(),
-        defaultFormat: jsonb("default_format").$type<TournamentFormat>().notNull(),
-        defaultPlacementTiers: jsonb("default_placement_tiers").$type<PlacementTier[]>().notNull(),
-
-        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-        updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-        deletedAt: timestamp("deleted_at", { withTimezone: true })
-    },
-    (table) => [uniqueIndex("tournaments_slug_unique").on(table.slug)]
-);
-
-export const seasons = pgTable(
-    "seasons",
-    {
-        id: uuid("id").primaryKey().defaultRandom(),
-        tournamentId: uuid("tournament_id")
-            .notNull()
-            .references(() => tournaments.id),
-        name: text("name").notNull(),
+        // The tags decide which questions of the global bank this season may assemble.
+        tags: text("tags").array().notNull(),
         current: boolean("current").notNull().default(false),
 
         rounds: jsonb("rounds").$type<SeasonRound[]>().notNull(),
@@ -78,8 +60,10 @@ export const seasons = pgTable(
         deletedAt: timestamp("deleted_at", { withTimezone: true })
     },
     (table) => [
+        uniqueIndex("seasons_slug_unique").on(table.slug),
+        // One running season per owner.
         uniqueIndex("seasons_current_unique")
-            .on(table.tournamentId)
+            .on(table.ownerId)
             .where(sql`current = true`)
     ]
 );
@@ -110,7 +94,6 @@ export const questionBank = pgTable(
         timeLimit: integer("time_limit"),
         status: questionStatus("status").notNull().default("DRAFT"),
 
-        tournamentId: uuid("tournament_id").references(() => tournaments.id),
         createdBy: uuid("created_by")
             .notNull()
             .references(() => users.id),
@@ -121,6 +104,6 @@ export const questionBank = pgTable(
     (table) => [
         index("question_bank_status_idx").on(table.status),
         index("question_bank_tag_idx").on(table.tag),
-        index("question_bank_tournament_status_idx").on(table.tournamentId, table.status)
+        index("question_bank_tag_status_idx").on(table.tag, table.status)
     ]
 );

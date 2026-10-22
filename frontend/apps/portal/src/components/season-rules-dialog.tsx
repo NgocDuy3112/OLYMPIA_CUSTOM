@@ -11,21 +11,19 @@ import { draftFrom, KINDS_LIST, questionCountOf, type Kind } from "@/lib/rules"
 // The season's rulebook, edited in a dialog. The read surface behind it stays a table
 // of text: one job per surface, one commit point per change.
 export function SeasonRulesDialog({
-    tournamentId,
     seasonId,
     season,
     frozen,
     open,
     onOpenChange,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
     frozen: boolean
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const update = useUpdateSeason(tournamentId, seasonId)
+    const update = useUpdateSeason(seasonId)
 
     // The dialog is mounted when it opens, so the draft is derived from the server on
     // every opening: a previous draft can never show up again.

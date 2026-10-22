@@ -10,23 +10,21 @@ import type { SeasonDetail } from "@/lib/season"
 // A match, placed by hand: the staff pick who plays whom.
 // The mass event is the same thing with the whole roster and a question set.
 export function NewMatchDialog({
-    tournamentId,
     seasonId,
     season,
     seats,
     open,
     onOpenChange,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
     seats: number
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const enrolled = useEnrolled(tournamentId, seasonId)
-    const create = useCreateMatch(tournamentId, seasonId)
-    const createMass = useCreateQualificationMatch(tournamentId, seasonId)
+    const enrolled = useEnrolled(seasonId)
+    const create = useCreateMatch(seasonId)
+    const createMass = useCreateQualificationMatch(seasonId)
 
     const stages = season.stages ?? []
 

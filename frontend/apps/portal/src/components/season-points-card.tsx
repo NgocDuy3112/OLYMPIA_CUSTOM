@@ -3,7 +3,6 @@ import { AlertTriangle } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useTournament } from "@/lib/tournaments"
 import type { SeasonDetail } from "@/lib/season"
 import { SeasonPointsDialog } from "./season-points-dialog"
 
@@ -11,30 +10,23 @@ import { SeasonPointsDialog } from "./season-points-dialog"
 // The season's points for places. The season is the unit: the tournament hands down a
 // default, and the season — which knows how many places it produces — owns the scale.
 export function SeasonPointsCard({
-    tournamentId,
     seasonId,
     season,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
 }) {
-    const tournament = useTournament(tournamentId)
     const [editing, setEditing] = useState(false)
 
     const tiers = season.placementTiers ?? []
     const coverage = season.points
-    const defaultTiers = tournament.data?.defaultPlacementTiers ?? []
-    const inherited = defaultTiers.length > 0
-        && JSON.stringify(tiers) === JSON.stringify(defaultTiers)
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle className="text-base">Points for places</CardTitle>
                 <CardDescription>
-                    What each place of this season is worth.
-                    {inherited && " Inherited from the tournament."}
+                    What each place of this season is worth. The season owns its scale.
                 </CardDescription>
                 <CardAction>
                     <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
@@ -90,10 +82,8 @@ export function SeasonPointsCard({
 
             {editing && (
                 <SeasonPointsDialog
-                    tournamentId={tournamentId}
                     seasonId={seasonId}
                     season={season}
-                    defaultTiers={defaultTiers}
                     open
                     onOpenChange={(open) => { if (!open) setEditing(false) }}
                 />

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
 import { PaginationError, parsePage } from "../../lib/pagination.js";
-import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
+import { canViewSeason, canWriteSeason } from "../../lib/season-access.js";
 import { SeasonError, toHttpStatus } from "./errors.js";
 import { seasonPlaces } from "../bracket/service.js";
 import { scaleCoverage } from "../../game/engine/scoring/placement.js";
@@ -11,28 +11,16 @@ import {
     deleteSeason,
     getSeason,
     listSeasons,
-    requireParent,
+    requireSeason,
     updateSeason
 } from "./service.js";
 
 
-const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
-
-const tournamentParams = {
-    type: "object",
-    required: ["tournamentId"],
-    additionalProperties: false,
-    properties: { tournamentId: { type: "string", pattern: UUID_PATTERN } },
-} as const;
-
 const seasonParams = {
     type: "object",
-    required: ["tournamentId", "seasonId"],
+    required: ["seasonId"],
     additionalProperties: false,
-    properties: {
-        tournamentId: { type: "string", pattern: UUID_PATTERN },
-        seasonId: { type: "string", pattern: UUID_PATTERN },
-    },
+    properties: { seasonId: { type: "string", pattern: "^[0-9a-f-]{36}$" } }
 } as const;
 
 
@@ -56,76 +44,54 @@ export async function seasonRoutes(app: FastifyInstance) {
 
     const staff = [requireRole("PORTAL", ["ADMIN", "OPERATOR"])];
 
-    // Create — parent PUBLIC: owner or ADMIN; parent PRIVATE: ADMIN (others 404).
+    // Create — the creator owns it.
     app.post(
-        "/portal/tournaments/:tournamentId/seasons",
+        "/portal/seasons",
         {
             onRequest: staff,
-            schema: { params: tournamentParams, body: CreateSeasonInput },
+            schema: { body: CreateSeasonInput },
         },
         async (request, reply) => {
             const user = request.sessionUser!;
-            const { tournamentId } = request.params as { tournamentId: string };
-
-            const parent = await requireParent(tournamentId);
-            if (!canViewTournament(parent, user)) {
-                throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
-            }
-            if (!canWriteTournament(parent, user)) {
-                throw app.httpErrors.forbidden(
-                    "Only the owner or an admin may manage this tournament's seasons"
-                );
-            }
-
-            const row = await createSeason(
-                tournamentId,
-                request.body as CreateSeasonInput
-            );
+            const row = await createSeason(user.id, request.body as CreateSeasonInput);
             reply.code(201);
             return row;
         }
     );
 
-    // List — any portal staff; PRIVATE parent → ADMIN only.
+    // List — the seasons of the portal: the public ones, and the private ones of an admin.
     app.get(
-        "/portal/tournaments/:tournamentId/seasons",
+        "/portal/seasons",
         {
             onRequest: staff,
-            schema: { params: tournamentParams, querystring: ListSeasonsQuery },
+            schema: { querystring: ListSeasonsQuery },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId } = request.params as { tournamentId: string };
-
-            const parent = await requireParent(tournamentId);
-            if (!canViewTournament(parent, user)) {
-                throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
-            }
-
             const query = request.query as ListSeasonsQuery;
             const current = query.current === undefined ? undefined : query.current === "true";
+            const mine = query.mine === undefined ? undefined : query.mine === "true";
 
-            return listSeasons(tournamentId, { current }, parsePage(query));
+            return listSeasons({ current, mine, ownerId: user.id }, parsePage(query), {
+                id: user.id,
+                role: user.role
+            });
         }
     );
 
-    // Read one — same visibility rule; cross-parent id → 404 inside the service.
+    // Read one — PRIVATE → only an admin or the owner.
     app.get(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId",
+        "/portal/seasons/:seasonId",
         { onRequest: staff, schema: { params: seasonParams } },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId } = request.params as {
-                tournamentId: string;
-                seasonId: string;
-            };
+            const { seasonId } = request.params as { seasonId: string };
 
-            const parent = await requireParent(tournamentId);
-            if (!canViewTournament(parent, user)) {
-                throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
+            const season = await requireSeason(seasonId);
+            if (!canViewSeason(season, user)) {
+                throw new SeasonError("NOT_FOUND", `season ${seasonId} not found`);
             }
 
-            const season = await getSeason(tournamentId, seasonId);
             const places = await seasonPlaces(seasonId);
             return {
                 ...season,
@@ -135,53 +101,43 @@ export async function seasonRoutes(app: FastifyInstance) {
         }
     );
 
-    // Update — owner or ADMIN (PUBLIC), ADMIN (PRIVATE via view check above).
+    // Update — the owner or an admin.
     app.patch(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId",
+        "/portal/seasons/:seasonId",
         {
             onRequest: staff,
             schema: { params: seasonParams, body: UpdateSeasonInput },
         },
         async (request) => {
             const user = request.sessionUser!;
-            const { tournamentId, seasonId } = request.params as {
-                tournamentId: string;
-                seasonId: string;
-            };
+            const { seasonId } = request.params as { seasonId: string };
 
-            const parent = await requireParent(tournamentId);
-            if (!canViewTournament(parent, user)) {
-                throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
+            const season = await requireSeason(seasonId);
+            if (!canViewSeason(season, user)) {
+                throw new SeasonError("NOT_FOUND", `season ${seasonId} not found`);
             }
-            if (!canWriteTournament(parent, user)) {
+            if (!canWriteSeason(season, user)) {
                 throw app.httpErrors.forbidden(
-                    "Only the owner or an admin may manage this tournament's seasons"
+                    "Only the owner or an admin may manage this season"
                 );
             }
 
-            return updateSeason(
-                tournamentId,
-                seasonId,
-                request.body as UpdateSeasonInput
-            );
+            return updateSeason(seasonId, request.body as UpdateSeasonInput);
         }
     );
 
     // Soft delete — ADMIN only. Clears current so the partial unique index
     // never blocks a future promotion.
     app.delete(
-        "/portal/tournaments/:tournamentId/seasons/:seasonId",
+        "/portal/seasons/:seasonId",
         {
             onRequest: [requireRole("PORTAL", ["ADMIN"])],
             schema: { params: seasonParams },
         },
         async (request, reply) => {
-            const { tournamentId, seasonId } = request.params as {
-                tournamentId: string;
-                seasonId: string;
-            };
+            const { seasonId } = request.params as { seasonId: string };
 
-            await deleteSeason(tournamentId, seasonId);
+            await deleteSeason(seasonId);
             return reply.code(204).send();
         }
     );

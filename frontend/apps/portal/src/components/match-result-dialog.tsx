@@ -7,7 +7,6 @@ import { Input } from "@shared/ui/input"
 import { useSetMatchResults } from "@/lib/season"
 
 export function MatchResultDialog({
-    tournamentId,
     seasonId,
     matchId,
     label,
@@ -15,7 +14,6 @@ export function MatchResultDialog({
     open,
     onOpenChange,
 }: {
-    tournamentId: string
     seasonId: string
     matchId: string
     label: string
@@ -23,7 +21,7 @@ export function MatchResultDialog({
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const save = useSetMatchResults(tournamentId, seasonId)
+    const save = useSetMatchResults(seasonId)
     const [scores, setScores] = useState<Record<string, string>>({})
 
     const submit = () => {

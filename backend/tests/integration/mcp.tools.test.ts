@@ -58,23 +58,36 @@ const mc = (text: string) => ({
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
-async function makeTournament(slug: string, visibility?: "PRIVATE", cookie = ownerCookie): Promise<string> {
+async function makeSeason(slug: string, visibility?: "PRIVATE", cookie = ownerCookie): Promise<string> {
     const res = await app.inject({
         method: "POST",
-        url: "/portal/tournaments",
+        url: "/portal/seasons",
         headers: auth(cookie),
-        payload: { ...tournamentInput(slug), ...(visibility ? { visibility } : {}) }
+        payload: {
+            name: slug,
+            tags: ["THTH"],
+            rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
+            format: {
+                competitorsPerMatch: 4,
+                allowedSeatKinds: ["user"],
+                teamSize: null,
+                teamAggregation: null,
+                teamCountAggregation: null
+            },
+            placementTiers: [{ min: 1, max: 4, points: 10 }],
+            ...(visibility ? { visibility } : {})
+        }
     });
-    if (res.statusCode !== 201) throw new Error(`tournament create: ${res.statusCode} ${res.body}`);
+    if (res.statusCode !== 201) throw new Error(`season create: ${res.statusCode} ${res.body}`);
     return res.json().id;
 }
 
-async function createNested(tournamentId: string, text: string): Promise<string> {
+async function createNested(text: string, tag = "THTH"): Promise<string> {
     const res = await app.inject({
         method: "POST",
-        url: `/portal/tournaments/${tournamentId}/questions`,
+        url: `/portal/questions`,
         headers: auth(ownerCookie),
-        payload: mc(text)
+        payload: { ...mc(text), tag }
     });
     if (res.statusCode !== 201) throw new Error(`nested create: ${res.statusCode} ${res.body}`);
     return res.json().id;
@@ -91,12 +104,10 @@ async function createGlobal(text: string): Promise<string> {
     return res.json().id;
 }
 
-async function patchStatus(id: string, status: string, cookie: string, tournamentId?: string) {
+async function patchStatus(id: string, status: string, cookie: string) {
     const res = await app.inject({
         method: "PATCH",
-        url: tournamentId
-            ? `/portal/tournaments/${tournamentId}/questions/${id}/status`
-            : `/portal/questions/${id}/status`,
+        url: `/portal/questions/${id}/status`,
         headers: auth(cookie),
         payload: { status }
     });
@@ -105,9 +116,9 @@ async function patchStatus(id: string, status: string, cookie: string, tournamen
 }
 
 // DRAFT → PENDING (operator) → PUBLISHED (admin only).
-async function publish(id: string, tournamentId?: string) {
-    await patchStatus(id, "PENDING", ownerCookie, tournamentId);
-    await patchStatus(id, "PUBLISHED", adminCookie, tournamentId);
+async function publish(id: string) {
+    await patchStatus(id, "PENDING", ownerCookie);
+    await patchStatus(id, "PUBLISHED", adminCookie);
 }
 
 async function connect(token: string) {
@@ -171,9 +182,9 @@ beforeAll(async () => {
     revokedToken = doomed.token;
     await revokeMcpKey(doomed.key.id);
 
-    pubTournamentId = await makeTournament("mcp-pub");
-    privateTournamentId = await makeTournament("mcp-priv", "PRIVATE", adminCookie);
-    foreignTournamentId = await makeTournament("mcp-foreign");
+    pubTournamentId = await makeSeason("mcp-pub");
+    privateTournamentId = await makeSeason("mcp-priv", "PRIVATE", adminCookie);
+    foreignTournamentId = await makeSeason("mcp-foreign");
 
     globalPublishedId = await createGlobal("global published");
     await publish(globalPublishedId);
@@ -183,11 +194,12 @@ beforeAll(async () => {
 
     globalDraftId = await createGlobal("global draft");
 
-    tournamentPublishedId = await createNested(pubTournamentId, "tournament published");
-    await publish(tournamentPublishedId, pubTournamentId);
+    tournamentPublishedId = await createNested("season published");
+    await publish(tournamentPublishedId);
 
-    foreignPublishedId = await createNested(foreignTournamentId, "foreign published");
-    await publish(foreignPublishedId, foreignTournamentId);
+    // Another tag: not this season's to see.
+    foreignPublishedId = await createNested("another tag", "VNTT");
+    await publish(foreignPublishedId);
 });
 
 afterAll(async () => {
@@ -229,10 +241,10 @@ describe("GET /mcp — transport and auth", () => {
 
 
 describe("list_questions", () => {
-    it("returns PUBLISHED and ARCHIVED from the global and own bank, excludes DRAFT and other tournaments", async () => {
+    it("returns PUBLISHED and ARCHIVED of the season's tags, excludes DRAFT and other tags", async () => {
         const { client, transport } = await connect(operatorToken);
         const { isError, data } = await callTool(client, "list_questions", {
-            tournamentId: pubTournamentId
+            seasonId: pubTournamentId
         });
 
         expect(isError).toBe(false);
@@ -259,7 +271,7 @@ describe("list_questions", () => {
     it("paginates", async () => {
         const { client, transport } = await connect(operatorToken);
         const { data } = await callTool(client, "list_questions", {
-            tournamentId: pubTournamentId,
+            seasonId: pubTournamentId,
             limit: 2,
             offset: 0
         });
@@ -274,7 +286,7 @@ describe("list_questions", () => {
     it("filters by kind", async () => {
         const { client, transport } = await connect(operatorToken);
         const { data } = await callTool(client, "list_questions", {
-            tournamentId: pubTournamentId,
+            seasonId: pubTournamentId,
             kind: "TEXT"
         });
 
@@ -284,10 +296,10 @@ describe("list_questions", () => {
         await client.close();
     });
 
-    it("hides a PRIVATE tournament from an operator, exposes it to an admin", async () => {
+    it("hides a PRIVATE season from an operator, exposes it to an admin", async () => {
         const operator = await connect(operatorToken);
         const op = await callTool(operator.client, "list_questions", {
-            tournamentId: privateTournamentId
+            seasonId: privateTournamentId
         });
         expect(op.isError).toBe(true);
         expect((op.data as { error: string }).error).toBe("NOT_FOUND");
@@ -296,10 +308,10 @@ describe("list_questions", () => {
 
         const admin = await connect(adminToken);
         const ad = await callTool(admin.client, "list_questions", {
-            tournamentId: privateTournamentId
+            seasonId: privateTournamentId
         });
         expect(ad.isError).toBe(false);
-        expect(ad.data!.total).toBe(2); // global published + archived
+        expect(ad.data!.total).toBe(3); // the season's tags: published, archived, published
         await admin.transport.terminateSession();
         await admin.client.close();
     });
@@ -307,7 +319,7 @@ describe("list_questions", () => {
     it("enforces the READ scope", async () => {
         const { client, transport } = await connect(announceToken);
         const { isError, data } = await callTool(client, "list_questions", {
-            tournamentId: pubTournamentId
+            seasonId: pubTournamentId
         });
 
         expect(isError).toBe(true);
@@ -323,7 +335,7 @@ describe("get_question", () => {
     it("returns an ARCHIVED question with usable=false", async () => {
         const { client, transport } = await connect(operatorToken);
         const { isError, data } = await callTool(client, "get_question", {
-            tournamentId: pubTournamentId,
+            seasonId: pubTournamentId,
             questionId: globalArchivedId
         });
 
@@ -340,14 +352,14 @@ describe("get_question", () => {
         const { client, transport } = await connect(operatorToken);
 
         const draft = await callTool(client, "get_question", {
-            tournamentId: pubTournamentId,
+            seasonId: pubTournamentId,
             questionId: globalDraftId
         });
         expect(draft.isError).toBe(true);
         expect((draft.data as { error: string }).error).toBe("NOT_FOUND");
 
         const foreign = await callTool(client, "get_question", {
-            tournamentId: pubTournamentId,
+            seasonId: pubTournamentId,
             questionId: foreignPublishedId
         });
         expect(foreign.isError).toBe(true);
@@ -363,7 +375,7 @@ describe("eligible_questions", () => {
     it("excludes ARCHIVED and DRAFT, matching the assembly rule", async () => {
         const { client, transport } = await connect(operatorToken);
         const { isError, data } = await callTool(client, "eligible_questions", {
-            tournamentId: pubTournamentId
+            seasonId: pubTournamentId
         });
 
         expect(isError).toBe(false);
@@ -382,7 +394,7 @@ describe("eligible_questions", () => {
 describe("audit", () => {
     it("writes mcp_tool_call with the key id", async () => {
         const { client, transport } = await connect(operatorToken);
-        await callTool(client, "list_questions", { tournamentId: pubTournamentId });
+        await callTool(client, "list_questions", { seasonId: pubTournamentId });
         await transport.terminateSession();
         await client.close();
 
@@ -405,7 +417,7 @@ describe("audit", () => {
     it("updates last_used_at on each call", async () => {
         const before = Date.now();
         const { client, transport } = await connect(operatorToken);
-        await callTool(client, "list_questions", { tournamentId: pubTournamentId });
+        await callTool(client, "list_questions", { seasonId: pubTournamentId });
         await transport.terminateSession();
         await client.close();
 

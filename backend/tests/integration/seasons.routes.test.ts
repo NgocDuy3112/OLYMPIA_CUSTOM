@@ -2,10 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { matches } from "../../src/db/schema/index.js";
-import { seasons, users } from "../../src/db/schema/index.js";
+import { matches, seasons, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
-import type { CreateTournamentInput } from "../../src/modules/tournaments/index.js";
 import type { CreateSeasonInput } from "../../src/modules/seasons/index.js";
 import { eq } from "drizzle-orm";
 
@@ -15,27 +13,23 @@ let adminCookie: string;
 let ownerCookie: string;
 let otherCookie: string;
 let playerCookie: string;
+let ownerId: string;
 
 const portalCookie = (userId: string, role: "ADMIN" | "OPERATOR" | "PLAYER") =>
     signToken(app, "PORTAL", { sub: userId, role, tokenVersion: 0 });
 
-const validTournament = (slug: string): CreateTournamentInput => ({
-    name: "Seasons Host",
-    slug,
-    defaultTags: ["THTH"],
-    defaultRounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    defaultFormat: {
+const validSeason = (name = "Season 1"): CreateSeasonInput => ({
+    name,
+    tags: ["THTH"],
+    rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
+    format: {
         competitorsPerMatch: 4,
         allowedSeatKinds: ["user"],
         teamSize: null,
         teamAggregation: null,
         teamCountAggregation: null
     },
-    defaultPlacementTiers: [{ min: 1, max: 4, points: 10 }]
-});
-
-const validSeason = (name = "Season 1"): CreateSeasonInput => ({
-    name,
+    placementTiers: [{ min: 1, max: 4, points: 10 }],
     stages: [
         { id: "s1", title: "Qualifiers", start: "2026-01-01T00:00:00Z", end: "2026-06-01T00:00:00Z" }
     ]
@@ -43,33 +37,15 @@ const validSeason = (name = "Season 1"): CreateSeasonInput => ({
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-async function makeTournament(
-    slug: string,
-    opts: { visibility?: "PRIVATE" } = {},
-    cookie = ownerCookie
-): Promise<{ id: string }> {
-    const res = await app.inject({
-        method: "POST",
-        url: "/portal/tournaments",
-        headers: auth(cookie),
-        payload: { ...validTournament(slug), ...opts },
-    });
-    if (res.statusCode !== 201) {
-        throw new Error(`tournament create failed: ${res.statusCode} ${res.body}`);
-    }
-    return res.json();
-}
-
 async function makeSeason(
-    tournamentId: string,
-    payload: CreateSeasonInput = validSeason(),
+    payload: Partial<CreateSeasonInput> = {},
     cookie = ownerCookie
 ) {
     return app.inject({
         method: "POST",
-        url: `/portal/tournaments/${tournamentId}/seasons`,
+        url: "/portal/seasons",
         headers: auth(cookie),
-        payload,
+        payload: { ...validSeason(), ...payload },
     });
 }
 
@@ -90,6 +66,7 @@ beforeAll(async () => {
     ownerCookie = portalCookie(rows[1].id, "OPERATOR");
     otherCookie = portalCookie(rows[2].id, "OPERATOR");
     playerCookie = portalCookie(rows[3].id, "PLAYER");
+    ownerId = rows[1].id;
 });
 
 afterAll(async () => {
@@ -98,201 +75,123 @@ afterAll(async () => {
 });
 
 
-describe("POST …/seasons — create", () => {
+describe("POST /portal/seasons — create", () => {
     it("401 without a session", async () => {
-        const t = await makeTournament("sea-a");
         const res = await app.inject({
             method: "POST",
-            url: `/portal/tournaments/${t.id}/seasons`,
+            url: "/portal/seasons",
             payload: validSeason(),
         });
         expect(res.statusCode).toBe(401);
     });
 
     it("403 for a PLAYER", async () => {
-        const t = await makeTournament("sea-b");
-        const res = await makeSeason(t.id, validSeason(), playerCookie);
+        const res = await makeSeason({}, playerCookie);
         expect(res.statusCode).toBe(403);
     });
 
-    it("201 + inherits rounds/format/placementTiers from the tournament", async () => {
-        const t = await makeTournament("sea-inherit");
-        const res = await makeSeason(t.id);
+    it("201 — the creator owns it, and the slug comes from the name", async () => {
+        const res = await makeSeason({ name: "Season One" });
         expect(res.statusCode).toBe(201);
 
         const body = res.json();
-        expect(body.name).toBe("Season 1");
-        expect(body.rounds).toEqual(validTournament("x").defaultRounds);
-        expect(body.format).toEqual(validTournament("x").defaultFormat);
-        expect(body.placementTiers).toEqual(validTournament("x").defaultPlacementTiers);
+        expect(body.name).toBe("Season One");
+        expect(body.slug).toBe("season-one");
+        expect(body.ownerId).toBe(ownerId);
+        expect(body.visibility).toBe("PUBLIC");
+        expect(body.tags).toEqual(["THTH"]);
         expect(body.current).toBe(false);
         expect(body.deletedAt).toBeNull();
     });
 
-    it("201 + explicit override wins over inherited defaults", async () => {
-        const t = await makeTournament("sea-override");
-        const customRounds = [{ id: "custom", name: "Custom Round", order: 0, chart: "line" }];
-
-        const res = await makeSeason(t.id, { ...validSeason(), rounds: customRounds });
-        expect(res.statusCode).toBe(201);
-        expect(res.json().rounds).toEqual(customRounds);
-        expect(res.json().format).toEqual(validTournament("x").defaultFormat);
+    it("201 — the slug is unique", async () => {
+        await makeSeason({ name: "Same Name" });
+        const second = await makeSeason({ name: "Same Name" });
+        expect(second.statusCode).toBe(201);
+        expect(second.json().slug).not.toBe("same-name");
     });
 
-    it("400 when name is missing (schema validation)", async () => {
-        const t = await makeTournament("sea-invalid");
-        const res = await makeSeason(t.id, { stages: [] } as never);
+    it("400 when the name is missing", async () => {
+        const res = await makeSeason({ name: "" });
         expect(res.statusCode).toBe(400);
     });
 
-    it("404 for an unknown tournament", async () => {
-        const res = await makeSeason("00000000-0000-4000-8000-000000000000");
-        expect(res.statusCode).toBe(404);
-        expect(res.json()).toMatchObject({ error: "NOT_FOUND" });
-    });
-
-    it("404 under a soft-deleted tournament", async () => {
-        const t = await makeTournament("sea-gone");
-        await app.inject({
-            method: "DELETE",
-            url: `/portal/tournaments/${t.id}`,
-            headers: auth(adminCookie),
-        });
-
-        const res = await makeSeason(t.id);
-        expect(res.statusCode).toBe(404);
-    });
-
-    it("403 for a non-owner operator on a PUBLIC tournament", async () => {
-        const t = await makeTournament("sea-notmine");
-        const res = await makeSeason(t.id, validSeason(), otherCookie);
-        expect(res.statusCode).toBe(403);
-    });
-
-    it("201 for an ADMIN on someone else's tournament", async () => {
-        const t = await makeTournament("sea-admincreate");
-        const res = await makeSeason(t.id, validSeason(), adminCookie);
+    it("201 for an ADMIN", async () => {
+        const res = await makeSeason({ name: "Admin Season" }, adminCookie);
         expect(res.statusCode).toBe(201);
     });
-
-    it("PRIVATE parent: 404 for an operator, 201 for an admin", async () => {
-        const t = await makeTournament("sea-priv", { visibility: "PRIVATE" }, adminCookie);
-
-        const denied = await makeSeason(t.id, validSeason(), ownerCookie);
-        expect(denied.statusCode).toBe(404);
-
-        const allowed = await makeSeason(t.id, validSeason(), adminCookie);
-        expect(allowed.statusCode).toBe(201);
-    });
 });
 
 
-describe("current flag — auto-managed siblings", () => {
+describe("the current flag — one per owner", () => {
     it("creating a new current season demotes the previous one", async () => {
-        const t = await makeTournament("sea-current");
-
-        const first = await makeSeason(t.id, { ...validSeason("S1"), current: true });
+        const first = await makeSeason({ name: "Current 1", current: true });
         expect(first.json().current).toBe(true);
 
-        const second = await makeSeason(t.id, { ...validSeason("S2"), current: true });
+        const second = await makeSeason({ name: "Current 2", current: true });
         expect(second.json().current).toBe(true);
 
-        const rereadFirst = await app.inject({
-            method: "GET",
-            url: `/portal/tournaments/${t.id}/seasons/${first.json().id}`,
-            headers: auth(ownerCookie),
-        });
-        expect(rereadFirst.json().current).toBe(false);
-    });
-
-    it("PATCH current:true demotes the holder too", async () => {
-        const t = await makeTournament("sea-current2");
-        const s1 = (await makeSeason(t.id, { ...validSeason("A"), current: true })).json();
-        const s2 = (await makeSeason(t.id, { ...validSeason("B") })).json();
-
-        const res = await app.inject({
-            method: "PATCH",
-            url: `/portal/tournaments/${t.id}/seasons/${s2.id}`,
-            headers: auth(ownerCookie),
-            payload: { current: true },
-        });
-        expect(res.statusCode).toBe(200);
-        expect(res.json().current).toBe(true);
-
-        const s1After = await app.inject({
-            method: "GET",
-            url: `/portal/tournaments/${t.id}/seasons/${s1.id}`,
-            headers: auth(ownerCookie),
-        });
-        expect(s1After.json().current).toBe(false);
+        const [reread] = await db.select().from(seasons)
+            .where(eq(seasons.id, first.json().id));
+        expect(reread.current).toBe(false);
     });
 });
 
 
-describe("GET …/seasons — list & read", () => {
-    it("list excludes soft-deleted seasons", async () => {
-        const t = await makeTournament("sea-list");
-        const s1 = (await makeSeason(t.id, validSeason("Keep"))).json();
-        await makeSeason(t.id, validSeason("Drop"));
-
-        const before = await app.inject({
-            method: "GET",
-            url: `/portal/tournaments/${t.id}/seasons`,
-            headers: auth(ownerCookie),
-        });
-        expect(before.json().items).toHaveLength(2);
-
-        await app.inject({
-            method: "DELETE",
-            url: `/portal/tournaments/${t.id}/seasons/${s1.id}`,
-            headers: auth(adminCookie),
-        });
-
-        const after = await app.inject({
-            method: "GET",
-            url: `/portal/tournaments/${t.id}/seasons`,
-            headers: auth(ownerCookie),
-        });
-        expect(after.json().items).toHaveLength(1);
-        expect(after.json().items[0].name).toBe("Drop");
-    });
-
-    it("404 listing seasons of an unknown tournament", async () => {
+describe("GET /portal/seasons — list", () => {
+    it("lists the seasons of the portal", async () => {
         const res = await app.inject({
             method: "GET",
-            url: "/portal/tournaments/00000000-0000-4000-8000-000000000000/seasons",
+            url: "/portal/seasons?limit=100",
+            headers: auth(ownerCookie),
+        });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().items.length).toBeGreaterThan(0);
+    });
+});
+
+
+describe("GET /portal/seasons/:id — read", () => {
+    it("404 for an unknown id", async () => {
+        const res = await app.inject({
+            method: "GET",
+            url: "/portal/seasons/00000000-0000-4000-8000-000000000000",
             headers: auth(ownerCookie),
         });
         expect(res.statusCode).toBe(404);
     });
 
-    it("404 when the season belongs to a different tournament", async () => {
-        const tA = await makeTournament("sea-parentA");
-        const tB = await makeTournament("sea-parentB");
-        const season = (await makeSeason(tA.id)).json();
-
+    it("carries the places and the coverage of the points scale", async () => {
+        const created = await makeSeason({ name: "Covered" });
         const res = await app.inject({
             method: "GET",
-            url: `/portal/tournaments/${tB.id}/seasons/${season.id}`,
+            url: `/portal/seasons/${created.json().id}`,
             headers: auth(ownerCookie),
         });
-        expect(res.statusCode).toBe(404);
+        expect(res.statusCode).toBe(200);
+
+        const body = res.json();
+        expect(body.places).toBe(0);
+        expect(body.points.places).toBe(0);
     });
 
-    it("PRIVATE parent: operator reads → 404, admin → 200", async () => {
-        const t = await makeTournament("sea-privread", { visibility: "PRIVATE" }, adminCookie);
-        const season = (await makeSeason(t.id, validSeason(), adminCookie)).json();
+    it("404 for a PRIVATE season to another operator", async () => {
+        const created = await makeSeason(
+            { name: "Hidden", visibility: "PRIVATE" },
+            adminCookie
+        );
+        const id = created.json().id;
 
         const denied = await app.inject({
             method: "GET",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
-            headers: auth(ownerCookie),
+            url: `/portal/seasons/${id}`,
+            headers: auth(otherCookie),
         });
         expect(denied.statusCode).toBe(404);
 
         const allowed = await app.inject({
             method: "GET",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
+            url: `/portal/seasons/${id}`,
             headers: auth(adminCookie),
         });
         expect(allowed.statusCode).toBe(200);
@@ -300,168 +199,103 @@ describe("GET …/seasons — list & read", () => {
 });
 
 
-describe("PATCH …/seasons/:seasonId", () => {
-    it("200 for the parent owner", async () => {
-        const t = await makeTournament("sea-patch");
-        const season = (await makeSeason(t.id)).json();
+describe("PATCH /portal/seasons/:id — update", () => {
+    it("403 for another operator, 200 for the owner", async () => {
+        const created = await makeSeason({ name: "Owned" });
+        const id = created.json().id;
 
-        const res = await app.inject({
+        const denied = await app.inject({
             method: "PATCH",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
-            headers: auth(ownerCookie),
-            payload: { name: "Renamed Season" },
-        });
-        expect(res.statusCode).toBe(200);
-        expect(res.json().name).toBe("Renamed Season");
-    });
-
-    it("403 for a non-owner operator", async () => {
-        const t = await makeTournament("sea-patch403");
-        const season = (await makeSeason(t.id)).json();
-
-        const res = await app.inject({
-            method: "PATCH",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
+            url: `/portal/seasons/${id}`,
             headers: auth(otherCookie),
-            payload: { name: "Hijack" },
+            payload: { name: "Hijacked" },
         });
-        expect(res.statusCode).toBe(403);
+        expect(denied.statusCode).toBe(403);
+
+        const allowed = await app.inject({
+            method: "PATCH",
+            url: `/portal/seasons/${id}`,
+            headers: auth(ownerCookie),
+            payload: { name: "Renamed" },
+        });
+        expect(allowed.statusCode).toBe(200);
+        expect(allowed.json().name).toBe("Renamed");
     });
 
-    it("404 for an unknown season id", async () => {
-        const t = await makeTournament("sea-patch404");
+    it("renaming the season changes its slug", async () => {
+        const created = await makeSeason({ name: "Before" });
         const res = await app.inject({
             method: "PATCH",
-            url: `/portal/tournaments/${t.id}/seasons/00000000-0000-4000-8000-000000000000`,
+            url: `/portal/seasons/${created.json().id}`,
             headers: auth(ownerCookie),
-            payload: { name: "Ghost" },
+            payload: { name: "After" },
         });
-        expect(res.statusCode).toBe(404);
-    });
-});
-
-
-describe("DELETE …/seasons/:seasonId (soft delete)", () => {
-    it("403 for an operator — ADMIN only", async () => {
-        const t = await makeTournament("sea-del403");
-        const season = (await makeSeason(t.id)).json();
-
-        const res = await app.inject({
-            method: "DELETE",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
-            headers: auth(ownerCookie),
-        });
-        expect(res.statusCode).toBe(403);
-    });
-
-    it("204 for an admin, then hidden everywhere; second delete → 404", async () => {
-        const t = await makeTournament("sea-del204");
-        const season = (await makeSeason(t.id)).json();
-
-        const del = await app.inject({
-            method: "DELETE",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
-            headers: auth(adminCookie),
-        });
-        expect(del.statusCode).toBe(204);
-        expect(del.body).toBe("");
-
-        const get = await app.inject({
-            method: "GET",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
-            headers: auth(ownerCookie),
-        });
-        expect(get.statusCode).toBe(404);
-
-        const again = await app.inject({
-            method: "DELETE",
-            url: `/portal/tournaments/${t.id}/seasons/${season.id}`,
-            headers: auth(adminCookie),
-        });
-        expect(again.statusCode).toBe(404);
-    });
-
-    it("deleting a current season lets another become current", async () => {
-        const t = await makeTournament("sea-delcurrent");
-        const s1 = (await makeSeason(t.id, { ...validSeason("Cur"), current: true })).json();
-        const s2 = (await makeSeason(t.id, validSeason("Next"))).json();
-
-        const del = await app.inject({
-            method: "DELETE",
-            url: `/portal/tournaments/${t.id}/seasons/${s1.id}`,
-            headers: auth(adminCookie),
-        });
-        expect(del.statusCode).toBe(204);
-
-        const promote = await app.inject({
-            method: "PATCH",
-            url: `/portal/tournaments/${t.id}/seasons/${s2.id}`,
-            headers: auth(ownerCookie),
-            payload: { current: true },
-        });
-        expect(promote.statusCode).toBe(200);
-        expect(promote.json().current).toBe(true);
+        expect(res.json().slug).toBe("after");
     });
 });
 
 
 describe("the rulebook freeze", () => {
-    const RULES = {
-        "r1": {
-            allowedKinds: ["MC"],
-            scoring: { template: "constant", points: 10 },
-            turns: [{ id: "phase1", mode: "text", delivery: "batch", questionCount: 4 }]
-        }
-    };
+    it("refuses roundRules once a match has been assembled", async () => {
+        const created = await makeSeason({ name: "Frozen" });
+        const id = created.json().id;
 
-    async function seasonWithAMatch(slug: string) {
-        const t = await makeTournament(slug);
-        const s = (await makeSeason(t.id, validSeason("Frozen"))).json();
-
-        // A match has been assembled: the rulebook must no longer move.
         await db.insert(matches).values({
-            seasonId: s.id,
-            kind: "STANDARD",
-            stageId: "stage-1",
-            label: "Match",
+            seasonId: id,
+            stageId: "s1",
             scheduledAt: new Date(),
+            label: "Assembled",
             status: "UPCOMING",
             players: [],
             roundConfigs: {},
             questions: []
         });
 
-        return { tournamentId: t.id, seasonId: s.id };
-    }
-
-    it("refuses roundRules once a match has been assembled", async () => {
-        const { tournamentId, seasonId } = await seasonWithAMatch("sea-freeze-rules");
-
         const res = await app.inject({
             method: "PATCH",
-            url: `/portal/tournaments/${tournamentId}/seasons/${seasonId}`,
+            url: `/portal/seasons/${id}`,
             headers: auth(ownerCookie),
-            payload: { roundRules: RULES }
+            payload: {
+                roundRules: {
+                    r1: {
+                        allowedKinds: ["MC"],
+                        scoring: { template: "constant", points: 10 },
+                        turns: [{ id: "turn-1", mode: "oral", delivery: "sequential" }]
+                    }
+                }
+            }
         });
 
         expect(res.statusCode).toBe(409);
         expect(res.json().error).toBe("CONFLICT");
     });
+});
 
-    it("accepts roundRules before the first match, and still validates them", async () => {
-        const t = await makeTournament("sea-freeze-open");
-        const s = (await makeSeason(t.id, validSeason("Open"))).json();
-        const url = `/portal/tournaments/${t.id}/seasons/${s.id}`;
 
-        const ok = await app.inject({
-            method: "PATCH", url, headers: auth(ownerCookie), payload: { roundRules: RULES }
+describe("DELETE /portal/seasons/:id — soft delete", () => {
+    it("is ADMIN-only, and the season disappears from the list", async () => {
+        const created = await makeSeason({ name: "Doomed" });
+        const id = created.json().id;
+
+        const denied = await app.inject({
+            method: "DELETE",
+            url: `/portal/seasons/${id}`,
+            headers: auth(ownerCookie),
         });
-        expect(ok.statusCode).toBe(200);
+        expect(denied.statusCode).toBe(403);
 
-        const bad = await app.inject({
-            method: "PATCH", url, headers: auth(ownerCookie),
-            payload: { roundRules: { "no-such-round": RULES["r1"] } }
+        const allowed = await app.inject({
+            method: "DELETE",
+            url: `/portal/seasons/${id}`,
+            headers: auth(adminCookie),
         });
-        expect(bad.statusCode).toBe(400);
+        expect(allowed.statusCode).toBe(204);
+
+        const gone = await app.inject({
+            method: "GET",
+            url: `/portal/seasons/${id}`,
+            headers: auth(ownerCookie),
+        });
+        expect(gone.statusCode).toBe(404);
     });
 });

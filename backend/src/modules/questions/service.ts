@@ -1,6 +1,6 @@
 import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { questionBank, tournaments } from "../../db/schema/index.js";
+import { questionBank } from "../../db/schema/index.js";
 import { QuestionError } from "./errors.js";
 import {
     CreateQuestionInput,
@@ -16,23 +16,8 @@ export { MAX_BATCH_SIZE };
 
 export type QuestionRow = typeof questionBank.$inferSelect;
 
-export interface Scope {
-    tournamentId: string | null;
-}
-
-export interface WriteContext extends Scope {
+export interface WriteContext {
     actorId: string;
-}
-
-
-export async function requireTournament(tournamentId: string): Promise<typeof tournaments.$inferSelect> {
-    const [row] = await db
-        .select()
-        .from(tournaments)
-        .where(and(eq(tournaments.id, tournamentId), isNull(tournaments.deletedAt)))
-        .limit(1);
-    if (!row) throw new QuestionError("NOT_FOUND", `tournament ${tournamentId} not found`);
-    return row;
 }
 
 
@@ -44,17 +29,6 @@ async function requireQuestion(id: string): Promise<QuestionRow> {
         .limit(1);
     if (!row) throw new QuestionError("NOT_FOUND", `question ${id} not found`);
     return row;
-}
-
-
-function assertTagAllowed(parent: { defaultTags: string[] }, tag: string): void {
-    if (!parent.defaultTags.includes(tag)) {
-        throw new QuestionError(
-            "VALIDATION",
-            `tag "${tag}" is not one of this tournament's tags`,
-            [`allowed tags: ${parent.defaultTags.join(", ") || "(none)"}`]
-        );
-    }
 }
 
 
@@ -73,7 +47,6 @@ function questionValues(ctx: WriteContext, input: CreateQuestionInput) {
         media: input.media ?? null,
         timeLimit: input.timeLimit ?? null,
         status: "DRAFT" as const,
-        tournamentId: ctx.tournamentId,
         createdBy: ctx.actorId
     };
 }
@@ -85,9 +58,6 @@ export async function createQuestion(
 ): Promise<QuestionRow> {
     assertQuestionPayload(input);
 
-    const parent = ctx.tournamentId ? await requireTournament(ctx.tournamentId) : null;
-    if (parent) assertTagAllowed(parent, input.tag);
-
     const [row] = await db
         .insert(questionBank)
         .values(questionValues(ctx, input))
@@ -96,13 +66,8 @@ export async function createQuestion(
 }
 
 
-export async function getQuestion(id: string, scope?: Scope): Promise<QuestionRow> {
-    const row = await requireQuestion(id);
-
-    if (scope && row.tournamentId !== scope.tournamentId) {
-        throw new QuestionError("NOT_FOUND", `question ${id} not found`);
-    }
-    return row;
+export async function getQuestion(id: string): Promise<QuestionRow> {
+    return requireQuestion(id);
 }
 
 
@@ -122,10 +87,6 @@ export async function updateQuestion(
         assertPayloadForKind(existing.kind as QuestionKindValue, patch.payload);
     }
 
-    if (patch.tag && existing.tournamentId) {
-        const parent = await requireTournament(existing.tournamentId);
-        assertTagAllowed(parent, patch.tag);
-    }
 
     const [row] = await db
         .update(questionBank)
@@ -178,8 +139,7 @@ export function questionSearch(term: string) {
 
 
 export interface ListFilters {
-    // undefined = every scope · null = global bank only · string = that tournament
-    tournamentId?: string | null;
+
     status?: QuestionStatusValue;
     kind?: QuestionKindValue;
     tag?: string;
@@ -190,11 +150,6 @@ export interface ListFilters {
 function filterConditions(filters: ListFilters) {
     const conditions = [];
 
-    if (filters.tournamentId === null) {
-        conditions.push(isNull(questionBank.tournamentId));
-    } else if (filters.tournamentId !== undefined) {
-        conditions.push(eq(questionBank.tournamentId, filters.tournamentId));
-    }
 
     if (filters.status) conditions.push(eq(questionBank.status, filters.status));
     if (filters.kind) conditions.push(eq(questionBank.kind, filters.kind));
@@ -236,15 +191,13 @@ export async function listQuestions(
 
 
 // The single visibility rule for assembly (schema.md §question_bank):
-// PUBLISHED questions, from the global bank or the assembly's own tournament.
+// PUBLISHED questions, tagged with one of the season's own tags. The bank is global;
+// the tags are what scope it.
 // Shared by the paged read below and by the auto-pick query in assembly.ts.
-export function assemblyEligibility(tournamentId: string) {
+export function assemblyEligibility(tags: string[]) {
     return [
         eq(questionBank.status, "PUBLISHED"),
-        or(
-            isNull(questionBank.tournamentId),
-            eq(questionBank.tournamentId, tournamentId)
-        )!
+        inArray(questionBank.tag, tags.length > 0 ? tags : [""])
     ];
 }
 
@@ -257,11 +210,11 @@ export interface AssemblyFilters {
 
 // Paged: an unpaged version returned every eligible row (18.7k at 25k bank size).
 export async function listForAssembly(
-    tournamentId: string,
+    tags: string[],
     filters: AssemblyFilters,
     page: Page
 ): Promise<PageResult<QuestionRow>> {
-    const conditions = assemblyEligibility(tournamentId);
+    const conditions = assemblyEligibility(tags);
     const search = filters.search ? questionSearch(filters.search) : null;
 
     if (filters.kinds && filters.kinds.length > 0) {
@@ -375,26 +328,10 @@ export async function importQuestions(
         shaped.push({ index, input: item as CreateQuestionInput });
     }
 
-    const parent = ctx.tournamentId ? await requireTournament(ctx.tournamentId) : null;
 
     const accepted: Array<{ index: number; input: CreateQuestionInput }> = [];
 
     for (const candidate of shaped) {
-        try {
-            if (parent) assertTagAllowed(parent, candidate.input.tag);
-        } catch (error) {
-            if (error instanceof QuestionError) {
-                errors.push({
-                    index: candidate.index,
-                    code: error.code,
-                    message: error.message,
-                    details: error.details
-                });
-                continue;
-            }
-            throw error;
-        }
-
         accepted.push(candidate);
     }
 
@@ -422,9 +359,6 @@ export async function importQuestions(
 
     if (remaining.length > 0) {
         const tags = [...new Set(remaining.map(({ input }) => input.tag))];
-        const scope = ctx.tournamentId === null
-            ? isNull(questionBank.tournamentId)
-            : eq(questionBank.tournamentId, ctx.tournamentId);
 
         const existing = await db
             .select({
@@ -435,7 +369,7 @@ export async function importQuestions(
                 payload: questionBank.payload
             })
             .from(questionBank)
-            .where(and(scope, inArray(questionBank.tag, tags)));
+            .where(inArray(questionBank.tag, tags));
 
         const existingByPrint = new Map(
             existing.map((row) => [fingerprint(row), row.id])
@@ -483,13 +417,10 @@ export async function importQuestions(
 }
 
 
-export function agentEligibility(tournamentId: string) {
+export function agentEligibility(tags: string[]) {
     return [
         inArray(questionBank.status, ["PUBLISHED", "ARCHIVED"]),
-        or(
-            isNull(questionBank.tournamentId),
-            eq(questionBank.tournamentId, tournamentId)
-        )!
+        inArray(questionBank.tag, tags.length > 0 ? tags : [""])
     ];
 }
 
@@ -500,11 +431,11 @@ export interface AgentFilters {
 }
 
 export async function listForAgent(
-    tournamentId: string,
+    tags: string[],
     filters: AgentFilters,
     page: Page
 ): Promise<PageResult<QuestionRow>> {
-    const conditions = agentEligibility(tournamentId);
+    const conditions = agentEligibility(tags);
     const search = filters.search ? questionSearch(filters.search) : null;
 
     if (filters.kind) conditions.push(eq(questionBank.kind, filters.kind));
@@ -532,13 +463,13 @@ export async function listForAgent(
 
 
 export async function getForAgent(
-    tournamentId: string,
+    tags: string[],
     questionId: string
 ): Promise<QuestionRow> {
     const [row] = await db
         .select()
         .from(questionBank)
-        .where(and(eq(questionBank.id, questionId), ...agentEligibility(tournamentId)))
+        .where(and(eq(questionBank.id, questionId), ...agentEligibility(tags)))
         .limit(1);
 
     if (!row) throw new QuestionError("NOT_FOUND", `question ${questionId} not found`);

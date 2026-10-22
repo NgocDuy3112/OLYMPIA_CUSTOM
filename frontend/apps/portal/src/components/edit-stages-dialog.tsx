@@ -37,19 +37,17 @@ function toDraft(stage: Stage): StageDraft {
 // The season's stages, edited in a dialog. The order of the list is the order of the
 // season, so the rows can be moved.
 export function EditStagesDialog({
-    tournamentId,
     seasonId,
     season,
     open,
     onOpenChange,
 }: {
-    tournamentId: string
     seasonId: string
     season: SeasonDetail
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
-    const update = useUpdateSeason(tournamentId, seasonId)
+    const update = useUpdateSeason(seasonId)
 
     const [draft, setDraft] = useState<StageDraft[]>(() =>
         (season.stages ?? []).map(toDraft))

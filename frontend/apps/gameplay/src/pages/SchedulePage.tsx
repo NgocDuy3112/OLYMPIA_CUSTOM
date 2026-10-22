@@ -3,8 +3,8 @@ import { useNavigate } from "react-router-dom"
 import {
     type Match,
     type StandingRow,
-    type Tournament,
 } from "@/data/schedule"
+import type { Season } from "@/data/seasons"
 import { DaySection } from "@/components/schedule/DaySection"
 import { MatchCard } from "@/components/schedule/MatchCard"
 import { StageTimeline } from "@/components/schedule/StageTimeline"
@@ -16,7 +16,7 @@ import { Inbox } from "lucide-react"
 const STANDINGS_PREVIEW_COUNT = 4
 
 interface SchedulePageProps {
-    tournament: Tournament
+    season: Season
     matches: Match[]
     standings: StandingRow[]
     loading?: boolean
@@ -24,7 +24,7 @@ interface SchedulePageProps {
 
 
 export function SchedulePage({
-    tournament,
+    season,
     matches,
     standings,
     loading = false,
@@ -69,7 +69,7 @@ export function SchedulePage({
     return (
         <div className="mx-auto flex w-full flex-col max-w-360 gap-6 px-4 py-6 md:py-10">
             <ScheduleHeader
-                title={tournament.name}
+                title={season.name}
                 dayLabel={formatDay(day)}
                 onPrevDay={goPrev}
                 onNextDay={goNext}
