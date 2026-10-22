@@ -117,7 +117,7 @@ export function useMatches(tournamentId: string, seasonId: string) {
         queryKey: ["matches", tournamentId, seasonId],
         queryFn: () =>
             api<{ items: MatchSummary[]; total: number }>(
-                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches?limit=200`
+                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/matches?limit=100`
             ),
         enabled: Boolean(tournamentId && seasonId),
     })

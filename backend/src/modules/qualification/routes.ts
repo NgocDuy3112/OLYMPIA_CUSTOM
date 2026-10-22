@@ -18,6 +18,18 @@ import {
     submitQualificationAnswer
 } from "./service.js";
 
+// The staff address a qualification match by tournament, season and match id.
+const qualificationMatchParams = {
+    type: "object",
+    required: ["tournamentId", "seasonId", "matchId"],
+    additionalProperties: false,
+    properties: {
+        tournamentId: { type: "string", pattern: UUID_PATTERN },
+        seasonId: { type: "string", pattern: UUID_PATTERN },
+        matchId: { type: "string", pattern: UUID_PATTERN }
+    }
+} as const;
+
 const idList = {
     type: "array",
     items: { type: "string", pattern: UUID_PATTERN },
@@ -75,7 +87,7 @@ export async function qualificationRoutes(app: FastifyInstance) {
 
     app.get(
         "/portal/tournaments/:tournamentId/seasons/:seasonId/qualification-matches/:matchId",
-        { onRequest: staff, schema: { params: { ...seasonParams, ...matchParams } } },
+        { onRequest: staff, schema: { params: qualificationMatchParams } },
         async (request) => {
             const user = request.sessionUser!;
             const { tournamentId, seasonId, matchId } = request.params as {
@@ -92,7 +104,7 @@ export async function qualificationRoutes(app: FastifyInstance) {
         {
             onRequest: staff,
             schema: {
-                params: { ...seasonParams, ...matchParams },
+                params: qualificationMatchParams,
                 body: {
                     type: "object",
                     additionalProperties: false,
