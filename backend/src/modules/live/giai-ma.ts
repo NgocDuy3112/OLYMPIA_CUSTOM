@@ -9,6 +9,7 @@ import {
     submitKeyword
 } from "../../game/engine/turns/giai-ma.js";
 import { fail } from "../../game/engine/turns/errors.js";
+import { GIAI_MA_DEFAULTS, type GiaiMaRules } from "../../game/engine/rules.js";
 import type { GiaiMaAction } from "./actions.js";
 import type { LiveFact } from "./facts.js";
 import type { Transition } from "./apply.js";
@@ -17,6 +18,8 @@ import type { Transition } from "./apply.js";
 export interface GiaiMaContext {
     actorId: string;                          // the MC, recorded on events
     roundId: string;                          // e.g. "giai-ma"
+    // The rulebook's rules for this round, resolved from the match's config.
+    rules: GiaiMaRules;
     hintTurnId: string;                       // the opened hint's turnId (resolved server-side)
     submittedAnswers: Record<string, boolean>; // loaded from the answers ledger, for resolve
     now: string;                              // ISO time, for opening a window
@@ -32,7 +35,10 @@ export function applyGiaiMaAction(
 ): Transition<GiaiMaState> {
     switch (action.kind) {
         case "giai-ma.start":
-            return { state: startGiaiMa(action.playerIds, action.hintIds), facts: [] };
+            return {
+                state: startGiaiMa(action.playerIds, action.hintIds, ctx.rules),
+                facts: []
+            };
 
         case "giai-ma.openHint": {
             const next = openHint(state, action.hintId, ctx.now);

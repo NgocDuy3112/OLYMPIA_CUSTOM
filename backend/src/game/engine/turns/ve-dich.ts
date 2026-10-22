@@ -2,10 +2,10 @@
 // Scoring lives in ../scoring/ve-dich.ts; this module decides who may act,
 // which question is open, and which powers are still available.
 import { veDichPoints, type Power } from "../scoring/ve-dich.js";
+import { VE_DICH_DEFAULTS, type VeDichRules } from "../rules.js";
 
 export const DOMAINS = ["THTH", "TNSS", "XHPL", "VHNT", "TTGT", "KTTH"] as const;
 export const VALUES = [20, 30, 40, 50] as const;
-export const BUZZ_WINDOW_S = 5;
 
 export interface VeDichQuestion {
     id: string;        // e.g. "THTH-40"
@@ -22,6 +22,8 @@ export interface PlayerState {
 export type Phase = 1 | 2;
 
 export interface VeDichState {
+    // The rulebook's numbers, frozen when the round opened.
+    rules: VeDichRules;
     phase: Phase;
     players: PlayerState[];
     remaining: VeDichQuestion[];
@@ -62,9 +64,11 @@ function fail(code: VeDichError["code"], message: string): never {
 
 export function createVeDich(
     questions: VeDichQuestion[],
-    players: PlayerState[]
+    players: PlayerState[],
+    rules: VeDichRules = VE_DICH_DEFAULTS
 ): VeDichState {
     return {
+        rules,
         phase: 1,
         players: orderForPhase(players, 1),
         remaining: [...questions],
@@ -249,7 +253,7 @@ export function isBuzzOpen(state: VeDichState, nowIso: string): boolean {
         return false;
     }
     const elapsed = Date.parse(nowIso) - Date.parse(state.buzzOpenedAt);
-    return elapsed >= 0 && elapsed <= BUZZ_WINDOW_S * 1000;
+    return elapsed >= 0 && elapsed <= state.rules.buzzWindowS * 1000;
 }
 
 export function buzz(state: VeDichState, playerId: string): VeDichState {
@@ -289,10 +293,10 @@ export function resolveQuestion(state: VeDichState, verdicts: Verdicts): VeDichS
         faceValue: face,
         correct: verdicts.answerer,
         power: open.power ?? undefined
-    });
+    }, state.rules);
     const buzzerPoints =
         open.buzzer !== null
-            ? veDichPoints({ faceValue: face, correct: verdicts.buzzer! })
+            ? veDichPoints({ faceValue: face, correct: verdicts.buzzer! }, state.rules)
             : 0;
 
     const scoreDelta = new Map<string, number>();

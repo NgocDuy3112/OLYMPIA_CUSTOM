@@ -1,13 +1,12 @@
 // giai-ma: MC-chosen hints (shared pool) and keyword submissions.
 // Hint identity IS the MatchQuestion _id, so facts attach to a question row directly.
 import { keywordValue } from "../scoring/giai-ma.js";
+import { GIAI_MA_DEFAULTS, type GiaiMaRules } from "../rules.js";
 import { fail } from "./errors.js";
 
 export type Stage = "hints" | "ended";
 
 // The answer window after the MC opens a hint.
-export const HINT_WINDOW_S = 15;
-
 export interface GiaiMaPlayer {
     id: string;
     hintsRevealed: number;      // count of this player's correct hint answers
@@ -18,6 +17,8 @@ export interface GiaiMaPlayer {
 }
 
 export interface GiaiMaState {
+    // The rulebook's numbers, frozen when the round opened.
+    rules: GiaiMaRules;
     stage: Stage;
     players: GiaiMaPlayer[];
     hintIds: string[];          // all hint question ids, in display order
@@ -26,8 +27,13 @@ export interface GiaiMaState {
     openHintAt: string | null;  // ISO time the window opened
 }
 
-export function startGiaiMa(playerIds: string[], hintIds: string[]): GiaiMaState {
+export function startGiaiMa(
+    playerIds: string[],
+    hintIds: string[],
+    rules: GiaiMaRules = GIAI_MA_DEFAULTS
+): GiaiMaState {
     return {
+        rules,
         stage: "hints",
         players: playerIds.map((id) => ({
             id,
@@ -53,7 +59,7 @@ export function remainingHints(state: GiaiMaState): string[] {
 export function keywordValueFor(state: GiaiMaState, playerId: string): number {
     const player = state.players.find((p) => p.id === playerId);
     if (!player) fail("UNKNOWN_PLAYER", `player ${playerId} is not in giai-ma`);
-    return keywordValue(player.hintsRevealed);
+    return keywordValue(player.hintsRevealed, state.rules);
 }
 
 // The MC opens the answer window for one hint. Only one window may be open at a time.
@@ -70,7 +76,7 @@ export function openHint(state: GiaiMaState, hintId: string, openedAt: string): 
 export function isWindowOpen(state: GiaiMaState, nowIso: string): boolean {
     if (state.openHint === null || state.openHintAt === null) return false;
     const elapsed = Date.parse(nowIso) - Date.parse(state.openHintAt);
-    return elapsed >= 0 && elapsed <= HINT_WINDOW_S * 1000;
+    return elapsed >= 0 && elapsed <= state.rules.hintWindowS * 1000;
 }
 
 // May this player submit an answer for the open hint right now?
@@ -130,7 +136,7 @@ export function submitKeyword(
             ? {
                   ...p,
                   keywordLocked: true,
-                  keywordPoints: correct ? keywordValue(p.hintsRevealed) : 0,
+                  keywordPoints: correct ? keywordValue(p.hintsRevealed, state.rules) : 0,
                   eliminated: !correct
               }
             : p

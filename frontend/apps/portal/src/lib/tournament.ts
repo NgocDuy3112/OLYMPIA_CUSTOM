@@ -10,15 +10,23 @@ export interface TurnConfig {
     timeLimitSeconds?: number
     buzzWindowSeconds?: number
     pickCount?: number
+    hintCount?: number
     questionCount?: number
 }
 
 export type ScoringRule =
     | { template: "constant"; points: number }
-    | { template: "keyword_derived"; initial: number; dropPerHint: number; incorrect: 0 }
+    | {
+        template: "keyword_derived"
+        initial: number
+        dropPerHint: number
+        floor?: number
+        incorrect: 0
+    }
     | {
         template: "rank_multiplier"
         bands: Array<{ untilSec: number; points: number }>
+        multipliers?: number[]
         ladderTop: number
         incorrect: 0
         timeBasis: "first" | "final"
@@ -27,6 +35,7 @@ export type ScoringRule =
         template: "outcome_multipliers"
         correct: number
         incorrect: number
+        faceValues?: Record<string, number>
         powers: {
             hope: { correct: number; incorrect: number }
             shield: { correct: number; incorrect: number }

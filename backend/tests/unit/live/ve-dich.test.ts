@@ -1,3 +1,4 @@
+import { VE_DICH_DEFAULTS } from "../../../src/game/engine/rules.js";
 import { describe, expect, it } from "vitest";
 import { applyVeDichAction, type VeDichContext } from "../../../src/modules/live/ve-dich.js";
 import {
@@ -22,7 +23,7 @@ const POOL = [Q("THTH", 50), Q("THTH", 40), Q("THTH", 30), Q("THTH", 20), Q("TNS
 const PLAYERS = ["p0", "p1", "p2"];
 
 const ctx = (over: Partial<VeDichContext> = {}): VeDichContext => ({
-    actorId: "mc-1", roundId: "ve-dich", now: NOW,
+    actorId: "mc-1", rules: VE_DICH_DEFAULTS, roundId: "ve-dich", now: NOW,
     questions: POOL, players: PLAYERS.map((id) => ({ id, score: 0 })), drafts: [],
     ...over
 });

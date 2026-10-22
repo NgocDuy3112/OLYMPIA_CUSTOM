@@ -1,6 +1,6 @@
+import { GIAI_MA_DEFAULTS } from "../../../src/game/engine/rules.js";
 import { describe, expect, it } from "vitest";
 import {
-    HINT_WINDOW_S,
     canPlayerAnswer,
     closeHintWindow,
     isWindowOpen,
@@ -180,12 +180,12 @@ describe("giai-ma — the 15 s window", () => {
     it("is open at the moment it opens and just inside 15 s", () => {
         const s = openHint(startGiaiMa(["a"], H), "h1", NOW);
         expect(isWindowOpen(s, NOW)).toBe(true);
-        expect(isWindowOpen(s, at(HINT_WINDOW_S))).toBe(true);
+        expect(isWindowOpen(s, at(GIAI_MA_DEFAULTS.hintWindowS))).toBe(true);
     });
 
     it("is closed past 15 s", () => {
         const s = openHint(startGiaiMa(["a"], H), "h1", NOW);
-        expect(isWindowOpen(s, at(HINT_WINDOW_S + 0.001))).toBe(false);
+        expect(isWindowOpen(s, at(GIAI_MA_DEFAULTS.hintWindowS + 0.001))).toBe(false);
     });
 
     it("is closed when no window is open", () => {

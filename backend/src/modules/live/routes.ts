@@ -34,35 +34,63 @@ import { attachHeartbeat } from "./heartbeat.js";
 import { attachSessionGuard } from "./session-guard.js";
 import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState, parseVeDichState } from "./state.js";
 import { startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
+import {
+    butPhaRules,
+    giaiMaRules,
+    khoiDongRules,
+    veDichRules
+} from "../../game/engine/rules.js";
 import { openQuestionId, type ButPhaState } from "../../game/engine/turns/but-pha.js";
 import { type KhoiDongState } from "../../game/engine/turns/khoi-dong-round.js";
 import type { VeDichState } from "../../game/engine/turns/ve-dich.js";
-import type { MatchQuestion } from "../../game/contracts/index.js";
+import { type MatchQuestion, type RoundConfig } from "../../game/contracts/index.js";
+import {
+    BUT_PHA_DEFAULTS,
+    GIAI_MA_DEFAULTS,
+    KHOI_DONG_DEFAULTS,
+    VE_DICH_DEFAULTS
+} from "../../game/engine/rules.js";
 
 const UUID_PATTERN = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
 // giai-ma.start replaces the state wholesale, so the incoming state is irrelevant.
-const EMPTY_GIAI_MA: GiaiMaState = startGiaiMa([], []);
+const EMPTY_GIAI_MA: GiaiMaState = startGiaiMa([], [], GIAI_MA_DEFAULTS);
 
 // khoi-dong.start replaces the state wholesale; this placeholder only satisfies the types.
 const EMPTY_VE_DICH: VeDichState = {
+    rules: VE_DICH_DEFAULTS,
     phase: 1, players: [], remaining: [], turnIndex: 0, pendingPicks: [],
     open: null, buzzOpenedAt: null, ended: false
 };
 
 const EMPTY_KHOI_DONG: KhoiDongState = {
+    rules: KHOI_DONG_DEFAULTS,
     stage: "phase1", ended: false, order: [], activeIndex: 0, runs: {}, phase2: null, phase2OpenedAt: null
 };
 
 // but-pha.start replaces the state wholesale; this placeholder only satisfies the types.
 const EMPTY_BUT_PHA: ButPhaState = {
+    rules: BUT_PHA_DEFAULTS,
     questionIds: [], cursor: 0, questionOpenedAt: null, answers: {}, points: {}, ended: false
 };
+
+// The rulebook's rules for a round, from the match's config. The format's defaults
+// apply wherever the rulebook is silent.
+function rulesFor(match: { roundConfigs: Record<string, RoundConfig> }, roundId: string) {
+    const config = match.roundConfigs[roundId];
+    switch (roundId) {
+        case "khoi-dong": return khoiDongRules(config);
+        case "giai-ma": return giaiMaRules(config);
+        case "but-pha": return butPhaRules(config);
+        case "ve-dich": return veDichRules(config);
+        default: return undefined;
+    }
+}
 
 // khoi-dong runs two turns: phase 1 (oral) then phase 2 (typed). The turn order comes from
 // the match's round config, so the split is server-authoritative, not client-chosen.
 function khoiDongContext(
-    match: { questions: MatchQuestion[]; roundConfigs: Record<string, { turns: Array<{ id: string }> }>; players: unknown },
+    match: { questions: MatchQuestion[]; roundConfigs: Record<string, RoundConfig>; players: unknown },
     roundId: string,
     actorId: string,
     now: string
@@ -76,6 +104,7 @@ function khoiDongContext(
         actorId,
         roundId,
         now,
+        rules: khoiDongRules(match.roundConfigs[roundId] as RoundConfig | undefined),
         playerIds: (match.players as Array<{ kind: string; userId?: string }>)
             .filter((seat) => seat.kind === "user")
             .map((seat) => seat.userId!),
@@ -188,6 +217,7 @@ function giaiMaContext(
     return {
         actorId, roundId, hintTurnId, submittedAnswers,
         now: new Date().toISOString(),
+        rules: giaiMaRules((match as { roundConfigs?: Record<string, RoundConfig> }).roundConfigs?.[roundId]),
         keywordAutoMatched: false           // the MC asserted the verdict
     };
 }
@@ -341,6 +371,7 @@ export async function liveRoutes(app: FastifyInstance) {
                                 actorId: user.id,
                                 roundId: current.roundId,
                                 now: new Date().toISOString(),
+                                rules: butPhaRules(match.roundConfigs[current.roundId] as RoundConfig | undefined),
                                 questionIds: roundQuestionIds(match, current.roundId),
                                 answerDrafts
                             });
@@ -380,6 +411,7 @@ export async function liveRoutes(app: FastifyInstance) {
                                 actorId: user.id,
                                 roundId: current.roundId,
                                 now: new Date().toISOString(),
+                                rules: veDichRules(match.roundConfigs[current.roundId] as RoundConfig | undefined),
                                 questions: veDichQuestions(match),
                                 players: (match.players as Array<{ kind: string; userId?: string }>)
                                     .filter((seat) => seat.kind === "user")

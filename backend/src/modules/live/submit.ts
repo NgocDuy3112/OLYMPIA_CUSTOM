@@ -16,9 +16,11 @@ import {
     giaiMaPoints,
     isWindowOpen
 } from "../../game/engine/turns/giai-ma.js";
-import { elapsedSeconds, openQuestionId, QUESTION_LIMIT_S } from "../../game/engine/turns/but-pha.js";
-import { PHASE2_BUDGET_S } from "../../game/engine/turns/khoi-dong.js";
-import { elapsedPhase2Seconds } from "../../game/engine/turns/khoi-dong-round.js";
+import { elapsedSeconds, openQuestionId } from "../../game/engine/turns/but-pha.js";
+
+import { elapsedPhase2Seconds, phase2Budget } from "../../game/engine/turns/khoi-dong-round.js";
+import { giaiMaRules } from "../../game/engine/rules.js";
+import type { RoundConfig } from "../../game/contracts/index.js";
 import { applyGiaiMaAction } from "./giai-ma.js";
 import { mutateLive, type Transition } from "./apply.js";
 import { publish } from "./hub.js";
@@ -142,7 +144,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         } catch {
             throw new SubmitError(409, "NO_CLOCK", "the question's clock has not started");
         }
-        if (atS > QUESTION_LIMIT_S) {
+        if (atS > state.rules.questionLimitS) {
             throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
         }
 
@@ -186,7 +188,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
         } catch {
             throw new SubmitError(409, "NO_CLOCK", "phase 2's clock has not started");
         }
-        if (atS > PHASE2_BUDGET_S) {
+        if (atS > phase2Budget(state)) {
             throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
         }
 
@@ -289,6 +291,7 @@ export async function submitKeyword(ctx: SubmitContext): Promise<KeywordResult> 
                     hintTurnId: "",
                     submittedAnswers: {},
                     now: new Date().toISOString(),
+                    rules: giaiMaRules((match as { roundConfigs?: Record<string, RoundConfig> }).roundConfigs?.[current.roundId]),
                     keywordAutoMatched: true         // the player typed it; the server matched it
                 }
             );

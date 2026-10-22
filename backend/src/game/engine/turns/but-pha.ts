@@ -1,9 +1,7 @@
 // but-pha: 4 sequential questions, 30 s each, typed. Pure state transitions.
 import { basePointsForTime, speedMultiplier } from "../scoring/but-pha.js";
 import { fail } from "./errors.js";
-
-export const QUESTION_COUNT = 4;
-export const QUESTION_LIMIT_S = 30;
+import { BUT_PHA_DEFAULTS, type ButPhaRules } from "../rules.js";
 
 export interface Answer {
     playerId: string;
@@ -12,6 +10,8 @@ export interface Answer {
 }
 
 export interface ButPhaState {
+    // The rulebook's numbers, frozen when the round opened.
+    rules: ButPhaRules;
     questionIds: string[];
     cursor: number;                                // which question is open
     questionOpenedAt: string | null;               // ISO time the current question opened
@@ -20,11 +20,14 @@ export interface ButPhaState {
     ended: boolean;
 }
 
-export function startButPha(questionIds: string[]): ButPhaState {
-    if (questionIds.length !== QUESTION_COUNT) {
-        fail("VALIDATION", `but-pha needs exactly ${QUESTION_COUNT} questions`);
+export function startButPha(questionIds: string[], rules: ButPhaRules = BUT_PHA_DEFAULTS): ButPhaState {
+    if (questionIds.length !== rules.questionCount) {
+        fail("VALIDATION", `but-pha needs exactly ${rules.questionCount} questions`);
     }
-    return { questionIds, cursor: 0, questionOpenedAt: null, answers: {}, points: {}, ended: false };
+    return {
+        rules, questionIds, cursor: 0, questionOpenedAt: null,
+        answers: {}, points: {}, ended: false
+    };
 }
 
 // The MC starts the clock for the current question.
@@ -58,7 +61,7 @@ export function submitAnswer(state: ButPhaState, answer: Answer): ButPhaState {
     }
 
     // Late: recorded as wrong, no speed order, no points.
-    const late = answer.atS > QUESTION_LIMIT_S || answer.atS < 0;
+    const late = answer.atS > state.rules.questionLimitS || answer.atS < 0;
     const effective: Answer = late ? { ...answer, correct: false } : answer;
 
     const answers = { ...state.answers, [qid]: [...existing, effective] };
@@ -66,7 +69,8 @@ export function submitAnswer(state: ButPhaState, answer: Answer): ButPhaState {
     let points = state.points;
     if (effective.correct) {
         const order = answers[qid].filter((a) => a.correct).length;
-        const pts = basePointsForTime(effective.atS) * speedMultiplier(order);
+        const pts = basePointsForTime(effective.atS, state.rules.bands)
+            * speedMultiplier(order, state.rules);
         points = {
             ...points,
             [qid]: { ...(points[qid] ?? {}), [effective.playerId]: pts }
@@ -80,7 +84,12 @@ export function submitAnswer(state: ButPhaState, answer: Answer): ButPhaState {
 export function closeQuestion(state: ButPhaState): ButPhaState {
     if (state.ended) fail("ENDED", "but-pha is over");
     const cursor = state.cursor + 1;
-    return { ...state, cursor, questionOpenedAt: null, ended: cursor >= QUESTION_COUNT };
+    return {
+        ...state,
+        cursor,
+        questionOpenedAt: null,
+        ended: cursor >= state.rules.questionCount
+    };
 }
 
 // A player's answer, finalized by the controller. `atS` is the submission time, measured
@@ -109,11 +118,12 @@ export function finalizeQuestion(state: ButPhaState, results: FinalResult[]): Bu
     let correctSoFar = 0;
 
     for (const result of ordered) {
-        const late = result.atS > QUESTION_LIMIT_S || result.atS < 0;
+        const late = result.atS > state.rules.questionLimitS || result.atS < 0;
         const correct = result.correct && !late;
         if (correct) {
             correctSoFar += 1;
-            pointsFor[result.playerId] = basePointsForTime(result.atS) * speedMultiplier(correctSoFar);
+            pointsFor[result.playerId] = basePointsForTime(result.atS, state.rules.bands)
+                * speedMultiplier(correctSoFar, state.rules);
         } else {
             pointsFor[result.playerId] = 0;
         }

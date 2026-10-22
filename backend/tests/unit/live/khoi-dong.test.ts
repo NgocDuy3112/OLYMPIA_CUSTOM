@@ -1,3 +1,4 @@
+import { KHOI_DONG_DEFAULTS } from "../../../src/game/engine/rules.js";
 import { describe, expect, it } from "vitest";
 import { applyKhoiDongAction, type KhoiDongContext } from "../../../src/modules/live/khoi-dong.js";
 import { khoiDongPoints, type KhoiDongState } from "../../../src/game/engine/turns/khoi-dong-round.js";
@@ -8,7 +9,7 @@ const P2 = ["b1", "b2", "b3", "b4", "b5", "b6"];
 const NOW = "2026-01-01T00:00:00.000Z";
 
 const ctx = (over: Partial<KhoiDongContext> = {}): KhoiDongContext => ({
-    actorId: "mc-1", roundId: "khoi-dong", now: NOW,
+    actorId: "mc-1", rules: KHOI_DONG_DEFAULTS, roundId: "khoi-dong", now: NOW,
     playerIds: ["p0", "p1"], phase1QuestionIds: P1, phase2QuestionIds: P2,
     ...over
 });

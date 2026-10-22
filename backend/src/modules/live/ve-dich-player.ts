@@ -5,6 +5,7 @@ import type { VeDichAction } from "./actions.js";
 import { mutateLive, type Transition } from "./apply.js";
 import { pgLiveStore } from "./store.js";
 import { parseVeDichState } from "./state.js";
+import { VE_DICH_DEFAULTS } from "../../game/engine/rules.js";
 import { applyVeDichAction } from "./ve-dich.js";
 import { loadContext, SubmitError, type SubmitContext } from "./submit.js";
 import { publish } from "./hub.js";
@@ -48,6 +49,7 @@ export async function submitVeDichCommand(
                 actorId: userId,
                 roundId: current.roundId,
                 now,
+                rules: VE_DICH_DEFAULTS,
                 questions: [],       // only start needs these, and only the MC starts
                 players: [],
                 drafts: []

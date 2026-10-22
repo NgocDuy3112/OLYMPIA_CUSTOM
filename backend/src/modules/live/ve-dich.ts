@@ -14,6 +14,7 @@ import {
     veDichPoints
 } from "../../game/engine/turns/ve-dich.js";
 import { fail } from "../../game/engine/turns/errors.js";
+import { VE_DICH_DEFAULTS, type VeDichRules } from "../../game/engine/rules.js";
 import type { VeDichAction } from "./actions.js";
 import type { LiveFact } from "./facts.js";
 import type { AnswerDraft, Transition } from "./apply.js";
@@ -22,6 +23,8 @@ export interface VeDichContext {
     actorId: string;
     roundId: string;
     now: string;
+    // The rulebook's rules for this round, resolved from the match's config.
+    rules: VeDichRules;
     // server-derived at start: the 24 questions, and each player's cumulative match score
     // (so "highest score picks first" means something — everyone starts ve-dich at zero)
     questions: VeDichQuestion[];
@@ -65,7 +68,7 @@ export function applyVeDichAction(
                 score: p.score,                    // cumulative, so phase 1 ordering is real
                 powersLeft: ["HOPE", "SHIELD"]
             }));
-            return { state: createVeDich(ctx.questions, players), facts: [] };
+            return { state: createVeDich(ctx.questions, players, ctx.rules), facts: [] };
         }
 
         case "ve-dich.pick": {
@@ -140,7 +143,7 @@ export function applyVeDichAction(
                 faceValue: face,
                 correct: action.answerer,
                 power: open.power ?? undefined
-            });
+            }, state.rules);
 
             const next = resolveQuestion(state, {
                 answerer: action.answerer,
@@ -169,7 +172,7 @@ export function applyVeDichAction(
                         userId: open.buzzer,
                         value: { oral: true },
                         verdict: verdictOf(buzzerCorrect),
-                        pointsAwarded: veDichPoints({ faceValue: face, correct: buzzerCorrect }),
+                        pointsAwarded: veDichPoints({ faceValue: face, correct: buzzerCorrect }, state.rules),
                         autoMatched: false
                     });
                 }

@@ -9,6 +9,7 @@ import {
     startButPha
 } from "../../game/engine/turns/but-pha.js";
 import { fail } from "../../game/engine/turns/errors.js";
+import { BUT_PHA_DEFAULTS, type ButPhaRules } from "../../game/engine/rules.js";
 import type { ButPhaAction } from "./actions.js";
 import type { LiveFact } from "./facts.js";
 import type { AnswerDraft, Transition } from "./apply.js";
@@ -16,6 +17,8 @@ import type { AnswerDraft, Transition } from "./apply.js";
 export interface ButPhaContext {
     actorId: string;
     roundId: string;
+    // The rulebook's rules for this round, resolved from the match's config.
+    rules: ButPhaRules;
     now: string;              // ISO time, for the per-question clock
     questionIds: string[];    // the round's questions, resolved server-side at start
     answerDrafts: AnswerDraft[]; // the open question's drafts, read inside the transaction
@@ -28,7 +31,7 @@ export function applyButPhaAction(
 ): Transition<ButPhaState> {
     switch (action.kind) {
         case "but-pha.start":
-            return { state: startButPha(ctx.questionIds), facts: [] };
+            return { state: startButPha(ctx.questionIds, ctx.rules), facts: [] };
 
         case "but-pha.openQuestion":
             return { state: openCurrentQuestion(state, ctx.now), facts: [] };

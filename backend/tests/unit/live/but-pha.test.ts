@@ -1,3 +1,4 @@
+import { BUT_PHA_DEFAULTS } from "../../../src/game/engine/rules.js";
 import { describe, expect, it } from "vitest";
 import { applyButPhaAction, type ButPhaContext } from "../../../src/modules/live/but-pha.js";
 import { butPhaTotal, startButPha, type ButPhaState } from "../../../src/game/engine/turns/but-pha.js";
@@ -12,10 +13,11 @@ const draft = (userId: string, answeredMs: number, judged = false): AnswerDraft 
     ({ userId, suggestion: "CORRECT", answeredMs, judged });
 
 const ctx = (over: Partial<ButPhaContext> = {}): ButPhaContext => ({
-    actorId: "mc-1", roundId: "but-pha", now: NOW, questionIds: Q, answerDrafts: [], ...over
+    actorId: "mc-1", roundId: "but-pha", now: NOW, rules: BUT_PHA_DEFAULTS,
+    questionIds: Q, answerDrafts: [], ...over
 });
 
-const fresh = (): ButPhaState => startButPha(Q);
+const fresh = (): ButPhaState => startButPha(Q, BUT_PHA_DEFAULTS);
 const open = (): ButPhaState =>
     applyButPhaAction(fresh(), { kind: "but-pha.openQuestion" }, ctx()).state;
 

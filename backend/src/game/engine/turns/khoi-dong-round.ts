@@ -14,8 +14,11 @@ import {
     type Phase2State
 } from "./khoi-dong.js";
 import { fail } from "./errors.js";
+import { KHOI_DONG_DEFAULTS, type KhoiDongRules } from "../rules.js";
 
 export interface KhoiDongState {
+    // The rulebook's numbers, frozen when the round opened.
+    rules: KhoiDongRules;
     stage: "phase1" | "phase2";
     ended: boolean;
     order: string[];                        // player turn order for phase 1
@@ -25,11 +28,16 @@ export interface KhoiDongState {
     phase2OpenedAt: string | null;          // ISO time phase 2's 60 s clock started
 }
 
-export function startKhoiDong(playerIds: string[], phase1Ids: string[]): KhoiDongState {
+export function startKhoiDong(
+    playerIds: string[],
+    phase1Ids: string[],
+    rules: KhoiDongRules = KHOI_DONG_DEFAULTS
+): KhoiDongState {
     if (playerIds.length === 0) fail("VALIDATION", "khoi-dong needs at least one player");
     const runs: Record<string, Phase1State> = {};
-    for (const id of playerIds) runs[id] = startPhase1(phase1Ids);
+    for (const id of playerIds) runs[id] = startPhase1(phase1Ids, rules);
     return {
+        rules,
         stage: "phase1", ended: false, order: [...playerIds],
         activeIndex: 0, runs, phase2: null, phase2OpenedAt: null
     };
@@ -48,6 +56,11 @@ export function activeQuestionId(state: KhoiDongState): string | null {
     const run = state.runs[id];
     if (run.ended) return null;
     return run.questionIds[run.cursor] ?? null;
+}
+
+// Phase 2's shared clock, from the rulebook.
+export function phase2Budget(state: KhoiDongState): number {
+    return state.rules.phase2BudgetS;
 }
 
 export function phase1Complete(state: KhoiDongState): boolean {

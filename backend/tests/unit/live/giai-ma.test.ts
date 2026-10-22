@@ -1,3 +1,4 @@
+import { GIAI_MA_DEFAULTS } from "../../../src/game/engine/rules.js";
 import { describe, expect, it } from "vitest";
 import { applyGiaiMaAction, type GiaiMaContext } from "../../../src/modules/live/giai-ma.js";
 import {
@@ -11,9 +12,12 @@ const IDS = ["a", "b"];
 const H = ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"];
 const NOW = "2026-01-01T00:00:00.000Z";
 const ctx = (submittedAnswers: Record<string, boolean> = {}): GiaiMaContext =>
-    ({ actorId: "mc-1", roundId: "giai-ma", hintTurnId: "hints", submittedAnswers, now: NOW, keywordAutoMatched: false });
+    ({
+        actorId: "mc-1", rules: GIAI_MA_DEFAULTS, roundId: "giai-ma", hintTurnId: "hints",
+        submittedAnswers, now: NOW, keywordAutoMatched: false
+    });
 
-const fresh = (): GiaiMaState => startGiaiMa(IDS, H);
+const fresh = (): GiaiMaState => startGiaiMa(IDS, H, GIAI_MA_DEFAULTS);
 
 describe("applyGiaiMaAction — state transitions", () => {
     it("start creates a fresh round from the players and hint ids", () => {

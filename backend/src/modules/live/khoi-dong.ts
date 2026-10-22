@@ -10,7 +10,8 @@ import {
     startKhoiDong,
     timeOutRun
 } from "../../game/engine/turns/khoi-dong-round.js";
-import { KHOI_DONG_POINTS } from "../../game/engine/scoring/khoi-dong.js";
+import { khoiDongPoints } from "../../game/engine/scoring/khoi-dong.js";
+import { KHOI_DONG_DEFAULTS, type KhoiDongRules } from "../../game/engine/rules.js";
 import { fail } from "../../game/engine/turns/errors.js";
 import type { KhoiDongAction } from "./actions.js";
 import type { LiveFact } from "./facts.js";
@@ -20,6 +21,8 @@ export interface KhoiDongContext {
     actorId: string;
     roundId: string;
     now: string;
+    // The rulebook's rules for this round, resolved from the match's config.
+    rules: KhoiDongRules;
     playerIds: string[];          // the match's competitors, resolved server-side
     phase1QuestionIds: string[];  // 6 oral questions
     phase2QuestionIds: string[];  // 6 typed questions
@@ -86,7 +89,7 @@ export function applyKhoiDongAction(
                     questionId: action.questionId,
                     userId: verdict.playerId,
                     verdict: verdict.correct ? "CORRECT" : "INCORRECT",
-                    pointsAwarded: verdict.correct ? KHOI_DONG_POINTS : 0
+                    pointsAwarded: khoiDongPoints(verdict.correct, ctx.rules.pointsPerCorrect)
                 });
             }
             return { state: next, facts };
