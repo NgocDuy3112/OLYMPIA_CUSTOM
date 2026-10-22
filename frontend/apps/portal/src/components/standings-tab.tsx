@@ -1,4 +1,3 @@
-import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
@@ -32,8 +31,8 @@ export function StandingsTab({
             <CardHeader>
                 <CardTitle className="text-base">Standings</CardTitle>
                 <CardDescription>
-                    The season's places, by how far each player got. Points are shown for
-                    reference — they do not decide the order.
+                    The season's places, by how far each player got. The points are what the
+                    place is worth; the match points belong to the match.
                 </CardDescription>
                 <CardAction>
                     <Button
@@ -60,9 +59,8 @@ export function StandingsTab({
                                 <TableHead>Player</TableHead>
                                 <TableHead>Got to</TableHead>
                                 <TableHead className="w-24 text-right">Matches</TableHead>
-                                <TableHead className="w-24 text-right">Points</TableHead>
-                                <TableHead className="w-20 text-right">Bonus</TableHead>
-                                <TableHead className="pr-6">Tie-break</TableHead>
+                                <TableHead className="w-24 pr-6 text-right">Points</TableHead>
+                                <TableHead>Tie-break</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -71,25 +69,17 @@ export function StandingsTab({
                                     <TableCell className="pl-6 tabular-nums">
                                         {row.place ?? <span className="text-muted-foreground">—</span>}
                                     </TableCell>
-                                    <TableCell>
-                                        <span className="flex items-center gap-2">
-                                            {row.displayName}
-                                            {row.placementPoints > 0 && (
-                                                <Badge variant="outline">+{row.placementPoints}</Badge>
-                                            )}
-                                        </span>
-                                    </TableCell>
+                                    <TableCell className="font-medium">{row.displayName}</TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
                                         {row.stageTitle
                                             ? `${row.stageTitle}${row.slot !== null ? ` · match ${row.slot}` : ""}`
                                             : "—"}
                                     </TableCell>
                                     <TableCell className="text-right tabular-nums">{row.matchesPlayed}</TableCell>
-                                    <TableCell className="text-right tabular-nums">{row.totalPoints}</TableCell>
-                                    <TableCell className="text-right tabular-nums">
+                                    <TableCell className="pr-6 text-right tabular-nums">
                                         {row.placementPoints > 0 ? `+${row.placementPoints}` : "—"}
                                     </TableCell>
-                                    <TableCell className="pr-6 text-sm text-muted-foreground">
+                                    <TableCell className="text-sm text-muted-foreground">
                                         {row.tieBreak ?? "—"}
                                     </TableCell>
                                 </TableRow>
