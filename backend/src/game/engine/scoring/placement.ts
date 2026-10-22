@@ -53,9 +53,12 @@ export function scaleCoverage(
         if (pointsForPlace(tiers, place) === 0) missing.push(place);
     }
 
-    const beyond: number[] = [];
-    for (const tier of tiers) {
-        if (tier.min > places) beyond.push(tier.min);
+    // A season that has not played yet produces no places, so nothing is "beyond".
+    const beyond: number[] = places === 0 ? [] : [];
+    if (places > 0) {
+        for (const tier of tiers) {
+            if (tier.min > places) beyond.push(tier.min);
+        }
     }
 
     return { places, covered: places - missing.length, missing, beyond };
