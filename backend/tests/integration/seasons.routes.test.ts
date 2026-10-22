@@ -421,7 +421,7 @@ describe("the rulebook freeze", () => {
         // A match has been assembled: the rulebook must no longer move.
         await db.insert(matches).values({
             seasonId: s.id,
-            kind: "standard",
+            kind: "STANDARD",
             stageId: "stage-1",
             label: "Match",
             scheduledAt: new Date(),

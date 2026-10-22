@@ -50,7 +50,7 @@ export interface CloseQualificationOptions {
 async function requireQualificationMatch(matchId: string): Promise<MatchRow> {
     const [row] = await db.select().from(matches).where(eq(matches.id, matchId)).limit(1);
     if (!row) throw new SeasonError("NOT_FOUND", `match ${matchId} not found`);
-    if (row.kind !== "qualification") {
+    if (row.kind !== "QUALIFICATION") {
         throw new SeasonError("VALIDATION", `match ${matchId} is not a qualification match`);
     }
     return row;
@@ -96,7 +96,7 @@ export async function createQualificationMatch(
 
     const [row] = await db.insert(matches).values({
         seasonId,
-        kind: "qualification",
+        kind: "QUALIFICATION",
         stageId: input.stageId ?? "qualification",
         label: input.label,
         scheduledAt: new Date(input.scheduledAt),

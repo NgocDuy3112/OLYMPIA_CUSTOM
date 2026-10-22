@@ -4,7 +4,7 @@ import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
-import { useSetMatchResults } from "@/lib/progression"
+import { useSetMatchResults } from "@/lib/season"
 
 export function MatchResultDialog({
     tournamentId,

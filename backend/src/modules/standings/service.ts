@@ -42,7 +42,7 @@ export async function recomputeStandings(seasonId: string): Promise<StandingRow[
         .innerJoin(matches, eq(matches.id, matchResults.matchId))
         .where(and(
             eq(matchResults.seasonId, seasonId),
-            eq(matches.kind, "standard"),
+            eq(matches.kind, "STANDARD"),
             isNull(matches.deletedAt)
         ));
 
@@ -136,7 +136,7 @@ async function playedCounts(seasonId: string): Promise<Map<string, number>> {
         .innerJoin(matches, eq(matches.id, matchResults.matchId))
         .where(and(
             eq(matchResults.seasonId, seasonId),
-            eq(matches.kind, "standard"),
+            eq(matches.kind, "STANDARD"),
             isNull(matches.deletedAt)
         ));
 

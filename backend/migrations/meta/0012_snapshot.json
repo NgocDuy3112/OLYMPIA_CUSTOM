@@ -1,5 +1,5 @@
 {
-  "id": "8c2edc5d-bbeb-4d85-aa96-577644fd14f8",
+  "id": "f3e2fe57-46b0-417b-bfa7-c8fb847a984b",
   "prevId": "c9f33418-3a3c-466e-b89c-3779dfe9ee07",
   "version": "7",
   "dialect": "postgresql",
@@ -1412,7 +1412,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'standard'"
+          "default": "'STANDARD'"
         },
         "slot": {
           "name": "slot",
@@ -2695,8 +2695,8 @@
       "name": "match_kind",
       "schema": "public",
       "values": [
-        "standard",
-        "qualification"
+        "STANDARD",
+        "QUALIFICATION"
       ]
     },
     "public.match_status": {

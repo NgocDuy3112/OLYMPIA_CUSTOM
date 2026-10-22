@@ -37,7 +37,7 @@ export const matchEventKind = pgEnum("match_event_kind", ["PICK", "BUZZ", "POWER
 // A match is either played for points (standard) or is the mass event: every player in
 // the roster answers the same question set once, and the field is ranked by the
 // crowd-weighted score (qualification).
-export const matchKind = pgEnum("match_kind", ["standard", "qualification"]);
+export const matchKind = pgEnum("match_kind", ["STANDARD", "QUALIFICATION"]);
 
 
 export const matches = pgTable(
@@ -51,7 +51,7 @@ export const matches = pgTable(
         scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
         label: text("label").notNull(),
         status: matchStatus("status").notNull().default("UPCOMING"),
-        kind: matchKind("kind").notNull().default("standard"),
+        kind: matchKind("kind").notNull().default("STANDARD"),
         slot: integer("slot"),
         players: jsonb("players").$type<Seat[]>().notNull(),
         roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),

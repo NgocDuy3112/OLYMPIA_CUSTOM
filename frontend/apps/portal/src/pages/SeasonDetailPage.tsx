@@ -2,9 +2,10 @@ import { Link, useParams } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader } from "@/components/page"
-import { useSeason } from "@/lib/progression"
-import { SplittingTab } from "@/components/splitting-tab"
+import { useSeason } from "@/lib/season"
+import { MatchesTab } from "@/components/matches-tab"
 import { SeasonRulesTab } from "@/components/season-rules-tab"
+import { StandingsTab } from "@/components/standings-tab"
 import { ChevronRight } from "lucide-react"
 
 
@@ -16,7 +17,7 @@ export function SeasonDetailPage() {
     if (season.isError) return <p role="alert" className="p-6 text-sm text-destructive">{season.error.message}</p>
 
     const s = season.data
-    const frozen = s.qualificationQuestions !== null || s.closedAt !== null
+    const frozen = s.closedAt !== null
 
     return (
         <Page>
@@ -35,9 +36,7 @@ export function SeasonDetailPage() {
             <PageHeader
                 title={s.name}
                 description={
-                    s.progression
-                        ? `${s.progression.advance} players · matches of ${s.progression.groupSize} · ${s.progression.splittingRounds} rounds`
-                        : "No progression configured — this season cannot advance."
+                    `${s.rounds.length} rounds · matches of ${s.format.competitorsPerMatch}`
                 }
                 actions={
                     <div className="flex gap-2">
@@ -48,11 +47,24 @@ export function SeasonDetailPage() {
                 }
             />
 
-            <Tabs defaultValue="rules">
+            <Tabs defaultValue="matches">
                 <TabsList variant="line" className="justify-start gap-6 border-b">
+                    <TabsTrigger value="matches">Matches</TabsTrigger>
+                    <TabsTrigger value="standings">Standings</TabsTrigger>
                     <TabsTrigger value="rules">Round rules</TabsTrigger>
-                    <TabsTrigger value="splitting">Splitting</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="matches">
+                    <MatchesTab
+                        tournamentId={tournamentId}
+                        seasonId={seasonId}
+                        seats={s.format.competitorsPerMatch}
+                    />
+                </TabsContent>
+
+                <TabsContent value="standings">
+                    <StandingsTab tournamentId={tournamentId} seasonId={seasonId} />
+                </TabsContent>
 
                 <TabsContent value="rules">
                     <SeasonRulesTab
@@ -61,10 +73,6 @@ export function SeasonDetailPage() {
                         season={s}
                         frozen={frozen}
                     />
-                </TabsContent>
-
-                <TabsContent value="splitting">
-                    <SplittingTab tournamentId={tournamentId} seasonId={seasonId} />
                 </TabsContent>
             </Tabs>
         </Page>

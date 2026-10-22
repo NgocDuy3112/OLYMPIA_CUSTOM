@@ -33,7 +33,7 @@ export type AutoPick = Static<typeof AutoPick>;
 
 
 export const CreateMatchInput = Type.Object({
-    kind: Type.Optional(Type.Union([Type.Literal("standard"), Type.Literal("qualification")])),
+    kind: Type.Optional(Type.Union([Type.Literal("STANDARD"), Type.Literal("QUALIFICATION")])),
     stageId: Type.String({ minLength: 1 }),
     slot: Type.Optional(Type.Integer({ minimum: 1 })),
     label: Type.String({ minLength: 1 }),

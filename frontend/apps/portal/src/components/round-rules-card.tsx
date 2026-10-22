@@ -11,7 +11,7 @@ import {
 } from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useUpdateSeason, type RoundConfig, type SeasonDetail } from "@/lib/progression"
+import { useUpdateSeason, type RoundConfig, type SeasonDetail } from "@/lib/season"
 import type { SeasonRound } from "@/lib/tournaments"
 
 const KINDS = ["MC", "TEXT", "KEYWORD"] as const

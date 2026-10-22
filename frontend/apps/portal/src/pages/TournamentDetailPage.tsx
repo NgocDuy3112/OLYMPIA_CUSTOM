@@ -12,23 +12,8 @@ import { useSeasons } from "@/lib/seasons"
 import { useTournament } from "@/lib/tournaments"
 
 
-function configSummary(
-    format: { competitorsPerMatch: number },
-    progression: { advance: number; groupSize: number; splittingRounds: number; finaleSize: number } | null
-): string {
-    const parts = [`${format.competitorsPerMatch} players/match`]
-
-    if (progression) {
-        const matchesPerRound = progression.advance / progression.groupSize
-        parts.push(
-            `${progression.advance} advance → ${matchesPerRound} matches → finale ${progression.finaleSize}`
-        )
-        parts.push(`${progression.splittingRounds} splitting rounds`)
-    } else {
-        parts.push("no progression — seasons cannot be drawn")
-    }
-
-    return parts.join(" · ")
+function configSummary(format: { competitorsPerMatch: number }): string {
+    return `${format.competitorsPerMatch} players/match · the staff place every match`
 }
 
 export function TournamentDetailPage() {
@@ -86,7 +71,7 @@ export function TournamentDetailPage() {
                 />
 
                 <p className="text-sm text-muted-foreground">
-                    {configSummary(data.defaultFormat, data.defaultProgression)}
+                    {configSummary(data.defaultFormat)}
                 </p>
             </div>
 
@@ -114,18 +99,12 @@ export function TournamentDetailPage() {
                                     <TableHead>Name</TableHead>
                                     <TableHead>Rounds</TableHead>
                                     <TableHead>Stages</TableHead>
-                                    <TableHead>Progression</TableHead>
+                                    <TableHead>Seats</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {seasonItems.map((season) => {
-                                    const custom =
-                                        season.progression !== null &&
-                                        data.defaultProgression !== null &&
-                                        JSON.stringify(season.progression) !==
-                                        JSON.stringify(data.defaultProgression)
-
                                     return (
                                         <TableRow key={season.id}>
                                             <TableCell className="font-medium">
@@ -142,21 +121,8 @@ export function TournamentDetailPage() {
                                             <TableCell>
                                                 {season.stages.length}
                                             </TableCell>
-                                            <TableCell>
-                                                {season.progression ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm">
-                                                            {season.progression.advance} → {" "}
-                                                            {season.progression.groupSize} →{" "}
-                                                            {season.progression.finaleSize}
-                                                        </span>
-                                                        {custom && (
-                                                            <Badge variant="outline">custom</Badge>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-muted-foreground">—</span>
-                                                )}
+                                            <TableCell className="tabular-nums">
+                                                {season.format.competitorsPerMatch}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex gap-2">

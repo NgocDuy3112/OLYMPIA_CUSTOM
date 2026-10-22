@@ -1,10 +1,10 @@
 import { useState } from "react"
-import { AlertTriangle, Check, Pencil } from "lucide-react"
+import { Check, Pencil } from "lucide-react"
 import { Button } from "@shared/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@shared/ui/card"
 import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
-import { useUpdateSeason, type RoundConfig, type SeasonDetail } from "@/lib/progression"
+import { useUpdateSeason, type RoundConfig, type SeasonDetail } from "@/lib/season"
 
 const KINDS = ["MC", "TEXT", "KEYWORD"] as const
 type Kind = (typeof KINDS)[number]
@@ -53,8 +53,6 @@ export function SeasonRulesTab({
     const shown = editing ? draft : draftFrom(season)
 
     const total = Object.values(shown).reduce((sum, config) => sum + questionCountOf(config), 0)
-    const expected = season.progression?.questionCount ?? null
-    const matchesProgression = expected === null || total === expected
     const dirty = JSON.stringify(draft) !== JSON.stringify(draftFrom(season))
 
     const patch = (roundId: string, change: (config: RoundConfig) => RoundConfig) =>
@@ -197,18 +195,10 @@ export function SeasonRulesTab({
 
             <CardFooter className="justify-between gap-4 border-t">
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                    {matchesProgression ? (
-                        <>
-                            <Check className="size-4 text-emerald-600" />
-                            {total} questions
-                            {expected !== null && " · matches the progression"}
-                        </>
-                    ) : (
-                        <>
-                            <AlertTriangle className="size-4 text-amber-600" />
-                            {total} questions · progression expects {expected}
-                        </>
-                    )}
+                    <>
+                        <Check className="size-4 text-emerald-600" />
+                        {total} questions per match
+                    </>
                 </p>
 
                 {editing ? (

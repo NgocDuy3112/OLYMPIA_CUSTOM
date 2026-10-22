@@ -1,6 +1,5 @@
 import { keepPreviousData, useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api, type PageResult } from "@shared/lib/api"
-import type { Progression } from "./progression"
 
 export interface Tournament {
     id: string
@@ -46,7 +45,6 @@ export interface TournamentDetail extends Tournament {
     defaultRounds: SeasonRound[]
     defaultFormat: TournamentFormat
     defaultPlacementTiers: PlacementTier[]
-    defaultProgression: Progression | null
 }
 
 export interface TournamentUpdate {

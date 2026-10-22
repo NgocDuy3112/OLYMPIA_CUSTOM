@@ -20,7 +20,7 @@ export type MatchRow = typeof matches.$inferSelect;
 type SeasonRow = typeof seasons.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
-type MatchKind = "standard" | "qualification";
+type MatchKind = "STANDARD" | "QUALIFICATION";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 
@@ -155,13 +155,13 @@ function assertSeats(
 ): void {
     // A points match has a fixed number of seats. The mass event seats the whole roster,
     // so its seat count is the roster's, not the format's.
-    if (kind === "standard" && players.length !== format.competitorsPerMatch) {
+    if (kind === "STANDARD" && players.length !== format.competitorsPerMatch) {
         throw new MatchError(
             "VALIDATION",
             `expected ${format.competitorsPerMatch} seats, got ${players.length}`
         );
     }
-    if (kind === "qualification" && players.length < 1) {
+    if (kind === "QUALIFICATION" && players.length < 1) {
         throw new MatchError("VALIDATION", "a qualification match needs at least one seat");
     }
 
@@ -197,7 +197,7 @@ export async function createMatch(
         ? input.roundConfigs
         : seasonRoundConfigs(season);
     assertRoundConfigKeys(season, roundConfigs);
-    if (input.players) assertSeats(input.players, season.format, input.kind ?? "standard");
+    if (input.players) assertSeats(input.players, season.format, input.kind ?? "STANDARD");
 
     let entries = input.questions ?? [];
     let autoPick = input.autoPick ?? [];
@@ -217,7 +217,7 @@ export async function createMatch(
         .insert(matches)
         .values({
             seasonId,
-            kind: input.kind ?? "standard",
+            kind: input.kind ?? "STANDARD",
             stageId: input.stageId,
             slot: input.slot ?? null,
             label: input.label,
@@ -409,7 +409,7 @@ export async function setMatchResults(
 
     // The standings are never typed in: they follow the points of the matches that were
     // played, so they are recomputed when a match ends.
-    if (row.kind === "standard") {
+    if (row.kind === "STANDARD") {
         await recomputeStandings(seasonId);
     }
 
@@ -434,7 +434,7 @@ export async function transitionMatch(
         );
     }
 
-    if (next === "LIVE" && existing.kind === "qualification") {
+    if (next === "LIVE" && existing.kind === "QUALIFICATION") {
         throw new MatchError(
             "INVALID_TRANSITION",
             "a qualification match is not played live: the players answer it, the staff close it"
@@ -492,7 +492,7 @@ export async function transitionMatch(
         return updated;
     });
 
-    if (next === "FINISHED" && row.kind === "standard") {
+    if (next === "FINISHED" && row.kind === "STANDARD") {
         await recomputeStandings(seasonId);
     }
 

@@ -140,7 +140,7 @@ describe("the mass event — creating it", () => {
         expect(res.statusCode).toBe(201);
 
         const body = res.json();
-        expect(body.kind).toBe("qualification");
+        expect(body.kind).toBe("QUALIFICATION");
         expect(body.stageId).toBe("qualification");
         expect(body.players).toHaveLength(6);
         expect(body.questions).toHaveLength(8);
