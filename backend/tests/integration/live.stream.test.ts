@@ -67,7 +67,7 @@ beforeAll(async () => {
         rounds: [{ id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 1, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
         placementTiers: [{ min: 1, max: 1, points: 10 }],
-        stages: []
+        stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();
     seasonId = season.id;
 

@@ -78,7 +78,7 @@ beforeAll(async () => {
         ],
         format: { competitorsPerMatch: 2, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
         placementTiers: [{ min: 1, max: 2, points: 10 }],
-        stages: []
+        stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();
     seasonId = season.id;
 

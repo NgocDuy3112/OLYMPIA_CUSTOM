@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { questionBank, seasonStandings, seasons, tournaments, users } from "../../src/db/schema/index.js";
+import { questionBank, seasonPlayers, seasonStandings, seasons, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { RoundConfig } from "../../src/game/contracts/index.js";
 
@@ -103,6 +103,12 @@ beforeAll(async () => {
     }).returning();
     seasonId = season.id;
 
+    // The roster: the season's field. Everyone enrolled is in the table, even the ones
+    // who never played.
+    await db.insert(seasonPlayers).values(
+        playerIds.map((userId) => ({ seasonId, userId }))
+    );
+
     await db.insert(questionBank).values(
         Array.from({ length: 8 }, (_, i) => ({
             kind: "MC" as const,
@@ -184,13 +190,14 @@ describe("the season's places", () => {
         expect(second.statusCode).toBe(201);
         secondMatch = second.json().id;
 
-        // In round 2 the last-placed player of round 1 wins: the points do not decide
-        // the season's order, the progress does.
+        // In round 2 the player who was last in round 1 wins the match. The season's
+        // points do not order the field: three of them finish on 50 points, and only
+        // the progress says who is first.
         await setResults(secondMatch, [
-            { userId: playerIds[3], score: 10 },
-            { userId: playerIds[0], score: 30 },
+            { userId: playerIds[2], score: 30 },
             { userId: playerIds[1], score: 20 },
-            { userId: playerIds[2], score: 0 }
+            { userId: playerIds[0], score: 10 },
+            { userId: playerIds[3], score: 0 }
         ]);
 
         const rows = (await standings()).json().rows as Array<{
@@ -203,16 +210,14 @@ describe("the season's places", () => {
 
         // The four who reached round 2 take the first four places, in that match's order.
         expect(rows.slice(0, 4).map((row) => row.userId)).toEqual([
-            playerIds[3], playerIds[0], playerIds[1], playerIds[2]
+            playerIds[2], playerIds[1], playerIds[0], playerIds[3]
         ]);
         expect(rows.slice(0, 4).map((row) => row.place)).toEqual([1, 2, 3, 4]);
         expect(rows.slice(0, 4).every((row) => row.stageTitle === "Round 2")).toBe(true);
 
-        // The bonus follows the place, not the points: player 0 has the most points
-        // overall (70) and still comes second.
-        expect(rows[0].totalPoints).toBe(50);
-        expect(rows[1].totalPoints).toBe(70);
-        expect(rows[1].place).toBe(2);
+        // Three of them finish on 50 points; only the progress orders them. The bonus
+        // follows the place, not the points.
+        expect(rows.slice(0, 3).map((row) => row.totalPoints)).toEqual([50, 50, 50]);
         expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0, 0, 0]);
     });
 

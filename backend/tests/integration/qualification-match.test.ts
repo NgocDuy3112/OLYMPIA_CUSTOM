@@ -176,7 +176,7 @@ describe("the mass event — creating it", () => {
     });
 
     it("refuses more questions than the bank can supply", async () => {
-        const res = await createQualification({ questionCount: 999 });
+        const res = await createQualification({ questionCount: 100 });
         expect(res.statusCode).toBe(409);
         expect(res.json().error).toBe("NOT_ENOUGH_QUESTIONS");
     });
@@ -276,30 +276,38 @@ describe("the mass event — closing it", () => {
     let questionIds: string[];
 
     beforeAll(async () => {
-        const res = await createQualification({ questionCount: 4 });
+        const res = await createQualification({ questionCount: 5 });
         matchId = res.json().id;
 
         const view = await playerView(matchId, playerCookies[0]);
         questionIds = view.json().questions.map((q: { questionId: string }) => q.questionId);
+
+        // Player i answers the first 5 - i questions right and the rest wrong, so every
+        // player has a different number of correct answers and the field never ties.
+        for (let player = 0; player < 6; player++) {
+            for (let q = 0; q < questionIds.length; q++) {
+                await answer(
+                    matchId,
+                    playerCookies[player],
+                    questionIds[q],
+                    q < 5 - player ? "a" : "b"
+                );
+            }
+        }
     });
 
     it("ranks the field by the crowd-weighted score", async () => {
-        // Player 0 answers everything right; player 1 answers one right; the rest stay
-        // silent. A silent field means z = 5 - x - y for every question.
-        for (const questionId of questionIds) {
-            await answer(matchId, playerCookies[0], questionId, "a");
-        }
-        await answer(matchId, playerCookies[1], questionIds[0], "a");
-
         const res = await close(matchId);
         expect(res.statusCode).toBe(200);
 
         const rows = res.json().rows as Array<{ userId: string; rank: number; score: number }>;
         expect(rows).toHaveLength(6);
-        expect(rows[0].userId).toBe(playerIds[0]);
-        expect(rows[0].rank).toBe(1);
-        // Player 0 answered 4 of 4 correctly; on each question the other five are silent.
-        expect(rows[0].score).toBe(4 * 5);
+        expect(rows.map((row) => row.userId)).toEqual(playerIds);
+        expect(rows.map((row) => row.rank)).toEqual([1, 2, 3, 4, 5, 6]);
+
+        // The crowd weights: the question everyone but one got right is worth 1 point to
+        // each of them, the last question is worth 5 to the one who got it.
+        expect(rows.map((row) => row.score)).toEqual([15, 9, 3, -3, -9, -15]);
 
         const [result] = await db.select().from(matchResults).where(eq(matchResults.matchId, matchId));
         expect(result.results).toHaveLength(6);
@@ -313,10 +321,9 @@ describe("the mass event — closing it", () => {
             eq(answers.matchId, matchId),
             eq(answers.userId, playerIds[0])
         ));
-        expect(rows).toHaveLength(4);
-        for (const row of rows) {
-            expect(row.pointsAwarded).toBe(5);
-        }
+        expect(rows).toHaveLength(5);
+        // Player 0 answered every question right; each question was worth y + z.
+        expect(rows.map((row) => row.pointsAwarded).sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5]);
     });
 
     it("refuses to close twice", async () => {
@@ -346,6 +353,14 @@ describe("the mass event — closing it", () => {
             method: "GET", url: seasonUrl("/standings"), headers: auth(ownerCookie)
         });
         expect(res.statusCode).toBe(200);
-        expect(res.json().rows).toHaveLength(0);
+
+        // The roster is listed, but nobody has a place and nobody has points: the mass
+        // event ranks the field, it is not a match for points.
+        const rows = res.json().rows as Array<{ place: number | null; totalPoints: number }>;
+        expect(rows).toHaveLength(6);
+        for (const row of rows) {
+            expect(row.place).toBeNull();
+            expect(row.totalPoints).toBe(0);
+        }
     });
 });

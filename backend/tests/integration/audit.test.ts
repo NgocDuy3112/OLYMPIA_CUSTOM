@@ -52,7 +52,7 @@ async function makeTournamentAndSeason(slug: string): Promise<{ tournamentId: st
         method: "POST",
         url: `/portal/tournaments/${tournamentId}/seasons`,
         headers: auth(ownerCookie),
-        payload: { name: "Season 1", stages: [] }
+        payload: { name: "Season 1", stages: [{ id: "stage-1", title: "Stage 1" }] }
     });
 
     return { tournamentId, seasonId: season.json().id };

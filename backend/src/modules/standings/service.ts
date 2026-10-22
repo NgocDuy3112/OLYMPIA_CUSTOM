@@ -89,10 +89,14 @@ export async function recomputeStandings(seasonId: string): Promise<PlayerStandi
     const rows = await getStandings(seasonId);
     const placed = rows.filter((row) => row.place !== null);
 
+    // A seat can name a user that does not exist — the record points at a real player.
+    const real = await knownUsers(placed.map((row) => row.userId));
+    const storable = placed.filter((row) => real.has(row.userId));
+
     await db.transaction(async (tx) => {
         await tx.delete(seasonStandings).where(eq(seasonStandings.seasonId, seasonId));
-        if (placed.length > 0) {
-            await tx.insert(seasonStandings).values(placed.map((row) => ({
+        if (storable.length > 0) {
+            await tx.insert(seasonStandings).values(storable.map((row) => ({
                 seasonId,
                 userId: row.userId,
                 totalScore: row.totalPoints,
@@ -103,6 +107,15 @@ export async function recomputeStandings(seasonId: string): Promise<PlayerStandi
     });
 
     return rows;
+}
+
+// Which of these ids are real users.
+async function knownUsers(userIds: string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+    const rows = await db.select({ id: users.id })
+        .from(users)
+        .where(inArray(users.id, userIds));
+    return new Set(rows.map((row) => row.id));
 }
 
 // The names of the players in a list of ids — used by the portal.

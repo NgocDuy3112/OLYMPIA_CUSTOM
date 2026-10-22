@@ -39,7 +39,10 @@ export async function buildApp() {
         logger: env.isProduction
             ? true
             : { transport: { target: "pino-pretty" } },
-        ajv: { customOptions: { coerceTypes: false } },
+        // removeAdditional: false — a body that carries a field the route does not
+        // declare is rejected, not silently stripped. A client must not be able to
+        // send the server something it will quietly ignore.
+        ajv: { customOptions: { coerceTypes: false, removeAdditional: false } },
     });
 
     await app.register(cors, {

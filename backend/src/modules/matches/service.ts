@@ -210,14 +210,25 @@ export async function createMatch(
         );
     }
 
+    // A match created by hand carries no rulebook: it takes the season's rules. A season
+    // without rules leaves the match empty — the staff assemble it later.
     const given = input.roundConfigs ?? {};
-    const roundConfigs = Object.keys(given).length > 0 ? given : seasonRoundConfigs(season);
-    assertRoundConfigKeys(season, roundConfigs);
+    const hasRules = Object.keys(season.roundRules ?? {}).length > 0;
+    const roundConfigs = Object.keys(given).length > 0
+        ? given
+        : hasRules
+            ? seasonRoundConfigs(season)
+            : {};
+    if (Object.keys(roundConfigs).length > 0) assertRoundConfigKeys(season, roundConfigs);
     if (input.players) assertSeats(input.players, season.format, input.kind ?? "STANDARD");
 
+    // The questions come from the rulebook, when it declares any. A rulebook that asks
+    // for no questions leaves the match empty: the staff assemble it later.
     let entries = input.questions ?? [];
     let autoPick = input.autoPick ?? [];
-    if (entries.length === 0 && autoPick.length === 0) {
+    const declaresQuestions = Object.values(roundConfigs).some((config) =>
+        config.turns.some((turn) => (turn.questionCount ?? 0) > 0));
+    if (entries.length === 0 && autoPick.length === 0 && declaresQuestions) {
         entries = (await buildStageInputs(season, tournamentId, roundConfigs)).questions;
     }
 
@@ -491,7 +502,7 @@ export async function transitionMatch(
         // never clobbers an in-progress round.
         if (next === "LIVE") {
             const season = await requireSeason(seasonId);
-            const ordered = orderedMatchRounds(season.rounds, row.roundConfigs);
+            const ordered = orderedMatchRounds(season.rounds, updated.roundConfigs);
             const first = nextRoundId(ordered, null);
             if (first) {
                 await tx.insert(matchLive)

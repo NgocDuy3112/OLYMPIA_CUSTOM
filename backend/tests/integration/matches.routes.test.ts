@@ -74,7 +74,7 @@ async function makeSeason(tournamentId: string, name = "Season 1", cookie = owne
         method: "POST",
         url: `/portal/tournaments/${tournamentId}/seasons`,
         headers: auth(cookie),
-        payload: { name, stages: [] },
+        payload: { name, stages: [{ id: "stage-1", title: "Stage 1" }] },
     });
     if (res.statusCode !== 201) throw new Error(`season: ${res.statusCode} ${res.body}`);
     return res.json();
