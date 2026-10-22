@@ -11,11 +11,15 @@ import { useCloseMassEvent, useMassEvent } from "@/lib/season"
 
 // The mass event: how the field answered, and the ranking it produced. The ranking is
 // what the staff cut into tiers for the splitting stage.
+// The tier a rank falls in: blocks of the match's seat count, S, A, B, C…
+const TIER_NAMES = ["S", "A", "B", "C", "D", "E"]
+
 export function MassEventDialog({
     tournamentId,
     seasonId,
     matchId,
     label,
+    seats,
     open,
     onOpenChange,
 }: {
@@ -23,6 +27,7 @@ export function MassEventDialog({
     seasonId: string
     matchId: string
     label: string
+    seats: number
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
@@ -106,28 +111,40 @@ export function MassEventDialog({
                     </DialogHeader>
 
                     {data.closed ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-16 pl-6">Place</TableHead>
-                                    <TableHead>Player</TableHead>
-                                    <TableHead className="pr-6 text-right">Points</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {ranked.map((entry) => (
-                                    <TableRow key={entry.userId}>
-                                        <TableCell className="pl-6 tabular-nums">{entry.rank}</TableCell>
-                                        <TableCell>
-                                            {entry.userId ? names.get(entry.userId) ?? entry.userId : "—"}
-                                        </TableCell>
-                                        <TableCell className="pr-6 text-right tabular-nums">
-                                            {entry.totalScore}
-                                        </TableCell>
+                        <>
+                            <p className="text-sm text-muted-foreground">
+                                The tiers are the blocks of {seats}. Each splitting match takes one
+                                player from each tier.
+                            </p>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-16 pl-6">Place</TableHead>
+                                        <TableHead>Tier</TableHead>
+                                        <TableHead>Player</TableHead>
+                                        <TableHead className="pr-6 text-right">Points</TableHead>
                                     </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {ranked.map((entry, index) => (
+                                        <TableRow key={entry.userId}>
+                                            <TableCell className="pl-6 tabular-nums">{entry.rank}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">
+                                                    {TIER_NAMES[Math.floor(index / seats)] ?? "—"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                {entry.userId ? names.get(entry.userId) ?? entry.userId : "—"}
+                                            </TableCell>
+                                            <TableCell className="pr-6 text-right tabular-nums">
+                                                {entry.totalScore}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </>
                     ) : (
                         <Table>
                             <TableHeader>

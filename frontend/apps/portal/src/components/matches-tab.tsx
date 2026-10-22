@@ -144,6 +144,7 @@ export function MatchesTab({
                     seasonId={seasonId}
                     matchId={massEvent.id}
                     label={massEvent.label}
+                    seats={seats}
                     open
                     onOpenChange={(open) => { if (!open) setMassEvent(null) }}
                 />
