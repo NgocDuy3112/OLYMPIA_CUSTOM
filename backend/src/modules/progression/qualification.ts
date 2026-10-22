@@ -13,6 +13,24 @@ import { ProgressionError } from "../../game/contracts/index.js";
 
 export type PhaseVerdict = "CORRECT" | "INCORRECT";
 
+// Answer times are measured by the server, never taken on the client's word.
+// The anchor is the player's last interaction with the phase: their first fetch of the
+// question set, or their previous answer. A re-fetch does not move the anchor forward,
+// so reloading the page cannot make a player look faster.
+export interface TimingAnchor {
+    openedAt: number;                  // epoch ms, server receive time of the first fetch
+    lastAnswerAt: number | null;       // epoch ms, server receive time of the previous answer
+}
+
+// A player who leaves the tab open for a day must not dominate the ranking.
+export const MAX_ANSWER_MS = 60 * 60 * 1000;
+
+export function elapsedMs(anchor: TimingAnchor, now: number): number {
+    const since = anchor.lastAnswerAt ?? anchor.openedAt;
+    const raw = Math.max(0, now - since);
+    return Math.min(raw, MAX_ANSWER_MS);
+}
+
 export interface QualificationAnswer {
     userId: string;
     questionId: string;

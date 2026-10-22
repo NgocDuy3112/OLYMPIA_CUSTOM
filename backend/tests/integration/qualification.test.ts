@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
 import {
-    questionBank, seasonPhaseAnswers, seasonPhaseResults, seasonPlayers, seasons, tournaments, users
+    questionBank, seasonPhaseAnswers, seasonPhaseClocks, seasonPhaseResults, seasonPlayers, seasons, tournaments, users
 } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
@@ -180,6 +180,41 @@ describe("qualification — answering", () => {
         expect(rows[0].verdict).toBe("CORRECT");
     });
 
+    it("times the answer with the server's clock, not the client's", async () => {
+        // The fetch starts the player's clock; the answer is timed from there.
+        await app.inject({ method: "GET", url: playerViewUrl(), headers: asPlayer(playerCookies[2]) });
+
+        const res = await answer(playerCookies[2], frozenIds[1], "a");
+        expect(res.statusCode).toBe(200);
+
+        const rows = await db.select().from(seasonPhaseAnswers).where(and(
+            eq(seasonPhaseAnswers.seasonId, seasonId),
+            eq(seasonPhaseAnswers.userId, playerIds[2]),
+            eq(seasonPhaseAnswers.questionId, frozenIds[1])
+        ));
+        expect(rows).toHaveLength(1);
+
+        const elapsed = rows[0].answeredMs!;
+        expect(elapsed).toBeGreaterThanOrEqual(0);
+        expect(elapsed).toBeLessThan(10_000);
+
+        const [clock] = await db.select().from(seasonPhaseClocks).where(and(
+            eq(seasonPhaseClocks.seasonId, seasonId),
+            eq(seasonPhaseClocks.phaseId, "qualification"),
+            eq(seasonPhaseClocks.userId, playerIds[2])
+        ));
+        expect(clock.openedAt).toBeInstanceOf(Date);
+        expect(clock.lastAnswerAt).toBeInstanceOf(Date);
+    });
+
+    it("refuses a client-supplied answer time", async () => {
+        const res = await app.inject({
+            method: "POST", url: answerUrl(), headers: asPlayer(playerCookies[3]),
+            payload: { questionId: frozenIds[2], value: { picked: ["a"] }, answeredMs: 1 }
+        });
+        expect(res.statusCode).toBe(400);
+    });
+
     it("seeds every player across all sixteen questions", async () => {
         // Player i answers questions j < i correctly; player 17 answers everything. Every
         // question is answered by the whole field, so z = 0 and the crowd maths is exact.
@@ -204,6 +239,18 @@ describe("qualification — answering", () => {
         }
         // The two answers already sent over HTTP match this pattern.
         await db.insert(seasonPhaseAnswers).values(rows).onConflictDoNothing();
+
+        // Those two answers carry server-measured times, which are not deterministic.
+        // Pin them to the seeded values so the ranking below is exact.
+        for (const [index, questionId] of [[16, frozenIds[0]], [17, frozenIds[0]]] as const) {
+            await db.update(seasonPhaseAnswers)
+                .set({ answeredMs: 1_000 + index * 10 })
+                .where(and(
+                    eq(seasonPhaseAnswers.seasonId, seasonId),
+                    eq(seasonPhaseAnswers.userId, playerIds[index]),
+                    eq(seasonPhaseAnswers.questionId, questionId)
+                ));
+        }
     });
 });
 

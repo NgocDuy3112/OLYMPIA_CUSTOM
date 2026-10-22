@@ -386,3 +386,102 @@ describe("splitting — partial stages", () => {
         expect(res.json().error).toBe("NOT_SETUP");
     });
 });
+
+describe("splitting — a match placed by hand", () => {
+    const matchUrl = (season: string) =>
+        `/portal/tournaments/${tournamentId}/seasons/${season}/splitting/matches`;
+
+    const place = (season: string, payload: Record<string, unknown>) =>
+        app.inject({
+            method: "POST", url: matchUrl(season), headers: auth(ownerCookie), payload
+        });
+
+    async function seasonWithPlayers(name: string): Promise<string> {
+        const s = await newSeason(name, rulesWith(12));
+        const enrolled = await app.inject({
+            method: "POST",
+            url: `/portal/tournaments/${tournamentId}/seasons/${s}/players`,
+            headers: auth(ownerCookie),
+            payload: { userIds: playerIds }
+        });
+        expect(enrolled.statusCode).toBe(200);
+        return s;
+    }
+
+    it("creates a match at the slot the staff picked", async () => {
+        const s = await seasonWithPlayers("S Manual");
+
+        const res = await place(s, {
+            round: 1,
+            slot: 2,
+            playerIds: playerIds.slice(0, 4),
+            scheduledAt: "2026-11-01T19:00:00.000Z"
+        });
+        expect(res.statusCode).toBe(201);
+
+        const body = res.json();
+        expect(body.stageId).toBe("splitting-1");
+        expect(body.slot).toBe(2);
+        expect(body.players).toHaveLength(4);
+        expect(body.players.map((seat: { userId: string }) => seat.userId)).toEqual(playerIds.slice(0, 4));
+        expect(body.questions).toHaveLength(12);
+
+        const rows = await db.select().from(matches).where(and(
+            eq(matches.seasonId, s), eq(matches.stageId, "splitting-1")
+        ));
+        expect(rows).toHaveLength(1);
+        expect(rows[0].slot).toBe(2);
+    });
+
+    it("refuses a second match in the same slot", async () => {
+        const s = await seasonWithPlayers("S Manual Twice");
+
+        const first = await place(s, {
+            round: 1, slot: 1, playerIds: playerIds.slice(0, 4), scheduledAt: "2026-11-01T19:00:00.000Z"
+        });
+        expect(first.statusCode).toBe(201);
+
+        const second = await place(s, {
+            round: 1, slot: 1, playerIds: playerIds.slice(4, 8), scheduledAt: "2026-11-01T19:00:00.000Z"
+        });
+        expect(second.statusCode).toBe(409);
+        expect(second.json().error).toBe("ALREADY_SETUP");
+    });
+
+    it("refuses a group of the wrong size", async () => {
+        const s = await seasonWithPlayers("S Manual Short");
+
+        const res = await place(s, {
+            round: 1, slot: 1, playerIds: playerIds.slice(0, 3), scheduledAt: "2026-11-01T19:00:00.000Z"
+        });
+        expect(res.statusCode).toBe(400);
+        expect(res.json().error).toBe("VALIDATION");
+    });
+
+    it("refuses a player who is not enrolled", async () => {
+        const s = await seasonWithPlayers("S Manual Stranger");
+
+        const [stranger] = await db.insert(users).values({
+            role: "PLAYER", email: "s-stranger@example.com", displayName: "Stranger", tokenVersion: 0
+        }).returning();
+
+        const res = await place(s, {
+            round: 1,
+            slot: 1,
+            playerIds: [...playerIds.slice(0, 3), stranger.id],
+            scheduledAt: "2026-11-01T19:00:00.000Z"
+        });
+        expect(res.statusCode).toBe(403);
+        expect(res.json().error).toBe("NOT_ENROLLED");
+    });
+
+    it("refuses a round outside the season's splitting rounds", async () => {
+        const s = await seasonWithPlayers("S Manual Round");
+
+        const res = await place(s, {
+            round: 3, slot: 1, playerIds: playerIds.slice(0, 4), scheduledAt: "2026-11-01T19:00:00.000Z"
+        });
+        expect(res.statusCode).toBe(400);
+        expect(res.json().error).toBe("VALIDATION");
+    });
+});

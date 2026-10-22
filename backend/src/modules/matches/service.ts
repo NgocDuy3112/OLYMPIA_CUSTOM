@@ -1,7 +1,7 @@
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { answers, matchLive, matchResults, matchStats, matches, seasons, tournaments } from "../../db/schema/index.js";
-import type { RoundConfig, Seat } from "../../game/contracts/index.js";
+import type { ResultEntry, RoundConfig, Seat } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { buildQuestionCopies } from "./assembly.js";
 import {
@@ -14,7 +14,7 @@ import { pageResult, type Page, type PageResult } from "../../lib/pagination.js"
 import { nextRoundId, orderedMatchRounds } from "./rounds.js";
 import { buildMatchResults } from "./scoring.js";
 
-type MatchRow = typeof matches.$inferSelect;
+export type MatchRow = typeof matches.$inferSelect;
 type SeasonRow = typeof seasons.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
@@ -326,6 +326,62 @@ export async function assembleMatch(
         .where(eq(matches.id, matchId))
         .returning();
     return row;
+}
+
+
+export async function setMatchResults(
+    seasonId: string,
+    matchId: string,
+    totals: Array<{ userId: string; score: number }>
+): Promise<MatchRow> {
+    const match = await requireMatch(seasonId, matchId);
+
+    if (match.status === "FINISHED") {
+        throw new MatchError("VALIDATION", "match is already finished; results are frozen");
+    }
+
+    const seated = match.players.flatMap((seat) =>
+        "userId" in seat && seat.userId ? [seat.userId] : []);
+
+    const given = new Set(totals.map((row) => row.userId));
+    if (given.size !== totals.length) {
+        throw new MatchError("VALIDATION", "totals list the same player twice");
+    }
+    if (seated.length !== totals.length || seated.some((userId) => !given.has(userId))) {
+        throw new MatchError(
+            "VALIDATION",
+            "totals must cover exactly the players seated in this match",
+            [`seated: ${seated.length}, given: ${totals.length}`]
+        );
+    }
+
+    const results: ResultEntry[] = [...totals]
+        .sort((a, b) => b.score - a.score)
+        .map((row, index) => ({
+            kind: "user" as const,
+            userId: row.userId,
+            totalScore: row.score,
+            rank: index + 1,
+            roundScores: {}
+        }));
+
+    return db.transaction(async (tx) => {
+        await tx
+            .insert(matchResults)
+            .values({ matchId, seasonId, results })
+            .onConflictDoUpdate({
+                target: matchResults.matchId,
+                set: { results, computedAt: new Date() }
+            });
+
+        const [row] = await tx
+            .update(matches)
+            .set({ status: "FINISHED", updatedAt: new Date() })
+            .where(eq(matches.id, matchId))
+            .returning();
+
+        return row;
+    });
 }
 
 

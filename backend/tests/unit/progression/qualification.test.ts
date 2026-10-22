@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
     advancing,
+    elapsedMs,
+    MAX_ANSWER_MS,
     rankQualification,
     scoreQualification,
     type QualificationEntry
@@ -138,5 +140,38 @@ describe("advancing", () => {
     it("takes the top N in rank order", () => {
         const { rows } = rankQualification([entry("a", 30, 1, 1), entry("b", 20, 1, 1)]);
         expect(advancing({ rows, unresolved: [] }, 1)).toEqual(["a"]);
+    });
+});
+
+// The answer time is the server's: it is measured from the player's last interaction
+// with the phase — their first fetch, or their previous answer. A re-fetch never moves
+// the anchor, so reloading the page cannot make a player look faster.
+describe("the server clock", () => {
+    const opened = 1_000_000;
+
+    it("measures the first answer from the moment the phase was opened", () => {
+        expect(elapsedMs({ openedAt: opened, lastAnswerAt: null }, opened + 4_000)).toBe(4_000);
+    });
+
+    it("measures every later answer from the previous answer", () => {
+        const anchor = { openedAt: opened, lastAnswerAt: opened + 4_000 };
+        expect(elapsedMs(anchor, opened + 6_500)).toBe(2_500);
+    });
+
+    it("never goes backwards", () => {
+        expect(elapsedMs({ openedAt: opened, lastAnswerAt: opened + 10_000 }, opened + 5_000)).toBe(0);
+    });
+
+    it("caps a player who leaves the tab open for a day", () => {
+        expect(elapsedMs({ openedAt: opened, lastAnswerAt: null }, opened + 5 * 24 * 60 * 60 * 1000))
+            .toBe(MAX_ANSWER_MS);
+    });
+
+    it("does not let a re-fetch move the anchor", () => {
+        // The fetch sets openedAt once; a later fetch leaves it alone, so the elapsed
+        // time keeps counting from the first opening.
+        const first = elapsedMs({ openedAt: opened, lastAnswerAt: null }, opened + 3_000);
+        const later = elapsedMs({ openedAt: opened, lastAnswerAt: null }, opened + 3_000);
+        expect(later).toBe(first);
     });
 });

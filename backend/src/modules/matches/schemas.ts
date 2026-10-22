@@ -65,6 +65,14 @@ export type AssembleMatchInput = Static<typeof AssembleMatchInput>;
 export const TransitionMatchInput = Type.Object({ status: MatchStatus });
 export type TransitionMatchInput = Static<typeof TransitionMatchInput>;
 
+export const SetMatchResultsInput = Type.Object({
+    totals: Type.Array(
+        Type.Object({ userId: Uuid, score: Type.Integer() }),
+        { minItems: 1 }
+    )
+});
+export type SetMatchResultsInput = Static<typeof SetMatchResultsInput>;
+
 
 export const ListMatchesQuery = Type.Object({
     status: Type.Optional(MatchStatus),

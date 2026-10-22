@@ -8,6 +8,7 @@ import {
     AssembleMatchInput,
     CreateMatchInput,
     ListMatchesQuery,
+    SetMatchResultsInput,
     TransitionMatchInput,
     UpdateMatchInput
 } from "./schemas.js";
@@ -18,6 +19,7 @@ import {
     getMatch,
     listMatches,
     requireMatchScope,
+    setMatchResults,
     transitionMatch,
     updateMatch
 } from "./service.js";
@@ -148,6 +150,33 @@ export async function matchRoutes(app: FastifyInstance) {
             assertView(scope, user, tournamentId);
 
             return getMatch(seasonId, matchId);
+        }
+    );
+
+    app.post(
+        "/portal/tournaments/:tournamentId/seasons/:seasonId/matches/:matchId/results",
+        { onRequest: staff, schema: { params: matchParams, body: SetMatchResultsInput } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, seasonId, matchId } = request.params as {
+                tournamentId: string;
+                seasonId: string;
+                matchId: string;
+            };
+
+            const scope = await requireMatchScope(tournamentId, seasonId);
+            assertView(scope, user, tournamentId);
+            assertWrite(scope, user);
+
+            const { totals } = request.body as SetMatchResultsInput;
+            const match = await setMatchResults(seasonId, matchId, totals);
+
+            await auditFromRequest(request, "match_ended", {
+                matchId: match.id,
+                details: { seasonId, tournamentId, manual: true, totals }
+            });
+
+            return match;
         }
     );
 

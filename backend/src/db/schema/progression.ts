@@ -45,6 +45,28 @@ export const seasonPhaseAnswers = pgTable(
     ]
 );
 
+// The server's own clock for a phase. It exists so answer times are measured by the
+// server (receive time), never taken on the client's word: openedAt is when the player
+// first fetched the phase, lastAnswerAt is when their previous answer landed.
+export const seasonPhaseClocks = pgTable(
+    "season_phase_clocks",
+    {
+        seasonId: uuid("season_id")
+            .notNull()
+            .references(() => seasons.id, { onDelete: "cascade" }),
+        phaseId: text("phase_id").notNull(),
+        userId: uuid("user_id")
+            .notNull()
+            .references(() => users.id, { onDelete: "cascade" }),
+
+        openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+        lastAnswerAt: timestamp("last_answer_at", { withTimezone: true })
+    },
+    (table) => [
+        primaryKey({ columns: [table.seasonId, table.phaseId, table.userId] })
+    ]
+);
+
 export const seasonPhaseResults = pgTable(
     "season_phase_results",
     {

@@ -4,9 +4,11 @@ import { db } from "../../db/pool.js";
 import {
     questionBank,
     seasonPhaseAnswers,
+    seasonPhaseClocks,
     seasonPhaseResults,
     seasonPlayers,
-    seasons
+    seasons,
+    users
 } from "../../db/schema/index.js";
 import {
     assertValidProgression,
@@ -18,6 +20,7 @@ import { autoMatch, type QuestionKind } from "../../game/engine/matching.js";
 import { QualificationError } from "./errors.js";
 import {
     advancing,
+    elapsedMs,
     rankQualification,
     scoreQualification,
     type QualificationAnswer,
@@ -28,6 +31,7 @@ export const QUALIFICATION_PHASE = "qualification";
 const POINTS_PER_CORRECT = 1;
 
 type SeasonRow = typeof seasons.$inferSelect;
+
 
 export async function requireProgression(seasonId: string): Promise<{ season: SeasonRow; progression: Progression }> {
     const season = await requireSeason(seasonId);
@@ -80,17 +84,21 @@ export async function enrollPlayers(seasonId: string, userIds: string[]): Promis
     return (await listEnrolled(seasonId)).length;
 }
 
-export async function listEnrolled(seasonId: string): Promise<Array<{ userId: string; enrolledAt: Date }>> {
+export async function listEnrolled(
+    seasonId: string
+): Promise<Array<{ userId: string; displayName: string; enrolledAt: Date }>> {
     return db
-        .select({ userId: seasonPlayers.userId, enrolledAt: seasonPlayers.enrolledAt })
+        .select({
+            userId: seasonPlayers.userId,
+            displayName: users.displayName,
+            enrolledAt: seasonPlayers.enrolledAt
+        })
         .from(seasonPlayers)
+        .innerJoin(users, eq(users.id, seasonPlayers.userId))
         .where(eq(seasonPlayers.seasonId, seasonId));
 }
 
-// ── Setup ─────────────────────────────────────────────────────────────────────
 
-// Freeze the qualification questions into the season, exactly like match assembly copies
-// from the bank: a live event must never depend on a later bank edit.
 export async function setupQualification(
     seasonId: string,
     questionIds: string[],
@@ -147,6 +155,35 @@ export async function setupQualification(
     return copies;
 }
 
+// ── Server clock ─────────────────────────────────────────────────────────────
+
+// The first fetch of the phase starts the player's clock. Later fetches never move it:
+// reloading the page must not make a player look faster.
+export async function openPhaseClock(seasonId: string, userId: string, phaseId: string): Promise<void> {
+    await db.insert(seasonPhaseClocks)
+        .values({ seasonId, phaseId, userId, openedAt: new Date() })
+        .onConflictDoNothing();
+}
+
+async function phaseClock(
+    seasonId: string,
+    userId: string,
+    phaseId: string
+): Promise<{ openedAt: Date; lastAnswerAt: Date | null } | undefined> {
+    const [row] = await db.select({
+        openedAt: seasonPhaseClocks.openedAt,
+        lastAnswerAt: seasonPhaseClocks.lastAnswerAt
+    })
+        .from(seasonPhaseClocks)
+        .where(and(
+            eq(seasonPhaseClocks.seasonId, seasonId),
+            eq(seasonPhaseClocks.phaseId, phaseId),
+            eq(seasonPhaseClocks.userId, userId)
+        ))
+        .limit(1);
+    return row;
+}
+
 // ── Answering ─────────────────────────────────────────────────────────────────
 
 export async function submitQualificationAnswer(params: {
@@ -154,7 +191,6 @@ export async function submitQualificationAnswer(params: {
     userId: string;
     questionId: string;
     value: SubmittedAnswerValue;
-    answeredMs?: number | null;
 }): Promise<{ verdict: "CORRECT" | "INCORRECT" }> {
     const { season } = await requireProgression(params.seasonId);
 
@@ -181,7 +217,13 @@ export async function submitQualificationAnswer(params: {
     const correct = autoMatch(question.kind as QuestionKind, question.payload, params.value);
     const verdict = correct ? "CORRECT" as const : "INCORRECT" as const;
     // Points are crowd-weighted across the whole field, so they are only computed at close.
-    const answeredMs = params.answeredMs ?? null;
+    // The time is the server's: from the player's last interaction with the phase to now.
+    const now = new Date();
+    const clock = await phaseClock(params.seasonId, params.userId, QUALIFICATION_PHASE);
+    const answeredMs = elapsedMs({
+        openedAt: (clock?.openedAt ?? now).getTime(),
+        lastAnswerAt: clock?.lastAnswerAt ? clock.lastAnswerAt.getTime() : null
+    }, now.getTime());
 
     const [existing] = await db.select({ userId: seasonPhaseAnswers.userId })
         .from(seasonPhaseAnswers)
@@ -200,18 +242,38 @@ export async function submitQualificationAnswer(params: {
     }
 
     try {
-        await db.insert(seasonPhaseAnswers)
-            .values({
-                seasonId: params.seasonId,
-                phaseId: QUALIFICATION_PHASE,
-                questionId: params.questionId,
-                userId: params.userId,
-                value: params.value,
-                verdict,
-                autoMatched: true,
-                pointsAwarded: 0,
-                answeredMs
-            });
+        await db.transaction(async (tx) => {
+            // The clock row may not exist yet if the player never opened the phase.
+            await tx.insert(seasonPhaseClocks)
+                .values({
+                    seasonId: params.seasonId,
+                    phaseId: QUALIFICATION_PHASE,
+                    userId: params.userId,
+                    openedAt: now
+                })
+                .onConflictDoNothing();
+
+            await tx.insert(seasonPhaseAnswers)
+                .values({
+                    seasonId: params.seasonId,
+                    phaseId: QUALIFICATION_PHASE,
+                    questionId: params.questionId,
+                    userId: params.userId,
+                    value: params.value,
+                    verdict,
+                    autoMatched: true,
+                    pointsAwarded: 0,
+                    answeredMs
+                });
+
+            await tx.update(seasonPhaseClocks)
+                .set({ lastAnswerAt: now })
+                .where(and(
+                    eq(seasonPhaseClocks.seasonId, params.seasonId),
+                    eq(seasonPhaseClocks.phaseId, QUALIFICATION_PHASE),
+                    eq(seasonPhaseClocks.userId, params.userId)
+                ));
+        });
     } catch (error) {
         const cause = (error as { cause?: { code?: string } }).cause ?? error as { code?: string };
         if (cause?.code === "23505") {
@@ -367,6 +429,9 @@ export async function getQualificationForPlayer(seasonId: string, userId: string
             eq(seasonPhaseAnswers.phaseId, QUALIFICATION_PHASE),
             eq(seasonPhaseAnswers.userId, userId)
         ));
+
+    // The fetch is the server's first timestamp for this player: it starts their clock.
+    await openPhaseClock(seasonId, userId, QUALIFICATION_PHASE);
 
     return {
         closed: await isClosed(seasonId),

@@ -17,7 +17,10 @@ import {
 } from "./qualification.service.js";
 import {
     closeSplitting,
+    createSplittingMatch,
     drawSplitRound,
+    getSplittingForStaff,
+    type CreateSplittingMatchInput,
     type DrawSplitRoundInput
 } from "./splitting.service.js";
 
@@ -117,7 +120,6 @@ export async function progressionRoutes(app: FastifyInstance) {
         }
     );
 
-    // ── Qualification (staff) ─────────────────────────────────────────────────
     app.post(
         "/portal/tournaments/:tournamentId/seasons/:seasonId/qualification/setup",
         {
@@ -267,8 +269,7 @@ export async function progressionRoutes(app: FastifyInstance) {
                     additionalProperties: false,
                     properties: {
                         questionId: { type: "string", pattern: UUID_PATTERN },
-                        value: { type: "object" },
-                        answeredMs: { type: "integer", minimum: 0 }
+                        value: { type: "object" }
                     }
                 }
             }
@@ -276,19 +277,32 @@ export async function progressionRoutes(app: FastifyInstance) {
         async (request) => {
             const user = request.sessionUser!;
             const { seasonId } = request.params as { seasonId: string };
-            const body = request.body as { questionId: string; value: unknown; answeredMs?: number };
+            const body = request.body as { questionId: string; value: unknown };
 
             if (!Value.Check(SubmittedAnswerValueSchema, body.value)) {
                 throw app.httpErrors.badRequest("invalid answer value");
             }
 
+            // The time is measured by the server, from the player's last interaction
+            // with the phase. The client does not get a say in it.
             return submitQualificationAnswer({
                 seasonId,
                 userId: user.id,
                 questionId: body.questionId,
-                value: body.value as SubmittedAnswerValue,
-                answeredMs: body.answeredMs ?? null
+                value: body.value as SubmittedAnswerValue
             });
+        }
+    );
+
+
+    app.get(
+        "/portal/tournaments/:tournamentId/seasons/:seasonId/splitting",
+        { onRequest: staff, schema: { params: seasonParams } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
+            await assertView(tournamentId, seasonId, user.id, user.role);
+            return getSplittingForStaff(seasonId);
         }
     );
 
@@ -328,6 +342,50 @@ export async function progressionRoutes(app: FastifyInstance) {
             });
 
             return result;
+        }
+    );
+
+    app.post(
+        "/portal/tournaments/:tournamentId/seasons/:seasonId/splitting/matches",
+        {
+            onRequest: staff,
+            schema: {
+                params: seasonParams,
+                body: {
+                    type: "object",
+                    required: ["round", "slot", "playerIds", "scheduledAt"],
+                    additionalProperties: false,
+                    properties: {
+                        round: { type: "integer", minimum: 1 },
+                        slot: { type: "integer", minimum: 1 },
+                        playerIds: idList,
+                        scheduledAt: { type: "string", minLength: 1 },
+                        label: { type: "string", minLength: 1 }
+                    }
+                }
+            }
+        },
+        async (request, reply) => {
+            const user = request.sessionUser!;
+            const { tournamentId, seasonId } = request.params as { tournamentId: string; seasonId: string };
+            const body = request.body as CreateSplittingMatchInput;
+
+            await assertWrite(tournamentId, seasonId, user.id, user.role);
+            const match = await createSplittingMatch(tournamentId, seasonId, body);
+
+            await auditFromRequest(request, "season_drawn", {
+                details: {
+                    phase: "splitting",
+                    seasonId,
+                    manual: true,
+                    matchId: match.id,
+                    slot: body.slot,
+                    players: body.playerIds
+                }
+            });
+
+            reply.code(201);
+            return match;
         }
     );
 }

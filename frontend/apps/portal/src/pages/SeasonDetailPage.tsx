@@ -1,11 +1,12 @@
-import { useParams } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
-import { EmptyState, Page, PageHeader } from "@/components/page"
-import { RoundRulesCard } from "@/components/round-rules-card"
+import { Page, PageHeader } from "@/components/page"
 import { useSeason } from "@/lib/progression"
-import { Layers } from "lucide-react"
+import { SplittingTab } from "@/components/splitting-tab"
+import { SeasonRulesTab } from "@/components/season-rules-tab"
+import { ChevronRight } from "lucide-react"
+
 
 export function SeasonDetailPage() {
     const { tournamentId = "", seasonId = "" } = useParams()
@@ -16,15 +17,28 @@ export function SeasonDetailPage() {
 
     const s = season.data
     const frozen = s.qualificationQuestions !== null || s.closedAt !== null
-    const rounds = [...s.rounds].sort((a, b) => a.order - b.order)
 
     return (
         <Page>
+            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Link className="transition-colors hover:text-foreground" to="/">Tournaments</Link>
+                <ChevronRight className="size-3.5" />
+                <Link
+                    className="transition-colors hover:text-foreground"
+                    to={`/tournaments/${tournamentId}`}
+                >
+                    Tournament
+                </Link>
+                <ChevronRight className="size-3.5" />
+                <span className="text-foreground">{s.name}</span>
+            </nav>
             <PageHeader
                 title={s.name}
-                description={s.progression
-                    ? `Top ${s.progression.advance} advance · matches of ${s.progression.groupSize} · ${s.progression.splittingRounds} splitting round(s)`
-                    : "No progression configured — this season cannot advance."}
+                description={
+                    s.progression
+                        ? `${s.progression.advance} players · matches of ${s.progression.groupSize} · ${s.progression.splittingRounds} rounds`
+                        : "No progression configured — this season cannot advance."
+                }
                 actions={
                     <div className="flex gap-2">
                         {s.current && <Badge>Current</Badge>}
@@ -35,44 +49,22 @@ export function SeasonDetailPage() {
             />
 
             <Tabs defaultValue="rules">
-                <TabsList>
+                <TabsList variant="line" className="justify-start gap-6 border-b">
                     <TabsTrigger value="rules">Round rules</TabsTrigger>
                     <TabsTrigger value="splitting">Splitting</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="rules" className="flex flex-col gap-4">
-                    {rounds.length === 0 ? (
-                        <EmptyState
-                            icon={Layers}
-                            title="This season has no rounds"
-                            description="Add rounds to the tournament, then create a new season from it."
-                        />
-                    ) : (
-                        rounds.map((round) => (
-                            <RoundRulesCard
-                                key={round.id}
-                                tournamentId={tournamentId}
-                                seasonId={seasonId}
-                                season={s}
-                                round={round}
-                                disabled={frozen}
-                            />
-                        ))
-                    )}
+                <TabsContent value="rules">
+                    <SeasonRulesTab
+                        tournamentId={tournamentId}
+                        seasonId={seasonId}
+                        season={s}
+                        frozen={frozen}
+                    />
                 </TabsContent>
 
                 <TabsContent value="splitting">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Splitting</CardTitle>
-                            <CardDescription>Next: the draw form.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground">
-                            {s.progression
-                                ? `${s.progression.advance} players advance into ${s.progression.groupSize} matches of ${s.progression.groupSize}.`
-                                : "No progression configured on this season."}
-                        </CardContent>
-                    </Card>
+                    <SplittingTab tournamentId={tournamentId} seasonId={seasonId} />
                 </TabsContent>
             </Tabs>
         </Page>

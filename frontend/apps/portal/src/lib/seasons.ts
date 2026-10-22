@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, type PageResult } from "@shared/lib/api"
 import type { PlacementTier, SeasonRound, TournamentFormat } from "@/lib/tournaments"
+import type { Progression } from "@/lib/progression"
 
 export interface Stage {
     id: string
@@ -18,6 +19,7 @@ export interface Season {
     rounds: SeasonRound[]
     format: TournamentFormat
     placementTiers: PlacementTier[]
+    progression: Progression | null
     closedAt: string | null
     createdAt: string
     updatedAt: string

@@ -60,4 +60,12 @@ describe("the draw", () => {
         expect(draw.stageId).toBe("splitting-2");
         expect(stageIdFor(1)).toBe("splitting-1");
     });
+
+    it("orders each group by tier, so the UI can label rows", () => {
+        const { groups } = drawGroupsFor({ ranked: RANKED, groupSize: 4, round: 1, seed: SEED });
+        for (const group of groups) {
+            const tiers = group.map((id) => Math.floor(RANKED.indexOf(id) / 4));
+            expect(tiers).toEqual([0, 1, 2, 3]);   // not just "one of each" — in order
+        }
+    });
 });

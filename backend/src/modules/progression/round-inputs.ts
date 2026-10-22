@@ -14,10 +14,8 @@ export interface StageInputs {
     questions: AssemblyEntry[];
 }
 
-export async function buildStageInputs(
-    season: SeasonRow,
-    tournamentId: string
-): Promise<StageInputs> {
+// The saved rules for this season's rounds. Every stage needs them, drawn or placed by hand.
+export function stageRoundConfigs(season: SeasonRow): Record<string, RoundConfig> {
     const rules = season.roundRules ?? {};
 
     const missing = season.rounds.filter((round) => !rules[round.id]).map((round) => round.id);
@@ -28,6 +26,15 @@ export async function buildStageInputs(
             missing
         );
     }
+
+    return rules;
+}
+
+export async function buildStageInputs(
+    season: SeasonRow,
+    tournamentId: string
+): Promise<StageInputs> {
+    const rules = stageRoundConfigs(season);
 
     const questions: AssemblyEntry[] = [];
     const picked: string[] = [];

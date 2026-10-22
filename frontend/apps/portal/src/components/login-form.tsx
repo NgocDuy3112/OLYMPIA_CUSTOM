@@ -197,17 +197,21 @@ export function LoginForm({
                 )}
 
                 <Field>
-                  <FieldLabel htmlFor="code">Code</FieldLabel>
                   <InputOTP
                     id="code"
                     maxLength={CODE_LENGTH}
                     value={code}
                     onChange={setCode}
                     autoFocus
+                    containerClassName="justify-center"
                   >
                     <InputOTPGroup>
                       {Array.from({ length: CODE_LENGTH }, (_, index) => (
-                        <InputOTPSlot key={index} index={index} />
+                        <InputOTPSlot 
+                          key={index} 
+                          index={index}
+                          className="size-12 text-lg sm:size-12 sm:text-xl [&>div>div]:h-6"
+                        />
                       ))}
                     </InputOTPGroup>
                   </InputOTP>
