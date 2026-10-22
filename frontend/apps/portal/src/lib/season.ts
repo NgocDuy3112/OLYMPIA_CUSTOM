@@ -196,6 +196,61 @@ export function useSetMatchResults(tournamentId: string, seasonId: string) {
     })
 }
 
+// ── The mass event ────────────────────────────────────────────────────────────
+
+export interface MassEventFieldRow {
+    userId: string
+    displayName: string
+    answered: number
+}
+
+export interface MassEventView {
+    closed: boolean
+    label: string
+    questionCount: number
+    field: MassEventFieldRow[]
+    results: Array<{
+        kind: string
+        userId?: string
+        totalScore: number
+        rank: number
+    }>
+}
+
+export function useMassEvent(tournamentId: string, seasonId: string, matchId: string | null) {
+    return useQuery({
+        queryKey: ["mass-event", tournamentId, seasonId, matchId],
+        queryFn: () =>
+            api<MassEventView>(
+                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/qualification-matches/${matchId}`
+            ),
+        enabled: Boolean(tournamentId && seasonId && matchId),
+    })
+}
+
+// Close the mass event. If the field ties, the staff order the tied group and try again.
+export function useCloseMassEvent(tournamentId: string, seasonId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (input: {
+            matchId: string
+            tieBreaks?: Array<{ players: string[]; order: string[] }>
+        }) =>
+            api<{ rows: Array<{ userId: string; rank: number; score: number }> }>(
+                `/portal/tournaments/${tournamentId}/seasons/${seasonId}/qualification-matches/${input.matchId}/close`,
+                {
+                    method: "POST",
+                    body: JSON.stringify(input.tieBreaks ? { tieBreaks: input.tieBreaks } : {}),
+                }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["mass-event", tournamentId, seasonId] })
+            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId, seasonId] })
+        },
+    })
+}
+
 // ── The standings ─────────────────────────────────────────────────────────────
 
 export function useStandings(tournamentId: string, seasonId: string) {
