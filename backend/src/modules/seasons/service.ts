@@ -1,9 +1,9 @@
 import { and, asc, count, eq, isNull, ne } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { seasons, tournaments } from "../../db/schema/index.js";
+import { matches, seasons, tournaments } from "../../db/schema/index.js";
 import { SeasonError } from "./errors.js";
 import { CreateSeasonInput, UpdateSeasonInput, validate } from "./schemas.js";
-import { assertValidProgression, RoundConfig } from "../../game/contracts/index.js";
+import { RoundConfig } from "../../game/contracts/index.js";
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
 
 type SeasonRow = typeof seasons.$inferSelect;
@@ -66,10 +66,8 @@ export async function createSeason(
 ): Promise<SeasonRow> {
     validate(CreateSeasonInput, input);
     const parent = await requireParent(tournamentId);
-    const progression = input.progression ?? parent.defaultProgression ?? null;
     const rounds = input.rounds ?? parent.defaultRounds;
     if (input.roundRules) assertRoundRules(rounds, input.roundRules);
-    if (progression) assertValidProgression(progression);
 
     return db.transaction(async (tx) => {
         if (input.current) {
@@ -87,7 +85,6 @@ export async function createSeason(
             rounds: input.rounds ?? parent.defaultRounds,
             format: input.format ?? parent.defaultFormat,
             placementTiers: input.placementTiers ?? parent.defaultPlacementTiers,
-            progression,
             roundRules: input.roundRules ?? null,
             stages: input.stages,
             current: input.current ?? false
@@ -143,6 +140,16 @@ export async function getSeason(tournamentId: string, seasonId: string): Promise
 }
 
 
+// Has any match in this season been assembled yet?
+async function hasAssembledMatch(seasonId: string): Promise<boolean> {
+    const [row] = await db.select({ id: matches.id })
+        .from(matches)
+        .where(and(eq(matches.seasonId, seasonId), isNull(matches.deletedAt)))
+        .limit(1);
+    return row !== undefined;
+}
+
+
 export async function updateSeason(
     tournamentId: string,
     seasonId: string,
@@ -152,20 +159,19 @@ export async function updateSeason(
     await requireParent(tournamentId);
     const existing = await requireSeason(tournamentId, seasonId);
 
-    const frozen = existing.qualificationQuestions !== null || existing.closedAt !== null;
+    // The rulebook is frozen once a match has been assembled: a running event must not
+    // depend on a later edit.
+    const frozen = existing.closedAt !== null || await hasAssembledMatch(seasonId);
 
-    const changesProgression = patch.progression !== undefined
-        && JSON.stringify(patch.progression) !== JSON.stringify(existing.progression);
     const changesRules = patch.roundRules !== undefined
         && JSON.stringify(patch.roundRules) !== JSON.stringify(existing.roundRules);
 
-    if ((changesProgression || changesRules) && frozen) {
+    if (changesRules && frozen) {
         throw new SeasonError(
             "CONFLICT",
-            "progression and round rules are frozen once qualification starts"
+            "round rules are frozen once a match has been assembled"
         );
     }
-    if (changesProgression) assertValidProgression(patch.progression!);
     if (patch.roundRules) assertRoundRules(existing.rounds, patch.roundRules);
 
     return db.transaction(async (tx) => {

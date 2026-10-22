@@ -10,7 +10,8 @@ import {
     uniqueIndex,
     index,
     pgEnum,
-    pgTable
+    pgTable,
+    primaryKey
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { seasons } from "./reference.js";
@@ -33,6 +34,11 @@ export const verdict = pgEnum("verdict", ["CORRECT", "INCORRECT"]);
 export const power = pgEnum("power", ["HOPE", "SHIELD"]);
 export const matchEventKind = pgEnum("match_event_kind", ["PICK", "BUZZ", "POWER"]);
 
+// A match is either played for points (standard) or is the mass event: every player in
+// the roster answers the same question set once, and the field is ranked by the
+// crowd-weighted score (qualification).
+export const matchKind = pgEnum("match_kind", ["standard", "qualification"]);
+
 
 export const matches = pgTable(
     "matches",
@@ -45,6 +51,7 @@ export const matches = pgTable(
         scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
         label: text("label").notNull(),
         status: matchStatus("status").notNull().default("UPCOMING"),
+        kind: matchKind("kind").notNull().default("standard"),
         slot: integer("slot"),
         players: jsonb("players").$type<Seat[]>().notNull(),
         roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),
@@ -101,6 +108,27 @@ export const answers = pgTable(
             "answers_value_object_check",
             sql`jsonb_typeof(value) = 'object' AND value <> '{}'::jsonb`
         )
+    ]
+);
+
+
+// The server's clock for a mass event: when a player first opened the match, and when
+// their previous answer landed. Answer times are measured from here, never from the client.
+export const matchClocks = pgTable(
+    "match_clocks",
+    {
+        matchId: uuid("match_id")
+            .notNull()
+            .references(() => matches.id, { onDelete: "cascade" }),
+        userId: uuid("user_id")
+            .notNull()
+            .references(() => users.id, { onDelete: "cascade" }),
+
+        openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+        lastAnswerAt: timestamp("last_answer_at", { withTimezone: true })
+    },
+    (table) => [
+        primaryKey({ columns: [table.matchId, table.userId] })
     ]
 );
 

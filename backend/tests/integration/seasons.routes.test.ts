@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
+import { matches } from "../../src/db/schema/index.js";
 import { seasons, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 import type { CreateTournamentInput } from "../../src/modules/tournaments/index.js";
@@ -404,7 +405,7 @@ describe("DELETE …/seasons/:seasonId (soft delete)", () => {
 });
 
 
-describe("rules and progression freeze", () => {
+describe("the rulebook freeze", () => {
     const RULES = {
         "r1": {
             allowedKinds: ["MC"],
@@ -413,16 +414,28 @@ describe("rules and progression freeze", () => {
         }
     };
 
-    async function startedSeason(slug: string) {
+    async function seasonWithAMatch(slug: string) {
         const t = await makeTournament(slug);
         const s = (await makeSeason(t.id, validSeason("Frozen"))).json();
-        // qualification has started: the rulebook must no longer move
-        await db.update(seasons).set({ qualificationQuestions: [] }).where(eq(seasons.id, s.id));
+
+        // A match has been assembled: the rulebook must no longer move.
+        await db.insert(matches).values({
+            seasonId: s.id,
+            kind: "standard",
+            stageId: "stage-1",
+            label: "Match",
+            scheduledAt: new Date(),
+            status: "UPCOMING",
+            players: [],
+            roundConfigs: {},
+            questions: []
+        });
+
         return { tournamentId: t.id, seasonId: s.id };
     }
 
-    it("refuses roundRules alone once qualification started", async () => {
-        const { tournamentId, seasonId } = await startedSeason("sea-freeze-rules");
+    it("refuses roundRules once a match has been assembled", async () => {
+        const { tournamentId, seasonId } = await seasonWithAMatch("sea-freeze-rules");
 
         const res = await app.inject({
             method: "PATCH",
@@ -435,20 +448,7 @@ describe("rules and progression freeze", () => {
         expect(res.json().error).toBe("CONFLICT");
     });
 
-    it("refuses progression alone once qualification started", async () => {
-        const { tournamentId, seasonId } = await startedSeason("sea-freeze-prog");
-
-        const res = await app.inject({
-            method: "PATCH",
-            url: `/portal/tournaments/${tournamentId}/seasons/${seasonId}`,
-            headers: auth(ownerCookie),
-            payload: { progression: { advance: 9, questionCount: 16, groupSize: 3, splittingRounds: 2, finaleSize: 3 } }
-        });
-
-        expect(res.statusCode).toBe(409);
-    });
-
-    it("accepts roundRules before qualification starts, and still validates them", async () => {
+    it("accepts roundRules before the first match, and still validates them", async () => {
         const t = await makeTournament("sea-freeze-open");
         const s = (await makeSeason(t.id, validSeason("Open"))).json();
         const url = `/portal/tournaments/${t.id}/seasons/${s.id}`;

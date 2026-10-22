@@ -13,11 +13,14 @@ import {
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
 import { nextRoundId, orderedMatchRounds } from "./rounds.js";
 import { buildMatchResults } from "./scoring.js";
+import { buildStageInputs, seasonRoundConfigs } from "./stage-inputs.js";
+import { recomputeStandings } from "../standings/service.js";
 
 export type MatchRow = typeof matches.$inferSelect;
 type SeasonRow = typeof seasons.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
+type MatchKind = "standard" | "qualification";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 
@@ -145,12 +148,21 @@ function assertRoundConfigKeys(season: SeasonRow, roundConfigs: Record<string, R
     }
 }
 
-function assertSeats(players: Seat[], format: SeasonRow["format"]): void {
-    if (players.length !== format.competitorsPerMatch) {
+function assertSeats(
+    players: Seat[],
+    format: SeasonRow["format"],
+    kind: MatchKind
+): void {
+    // A points match has a fixed number of seats. The mass event seats the whole roster,
+    // so its seat count is the roster's, not the format's.
+    if (kind === "standard" && players.length !== format.competitorsPerMatch) {
         throw new MatchError(
             "VALIDATION",
             `expected ${format.competitorsPerMatch} seats, got ${players.length}`
         );
+    }
+    if (kind === "qualification" && players.length < 1) {
+        throw new MatchError("VALIDATION", "a qualification match needs at least one seat");
     }
 
     const wrongKind = players.filter((seat) => !format.allowedSeatKinds.includes(seat.kind));
@@ -179,28 +191,40 @@ export async function createMatch(
 
     const { season } = await requireMatchScope(tournamentId, seasonId);
 
-    assertRoundConfigKeys(season, input.roundConfigs);
-    if (input.players) assertSeats(input.players, season.format);
+    // A match created by hand carries no rulebook: it takes the season's rules, and its
+    // questions are assembled from them.
+    const roundConfigs = Object.keys(input.roundConfigs).length > 0
+        ? input.roundConfigs
+        : seasonRoundConfigs(season);
+    assertRoundConfigKeys(season, roundConfigs);
+    if (input.players) assertSeats(input.players, season.format, input.kind ?? "standard");
+
+    let entries = input.questions ?? [];
+    let autoPick = input.autoPick ?? [];
+    if (entries.length === 0 && autoPick.length === 0) {
+        entries = (await buildStageInputs(season, tournamentId, roundConfigs)).questions;
+    }
 
     const questions = await buildQuestionCopies({
         season,
         tournamentId,
-        roundConfigs: input.roundConfigs,
-        entries: input.questions ?? [],
-        autoPick: input.autoPick ?? []
+        roundConfigs,
+        entries,
+        autoPick
     });
 
     const [row] = await executor
         .insert(matches)
         .values({
             seasonId,
+            kind: input.kind ?? "standard",
             stageId: input.stageId,
             slot: input.slot ?? null,
             label: input.label,
             scheduledAt: new Date(input.scheduledAt),
             status: "UPCOMING",
             players: input.players ?? [],
-            roundConfigs: input.roundConfigs,
+            roundConfigs,
             questions,
             live: null,
             discord: null
@@ -270,7 +294,7 @@ export async function updateMatch(
     }
 
     const season = await requireSeason(seasonId);
-    if (patch.players) assertSeats(patch.players, season.format);
+    if (patch.players) assertSeats(patch.players, season.format, existing.kind);
     if (patch.roundConfigs) assertRoundConfigKeys(season, patch.roundConfigs);
 
     const values: Partial<typeof matches.$inferInsert> = { updatedAt: new Date() };
@@ -365,7 +389,7 @@ export async function setMatchResults(
             roundScores: {}
         }));
 
-    return db.transaction(async (tx) => {
+    const row = await db.transaction(async (tx) => {
         await tx
             .insert(matchResults)
             .values({ matchId, seasonId, results })
@@ -374,14 +398,22 @@ export async function setMatchResults(
                 set: { results, computedAt: new Date() }
             });
 
-        const [row] = await tx
+        const [updated] = await tx
             .update(matches)
             .set({ status: "FINISHED", updatedAt: new Date() })
             .where(eq(matches.id, matchId))
             .returning();
 
-        return row;
+        return updated;
     });
+
+    // The standings are never typed in: they follow the points of the matches that were
+    // played, so they are recomputed when a match ends.
+    if (row.kind === "standard") {
+        await recomputeStandings(seasonId);
+    }
+
+    return row;
 }
 
 
@@ -399,6 +431,13 @@ export async function transitionMatch(
             "INVALID_TRANSITION",
             `cannot move a match from ${existing.status} to ${next}`,
             [`allowed from ${existing.status}: ${EDGES[existing.status].join(", ") || "none"}`]
+        );
+    }
+
+    if (next === "LIVE" && existing.kind === "qualification") {
+        throw new MatchError(
+            "INVALID_TRANSITION",
+            "a qualification match is not played live: the players answer it, the staff close it"
         );
     }
 
@@ -424,8 +463,8 @@ export async function transitionMatch(
         }
     }
 
-    return db.transaction(async (tx) => {
-        const [row] = await tx
+    const row = await db.transaction(async (tx) => {
+        const [updated] = await tx
             .update(matches)
             .set({ status: next, updatedAt: new Date() })
             .where(eq(matches.id, matchId))
@@ -447,11 +486,17 @@ export async function transitionMatch(
 
         // Match end freezes the results in the same transaction as the status change.
         if (next === "FINISHED") {
-            await scoreMatch(tx, row);
+            await scoreMatch(tx, updated);
         }
 
-        return row;
+        return updated;
     });
+
+    if (next === "FINISHED" && row.kind === "standard") {
+        await recomputeStandings(seasonId);
+    }
+
+    return row;
 }
 
 

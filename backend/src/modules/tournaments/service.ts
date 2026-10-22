@@ -42,7 +42,6 @@ export async function createTournament(
                 defaultRounds: input.defaultRounds,
                 defaultFormat: input.defaultFormat,
                 defaultPlacementTiers: input.defaultPlacementTiers,
-                defaultProgression: input.defaultProgression ?? null
             })
             .returning();
         return row;

@@ -25,7 +25,8 @@ export type AuditAction =
     | "question_submitted"
     | "question_published"
     | "question_archived"
-    | "season_drawn";
+    | "season_drawn"
+    | "season_updated";
 
 export interface AuditEvent {
     action: AuditAction;

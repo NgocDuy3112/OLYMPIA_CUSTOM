@@ -1,15 +1,16 @@
-// Phase 1: qualification.
+// The mass event (the qualification match): everyone in the roster answers the same
+// question set, once each.
 //
 // Scoring is crowd-weighted per question. With x players correct, y wrong and z silent
-// (z = the rest of the enrolled field):
+// (z = the rest of the field):
 //   correct -> +(y + z)      a question few others got is worth more to those who did
 //   wrong   -> -(x + z)      a question most others got costs more when you miss it
 //   silent  -> 0
 //
 // Ranking, in order: total points, then correct answers, then the average time taken on
-// the correct answers (faster is better). A group that still ties is unresolved: phase 1
-// has no tie-break turn, so the caller must supply an order.
-import { ProgressionError } from "../../game/contracts/index.js";
+// the correct answers (faster is better). A group that still ties is unresolved: the
+// caller must supply an order.
+import { SeasonRuleError } from "../../contracts/index.js";
 
 export type PhaseVerdict = "CORRECT" | "INCORRECT";
 
@@ -160,21 +161,21 @@ export function rankQualification(
 
     for (const tieBreak of options.tieBreaks ?? []) {
         if (new Set(tieBreak.players).size !== tieBreak.players.length) {
-            throw new ProgressionError("a tie-break lists the same player twice");
+            throw new SeasonRuleError("a tie-break lists the same player twice");
         }
         if (tieBreak.order.length !== tieBreak.players.length
             || new Set(tieBreak.order).size !== tieBreak.order.length) {
-            throw new ProgressionError("a tie-break order must be a permutation of its players");
+            throw new SeasonRuleError("a tie-break order must be a permutation of its players");
         }
         const keys = new Set(
             tieBreak.players.map((id) => {
                 const entry = entries.find((e) => e.userId === id);
-                if (!entry) throw new ProgressionError(`tie-break names an unknown player ${id}`);
+                if (!entry) throw new SeasonRuleError(`tie-break names an unknown player ${id}`);
                 return keyOf(entry);
             })
         );
         if (keys.size !== 1) {
-            throw new ProgressionError("a tie-break group is not actually tied");
+            throw new SeasonRuleError("a tie-break group is not actually tied");
         }
         orderFor.set([...tieBreak.players].sort().join("|"), tieBreak.order);
     }

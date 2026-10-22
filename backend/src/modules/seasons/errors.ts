@@ -1,4 +1,17 @@
-export type SeasonErrorCode = "VALIDATION" | "NOT_FOUND" | "CONFLICT";
+// One error type for the season's own flows: the roster, the mass event and the standings.
+export type SeasonErrorCode =
+    | "VALIDATION"
+    | "NOT_FOUND"
+    | "CONFLICT"
+    | "FORBIDDEN"
+    | "ALREADY_SETUP"
+    | "NOT_SETUP"
+    | "CLOSED"
+    | "ALREADY_ANSWERED"
+    | "NOT_ENROLLED"
+    | "NOT_ENOUGH_PLAYERS"
+    | "TIES_UNRESOLVED"
+    | "NOT_ENOUGH_QUESTIONS";
 
 export class SeasonError extends Error {
     constructor(
@@ -14,7 +27,16 @@ export class SeasonError extends Error {
 const STATUS_BY_CODE: Record<SeasonErrorCode, number> = {
     VALIDATION: 400,
     NOT_FOUND: 404,
-    CONFLICT: 409
+    CONFLICT: 409,
+    FORBIDDEN: 403,
+    ALREADY_SETUP: 409,
+    NOT_SETUP: 409,
+    CLOSED: 409,
+    ALREADY_ANSWERED: 409,
+    NOT_ENROLLED: 403,
+    NOT_ENOUGH_PLAYERS: 409,
+    TIES_UNRESOLVED: 409,
+    NOT_ENOUGH_QUESTIONS: 409
 };
 
 export function toHttpStatus(code: SeasonErrorCode): number {

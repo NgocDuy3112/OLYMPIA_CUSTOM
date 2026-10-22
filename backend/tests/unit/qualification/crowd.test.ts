@@ -6,8 +6,8 @@ import {
     rankQualification,
     scoreQualification,
     type QualificationEntry
-} from "../../../src/modules/progression/qualification.js";
-import { ProgressionError } from "../../../src/game/contracts/index.js";
+} from "../../../src/game/engine/scoring/crowd.js";
+import { SeasonRuleError } from "../../../src/game/contracts/index.js";
 
 const correct = (userId: string, questionId = "q1", answeredMs: number | null = null) =>
     ({ userId, questionId, verdict: "CORRECT" as const, answeredMs });
@@ -114,7 +114,7 @@ describe("ranking — points, then correct count, then average time", () => {
         expect(() => rankQualification(
             [entry("a", 30, 5, 100), entry("b", 30, 5, 200)],
             { tieBreaks: [{ players: ["a", "b"], order: ["a", "b"] }] }
-        )).toThrow(ProgressionError);
+        )).toThrow(SeasonRuleError);
     });
 });
 
