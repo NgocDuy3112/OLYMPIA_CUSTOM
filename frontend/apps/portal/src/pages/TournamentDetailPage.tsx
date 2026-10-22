@@ -77,10 +77,9 @@ export function TournamentDetailPage() {
 
             <Card className="[--card-spacing:--spacing(6)]">
                 <CardHeader>
-                    <CardTitle className="text-base">Tournament points</CardTitle>
+                    <CardTitle className="text-base">Default points for places</CardTitle>
                     <CardDescription>
-                        What each place of the season is worth. A season inherits this unless
-                        it is given its own.
+                        The points a new season starts with. A season owns its own scale.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">

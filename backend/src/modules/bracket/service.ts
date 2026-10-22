@@ -15,6 +15,7 @@ import { db } from "../../db/pool.js";
 import {
     matchResults,
     matches,
+    seasonPlayers,
     seasons,
     users
 } from "../../db/schema/index.js";
@@ -132,6 +133,27 @@ async function nameOf(userIds: string[]): Promise<Map<string, string>> {
         .from(users)
         .where(inArray(users.id, userIds));
     return new Map(rows.map((row) => [row.id, row.displayName]));
+}
+
+// The number of places the season produces: the field that plays the bracket — the mass
+// event's field, or the roster when there is no mass event.
+export async function seasonPlaces(seasonId: string): Promise<number> {
+    const [massEvent] = await db
+        .select({ players: matches.players })
+        .from(matches)
+        .where(and(
+            eq(matches.seasonId, seasonId),
+            eq(matches.kind, "QUALIFICATION"),
+            isNull(matches.deletedAt)
+        ))
+        .limit(1);
+
+    if (massEvent) return (massEvent.players as Array<{ userId?: string }>).length;
+
+    const roster = await db.select({ userId: seasonPlayers.userId })
+        .from(seasonPlayers)
+        .where(eq(seasonPlayers.seasonId, seasonId));
+    return roster.length;
 }
 
 // Check a match's seats against the format of the stage it belongs to.

@@ -32,8 +32,38 @@ export const OLYMPIA_SCALE: PlacementScale = {
 // The scales a tournament can be set up with.
 export const PLACEMENT_SCALES: PlacementScale[] = [OLYMPIA_SCALE];
 
+// How well a scale covers the places a season produces. A place with no band scores
+// zero, silently — this is what catches that.
+export interface ScaleCoverage {
+    places: number;              // the places the season produces
+    covered: number;             // how many of them have a band
+    missing: number[];           // the places that have none
+    beyond: number[];            // the places the scale reaches past the season
+}
+
+export function scaleCoverage(
+    tiers: PlacementTier[] | null | undefined,
+    places: number
+): ScaleCoverage {
+    if (!tiers || tiers.length === 0) {
+        return { places, covered: 0, missing: Array.from({ length: places }, (_, i) => i + 1), beyond: [] };
+    }
+
+    const missing: number[] = [];
+    for (let place = 1; place <= places; place++) {
+        if (pointsForPlace(tiers, place) === 0) missing.push(place);
+    }
+
+    const beyond: number[] = [];
+    for (const tier of tiers) {
+        if (tier.min > places) beyond.push(tier.min);
+    }
+
+    return { places, covered: places - missing.length, missing, beyond };
+}
+
 // The points a place is worth. A place outside the tiers is worth nothing, and so is
-// every place of a tournament with no scale.
+// every place of a season with no scale.
 export function pointsForPlace(tiers: PlacementTier[] | null | undefined, place: number): number {
     if (!tiers || tiers.length === 0) return 0;
     const tier = tiers.find((entry) => place >= entry.min && place <= entry.max);

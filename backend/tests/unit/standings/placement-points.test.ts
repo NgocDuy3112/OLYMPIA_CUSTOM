@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
     OLYMPIA_SCALE,
-    pointsForPlace
+    pointsForPlace,
+    scaleCoverage
 } from "../../../src/game/engine/scoring/placement.js";
 
 const OLYMPIA_PLACEMENT_TIERS = OLYMPIA_SCALE.tiers;
@@ -54,5 +55,35 @@ describe("the Olympia placement scale", () => {
         for (let i = 1; i < paid.length; i++) {
             expect(paid[i]).toBeLessThanOrEqual(paid[i - 1]);
         }
+    });
+});
+
+describe("the coverage of a scale", () => {
+    const OLYMPIA = OLYMPIA_SCALE.tiers;
+
+    it("covers a field of sixteen exactly", () => {
+        const coverage = scaleCoverage(OLYMPIA, 16);
+        expect(coverage.places).toBe(16);
+        expect(coverage.covered).toBe(16);
+        expect(coverage.missing).toEqual([]);
+        expect(coverage.beyond).toEqual([]);
+    });
+
+    it("reports the places a scale does not cover", () => {
+        const coverage = scaleCoverage(OLYMPIA, 20);
+        expect(coverage.missing).toEqual([17, 18, 19, 20]);
+        expect(coverage.covered).toBe(16);
+    });
+
+    it("reports the places a scale reaches past the season", () => {
+        const coverage = scaleCoverage(OLYMPIA, 8);
+        expect(coverage.missing).toEqual([]);
+        expect(coverage.beyond).toEqual([11, 14]);
+    });
+
+    it("reports everything as missing when there is no scale", () => {
+        const coverage = scaleCoverage([], 3);
+        expect(coverage.covered).toBe(0);
+        expect(coverage.missing).toEqual([1, 2, 3]);
     });
 });

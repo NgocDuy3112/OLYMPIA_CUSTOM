@@ -3,6 +3,8 @@ import { requireRole } from "../../lib/guards.js";
 import { PaginationError, parsePage } from "../../lib/pagination.js";
 import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { SeasonError, toHttpStatus } from "./errors.js";
+import { seasonPlaces } from "../bracket/service.js";
+import { scaleCoverage } from "../../game/engine/scoring/placement.js";
 import { CreateSeasonInput, ListSeasonsQuery, UpdateSeasonInput } from "./schemas.js";
 import {
     createSeason,
@@ -123,7 +125,13 @@ export async function seasonRoutes(app: FastifyInstance) {
                 throw new SeasonError("NOT_FOUND", `tournament ${tournamentId} not found`);
             }
 
-            return getSeason(tournamentId, seasonId);
+            const season = await getSeason(tournamentId, seasonId);
+            const places = await seasonPlaces(seasonId);
+            return {
+                ...season,
+                places,
+                points: scaleCoverage(season.placementTiers, places)
+            };
         }
     );
 

@@ -39,8 +39,17 @@ export interface RoundConfig {
     turns: TurnConfig[]
 }
 
+export interface ScaleCoverage {
+    places: number
+    covered: number
+    missing: number[]
+    beyond: number[]
+}
+
 export interface SeasonDetail extends Season {
     roundRules: Record<string, RoundConfig> | null
+    places: number
+    points: ScaleCoverage
 }
 
 export type MatchKind = "STANDARD" | "QUALIFICATION"
@@ -90,7 +99,7 @@ export function useSeason(tournamentId: string, seasonId: string) {
 export function useUpdateSeason(tournamentId: string, seasonId: string) {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: (patch: Partial<Pick<SeasonDetail, "roundRules" | "stages">>) =>
+        mutationFn: (patch: Partial<Pick<SeasonDetail, "roundRules" | "stages" | "placementTiers">>) =>
             api<SeasonDetail>(`/portal/tournaments/${tournamentId}/seasons/${seasonId}`, {
                 method: "PATCH",
                 body: JSON.stringify(patch),
