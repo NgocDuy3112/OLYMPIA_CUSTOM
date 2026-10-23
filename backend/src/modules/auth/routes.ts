@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { setSessionCookie, clearSessionCookie } from "../../lib/cookies.js";
 import { finishMfa, startLogin } from "./service.js";
-import { requireRole } from "../../lib/guards.js";
+import { requireAuth, requireRole } from "../../lib/guards.js";
 import { toPublicUser } from "../../lib/public-user.js";
 
 
@@ -63,6 +63,18 @@ export async function authRoutes(app: FastifyInstance) {
 
     app.post("/portal/auth/logout", async (_request, reply) => {
         clearSessionCookie(reply, "PORTAL");
+        return { ok: true };
+    });
+
+
+    app.get(
+        "/gameplay/auth/me",
+        { onRequest: [requireAuth("GAMEPLAY")] },
+        async (request) => toPublicUser(request.sessionUser!)
+    );
+
+    app.post("/gameplay/auth/logout", async (_request, reply) => {
+        clearSessionCookie(reply, "GAMEPLAY");
         return { ok: true };
     });
 }

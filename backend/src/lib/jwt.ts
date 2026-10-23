@@ -71,6 +71,7 @@ export interface OauthPendingToken {
     nonce: string;
     codeVerifier: string;
     purpose: "oauth";
+    next?: string;
 }
 
 export function signOauthPending(app: FastifyInstance, payload: OauthPendingToken): string {

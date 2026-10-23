@@ -1,7 +1,7 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom"
-import { ChevronDown } from "lucide-react"
+import { ChevronDown, LogOut } from "lucide-react"
 import { cn } from "cn"
-import { buttonVariants } from "@shared/ui/button"
+import { Button, buttonVariants } from "@shared/ui/button"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
     DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu"
 import { useTournamentList } from "@/lib/api"
+import { isUnauthorized, loginLink, useLogout, useMe } from "@/lib/session"
 
 
 const links = [
@@ -26,6 +27,12 @@ export function NavBar() {
     const slug = pathname.split("/")[2]
     const currentSlug = tournaments.find((t) => t.current)?.slug
     const viewingOtherTournament = Boolean(slug) && slug !== currentSlug
+
+    const me = useMe()
+    const logout = useLogout()
+    // Pending or a real error: show the login link rather than flash a name for
+    // a player who is signed in. Only a definitive 401 means "signed out".
+    const signedOut = isUnauthorized(me.error) || me.data === null
 
     return (
         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
@@ -89,18 +96,34 @@ export function NavBar() {
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </nav>
-                <NavLink
-                    to="/login"
-                    className={({ isActive }) =>
-                        cn(
+                {signedOut ? (
+                    <a
+                        href={loginLink(pathname)}
+                        className={cn(
                             buttonVariants({ variant: "default", size: "lg" }),
-                            "ml-auto",
-                            isActive && "bg-secondary font-medium text-secondary-foreground"
-                        )
-                    }
-                >
-                    Đăng nhập
-                </NavLink>
+                            "ml-auto"
+                        )}
+                    >
+                        Đăng nhập
+                    </a>
+                ) : me.data ? (
+                    <div className="ml-auto flex items-center gap-2">
+                        <span className="max-w-40 truncate text-sm text-muted-foreground">
+                            {me.data.displayName}
+                        </span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Đăng xuất"
+                            onClick={() => logout.mutate()}
+                        >
+                            <LogOut className="size-4" aria-hidden />
+                        </Button>
+                    </div>
+                ) : (
+                    // Checking the session: hold the space, show nothing.
+                    <span className="ml-auto h-9 w-24 animate-pulse rounded-md bg-muted" />
+                )}
             </div>
         </header>
     )

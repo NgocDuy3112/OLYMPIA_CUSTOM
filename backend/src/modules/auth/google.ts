@@ -18,6 +18,7 @@ import {
     type OauthPendingToken,
 } from "../../lib/jwt.js";
 import { setSessionCookie } from "../../lib/cookies.js";
+import { safeNextPath } from "../../lib/redirect.js";
 import { db } from "../../db/pool.js";
 import { oauthAccounts, users } from "../../db/schema/auth.js";
 
@@ -181,15 +182,26 @@ async function findOrCreatePlayer(claims: GoogleClaims) {
 export async function googleAuthRoutes(app: FastifyInstance) {
     const perIp = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
-    // Step 1: send the player to Google
     app.get("/gameplay/auth/google", perIp, async (request, reply) => {
-        const config = await getConfig();
+        let config;
+        try {
+            config = await getConfig();
+        } catch (error) {
+            // Unconfigured OIDC is a service condition, not a crash — the sign-in
+            // button must not show players a bare 500.
+            if (error instanceof SignInError) {
+                throw reply.server.httpErrors.serviceUnavailable(error.message);
+            }
+            throw error;
+        }
         const { redirectUri } = googleEnv();
 
         const state = randomState();
         const nonce = randomNonce();
         const codeVerifier = randomPKCECodeVerifier();
         const codeChallenge = await calculatePKCECodeChallenge(codeVerifier);
+
+        const { next } = request.query as { next?: unknown };
 
         const url = buildAuthorizationUrl(config, {
             redirect_uri: redirectUri,
@@ -200,7 +212,13 @@ export async function googleAuthRoutes(app: FastifyInstance) {
             code_challenge_method: "S256",
         });
 
-        setPendingCookie(reply, { state, nonce, codeVerifier, purpose: "oauth" });
+        setPendingCookie(reply, {
+            state,
+            nonce,
+            codeVerifier,
+            purpose: "oauth",
+            next: safeNextPath(next),
+        });
         return reply.redirect(url.toString());
     });
 
@@ -259,6 +277,6 @@ export async function googleAuthRoutes(app: FastifyInstance) {
             tokenVersion: user.tokenVersion,
         });
         setSessionCookie(reply, "GAMEPLAY", sessionToken);
-        return reply.redirect("/");
+        return reply.redirect(safeNextPath(pending.next));
     });
 }
