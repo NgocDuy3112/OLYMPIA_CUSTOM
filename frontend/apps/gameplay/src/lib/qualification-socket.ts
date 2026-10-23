@@ -36,10 +36,6 @@ export function useQualificationStream(
         const connect = () => {
             if (stopped) return
             socket = new WebSocket(`${wsBase()}/gameplay/matches/${matchId}/qualification/stream`)
-
-            // Handlers attach AT CONSTRUCTION: the server's sync can arrive in the
-            // same tick as "open" — a listener attached after an await loses it
-            // (the C1 integration test caught exactly this race).
             socket.onmessage = (event) => {
                 try {
                     const message = JSON.parse(String(event.data)) as { type?: string }

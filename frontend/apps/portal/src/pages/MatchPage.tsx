@@ -2,7 +2,8 @@ import { Link, useParams } from "react-router-dom"
 import { ChevronRight, SearchX } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { Page, PageHeader, EmptyState, ErrorPanel } from "@/components/page"
-import { useMatches, useTournament } from "@/lib/tournament"
+import { useMatches, useTournament, useMassEvent } from "@/lib/tournament"
+import { turnControls } from "@/lib/mass-event"
 import { MassEventControl } from "@/components/mass-event-control"
 import { StandardMatchControl } from "@/components/standard-match-control"
 
@@ -40,6 +41,9 @@ export function MatchPage() {
     const { tournamentId, matchId } = useParams()
     const matches = useMatches(tournamentId ?? "")
     const tournament = useTournament(tournamentId ?? "")
+    // Same cache key as the control below → no extra request; the header badge
+    // and the band read one truth.
+    const massView = useMassEvent(tournamentId ?? "", matchId ?? "")
     const back = `/tournaments/${tournamentId}`
 
     if (matches.isPending) {
@@ -51,6 +55,8 @@ export function MatchPage() {
     }
 
     const tournamentName = tournament.data?.name ?? "…"
+    // Safe before the error branch: on a failed query there is no data at all.
+    const match = matches.data?.items.find((row) => row.id === matchId)
 
     const crumbs = (
         <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
@@ -58,7 +64,9 @@ export function MatchPage() {
             <ChevronRight className="size-3.5" />
             <Link className="transition-colors hover:text-foreground" to={back}>{tournamentName}</Link>
             <ChevronRight className="size-3.5" />
-            <span className="text-foreground">Matches</span>
+            <Link className="transition-colors hover:text-foreground" to={back}>Matches</Link>
+            <ChevronRight className="size-3.5" />
+            <span className="text-foreground">{match?.label ?? "…"}</span>
         </nav>
     )
 
@@ -71,8 +79,6 @@ export function MatchPage() {
             </Page>
         )
     }
-
-    const match = matches.data.items.find((row) => row.id === matchId)
 
     if (!match) {
         return (
@@ -95,6 +101,29 @@ export function MatchPage() {
 
     const isMassEvent = match.kind === "QUALIFICATION"
 
+    // The header badge tells THIS surface's truth: for a mass event that is the
+    // TURN state (Chưa mở / Đang mở / Đã đóng) — the match status sits at
+    // UPCOMING until close and would contradict the band below it.
+    const statusBadge = (() => {
+        if (!isMassEvent) {
+            return <Badge variant={STATUS_VARIANT[match.status]}>{STATUS_VN[match.status]}</Badge>
+        }
+        if (!massView.data) return null // the band renders the state until the view lands
+        const controls = turnControls({
+            closed: massView.data.closed,
+            opened: massView.data.opened,
+            currentPosition: massView.data.currentPosition,
+            questionCount: massView.data.questionCount,
+            currentAnswered: massView.data.currentAnswered,
+            fieldSize: massView.data.field.length,
+        })
+        return controls.phase === "closed"
+            ? <Badge variant="secondary">Đã đóng</Badge>
+            : controls.phase === "open"
+                ? <Badge variant="destructive">Đang mở</Badge>
+                : <Badge variant="outline">Chưa mở</Badge>
+    })()
+
     return (
         <Page>
             {crumbs}
@@ -107,7 +136,7 @@ export function MatchPage() {
                 }
                 actions={
                     <div className="flex gap-2">
-                        <Badge variant={STATUS_VARIANT[match.status]}>{STATUS_VN[match.status]}</Badge>
+                        {statusBadge}
                         <Badge variant="outline">{KIND_VN[match.kind]}</Badge>
                     </div>
                 }
