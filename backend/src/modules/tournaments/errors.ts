@@ -6,6 +6,7 @@ export type TournamentErrorCode =
     | "FORBIDDEN"
     | "ALREADY_SETUP"
     | "NOT_SETUP"
+    | "NOT_OPEN"
     | "CLOSED"
     | "ALREADY_ANSWERED"
     | "NOT_ENROLLED"
@@ -31,6 +32,7 @@ const STATUS_BY_CODE: Record<TournamentErrorCode, number> = {
     FORBIDDEN: 403,
     ALREADY_SETUP: 409,
     NOT_SETUP: 409,
+    NOT_OPEN: 409,
     CLOSED: 409,
     ALREADY_ANSWERED: 409,
     NOT_ENROLLED: 403,

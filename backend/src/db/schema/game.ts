@@ -54,6 +54,11 @@ export const matches = pgTable(
         kind: matchKind("kind").notNull().default("STANDARD"),
         slot: integer("slot"),
         players: jsonb("players").$type<Seat[]>().notNull(),
+        // The mass event's turns: null = not opened (no question released);
+        // n = questions with position ≤ n are released. released_at is the server
+        // time of the last release — the clock anchor for the current question.
+        currentPosition: integer("current_position"),
+        releasedAt: timestamp("released_at", { withTimezone: true }),
         roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),
         questions: jsonb("questions").$type<MatchQuestion[]>().notNull(),
         live: jsonb("live").$type<MatchLive>(),

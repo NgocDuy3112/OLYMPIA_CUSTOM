@@ -134,6 +134,13 @@
       "when": 1792647000000,
       "tag": "0018_rename_tournaments",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792727197068,
+      "tag": "0019_blushing_dorian_gray",
+      "breakpoints": true
     }
   ]
 }

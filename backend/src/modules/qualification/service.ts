@@ -12,7 +12,6 @@ import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import {
     answers,
-    matchClocks,
     matchResults,
     matches,
     questionBank,
@@ -31,6 +30,7 @@ import { TournamentError } from "../tournaments/errors.js";
 import { assemblyEligibility } from "../questions/service.js";
 import { requireMatchScope, type MatchRow } from "../matches/service.js";
 import { listEnrolled, requireEnrolled } from "../roster/service.js";
+import { publish } from "../live/hub.js";
 
 const POINTS_PER_CORRECT = 1;
 
@@ -59,6 +59,22 @@ async function requireQualificationMatch(matchId: string): Promise<MatchRow> {
 function seatedUsers(match: MatchRow): string[] {
     return match.players.flatMap((seat) =>
         "userId" in seat && seat.userId ? [seat.userId] : []);
+}
+
+// The released set: position ≤ current_position. An event that was closed without
+// ever opening has released nothing — its results say "not played" for every question.
+function releasedQuestions(match: MatchRow, current: number | null): MatchQuestion[] {
+    if (current === null) return [];
+    return match.questions
+        .filter((question) => question.position <= current)
+        .sort((a, b) => a.position - b.position);
+}
+
+function assertOpen(match: MatchRow): number {
+    if (match.currentPosition === null) {
+        throw new TournamentError("NOT_OPEN", "the staff have not opened this event yet");
+    }
+    return match.currentPosition;
 }
 
 
@@ -169,19 +185,26 @@ export async function getQualificationForPlayer(matchId: string, userId: string)
         throw new TournamentError("NOT_ENROLLED", "you are not seated in this match");
     }
 
+    const closed = match.status === "FINISHED";
+    const current = match.currentPosition;
+
+    // The staff have not released a question yet. Waiting and polling therefore
+    // write NOTHING — the clock is the release, not the fetch.
+    if (!closed && current === null) {
+        throw new TournamentError("NOT_OPEN", "the staff have not opened this event yet");
+    }
+
     const rows = await db.select().from(answers)
         .where(and(eq(answers.matchId, matchId), eq(answers.userId, userId)));
 
-    // The first fetch starts the player's clock. Later fetches never move it: reloading
-    // the page must not make a player look faster.
-    await db.insert(matchClocks)
-        .values({ matchId, userId, openedAt: new Date() })
-        .onConflictDoNothing();
-
     return {
-        closed: match.status === "FINISHED",
+        closed,
         label: match.label,
-        questions: match.questions.map(sanitizeQuestion),
+        // Where the turns have reached, and the whole set's size (a count, never
+        // the questions themselves — future ones are never sent).
+        currentPosition: current,
+        totalQuestions: match.questions.length,
+        questions: releasedQuestions(match, current).map(sanitizeQuestion),
         answers: rows.map((row) => ({
             questionId: row.questionId,
             verdict: row.verdict,
@@ -205,51 +228,47 @@ export async function submitQualificationAnswer(params: {
         throw new TournamentError("NOT_ENROLLED", "you are not seated in this match");
     }
 
+    // Turns are enforced server-side: nothing released yet → not open.
+    const current = assertOpen(match);
+
     const question = match.questions.find((q) => q._id === params.questionId);
     if (!question) {
         throw new TournamentError("NOT_FOUND", "question is not part of this match");
+    }
+    // A question past the turn is closed (staff advanced while this player was on it);
+    // a question beyond the turn was never sent — it does not exist for a player.
+    if (question.position > current) {
+        throw new TournamentError("NOT_FOUND", "question has not been released");
+    }
+    if (question.position < current) {
+        throw new TournamentError("CLOSED", "this question is closed");
     }
 
     const correct = autoMatch(question.kind as QuestionKind, question.payload, params.value);
     const verdict = correct ? "CORRECT" as const : "INCORRECT" as const;
 
-    // The time is the server's: from the player's last interaction with the match to now.
+    // The clock is the RELEASE of this question: one instant for the whole field,
+    // server-owned, capped at MAX_ANSWER_MS. Waiting between turns never counts
+    // against anyone, and a reload cannot move the anchor.
     const now = new Date();
-    const [clock] = await db.select().from(matchClocks).where(and(
-        eq(matchClocks.matchId, params.matchId),
-        eq(matchClocks.userId, params.userId)
-    )).limit(1);
-
+    const anchor = match.releasedAt ?? now;
     const answeredMs = elapsedMs({
-        openedAt: (clock?.openedAt ?? now).getTime(),
-        lastAnswerAt: clock?.lastAnswerAt ? clock.lastAnswerAt.getTime() : null
+        openedAt: anchor.getTime(),
+        lastAnswerAt: null
     }, now.getTime());
 
     try {
-        await db.transaction(async (tx) => {
-            await tx.insert(matchClocks)
-                .values({ matchId: params.matchId, userId: params.userId, openedAt: now })
-                .onConflictDoNothing();
-
-            await tx.insert(answers).values({
-                matchId: params.matchId,
-                questionId: params.questionId,
-                userId: params.userId,
-                value: params.value,
-                autoMatched: true,
-                judged: true,
-                verdict,
-                answeredMs,
-                firstAnsweredMs: answeredMs,
-                pointsAwarded: 0
-            });
-
-            await tx.update(matchClocks)
-                .set({ lastAnswerAt: now })
-                .where(and(
-                    eq(matchClocks.matchId, params.matchId),
-                    eq(matchClocks.userId, params.userId)
-                ));
+        await db.insert(answers).values({
+            matchId: params.matchId,
+            questionId: params.questionId,
+            userId: params.userId,
+            value: params.value,
+            autoMatched: true,
+            judged: true,
+            verdict,
+            answeredMs,
+            firstAnsweredMs: answeredMs,
+            pointsAwarded: 0
         });
     } catch (error) {
         const cause = (error as { cause?: { code?: string } }).cause
@@ -264,6 +283,59 @@ export async function submitQualificationAnswer(params: {
     }
 
     return { verdict };
+}
+
+
+// ── The turns: staff open the event and advance the questions ───────────────
+//
+// Each transition releases the next question at a new server time — the clock
+// anchor for everyone — and pushes the players to refetch. The compare-and-set
+// where-clauses keep a double click (or two staff) from skipping a question.
+
+export async function openQualificationMatch(matchId: string): Promise<MatchRow> {
+    const match = await requireQualificationMatch(matchId);
+
+    if (match.status === "FINISHED") {
+        throw new TournamentError("CLOSED", "this qualification match is already closed");
+    }
+
+    const [opened] = await db.update(matches)
+        .set({ currentPosition: 0, releasedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(matches.id, matchId), isNull(matches.currentPosition)))
+        .returning();
+
+    if (!opened) {
+        throw new TournamentError("CONFLICT", "this event is already open");
+    }
+
+    await publish(matchId);
+    return opened;
+}
+
+export async function advanceQualificationMatch(matchId: string): Promise<MatchRow> {
+    const match = await requireQualificationMatch(matchId);
+
+    if (match.status === "FINISHED") {
+        throw new TournamentError("CLOSED", "this qualification match is already closed");
+    }
+    const current = assertOpen(match);
+    if (current >= match.questions.length - 1) {
+        throw new TournamentError("CONFLICT", "this is already the last question");
+    }
+
+    const [advanced] = await db.update(matches)
+        .set({ currentPosition: current + 1, releasedAt: new Date(), updatedAt: new Date() })
+        // Optimistic: only the reader who saw `current` advances; a racing staff
+        // click matches no row and is told CONFLICT, never skips a question.
+        .where(and(eq(matches.id, matchId), eq(matches.currentPosition, current)))
+        .returning();
+
+    if (!advanced) {
+        throw new TournamentError("CONFLICT", "the event has moved on; reload");
+    }
+
+    await publish(matchId);
+    return advanced;
 }
 
 
@@ -358,6 +430,9 @@ export async function closeQualificationMatch(
         throw error;
     }
 
+    // The waiting-done players flip to results the moment the staff close.
+    await publish(matchId);
+
     return {
         rows: ranking.rows.map((row) => ({
             userId: row.userId,
@@ -390,10 +465,24 @@ export async function getQualificationForStaff(matchId: string) {
         .where(eq(matchResults.matchId, matchId))
         .limit(1);
 
+    // The turn state the dialog runs on: where we are, when the current question
+    // was released, and how much of the field has answered IT (the advance cue).
+    const current = match.currentPosition;
+    const currentQuestion = current === null
+        ? undefined
+        : match.questions.find((question) => question.position === current);
+    const currentAnswered = currentQuestion
+        ? rows.filter((row) => row.questionId === currentQuestion._id).length
+        : 0;
+
     return {
         closed: match.status === "FINISHED",
         label: match.label,
         questionCount: match.questions.length,
+        opened: current !== null,
+        currentPosition: current,
+        releasedAt: match.releasedAt ? match.releasedAt.toISOString() : null,
+        currentAnswered,
         field: field.map((userId) => ({
             userId,
             displayName: names.get(userId) ?? userId,

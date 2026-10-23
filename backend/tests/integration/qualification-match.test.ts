@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
 import {
-    answers, matchClocks, matchResults, matches, questionBank, tournaments, users
+    answers, matchResults, matches, questionBank, tournaments, users
 } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
@@ -56,6 +56,28 @@ const close = (matchId: string, payload: Record<string, unknown> = {}) =>
         headers: auth(ownerCookie),
         payload
     });
+
+// The turns: open releases question 1, advance releases the next.
+const openEvent = (matchId: string) =>
+    app.inject({
+        method: "POST",
+        url: tournamentUrl(`/qualification-matches/${matchId}/open`),
+        headers: auth(ownerCookie)
+    });
+
+const advanceEvent = (matchId: string) =>
+    app.inject({
+        method: "POST",
+        url: tournamentUrl(`/qualification-matches/${matchId}/advance`),
+        headers: auth(ownerCookie)
+    });
+
+// The frozen set, read directly: a test knows the whole set even while the
+// players can only see the released part of it.
+const frozenQuestionIds = async (matchId: string): Promise<string[]> => {
+    const [row] = await db.select().from(matches).where(eq(matches.id, matchId));
+    return row.questions.map((question) => question._id);
+};
 
 beforeAll(async () => {
     app = await buildApp();
@@ -186,17 +208,22 @@ describe("the mass event — answering", () => {
     beforeAll(async () => {
         const res = await createQualification();
         matchId = res.json().id;
+        questionIds = await frozenQuestionIds(matchId);
 
-        const view = await playerView(matchId, playerCookies[0]);
-        questionIds = view.json().questions.map((q: { questionId: string }) => q.questionId);
+        // The staff open the event: without this the players see NOT_OPEN.
+        const opened = await openEvent(matchId);
+        expect(opened.statusCode).toBe(200);
     });
 
-    it("shows a player the questions without the answers", async () => {
+    it("shows a player the RELEASED questions without the answers", async () => {
         const res = await playerView(matchId, playerCookies[0]);
         expect(res.statusCode).toBe(200);
 
         const body = res.json();
-        expect(body.questions).toHaveLength(8);
+        // Turns: only question 1 is out; the rest exist as a count, never as content.
+        expect(body.questions).toHaveLength(1);
+        expect(body.currentPosition).toBe(0);
+        expect(body.totalQuestions).toBe(8);
         expect(body.closed).toBe(false);
 
         const payload = body.questions[0].payload as Record<string, unknown>;
@@ -230,7 +257,7 @@ describe("the mass event — answering", () => {
         expect(rows[0].verdict).toBe("CORRECT");
     });
 
-    it("times the answer with the server's clock, not the client's", async () => {
+    it("times the answer from the question's release — the server's anchor", async () => {
         const res = await answer(matchId, playerCookies[1], questionIds[0], "a");
         expect(res.statusCode).toBe(200);
 
@@ -239,15 +266,9 @@ describe("the mass event — answering", () => {
             eq(answers.userId, playerIds[1])
         ));
         expect(rows).toHaveLength(1);
+        // The anchor is the release (just moments ago), never the client's word.
         expect(rows[0].answeredMs).toBeGreaterThanOrEqual(0);
         expect(rows[0].answeredMs).toBeLessThan(10_000);
-
-        const [clock] = await db.select().from(matchClocks).where(and(
-            eq(matchClocks.matchId, matchId),
-            eq(matchClocks.userId, playerIds[1])
-        ));
-        expect(clock.openedAt).toBeInstanceOf(Date);
-        expect(clock.lastAnswerAt).toBeInstanceOf(Date);
     });
 
     it("refuses a client-supplied answer time", async () => {
@@ -274,14 +295,20 @@ describe("the mass event — closing it", () => {
     beforeAll(async () => {
         const res = await createQualification({ questionCount: 5 });
         matchId = res.json().id;
+        questionIds = await frozenQuestionIds(matchId);
 
-        const view = await playerView(matchId, playerCookies[0]);
-        questionIds = view.json().questions.map((q: { questionId: string }) => q.questionId);
+        // Turn-sequenced: release question q, the whole field answers it, advance.
+        // Player i answers the first 5 - i questions right and the rest wrong, so
+        // every player has a different number of correct answers — no ties.
+        const opened = await openEvent(matchId);
+        expect(opened.statusCode).toBe(200);
 
-        // Player i answers the first 5 - i questions right and the rest wrong, so every
-        // player has a different number of correct answers and the field never ties.
-        for (let player = 0; player < 6; player++) {
-            for (let q = 0; q < questionIds.length; q++) {
+        for (let q = 0; q < questionIds.length; q++) {
+            if (q > 0) {
+                const advanced = await advanceEvent(matchId);
+                expect(advanced.statusCode).toBe(200);
+            }
+            for (let player = 0; player < 6; player++) {
                 await answer(
                     matchId,
                     playerCookies[player],

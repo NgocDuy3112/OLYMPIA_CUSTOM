@@ -26,7 +26,9 @@ export type AuditAction =
     | "question_published"
     | "question_archived"
     | "tournament_drawn"
-    | "tournament_updated";
+    | "tournament_updated"
+    | "match_opened"
+    | "match_advanced";
 
 export interface AuditEvent {
     action: AuditAction;
