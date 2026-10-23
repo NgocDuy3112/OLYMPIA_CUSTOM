@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
@@ -23,11 +22,12 @@ export function MatchesTab({
 }) {
     const matches = useMatches(tournamentId)
     const enrolled = useEnrolled(tournamentId)
-    const navigate = useNavigate()
 
     const [creating, setCreating] = useState(false)
-    // Every operation lives on the match's page now — the row only navigates.
-    const openMatch = (matchId: string) => navigate(`/tournaments/${tournamentId}/matches/${matchId}`)
+    // The control room opens in ITS OWN TAB: the matches list stays exactly where
+    // the staff left it — they run the event beside the list, not instead of it.
+    const openMatch = (matchId: string) =>
+        window.open(`/tournaments/${tournamentId}/matches/${matchId}`, "_blank")
 
     if (matches.isPending) return <p className="text-sm text-muted-foreground">Loading matches…</p>
     if (matches.isError) return <p role="alert" className="text-sm text-destructive">{matches.error.message}</p>

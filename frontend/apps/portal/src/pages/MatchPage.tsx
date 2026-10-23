@@ -1,28 +1,14 @@
 import type { ReactNode } from "react"
 import { Link, useParams } from "react-router-dom"
-import { ChevronRight, SearchX } from "lucide-react"
+import { SearchX } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { PageHeader, EmptyState, ErrorPanel } from "@/components/page"
-import { useMatches, useTournament, useMassEvent } from "@/lib/tournament"
+import { useMatches, useMassEvent } from "@/lib/tournament"
 import { turnControls } from "@/lib/mass-event"
 import { MassEventControl } from "@/components/mass-event-control"
 import { StandardMatchControl } from "@/components/standard-match-control"
 
-// The match's own page — every match operation lives HERE, not in dialogs
-// (recorded decision, 2310: running a match is a task with its own flow).
-// Built on the portal's page anatomy: Page + breadcrumb + PageHeader — so it
-// reads as a page, not as dialog content on white.
-//
-//   QUALIFICATION → the mass event's control room (turns, live count, current
-//                   question, field, close, ranking)
-//   STANDARD      → identity + assembly state + start transition + result entry
-//
-// Language: the match page speaks Vietnamese (the show's language); the portal
-// chrome around it (nav bar, "Tournaments" breadcrumb root) stays English.
-// Route: /tournaments/:tournamentId/matches/:matchId
 
-// Full width on purpose: a control room uses the whole screen — the portal's
-// Page clamps to max-w-6xl, which is right for lists and wrong for operations.
 function FullPage({ children }: { children: ReactNode }) {
     return (
         <div className="flex w-full flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
@@ -38,8 +24,8 @@ const STATUS_VN = {
 } as const
 
 const KIND_VN = {
-    QUALIFICATION: "Sự kiện toàn trường",
-    STANDARD: "Trận đấu points",
+    QUALIFICATION: "Vòng loại",
+    STANDARD: "Trận đấu",
 } as const
 
 const STATUS_VARIANT = {
@@ -51,7 +37,6 @@ const STATUS_VARIANT = {
 export function MatchPage() {
     const { tournamentId, matchId } = useParams()
     const matches = useMatches(tournamentId ?? "")
-    const tournament = useTournament(tournamentId ?? "")
     // Same cache key as the control below → no extra request; the header badge
     // and the band read one truth.
     const massView = useMassEvent(tournamentId ?? "", matchId ?? "")
@@ -65,26 +50,13 @@ export function MatchPage() {
         )
     }
 
-    const tournamentName = tournament.data?.name ?? "…"
     // Safe before the error branch: on a failed query there is no data at all.
     const match = matches.data?.items.find((row) => row.id === matchId)
 
-    const crumbs = (
-        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-            <Link className="transition-colors hover:text-foreground" to="/">Tournaments</Link>
-            <ChevronRight className="size-3.5" />
-            <Link className="transition-colors hover:text-foreground" to={back}>{tournamentName}</Link>
-            <ChevronRight className="size-3.5" />
-            <Link className="transition-colors hover:text-foreground" to={back}>Matches</Link>
-            <ChevronRight className="size-3.5" />
-            <span className="text-foreground">{match?.label ?? "…"}</span>
-        </nav>
-    )
 
     if (matches.isError) {
         return (
             <FullPage>
-                {crumbs}
                 <PageHeader title="Không tải được trận đấu" />
                 <ErrorPanel message={matches.error.message} />
             </FullPage>
@@ -94,7 +66,6 @@ export function MatchPage() {
     if (!match) {
         return (
             <FullPage>
-                {crumbs}
                 <PageHeader title="Không tìm thấy trận đấu" />
                 <EmptyState
                     icon={SearchX}
@@ -137,7 +108,6 @@ export function MatchPage() {
 
     return (
         <FullPage>
-            {crumbs}
             <PageHeader
                 title={match.label}
                 description={
