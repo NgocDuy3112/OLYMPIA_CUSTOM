@@ -131,8 +131,8 @@ export function MatchPage() {
                 title={match.label}
                 description={
                     isMassEvent
-                        ? `${KIND_VN.QUALIFICATION} · ${match.questions.length} câu hỏi · ${match.players.length} thí sinh`
-                        : `${KIND_VN.STANDARD} · ${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}`
+                        ? `${match.questions.length} câu hỏi · ${match.players.length} thí sinh`
+                        : `${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}`
                 }
                 actions={
                     <div className="flex gap-2">

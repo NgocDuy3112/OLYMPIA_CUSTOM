@@ -167,50 +167,58 @@ export function MassEventControl({
     // ── open / not open ──────────────────────────────────────────────────
     return (
         <div className="flex flex-col gap-6">
-            {/* the operational band, full width */}
-            <Section>
+            {/* the operational band, full width — compact: the header carries
+                status + kind, this strip carries only the live state */}
+            <Section className="p-4">
                 {!turn ? (
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div className="flex flex-col gap-1">
-                            <p className="flex items-center gap-2 text-lg font-semibold">
-                                <Badge variant="outline">Chưa mở</Badge>
-                                {data.questionCount} câu hỏi · {data.field.length} thí sinh
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                                Mở trận sẽ phát câu 1 cho toàn bộ thí sinh — đồng hồ của mọi
-                                người tính từ giây phút đó.
-                            </p>
-                        </div>
-                        <Button size="lg" onClick={() => openEvent.mutate(matchId)} disabled={openEvent.isPending}>
+                        <p className="text-sm text-muted-foreground">
+                            Mở trận sẽ phát câu 1 cho toàn bộ thí sinh — đồng hồ của mọi người
+                            tính từ giây phút đó.
+                        </p>
+                        <Button onClick={() => openEvent.mutate(matchId)} disabled={openEvent.isPending}>
                             {openEvent.isPending ? "Đang mở…" : "Mở trận ▶"}
                         </Button>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-3">
-                        <div className="flex flex-wrap items-end justify-between gap-3">
-                            <div>
-                                <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                    <span className="size-2 animate-pulse rounded-full bg-destructive" aria-hidden />
-                                    Đang mở
-                                </p>
-                                <p className="font-heading text-3xl font-semibold tabular-nums">
-                                    CÂU {turn.questionNumber}
-                                    <span className="text-xl text-muted-foreground"> / {turn.questionCount}</span>
-                                    {releasedLabel && (
-                                        <span className="ml-3 text-sm font-normal text-muted-foreground">
-                                            phát lúc {releasedLabel}
-                                        </span>
-                                    )}
-                                </p>
-                            </div>
-                            <p className="text-xl font-semibold tabular-nums">
-                                {turn.currentAnswered} / {turn.fieldSize}
-                                <span className="ml-2 text-sm font-medium text-muted-foreground">đã trả lời</span>
+                    <div className="flex flex-col gap-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                            <p className="font-heading text-xl font-semibold tabular-nums">
+                                CÂU {turn.questionNumber}
+                                <span className="text-base text-muted-foreground"> / {turn.questionCount}</span>
+                                {releasedLabel && (
+                                    <span className="ml-2 text-sm font-normal text-muted-foreground">
+                                        phát lúc {releasedLabel}
+                                    </span>
+                                )}
                             </p>
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                                <span className="text-sm font-medium tabular-nums">
+                                    {turn.currentAnswered} / {turn.fieldSize}
+                                    <span className="ml-1.5 font-normal text-muted-foreground">đã trả lời</span>
+                                </span>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => advance.mutate(matchId)}
+                                        disabled={!turn.canAdvance || advance.isPending}
+                                    >
+                                        {advance.isPending
+                                            ? "Đang chuyển…"
+                                            : turn.canAdvance
+                                                ? "Sang câu tiếp →"
+                                                : "Câu tiếp →"}
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={submit} disabled={close.isPending}>
+                                        {close.isPending ? "Đang đóng…" : "Đóng sự kiện"}
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
 
                         <div
-                            className="h-3 overflow-hidden rounded-full bg-muted"
+                            className="h-2 overflow-hidden rounded-full bg-muted"
                             role="progressbar"
                             aria-valuemin={0}
                             aria-valuemax={turn.fieldSize}
@@ -222,27 +230,9 @@ export function MassEventControl({
                             />
                         </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => advance.mutate(matchId)}
-                                    disabled={!turn.canAdvance || advance.isPending}
-                                >
-                                    {advance.isPending
-                                        ? "Đang chuyển…"
-                                        : turn.canAdvance
-                                            ? "Sang câu tiếp →"
-                                            : "Câu tiếp →"}
-                                </Button>
-                                <Button variant="outline" onClick={submit} disabled={close.isPending}>
-                                    {close.isPending ? "Đang đóng…" : "Đóng sự kiện"}
-                                </Button>
-                            </div>
-                            {!turn.canAdvance && (
-                                <p className="text-xs text-muted-foreground">{turn.advanceReason}</p>
-                            )}
-                        </div>
+                        {!turn.canAdvance && (
+                            <p className="text-right text-xs text-muted-foreground">{turn.advanceReason}</p>
+                        )}
                     </div>
                 )}
 
