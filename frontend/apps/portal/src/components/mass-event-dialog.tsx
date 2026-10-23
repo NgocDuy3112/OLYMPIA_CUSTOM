@@ -6,7 +6,8 @@ import {
 } from "@shared/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { ApiError } from "@shared/lib/api"
-import { useCloseMassEvent, useMassEvent } from "@/lib/tournament"
+import { useAdvanceMassEvent, useCloseMassEvent, useMassEvent, useOpenMassEvent } from "@/lib/tournament"
+import { turnControls } from "@/lib/mass-event"
 
 
 // The mass event: how the field answered, and the ranking it produced. The ranking is
@@ -31,6 +32,8 @@ export function MassEventDialog({
 }) {
     const view = useMassEvent(tournamentId, matchId)
     const close = useCloseMassEvent(tournamentId)
+    const openEvent = useOpenMassEvent(tournamentId)
+    const advance = useAdvanceMassEvent(tournamentId)
 
     // The tied groups the close refused, and the order the staff gave them.
     const [orders, setOrders] = useState<Record<string, string[]>>({})
@@ -65,6 +68,26 @@ export function MassEventDialog({
     const data = view.data
     const names = new Map(data.field.map((row) => [row.userId, row.displayName]))
     const ranked = [...data.results].sort((a, b) => a.rank - b.rank)
+
+    const controls = turnControls({
+        closed: data.closed,
+        opened: data.opened,
+        currentPosition: data.currentPosition,
+        questionCount: data.questionCount,
+        currentAnswered: data.currentAnswered,
+        fieldSize: data.field.length,
+    })
+    const actionError = openEvent.isError
+        ? openEvent.error.message
+        : advance.isError
+            ? advance.error.message
+            : null
+    const releasedLabel = data.releasedAt
+        ? new Date(data.releasedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+        : null
+    const answeredPct = controls.phase === "open" && controls.fieldSize > 0
+        ? Math.round((controls.currentAnswered / controls.fieldSize) * 100)
+        : 0
 
     const submit = () => {
         const tieBreaks = tiedGroups.map((players) => ({
@@ -104,9 +127,53 @@ export function MassEventDialog({
                         <DialogDescription>
                             {data.closed
                                 ? "The field's ranking. Cut it into tiers of four for the splitting stage."
-                                : `${data.questionCount} questions, ${data.field.length} players seated. The staff close it when everyone has answered.`}
+                                : `${data.questionCount} questions, ${data.field.length} players seated.`}
                         </DialogDescription>
                     </DialogHeader>
+
+                    {!data.closed && controls.phase === "not-open" && (
+                        <div className="flex flex-col gap-1 rounded-lg border border-dashed p-4">
+                            <p className="text-sm font-medium">Not open yet</p>
+                            <p className="text-xs text-muted-foreground">
+                                Opening releases question 1 to the whole field — every player's
+                                clock starts from that release.
+                            </p>
+                        </div>
+                    )}
+
+                    {!data.closed && controls.phase === "open" && (
+                        <div className="flex flex-col gap-2 rounded-lg border p-4">
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="flex items-center gap-2 text-sm font-medium">
+                                    <span
+                                        className="size-2 animate-pulse rounded-full bg-destructive"
+                                        aria-hidden
+                                    />
+                                    Open — question {controls.questionNumber} of {controls.questionCount}
+                                    {releasedLabel && (
+                                        <span className="font-normal text-muted-foreground">
+                                            · released {releasedLabel}
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="text-sm tabular-nums">
+                                    {controls.currentAnswered} / {controls.fieldSize} answered
+                                </span>
+                            </div>
+                            <div
+                                className="h-2 overflow-hidden rounded-full bg-muted"
+                                role="progressbar"
+                                aria-valuemin={0}
+                                aria-valuemax={controls.fieldSize}
+                                aria-valuenow={controls.currentAnswered}
+                            >
+                                <div
+                                    className="h-full rounded-full bg-primary transition-all"
+                                    style={{ width: `${answeredPct}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {data.closed ? (
                         <>
@@ -212,18 +279,50 @@ export function MassEventDialog({
                     {close.isError && tiedGroups.length === 0 && (
                         <p role="alert" className="text-sm text-destructive">{close.error.message}</p>
                     )}
+                    {actionError && (
+                        <p role="alert" className="text-sm text-destructive">{actionError}</p>
+                    )}
+
+                    {controls.phase === "open" && !controls.canAdvance && (
+                        // A disabled button states its reason (docs/ui-patterns.md).
+                        <p className="text-right text-xs text-muted-foreground">
+                            {controls.advanceReason}
+                        </p>
+                    )}
 
                     <DialogFooter>
                         <Button
                             variant="outline"
                             onClick={() => onOpenChange(false)}
-                            disabled={close.isPending}
+                            disabled={close.isPending || openEvent.isPending || advance.isPending}
                         >
                             Close
                         </Button>
-                        {!data.closed && (
-                            <Button onClick={submit} disabled={close.isPending}>
+                        {!data.closed && controls.phase === "not-open" && (
+                            <Button onClick={() => openEvent.mutate(matchId)} disabled={openEvent.isPending}>
+                                {openEvent.isPending ? "Opening…" : "Open event"}
+                            </Button>
+                        )}
+                        {!data.closed && controls.phase === "open" && (
+                            <Button variant="outline" onClick={submit} disabled={close.isPending}>
                                 {close.isPending ? "Closing…" : "Close the mass event"}
+                            </Button>
+                        )}
+                        {!data.closed && controls.phase === "open" && (
+                            <Button
+                                onClick={() => advance.mutate(matchId)}
+                                disabled={!controls.canAdvance || advance.isPending}
+                            >
+                                {advance.isPending
+                                    ? "Advancing…"
+                                    : controls.canAdvance
+                                        ? `Question ${controls.questionNumber + 1} →`
+                                        : "Next question →"}
+                            </Button>
+                        )}
+                        {data.closed && (
+                            <Button onClick={() => onOpenChange(false)}>
+                                Done
                             </Button>
                         )}
                     </DialogFooter>

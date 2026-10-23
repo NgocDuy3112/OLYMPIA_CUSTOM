@@ -225,6 +225,12 @@ export interface MassEventView {
     closed: boolean
     label: string
     questionCount: number
+    // The turns (docs/mass-event.md): null = not opened yet; releasedAt is the
+    // server's release of the current question — the clock anchor for the field.
+    opened: boolean
+    currentPosition: number | null
+    releasedAt: string | null
+    currentAnswered: number
     field: MassEventFieldRow[]
     results: Array<{
         kind: string
@@ -242,6 +248,48 @@ export function useMassEvent(tournamentId: string, matchId: string | null) {
                 `/portal/tournaments/${tournamentId}/qualification-matches/${matchId}`
             ),
         enabled: Boolean(tournamentId && matchId),
+        // The live count is the staff's cue for when to advance. Poll only while
+        // the event is actually running — the players' side never polls (it is
+        // pushed; see the gameplay app's qualification stream).
+        refetchInterval: (query) => {
+            const view = query.state.data as MassEventView | undefined
+            if (!view || view.closed || !view.opened) return false
+            return 3000
+        },
+    })
+}
+
+// Open the event: releases question 1. The route answers with the fresh staff view,
+// so the dialog's count starts from the same instant the players' sockets ping.
+export function useOpenMassEvent(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (matchId: string) =>
+            api<MassEventView>(
+                `/portal/tournaments/${tournamentId}/qualification-matches/${matchId}/open`,
+                { method: "POST" }
+            ),
+        onSuccess: (view, matchId) => {
+            queryClient.setQueryData(["mass-event", tournamentId, matchId], view)
+            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
+        },
+    })
+}
+
+// Advance to the next question. Same fresh-view contract as open.
+export function useAdvanceMassEvent(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (matchId: string) =>
+            api<MassEventView>(
+                `/portal/tournaments/${tournamentId}/qualification-matches/${matchId}/advance`,
+                { method: "POST" }
+            ),
+        onSuccess: (view, matchId) => {
+            queryClient.setQueryData(["mass-event", tournamentId, matchId], view)
+        },
     })
 }
 

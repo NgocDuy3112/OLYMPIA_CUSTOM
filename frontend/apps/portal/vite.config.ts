@@ -19,7 +19,9 @@ export default defineConfig({
     server: {
         port: 5174,
         proxy: {
-            "/portal": { target: "http://localhost:3000", changeOrigin: false },
+            // Same escape hatch as the gameplay app: another process (e.g. podman's
+            // gvproxy) can hold port 3000, so the dev backend may live elsewhere.
+            "/portal": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
         },
     },
 })
