@@ -1,4 +1,4 @@
-import { type Match } from "@/data/schedule"
+import type { Match } from "@/lib/types"
 import { MatchCard } from "./MatchCard"
 import { formatDay } from "@/lib/format"
 

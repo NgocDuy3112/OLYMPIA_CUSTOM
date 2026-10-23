@@ -1,4 +1,4 @@
-import type { MatchStatus } from "@/data/schedule"
+import type { MatchStatus } from "@/lib/types"
 
 export const STATUS_VARIANT: Record<MatchStatus, "outline" | "destructive" | "secondary"> = {
     UPCOMING: "outline",

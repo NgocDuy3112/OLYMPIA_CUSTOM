@@ -14,24 +14,22 @@ import {
     TableHeader,
     TableRow,
 } from "@shared/ui/table"
-import { Trophy, ArrowRight, Medal } from "lucide-react"
+import { Trophy, ArrowRight } from "lucide-react"
 import { cn } from "cn"
-import { carryOverPoints, placementLabel } from "@/lib/rankingPoints"
-import type { StandingRow } from "@/data/schedule"
+import type { StandingRow } from "@/lib/types"
+
+// The places table: a player is ranked by HOW FAR THEY GOT — the last stage they
+// reached, and their rank inside it. The points are a statistic, never the key.
 
 interface StandingsPanelProps {
     rows: StandingRow[]
-    showPrev?: boolean
-    showBatch?: boolean
-    viewAllLink?: boolean
+    viewAllTo?: string
     onSelectRow?: (row: StandingRow) => void
 }
 
 export function StandingsPanel({
     rows,
-    showPrev = false,
-    showBatch = false,
-    viewAllLink = false,
+    viewAllTo,
     onSelectRow
 }: StandingsPanelProps) {
     return (
@@ -42,7 +40,7 @@ export function StandingsPanel({
                     Olympia Custom Ranking
                 </CardTitle>
                 <CardDescription>
-                    Điểm tích luỹ mùa hiện tại và tổng điểm của 2 mùa gần nhất
+                    Xếp hạng theo tiến độ — thí sinh càng đi sâu, thứ hạng càng cao
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -51,58 +49,45 @@ export function StandingsPanel({
                         <TableRow>
                             <TableHead className="w-8">#</TableHead>
                             <TableHead>Thí sinh</TableHead>
-                            <TableHead className="text-center">Tổng điểm</TableHead>
-                            <TableHead className="text-center">Mùa này</TableHead>
-                            {showPrev && (
-                                <TableHead className="text-center">Mùa trước</TableHead>
-                            )}
-                            {showBatch && (
-                                <TableHead>Thành tích</TableHead>
-                            )}
+                            <TableHead>Đã tới vòng</TableHead>
+                            <TableHead className="text-center">Trận</TableHead>
+                            <TableHead className="text-center">Điểm</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {rows.map((row) => {
-                            const carry = carryOverPoints(row.prevPoints)
-                            const total = row.points + carry
-
-                            return (
-                                <TableRow
-                                    key={row.id}
-                                    tabIndex={onSelectRow ? 0 : undefined}
-                                    className={cn(onSelectRow && "cursor-pointer")}
-                                    onClick={() => onSelectRow?.(row)}
+                        {rows.map((row) => (
+                            <TableRow
+                                key={row.id}
+                                tabIndex={onSelectRow ? 0 : undefined}
+                                className={cn(onSelectRow && "cursor-pointer")}
+                                onClick={() => onSelectRow?.(row)}
+                            >
+                                <TableCell className="tabular-nums text-muted-foreground">
+                                    {row.rank ?? "—"}
+                                </TableCell>
+                                <TableCell
+                                    className="font-medium"
+                                    // A tie is reported, never hidden.
+                                    title={row.tieBreak ?? undefined}
                                 >
-                                    <TableCell className="tabular-nums text-muted-foreground">
-                                        {row.rank}
-                                    </TableCell>
-                                    <TableCell className="font-medium">
-                                        {row.name}
-                                    </TableCell>
-                                    <TableCell className="text-center font-semibold tabular-nums">
-                                        {total}
-                                    </TableCell>
-                                    <TableCell className="text-center tabular-nums">
-                                        {row.points}
-                                    </TableCell>
-                                    {showPrev && (
-                                        <TableCell className="text-center tabular-nums text-muted-foreground">
-                                            {row.prevPoints}
-                                        </TableCell>
-                                    )}
-                                    {showBatch && (
-                                        <TableCell>
-                                            <RankChip placement={row.best} />
-                                        </TableCell>
-                                    )}
-                                </TableRow>
-                            )
-                        })}
+                                    {row.name}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">
+                                    {row.stageTitle ?? "—"}
+                                </TableCell>
+                                <TableCell className="text-center tabular-nums">
+                                    {row.matchesPlayed}
+                                </TableCell>
+                                <TableCell className="text-center font-semibold tabular-nums">
+                                    {row.points}
+                                </TableCell>
+                            </TableRow>
+                        ))}
                     </TableBody>
                 </Table>
-                {viewAllLink && (
+                {viewAllTo && (
                     <Link
-                        to="/standings"
+                        to={viewAllTo}
                         className="mt-1 flex items-center justify-end gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                     >
                         Xem chi tiết bảng xếp hạng
@@ -111,28 +96,5 @@ export function StandingsPanel({
                 )}
             </CardContent>
         </Card>
-    )
-}
-
-function RankChip({ placement }: { placement: number }) {
-    const style =
-        placement === 1
-            ? "border-amber-300 bg-amber-100 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
-            : placement === 2
-                ? "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                : placement === 3
-                    ? "border-orange-300 bg-orange-100 text-orange-900 dark:border-orange-800 dark:bg-orange-950 dark:text-orange-300"
-                    : "border-border bg-muted text-muted-foreground"
-
-    return (
-        <span
-            className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-                style
-            )}
-        >
-            <Medal className="size-3" aria-hidden />
-            {placementLabel(placement)}
-        </span>
     )
 }

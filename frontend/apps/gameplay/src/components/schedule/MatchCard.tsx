@@ -1,7 +1,7 @@
 import { Badge } from "@shared/ui/badge"
 import { Card, CardContent } from "@shared/ui/card"
 import { cn } from "cn"
-import type { Match } from "@/data/schedule"
+import type { Match } from "@/lib/types"
 import { Trophy } from "lucide-react"
 import { STATUS_LABEL, STATUS_VARIANT } from "./status"
 

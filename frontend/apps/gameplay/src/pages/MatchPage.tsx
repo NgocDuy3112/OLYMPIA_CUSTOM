@@ -1,25 +1,20 @@
-import { useNavigate, useParams } from "react-router-dom"
+import type { TournamentRound } from "@/lib/api"
+import type { Match } from "@/lib/types"
 import { MatchDetail } from "@/components/schedule/MatchDetail"
-import { NotFoundPage } from "@/pages/NotFoundPage"
-import type { Match } from "@/data/schedule"
 
 interface MatchPageProps {
-    matches: Match[]
+    match: Match
+    rounds: TournamentRound[]
+    onBack: () => void
 }
 
-export function MatchPage({ matches }: MatchPageProps) {
-    const { id } = useParams()
-    const navigate = useNavigate()
-    const match = matches.find((m) => m.id === id)
-
-    if (!match) {
-        return <NotFoundPage />
-    }
-
+// The route found the match; this page only renders it.
+export function MatchPage({ match, rounds, onBack }: MatchPageProps) {
     return (
         <MatchDetail
             match={match}
-            onBack={() => navigate("/")}
+            rounds={rounds}
+            onBack={onBack}
         />
     )
 }

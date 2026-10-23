@@ -1,10 +1,7 @@
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import {
-    type Match,
-    type StandingRow,
-} from "@/data/schedule"
-import type { Tournament } from "@/data/tournaments"
+import type { TournamentDetail } from "@/lib/api"
+import type { Match, StandingRow } from "@/lib/types"
 import { DaySection } from "@/components/schedule/DaySection"
 import { MatchCard } from "@/components/schedule/MatchCard"
 import { StageTimeline } from "@/components/schedule/StageTimeline"
@@ -16,7 +13,7 @@ import { Inbox } from "lucide-react"
 const STANDINGS_PREVIEW_COUNT = 4
 
 interface SchedulePageProps {
-    tournament: Tournament
+    tournament: TournamentDetail
     matches: Match[]
     standings: StandingRow[]
     loading?: boolean
@@ -70,7 +67,7 @@ export function SchedulePage({
         <div className="mx-auto flex w-full flex-col max-w-360 gap-6 px-4 py-6 md:py-10">
             <ScheduleHeader
                 title={tournament.name}
-                dayLabel={formatDay(day)}
+                dayLabel={days.length > 0 ? formatDay(day) : "—"}
                 onPrevDay={goPrev}
                 onNextDay={goNext}
                 onToday={goToday}
@@ -81,16 +78,16 @@ export function SchedulePage({
             ) : (
                 <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)_360px]">
                     <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
-                        <StageTimeline />
+                        <StageTimeline stages={tournament.stages} />
                     </aside>
-                    
+
                     <div className="flex min-w-0 flex-col gap-6">
                         {liveMatch && (
                             <div className="flex flex-col gap-3">
                                 <MatchCard
                                     match={liveMatch}
                                     featured
-                                    onOpen={() => navigate(`/matches/${liveMatch.id}`)}
+                                    onOpen={() => navigate(`/s/${tournament.slug}/matches/${liveMatch.id}`)}
                                 />
                             </div>
                         )}
@@ -100,7 +97,7 @@ export function SchedulePage({
                                 key={date}
                                 date={date}
                                 matches={list}
-                                onOpenMatch={(id) => navigate(`/matches/${id}`)}
+                                onOpenMatch={(id) => navigate(`/s/${tournament.slug}/matches/${id}`)}
                             />
                         ))}
 
@@ -109,7 +106,7 @@ export function SchedulePage({
 
                     <StandingsPanel
                         rows={standings.slice(0, STANDINGS_PREVIEW_COUNT)}
-                        viewAllLink
+                        viewAllTo={`/s/${tournament.slug}/standings`}
                     />
                 </div>
             )}

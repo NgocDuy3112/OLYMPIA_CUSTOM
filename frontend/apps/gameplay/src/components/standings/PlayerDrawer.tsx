@@ -4,9 +4,8 @@ import { cn } from "cn"
 import { Badge } from "@shared/ui/badge"
 import { DialogOverlay } from "@shared/ui/dialog"
 import { formatDay } from "@/lib/format"
-import { carryOverPoints } from "@/lib/rankingPoints"
 import { STATUS_LABEL, STATUS_VARIANT } from "@/components/schedule/status"
-import type { Match, StandingRow } from "@/data/schedule"
+import type { Match, StandingRow } from "@/lib/types"
 import { DialogTitle } from "@shared/ui/dialog"
 
 
@@ -23,7 +22,6 @@ export function PlayerDrawer({
     open,
     onOpenChange,
 }: PlayerDrawerProps) {
-    const carry = carryOverPoints(player.prevPoints)
     const history = matches
         .filter((m) => m.players.some((p) => p.id === player.id))
         .sort((a, b) =>
@@ -47,6 +45,11 @@ export function PlayerDrawer({
                             <DialogTitle className="font-heading text-3xl font-semibold">
                                 {player.name}
                             </DialogTitle>
+                            {player.tieBreak && (
+                                <p className="text-xs text-muted-foreground">
+                                    {player.tieBreak}
+                                </p>
+                            )}
                         </div>
                         <DialogPrimitive.Close className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                             <X className="size-4" aria-hidden />
@@ -55,18 +58,12 @@ export function PlayerDrawer({
                     </div>
 
                     <div className="flex flex-col gap-3">
-                        <h3 className="text-xl font-semibold">Olympia Custom Points</h3>
-                        <div className="grid grid-cols-3 gap-1">
-                            <Stat label="Tổng điểm" value={player.points + carry} strong />
-                            <Stat label="Điểm mùa này" value={player.points} />
-                            <Stat label="Điểm mùa trước" value={player.prevPoints} />
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-3">
-                        <h3 className="text-xl font-semibold">Thành tích thứ hạng</h3>
-                        <div className="grid grid-cols-2 gap-1">
-                            <Stat label="Hạng mùa này" value={`#${player.rank}`} />
-                            <Stat label="Hạng cao nhất" value={`#${player.best}`} />
+                        <h3 className="text-xl font-semibold">Thành tích tại giải đấu</h3>
+                        <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+                            <Stat label="Hạng" value={player.rank !== null ? `#${player.rank}` : "—"} strong />
+                            <Stat label="Vòng đã tới" value={player.stageTitle ?? "—"} />
+                            <Stat label="Trận đã đấu" value={player.matchesPlayed} />
+                            <Stat label="Điểm" value={player.points} />
                         </div>
                     </div>
 
@@ -99,7 +96,7 @@ export function PlayerDrawer({
                                             </div>
                                             <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                                                 <span className="font-medium tabular-nums text-foreground">
-                                                    {match.status === "UPCOMING" ? "–" : `#${p.rank} · ${p.score}`}
+                                                    {match.status === "UPCOMING" ? "–" : `#${p.rank ?? "-"} · ${p.score ?? 0}`}
                                                 </span>
                                                 <span className="tabular-nums">
                                                     {formatDay(match.date)} · {match.startTime}
@@ -131,7 +128,9 @@ function Stat({
             <span
                 className={cn(
                     "font-heading text-3xl font-bold tabular-nums leading-none",
-                    strong ? "text-foreground" : "text-muted-foreground"
+                    strong ? "text-foreground" : "text-muted-foreground",
+                    // A stage title is words, not a number — it must not shout.
+                    typeof value === "string" && value.startsWith("#") === false && "text-lg"
                 )}
             >
                 {value}

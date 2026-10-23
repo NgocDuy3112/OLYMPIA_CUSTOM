@@ -6,18 +6,26 @@ import {
     CardHeader,
     CardTitle,
 } from "@shared/ui/card"
-import { PLACEMENT_TIERS, pointsForPlacement } from "@/lib/rankingPoints"
+import type { PlacementTier } from "@/lib/api"
+import { pointsForPlacement } from "@/lib/rankingPoints"
 
-export function PointsRulesPanel() {
-    const lastTier = PLACEMENT_TIERS[PLACEMENT_TIERS.length - 1]
-    const outsidePoints = pointsForPlacement(lastTier.max + 1)
+interface PointsRulesPanelProps {
+    tiers: PlacementTier[]
+}
+
+export function PointsRulesPanel({ tiers }: PointsRulesPanelProps) {
+    // No scale, no rules: a tournament with no tiers awards nothing.
+    if (tiers.length === 0) return null
+
+    const lastTier = tiers[tiers.length - 1]
 
     const rows = [
-        ...PLACEMENT_TIERS.map((tier) => ({
+        ...tiers.map((tier) => ({
             label: tier.min === tier.max ? `${tier.min}` : `${tier.min}–${tier.max}`,
             points: tier.points,
         })),
-        { label: "còn lại", points: outsidePoints },
+        // A place outside the tiers is worth nothing — read from the same scale.
+        { label: "còn lại", points: pointsForPlacement(tiers, lastTier.max + 1) },
     ]
 
     return (
@@ -34,30 +42,17 @@ export function PointsRulesPanel() {
                     {rows.map((row) => (
                         <li
                             key={row.label}
-                            className="flex items-center justify-between rounded-md px-2 py-1.5 text-base"
+                            className="flex items-center justify-between gap-3 rounded-md border border-border px-2 py-1.5 text-base"
                         >
                             <span className="text-muted-foreground">
                                 Hạng {row.label}
                             </span>
-                            <span className="font-medium tabular-nums">
+                            <span className="font-semibold tabular-nums">
                                 +{row.points}
                             </span>
                         </li>
                     ))}
                 </ul>
-                <div className="mt-3 border-t pt-3 text-sm text-muted-foreground">
-                    <ul className="flex list-disc flex-col gap-1 pl-4">
-                        <li>
-                            Điểm xét duyệt cho mùa giải sau bằng tổng điểm tích luỹ tại mùa
-                            giải hiện tại cộng 50% điểm tích luỹ tại mùa giải liền trước.
-                        </li>
-                        <li>
-                            Hai thí sinh (trừ các thí sinh vào đến trận chung kết tại mùa giải
-                            hiện tại) có tổng điểm tích luỹ cao nhất sẽ có hai slots vào thẳng
-                            Vòng bảng.
-                        </li>
-                    </ul>
-                </div>
             </CardContent>
         </Card>
     )

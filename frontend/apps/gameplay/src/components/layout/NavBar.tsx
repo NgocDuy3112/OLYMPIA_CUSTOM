@@ -8,7 +8,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@shared/ui/dropdown-menu"
-import { SEASONS, CURRENT_SEASON } from "@/data/tournaments"
+import { useTournamentList } from "@/lib/api"
 
 
 const links = [
@@ -19,8 +19,13 @@ const links = [
 export function NavBar() {
     const { pathname } = useLocation()
     const navigate = useNavigate()
-    const tournamentId = pathname.split("/")[2]            // /s/:tournamentId/…
-    const viewingOtherTournament = Boolean(tournamentId) && tournamentId !== CURRENT_SEASON.id
+    const list = useTournamentList()
+    const tournaments = list.data?.tournaments ?? []
+
+    // The slug owns the URL: /s/:slug/…
+    const slug = pathname.split("/")[2]
+    const currentSlug = tournaments.find((t) => t.current)?.slug
+    const viewingOtherTournament = Boolean(slug) && slug !== currentSlug
 
     return (
         <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
@@ -61,10 +66,10 @@ export function NavBar() {
                             <ChevronDown className="size-3.5" aria-hidden />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start">
-                            {SEASONS.map((tournament) => (
+                            {tournaments.map((tournament) => (
                                 <DropdownMenuItem
                                     key={tournament.id}
-                                    onClick={() => navigate(`/s/${tournament.id}`)}
+                                    onClick={() => navigate(`/s/${tournament.slug}`)}
                                 >
                                     <span
                                         className={cn(

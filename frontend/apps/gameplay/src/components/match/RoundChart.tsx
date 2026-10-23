@@ -6,22 +6,26 @@ import {
     ChartTooltipContent,
     type ChartConfig,
 } from "@shared/ui/chart"
-import { ROUND_NAMES, type PlayerResult, type RoundName } from "@/data/schedule"
-
-
-type WithRounds = PlayerResult & { roundScores: Record<RoundName, number> }
+import type { TournamentRound } from "@/lib/api"
+import type { PlayerResult } from "@/lib/types"
 
 
 interface RoundChartProps {
+    // The tournament's own rounds, in order — the chart's x-axis is this list.
+    rounds: TournamentRound[]
     players: PlayerResult[]
 }
 
-export function RoundChart({ players }: RoundChartProps) {
+export function RoundChart({ rounds, players }: RoundChartProps) {
     const withRounds = players.filter(
-        (p): p is WithRounds => p.roundScores !== undefined
+        (p) => p.roundScores !== undefined
     )
 
-    if (withRounds.length === 0) {
+    // The round names the scores are keyed by, in the tournament's order.
+    const roundNames = rounds.map((r) => r.name)
+
+    // Nothing to draw: nobody has scores yet, or the scores name no listed round.
+    if (withRounds.length === 0 || roundNames.length === 0) {
         return (
             <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center">
                 <p className="font-medium">Chưa có biểu đồ</p>
@@ -33,13 +37,16 @@ export function RoundChart({ players }: RoundChartProps) {
     }
     const OFFSET_Y = 7
 
+    // A player who skipped a round scores 0 there — the line runs flat, not absent.
+    const scoreOf = (p: PlayerResult, round: string) => p.roundScores?.[round] ?? 0
+
     const cum = withRounds.map((p) => {
         let acc = 0
-        return ROUND_NAMES.map((r) => (acc += p.roundScores[r]))
+        return roundNames.map((r) => (acc += scoreOf(p, r)))
     })
 
     // offsets[roundIndex][seriesIndex]
-    const offsets: number[][] = ROUND_NAMES.map((_, i) => {
+    const offsets: number[][] = roundNames.map((_, i) => {
         const buckets = new Map<number, number[]>()
         withRounds.forEach((_, pi) => {
             const v = cum[pi][i]
@@ -56,7 +63,7 @@ export function RoundChart({ players }: RoundChartProps) {
         return out
     })
 
-    const data = ROUND_NAMES.map((round, i) => {
+    const data = roundNames.map((round, i) => {
         const row: Record<string, string | number> = { round }
         withRounds.forEach((p, pi) => {
             row[p.id] = cum[pi][i] + offsets[i][pi]
@@ -77,7 +84,7 @@ export function RoundChart({ players }: RoundChartProps) {
     const makeLabel =
         (name: string) =>
             ({ x, y, index }: LabelProps) => {
-                if (index == null || index !== ROUND_NAMES.length - 1) return null
+                if (index == null || index !== roundNames.length - 1) return null
                 if (x == null || y == null) return null
                 return (
                     <text
@@ -113,7 +120,7 @@ export function RoundChart({ players }: RoundChartProps) {
                         <ChartTooltipContent
                             formatter={(value, name, item, index) => {
                                 const round = (item.payload as { round?: string })?.round
-                                const ri = ROUND_NAMES.indexOf(round as RoundName)
+                                const ri = roundNames.indexOf(round ?? "")
                                 if (typeof value !== "number" || ri < 0) return value
                                 return `${name} ${value - (offsets[ri]?.[index] ?? 0)}`
                             }}

@@ -5,16 +5,18 @@ import { Badge } from "@shared/ui/badge"
 import { Card, CardContent } from "@shared/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { cn } from "cn"
-import type { Match } from "@/data/schedule"
-import { pointsForPlacement } from "@/lib/rankingPoints"
+import type { TournamentRound } from "@/lib/api"
+import type { Match } from "@/lib/types"
 import { STATUS_LABEL, STATUS_VARIANT } from "./status"
 
 interface MatchDetailProps {
     match: Match
+    // The tournament's rounds: the chart's axis and the scores' key order.
+    rounds: TournamentRound[]
     onBack: () => void
 }
 
-export function MatchDetail({ match, onBack }: MatchDetailProps) {
+export function MatchDetail({ match, rounds, onBack }: MatchDetailProps) {
     const players = match.players
     const isLive = (match.status === "LIVE")
     const hasResults = (match.status !== "UPCOMING")
@@ -112,7 +114,7 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
                         <h3 className="font-heading text-base font-semibold">
                             Điểm theo vòng thi
                         </h3>
-                        <RoundChart players={players} />
+                        <RoundChart rounds={rounds} players={players} />
                     </div>
                 </TabsContent>
 
@@ -122,13 +124,6 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
                             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                                 <Stat label="Total score" value={totalScore} />
                                 <Stat label="Top score" value={topScore} />
-                                <Stat
-                                    label="Points awarded"
-                                    value={players.reduce(
-                                        (sum, p) => sum + pointsForPlacement(p.rank ?? 0),
-                                        0
-                                    )}
-                                />
                             </div>
 
                             <Card size="sm">
@@ -147,9 +142,6 @@ export function MatchDetail({ match, onBack }: MatchDetailProps) {
                                                 </span>
                                                 <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">
                                                     {player.score ?? 0}
-                                                </span>
-                                                <span className="w-12 shrink-0 text-right font-semibold tabular-nums">
-                                                    +{pointsForPlacement(player.rank ?? 0)}
                                                 </span>
                                             </li>
                                         ))}

@@ -1,54 +1,156 @@
-import { useEffect, useState } from "react"
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams, useOutletContext } from "react-router-dom"
+import { useMemo } from "react"
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { ApiError } from "@shared/lib/api"
 import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { MatchPage } from "@/pages/MatchPage"
-import { CURRENT_SEASON, findTournament, type Tournament } from "@/data/tournaments"
+import { useSchedule, useStandings, useTournament, useTournamentList, type TournamentDetail } from "@/lib/api"
+import { toMatch, toStandings } from "@/lib/adapters"
 
-interface TournamentContext { tournament: Tournament; loading: boolean }
+interface TournamentContext { tournament: TournamentDetail }
 
-function TournamentLayout({ loading }: { loading: boolean }) {
-    const { tournamentId } = useParams()
-    const tournament = findTournament(tournamentId)
-    if (!tournament) return <NotFoundPage />
-    return <Outlet context={{ tournament, loading }} />
+// A 404 is an answer, not a failure: the slug simply has no tournament.
+function isNotFound(error: unknown): boolean {
+    return error instanceof ApiError && error.status === 404
+}
+
+function LoadingState() {
+    return (
+        <div
+            role="status"
+            aria-label="Đang tải"
+            className="mx-auto w-full max-w-360 px-4 py-6 md:py-10"
+        >
+            <div className="h-96 animate-pulse rounded-xl bg-muted" />
+        </div>
+    )
+}
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+    return (
+        <div className="mx-auto flex w-full max-w-360 flex-col items-center gap-3 px-4 py-16 text-center">
+            <p className="font-medium">Không tải được dữ liệu giải đấu</p>
+            <p className="text-sm text-muted-foreground">
+                Kết nối tới máy chủ thất bại. Vui lòng thử lại.
+            </p>
+            <button
+                type="button"
+                onClick={onRetry}
+                className="rounded-md border border-border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
+            >
+                Thử lại
+            </button>
+        </div>
+    )
+}
+
+// The tournament of the URL: its identity loads here, its schedule and standings
+// load in the routes below.
+function TournamentLayout() {
+    const { slug } = useParams()
+    const query = useTournament(slug ?? "")
+
+    if (query.isPending) return <LoadingState />
+    if (query.error) {
+        if (isNotFound(query.error)) return <NotFoundPage />
+        return <ErrorState onRetry={() => void query.refetch()} />
+    }
+
+    return <Outlet context={{ tournament: query.data }} />
 }
 
 function ScheduleRoute() {
-    const { tournament, loading } = useOutletContext<TournamentContext>()
-    return <SchedulePage tournament={tournament} matches={tournament.matches} standings={tournament.standings} loading={loading} />
+    const { tournament } = useOutletContext<TournamentContext>()
+    const schedule = useSchedule(tournament.slug)
+    const standings = useStandings(tournament.slug)
+
+    const matches = useMemo(
+        () => schedule.data?.items.map((row) => toMatch(row, tournament.rounds)) ?? [],
+        [schedule.data, tournament.rounds]
+    )
+    const rows = useMemo(() => toStandings(standings.data?.rows ?? []), [standings.data])
+
+    return (
+        <SchedulePage
+            tournament={tournament}
+            matches={matches}
+            standings={rows}
+            loading={schedule.isPending || standings.isPending}
+        />
+    )
 }
 
 function StandingsRoute() {
-    const { tournament, loading } = useOutletContext<TournamentContext>()
-    return <StandingsPage rows={tournament.standings} matches={tournament.matches} loading={loading} />
+    const { tournament } = useOutletContext<TournamentContext>()
+    const standings = useStandings(tournament.slug)
+    const schedule = useSchedule(tournament.slug)
+
+    const matches = useMemo(
+        () => schedule.data?.items.map((row) => toMatch(row, tournament.rounds)) ?? [],
+        [schedule.data, tournament.rounds]
+    )
+    const rows = useMemo(() => toStandings(standings.data?.rows ?? []), [standings.data])
+
+    return (
+        <StandingsPage
+            rows={rows}
+            matches={matches}
+            placementTiers={tournament.placementTiers}
+            loading={standings.isPending || schedule.isPending}
+        />
+    )
 }
 
 function MatchRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
-    return <MatchPage matches={tournament.matches} />
+    const { id } = useParams()
+    const navigate = useNavigate()
+    const schedule = useSchedule(tournament.slug)
+
+    if (schedule.isPending) return <LoadingState />
+    if (schedule.error) return <ErrorState onRetry={() => void schedule.refetch()} />
+
+    const row = schedule.data.items.find((m) => m.id === id)
+    if (!row) return <NotFoundPage />
+
+    return (
+        <MatchPage
+            match={toMatch(row, tournament.rounds)}
+            rounds={tournament.rounds}
+            onBack={() => navigate(`/s/${tournament.slug}`)}
+        />
+    )
+}
+
+// "/" and "/standings" lead to the CURRENT tournament — the one the staff flagged,
+// or the newest when none is flagged.
+function CurrentTournamentRedirect({ path }: { path: (slug: string) => string }) {
+    const list = useTournamentList()
+
+    if (list.isPending) return <LoadingState />
+    if (list.error) return <ErrorState onRetry={() => void list.refetch()} />
+
+    const tournaments = list.data.tournaments
+    const current = tournaments.find((t) => t.current) ?? tournaments[tournaments.length - 1]
+    if (!current) return <NotFoundPage />
+
+    return <Navigate to={path(current.slug)} replace />
 }
 
 function App() {
-    const [loading, setLoading] = useState(true)
-    useEffect(() => {
-        const t = setTimeout(() => setLoading(false), 600)
-        return () => clearTimeout(t)
-    }, [])
-
     return (
         <BrowserRouter>
             <Routes>
                 <Route element={<AppShell />}>
-                    <Route path="/" element={<Navigate to={`/s/${CURRENT_SEASON.id}`} replace />} />
-                    <Route path="/s/:tournamentId" element={<TournamentLayout loading={loading} />}>
+                    <Route path="/" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}`} />} />
+                    <Route path="/s/:slug" element={<TournamentLayout />}>
                         <Route index element={<ScheduleRoute />} />
                         <Route path="standings" element={<StandingsRoute />} />
                         <Route path="matches/:id" element={<MatchRoute />} />
                     </Route>
-                    <Route path="/standings" element={<Navigate to={`/s/${CURRENT_SEASON.id}/standings`} replace />} />
+                    <Route path="/standings" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}/standings`} />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
             </Routes>

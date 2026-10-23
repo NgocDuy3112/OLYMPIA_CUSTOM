@@ -19,7 +19,8 @@ export default defineConfig({
     server: {
         port: 5175,
         proxy: {
-            "/gameplay": { target: "http://localhost:3000", changeOrigin: false },
+            // Dev backends may not sit on 3000 (another process can hold it).
+            "/gameplay": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
         },
     },
 })

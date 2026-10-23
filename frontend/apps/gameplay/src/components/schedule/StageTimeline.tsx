@@ -1,22 +1,34 @@
 import { Check } from "lucide-react"
 import { cn } from "cn"
-import { OLYMPIA_STAGES, type Stage } from "@/data/stages"
+import type { Stage } from "@/lib/api"
+
+// The tournament's own stage list — the spine of the show. Each stage window is
+// an ISO datetime on the wire; the timeline compares DAYS.
 
 type StageState = "done" | "current" | "upcoming"
 
+const day = (iso: string) => iso.slice(0, 10)
+
 function stateOf(stage: Stage, today: string): StageState {
-    if (today > stage.end) return "done"
-    if (today < stage.start) return "upcoming"
+    if (stage.end && today > day(stage.end)) return "done"
+    if (stage.start && today < day(stage.start)) return "upcoming"
     return "current"
 }
 
-function formatRange({ start, end }: Stage): string {
+function formatRange({ start, end }: Stage): string | null {
+    if (!start || !end) return null
     const fmt = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
     return `${fmt(start)} – ${fmt(end)}`
 }
 
-export function StageTimeline() {
+interface StageTimelineProps {
+    stages: Stage[]
+}
+
+export function StageTimeline({ stages }: StageTimelineProps) {
     const today = new Date().toISOString().slice(0, 10)
+
+    if (stages.length === 0) return null
 
     return (
         <nav aria-label="Các vòng thi đấu">
@@ -24,9 +36,10 @@ export function StageTimeline() {
                 Tiến độ giải đấu
             </h2>
             <ol className="flex flex-col">
-                {OLYMPIA_STAGES.map((stage, i) => {
+                {stages.map((stage, i) => {
                     const state = stateOf(stage, today)
-                    const isLast = i === OLYMPIA_STAGES.length - 1
+                    const isLast = i === stages.length - 1
+                    const range = formatRange(stage)
 
                     return (
                         <li key={stage.id} className="relative flex gap-3 pb-6 last:pb-0">
@@ -64,9 +77,11 @@ export function StageTimeline() {
                                 >
                                     {stage.title}
                                 </span>
-                                <span className="text-xs tracking-wider text-muted-foreground tabular-nums uppercase">
-                                    {formatRange(stage)}
-                                </span>
+                                {range && (
+                                    <span className="text-xs tracking-wider text-muted-foreground tabular-nums uppercase">
+                                        {range}
+                                    </span>
+                                )}
                             </div>
                         </li>
                     )
