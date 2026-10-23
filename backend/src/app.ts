@@ -24,6 +24,7 @@ import { liveRoutes } from "./modules/live/routes.js";
 import { rosterRoutes } from "./modules/roster/routes.js";
 import { qualificationRoutes } from "./modules/qualification/routes.js";
 import { standingsRoutes } from "./modules/standings/routes.js";
+import { gameplayReadRoutes } from "./modules/gameplay-read/routes.js";
 import { mcpKeyRoutes } from "./modules/mcp-keys/routes.js";
 import { mcpRoutes } from "./modules/mcp/index.js";
 
@@ -75,6 +76,7 @@ export async function buildApp() {
     await app.register(rosterRoutes);
     await app.register(qualificationRoutes);
     await app.register(standingsRoutes);
+    await app.register(gameplayReadRoutes);
     await app.register(mcpKeyRoutes);
     await app.register(mcpRoutes);
 
