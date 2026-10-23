@@ -53,15 +53,10 @@ export function StandardMatchControl({
         <div className="flex flex-col gap-6">
             {/* identity + assembly state */}
             <Section>
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
-                    <Fact label="Status">
-                        <Badge variant={match.status === "FINISHED" ? "secondary" : match.status === "LIVE" ? "destructive" : "outline"}>
-                            {match.status}
-                        </Badge>
-                    </Fact>
-                    <Fact label="Stage">{match.stageId}</Fact>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+                    <Fact label="Vòng thi">{match.stageId}</Fact>
                     <Fact label="Slot">{match.slot ?? "—"}</Fact>
-                    <Fact label="Scheduled">
+                    <Fact label="Lịch thi">
                         {new Date(match.scheduledAt).toLocaleString("en-GB", {
                             day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
                         })}
@@ -69,8 +64,8 @@ export function StandardMatchControl({
                 </dl>
                 <p className="mt-3 text-sm text-muted-foreground">
                     {match.questions.length > 0
-                        ? `${match.questions.length} questions assembled and frozen for this match.`
-                        : "No questions yet — assemble happens at creation."}
+                        ? `${match.questions.length} câu hỏi đã assembly và đóng băng cho trận này.`
+                        : "Chưa có câu hỏi — assembly diễn ra ngay khi tạo trận."}
                 </p>
             </Section>
 
@@ -79,17 +74,17 @@ export function StandardMatchControl({
                 <Section>
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <div className="flex flex-col gap-1">
-                            <p className="text-sm font-semibold">Ready to start?</p>
+                            <p className="text-sm font-semibold">Sẵn sàng bắt đầu?</p>
                             <p className="text-sm text-muted-foreground">
-                                Starting moves the match to LIVE — the live socket opens for its
-                                players. Entering the results finishes it.
+                                Bắt đầu chuyển trận sang LIVE — socket live mở cho thí sinh của
+                                trận. Nhập kết quả sẽ kết thúc trận.
                             </p>
                         </div>
                         <Button
                             onClick={() => transition.mutate({ matchId: match.id, status: "LIVE" })}
                             disabled={transition.isPending}
                         >
-                            {transition.isPending ? "Starting…" : "Start match ▶"}
+                            {transition.isPending ? "Đang bắt đầu…" : "Bắt đầu trận ▶"}
                         </Button>
                     </div>
                     {transitionError && (
@@ -102,8 +97,7 @@ export function StandardMatchControl({
                 <Section>
                     <p className="text-sm text-muted-foreground">
                         <Badge variant="destructive" className="mr-2">LIVE</Badge>
-                        Round play runs over the live socket. Entering the results below finishes
-                        the match.
+                        Phần chơi chạy qua socket live. Nhập kết quả bên dưới sẽ kết thúc trận.
                     </p>
                 </Section>
             )}
@@ -111,10 +105,10 @@ export function StandardMatchControl({
             {/* result entry — promoted from the MatchResultDialog */}
             {match.status !== "FINISHED" && (
                 <Section>
-                    <h2 className="mb-1 text-lg font-semibold">Enter result</h2>
+                    <h2 className="mb-1 text-lg font-semibold">Nhập kết quả</h2>
                     <p className="mb-4 text-sm text-muted-foreground">
-                        The totals each player finished with. Saving finishes the match and
-                        feeds the standings.
+                        Tổng điểm cuối cùng của từng thí sinh. Lưu sẽ kết thúc trận và cập
+                        nhật bảng xếp hạng.
                     </p>
                     <div className="flex flex-col gap-3">
                         {seated.map((player) => (
@@ -137,7 +131,7 @@ export function StandardMatchControl({
                     {saveError && <p role="alert" className="mt-3 text-sm text-destructive">{saveError}</p>}
                     <div className="mt-4 flex justify-end">
                         <Button onClick={submitResults} disabled={save.isPending || seated.length === 0}>
-                            {save.isPending ? "Saving…" : "Save result & finish"}
+                            {save.isPending ? "Đang lưu…" : "Lưu kết quả & kết thúc"}
                         </Button>
                     </div>
                 </Section>
@@ -146,8 +140,8 @@ export function StandardMatchControl({
             {match.status === "FINISHED" && (
                 <Section>
                     <p className="text-sm text-muted-foreground">
-                        <Badge variant="secondary" className="mr-2">FINISHED</Badge>
-                        The result is recorded — the standings and the bracket read it from here.
+                        <Badge variant="secondary" className="mr-2">Đã kết thúc</Badge>
+                        Kết quả đã được ghi nhận — bảng xếp hạng và bracket đọc từ đây.
                     </p>
                 </Section>
             )}

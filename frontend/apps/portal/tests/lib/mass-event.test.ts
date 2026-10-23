@@ -37,7 +37,7 @@ describe("turnControls", () => {
         const controls = turnControls(view({ opened: true, currentPosition: 7 }))
         expect(controls).toMatchObject({ phase: "open", questionNumber: 8, canAdvance: false })
         if (controls.phase !== "open") throw new Error("expected the open phase")
-        expect(controls.advanceReason).toContain("last question")
+        expect(controls.advanceReason).toContain("câu cuối")
     })
 
     it("closed wins over any other status", () => {

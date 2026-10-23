@@ -45,7 +45,7 @@ export function turnControls(view: MassEventTurnSource): StaffControls {
         fieldSize: view.fieldSize,
         canAdvance: !atLast,
         advanceReason: atLast
-            ? "This is the last question — close the event to finish."
+            ? "Đây là câu cuối — đóng sự kiện để kết thúc."
             : null,
     }
 }
