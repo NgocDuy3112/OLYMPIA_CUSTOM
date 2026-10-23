@@ -208,6 +208,9 @@ export async function getQualificationForPlayer(matchId: string, userId: string)
         answers: rows.map((row) => ({
             questionId: row.questionId,
             verdict: row.verdict,
+            // The player's OWN submitted choice — the rows are filtered to their
+            // userId, so review can show what they picked after a reload.
+            value: row.value,
             pointsAwarded: row.pointsAwarded
         }))
     };

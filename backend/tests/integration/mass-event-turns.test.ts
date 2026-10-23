@@ -270,8 +270,12 @@ describe("the turns — answering follows the release", () => {
         expect(body.closed).toBe(true);
         expect(body.questions).toHaveLength(3);
         expect(body.totalQuestions).toBe(3);
-        const answered = body.answers as Array<{ pointsAwarded: number }>;
+        const answered = body.answers as Array<{ pointsAwarded: number; verdict: string; value: { picked?: string[] } }>;
         expect(answered.every((row) => row.pointsAwarded !== 0)).toBe(true);
+        // Review after a reload shows the player their OWN pick.
+        const mine = answered.find((row) => row.value.picked);
+        expect(mine).toBeDefined();
+        expect(mine!.verdict).toMatch(/CORRECT|INCORRECT/);
     });
 });
 

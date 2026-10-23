@@ -1,11 +1,13 @@
 import { useMemo } from "react"
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams, useOutletContext } from "react-router-dom"
 import { ApiError } from "@shared/lib/api"
+import { Button } from "@shared/ui/button"
 import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { MatchPage } from "@/pages/MatchPage"
+import { QualificationView } from "@/components/qualification/QualificationView"
 import { useSchedule, useStandings, useTournament, useTournamentList, type TournamentDetail } from "@/lib/api"
 import { toMatch, toStandings } from "@/lib/adapters"
 
@@ -114,6 +116,26 @@ function MatchRoute() {
 
     const row = schedule.data.items.find((m) => m.id === id)
     if (!row) return <NotFoundPage />
+
+    // The mass event (kind = QUALIFICATION) has its own surface — the five
+    // screens over the turns API + push socket. Standard matches render detail.
+    if (row.kind === "QUALIFICATION") {
+        return (
+            <>
+                <div className="mx-auto w-full max-w-2xl px-4 pt-6">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="-ml-3"
+                        onClick={() => navigate(`/s/${tournament.slug}`)}
+                    >
+                        ◀ Lịch thi đấu
+                    </Button>
+                </div>
+                <QualificationView matchId={row.id} />
+            </>
+        )
+    }
 
     return (
         <MatchPage
