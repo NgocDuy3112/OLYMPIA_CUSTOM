@@ -1,7 +1,8 @@
+import type { ReactNode } from "react"
 import { Link, useParams } from "react-router-dom"
 import { ChevronRight, SearchX } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
-import { Page, PageHeader, EmptyState, ErrorPanel } from "@/components/page"
+import { PageHeader, EmptyState, ErrorPanel } from "@/components/page"
 import { useMatches, useTournament, useMassEvent } from "@/lib/tournament"
 import { turnControls } from "@/lib/mass-event"
 import { MassEventControl } from "@/components/mass-event-control"
@@ -19,6 +20,16 @@ import { StandardMatchControl } from "@/components/standard-match-control"
 // Language: the match page speaks Vietnamese (the show's language); the portal
 // chrome around it (nav bar, "Tournaments" breadcrumb root) stays English.
 // Route: /tournaments/:tournamentId/matches/:matchId
+
+// Full width on purpose: a control room uses the whole screen — the portal's
+// Page clamps to max-w-6xl, which is right for lists and wrong for operations.
+function FullPage({ children }: { children: ReactNode }) {
+    return (
+        <div className="flex w-full flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
+            {children}
+        </div>
+    )
+}
 
 const STATUS_VN = {
     UPCOMING: "Sắp diễn ra",
@@ -48,9 +59,9 @@ export function MatchPage() {
 
     if (matches.isPending) {
         return (
-            <Page>
+            <FullPage>
                 <div role="status" aria-label="Đang tải trận" className="h-64 animate-pulse rounded-xl bg-muted" />
-            </Page>
+            </FullPage>
         )
     }
 
@@ -72,17 +83,17 @@ export function MatchPage() {
 
     if (matches.isError) {
         return (
-            <Page>
+            <FullPage>
                 {crumbs}
                 <PageHeader title="Không tải được trận đấu" />
                 <ErrorPanel message={matches.error.message} />
-            </Page>
+            </FullPage>
         )
     }
 
     if (!match) {
         return (
-            <Page>
+            <FullPage>
                 {crumbs}
                 <PageHeader title="Không tìm thấy trận đấu" />
                 <EmptyState
@@ -95,7 +106,7 @@ export function MatchPage() {
                         </Link>
                     }
                 />
-            </Page>
+            </FullPage>
         )
     }
 
@@ -125,7 +136,7 @@ export function MatchPage() {
     })()
 
     return (
-        <Page>
+        <FullPage>
             {crumbs}
             <PageHeader
                 title={match.label}
@@ -151,6 +162,6 @@ export function MatchPage() {
             ) : (
                 <StandardMatchControl tournamentId={tournamentId!} match={match} />
             )}
-        </Page>
+        </FullPage>
     )
 }

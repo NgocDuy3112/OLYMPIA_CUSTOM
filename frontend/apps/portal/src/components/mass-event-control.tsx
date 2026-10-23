@@ -167,9 +167,9 @@ export function MassEventControl({
     // ── open / not open ──────────────────────────────────────────────────
     return (
         <div className="flex flex-col gap-6">
-            {/* the operational band, full width — compact: the header carries
-                status + kind, this strip carries only the live state */}
-            <Section className="p-4">
+            {/* The control line — NOT a card: the page itself carries it. The
+                header owns status + kind; this block owns only the live state. */}
+            <div className="flex flex-col gap-3">
                 {!turn ? (
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <p className="text-sm text-muted-foreground">
@@ -240,7 +240,7 @@ export function MassEventControl({
                 {close.isError && tiedGroups.length === 0 && (
                     <p role="alert" className="mt-3 text-sm text-destructive">{close.error.message}</p>
                 )}
-            </Section>
+            </div>
 
             {/* question | field — the width, finally used */}
             <div className={cn("grid gap-6", data.currentQuestion && "lg:grid-cols-5")}>
