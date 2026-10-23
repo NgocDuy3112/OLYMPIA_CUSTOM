@@ -1,11 +1,10 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { Badge } from "@shared/ui/badge"
 import { Button } from "@shared/ui/button"
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@shared/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { useEnrolled, useMatches, type TournamentDetail } from "@/lib/tournament"
-import { MassEventDialog } from "./mass-event-dialog"
-import { MatchResultDialog } from "./match-result-dialog"
 import { NewMatchDialog } from "./new-match-dialog"
 
 
@@ -24,10 +23,11 @@ export function MatchesTab({
 }) {
     const matches = useMatches(tournamentId)
     const enrolled = useEnrolled(tournamentId)
+    const navigate = useNavigate()
 
     const [creating, setCreating] = useState(false)
-    const [result, setResult] = useState<{ id: string; label: string; players: string[] } | null>(null)
-    const [massEvent, setMassEvent] = useState<{ id: string; label: string } | null>(null)
+    // Every operation lives on the match's page now — the row only navigates.
+    const openMatch = (matchId: string) => navigate(`/tournaments/${tournamentId}/matches/${matchId}`)
 
     if (matches.isPending) return <p className="text-sm text-muted-foreground">Loading matches…</p>
     if (matches.isError) return <p role="alert" className="text-sm text-destructive">{matches.error.message}</p>
@@ -92,27 +92,23 @@ export function MatchesTab({
                                                 </div>
                                             </TableCell>
                                             <TableCell className="pr-6 text-right">
-                                                {match.status === "FINISHED" ? (
-                                                    <Badge variant="secondary">FINISHED</Badge>
-                                                ) : match.kind === "QUALIFICATION" ? (
+                                                {match.kind === "QUALIFICATION" ? (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() =>
-                                                            setMassEvent({ id: match.id, label: match.label })
-                                                        }
+                                                        onClick={() => openMatch(match.id)}
                                                     >
-                                                        Field ranking
+                                                        {match.status === "FINISHED" ? "Ranking" : "Control"}
                                                     </Button>
+                                                ) : match.status === "FINISHED" ? (
+                                                    <Badge variant="secondary">FINISHED</Badge>
                                                 ) : (
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
-                                                        onClick={() =>
-                                                            setResult({ id: match.id, label: match.label, players: seated })
-                                                        }
+                                                        onClick={() => openMatch(match.id)}
                                                     >
-                                                        Enter result
+                                                        Open
                                                     </Button>
                                                 )}
                                             </TableCell>
@@ -132,28 +128,6 @@ export function MatchesTab({
                     seats={seats}
                     open
                     onOpenChange={(open) => { if (!open) setCreating(false) }}
-                />
-            )}
-
-            {massEvent && (
-                <MassEventDialog
-                    tournamentId={tournamentId}
-                    matchId={massEvent.id}
-                    label={massEvent.label}
-                    seats={seats}
-                    open
-                    onOpenChange={(open) => { if (!open) setMassEvent(null) }}
-                />
-            )}
-
-            {result && (
-                <MatchResultDialog
-                    tournamentId={tournamentId}
-                    matchId={result.id}
-                    label={result.label}
-                    players={result.players.map((userId) => ({ userId, name: nameOf(userId) }))}
-                    open
-                    onOpenChange={(open) => { if (!open) setResult(null) }}
                 />
             )}
         </div>

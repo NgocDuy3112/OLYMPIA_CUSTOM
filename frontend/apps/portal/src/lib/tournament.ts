@@ -74,6 +74,7 @@ export interface MatchSummary {
     id: string
     kind: MatchKind
     stageId: string
+    slot: number | null
     label: string
     status: "UPCOMING" | "LIVE" | "FINISHED"
     scheduledAt: string
@@ -221,6 +222,19 @@ export interface MassEventFieldRow {
     answered: number
 }
 
+// The host room's panel: the current question, sanitized exactly as players
+// receive it (MC options, never the correct set). Null before open and after close.
+export interface CurrentQuestion {
+    questionId: string
+    kind: "MC" | "TEXT" | "KEYWORD"
+    position: number
+    questionText: string
+    media: { url: string; type: "image" | "audio" | "video" } | null
+    timeLimit: number | null
+    tag: string
+    payload: { options?: Array<{ id: string; text: string }> }
+}
+
 export interface MassEventView {
     closed: boolean
     label: string
@@ -231,6 +245,7 @@ export interface MassEventView {
     currentPosition: number | null
     releasedAt: string | null
     currentAnswered: number
+    currentQuestion: CurrentQuestion | null
     field: MassEventFieldRow[]
     results: Array<{
         kind: string
@@ -289,6 +304,22 @@ export function useAdvanceMassEvent(tournamentId: string) {
             ),
         onSuccess: (view, matchId) => {
             queryClient.setQueryData(["mass-event", tournamentId, matchId], view)
+        },
+    })
+}
+
+// A standard match's status transition (UPCOMING → LIVE; results do the finish).
+export function useTransitionMatch(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (input: { matchId: string; status: "UPCOMING" | "LIVE" | "FINISHED" }) =>
+            api<{ id: string; status: string }>(
+                `/portal/tournaments/${tournamentId}/matches/${input.matchId}/status`,
+                { method: "PATCH", body: JSON.stringify({ status: input.status }) }
+            ),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
         },
     })
 }

@@ -486,6 +486,12 @@ export async function getQualificationForStaff(matchId: string) {
         currentPosition: current,
         releasedAt: match.releasedAt ? match.releasedAt.toISOString() : null,
         currentAnswered,
+        // The host room: what players are looking at RIGHT NOW — sanitized exactly
+        // the way players receive it (options yes, correct set never). Null before
+        // open and after close, where there is no current turn.
+        currentQuestion: match.status === "FINISHED" || !currentQuestion
+            ? null
+            : sanitizeQuestion(currentQuestion),
         field: field.map((userId) => ({
             userId,
             displayName: names.get(userId) ?? userId,

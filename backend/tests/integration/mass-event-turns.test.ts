@@ -169,6 +169,9 @@ describe("the turns — nothing is out until the staff open", () => {
         expect(res.statusCode).toBe(200);
         expect(res.json()).toMatchObject({ opened: true, currentPosition: 0, currentAnswered: 0 });
         expect(res.json().releasedAt).toBeTruthy();
+        // The host room panel: the current question, sanitized like players get it.
+        expect(res.json().currentQuestion).toMatchObject({ position: 0, questionId: expect.any(String) });
+        expect(res.json().currentQuestion.payload).not.toHaveProperty("correctSet");
 
         const player = await view(matchId, playerCookies[0]);
         expect(player.statusCode).toBe(200);
@@ -255,6 +258,8 @@ describe("the turns — answering follows the release", () => {
             questionCount: 3,
             currentAnswered: 3 // the whole field has answered the current question
         });
+        // The panel follows the turn.
+        expect(res.json().currentQuestion.position).toBe(2);
         // The field keeps per-player totals across ALL questions.
         const p0 = res.json().field.find((row: { userId: string }) => row.userId === playerIds[0]);
         expect(p0.answered).toBe(2); // question 1, then the current — question 2 was missed
@@ -276,6 +281,10 @@ describe("the turns — answering follows the release", () => {
         const mine = answered.find((row) => row.value.picked);
         expect(mine).toBeDefined();
         expect(mine!.verdict).toMatch(/CORRECT|INCORRECT/);
+
+        // Closed: no current turn for the host room either.
+        const staff = await staffView(matchId);
+        expect(staff.json().currentQuestion).toBeNull();
     });
 });
 
