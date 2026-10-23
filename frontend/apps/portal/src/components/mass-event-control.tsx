@@ -168,8 +168,9 @@ export function MassEventControl({
     return (
         <div className="flex flex-col gap-6">
             {/* The control line — NOT a card: the page itself carries it. The
-                header owns status + kind; this block owns only the live state. */}
-            <div className="flex flex-col gap-3">
+                header owns status + kind; this block owns only the live state.
+                The border-b closes the control zone above the working area. */}
+            <div className="flex flex-col gap-3 border-b pb-5">
                 {!turn ? (
                     <div className="flex flex-wrap items-center justify-between gap-4">
                         <p className="text-sm text-muted-foreground">
@@ -199,7 +200,6 @@ export function MassEventControl({
                                 </span>
                                 <div className="flex gap-2">
                                     <Button
-                                        variant="outline"
                                         size="sm"
                                         onClick={() => advance.mutate(matchId)}
                                         disabled={!turn.canAdvance || advance.isPending}
@@ -245,24 +245,27 @@ export function MassEventControl({
             {/* question | field — the width, finally used */}
             <div className={cn("grid gap-6", data.currentQuestion && "lg:grid-cols-5")}>
                 {data.currentQuestion && (
-                    <Section className="lg:col-span-3">
+                    <Section className="self-start lg:col-span-3">
                         <p className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                             <span>Câu hiện tại · {KIND_LABEL[data.currentQuestion.kind] ?? data.currentQuestion.kind}</span>
                             <span className="font-normal normal-case tracking-normal">
                                 Thí sinh chỉ thấy câu này khi nó là câu hiện tại
                             </span>
                         </p>
-                        <p className="text-lg font-medium">{data.currentQuestion.questionText}</p>
+                        <p className="text-xl font-medium leading-snug">{data.currentQuestion.questionText}</p>
                         {data.currentQuestion.media && (
                             <p className="mt-1 break-all text-xs text-muted-foreground">
                                 media: {data.currentQuestion.media.type} — {data.currentQuestion.media.url}
                             </p>
                         )}
                         {data.currentQuestion.payload.options ? (
-                            <ul className="mt-2 flex flex-col gap-1 text-sm">
+                            <ul className="mt-3 flex flex-col gap-1.5 text-sm">
                                 {data.currentQuestion.payload.options.map((option, index) => (
-                                    <li key={option.id} className="flex gap-2">
-                                        <span className="font-medium text-muted-foreground">
+                                    <li
+                                        key={option.id}
+                                        className="flex items-center gap-3 rounded-lg border px-3 py-2"
+                                    >
+                                        <span className="font-semibold text-muted-foreground">
                                             {String.fromCharCode(65 + index)}.
                                         </span>
                                         <span>{option.text}</span>
@@ -279,10 +282,11 @@ export function MassEventControl({
 
                 <Section className={cn(data.currentQuestion ? "lg:col-span-2" : "")}>
                     <h2 className="mb-3 text-lg font-semibold">Thí sinh</h2>
-                    <Table>
+                    <Table className="[&_th]:h-9 [&_th]:text-sm [&_td]:py-1.5 [&_td]:text-sm">
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Thí sinh</TableHead>
+                                {/* sr-only: the card's title already says it out loud */}
+                                <TableHead className="sr-only">Thí sinh</TableHead>
                                 <TableHead className="text-right">Trả lời</TableHead>
                             </TableRow>
                         </TableHeader>
