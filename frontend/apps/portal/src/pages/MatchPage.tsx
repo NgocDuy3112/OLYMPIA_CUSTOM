@@ -23,11 +23,6 @@ const STATUS_VN = {
     FINISHED: "Đã kết thúc",
 } as const
 
-const KIND_VN = {
-    QUALIFICATION: "Vòng loại",
-    STANDARD: "Trận đấu",
-} as const
-
 const STATUS_VARIANT = {
     UPCOMING: "outline",
     LIVE: "destructive",
@@ -112,15 +107,10 @@ export function MatchPage() {
                 title={match.label}
                 description={
                     isMassEvent
-                        ? `${match.questions.length} câu hỏi · ${match.players.length} thí sinh`
+                        ? undefined
                         : `${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}`
                 }
-                actions={
-                    <div className="flex gap-2">
-                        {statusBadge}
-                        <Badge variant="outline">{KIND_VN[match.kind]}</Badge>
-                    </div>
-                }
+                actions={statusBadge}
             />
 
             {isMassEvent ? (

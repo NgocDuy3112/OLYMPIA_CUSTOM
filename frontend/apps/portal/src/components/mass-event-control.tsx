@@ -15,12 +15,6 @@ import { turnControls } from "@/lib/mass-event"
 
 const TIER_NAMES = ["S", "A", "B", "C", "D", "E"]
 
-const KIND_LABEL: Record<string, string> = {
-    MC: "Trắc nghiệm",
-    TEXT: "Tự luận",
-    KEYWORD: "Từ khóa",
-}
-
 export function MassEventControl({
     tournamentId,
     matchId,
@@ -246,17 +240,19 @@ export function MassEventControl({
             <div className={cn("grid gap-6", data.currentQuestion && "lg:grid-cols-5")}>
                 {data.currentQuestion && (
                     <Section className="self-start lg:col-span-3">
-                        <p className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            <span>Câu hiện tại · {KIND_LABEL[data.currentQuestion.kind] ?? data.currentQuestion.kind}</span>
-                            <span className="font-normal normal-case tracking-normal">
-                                Thí sinh chỉ thấy câu này khi nó là câu hiện tại
-                            </span>
-                        </p>
                         <p className="text-xl font-medium leading-snug">{data.currentQuestion.questionText}</p>
-                        {data.currentQuestion.media && (
-                            <p className="mt-1 break-all text-xs text-muted-foreground">
-                                media: {data.currentQuestion.media.type} — {data.currentQuestion.media.url}
-                            </p>
+                        {data.currentQuestion.media?.type === "image" && (
+                            <img
+                                src={data.currentQuestion.media.url}
+                                alt=""
+                                className="mt-3 max-h-64 w-full rounded-lg object-contain bg-muted"
+                            />
+                        )}
+                        {data.currentQuestion.media?.type === "audio" && (
+                            <audio controls src={data.currentQuestion.media.url} className="mt-3 w-full" />
+                        )}
+                        {data.currentQuestion.media?.type === "video" && (
+                            <video controls src={data.currentQuestion.media.url} className="mt-3 w-full rounded-lg" />
                         )}
                         {data.currentQuestion.payload.options ? (
                             <ul className="mt-3 flex flex-col gap-1.5 text-sm">
