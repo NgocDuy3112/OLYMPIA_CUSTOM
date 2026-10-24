@@ -52,7 +52,7 @@ describe("client messages", () => {
 });
 
 describe("server messages", () => {
-    const view: PlayerView = { matchId: "m", roundId: "giai-ma", version: 2, stage: "hints", open: [], me: {} };
+    const view: PlayerView = { matchId: "m", roundId: "giai-ma", version: 2, stage: "hints", open: [], table: [], me: {} };
 
     const AT = "2026-01-01T00:00:03.120Z";
 

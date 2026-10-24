@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { Value } from "@sinclair/typebox/value";
 import { requireAuth, requireRole } from "../../lib/guards.js";
-import { getMatch, getMatchById, requireMatchScope } from "../matches/service.js";
+import { getMatch, getMatchById, requireMatchScope, type MatchRow } from "../matches/service.js";
+import { namesOf } from "../standings/service.js";
 import { nextRoundId, orderedMatchRounds } from "../matches/rounds.js";
 import { isSeatedInMatch } from "../matches/seats.js";
 import { auditFromRequest } from "../audit/service.js";
@@ -16,7 +17,7 @@ import { applyGiaiMaAction, type GiaiMaContext } from "./giai-ma.js";
 import { applyButPhaAction } from "./but-pha.js";
 import { applyKhoiDongAction } from "./khoi-dong.js";
 import { applyVeDichAction } from "./ve-dich.js";
-import { buildPlayerView, type PlayerView } from "./view.js";
+import { buildPlayerView, rankTable, type PlayerView, type ScoreRow } from "./view.js";
 import { submitAnswer, submitKeyword, SubmitError } from "./submit.js";
 import { submitVeDichCommand } from "./ve-dich-player.js";
 import {
@@ -128,6 +129,19 @@ function roundQuestionIds(match: { questions: MatchQuestion[] }, roundId: string
         .filter((q) => q.roundId === roundId)
         .sort((a, b) => a.position - b.position)
         .map((q) => q._id);
+}
+
+// The live scoreboard: every seated player's match total with the name to show it
+// by. Totals come from the answers ledger (the facts each action commits); the view
+// only ranks them.
+async function scoreTable(match: MatchRow): Promise<ScoreRow[]> {
+    const userIds = match.players.flatMap((seat) =>
+        seat.kind === "user" && seat.userId ? [seat.userId] : []);
+    const [sums, names] = await Promise.all([
+        sumPointsByPlayer(match.id),
+        namesOf(userIds)
+    ]);
+    return userIds.map((id) => ({ id, displayName: names[id] ?? id, points: sums[id] ?? 0 }));
 }
 
 const matchParams = {
@@ -477,7 +491,10 @@ export async function liveRoutes(app: FastifyInstance) {
             const { matchId } = request.params as { matchId: string };
             const live = await readLive(matchId);
             if (!live) throw app.httpErrors.notFound("no live round");
-            return live;
+            // The MC judges oral answers against the FROZEN question set — staff
+            // route, full questions including answers (this is the judge's view).
+            const match = await getMatchById(matchId);
+            return { ...live, questions: match.questions };
         }
     );
 
@@ -507,8 +524,9 @@ export async function liveRoutes(app: FastifyInstance) {
                     ? parseRoundState(live.roundId, live.state)
                     : null;
 
+                const table = await scoreTable(match);
                 const view: PlayerView = state === null
-                    ? { matchId, roundId: live.roundId, version: live.version, stage: "pending", open: [], me: {} }
+                    ? { matchId, roundId: live.roundId, version: live.version, stage: "pending", open: [], table: rankTable(table), me: {} }
                     : buildPlayerView({
                           matchId,
                           roundId: live.roundId,
@@ -516,7 +534,9 @@ export async function liveRoutes(app: FastifyInstance) {
                           now: new Date().toISOString(),
                           userId: user.id,
                           state,
-                          submitted: await readPlayerAnswers(matchId, user.id)
+                          submitted: await readPlayerAnswers(matchId, user.id),
+                          questions: match.questions,
+                          table
                       });
 
                 socket.send(JSON.stringify(viewMessage(view)));
@@ -654,6 +674,8 @@ export async function liveRoutes(app: FastifyInstance) {
             const live = await readLive(matchId);
             if (!live) throw app.httpErrors.notFound("no live round");
 
+            const table = await scoreTable(match);
+
             // A round the MC has not started yet has an empty state; say so plainly.
             if (!live.state || Object.keys(live.state).length === 0) {
                 return {
@@ -662,6 +684,7 @@ export async function liveRoutes(app: FastifyInstance) {
                     version: live.version,
                     stage: "pending",
                     open: [],
+                    table: rankTable(table),
                     me: {}
                 };
             }
@@ -673,7 +696,9 @@ export async function liveRoutes(app: FastifyInstance) {
                 now: new Date().toISOString(),
                 userId: user.id,
                 state: parseRoundState(live.roundId, live.state),
-                submitted: await readPlayerAnswers(matchId, user.id)
+                submitted: await readPlayerAnswers(matchId, user.id),
+                questions: match.questions,
+                table
             });
         }
     );

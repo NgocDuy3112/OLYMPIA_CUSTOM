@@ -14,6 +14,7 @@ import {
     type VeDichQuestion
 } from "../../../src/game/engine/turns/ve-dich.js";
 import { beginPhase2, finishSetup } from "./helpers.js";
+import type { MatchQuestion } from "../../../src/game/contracts/index.js";
 
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (s: number) => new Date(Date.parse(NOW) + s * 1000).toISOString();
@@ -29,7 +30,7 @@ describe("player view — giai-ma", () => {
 
     it("shows the open hint and its 15 s deadline", () => {
         const view = buildPlayerView(base({ roundId: "giai-ma", state }));
-        expect(view.open).toEqual([{ questionId: "h2", deadlineAt: at(15) }]);
+        expect(view.open).toEqual([{ questionId: "h2", deadlineAt: at(15), question: null }]);
     });
 
     it("closes the window when 15 s have passed", () => {
@@ -45,7 +46,15 @@ describe("player view — giai-ma", () => {
             )
         };
         const view = buildPlayerView(base({ roundId: "giai-ma", state: advanced }));
-        expect(view.me).toMatchObject({ keywordValue: 70, hintsRevealed: 3, revealedHints: ["h1", "h2", "h3"] });
+        expect(view.me).toMatchObject({
+            keywordValue: 70,
+            hintsRevealed: 3,
+            revealedHints: [
+                { questionId: "h1", question: null },
+                { questionId: "h2", question: null },
+                { questionId: "h3", question: null }
+            ]
+        });
     });
 
     it("reports whether the player has already answered the open hint", () => {
@@ -67,7 +76,7 @@ describe("player view — but-pha", () => {
     it("shows the open question and its 30 s deadline once the clock runs", () => {
         const state = openCurrentQuestion(startButPha(Q), NOW);
         const view = buildPlayerView(base({ roundId: "but-pha", state }));
-        expect(view.open).toEqual([{ questionId: "q1", deadlineAt: at(30) }]);
+        expect(view.open).toEqual([{ questionId: "q1", deadlineAt: at(30), question: null }]);
     });
 
     it("closes the window after 30 s", () => {
@@ -107,7 +116,7 @@ describe("player view — khoi-dong", () => {
         const state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2, NOW);
         const view = buildPlayerView(base({ roundId: "khoi-dong", state }));
         expect(view.open).toHaveLength(6);
-        expect(view.open[0]).toEqual({ questionId: "b1", deadlineAt: at(60) });
+        expect(view.open[0]).toEqual({ questionId: "b1", deadlineAt: at(60), question: null });
     });
 
     it("separates what the player drafted from what is final", () => {
@@ -189,5 +198,149 @@ describe("player view — ve-dich", () => {
         const view = buildPlayerView(base({ roundId: "ve-dich", state: ended }));
         expect(view.stage).toBe("ended");
         expect(view.me.isMyTurn).toBe(false);
+    });
+});
+
+
+// ─── L1: what the live surface adds to the view (docs/live-surface.md) ───────
+
+const frozen = (ids: string[], kind: "MC" | "TEXT" = "MC"): MatchQuestion[] =>
+    ids.map((id, index) => ({
+        _id: id,
+        roundId: "r",
+        turnId: "t",
+        position: index,
+        mode: "text",
+        kind,
+        questionText: `Text of ${id}`,
+        media: null,
+        timeLimit: null,
+        tag: "THTH",
+        payload: kind === "MC"
+            ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] }
+            : { acceptedAnswers: ["x"] },
+        sourceId: "src"
+    }) as unknown as MatchQuestion);
+
+describe("player view — payloads (G1)", () => {
+    it("carries the frozen question on every open entry, never the answer", () => {
+        const state = openCurrentQuestion(startButPha(["q1", "q2", "q3", "q4"]), NOW);
+        const view = buildPlayerView(base({ roundId: "but-pha", state, questions: frozen(["q1", "q2", "q3", "q4"]) }));
+
+        expect(view.open[0]?.question).toMatchObject({
+            questionId: "q1",
+            questionText: "Text of q1",
+            payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }] }
+        });
+        const wire = JSON.stringify(view);
+        expect(wire).not.toContain("correctSet");
+        expect(wire).not.toContain("acceptedAnswers");
+    });
+
+    it("an unknown id degrades to null instead of throwing", () => {
+        const state = openCurrentQuestion(startButPha(["q1", "q2", "q3", "q4"]), NOW);
+        const view = buildPlayerView(base({ roundId: "but-pha", state })); // no questions passed
+        expect(view.open[0]?.question).toBeNull();
+    });
+
+    it("revealed hints arrive with their content (G7)", () => {
+        const H = ["h1", "h2"];
+        const base6 = openHint(startGiaiMa(["p0", "p1"], H), "h2", NOW);
+        const advanced = {
+            ...base6,
+            players: base6.players.map((p) =>
+                p.id === "p0" ? { ...p, revealed: ["h1"] } : p
+            )
+        };
+        const view = buildPlayerView(base({
+            roundId: "giai-ma",
+            state: advanced,
+            questions: frozen(H)
+        }));
+        expect(view.me.revealedHints).toEqual([
+            { questionId: "h1", question: expect.objectContaining({ questionText: "Text of h1" }) }
+        ]);
+    });
+});
+
+describe("player view — oral for everyone (G2)", () => {
+    it("phase 1 puts the active run's question on EVERY screen, with the run budget", () => {
+        const ids = ["o1", "o2", "o3", "o4", "o5", "o6"];
+        const state = startKhoiDong(["p0", "p1"], ids);
+        const questions = frozen(ids, "TEXT");
+
+        const mine = buildPlayerView(base({ roundId: "khoi-dong", state, questions }));
+        const theirs = buildPlayerView(base({ roundId: "khoi-dong", state, userId: "p1", questions }));
+
+        for (const view of [mine, theirs]) {
+            expect(view.oral).toMatchObject({
+                questionId: "o1",
+                playerId: "p0",
+                index: 0,
+                total: 6,
+                elapsedS: expect.any(Number),
+                budgetS: expect.any(Number)
+            });
+            expect(view.oral?.question?.questionText).toBe("Text of o1");
+        }
+        expect(mine.me.isMyRun).toBe(true);
+        expect(theirs.me.isMyRun).toBe(false);
+    });
+});
+
+describe("player view — ve-dich board (G3)", () => {
+    const VQ = (domain: string, value: number): VeDichQuestion => ({ id: `${domain}-${value}`, domain, value });
+    const POOL = [VQ("THTH", 50), VQ("THTH", 40), VQ("TNTT", 30), VQ("XHPL", 20)];
+    const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
+
+    it("lists every free cell with its domain and value", () => {
+        const state = createVeDich(POOL, [P("p0"), P("p1")]);
+        const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0" }));
+
+        expect(view.board).toHaveLength(4);
+        expect(view.board?.every((cell) => cell.where === "free")).toBe(true);
+        expect(view.board).toContainEqual({ questionId: "THTH-50", domain: "THTH", value: 50, where: "free" });
+    });
+
+    it("marks the open question and this turn's picks, each cell exactly once", () => {
+        let state = createVeDich(POOL, [P("p0"), P("p1")]);
+        state = advanceTurn(advanceTurn(state));   // phase 1 must run its turns first
+        state = beginVeDichPhase2(state);
+        const ids = state.remaining.slice(0, 3).map((q) => q.id);
+        state = pickPhase2(state, "p0", ids);
+        state = openPhase2Question(state, ids[0]);
+
+        const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p1" }));
+        const cellIds = (view.board ?? []).map((cell) => cell.questionId);
+        expect(new Set(cellIds).size).toBe(cellIds.length);     // no duplicates
+        expect(view.board?.find((cell) => cell.where === "open")?.questionId).toBe(ids[0]);
+        expect(view.board?.some((cell) => cell.where === "free")).toBe(true);
+    });
+});
+
+describe("player view — shared scoreboard (G4)", () => {
+    it("ranks the table, equal points sharing a rank", () => {
+        const state = openHint(startGiaiMa(["p0"], ["h1"]), "h1", NOW);
+        const view = buildPlayerView(base({
+            roundId: "giai-ma",
+            state,
+            table: [
+                { id: "p1", displayName: "Bee", points: 5 },
+                { id: "p0", displayName: "Ace", points: 10 },
+                { id: "p2", displayName: "Cid", points: 10 }
+            ]
+        }));
+
+        expect(view.table).toEqual([
+            { id: "p0", displayName: "Ace", points: 10, rank: 1 },
+            { id: "p2", displayName: "Cid", points: 10, rank: 1 },
+            { id: "p1", displayName: "Bee", points: 5, rank: 3 }
+        ]);
+    });
+
+    it("an absent table reads as empty, not undefined", () => {
+        const state = openHint(startGiaiMa(["p0"], ["h1"]), "h1", NOW);
+        const view = buildPlayerView(base({ roundId: "giai-ma", state }));
+        expect(view.table).toEqual([]);
     });
 });

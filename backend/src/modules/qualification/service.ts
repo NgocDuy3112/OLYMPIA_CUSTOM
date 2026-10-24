@@ -27,6 +27,7 @@ import {
     type TieBreak
 } from "../../game/engine/scoring/crowd.js";
 import { TournamentError } from "../tournaments/errors.js";
+import { sanitizeQuestion } from "../../lib/question-view.js";
 import { assemblyEligibility } from "../questions/service.js";
 import { requireMatchScope, type MatchRow } from "../matches/service.js";
 import { listEnrolled, requireEnrolled } from "../roster/service.js";
@@ -160,23 +161,6 @@ async function pickQuestions(tournament: { tags: string[] }, count: number): Pro
 
 
 // ── Answering ─────────────────────────────────────────────────────────────────
-
-// What a player may see: the question and its options, never the correct answer.
-export function sanitizeQuestion(question: MatchQuestion) {
-    const payload = question.kind === "MC"
-        ? { options: (question.payload as { options: Array<{ id: string; text: string }> }).options }
-        : {};
-    return {
-        questionId: question._id,
-        kind: question.kind,
-        position: question.position,
-        questionText: question.questionText,
-        media: question.media,
-        timeLimit: question.timeLimit,
-        tag: question.tag,
-        payload
-    };
-}
 
 export async function getQualificationForPlayer(matchId: string, userId: string) {
     const match = await requireQualificationMatch(matchId);
