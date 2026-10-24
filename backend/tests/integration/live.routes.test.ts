@@ -144,11 +144,35 @@ const answer = (cookie: string, questionId: string, text: string) =>
         payload: { questionId, value: { text } }
     });
 
+describe("the console contract (GET /live)", () => {
+    it("projects the seeded state: stage, mc pool, scoreboard, full questions", async () => {
+        const body = await live();
+        expect(body).toMatchObject({
+            projection: { stage: "hints", open: [] },
+            mc: { hintsRemaining: [], hintsPicked: [], openHintId: null },
+            roundEnded: false
+        });
+        // the judge reads the full frozen set — answers included
+        expect(body.questions.length).toBeGreaterThan(0);
+        // the scoreboard rides along (all zeros before any answer)
+        expect(body.projection.table.length).toBeGreaterThan(0);
+        expect(body.projection.table.every((row: { points: number }) => row.points === 0)).toBe(true);
+    });
+});
+
 describe("live actions — start", () => {
     it("start writes the initial giai-ma state", async () => {
         const res = await act({ kind: "giai-ma.start", playerIds, hintIds });
         expect(res.statusCode).toBe(200);
         expect(res.json().state).toMatchObject({ stage: "hints", hintIds, picked: [], openHint: null });
+
+        // The console's view of the same moment.
+        const contract = await live();
+        expect(contract).toMatchObject({
+            projection: { stage: "hints" },
+            roundEnded: false,
+            mc: { hintsRemaining: hintIds, hintsPicked: [], openHintId: null }
+        });
     });
 });
 
@@ -362,6 +386,15 @@ describe("round progression", () => {
         expect(advanced.statusCode).toBe(200);
         expect(advanced.json().roundId).toBe("but-pha");
         expect(advanced.json().state).toEqual({});
+
+        // The console's view of the fresh round: pending until the MC starts it.
+        const consoleView = await live();
+        expect(consoleView).toMatchObject({
+            roundId: "but-pha",
+            projection: { stage: "pending", open: [] },
+            mc: null,
+            roundEnded: false
+        });
     });
 
     it("a giai-ma action on another round is rejected with 409 WRONG_ROUND", async () => {

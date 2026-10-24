@@ -34,7 +34,7 @@ import { publish, subscribe } from "./hub.js";
 import { attachHeartbeat } from "./heartbeat.js";
 import { attachSessionGuard } from "./session-guard.js";
 import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState, parseVeDichState } from "./state.js";
-import { startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
+import { remainingHints, startGiaiMa, type GiaiMaState } from "../../game/engine/turns/giai-ma.js";
 import {
     butPhaRules,
     giaiMaRules,
@@ -244,6 +244,48 @@ function isRoundEnded(roundId: string, raw: unknown): boolean {
     if (roundId === "khoi-dong") return parseKhoiDongState(raw).ended;
     if (roundId === "ve-dich") return parseVeDichState(raw).ended;
     return true;
+}
+
+// What only the controller needs beyond the shared projection — engine facts,
+// read through the engine's own parsers (never raw-shape guesses on a client).
+// null = the round has not started; {} = nothing extra for this round.
+function mcFacts(roundId: string, raw: unknown): Record<string, unknown> | null {
+    const value = raw as Record<string, unknown> | null;
+    if (!value || Object.keys(value).length === 0) return null;
+
+    if (roundId === "giai-ma") {
+        const state = parseGiaiMaState(raw);
+        return {
+            hintsRemaining: remainingHints(state),
+            hintsPicked: state.picked,
+            openHintId: state.openHint,
+            players: state.players.map((p) => ({
+                id: p.id,
+                keywordLocked: p.keywordLocked,
+                eliminated: p.eliminated
+            }))
+        };
+    }
+    if (roundId === "ve-dich") {
+        const state = parseVeDichState(raw);
+        return {
+            phase: state.phase,
+            turnPlayerId: state.players[state.turnIndex]?.id ?? null,
+            openStage: state.open?.stage ?? null,
+            answererId: state.open?.answerer ?? null,
+            buzzerId: state.open?.buzzer ?? null,
+            power: state.open?.power ?? null,
+            pendingQuestionId: state.pendingPicks[0]?.id ?? null
+        };
+    }
+    if (roundId === "khoi-dong") {
+        const state = parseKhoiDongState(raw);
+        return {
+            phase2Begun: state.phase2 !== null,
+            phase2Closed: state.phase2?.closed ?? false
+        };
+    }
+    return {};  // but-pha: the shared projection (stage/open/deadlines) says it all
 }
 
 export async function liveRoutes(app: FastifyInstance) {
@@ -491,10 +533,45 @@ export async function liveRoutes(app: FastifyInstance) {
             const { matchId } = request.params as { matchId: string };
             const live = await readLive(matchId);
             if (!live) throw app.httpErrors.notFound("no live round");
-            // The MC judges oral answers against the FROZEN question set — staff
-            // route, full questions including answers (this is the judge's view).
+
             const match = await getMatchById(matchId);
-            return { ...live, questions: match.questions };
+            const table = await scoreTable(match);
+            const started = live.state !== null && Object.keys(live.state).length > 0;
+
+            // The shared projection: what console and players both see — stage, open
+            // questions with payloads, the oral run, the board, the table. The
+            // observer's `me` is discarded: the console is not a player.
+            const view: PlayerView = started
+                ? buildPlayerView({
+                      matchId,
+                      roundId: live.roundId,
+                      version: live.version,
+                      now: new Date().toISOString(),
+                      userId: "",
+                      state: parseRoundState(live.roundId, live.state),
+                      submitted: [],
+                      questions: match.questions,
+                      table
+                  })
+                : {
+                      matchId,
+                      roundId: live.roundId,
+                      version: live.version,
+                      stage: "pending",
+                      open: [],
+                      table: rankTable(table),
+                      me: {}
+                  };
+            const { me: _observer, ...projection } = view;
+
+            return {
+                ...live,
+                // The judge's view: the full frozen set, answers included.
+                questions: match.questions,
+                projection,
+                roundEnded: isRoundEnded(live.roundId, live.state),
+                mc: mcFacts(live.roundId, live.state)
+            };
         }
     );
 
