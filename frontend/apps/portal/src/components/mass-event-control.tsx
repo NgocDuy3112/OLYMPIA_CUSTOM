@@ -7,11 +7,6 @@ import { ApiError } from "@shared/lib/api"
 import { useAdvanceMassEvent, useCloseMassEvent, useMassEvent, useOpenMassEvent } from "@/lib/tournament"
 import { turnControls } from "@/lib/mass-event"
 
-// The mass event's control room — a PAGE section (the dialog was promoted: running
-// an event is a task with its own flow). Layout: the operational band across the
-// top (status, live count, actions), then the current question and the field
-// side by side — the page finally uses the width it is given.
-// Language: Vietnamese (the show's language; the portal's fixed chrome stays English).
 
 const TIER_NAMES = ["S", "A", "B", "C", "D", "E"]
 
@@ -63,12 +58,6 @@ export function MassEventControl({
         : advance.isError
             ? advance.error.message
             : null
-    const releasedLabel = data.releasedAt
-        ? new Date(data.releasedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
-        : null
-    // The open turn, narrowed: everything the band reads lives here, so the
-    // discriminated union stays checked (closed/not-open never reach the band —
-    // they returned above or take the other branch).
     const turn = controls.phase === "open" ? controls : null
     const answeredPct = turn && turn.fieldSize > 0
         ? Math.round((turn.currentAnswered / turn.fieldSize) * 100)
@@ -161,16 +150,9 @@ export function MassEventControl({
     // ── open / not open ──────────────────────────────────────────────────
     return (
         <div className="flex flex-col gap-6">
-            {/* The control line — NOT a card: the page itself carries it. The
-                header owns status + kind; this block owns only the live state.
-                The border-b closes the control zone above the working area. */}
             <div className="flex flex-col gap-3 border-b pb-5">
                 {!turn ? (
                     <div className="flex flex-wrap items-center justify-between gap-4">
-                        <p className="text-sm text-muted-foreground">
-                            Mở trận sẽ phát câu 1 cho toàn bộ thí sinh — đồng hồ của mọi người
-                            tính từ giây phút đó.
-                        </p>
                         <Button onClick={() => openEvent.mutate(matchId)} disabled={openEvent.isPending}>
                             {openEvent.isPending ? "Đang mở…" : "Mở trận ▶"}
                         </Button>
@@ -178,15 +160,7 @@ export function MassEventControl({
                 ) : (
                     <div className="flex flex-col gap-2.5">
                         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                            <p className="font-heading text-xl font-semibold tabular-nums">
-                                CÂU {turn.questionNumber}
-                                <span className="text-base text-muted-foreground"> / {turn.questionCount}</span>
-                                {releasedLabel && (
-                                    <span className="ml-2 text-sm font-normal text-muted-foreground">
-                                        phát lúc {releasedLabel}
-                                    </span>
-                                )}
-                            </p>
+                            
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                                 <span className="text-sm font-medium tabular-nums">
                                     {turn.currentAnswered} / {turn.fieldSize}
