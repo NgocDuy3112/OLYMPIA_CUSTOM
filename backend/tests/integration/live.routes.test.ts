@@ -115,7 +115,15 @@ const answerUrl = () => `/gameplay/matches/${matchId}/live/answers`;
 const keywordUrl = () => `/gameplay/matches/${matchId}/live/keyword`;
 const statusUrl = () => `/portal/tournaments/${tournamentId}/matches/${matchId}/status`;
 
-async function live(): Promise<{ version: number; roundId: string; state: Record<string, unknown> }> {
+async function live(): Promise<{
+    version: number;
+    roundId: string;
+    state: Record<string, unknown>;
+    projection: { stage: string; open: Array<Record<string, unknown>>; table: Array<{ points: number }> };
+    questions: unknown[];
+    mc?: unknown;
+    roundEnded?: boolean;
+}> {
     const res = await app.inject({ method: "GET", url: liveUrl(), headers: auth(ownerCookie) });
     return res.json();
 }

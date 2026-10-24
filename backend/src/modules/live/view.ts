@@ -72,6 +72,9 @@ export interface PlayerView {
     } | null;
     // ve-dich: the board as the state knows it — free cells plus this turn's picks.
     board?: Array<{ questionId: string; domain: string; value: number; where: "free" | "pending" | "open" }>;
+    // giai-ma: THE keyword question — without it a player cannot submit the one
+    // thing the round is about. Sanitized like every other exposure.
+    keyword?: { questionId: string; question: SanitizedQuestion | null } | null;
     me: Record<string, unknown>;
 }
 
@@ -117,12 +120,17 @@ function giaiMaView(input: ViewInput, state: GiaiMaState): PlayerView {
           }]
         : [];
 
+    const keywordQuestion = (input.questions ?? []).find((q) => q.kind === "KEYWORD");
+
     return {
         matchId: input.matchId,
         roundId: input.roundId,
         version: input.version,
         stage: state.stage,
         open,
+        keyword: keywordQuestion
+            ? { questionId: keywordQuestion._id, question: sanitizeQuestion(keywordQuestion) }
+            : null,
         table: rankTable(input.table),
         me: {
             keywordLocked: player?.keywordLocked ?? false,
