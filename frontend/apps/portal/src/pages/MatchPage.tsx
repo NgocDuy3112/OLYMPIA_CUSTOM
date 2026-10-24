@@ -7,6 +7,7 @@ import { useMatches, useMassEvent } from "@/lib/tournament"
 import { turnControls } from "@/lib/mass-event"
 import { MassEventControl } from "@/components/mass-event-control"
 import { StandardMatchControl } from "@/components/standard-match-control"
+import { LiveConsole } from "@/components/live-console"
 
 
 function FullPage({ children }: { children: ReactNode }) {
@@ -32,8 +33,6 @@ const STATUS_VARIANT = {
 export function MatchPage() {
     const { tournamentId, matchId } = useParams()
     const matches = useMatches(tournamentId ?? "")
-    // Same cache key as the control below → no extra request; the header badge
-    // and the band read one truth.
     const massView = useMassEvent(tournamentId ?? "", matchId ?? "")
     const back = `/tournaments/${tournamentId}`
 
@@ -45,7 +44,6 @@ export function MatchPage() {
         )
     }
 
-    // Safe before the error branch: on a failed query there is no data at all.
     const match = matches.data?.items.find((row) => row.id === matchId)
 
 
@@ -78,9 +76,6 @@ export function MatchPage() {
 
     const isMassEvent = match.kind === "QUALIFICATION"
 
-    // The header badge tells THIS surface's truth: for a mass event that is the
-    // TURN state (Chưa mở / Đang mở / Đã đóng) — the match status sits at
-    // UPCOMING until close and would contradict the band below it.
     const statusBadge = (() => {
         if (!isMassEvent) {
             return <Badge variant={STATUS_VARIANT[match.status]}>{STATUS_VN[match.status]}</Badge>
@@ -120,7 +115,12 @@ export function MatchPage() {
                     seats={match.players.length || 4}
                 />
             ) : (
-                <StandardMatchControl tournamentId={tournamentId!} match={match} />
+                <>
+                    {match.status === "LIVE" && (
+                        <LiveConsole tournamentId={tournamentId!} matchId={match.id} />
+                    )}
+                    <StandardMatchControl tournamentId={tournamentId!} match={match} />
+                </>
             )}
         </FullPage>
     )
