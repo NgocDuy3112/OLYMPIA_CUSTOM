@@ -1,10 +1,3 @@
-// The Thống kê tab's data — derived, never fetched: every number here comes from
-// the results the app already carries (totals, per-round scores, seeds). Pure and
-// unit-tested; the component only renders.
-//
-// The stats TABLE is deliberately not exposed by the read surface — this module
-// never needs it: a round's points per player say everything the tab shows.
-
 import type { TournamentRound } from "@/lib/api"
 import type { Match, PlayerResult } from "@/lib/types"
 
@@ -24,15 +17,8 @@ export interface MatchStatistics {
     rounds: RoundRow[]
     totalPoints: number
     topScore: number
-    /** Mean of the players' totals (0 when nobody has a score yet). */
     averageScore: number
-    /** #1 − #2 in the final totals; null for fewer than two scored players. */
-    margin: number | null
-    /** Most round wins: who, and how many of the played rounds. */
-    roundWins: { names: string[]; count: number } | null
-    /** The tightest round (smallest gap ≥ 0 among played rounds). */
     closestRound: RoundRow | null
-    /** The round that split the field the most. */
     biggestRound: RoundRow | null
 }
 
@@ -98,8 +84,6 @@ export function statisticsFor(match: Match, rounds: TournamentRound[]): MatchSta
         totalPoints,
         topScore,
         averageScore,
-        margin,
-        roundWins,
         closestRound: byGap[0] ?? null,
         biggestRound: byGap[byGap.length - 1] ?? null,
     }

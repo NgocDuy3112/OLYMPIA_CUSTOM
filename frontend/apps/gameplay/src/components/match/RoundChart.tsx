@@ -1,4 +1,4 @@
-import { CartesianGrid, Legend, Line, LineChart, XAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis } from "recharts"
 import {
     ChartContainer,
     ChartTooltip,
@@ -15,20 +15,14 @@ interface RoundChartProps {
     players: PlayerResult[]
 }
 
-// Cumulative points per round — the TRUE values. (The old version nudged tied
-// points apart with fake offsets so endpoint labels would not collide; near
-// values still overlapped and the lines were not drawn where they scored.
-// 2510: honest lines, and the names live in a right-side legend where they
-// physically cannot collide.)
+
 export function RoundChart({ rounds, players }: RoundChartProps) {
     const withRounds = players.filter(
         (p) => p.roundScores !== undefined
     )
 
-    // The round names the scores are keyed by, in the tournament's order.
     const roundNames = rounds.map((r) => r.name)
 
-    // Nothing to draw: nobody has scores yet, or the scores name no listed round.
     if (withRounds.length === 0 || roundNames.length === 0) {
         return (
             <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-10 text-center">
@@ -40,7 +34,6 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
         )
     }
 
-    // A player who skipped a round scores 0 there — the line runs flat, not absent.
     const scoreOf = (p: PlayerResult, round: string) => p.roundScores?.[round] ?? 0
 
     const data = roundNames.map((round, i) => {
@@ -64,30 +57,12 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
     }
 
     return (
-        <ChartContainer config={config} className="h-60 w-full">
-            <LineChart
-                data={data}
-                margin={{ top: 8, left: 8, right: 8 }}
-            >
-                <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border" />
-                <XAxis
-                    dataKey="round"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tick={{ fontSize: 11 }}
-                    interval={0}
-                    padding={{ left: 20, right: 20 }}
-                />
-                <Legend
-                    layout="vertical"
-                    align="right"
-                    verticalAlign="middle"
-                    iconType="line"
-                    iconSize={10}
-                    wrapperStyle={{ fontSize: 12, color: "var(--foreground)" }}
-                />
-                <ChartTooltip content={<ChartTooltipContent />} />
+        <div className="relative h-60 w-full">
+            <ChartContainer config={config} className="h-60 w-full">
+                <LineChart
+                    data={data}
+                    margin={{ top: 8, left: 8, right: 8 }}
+                >
                 {withRounds.map((p) => (
                     <Line
                         key={p.id}
@@ -100,7 +75,36 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
                         activeDot={{ r: 5 }}
                     />
                 ))}
-            </LineChart>
-        </ChartContainer>
+                <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border" />
+                <XAxis
+                    dataKey="round"
+                    tickLine={false}
+                    axisLine={false}
+                    tickMargin={8}
+                    tick={{ fontSize: 11 }}
+                    interval={0}
+                    padding={{ left: 20, right: 20 }}
+                />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                </LineChart>
+            </ChartContainer>
+
+
+            <div
+                className="absolute left-3 top-2 flex max-h-[calc(100%-1rem)] flex-col flex-wrap items-start gap-x-4 gap-y-1 text-xs"
+                style={{ color: "var(--foreground)" }}
+            >
+                {withRounds.map((p, pi) => (
+                    <span key={p.id} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <span
+                            className="h-0.5 w-4 rounded-full"
+                            style={{ backgroundColor: `var(--chart-${pi + 1})` }}
+                            aria-hidden
+                        />
+                        {p.name}
+                    </span>
+                ))}
+            </div>
+        </div>
     )
 }

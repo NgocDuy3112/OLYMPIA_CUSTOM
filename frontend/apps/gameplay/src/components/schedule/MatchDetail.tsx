@@ -25,6 +25,25 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
     const winnerId = (match.status === "FINISHED") ? match.players.find((p) => p.rank === 1)?.id : undefined
     const stats = statisticsFor(match, rounds)
 
+    const roundRowOf = (roundId: string) => {
+        const name = rounds.find((r) => r.id === roundId)?.name
+        return stats.rounds.find((row) => row.round === name)
+    }
+
+    const statsPending = (title: string, note: string) => (
+        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-12 text-center">
+            <p className="font-medium">{title}</p>
+            <p className="text-sm text-muted-foreground">{note}</p>
+        </div>
+    )
+
+    const roundTab = (roundId: string) => {
+        if (!hasResults) return statsPending("Chưa có thống kê", "Thống kê hiển thị sau khi trận bắt đầu.")
+        const row = roundRowOf(roundId)
+        if (!row) return statsPending("Vòng này chưa diễn ra", "Thống kê hiển thị sau khi vòng thi kết thúc.")
+        return <RoundStatsPanel row={row} />
+    }
+
     const body = (
         <>
             <Card size="sm" className={cn(isLive && "ring-2 ring-destructive")}>
@@ -81,9 +100,10 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
             <Tabs defaultValue="general">
                 <TabsList className="w-full!">
                     <TabsTrigger value="general">Tổng Quan</TabsTrigger>
-                    {stats.rounds.map((row) => (
-                        <TabsTrigger key={row.round} value={row.round}>{row.round}</TabsTrigger>
-                    ))}
+                    <TabsTrigger value="khoi-dong">Khởi Động</TabsTrigger>
+                    <TabsTrigger value="giai-ma">Giải Mã</TabsTrigger>
+                    <TabsTrigger value="but-pha">Bứt Phá</TabsTrigger>
+                    <TabsTrigger value="ve-dich">Về Đích</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="general" className="flex flex-col gap-4">
@@ -137,9 +157,9 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
 
                 </TabsContent>
 
-                {stats.rounds.map((row) => (
-                    <TabsContent key={row.round} value={row.round} className="flex flex-col gap-4">
-                        <RoundStatsPanel row={row} />
+                {(["khoi-dong", "giai-ma", "but-pha", "ve-dich"] as const).map((roundId) => (
+                    <TabsContent key={roundId} value={roundId} className="flex flex-col gap-4">
+                        {roundTab(roundId)}
                     </TabsContent>
                 ))}
             </Tabs>
