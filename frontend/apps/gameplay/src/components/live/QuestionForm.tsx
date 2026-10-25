@@ -65,8 +65,10 @@ export function QuestionForm({
     const answered = answerState === "draft" || answerState === "final"
     const options = question.payload.options ?? []
     const isMc = question.kind === "MC" && options.length > 0
-    const canSubmit = !readOnly && !answered && !disabled && !submitting && Boolean(onSubmit)
-        && (isMc ? picked !== "" : text.trim() !== "")
+    // Inputs lock only when the moment has passed (submitted, closed, in flight) —
+    // NEVER just because the field is empty: an empty box must stay typable.
+    const locked = answered || disabled || submitting || !onSubmit
+    const canSubmit = !locked && (isMc ? picked !== "" : text.trim() !== "")
 
     const submit = (event: FormEvent) => {
         event.preventDefault()
@@ -97,7 +99,7 @@ export function QuestionForm({
                     <AnswerMark answerState={answerState} verdict={verdict} />
                 </div>
             ) : readOnly ? null : isMc ? (
-                <fieldset className="flex flex-col gap-2" disabled={!canSubmit}>
+                <fieldset className="flex flex-col gap-2" disabled={locked}>
                     {options.map((option, position) => (
                         <label
                             key={option.id}
@@ -124,7 +126,7 @@ export function QuestionForm({
                 <input
                     type="text"
                     value={text}
-                    disabled={!canSubmit}
+                    disabled={locked}
                     onChange={(event) => setText(event.target.value)}
                     placeholder="Câu trả lời của bạn"
                     className="w-full rounded-lg border border-input bg-background px-4 py-3 text-base outline-none focus:ring-2 focus:ring-ring disabled:bg-muted"

@@ -86,13 +86,38 @@ export function KhoiDongBatchScreen({ view, clock, matchId }: ScreenProps) {
             : null
 
     if (open.length === 0) {
+        // Closed: the payloads are gone, but the player's own ledger remains —
+        // answered ids (in batch order) + the verdicts map. This is where the
+        // ✓/✗ actually lands: finalize happens AFTER the window closes.
+        const answeredIds = view.me.answered ?? []
         return (
-            <div className="flex flex-col items-center gap-3 rounded-xl border bg-card p-8 text-center">
-                <p className="font-heading text-lg font-semibold">Đã hết 60 giây</p>
-                <p className="text-sm text-muted-foreground">
-                    Ban tổ chức đã đóng phần trả lời nhanh — chờ MC chấm và chuyển phần.
-                </p>
-                <p className="text-sm font-semibold tabular-nums">Điểm của bạn: {view.me.points ?? 0}</p>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col items-center gap-2 rounded-xl border bg-card p-8 text-center">
+                    <p className="font-heading text-lg font-semibold">Đã hết 60 giây</p>
+                    <p className="text-sm text-muted-foreground">
+                        Ban tổ chức đã đóng phần trả lời nhanh — chờ MC chấm và chuyển phần.
+                    </p>
+                    <p className="text-sm font-semibold tabular-nums">Điểm của bạn: {view.me.points ?? 0}</p>
+                </div>
+
+                {answeredIds.length > 0 && (
+                    <section className="rounded-xl border bg-card p-4">
+                        <h3 className="font-heading text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                            Kết quả từng câu
+                        </h3>
+                        <ul className="mt-3 flex flex-col divide-y">
+                            {answeredIds.map((questionId, index) => (
+                                <li key={questionId} className="flex items-center justify-between gap-3 py-2 text-sm">
+                                    <span className="text-muted-foreground">Câu {index + 1}</span>
+                                    <AnswerMark
+                                        answerState={finalized.has(questionId) ? "final" : "draft"}
+                                        verdict={verdicts[questionId]}
+                                    />
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                )}
             </div>
         )
     }
