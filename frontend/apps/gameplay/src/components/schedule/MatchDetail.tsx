@@ -4,17 +4,16 @@ import { buttonVariants } from "@shared/ui/button"
 import { Badge } from "@shared/ui/badge"
 import { Card, CardContent } from "@shared/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { cn } from "cn"
 import type { TournamentRound } from "@/lib/api"
 import type { Match } from "@/lib/types"
-import { statisticsFor } from "@/lib/match-stats"
+import { statisticsFor, type RoundRow } from "@/lib/match-stats"
 import { STATUS_LABEL, STATUS_VARIANT } from "./status"
 
 interface MatchDetailProps {
     match: Match
-    // The tournament's rounds: the chart's axis and the scores' key order.
     rounds: TournamentRound[]
-    /** Page mode keeps the Back button; the drawer supplies its own chrome. */
     onBack?: () => void
     variant?: "page" | "drawer"
 }
@@ -35,9 +34,6 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                             <h2 className="font-heading text-xl font-semibold leading-tight">
                                 {match.round}
                             </h2>
-                            <span className="text-sm font-semibold tabular-nums text-muted-foreground">
-                                {match.startTime}
-                            </span>
                         </div>
                         <Badge className="sm:mt-3" variant={STATUS_VARIANT[match.status]}>
                             {isLive && (
@@ -67,7 +63,7 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                                         </span>
                                         {isWinner && (
                                             <Badge variant="default" className="shrink-0 gap-1">
-                                                <Trophy className="size-3" aria-hidden />
+                                                <Trophy className="size-6" aria-hidden />
                                                 Nhất trận đấu
                                             </Badge>
                                         )}
@@ -84,115 +80,68 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
 
             <Tabs defaultValue="general">
                 <TabsList className="w-full!">
-                    <TabsTrigger value="general">Diễn biến</TabsTrigger>
-                    <TabsTrigger value="statistics">Thống kê</TabsTrigger>
+                    <TabsTrigger value="general">Tổng Quan</TabsTrigger>
+                    {stats.rounds.map((row) => (
+                        <TabsTrigger key={row.round} value={row.round}>{row.round}</TabsTrigger>
+                    ))}
                 </TabsList>
 
                 <TabsContent value="general" className="flex flex-col gap-4">
-                    {match.status === "UPCOMING" && (
-                        <p className="text-sm text-muted-foreground">
-                            Trận đấu sắp bắt đầu
-                        </p>
-                    )}
-                    {match.status === "FINISHED" && (
-                        <p className="text-sm text-muted-foreground">
-                            Trận đấu đã kết thúc
-                        </p>
-                    )}
                     <div className="flex flex-col gap-2">
-                        <h3 className="font-heading text-base font-semibold">
-                            Điểm theo vòng thi
-                        </h3>
                         <RoundChart rounds={rounds} players={players} />
                     </div>
-                </TabsContent>
-
-                <TabsContent value="statistics" className="flex flex-col gap-4">
-                    {hasResults ? (
-                        <>
-                            {/* the headline numbers — derived from the round scores */}
-                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                                <Stat label="Tổng điểm cả trận" value={stats.totalPoints} />
-                                <Stat label="Điểm cao nhất" value={stats.topScore} />
-                                <Stat label="Trung bình / thí sinh" value={stats.averageScore.toFixed(1)} />
-                                <Stat label="Cách biệt #1 – #2" value={stats.margin ?? "—"} />
-                                <Stat label="Số vòng thi" value={stats.rounds.length} />
-                                <Stat
-                                    label="Thắng nhiều vòng"
-                                    value={
-                                        stats.roundWins
-                                            ? `${stats.roundWins.names.join(", ")} · ${stats.roundWins.count}`
-                                            : "—"
-                                    }
-                                />
-                            </div>
-
-                            {/* the round breakdown: every player, every round */}
-                            <div className="flex flex-col gap-2">
-                                <h3 className="font-heading text-base font-semibold">Điểm từng vòng</h3>
-                                <div className="overflow-x-auto rounded-xl border">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="border-b bg-muted/40 text-muted-foreground">
-                                                <th className="px-3 py-2 text-left font-medium">Vòng</th>
-                                                {players.map((p) => (
-                                                    <th key={p.id} className="px-2 py-2 text-right font-medium">
-                                                        <span className="block max-w-24 truncate ml-auto">{p.name}</span>
-                                                    </th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {stats.rounds.map((row) => (
-                                                <tr key={row.round} className="border-b last:border-b-0">
-                                                    <td className="whitespace-nowrap px-3 py-2">{row.round}</td>
-                                                    {players.map((p) => {
-                                                        const cell = row.scores.find((s) => s.playerId === p.id)
-                                                        const won = row.winnerIds.includes(p.id)
-                                                        return (
-                                                            <td
-                                                                key={p.id}
-                                                                className={cn(
-                                                                    "px-2 py-2 text-right tabular-nums",
-                                                                    won ? "font-semibold" : "text-muted-foreground"
-                                                                )}
-                                                            >
-                                                                {cell?.points ?? 0}
-                                                                {won && (
-                                                                    <Trophy
-                                                                        className="ml-1 inline size-3 text-amber-500"
-                                                                        aria-label="thắng vòng"
-                                                                    />
-                                                                )}
-                                                            </td>
-                                                        )
-                                                    })}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                        <tfoot>
-                                            <tr className="bg-muted/40 font-medium">
-                                                <td className="px-3 py-2">Tổng</td>
-                                                {players.map((p) => (
-                                                    <td key={p.id} className="px-2 py-2 text-right tabular-nums">
-                                                        {p.score ?? 0}
-                                                    </td>
-                                                ))}
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-12 text-center">
-                            <p className="font-medium">Chưa có thống kê</p>
-                            <p className="text-sm text-muted-foreground">
-                                Thống kê hiển thị sau khi trận bắt đầu.
-                            </p>
+                    <div className="flex flex-col gap-2">
+                        <div className="rounded-xl border">
+                            <Table className={cn("[&_th]:h-10 [&_th]:text-sm [&_td]:py-2.5")}>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Thí sinh</TableHead>
+                                        {stats.rounds.map((row) => (
+                                            <TableHead key={row.round} className="text-right">
+                                                {row.round}
+                                            </TableHead>
+                                        ))}
+                                        <TableHead className="text-right">Tổng điểm</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {players.map((p) => (
+                                        <TableRow key={p.id}>
+                                            <TableCell className="max-w-40">
+                                                <span className="block truncate">{p.name}</span>
+                                            </TableCell>
+                                            {stats.rounds.map((row) => {
+                                                const cell = row.scores.find((s) => s.playerId === p.id)
+                                                const won = row.winnerIds.includes(p.id)
+                                                return (
+                                                    <TableCell
+                                                        key={row.round}
+                                                        className={cn(
+                                                            "text-right tabular-nums",
+                                                            won ? "font-semibold" : "text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        {cell?.points ?? 0}
+                                                    </TableCell>
+                                                )
+                                            })}
+                                            <TableCell className="text-right font-semibold tabular-nums">
+                                                {p.score ?? 0}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </div>
-                    )}
+                    </div>
+
                 </TabsContent>
+
+                {stats.rounds.map((row) => (
+                    <TabsContent key={row.round} value={row.round} className="flex flex-col gap-4">
+                        <RoundStatsPanel row={row} />
+                    </TabsContent>
+                ))}
             </Tabs>
         </>
     )
@@ -220,13 +169,47 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
     )
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+// One round's own panel — the round's slice of the results, ranked: the baseline
+// every round tab shows until its per-round metrics arrive.
+function RoundStatsPanel({ row }: { row: RoundRow }) {
+    const sorted = [...row.scores].sort((a, b) => b.points - a.points)
+
     return (
-        <div className="flex flex-col gap-1 rounded-xl border border-border px-4 py-3">
-            <span className="text-xs text-muted-foreground">{label}</span>
-            <span className="font-heading text-xl font-semibold tabular-nums break-words">
-                {value}
-            </span>
+        <div className="rounded-xl border">
+            <Table className={cn("[&_th]:h-10 [&_th]:text-sm [&_td]:py-2.5")}>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Thí sinh</TableHead>
+                        <TableHead className="text-right">Điểm</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {sorted.map((score) => {
+                        const won = row.winnerIds.includes(score.playerId)
+                        return (
+                            <TableRow key={score.playerId}>
+                                <TableCell className="max-w-40">
+                                    <span className="block truncate">{score.name}</span>
+                                </TableCell>
+                                <TableCell
+                                    className={cn(
+                                        "text-right tabular-nums",
+                                        won && "font-semibold"
+                                    )}
+                                >
+                                    {score.points}
+                                    {won && (
+                                        <Trophy
+                                            className="ml-1 inline size-3 text-amber-500"
+                                            aria-label="thắng vòng"
+                                        />
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
+                </TableBody>
+            </Table>
         </div>
     )
 }
