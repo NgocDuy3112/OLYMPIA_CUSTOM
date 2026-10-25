@@ -6,7 +6,6 @@ import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
-import { MatchPage } from "@/pages/MatchPage"
 import { QualificationView } from "@/components/qualification/QualificationView"
 import { LiveMatchView } from "@/components/live/LiveMatchView"
 import { useSchedule, useStandings, useTournament, useTournamentList, type TournamentDetail } from "@/lib/api"
@@ -141,13 +140,13 @@ function MatchRoute() {
     const match = toMatch(row, tournament.rounds)
     const back = () => navigate(`/s/${tournament.slug}`)
 
-    // A STANDARD match in play has its own live surface — the seated player
-    // plays along on push (L3). Every other state keeps the detail page.
+    // LIVE: the player's live surface — it owns the full page (L3). Every other
+    // match opens as the schedule's sidebar, so a deep link lands there (2510).
     if (row.status === "LIVE") {
         return <LiveMatchView match={match} rounds={tournament.rounds} onBack={back} />
     }
 
-    return <MatchPage match={match} rounds={tournament.rounds} onBack={back} />
+    return <Navigate to={`/s/${tournament.slug}?match=${row.id}`} replace />
 }
 
 // "/" and "/standings" lead to the CURRENT tournament — the one the staff flagged,

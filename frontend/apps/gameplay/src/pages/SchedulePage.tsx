@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import type { TournamentDetail } from "@/lib/api"
 import type { Match, StandingRow } from "@/lib/types"
 import { DaySection } from "@/components/schedule/DaySection"
 import { MatchCard } from "@/components/schedule/MatchCard"
+import { MatchDrawer } from "@/components/schedule/MatchDrawer"
 import { StageTimeline } from "@/components/schedule/StageTimeline"
 import { StandingsPanel } from "@/components/standings/StandingsPanel"
 import { ScheduleHeader } from "@/components/schedule/ScheduleHeader"
@@ -52,6 +53,36 @@ export function SchedulePage({
     const liveMatch = filtered.find((m) => m.status === "LIVE")
     const rest = filtered.filter((m) => m.id !== liveMatch?.id)
 
+    // A match click opens the SIDEBAR, not a page (2510): the schedule stays
+    // behind it and `?match=` keeps the view shareable. LIVE is the exception —
+    // the live screens own the full page.
+    const [searchParams, setSearchParams] = useSearchParams()
+    const openId = searchParams.get("match")
+    const openMatch = openId ? matches.find((m) => m.id === openId) ?? null : null
+
+    const openMatchById = (id: string) => {
+        const found = matches.find((m) => m.id === id)
+        if (found?.status === "LIVE") {
+            navigate(`/s/${tournament.slug}/matches/${id}`)
+            return
+        }
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev)
+            next.set("match", id)
+            return next
+        })
+    }
+
+    const closeMatch = () =>
+        setSearchParams(
+            (prev) => {
+                const next = new URLSearchParams(prev)
+                next.delete("match")
+                return next
+            },
+            { replace: true }
+        )
+
     const groups = useMemo(() => {
         const map = new Map<string, Match[]>()
         for (const m of rest) {
@@ -97,7 +128,7 @@ export function SchedulePage({
                                 key={date}
                                 date={date}
                                 matches={list}
-                                onOpenMatch={(id) => navigate(`/s/${tournament.slug}/matches/${id}`)}
+                                onOpenMatch={openMatchById}
                             />
                         ))}
 
@@ -110,6 +141,15 @@ export function SchedulePage({
                     />
                 </div>
             )}
+
+            <MatchDrawer
+                match={openMatch}
+                rounds={tournament.rounds}
+                open={Boolean(openMatch)}
+                onOpenChange={(next) => {
+                    if (!next) closeMatch()
+                }}
+            />
         </div>
     )
 }
