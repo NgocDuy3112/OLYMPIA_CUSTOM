@@ -1,5 +1,4 @@
-import { CartesianGrid, LabelList, Line, LineChart, XAxis } from "recharts"
-import type { LabelProps } from "recharts"
+import { CartesianGrid, Legend, Line, LineChart, XAxis } from "recharts"
 import {
     ChartContainer,
     ChartTooltip,
@@ -16,6 +15,11 @@ interface RoundChartProps {
     players: PlayerResult[]
 }
 
+// Cumulative points per round — the TRUE values. (The old version nudged tied
+// points apart with fake offsets so endpoint labels would not collide; near
+// values still overlapped and the lines were not drawn where they scored.
+// 2510: honest lines, and the names live in a right-side legend where they
+// physically cannot collide.)
 export function RoundChart({ rounds, players }: RoundChartProps) {
     const withRounds = players.filter(
         (p) => p.roundScores !== undefined
@@ -35,38 +39,16 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
             </div>
         )
     }
-    const OFFSET_Y = 7
 
     // A player who skipped a round scores 0 there — the line runs flat, not absent.
     const scoreOf = (p: PlayerResult, round: string) => p.roundScores?.[round] ?? 0
 
-    const cum = withRounds.map((p) => {
-        let acc = 0
-        return roundNames.map((r) => (acc += scoreOf(p, r)))
-    })
-
-    // offsets[roundIndex][seriesIndex]
-    const offsets: number[][] = roundNames.map((_, i) => {
-        const buckets = new Map<number, number[]>()
-        withRounds.forEach((_, pi) => {
-            const v = cum[pi][i]
-            const list = buckets.get(v) ?? []
-            list.push(pi)
-            buckets.set(v, list)
-        })
-        const out: number[] = []
-        buckets.forEach((pis) => {
-            pis.forEach((pi, k) => {
-                out[pi] = (k - (pis.length - 1) / 2) * OFFSET_Y
-            })
-        })
-        return out
-    })
-
     const data = roundNames.map((round, i) => {
         const row: Record<string, string | number> = { round }
-        withRounds.forEach((p, pi) => {
-            row[p.id] = cum[pi][i] + offsets[i][pi]
+        withRounds.forEach((p) => {
+            let acc = 0
+            for (let k = 0; k <= i; k++) acc += scoreOf(p, roundNames[k])
+            row[p.id] = acc
         })
         return row
     })
@@ -81,29 +63,11 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
         ),
     }
 
-    const makeLabel =
-        (name: string) =>
-            ({ x, y, index }: LabelProps) => {
-                if (index == null || index !== roundNames.length - 1) return null
-                if (x == null || y == null) return null
-                return (
-                    <text
-                        x={x}
-                        y={y}
-                        dx={8}
-                        dy={4}
-                        className="fill-foreground text-[11px] font-medium"
-                    >
-                        {name}
-                    </text>
-                )
-            }
-
     return (
         <ChartContainer config={config} className="h-60 w-full">
             <LineChart
                 data={data}
-                margin={{ top: 8, left: 8, right: 104 }}
+                margin={{ top: 8, left: 8, right: 8 }}
             >
                 <CartesianGrid vertical={false} strokeDasharray="4 4" className="stroke-border" />
                 <XAxis
@@ -115,30 +79,26 @@ export function RoundChart({ rounds, players }: RoundChartProps) {
                     interval={0}
                     padding={{ left: 20, right: 20 }}
                 />
-                <ChartTooltip
-                    content={
-                        <ChartTooltipContent
-                            formatter={(value, name, item, index) => {
-                                const round = (item.payload as { round?: string })?.round
-                                const ri = roundNames.indexOf(round ?? "")
-                                if (typeof value !== "number" || ri < 0) return value
-                                return `${name} ${value - (offsets[ri]?.[index] ?? 0)}`
-                            }}
-                        />
-                    }
+                <Legend
+                    layout="vertical"
+                    align="right"
+                    verticalAlign="middle"
+                    iconType="line"
+                    iconSize={10}
+                    wrapperStyle={{ fontSize: 12, color: "var(--foreground)" }}
                 />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 {withRounds.map((p) => (
                     <Line
                         key={p.id}
+                        name={p.name}
                         dataKey={p.id}
                         type="monotone"
                         stroke={`var(--color-${p.id})`}
                         strokeWidth={2.5}
                         dot={{ r: 3 }}
                         activeDot={{ r: 5 }}
-                    >
-                        <LabelList content={makeLabel(p.name)} position="right" />
-                    </Line>
+                    />
                 ))}
             </LineChart>
         </ChartContainer>
