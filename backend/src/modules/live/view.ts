@@ -25,6 +25,9 @@ import type { MatchQuestion } from "../../game/contracts/index.js";
 export interface SubmittedAnswer {
     questionId: string;
     judged: boolean;
+    // The player's OWN final verdict — null while the answer is only a draft. It
+    // never crosses seats: the view only ever exposes the rows it was given.
+    verdict: "CORRECT" | "INCORRECT" | null;
 }
 
 export interface ViewInput {
@@ -110,6 +113,17 @@ const stateOf = (submitted: SubmittedAnswer[], questionId: string): "none" | "dr
     return row.judged ? "final" : "draft";
 };
 
+// The player's own ✓/✗ per question — judged rows only, keyed by question. This
+// is THEIR ledger: the view receives only their rows, so the map can never leak
+// another seat's verdict.
+const verdictsOf = (submitted: SubmittedAnswer[]): Record<string, "CORRECT" | "INCORRECT"> =>
+    Object.fromEntries(
+        submitted
+            .filter((row): row is SubmittedAnswer & { verdict: "CORRECT" | "INCORRECT" } =>
+                row.verdict !== null && row.verdict !== undefined)
+            .map((row) => [row.questionId, row.verdict])
+    );
+
 function giaiMaView(input: ViewInput, state: GiaiMaState): PlayerView {
     const player = state.players.find((p) => p.id === input.userId);
     const open = state.openHint !== null && state.openHintAt !== null && giaiMaWindowOpen(state, input.now)
@@ -133,6 +147,7 @@ function giaiMaView(input: ViewInput, state: GiaiMaState): PlayerView {
             : null,
         table: rankTable(input.table),
         me: {
+            verdicts: verdictsOf(input.submitted),
             keywordLocked: player?.keywordLocked ?? false,
             eliminated: player?.eliminated ?? false,
             keywordValue: player ? keywordValueFor(state, input.userId) : null,
@@ -177,7 +192,8 @@ function butPhaView(input: ViewInput, state: ButPhaState): PlayerView {
         table: rankTable(input.table),
         me: {
             points: butPhaTotal(state, input.userId),
-            answerState: questionId === null ? "none" : stateOf(input.submitted, questionId)
+            answerState: questionId === null ? "none" : stateOf(input.submitted, questionId),
+            verdicts: verdictsOf(input.submitted)
         }
     };
 }
@@ -212,7 +228,8 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
                 : null,
             me: {
                 isMyRun: activeId === input.userId,
-                points: khoiDongPoints(state, input.userId)
+                points: khoiDongPoints(state, input.userId),
+                verdicts: verdictsOf(input.submitted)
             }
         };
     }
@@ -237,7 +254,8 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         me: {
             points: khoiDongPoints(state, input.userId),
             answered: questionIds.filter((q) => stateOf(input.submitted, q) !== "none"),
-            finalized: questionIds.filter((q) => stateOf(input.submitted, q) === "final")
+            finalized: questionIds.filter((q) => stateOf(input.submitted, q) === "final"),
+            verdicts: verdictsOf(input.submitted)
         }
     };
 }
@@ -299,7 +317,8 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
                 && open.answerer !== input.userId && isBuzzOpen(state, input.now),
             power: open?.power ?? null,
             buzzer: open?.buzzer ?? null,
-            answerState: open === null ? "none" : stateOf(input.submitted, open.question.id)
+            answerState: open === null ? "none" : stateOf(input.submitted, open.question.id),
+            verdicts: verdictsOf(input.submitted)
         }
     };
 }

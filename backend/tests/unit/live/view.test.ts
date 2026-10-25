@@ -59,7 +59,7 @@ describe("player view — giai-ma", () => {
 
     it("reports whether the player has already answered the open hint", () => {
         const view = buildPlayerView(base({
-            roundId: "giai-ma", state, submitted: [{ questionId: "h2", judged: true }]
+            roundId: "giai-ma", state, submitted: [{ questionId: "h2", judged: true, verdict: "CORRECT" as const }]
         }));
         expect(view.me.answerState).toBe("final");
     });
@@ -93,7 +93,7 @@ describe("player view — but-pha", () => {
     it("reports the player's own points and answer state", () => {
         const state = openCurrentQuestion(startButPha(Q), NOW);
         const view = buildPlayerView(base({
-            roundId: "but-pha", state, submitted: [{ questionId: "q1", judged: false }]
+            roundId: "but-pha", state, submitted: [{ questionId: "q1", judged: false, verdict: null }]
         }));
         expect(view.me).toMatchObject({ answerState: "draft", points: 0 });
     });
@@ -123,10 +123,26 @@ describe("player view — khoi-dong", () => {
         const state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2, NOW);
         const view = buildPlayerView(base({
             roundId: "khoi-dong", state,
-            submitted: [{ questionId: "b1", judged: false }, { questionId: "b2", judged: true }]
+            submitted: [
+                { questionId: "b1", judged: false, verdict: null },
+                { questionId: "b2", judged: true, verdict: "INCORRECT" as const }
+            ]
         }));
         expect(view.me.answered).toEqual(["b1", "b2"]);
         expect(view.me.finalized).toEqual(["b2"]);
+    });
+
+    it("exposes the player's own ✓/✗ — judged rows only, drafts stay silent", () => {
+        const state = beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2, NOW);
+        const view = buildPlayerView(base({
+            roundId: "khoi-dong", state,
+            submitted: [
+                { questionId: "b1", judged: false, verdict: null },   // draft: no verdict yet
+                { questionId: "b2", judged: true, verdict: "CORRECT" as const },
+                { questionId: "b3", judged: true, verdict: "INCORRECT" as const }
+            ]
+        }));
+        expect(view.me.verdicts).toEqual({ b2: "CORRECT", b3: "INCORRECT" });
     });
 });
 

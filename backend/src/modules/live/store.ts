@@ -211,13 +211,21 @@ export async function isSessionActive(userId: string, tokenVersion: number): Pro
     return row !== undefined && row.disabledAt === null && row.tokenVersion === tokenVersion;
 }
 
-// A player's own answers in a match, so the player view knows what they have submitted.
-export async function readPlayerAnswers(
-    matchId: string,
-    userId: string
-): Promise<Array<{ questionId: string; judged: boolean }>> {
+// A player's own answers in a match, so the player view knows what they have
+// submitted — judged rows carry the verdict, drafts leave it null (they have no
+// verdict yet). Their rows only; the user id is the session's, never a parameter
+// a client can aim at someone else.
+export async function readPlayerAnswers(matchId: string, userId: string): Promise<Array<{
+    questionId: string;
+    judged: boolean;
+    verdict: "CORRECT" | "INCORRECT" | null;
+}>> {
     return db
-        .select({ questionId: answers.questionId, judged: answers.judged })
+        .select({
+            questionId: answers.questionId,
+            judged: answers.judged,
+            verdict: answers.verdict
+        })
         .from(answers)
         .where(and(eq(answers.matchId, matchId), eq(answers.userId, userId)));
 }
