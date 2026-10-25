@@ -55,27 +55,6 @@ export function statisticsFor(match: Match, rounds: TournamentRound[]): MatchSta
     const topScore = sorted[0]?.score ?? 0
     const totalPoints = totals.reduce((sum, p) => sum + p.score, 0)
     const averageScore = players.length > 0 ? totalPoints / players.length : 0
-    const margin = sorted.length >= 2 && match.status !== "UPCOMING"
-        ? sorted[0].score - sorted[1].score
-        : null
-
-    // Round wins across the played rounds (a tied round counts for each winner).
-    let roundWins: MatchStatistics["roundWins"] = null
-    if (roundRows.length > 0) {
-        const counts = new Map<string, { name: string; count: number }>()
-        for (const row of roundRows) {
-            for (const id of row.winnerIds) {
-                const player = players.find((p) => p.id === id)
-                if (!player) continue
-                const entry = counts.get(id) ?? { name: player.name, count: 0 }
-                entry.count += 1
-                counts.set(id, entry)
-            }
-        }
-        const best = Math.max(0, ...[...counts.values()].map((c) => c.count))
-        const namesOfBest = [...counts.values()].filter((c) => c.count === best).map((c) => c.name)
-        roundWins = best > 0 ? { names: namesOfBest, count: best } : null
-    }
 
     const byGap = [...roundRows].sort((a, b) => a.gap - b.gap)
 

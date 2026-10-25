@@ -56,18 +56,15 @@ describe("statisticsFor — the headline numbers", () => {
         player("c", "Cid", 30, { "Khởi động": 10, "Giải mã": 20, "Về đích": 0 }),
     ])
 
-    it("sums, tops, averages and finds the margin", () => {
+    it("sums, tops and averages the totals", () => {
         const stats = statisticsFor(m, ROUNDS)
         expect(stats.totalPoints).toBe(230)
         expect(stats.topScore).toBe(120)
         expect(stats.averageScore).toBeCloseTo(230 / 3)
-        expect(stats.margin).toBe(40)
     })
 
-    it("counts round wins and reports the closest / biggest rounds", () => {
+    it("reports the closest / biggest rounds", () => {
         const stats = statisticsFor(m, ROUNDS)
-        // Khởi động → Ace; Giải mã → Ace+Bee tie; Về đích → Ace.
-        expect(stats.roundWins).toEqual({ names: ["Ace"], count: 3 })
         // gaps: 40 / 20 / 30 — Giải mã split them the least, Khởi động the most.
         expect(stats.closestRound?.round).toBe("Giải mã")
         expect(stats.biggestRound?.round).toBe("Khởi động")
@@ -75,23 +72,20 @@ describe("statisticsFor — the headline numbers", () => {
 })
 
 describe("statisticsFor — degrading kindly", () => {
-    it("an upcoming match has no margin and no played rounds", () => {
+    it("an upcoming match has no played rounds", () => {
         const upcoming = match([
             player("a", "Ace", 0),
             player("b", "Bee", 0),
         ], "UPCOMING")
         const stats = statisticsFor(upcoming, ROUNDS)
         expect(stats.rounds).toEqual([])
-        expect(stats.margin).toBeNull()
-        expect(stats.roundWins).toBeNull()
         expect(stats.topScore).toBe(0)
     })
 
-    it("one player alone: totals without a margin", () => {
+    it("one player alone still totals", () => {
         const solo = statisticsFor(match([player("a", "Ace", 30, { "Về đích": 30 })]), ROUNDS)
-        expect(solo.margin).toBeNull()
         expect(solo.averageScore).toBe(30)
-        expect(solo.roundWins).toEqual({ names: ["Ace"], count: 1 })
+        expect(solo.rounds).toHaveLength(1)
     })
 
     it("round scores naming no listed round still total correctly", () => {

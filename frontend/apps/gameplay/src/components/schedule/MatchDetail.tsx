@@ -100,10 +100,11 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
             <Tabs defaultValue="general">
                 <TabsList className="w-full!">
                     <TabsTrigger value="general">Tổng Quan</TabsTrigger>
-                    <TabsTrigger value="khoi-dong">Khởi Động</TabsTrigger>
-                    <TabsTrigger value="giai-ma">Giải Mã</TabsTrigger>
-                    <TabsTrigger value="but-pha">Bứt Phá</TabsTrigger>
-                    <TabsTrigger value="ve-dich">Về Đích</TabsTrigger>
+                    {rounds.map((round) => (
+                        <TabsTrigger key={round.id} value={round.id}>
+                            {round.name}
+                        </TabsTrigger>
+                    ))}
                 </TabsList>
 
                 <TabsContent value="general" className="flex flex-col gap-4">
@@ -116,9 +117,9 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Thí sinh</TableHead>
-                                        {stats.rounds.map((row) => (
-                                            <TableHead key={row.round} className="text-right">
-                                                {row.round}
+                                        {rounds.map((round) => (
+                                            <TableHead key={round.id} className="text-right">
+                                                {round.name}
                                             </TableHead>
                                         ))}
                                         <TableHead className="text-right">Tổng điểm</TableHead>
@@ -130,12 +131,25 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
                                             <TableCell className="max-w-40">
                                                 <span className="block truncate">{p.name}</span>
                                             </TableCell>
-                                            {stats.rounds.map((row) => {
+                                            {rounds.map((round) => {
+                                                const row = stats.rounds.find((r) => r.round === round.name)
+                                                if (!row) {
+                                                    // The round carries no recorded scores (legacy seeded
+                                                    // results) — say so instead of inventing a zero.
+                                                    return (
+                                                        <TableCell
+                                                            key={round.id}
+                                                            className="text-right tabular-nums text-muted-foreground/60"
+                                                        >
+                                                            –
+                                                        </TableCell>
+                                                    )
+                                                }
                                                 const cell = row.scores.find((s) => s.playerId === p.id)
                                                 const won = row.winnerIds.includes(p.id)
                                                 return (
                                                     <TableCell
-                                                        key={row.round}
+                                                        key={round.id}
                                                         className={cn(
                                                             "text-right tabular-nums",
                                                             won ? "font-semibold" : "text-muted-foreground"
@@ -157,9 +171,9 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
 
                 </TabsContent>
 
-                {(["khoi-dong", "giai-ma", "but-pha", "ve-dich"] as const).map((roundId) => (
-                    <TabsContent key={roundId} value={roundId} className="flex flex-col gap-4">
-                        {roundTab(roundId)}
+                {rounds.map((round) => (
+                    <TabsContent key={round.id} value={round.id} className="flex flex-col gap-4">
+                        {roundTab(round.id)}
                     </TabsContent>
                 ))}
             </Tabs>
