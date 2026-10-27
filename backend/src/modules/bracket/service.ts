@@ -84,25 +84,17 @@ async function playedMatches(tournamentId: string, stageId: string): Promise<Pla
     });
 }
 
-// The field's ranking, from the mass event: the rank order its result was written in.
-async function massEventRanking(tournamentId: string): Promise<string[] | null> {
-    const [row] = await db
-        .select({ results: matchResults.results })
-        .from(matches)
-        .innerJoin(matchResults, eq(matchResults.matchId, matches.id))
-        .where(and(
-            eq(matches.tournamentId, tournamentId),
-            eq(matches.kind, "QUALIFICATION"),
-            isNull(matches.deletedAt)
-        ))
-        .limit(1);
-
-    if (!row) return null;
-
-    return (row.results as ResultEntry[])
-        .filter((entry) => entry.kind === "user" && entry.userId)
-        .sort((a, b) => a.rank - b.rank)
-        .map((entry) => entry.userId!);
+// The field's ranking before any match is played: the ENTRY ORDER — the roster as it
+// enrolled; stages then refine the order via rankAfter. Ties on enrolled_at fall back
+// to the user id so the cut is stable. An empty roster seeds nothing: the check
+// reports "cannot check yet".
+async function entryRanking(tournamentId: string): Promise<string[] | null> {
+    const rows = await db
+        .select({ userId: tournamentPlayers.userId })
+        .from(tournamentPlayers)
+        .where(eq(tournamentPlayers.tournamentId, tournamentId))
+        .orderBy(asc(tournamentPlayers.enrolledAt), asc(tournamentPlayers.userId));
+    return rows.length > 0 ? rows.map((row) => row.userId) : null;
 }
 
 // The ranking after a stage: the stage's scores decide, the previous ranking breaks a tie.
@@ -135,21 +127,9 @@ async function nameOf(userIds: string[]): Promise<Map<string, string>> {
     return new Map(rows.map((row) => [row.id, row.displayName]));
 }
 
-// The number of places the tournament produces: the field that plays the bracket — the mass
-// event's field, or the roster when there is no mass event.
+// The number of places the tournament produces: the field that plays the bracket —
+// the roster (every player is a competitor).
 export async function tournamentPlaces(tournamentId: string): Promise<number> {
-    const [massEvent] = await db
-        .select({ players: matches.players })
-        .from(matches)
-        .where(and(
-            eq(matches.tournamentId, tournamentId),
-            eq(matches.kind, "QUALIFICATION"),
-            isNull(matches.deletedAt)
-        ))
-        .limit(1);
-
-    if (massEvent) return (massEvent.players as Array<{ userId?: string }>).length;
-
     const roster = await db.select({ userId: tournamentPlayers.userId })
         .from(tournamentPlayers)
         .where(eq(tournamentPlayers.tournamentId, tournamentId));
@@ -181,8 +161,8 @@ export async function checkMatchAgainstFormat(params: {
 
     const tierSize = tournament.format.competitorsPerMatch;
 
-    // The state before this stage: the ranking, and the ladder.
-    let ranking = await massEventRanking(params.tournamentId);
+    // The state before this stage: the ranking (entry order, refined by played stages).
+    let ranking = await entryRanking(params.tournamentId);
     let toFinale: string[] = [];
     let ladderAfter: LadderRound | null = null;
 

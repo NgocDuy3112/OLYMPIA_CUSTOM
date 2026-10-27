@@ -195,7 +195,7 @@ describe("the tournament's places", () => {
         const rows = (await standings()).json().rows as Array<{
             userId: string; displayName: string; place: number | null;
             totalPoints: number; matchesPlayed: number; placementPoints: number;
-            stageTitle: string | null; tieBreak: string | null;
+            stageTitle: string | null;
         }>;
 
         expect(rows).toHaveLength(6);
@@ -214,13 +214,12 @@ describe("the tournament's places", () => {
 
     it("places the players who stopped in round 1 below them", async () => {
         const rows = (await standings()).json().rows as Array<{
-            userId: string; place: number | null; stageTitle: string | null; tieBreak: string | null;
+            userId: string; place: number | null; stageTitle: string | null;
         }>;
 
         // Players 4 and 5 never played: no place, at the bottom.
         expect(rows[4].userId).toBe(playerIds[4]);
         expect(rows[4].place).toBeNull();
-        expect(rows[4].tieBreak).toBe("never played");
         expect(rows[5].userId).toBe(playerIds[5]);
         expect(rows[5].place).toBeNull();
     });

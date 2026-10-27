@@ -270,8 +270,7 @@ describe("presentStanding", () => {
             placementPoints: 25,
             stageId: "playoffs",
             stageTitle: "Vòng Playoffs",
-            slot: 1,
-            tieBreak: null
+            slot: 1
         });
         expect(out).toEqual({
             userId: "11111111-1111-1111-1111-111111111111",
@@ -281,8 +280,7 @@ describe("presentStanding", () => {
             placementPoints: 25,
             stageId: "playoffs",
             stageTitle: "Vòng Playoffs",
-            slot: 1,
-            tieBreak: null
+            slot: 1
         });
     });
 });

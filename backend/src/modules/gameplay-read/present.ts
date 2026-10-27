@@ -104,7 +104,6 @@ export function presentMatch(
         stageId: row.stageId,
         slot: row.slot,
         status: row.status,
-        kind: row.kind,
         scheduledAt: row.scheduledAt.toISOString(),
         round: matchRound(row, stageTitles),
         players
@@ -137,7 +136,6 @@ export function presentStanding(row: PlayerStanding) {
         placementPoints: row.placementPoints,
         stageId: row.stageId,
         stageTitle: row.stageTitle,
-        slot: row.slot,
-        tieBreak: row.tieBreak
+        slot: row.slot
     };
 }

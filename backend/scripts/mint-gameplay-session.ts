@@ -1,7 +1,7 @@
 // Mint a dev gameplay session — a cookie you can paste into the browser while
 // Google OIDC is not configured locally (the only sign-in the player surface
 // ships with). It signs a real GAMEPLAY token for a player SEATED in the most
-// recent mass event, so the five screens are reachable without Google.
+// recent match, so the live view is reachable without Google.
 //
 //   npx tsx --env-file=../configs/.env scripts/mint-gameplay-session.ts [name-or-email]
 //
@@ -16,18 +16,17 @@ import { signToken } from "../src/lib/jwt.js";
 async function main() {
     const wanted = process.argv[2];
 
-    const [event] = await db
+    const [match] = await db
         .select()
         .from(matches)
-        .where(eq(matches.kind, "QUALIFICATION"))
         .orderBy(desc(matches.createdAt))
         .limit(1);
-    if (!event) throw new Error("no mass event in the database — create one first");
+    if (!match) throw new Error("no match in the database — create one first");
 
-    const seated = event.players.flatMap((seat) =>
+    const seated = match.players.flatMap((seat) =>
         "userId" in seat && seat.userId ? [seat.userId] : []
     );
-    if (seated.length === 0) throw new Error("the event has nobody seated");
+    if (seated.length === 0) throw new Error("the match has nobody seated");
 
     const conditions = [inArray(users.id, seated)];
     if (wanted) {
@@ -39,7 +38,7 @@ async function main() {
         throw new Error(`no seated player matches "${wanted}". Roster: ${roster.map((r) => r.name).join(", ")}`);
     }
 
-    const [tournament] = await db.select().from(tournaments).where(eq(tournaments.id, event.tournamentId));
+    const [tournament] = await db.select().from(tournaments).where(eq(tournaments.id, match.tournamentId));
 
     const app = await buildApp();
     await app.ready();
@@ -50,9 +49,9 @@ async function main() {
     });
     await app.close();
 
-    const url = `http://localhost:5175/s/${tournament.slug}/matches/${event.id}`;
+    const url = `http://localhost:5175/s/${tournament.slug}/matches/${match.id}`;
     console.log(`
-event:  ${event.label} (${event.questions.length} questions, position=${event.currentPosition})
+match:  ${match.label} (${match.questions.length} questions, rounds=${Object.keys(match.roundConfigs).length})
 player: ${player.displayName}  (${wanted ? `matched "${wanted}"` : "first seated"})
 url:    ${url}
 

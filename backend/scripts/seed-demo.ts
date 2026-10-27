@@ -2,9 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../src/db/pool.js";
 import {
     questionBank,
-    tournamentPhaseResults,
     tournamentPlayers,
-    tournaments,
     tournaments,
     users
 } from "../src/db/schema/index.js";
@@ -123,23 +121,9 @@ async function main() {
         .values(roster.map((player) => ({ tournamentId: tournament.id, userId: player.id })))
         .onConflictDoNothing();
 
-    // Qualification closed: a descending ranking the draw can be seeded from.
-    await db.insert(tournamentPhaseResults).values(
-        roster.map((player, index) => ({
-            tournamentId: tournament.id,
-            phaseId: "qualification",
-            round: 1,
-            userId: player.id,
-            score: 100 - index,
-            correctCount: PLAYERS - index,
-            avgTimeMs: 2000 + index * 100,
-            rank: index + 1
-        }))
-    ).onConflictDoNothing();
-
     console.log("seeded");
     console.log(`  tournament ${tournament.id}`);
-    console.log(`  tournament     ${tournament.id}  (${roster.length} players, qualification closed)`);
+    console.log(`  tournament     ${tournament.id}  (${roster.length} players)`);
     console.log("\nwipe with:");
     console.log(`  delete from matches where tournament_id in (select id from tournaments where tournament_id='${tournament.id}');`);
     console.log(`  delete from tournaments where tournament_id='${tournament.id}';`);

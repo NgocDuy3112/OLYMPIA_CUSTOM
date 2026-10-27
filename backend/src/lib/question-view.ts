@@ -1,9 +1,8 @@
-// What a QUESTION looks like on any screen that is not the judge's — the player's
-// live view, the mass event, anywhere a question is shown but its answer must not be.
+// What a QUESTION looks like on any screen that is not the judge's — anywhere a
+// question is shown but its answer must not be.
 // One function, one rule: MC options yes, correct set never.
 //
-// Pure — no db, no fastify. Shared by the qualification (mass event) and live
-// surfaces so both deliver the exact same exposure.
+// Pure — no db, no fastify.
 import type { MatchQuestion } from "../game/contracts/index.js";
 
 export interface SanitizedQuestion {

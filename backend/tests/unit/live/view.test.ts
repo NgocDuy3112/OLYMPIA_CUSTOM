@@ -148,7 +148,7 @@ describe("player view — khoi-dong", () => {
 
 describe("player view — an unknown round", () => {
     it("degrades to an empty view instead of throwing", () => {
-        const view = buildPlayerView(base({ roundId: "tie-break" }));
+        const view = buildPlayerView(base({ roundId: "mystery-round" }));
         expect(view).toMatchObject({ stage: "unknown", open: [], me: {} });
     });
 });

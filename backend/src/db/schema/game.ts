@@ -34,10 +34,8 @@ export const verdict = pgEnum("verdict", ["CORRECT", "INCORRECT"]);
 export const power = pgEnum("power", ["HOPE", "SHIELD"]);
 export const matchEventKind = pgEnum("match_event_kind", ["PICK", "BUZZ", "POWER"]);
 
-// A match is either played for points (standard) or is the mass event: every player in
-// the roster answers the same question set once, and the field is ranked by the
-// crowd-weighted score (qualification).
-export const matchKind = pgEnum("match_kind", ["STANDARD", "QUALIFICATION"]);
+// A match is played for points.
+export const matchKind = pgEnum("match_kind", ["STANDARD"]);
 
 
 export const matches = pgTable(
@@ -57,11 +55,6 @@ export const matches = pgTable(
         // type it on /join to pick a seat and get a session (no password).
         joinCode: text("join_code"),
         players: jsonb("players").$type<Seat[]>().notNull(),
-        // The mass event's turns: null = not opened (no question released);
-        // n = questions with position ≤ n are released. released_at is the server
-        // time of the last release — the clock anchor for the current question.
-        currentPosition: integer("current_position"),
-        releasedAt: timestamp("released_at", { withTimezone: true }),
         roundConfigs: jsonb("round_configs").$type<Record<string, RoundConfig>>().notNull(),
         questions: jsonb("questions").$type<MatchQuestion[]>().notNull(),
         live: jsonb("live").$type<MatchLive>(),
@@ -122,26 +115,6 @@ export const answers = pgTable(
     ]
 );
 
-
-// The server's clock for a mass event: when a player first opened the match, and when
-// their previous answer landed. Answer times are measured from here, never from the client.
-export const matchClocks = pgTable(
-    "match_clocks",
-    {
-        matchId: uuid("match_id")
-            .notNull()
-            .references(() => matches.id, { onDelete: "cascade" }),
-        userId: uuid("user_id")
-            .notNull()
-            .references(() => users.id, { onDelete: "cascade" }),
-
-        openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
-        lastAnswerAt: timestamp("last_answer_at", { withTimezone: true })
-    },
-    (table) => [
-        primaryKey({ columns: [table.matchId, table.userId] })
-    ]
-);
 
 
 export const matchResults = pgTable(

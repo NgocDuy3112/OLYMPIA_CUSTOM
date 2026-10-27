@@ -57,7 +57,6 @@ export const PublicMatch = Type.Object({
     stageId: Type.String(),
     slot: Type.Union([Type.Integer(), Type.Null()]),
     status: Type.Union([Type.Literal("UPCOMING"), Type.Literal("LIVE"), Type.Literal("FINISHED")]),
-    kind: Type.Union([Type.Literal("STANDARD"), Type.Literal("QUALIFICATION")]),
     scheduledAt: IsoDateTime,
     // "<stage title> · <label>" — the display string the schedule shows.
     round: Type.String(),
@@ -138,8 +137,7 @@ export const PublicStandingRow = Type.Object({
     placementPoints: Type.Integer(),
     stageId: Type.Union([Type.String(), Type.Null()]),
     stageTitle: Type.Union([Type.String(), Type.Null()]),
-    slot: Type.Union([Type.Integer(), Type.Null()]),
-    tieBreak: Type.Union([Type.String(), Type.Null()])
+    slot: Type.Union([Type.Integer(), Type.Null()])
 }, { additionalProperties: false });
 
 export const StandingsResponse = Type.Object({

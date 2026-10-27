@@ -105,7 +105,7 @@ describe("the tournament's places", () => {
         expect(rows.map((row) => row.userId)).toEqual(["b", "c", "a"]);
     });
 
-    it("shares a place on a tie inside a match, and asks for a tie-break turn", () => {
+    it("shares a place on a tie inside a match", () => {
         const rows = buildStandings({
             stages: STAGES,
             matches: [{
@@ -123,7 +123,6 @@ describe("the tournament's places", () => {
         });
 
         expect(rows.map((row) => row.place)).toEqual([1, 1]);
-        expect(rows[0].tieBreak).toBe("tie — needs a tie-break turn");
     });
 
     it("lists a player who never played at the bottom, with no place", () => {
@@ -138,7 +137,6 @@ describe("the tournament's places", () => {
         expect(rows[0].place).toBe(1);
         expect(rows[1].place).toBeNull();
         expect(rows[1].matchesPlayed).toBe(0);
-        expect(rows[1].tieBreak).toBe("never played");
     });
 
     it("ignores a match in a stage the tournament does not list", () => {
@@ -150,7 +148,6 @@ describe("the tournament's places", () => {
         });
 
         expect(rows[0].place).toBeNull();
-        expect(rows[0].tieBreak).toBe("never played");
     });
 
     it("awards the bonus of the place, not of the points", () => {
@@ -168,23 +165,5 @@ describe("the tournament's places", () => {
         expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0]);
         // "d" scored the most by far, and has the last place.
         expect(rows[3].userId).toBe("d");
-    });
-
-    it("says why a row sits below the row above it", () => {
-        const rows = buildStandings({
-            stages: STAGES,
-            matches: [
-                match("m1", "final", 1, [["a", 10], ["b", 5]]),
-                match("m2", "round-2", 1, [["c", 10]]),
-                match("m3", "round-2", 2, [["d", 10]])
-            ],
-            players: roster(["a", "b", "c", "d"]),
-            tiers: []
-        });
-
-        expect(rows[0].tieBreak).toBeNull();
-        expect(rows[1].tieBreak).toBe("ranked above in the match");
-        expect(rows[2].tieBreak).toBe("eliminated earlier");
-        expect(rows[3].tieBreak).toBe("slot 1");
     });
 });

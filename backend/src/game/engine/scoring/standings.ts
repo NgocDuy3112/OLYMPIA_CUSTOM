@@ -9,9 +9,8 @@
 // stage the slots, and inside a slot the match's own result. A player who never took a
 // seat has no place: they are listed at the bottom, with no points.
 //
-// The points are a statistic, not the ranking key. The old format's rule still stands:
-// a tie for a placement is settled by one ve-dich Phase 1 turn, whose points only order
-// the tied players and change no totals — so a tie is reported, never silently broken.
+// The points are a statistic, not the ranking key: a tie for a placement shares the
+// place (dense numbering), never a silent break.
 import type { PlacementTier } from "../../contracts/index.js";
 import { pointsForPlace } from "./placement.js";
 
@@ -36,7 +35,6 @@ export interface PlayerStanding {
     stageId: string | null;        // the stage they got to
     stageTitle: string | null;
     slot: number | null;           // the match they were eliminated in
-    tieBreak: string | null;       // why this row sits below the row above it
 }
 
 export interface BuildStandingsInput {
@@ -51,7 +49,6 @@ interface Progress {
     stageIndex: number;
     slot: number;
     rank: number;
-    tied: boolean;
     stageId: string;
     stageTitle: string;
     matchId: string;
@@ -76,12 +73,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
         const index = stageIndex.get(match.stageId);
         if (index === undefined) continue;      // a match in a stage the tournament does not list
 
-        // A tie inside the match: equal ranks share a place and need a tie-break turn.
-        const byRank = new Map<number, number>();
-        for (const entry of match.results) {
-            byRank.set(entry.rank, (byRank.get(entry.rank) ?? 0) + 1);
-        }
-
         for (const entry of match.results) {
             played.set(entry.userId, (played.get(entry.userId) ?? 0) + 1);
 
@@ -89,7 +80,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
                 stageIndex: index,
                 slot: match.slot ?? Number.MAX_SAFE_INTEGER,
                 rank: entry.rank,
-                tied: (byRank.get(entry.rank) ?? 0) > 1,
                 stageId: match.stageId,
                 stageTitle: stageTitle.get(match.stageId) ?? match.stageId,
                 matchId: match.matchId
@@ -132,10 +122,7 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
             placementPoints: pointsForPlace(input.tiers, place),
             stageId: value.stageId,
             stageTitle: value.stageTitle,
-            slot: value.slot === Number.MAX_SAFE_INTEGER ? null : value.slot,
-            // A tie inside the match is reported on both of its rows, not only on the
-            // second one: the format settles it with a tie-break turn.
-            tieBreak: value.tied ? "tie — needs a tie-break turn" : reasonBelow(previous, entry.value)
+            slot: value.slot === Number.MAX_SAFE_INTEGER ? null : value.slot
         });
 
         previous = entry;
@@ -153,19 +140,9 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
             placementPoints: 0,
             stageId: null,
             stageTitle: null,
-            slot: null,
-            tieBreak: "never played"
+            slot: null
         }));
 
     return [...rows, ...idle];
 }
 
-// Why this row sits below the row above it: a later stage, an earlier slot, a higher
-// rank in the same match, or a tie that needs a tie-break turn.
-function reasonBelow(previous: { value: Progress } | null, value: Progress): string | null {
-    if (!previous) return null;
-    if (previous.value.stageIndex !== value.stageIndex) return "eliminated earlier";
-    if (previous.value.slot !== value.slot) return `slot ${previous.value.slot}`;
-    if (previous.value.rank !== value.rank) return "ranked above in the match";
-    return "tie — needs a tie-break turn";
-}

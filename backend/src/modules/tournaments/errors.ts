@@ -1,4 +1,4 @@
-// One error type for the tournament's own flows: the roster, the mass event and the standings.
+// One error type for the tournament's own flows: the roster, the rounds and the standings.
 export type TournamentErrorCode =
     | "VALIDATION"
     | "NOT_FOUND"

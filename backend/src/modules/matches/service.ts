@@ -21,7 +21,6 @@ import { checkMatchAgainstFormat } from "../bracket/service.js";
 export type MatchRow = typeof matches.$inferSelect;
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchStatusValue = "UPCOMING" | "LIVE" | "FINISHED";
-type MatchKind = "STANDARD" | "QUALIFICATION";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // The player's door-in code: 6 chars from an unambiguous alphabet (no 0/O/1/I),
@@ -150,19 +149,14 @@ function assertRoundConfigKeys(tournament: TournamentRow, roundConfigs: Record<s
 
 function assertSeats(
     players: Seat[],
-    format: TournamentRow["format"],
-    kind: MatchKind
+    format: TournamentRow["format"]
 ): void {
-    // A points match has a fixed number of seats. The mass event seats the whole roster,
-    // so its seat count is the roster's, not the format's.
-    if (kind === "STANDARD" && players.length !== format.competitorsPerMatch) {
+    // A points match has a fixed number of seats.
+    if (players.length !== format.competitorsPerMatch) {
         throw new MatchError(
             "VALIDATION",
             `expected ${format.competitorsPerMatch} seats, got ${players.length}`
         );
-    }
-    if (kind === "QUALIFICATION" && players.length < 1) {
-        throw new MatchError("VALIDATION", "a qualification match needs at least one seat");
     }
 
     const wrongKind = players.filter((seat) => !format.allowedSeatKinds.includes(seat.kind));
@@ -247,8 +241,8 @@ export async function createMatch(
             ? tournamentRoundConfigs(tournament)
             : {};
     if (Object.keys(roundConfigs).length > 0) assertRoundConfigKeys(tournament, roundConfigs);
-    if (input.players) assertSeats(input.players, tournament.format, input.kind ?? "STANDARD");
-    if (input.players && (input.kind ?? "STANDARD") === "STANDARD") {
+    if (input.players) assertSeats(input.players, tournament.format);
+    if (input.players) {
         await assertFollowsFormat({
             tournamentId,
             stageId: input.stageId,
@@ -274,9 +268,8 @@ export async function createMatch(
         autoPick
     });
 
-    // STANDARD matches get a join code (the mass event plays elsewhere). The
-    // partial unique index owns collisions: a generated clash retries, not fails.
-    const kind = input.kind ?? "STANDARD";
+    // STANDARD matches get a join code. The partial unique index owns collisions:
+    // a generated clash retries, not fails.
 
     let row: MatchRow | undefined;
     for (let attempt = 0; row === undefined && attempt < JOIN_CODE_ATTEMPTS; attempt += 1) {
@@ -285,13 +278,12 @@ export async function createMatch(
                 .insert(matches)
                 .values({
                     tournamentId,
-                    kind,
                     stageId: input.stageId,
                     slot: input.slot ?? null,
                     label: input.label,
                     scheduledAt: new Date(input.scheduledAt),
                     status: "UPCOMING",
-                    joinCode: kind === "STANDARD" ? newJoinCode() : null,
+                    joinCode: newJoinCode(),
                     players: input.players ?? [],
                     roundConfigs,
                     questions,
@@ -372,8 +364,8 @@ export async function updateMatch(
     }
 
     const tournament = await requireTournament(tournamentId);
-    if (patch.players) assertSeats(patch.players, tournament.format, existing.kind);
-    if (patch.players && existing.kind === "STANDARD") {
+    if (patch.players) assertSeats(patch.players, tournament.format);
+    if (patch.players) {
         await assertFollowsFormat({
             tournamentId,
             stageId: patch.stageId ?? existing.stageId,
@@ -494,9 +486,7 @@ export async function setMatchResults(
 
     // The standings are never typed in: they follow the points of the matches that were
     // played, so they are recomputed when a match ends.
-    if (row.kind === "STANDARD") {
-        await recomputeStandings(tournamentId);
-    }
+    await recomputeStandings(tournamentId);
 
     return row;
 }
@@ -516,13 +506,6 @@ export async function transitionMatch(
             "INVALID_TRANSITION",
             `cannot move a match from ${existing.status} to ${next}`,
             [`allowed from ${existing.status}: ${EDGES[existing.status].join(", ") || "none"}`]
-        );
-    }
-
-    if (next === "LIVE" && existing.kind === "QUALIFICATION") {
-        throw new MatchError(
-            "INVALID_TRANSITION",
-            "a qualification match is not played live: the players answer it, the staff close it"
         );
     }
 
@@ -577,7 +560,7 @@ export async function transitionMatch(
         return updated;
     });
 
-    if (next === "FINISHED" && row.kind === "STANDARD") {
+    if (next === "FINISHED") {
         await recomputeStandings(tournamentId);
     }
 

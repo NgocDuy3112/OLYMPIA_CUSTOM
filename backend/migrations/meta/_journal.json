@@ -155,6 +155,20 @@
       "when": 1793071633903,
       "tag": "0021_easy_brother_voodoo",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793085856271,
+      "tag": "0022_lively_rocket_raccoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793087746144,
+      "tag": "0023_classy_vampiro",
+      "breakpoints": true
     }
   ]
 }

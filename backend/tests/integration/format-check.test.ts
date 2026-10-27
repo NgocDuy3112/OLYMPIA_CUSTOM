@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { db } from "../../src/db/pool.js";
-import { matchResults, matches, questionBank, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
+import { questionBank, tournamentPlayers, tournaments, users } from "../../src/db/schema/index.js";
 import { signToken } from "../../src/lib/jwt.js";
 
 // The format, checked against the matches the staff place: the engine never draws, but
@@ -89,7 +89,16 @@ beforeAll(async () => {
     }).returning();
     tournamentId = tournament.id;
 
-    await db.insert(tournamentPlayers).values(playerIds.map((userId) => ({ tournamentId, userId })));
+    // The entry order IS the pre-tournament ranking (the format check's tier seed):
+    // enroll in rank order with distinct timestamps so the order is the data's, not
+    // the database's.
+    await db.insert(tournamentPlayers).values(
+        playerIds.map((userId, index) => ({
+            tournamentId,
+            userId,
+            enrolledAt: new Date(Date.UTC(2026, 0, 1, 0, 0, index))
+        }))
+    );
 
     await db.insert(questionBank).values(
         Array.from({ length: 8 }, (_, i) => ({
@@ -103,31 +112,6 @@ beforeAll(async () => {
             createdBy: owner.id
         }))
     );
-
-    // The mass event, closed: its result is the field's ranking.
-    const [massEvent] = await db.insert(matches).values({
-        tournamentId,
-        kind: "QUALIFICATION",
-        stageId: "qualification",
-        label: "Qualification",
-        scheduledAt: new Date(),
-        status: "FINISHED",
-        players: playerIds.map((userId, index) => ({ kind: "user" as const, userId, seed: index + 1 })),
-        roundConfigs: {},
-        questions: []
-    }).returning();
-
-    await db.insert(matchResults).values({
-        matchId: massEvent.id,
-        tournamentId,
-        results: playerIds.map((userId, index) => ({
-            kind: "user" as const,
-            userId,
-            totalScore: 100 - index,
-            rank: index + 1,
-            roundScores: {}
-        }))
-    });
 });
 
 afterAll(async () => {
