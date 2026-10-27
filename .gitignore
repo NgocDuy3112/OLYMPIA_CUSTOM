@@ -5,6 +5,11 @@ logs/
 temp/
 *.log
 *.sqlite3
+*,pptx
+*.pptm
+*.docx
+*.xlsx
+*.xlsm
 
 # Ignore env files with real values (templates re-allowed below)
 configs/*.json

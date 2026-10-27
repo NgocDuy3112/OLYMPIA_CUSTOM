@@ -9,7 +9,7 @@ import { cn } from "cn"
 import type { TournamentRound } from "@/lib/api"
 import type { Match } from "@/lib/types"
 import { statisticsFor, type RoundRow } from "@/lib/match-stats"
-import { STATUS_LABEL, STATUS_VARIANT } from "./status"
+import { STATUS_LABEL, STATUS_VARIANT } from "./status" 
 
 interface MatchDetailProps {
     match: Match
@@ -203,8 +203,7 @@ export function MatchDetail({ match, rounds, onBack, variant = "page" }: MatchDe
     )
 }
 
-// One round's own panel — the round's slice of the results, ranked: the baseline
-// every round tab shows until its per-round metrics arrive.
+
 function RoundStatsPanel({ row }: { row: RoundRow }) {
     const sorted = [...row.scores].sort((a, b) => b.points - a.points)
 
