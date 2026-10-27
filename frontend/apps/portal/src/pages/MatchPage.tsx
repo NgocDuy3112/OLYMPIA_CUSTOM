@@ -3,9 +3,7 @@ import { Link, useParams } from "react-router-dom"
 import { SearchX } from "lucide-react"
 import { Badge } from "@shared/ui/badge"
 import { PageHeader, EmptyState, ErrorPanel } from "@/components/page"
-import { useMatches, useMassEvent } from "@/lib/tournament"
-import { turnControls } from "@/lib/mass-event"
-import { MassEventControl } from "@/components/mass-event-control"
+import { useMatches } from "@/lib/tournament"
 import { StandardMatchControl } from "@/components/standard-match-control"
 import { LiveConsole } from "@/components/live-console"
 
@@ -33,7 +31,6 @@ const STATUS_VARIANT = {
 export function MatchPage() {
     const { tournamentId, matchId } = useParams()
     const matches = useMatches(tournamentId ?? "")
-    const massView = useMassEvent(tournamentId ?? "", matchId ?? "")
     const back = `/tournaments/${tournamentId}`
 
     if (matches.isPending) {
@@ -74,55 +71,22 @@ export function MatchPage() {
         )
     }
 
-    const isMassEvent = match.kind === "QUALIFICATION"
-
-    const statusBadge = (() => {
-        if (!isMassEvent) {
-            return <Badge variant={STATUS_VARIANT[match.status]}>{STATUS_VN[match.status]}</Badge>
-        }
-        if (!massView.data) return null // the band renders the state until the view lands
-        const controls = turnControls({
-            closed: massView.data.closed,
-            opened: massView.data.opened,
-            currentPosition: massView.data.currentPosition,
-            questionCount: massView.data.questionCount,
-            currentAnswered: massView.data.currentAnswered,
-            fieldSize: massView.data.field.length,
-        })
-        return controls.phase === "closed"
-            ? <Badge variant="secondary">Đã đóng</Badge>
-            : controls.phase === "open"
-                ? <Badge variant="destructive">Đang mở</Badge>
-                : <Badge variant="outline">Chưa mở</Badge>
-    })()
+    const statusBadge = <Badge variant={STATUS_VARIANT[match.status]}>{STATUS_VN[match.status]}</Badge>
 
     return (
         <FullPage>
             <PageHeader
                 title={match.label}
-                description={
-                    isMassEvent
-                        ? undefined
-                        : `${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}${match.joinCode ? ` · PIN ${match.joinCode}` : ""
-                        }`
-                }
+                description={`${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}${
+                    match.joinCode ? ` · PIN ${match.joinCode}` : ""
+                }`}
                 actions={statusBadge}
             />
 
-            {isMassEvent ? (
-                <MassEventControl
-                    tournamentId={tournamentId!}
-                    matchId={match.id}
-                    seats={match.players.length || 4}
-                />
-            ) : (
-                <>
-                    {match.status === "LIVE" && (
-                        <LiveConsole tournamentId={tournamentId!} matchId={match.id} />
-                    )}
-                    <StandardMatchControl tournamentId={tournamentId!} match={match} />
-                </>
+            {match.status === "LIVE" && (
+                <LiveConsole tournamentId={tournamentId!} matchId={match.id} />
             )}
+            <StandardMatchControl tournamentId={tournamentId!} match={match} />
         </FullPage>
     )
 }

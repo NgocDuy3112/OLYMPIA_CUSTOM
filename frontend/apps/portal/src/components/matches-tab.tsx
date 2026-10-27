@@ -24,12 +24,8 @@ export function MatchesTab({
     const enrolled = useEnrolled(tournamentId)
 
     const [creating, setCreating] = useState(false)
-    // The control room opens in ITS OWN TAB: the matches list stays exactly where
-    // the staff left it — they run the event beside the list, not instead of it.
-    const openMatch = (matchId: string) =>
-        window.open(`/tournaments/${tournamentId}/matches/${matchId}`, "_blank")
-    // A match of ≤4 players is played deck-first: Control opens the full-screen
-    // StageShell route (the MC's own view), not the page around it.
+    // A match is played deck-first: Control opens the full-screen StageShell route
+    // (the MC's own view), not the page around it. The list stays where it is.
     const openStage = (matchId: string) =>
         window.open(`/tournaments/${tournamentId}/matches/${matchId}/stage`, "_blank")
 
@@ -80,9 +76,6 @@ export function MatchesTab({
                                             <TableCell className="pl-6">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-medium">{match.label}</span>
-                                                    {match.kind === "QUALIFICATION" && (
-                                                        <Badge variant="outline">Mass event</Badge>
-                                                    )}
                                                 </div>
                                                 <div className="text-xs text-muted-foreground">{match.stageId}</div>
                                             </TableCell>
@@ -96,15 +89,7 @@ export function MatchesTab({
                                                 </div>
                                             </TableCell>
                                             <TableCell className="pr-6 text-right">
-                                                {match.kind === "QUALIFICATION" ? (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => openMatch(match.id)}
-                                                    >
-                                                        {match.status === "FINISHED" ? "Ranking" : "Control"}
-                                                    </Button>
-                                                ) : match.status === "FINISHED" ? (
+                                                {match.status === "FINISHED" ? (
                                                     <Badge variant="secondary">FINISHED</Badge>
                                                 ) : (
                                                     <div className="flex flex-col items-end gap-1">

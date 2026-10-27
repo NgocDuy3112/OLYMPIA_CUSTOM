@@ -61,8 +61,6 @@ export interface TournamentDetail extends Tournament {
     points: ScaleCoverage
 }
 
-export type MatchKind = "STANDARD" | "QUALIFICATION"
-
 export interface MatchSeat {
     kind: "user" | "team"
     userId?: string
@@ -72,7 +70,6 @@ export interface MatchSeat {
 
 export interface MatchSummary {
     id: string
-    kind: MatchKind
     stageId: string
     slot: number | null
     label: string
@@ -95,7 +92,6 @@ export interface StandingRow {
     stageId: string | null
     stageTitle: string | null
     slot: number | null
-    tieBreak: string | null
 }
 
 
@@ -179,27 +175,6 @@ export function useCreateMatch(tournamentId: string) {
     })
 }
 
-// The mass event: the whole roster answers the same question set, once.
-export function useCreateQualificationMatch(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (input: {
-            label: string
-            scheduledAt: string
-            questionCount: number
-            playerIds?: string[]
-        }) =>
-            api<MatchSummary>(
-                `/portal/tournaments/${tournamentId}/qualification-matches`,
-                { method: "POST", body: JSON.stringify(input) }
-            ),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
-        },
-    })
-}
-
 export function useSetMatchResults(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -216,100 +191,6 @@ export function useSetMatchResults(tournamentId: string) {
     })
 }
 
-// ── The mass event ────────────────────────────────────────────────────────────
-
-export interface MassEventFieldRow {
-    userId: string
-    displayName: string
-    answered: number
-}
-
-// The host room's panel: the current question, sanitized exactly as players
-// receive it (MC options, never the correct set). Null before open and after close.
-export interface CurrentQuestion {
-    questionId: string
-    kind: "MC" | "TEXT" | "KEYWORD"
-    position: number
-    questionText: string
-    media: { url: string; type: "image" | "audio" | "video" } | null
-    timeLimit: number | null
-    tag: string
-    payload: { options?: Array<{ id: string; text: string }> }
-}
-
-export interface MassEventView {
-    closed: boolean
-    label: string
-    questionCount: number
-    // The turns (docs/mass-event.md): null = not opened yet; releasedAt is the
-    // server's release of the current question — the clock anchor for the field.
-    opened: boolean
-    currentPosition: number | null
-    releasedAt: string | null
-    currentAnswered: number
-    currentQuestion: CurrentQuestion | null
-    field: MassEventFieldRow[]
-    results: Array<{
-        kind: string
-        userId?: string
-        totalScore: number
-        rank: number
-    }>
-}
-
-export function useMassEvent(tournamentId: string, matchId: string | null) {
-    return useQuery({
-        queryKey: ["mass-event", tournamentId, matchId],
-        queryFn: () =>
-            api<MassEventView>(
-                `/portal/tournaments/${tournamentId}/qualification-matches/${matchId}`
-            ),
-        enabled: Boolean(tournamentId && matchId),
-        // The live count is the staff's cue for when to advance. Poll only while
-        // the event is actually running — the players' side never polls (it is
-        // pushed; see the gameplay app's qualification stream).
-        refetchInterval: (query) => {
-            const view = query.state.data as MassEventView | undefined
-            if (!view || view.closed || !view.opened) return false
-            return 3000
-        },
-    })
-}
-
-// Open the event: releases question 1. The route answers with the fresh staff view,
-// so the dialog's count starts from the same instant the players' sockets ping.
-export function useOpenMassEvent(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (matchId: string) =>
-            api<MassEventView>(
-                `/portal/tournaments/${tournamentId}/qualification-matches/${matchId}/open`,
-                { method: "POST" }
-            ),
-        onSuccess: (view, matchId) => {
-            queryClient.setQueryData(["mass-event", tournamentId, matchId], view)
-            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
-        },
-    })
-}
-
-// Advance to the next question. Same fresh-view contract as open.
-export function useAdvanceMassEvent(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (matchId: string) =>
-            api<MassEventView>(
-                `/portal/tournaments/${tournamentId}/qualification-matches/${matchId}/advance`,
-                { method: "POST" }
-            ),
-        onSuccess: (view, matchId) => {
-            queryClient.setQueryData(["mass-event", tournamentId, matchId], view)
-        },
-    })
-}
-
 // A standard match's status transition (UPCOMING → LIVE; results do the finish).
 export function useTransitionMatch(tournamentId: string) {
     const queryClient = useQueryClient()
@@ -321,29 +202,6 @@ export function useTransitionMatch(tournamentId: string) {
                 { method: "PATCH", body: JSON.stringify({ status: input.status }) }
             ),
         onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
-        },
-    })
-}
-
-// Close the mass event. If the field ties, the staff order the tied group and try again.
-export function useCloseMassEvent(tournamentId: string) {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: (input: {
-            matchId: string
-            tieBreaks?: Array<{ players: string[]; order: string[] }>
-        }) =>
-            api<{ rows: Array<{ userId: string; rank: number; score: number }> }>(
-                `/portal/tournaments/${tournamentId}/qualification-matches/${input.matchId}/close`,
-                {
-                    method: "POST",
-                    body: JSON.stringify(input.tieBreaks ? { tieBreaks: input.tieBreaks } : {}),
-                }
-            ),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({ queryKey: ["mass-event", tournamentId] })
             void queryClient.invalidateQueries({ queryKey: ["matches", tournamentId] })
         },
     })

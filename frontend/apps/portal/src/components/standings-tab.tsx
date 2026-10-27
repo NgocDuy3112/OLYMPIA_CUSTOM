@@ -54,7 +54,6 @@ export function StandingsTab({ tournamentId }: { tournamentId: string }) {
                                 <TableHead>Got to</TableHead>
                                 <TableHead className="w-24 text-right">Matches</TableHead>
                                 <TableHead className="w-24 pr-6 text-right">Points</TableHead>
-                                <TableHead>Tie-break</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -72,9 +71,6 @@ export function StandingsTab({ tournamentId }: { tournamentId: string }) {
                                     <TableCell className="text-right tabular-nums">{row.matchesPlayed}</TableCell>
                                     <TableCell className="pr-6 text-right tabular-nums">
                                         {row.placementPoints > 0 ? `+${row.placementPoints}` : "—"}
-                                    </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
-                                        {row.tieBreak ?? "—"}
                                     </TableCell>
                                 </TableRow>
                             ))}
