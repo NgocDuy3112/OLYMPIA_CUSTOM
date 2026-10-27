@@ -374,3 +374,26 @@ export function useRecomputeStandings(tournamentId: string) {
         },
     })
 }
+
+// ── The questions ────────────────────────────────────────────────────────────
+
+export interface BankQuestion {
+    id: string
+    kind: "MC" | "TEXT" | "KEYWORD"
+    questionText: string
+    tag: string
+    status: string
+}
+
+// The bank's published TEXT questions — what the turn's question may be.
+export function useQuestionSearch(search: string, enabled: boolean) {
+    return useQuery({
+        queryKey: ["bank-questions", search],
+        queryFn: () =>
+            api<{ items: BankQuestion[]; total: number }>(
+                `/portal/questions?status=PUBLISHED&kind=TEXT&limit=20&search=${encodeURIComponent(search)}`
+            ),
+        enabled,
+        staleTime: 30_000,
+    })
+}

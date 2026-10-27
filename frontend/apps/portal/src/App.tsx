@@ -5,6 +5,9 @@ import { SignupPage } from "@/pages/SignupPage"
 import { TournamentsPage } from "./pages/TournamentsPage"
 import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
 import { MatchPage } from "@/pages/MatchPage"
+import { QuestionsPage } from "@/pages/QuestionsPage"
+import { McpKeysPage } from "@/pages/McpKeysPage"
+import { OperatorsPage } from "@/pages/OperatorsPage"
 import { PortalShell } from "@/components/portal-shell"
 
 
@@ -23,6 +26,9 @@ export default function App() {
           <Route path="/tournaments/:tournamentId" element={<TournamentDetailPage />} />
           {/* The match's own page: every match operation lives here (2310). */}
           <Route path="/tournaments/:tournamentId/matches/:matchId" element={<MatchPage />} />
+          <Route path="/questions" element={<QuestionsPage />} />
+          <Route path="/mcp-keys" element={<McpKeysPage />} />
+          <Route path="/operators" element={<OperatorsPage />} />
         </Route>
 
         <Route

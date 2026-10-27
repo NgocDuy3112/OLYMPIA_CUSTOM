@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { requireRole } from "../../lib/guards.js";
-import { acceptInvite, createOperator } from "./service.js";
+import { acceptInvite, createOperator, listOperators } from "./service.js";
 
 
 const createBody = {
@@ -24,6 +24,13 @@ const acceptBody = {
 } as const;
 
 export async function adminRoutes(app: FastifyInstance) {
+    // Who may run the show — admin-only, like the write that creates them.
+    app.get(
+        "/portal/operators",
+        { onRequest: [requireRole("PORTAL", ["ADMIN"])] },
+        async () => ({ items: await listOperators() })
+    );
+
     // Admin-only: operators must not create more operators.
     app.post(
         "/portal/operators",
