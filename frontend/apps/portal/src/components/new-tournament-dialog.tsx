@@ -18,7 +18,6 @@ export function NewTournamentDialog({
     const create = useCreateTournament()
 
     const [name, setName] = useState("")
-    const [tags, setTags] = useState("")
     const [visibility, setVisibility] = useState<"PUBLIC" | "PRIVATE">("PUBLIC")
 
     const submit = (event: SubmitEvent<HTMLFormElement>) => {
@@ -27,13 +26,11 @@ export function NewTournamentDialog({
         create.mutate(
             {
                 name,
-                tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
                 visibility
             },
             {
                 onSuccess: () => {
                     setName("")
-                    setTags("")
                     onOpenChange(false)
                 },
             }
@@ -62,20 +59,6 @@ export function NewTournamentDialog({
                                 placeholder="2026 Tournament"
                                 required
                             />
-                        </Field>
-
-                        <Field>
-                            <FieldLabel htmlFor="tournament-tags">Tags</FieldLabel>
-                            <Input
-                                id="tournament-tags"
-                                value={tags}
-                                onChange={(event) => setTags(event.target.value)}
-                                placeholder="THTH, GDTT"
-                            />
-                            <FieldDescription>
-                                Comma-separated. The questions of these tags are the ones this
-                                tournament may assemble.
-                            </FieldDescription>
                         </Field>
 
                         <Field>

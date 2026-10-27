@@ -103,7 +103,6 @@ export function TournamentsPage() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Name</TableHead>
-                                    <TableHead>Tags</TableHead>
                                     <TableHead>Stages</TableHead>
                                     <TableHead>Created</TableHead>
                                     <TableHead>Status</TableHead>
@@ -119,15 +118,6 @@ export function TournamentsPage() {
                                             >
                                                 {tournament.name}
                                             </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="flex flex-wrap gap-1">
-                                                {tournament.tags.map((tag) => (
-                                                    <Badge key={tag} variant="outline">
-                                                        {tag}
-                                                    </Badge>
-                                                ))}
-                                            </span>
                                         </TableCell>
                                         <TableCell>{tournament.stages.length}</TableCell>
                                         <TableCell className="text-muted-foreground">

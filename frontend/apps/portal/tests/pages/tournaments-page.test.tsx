@@ -39,10 +39,9 @@ describe("TournamentsPage", () => {
 
         expect(await screen.findByText("2026 Tournament")).toBeInTheDocument()
         expect(screen.getByText("Current")).toBeInTheDocument()
-        expect(screen.getByText("THTH")).toBeInTheDocument()
     })
 
-    it("creates a tournament with its name, tags and visibility", async () => {
+    it("creates a tournament with its name and visibility", async () => {
         const user = userEvent.setup()
         const fetchMock = stubFetch({
             "GET /portal/tournaments?limit=20&offset=0": { body: page([]) },
@@ -52,7 +51,6 @@ describe("TournamentsPage", () => {
 
         await user.click(screen.getByRole("button", { name: "New tournament" }))
         await user.type(await screen.findByLabelText("Name"), "2027 Tournament")
-        await user.type(screen.getByLabelText("Tags"), "THTH, GDTT")
         await user.click(screen.getByRole("button", { name: "Create tournament" }))
 
         const post = fetchMock.mock.calls.find(
@@ -60,9 +58,9 @@ describe("TournamentsPage", () => {
         )
         if (!post) throw new Error("no POST to /portal/tournaments")
 
+        // no tags field in the UI: the server defaults the assembly scope
         expect(JSON.parse(post[1]?.body as string)).toEqual({
             name: "2027 Tournament",
-            tags: ["THTH", "GDTT"],
             visibility: "PUBLIC",
         })
     })

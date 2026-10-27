@@ -1,6 +1,6 @@
 import { and, asc, count, eq, isNull, ne, or } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { matches, tournaments, users } from "../../db/schema/index.js";
+import { matches, questionBank, tournaments, users } from "../../db/schema/index.js";
 import { TournamentError } from "./errors.js";
 import { CreateTournamentInput, UpdateTournamentInput, validate } from "./schemas.js";
 import { RoundConfig } from "../../game/contracts/index.js";
@@ -72,6 +72,18 @@ export async function requireTournament(tournamentId: string): Promise<Tournamen
 }
 
 
+// Tags are a QUESTION-bank concept (which bank rows a tournament may assemble),
+// not something the tournament UI asks for. A caller that passes no tags gets the
+// whole published bank — DEMO rows stay quarantined unless a caller opts in by
+// passing tags explicitly (scripts, MCP, tests).
+async function defaultTags(tx: Parameters<Parameters<typeof db.transaction>[0]>[0]): Promise<string[]> {
+    const rows = await tx
+        .selectDistinct({ tag: questionBank.tag })
+        .from(questionBank)
+        .where(and(eq(questionBank.status, "PUBLISHED"), ne(questionBank.tag, "DEMO")));
+    return rows.map((r: { tag: string }) => r.tag);
+}
+
 export async function createTournament(
     ownerId: string,
     input: CreateTournamentInput
@@ -91,7 +103,7 @@ export async function createTournament(
             name: input.name,
             slug,
             visibility: input.visibility ?? "PUBLIC",
-            tags: input.tags ?? [],
+            tags: input.tags && input.tags.length > 0 ? input.tags : await defaultTags(tx),
             rounds: input.rounds ?? [],
             format: input.format ?? {
                 competitorsPerMatch: 4,
