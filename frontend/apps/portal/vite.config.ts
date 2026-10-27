@@ -21,7 +21,11 @@ export default defineConfig({
         proxy: {
             // Same escape hatch as the gameplay app: another process (e.g. podman's
             // gvproxy) can hold port 3000, so the dev backend may live elsewhere.
+            // /gameplay + ws: the portal's PLAYER shell (PIN join → player view)
+            // rides the player surface — same endpoints the gameplay app uses,
+            // including the live stream's socket upgrade.
             "/portal": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
+            "/gameplay": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false, ws: true },
         },
     },
 })

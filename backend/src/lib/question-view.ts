@@ -14,9 +14,13 @@ export interface SanitizedQuestion {
     media: MatchQuestion["media"];
     timeLimit: number | null;
     tag: string;
-    // MC carries its options; every other kind arrives as {}. The correct set
-    // is never part of this shape.
-    payload: { options?: Array<{ id: string; text: string }> };
+    // MC carries its options; KEYWORD carries the PUBLIC code length (delta D3:
+    // "MẬT MÃ GỒM CÓ 25 CHỮ CÁI" is shown on every screen — the letters never
+    // are); every other kind arrives as {}. The correct set is never part of this shape.
+    payload: {
+        options?: Array<{ id: string; text: string }>;
+        codeLength?: number;
+    };
 }
 
 export function sanitizeQuestion(question: MatchQuestion): SanitizedQuestion {
@@ -30,6 +34,9 @@ export function sanitizeQuestion(question: MatchQuestion): SanitizedQuestion {
         tag: question.tag,
         payload: question.kind === "MC"
             ? { options: (question.payload as { options: Array<{ id: string; text: string }> }).options }
-            : {}
+            : question.kind === "KEYWORD" &&
+                typeof (question.payload as { code?: unknown }).code === "string"
+              ? { codeLength: ((question.payload as { code: string }).code).length }
+              : {}
     };
 }

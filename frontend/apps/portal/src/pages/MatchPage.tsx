@@ -103,7 +103,8 @@ export function MatchPage() {
                 description={
                     isMassEvent
                         ? undefined
-                        : `${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}`
+                        : `${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}${match.joinCode ? ` · PIN ${match.joinCode}` : ""
+                        }`
                 }
                 actions={statusBadge}
             />

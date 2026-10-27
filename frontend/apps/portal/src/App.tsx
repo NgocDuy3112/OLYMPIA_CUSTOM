@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom"
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom"
 import { RequireAuth, RedirectIfSignedIn } from "@/components/require-auth"
 import { LoginPage } from "@/pages/LoginPage"
 import { SignupPage } from "@/pages/SignupPage"
@@ -6,11 +6,20 @@ import { TournamentsPage } from "./pages/TournamentsPage"
 import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
 import { MatchPage } from "@/pages/MatchPage"
 import { StagePage } from "@/pages/StagePage"
+import { JoinPage } from "@/pages/JoinPage"
+import { PlayerShell } from "@/components/player-shell"
 import { QuestionsPage } from "@/pages/QuestionsPage"
 import { McpKeysPage } from "@/pages/McpKeysPage"
 import { OperatorsPage } from "@/pages/OperatorsPage"
 import { PortalShell } from "@/components/portal-shell"
 
+
+// The player shell reads its match from the URL — the shell itself gates on
+// the GAMEPLAY session (401 → back to /join).
+function PlayerShellRoute() {
+  const { matchId } = useParams()
+  return <PlayerShell matchId={matchId!} />
+}
 
 export default function App() {
   return (
@@ -42,6 +51,12 @@ export default function App() {
             </RequireAuth>
           }
         />
+
+        {/* The player's side: PIN join → the player shell. Guarded by the GAMEPLAY
+            session the claim mints (NOT the portal operator session), so these
+            sit outside RequireAuth. */}
+        <Route path="/join" element={<JoinPage />} />
+        <Route path="/play/:matchId" element={<PlayerShellRoute />} />
 
         <Route
           path="/login"
