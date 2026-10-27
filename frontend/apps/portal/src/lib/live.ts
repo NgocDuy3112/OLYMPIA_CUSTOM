@@ -79,7 +79,41 @@ export interface LiveResponse {
     questions: ConsoleQuestion[]
     projection: Projection
     roundEnded: boolean
+    /** User ids with a live player socket right now — the rail's connected dots. */
+    connected?: string[]
     mc: Record<string, unknown> | null
+}
+
+// ── the lobby (both surfaces wait on this) ───────────────────────────────────
+
+/** The waiting screen's payload: identity, seats+totals, who's connected, rounds. */
+export interface LobbyData {
+    title: string
+    label: string
+    status: "UPCOMING" | "LIVE" | "FINISHED"
+    /** The round waiting to start (the live record's, else the match's first). */
+    roundId: string | null
+    /** The match's rounds in tournament order — the controller's start buttons. */
+    rounds: Array<{ id: string; name: string }>
+    table: Array<{ id: string; displayName: string; points: number; rank: number }>
+    /** User ids with a live socket right now — the lobby's connected dots. */
+    connected: string[]
+}
+
+export const lobbyKey = (tournamentId: string, matchId: string) =>
+    ["lobby", tournamentId, matchId] as const
+
+/** The MC's lobby read: polled like /live (presence moves without a round change). */
+export function useLobby(tournamentId: string, matchId: string, enabled: boolean) {
+    return useQuery({
+        queryKey: lobbyKey(tournamentId, matchId),
+        queryFn: () =>
+            api<LobbyData>(`/portal/tournaments/${tournamentId}/matches/${matchId}/lobby`),
+        enabled: enabled && Boolean(tournamentId && matchId),
+        refetchInterval: 3_000,
+        retry: false,
+        staleTime: 0,
+    })
 }
 
 export interface QuestionAnswerRow {

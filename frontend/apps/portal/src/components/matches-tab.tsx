@@ -28,6 +28,10 @@ export function MatchesTab({
     // the staff left it — they run the event beside the list, not instead of it.
     const openMatch = (matchId: string) =>
         window.open(`/tournaments/${tournamentId}/matches/${matchId}`, "_blank")
+    // A match of ≤4 players is played deck-first: Control opens the full-screen
+    // StageShell route (the MC's own view), not the page around it.
+    const openStage = (matchId: string) =>
+        window.open(`/tournaments/${tournamentId}/matches/${matchId}/stage`, "_blank")
 
     if (matches.isPending) return <p className="text-sm text-muted-foreground">Loading matches…</p>
     if (matches.isError) return <p role="alert" className="text-sm text-destructive">{matches.error.message}</p>
@@ -56,7 +60,7 @@ export function MatchesTab({
                 <CardContent className="p-0">
                     {data.items.length === 0 ? (
                         <p className="px-6 pb-6 text-sm text-muted-foreground">
-                            A points match seats {seats} players. The mass event seats the whole roster.
+                            A match seats {seats} players.
                         </p>
                     ) : (
                         <Table>
@@ -103,13 +107,23 @@ export function MatchesTab({
                                                 ) : match.status === "FINISHED" ? (
                                                     <Badge variant="secondary">FINISHED</Badge>
                                                 ) : (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => openMatch(match.id)}
-                                                    >
-                                                        Open
-                                                    </Button>
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => openStage(match.id)}
+                                                        >
+                                                            Control
+                                                        </Button>
+                                                        {match.joinCode && (
+                                                            <span
+                                                                className="font-mono text-xs tracking-widest text-muted-foreground"
+                                                                title="Mã thí sinh nhập ở /join"
+                                                            >
+                                                                PIN {match.joinCode}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </TableCell>
                                         </TableRow>

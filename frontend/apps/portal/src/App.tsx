@@ -5,6 +5,7 @@ import { SignupPage } from "@/pages/SignupPage"
 import { TournamentsPage } from "./pages/TournamentsPage"
 import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
 import { MatchPage } from "@/pages/MatchPage"
+import { StagePage } from "@/pages/StagePage"
 import { QuestionsPage } from "@/pages/QuestionsPage"
 import { McpKeysPage } from "@/pages/McpKeysPage"
 import { OperatorsPage } from "@/pages/OperatorsPage"
@@ -30,6 +31,17 @@ export default function App() {
           <Route path="/mcp-keys" element={<McpKeysPage />} />
           <Route path="/operators" element={<OperatorsPage />} />
         </Route>
+
+        {/* The controller's deck: signed in, but OUTSIDE the shell — full-screen
+            StageShell only (the matches list's Control button lands here). */}
+        <Route
+          path="/tournaments/:tournamentId/matches/:matchId/stage"
+          element={
+            <RequireAuth>
+              <StagePage />
+            </RequireAuth>
+          }
+        />
 
         <Route
           path="/login"

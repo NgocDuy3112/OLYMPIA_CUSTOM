@@ -78,6 +78,8 @@ export interface MatchSummary {
     label: string
     status: "UPCOMING" | "LIVE" | "FINISHED"
     scheduledAt: string
+    /** The player's door-in code (STANDARD only) — staff display, /join entry. */
+    joinCode?: string | null
     players: MatchSeat[]
     questions: unknown[]
 }
