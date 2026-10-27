@@ -5,6 +5,7 @@ import {
 } from "@shared/ui/dialog"
 import { Input } from "@shared/ui/input"
 import { useUpdateTournament, type TournamentDetail } from "@/lib/tournament"
+import { slugify } from "@/lib/slug"
 import { STAGE_ROLES, type Stage, type StageRole } from "@/lib/tournaments"
 
 interface StageDraft {
@@ -16,13 +17,7 @@ interface StageDraft {
 }
 
 // The id a stage gets from its title: what the staff type when they place a match.
-function slugify(title: string): string {
-    return title
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-}
+// (The transliteration lives in @/lib/slug — pure, unit-tested.)
 
 function toDraft(stage: Stage): StageDraft {
     return {

@@ -5,19 +5,13 @@ import { TournamentError } from "./errors.js";
 import { CreateTournamentInput, UpdateTournamentInput, validate } from "./schemas.js";
 import { RoundConfig } from "../../game/contracts/index.js";
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
+import { slugify } from "./slug.js";
+
+// The pure slug rules live in slug.js (unit-tested without the db); re-exported
+// here for the module's existing surface.
+export { slugify } from "./slug.js";
 
 type TournamentRow = typeof tournaments.$inferSelect;
-
-
-// A slug from a name: what the tournament is called in a URL.
-export function slugify(name: string): string {
-    return name
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 100);
-}
 
 // A slug nobody else has: the name's, then the name's with a number.
 async function uniqueSlug(name: string, exceptId?: string): Promise<string> {
