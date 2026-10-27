@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { Value } from "@sinclair/typebox/value";
 import { requireAuth, requireRole } from "../../lib/guards.js";
 import { getMatch, getMatchById, requireMatchScope, type MatchRow } from "../matches/service.js";
+import { MatchError, toHttpStatus } from "../matches/errors.js";
 import { namesOf } from "../standings/service.js";
 import { nextRoundId, orderedMatchRounds } from "../matches/rounds.js";
 import { isSeatedInMatch } from "../matches/seats.js";
@@ -30,7 +31,7 @@ import {
     type ClientMessage,
     type ServerMessage
 } from "./protocol.js";
-import { publish, subscribe } from "./hub.js";
+import { connectedUsers, publish, subscribe } from "./hub.js";
 import { attachHeartbeat } from "./heartbeat.js";
 import { attachSessionGuard } from "./session-guard.js";
 import { LiveStateError, parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseRoundState, parseVeDichState } from "./state.js";
@@ -142,6 +143,44 @@ async function scoreTable(match: MatchRow): Promise<ScoreRow[]> {
         namesOf(userIds)
     ]);
     return userIds.map((id) => ({ id, displayName: names[id] ?? id, points: sums[id] ?? 0 }));
+}
+
+/**
+ * The LOBBY — what both shells show while waiting (match not LIVE yet, round not
+ * started): tournament name, match label, the seats with live totals, who holds
+ * a socket right now, and the match's rounds in play order (the controller's
+ * start buttons). One payload, two surfaces (portal MC / gameplay player): the
+ * endpoints below only differ in who may ask.
+ */
+async function lobbyOf(match: MatchRow): Promise<{
+    title: string;
+    label: string;
+    status: "UPCOMING" | "LIVE" | "FINISHED";
+    roundId: string | null;
+    rounds: Array<{ id: string; name: string }>;
+    table: ReturnType<typeof rankTable>;
+    connected: string[];
+}> {
+    const { tournament } = await requireMatchScope(match.tournamentId);
+    const [table, live] = await Promise.all([scoreTable(match), readLive(match.id)]);
+
+    // The rounds this match actually plays, in the tournament's declared order.
+    const ordered = orderedMatchRounds(tournament.rounds, match.roundConfigs);
+    const rounds = ordered.map((id) => ({
+        id,
+        name: tournament.rounds.find((round) => round.id === id)?.name ?? id,
+    }));
+
+    return {
+        title: tournament.name,
+        label: match.label,
+        status: match.status,
+        // The round to start: the live record's (LIVE match) or the first one.
+        roundId: live?.roundId ?? ordered[0] ?? null,
+        rounds,
+        table: rankTable(table),
+        connected: connectedUsers(match.id),
+    };
 }
 
 const matchParams = {
@@ -318,6 +357,11 @@ export async function liveRoutes(app: FastifyInstance) {
         }
         if (error instanceof LiveNotFoundError) {
             reply.code(404).send({ error: "NOT_FOUND", message: error.message });
+            return;
+        }
+        // A lobby/live read naming a match that does not exist (or was deleted).
+        if (error instanceof MatchError) {
+            reply.code(toHttpStatus(error.code)).send({ error: error.code, message: error.message });
             return;
         }
         reply.send(error);
@@ -570,8 +614,26 @@ export async function liveRoutes(app: FastifyInstance) {
                 questions: match.questions,
                 projection,
                 roundEnded: isRoundEnded(live.roundId, live.state),
+                // Who has a live socket right now — the rail's connected dots
+                // (hub state, so it follows the socket, not the session).
+                connected: connectedUsers(matchId),
                 mc: mcFacts(live.roundId, live.state)
             };
+        }
+    );
+
+    // The LOBBY: same payload before the match is LIVE (the /live read 404s
+    // until then) — the deck's waiting screen for the MC.
+    app.get(
+        "/portal/tournaments/:tournamentId/matches/:matchId/lobby",
+        {
+            onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
+            schema: { params: matchParams },
+        },
+        async (request) => {
+            const { matchId } = request.params as { matchId: string };
+            const match = await getMatchById(matchId);
+            return lobbyOf(match);
         }
     );
 
@@ -777,6 +839,28 @@ export async function liveRoutes(app: FastifyInstance) {
                 questions: match.questions,
                 table
             });
+        }
+    );
+
+    // The player's LOBBY — the same waiting payload before the round (and before
+    // the match) is LIVE: the /live read above 409s until then, so the player
+    // shell asks this instead while it waits.
+    app.get(
+        "/gameplay/matches/:matchId/lobby",
+        {
+            onRequest: [requireAuth("GAMEPLAY")],
+            schema: { params: matchIdParams },
+        },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { matchId } = request.params as { matchId: string };
+
+            const match = await getMatchById(matchId);
+            if (!isSeatedInMatch(match.players, user.id)) {
+                throw app.httpErrors.forbidden("you are not a player in this match");
+            }
+
+            return lobbyOf(match);
         }
     );
 

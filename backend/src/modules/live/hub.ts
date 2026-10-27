@@ -40,3 +40,10 @@ export async function publish(matchId: string): Promise<void> {
 export function subscriberCount(matchId: string): number {
     return byMatch.get(matchId)?.size ?? 0;
 }
+
+/** The user ids with a live socket right now — the MC's "connected" dots. */
+export function connectedUsers(matchId: string): string[] {
+    const set = byMatch.get(matchId);
+    if (!set) return [];
+    return [...new Set([...set].map((subscriber) => subscriber.userId))];
+}
