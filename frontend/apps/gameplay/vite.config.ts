@@ -20,8 +20,8 @@ export default defineConfig({
         port: 5175,
         proxy: {
             // Dev backends may not sit on 3000 (another process can hold it).
-            // ws: true — the qualification turn channel (and the live socket) ride
-            // this proxy; without it the upgrade never reaches the backend.
+            // ws: true — the live socket rides this proxy; without it the upgrade
+            // never reaches the backend.
             "/gameplay": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false, ws: true },
         },
     },

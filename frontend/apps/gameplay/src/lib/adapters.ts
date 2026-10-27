@@ -83,7 +83,6 @@ export function toMatch(row: Match, rounds: TournamentRound[]): ViewMatch {
         stageId: row.stageId,
         slot: row.slot,
         status: row.status,
-        kind: row.kind,
         date: showDate(row.scheduledAt),
         startTime: showTime(row.scheduledAt),
         round: row.round,
@@ -101,7 +100,6 @@ export function toStandingRow(row: ApiStandingRow): StandingRow {
         stageTitle: row.stageTitle,
         matchesPlayed: row.matchesPlayed,
         points: row.placementPoints,
-        tieBreak: row.tieBreak,
     }
 }
 

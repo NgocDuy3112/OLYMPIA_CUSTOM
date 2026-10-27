@@ -17,7 +17,6 @@ const wireMatch = (overrides: Partial<Match> = {}): Match => ({
     stageId: "playoffs",
     slot: 1,
     status: "UPCOMING",
-    kind: "STANDARD",
     // 03:30 UTC = 10:30 in Asia/Ho_Chi_Minh (UTC+7, no DST).
     scheduledAt: "2026-02-01T03:30:00.000Z",
     round: "Vòng Playoffs · Quarterfinal 1",
@@ -128,12 +127,11 @@ describe("toMatch — the merge", () => {
     })
 
     it("passes the display fields through untouched", () => {
-        const view = toMatch(wireMatch({ slot: 2, kind: "QUALIFICATION" }), ROUNDS)
+        const view = toMatch(wireMatch({ slot: 2 }), ROUNDS)
 
         expect(view.id).toBe(wireMatch().id)
         expect(view.stageId).toBe("playoffs")
         expect(view.slot).toBe(2)
-        expect(view.kind).toBe("QUALIFICATION")
         expect(view.round).toBe("Vòng Playoffs · Quarterfinal 1")
     })
 })
@@ -162,7 +160,6 @@ describe("toStandings — the places model", () => {
                 stageId: "playoffs",
                 stageTitle: "Vòng Playoffs",
                 slot: 1,
-                tieBreak: null,
             },
         ])
 
@@ -173,7 +170,6 @@ describe("toStandings — the places model", () => {
             stageTitle: "Vòng Playoffs",
             matchesPlayed: 3,
             points: 25,
-            tieBreak: null,
         })
     })
 
@@ -188,28 +184,9 @@ describe("toStandings — the places model", () => {
                 stageId: null,
                 stageTitle: null,
                 slot: null,
-                tieBreak: null,
             },
         ])
 
         expect(row).toMatchObject({ rank: null, points: 0, matchesPlayed: 0, stageTitle: null })
-    })
-
-    it("surfaces a reported tie instead of hiding it", () => {
-        const [row] = toStandings([
-            {
-                userId: "44444444-4444-4444-4444-444444444444",
-                displayName: "Tied Player",
-                place: 2,
-                matchesPlayed: 2,
-                placementPoints: 18,
-                stageId: "qualifiers",
-                stageTitle: "Vòng loại",
-                slot: 3,
-                tieBreak: "tied for place 2 — settled by one ve-dich turn",
-            },
-        ])
-
-        expect(row!.tieBreak).toContain("tied for place 2")
     })
 })

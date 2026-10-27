@@ -67,7 +67,7 @@ describe("screenFor — but-pha and ve-dich", () => {
 
 describe("screenFor — degrading kindly", () => {
     it("an unknown round never throws — it says unknown", () => {
-        expect(screenFor(view({ roundId: "tie-break", stage: "question" }))).toBe("unknown")
+        expect(screenFor(view({ roundId: "mystery-round", stage: "question" }))).toBe("unknown")
     })
 
     it("every view maps to exactly one screen", () => {

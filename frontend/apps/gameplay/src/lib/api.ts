@@ -81,7 +81,6 @@ export interface Match {
     stageId: string
     slot: number | null
     status: "UPCOMING" | "LIVE" | "FINISHED"
-    kind: "STANDARD" | "QUALIFICATION"
     scheduledAt: string
     // "<stage title> · <label>", composed by the server.
     round: string
@@ -99,7 +98,6 @@ export interface StandingRow {
     stageId: string | null
     stageTitle: string | null
     slot: number | null
-    tieBreak: string | null
 }
 
 export interface Page<T> {

@@ -120,7 +120,7 @@ export function LiveMatchView({ match, rounds, onBack }: LiveMatchViewProps) {
 
     const body = (() => {
         switch (screen) {
-            case "lobby": return <LobbyScreen {...props} />
+            case "lobby": return <LobbyScreen />
             case "khoi-dong-oral": return <KhoiDongOralScreen {...props} />
             case "khoi-dong-batch": return <KhoiDongBatchScreen {...props} />
             case "giai-ma-window":

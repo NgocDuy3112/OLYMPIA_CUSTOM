@@ -39,8 +39,6 @@ export function useLogout() {
         mutationFn: () => api<{ ok: true }>("/gameplay/auth/logout", { method: "POST" }),
         onSuccess: () => {
             queryClient.setQueryData(ME_QUERY_KEY, null)
-            // The player's seated matches and answers are session-scoped too.
-            void queryClient.invalidateQueries({ queryKey: ["qualification"] })
         },
     })
 }

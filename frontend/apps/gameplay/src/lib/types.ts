@@ -22,7 +22,6 @@ export interface Match {
     stageId: string
     slot: number | null
     status: MatchStatus
-    kind: "STANDARD" | "QUALIFICATION"
     // "YYYY-MM-DD" and "HH:mm", in the show's timezone — see adapters.ts.
     date: string
     startTime: string
@@ -41,6 +40,4 @@ export interface StandingRow {
     stageTitle: string | null
     matchesPlayed: number
     points: number
-    // Why this row sits below the row above it; a tie is reported, never hidden.
-    tieBreak: string | null
 }

@@ -45,11 +45,6 @@ export function PlayerDrawer({
                             <DialogTitle className="font-heading text-3xl font-semibold">
                                 {player.name}
                             </DialogTitle>
-                            {player.tieBreak && (
-                                <p className="text-xs text-muted-foreground">
-                                    {player.tieBreak}
-                                </p>
-                            )}
                         </div>
                         <DialogPrimitive.Close className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
                             <X className="size-4" aria-hidden />

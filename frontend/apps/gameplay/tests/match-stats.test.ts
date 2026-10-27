@@ -13,7 +13,7 @@ const player = (id: string, name: string, score: number, roundScores?: Record<st
 })
 
 const match = (players: PlayerResult[], status: Match["status"] = "FINISHED"): Match => ({
-    id: "m1", stageId: "s1", slot: 1, status, kind: "STANDARD",
+    id: "m1", stageId: "s1", slot: 1, status,
     date: "24/10", startTime: "10:00", round: "Playoff · match 1", players,
 })
 

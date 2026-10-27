@@ -2,8 +2,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import { useSocketStream } from "./ws"
-import { failureOf } from "./qualification"
-import type { ViewFailure } from "./qualification-state"
+
+// An API refusal, shaped for the gate screens: each status is a screen, never
+// a crash. A non-API error becomes status 0 so it lands in the "say why" branch.
+export interface ViewFailure {
+    status: number
+    code?: string
+    message?: string
+}
+
+export function failureOf(error: unknown): ViewFailure | null {
+    if (!error) return null
+    if (error instanceof ApiError) {
+        return { status: error.status, code: error.code, message: error.message }
+    }
+    return { status: 0, message: error instanceof Error ? error.message : "Không tải được trận." }
+}
 
 // The player's live match client — HTTP up, socket down (the transport decision,
 // docs/live-surface.md § L3):
@@ -224,7 +238,7 @@ export type AnswerValue = { picked?: string[]; text?: string }
 
 // One POST shape for all three: refetch after every success (the view is right
 // even if the socket was down), and after every 409 (the refusal means the
-// window moved on — the view is the answer, exactly like the mass event).
+// window moved on — the view is the answer).
 function useLiveCommandPost<TInput>(matchId: string, suffix: string) {
     const queryClient = useQueryClient()
 

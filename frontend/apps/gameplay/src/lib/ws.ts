@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react"
 
 // One place for what every gameplay socket shares: how to dial the backend, how
-// long to wait before trying again, and when to stop trying at all. The
-// qualification turn channel and the live match channel both ride this.
+// long to wait before trying again, and when to stop trying at all. The live
+// match channel rides this.
 
 const BASE_BACKOFF_MS = 2_000
 const MAX_BACKOFF_MS = 30_000

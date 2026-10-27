@@ -65,11 +65,7 @@ export function StandingsPanel({
                                 <TableCell className="tabular-nums text-muted-foreground">
                                     {row.rank ?? "—"}
                                 </TableCell>
-                                <TableCell
-                                    className="font-medium"
-                                    // A tie is reported, never hidden.
-                                    title={row.tieBreak ?? undefined}
-                                >
+                                <TableCell className="font-medium">
                                     {row.name}
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
