@@ -8,13 +8,13 @@ import { type CSSProperties } from "react"
 // Shared by both apps: the portal's MC deck and the gameplay app's player deck
 // must agree on the canvas, so the geometry has exactly one source of truth.
 
-export const SLIDE_W = 13.3333
-export const SLIDE_H = 7.5
-export const px = (i: number) => `${+((i / SLIDE_W) * 100).toFixed(3)}%`
-export const py = (i: number) => `${+((i / SLIDE_H) * 100).toFixed(3)}%`
+export const CANVAS_W = 13.3333
+export const CANVAS_H = 7.5
+export const px = (i: number) => `${+((i / CANVAS_W) * 100).toFixed(3)}%`
+export const py = (i: number) => `${+((i / CANVAS_H) * 100).toFixed(3)}%`
 const PT_SCALE = 0.75
-export const pt = (v: number) => `${+(((v * PT_SCALE) / 72 / SLIDE_W) * 100).toFixed(3)}cqw`
-export const STRIP_R = `${+(((0.44 * 0.31623) / SLIDE_W) * 100).toFixed(3)}cqw`
+export const pt = (v: number) => `${+(((v * PT_SCALE) / 72 / CANVAS_W) * 100).toFixed(3)}cqw`
+export const STRIP_R = `${+(((0.44 * 0.31623) / CANVAS_W) * 100).toFixed(3)}cqw`
 /** PowerPoint's default text insets (verified across all 406 bodyPr in the deck). */
 export const DECK_PAD: CSSProperties = {
     paddingLeft: "0.75cqw",

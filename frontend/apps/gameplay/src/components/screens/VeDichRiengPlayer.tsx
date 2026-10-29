@@ -7,7 +7,7 @@ import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
 // question; the answer is oral, the buzz window is the typed part, and powers
 // are declared here. Pure: every value comes from the orchestrator's PlayerCtx.
 export function VeDichRiengPlayer({ ctx }: { ctx: PlayerCtx }) {
-    const { v, bandSlide, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
+    const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
     const stripCells = (v.board ?? []).filter((cell) => cell.where !== "free").slice(0, 3)
@@ -29,7 +29,7 @@ export function VeDichRiengPlayer({ ctx }: { ctx: PlayerCtx }) {
                 <QuestionBlock question={openQ.question ?? null} />
             </MainCard>
             <Rail variant="compact" view={v} myId={myId} currentQid={qid || null} />
-            <Band slide={bandSlide}>
+            <Band layout="ve-dich-rieng">
                 {/* powers first: declaring is public and one-shot */}
                 {v.me.canDeclarePower && (
                     <>
@@ -66,7 +66,7 @@ export function VeDichRiengPlayer({ ctx }: { ctx: PlayerCtx }) {
                     </button>
                 ) : v.me.canAnswer && openQ ? (
                     <AnswerBand
-                        slide={bandSlide}
+                        layout="ve-dich-rieng"
                         question={openQ.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[qid]}

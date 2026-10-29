@@ -18,10 +18,10 @@ export function ButPhaPlayer({ ctx }: { ctx: PlayerCtx }) {
                 <QuestionBlock question={openQ?.question ?? null} />
             </MainCard>
             <Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />
-            <Band slide={4}>
+            <Band layout="but-pha">
                 {openQ ? (
                     <AnswerBand
-                        slide={4}
+                        layout="but-pha"
                         question={openQ.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[openQ.questionId]}

@@ -27,7 +27,7 @@ import {
     type GiaiMaMc,
     type VeDichMc,
 } from "@/lib/live"
-import { hetLuotAction, ketThucPlan, railVariantOf, slideOf } from "@/lib/deck-logic"
+import { hetLuotAction, ketThucPlan, railVariantOf } from "@/lib/deck-logic"
 import { useMatches } from "@/lib/tournament"
 
 
@@ -176,13 +176,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         return rows.find((r) => r.userId === uid)?.verdict ?? null
     }
 
-    const slide = slideOf({
-        roundId,
-        stage,
-        openCount: open.length,
-        veDichPhase: mcVeDich ? mcVeDich.phase : null,
-    })
-    const railVariant = railVariantOf(slide)
+    const railVariant = railVariantOf({ roundId, stage, veDichPhase: mcVeDich ? mcVeDich.phase : null })
 
     const openRounds = () => setRoundsView(true)
 
@@ -217,7 +211,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         if (plan.length === 1) return send(plan[0])
     }
 
-    // ── rail cards per slide ──────────────────────────────────────────────────
+    // ── rail cards per round screen ────────────────────────────────────────────
     const railQ = judgingId ?? resolvingId
     const railQuestion = railQ ? byId(railQ) : null
     const baseCards: CardData[] = table.map((t) => {
@@ -247,8 +241,8 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         }
         return card
     })
-    // S1 (phase 1): ring the player whose run is open
-    if (slide === 1 && projection.oral) {
+    // the oral round: ring the player whose run is open (oral exists only in phase 1)
+    if (projection.oral) {
         for (const c of baseCards) c.ring = c.id === projection.oral!.playerId ? "active" : undefined
     }
 
@@ -297,7 +291,6 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     // ── the context every screen renders from ─────────────────────────────────
     const ctx: DeckCtx = {
         v,
-        slide,
         roundEnded,
         started,
         remaining,
@@ -326,7 +319,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
 
     // ── one pure screen per round (stage/screens) ─────────────────────────────
     let screen: ReactNode
-    if (roundId === "khoi-dong") screen = ctx.slide === 1 ? <KhoiDongRiengScreen ctx={ctx} /> : <KhoiDongChungScreen ctx={ctx} />
+    if (roundId === "khoi-dong") screen = stage === "phase2" ? <KhoiDongChungScreen ctx={ctx} /> : <KhoiDongRiengScreen ctx={ctx} />
     else if (roundId === "giai-ma") screen = <GiaiMaScreen ctx={ctx} />
     else if (roundId === "but-pha") screen = <ButPhaScreen ctx={ctx} />
     else if (roundId === "ve-dich") {

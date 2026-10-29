@@ -19,7 +19,7 @@ export function KhoiDongRiengPlayer({ ctx }: { ctx: PlayerCtx }) {
                 <QuestionBlock question={oral?.question ?? null} />
             </MainCard>
             <Rail variant="compact" view={v} myId={myId} />
-            <Band slide={1}>
+            <Band layout="khoi-dong-rieng">
                 <span
                     className={`flex h-full items-center rounded-lg px-3 font-sans font-semibold ${mine ? "bg-primary text-primary-foreground" : "bg-muted text-foreground ring-1 ring-border"}`}
                     style={{ fontSize: pt(12), borderRadius: STRIP_R }}

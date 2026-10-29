@@ -70,7 +70,7 @@ export function VeDichPickPlayer({ ctx }: { ctx: PlayerCtx }) {
                 })}
             </MainCard>
             <Rail variant={phase2 ? "compact" : "answers"} view={v} myId={myId} />
-            <Band slide={56}>
+            <Band layout="ve-dich-pick">
                 <span className="flex h-full items-center rounded-lg bg-muted px-3 font-sans font-semibold text-foreground ring-1 ring-border" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
                     {!picking
                         ? pending.size > 0

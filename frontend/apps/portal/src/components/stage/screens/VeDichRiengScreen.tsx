@@ -36,7 +36,7 @@ export function VeDichRiengScreen({ ctx }: { ctx: DeckCtx }) {
             </MainCard>
             <Rail variant="compact" cards={baseCards} onSelect={ctx.setSelectedPlayer} />
             <Strip
-                slide={8}
+                layout="ve-dich-rieng"
                 items={[
                     {
                         label: "Mở chuông",

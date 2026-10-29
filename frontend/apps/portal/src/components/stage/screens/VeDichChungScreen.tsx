@@ -33,7 +33,7 @@ export function VeDichChungScreen({ ctx }: { ctx: DeckCtx }) {
             </MainCard>
             <Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />
             <Strip
-                slide={7}
+                layout="ve-dich-chung"
                 items={[
                     { label: "Đúng", onClick: ctx.target ? () => ctx.setVerdict(true) : undefined},
                     { label: "Sai", onClick: ctx.target ? () => ctx.setVerdict(false) : undefined},

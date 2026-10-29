@@ -86,6 +86,20 @@ export interface PlayerView {
 
 export type AnswerValue = { picked?: string[]; text?: string }
 
+/**
+ * The seven round screens' identities — ONE vocabulary for the whole deck.
+ * Every coordinate table (strip slots, band rects) is keyed by it, and each
+ * screen renders its own constant key (nothing derives a number anymore).
+ */
+export type LayoutKey =
+    | "khoi-dong-rieng"
+    | "khoi-dong-chung"
+    | "giai-ma"
+    | "but-pha"
+    | "ve-dich-pick"
+    | "ve-dich-chung"
+    | "ve-dich-rieng"
+
 export type VeDichCommand =
     | { type: "pick"; questionId: string }
     | { type: "pickBatch"; questionIds: string[] }

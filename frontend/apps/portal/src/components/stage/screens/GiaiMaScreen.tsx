@@ -59,7 +59,7 @@ export function GiaiMaScreen({ ctx }: { ctx: DeckCtx }) {
             </MainCard>
             <Rail variant="answers" cards={baseCards} />
             <Strip
-                slide={3}
+                layout="giai-ma"
                 items={[
                     { label: "Tính giờ", empty: true, muted: true }, // the clock lives top-right only
                     { label: "Đúng", onClick: started ? () => ctx.send({ kind: "giai-ma.resolveHint" }) : undefined},

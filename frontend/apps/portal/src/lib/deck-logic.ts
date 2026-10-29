@@ -1,33 +1,25 @@
-import { type SlideId } from "@/components/stage/deck"
 import { mergedVerdicts, type QuestionAnswerRow } from "@/lib/live"
 
 // ── the MC console's pure decisions ──────────────────────────────────────────
 // Extracted from live-console so every rule is table-testable
-// (tests/lib/deck-logic.test.ts): data in, slide/actions out — no closures, no
+// (tests/lib/deck-logic.test.ts): data in, rail/actions out — no closures, no
 // React, no transport. live-console stays the orchestrator: it gathers the data
 // and EXECUTES the plan these functions return.
 
-/** Which slide the deck shows for this round/stage/board state. */
-export function slideOf(input: {
+/**
+ * Which rail the deck draws: compact identity cards on the personal rounds
+ * (khoi-dong's oral run, ve-dich phase 2), answer rows everywhere else.
+ */
+export function railVariantOf(input: {
     roundId: string
     stage: string
-    openCount: number
     /** ve-dich only: the current phase (null outside the round). */
     veDichPhase: 1 | 2 | null
-}): SlideId {
-    const { roundId, stage, openCount, veDichPhase } = input
-    if (roundId === "giai-ma") return 3
-    if (roundId === "but-pha") return 4
-    if (roundId === "ve-dich") {
-        const phase2 = veDichPhase === 2
-        return openCount > 0 ? (phase2 ? 8 : 7) : phase2 ? 5 : 6
-    }
-    return stage === "phase2" ? 2 : 1
-}
-
-/** The rail draws compact identity cards on board/turn slides, answer rows otherwise. */
-export function railVariantOf(slide: SlideId): "compact" | "answers" {
-    return slide === 1 || slide === 5 || slide === 8 ? "compact" : "answers"
+}): "compact" | "answers" {
+    const { roundId, stage, veDichPhase } = input
+    if (roundId === "giai-ma" || roundId === "but-pha") return "answers"
+    if (roundId === "ve-dich") return veDichPhase === 2 ? "compact" : "answers"
+    return stage === "phase2" ? "answers" : "compact" // khoi-dong (+ unknown rounds)
 }
 
 export interface KetThucInput {

@@ -31,9 +31,7 @@ import { VeDichChungPlayer } from "@/components/screens/VeDichChungPlayer"
 import { VeDichPickPlayer } from "@/components/screens/VeDichPickPlayer"
 import { VeDichRiengPlayer } from "@/components/screens/VeDichRiengPlayer"
 import {
-    bandSlideOf,
     playerScreenOf,
-    slideOf,
     useLiveAnswer,
     useLiveKeyword,
     useLiveLobby,
@@ -140,13 +138,9 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     const flash = refusalOf(answer.error) ?? refusalOf(keywordSubmit.error) ?? refusalOf(cmd.error)
     const nameOf = (id: string) => v.table.find((row) => row.id === id)?.displayName ?? "Thí sinh"
 
-    // slide + band derivation — pure rules in lib/live (table-tested there).
-    const slide = slideOf(v)
-    const bandSlide = bandSlideOf(slide)
-
     // S2: which of the batch is on screen (derived: drop a qid that closed)
     const s2Idx = Math.min(view2.idx, Math.max(0, open.length - 1))
-    const s2Q = slide === 2 && open[s2QIndex(view2.qid, open)] !== undefined
+    const s2Q = roundId === "khoi-dong" && stage === "phase2" && open[s2QIndex(view2.qid, open)] !== undefined
         ? open[s2QIndex(view2.qid, open)]
         : open[s2Idx]
 
@@ -194,8 +188,6 @@ export function PlayerShell({ matchId }: { matchId: string }) {
 
     const ctx: PlayerCtx = {
         v,
-        slide,
-        bandSlide,
         stage,
         open,
         remaining,

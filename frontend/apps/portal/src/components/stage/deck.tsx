@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode } from "react"
 import { CheckCircle2, Hourglass, XCircle } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
 import { DECK_PAD, STRIP_R, TOP_SHIFT, at, px, py, pt, toClock } from "@shared/deck/geometry"
+import type { LayoutKey } from "@shared/deck/types"
 import {
     type ConsoleQuestion,
     type LiveResponse,
@@ -108,20 +109,20 @@ export function Timer({ remaining, fallback = "45", x = 8.55, y = 0.51, size = 4
 export type StripItem = { label: string; content?: ReactNode; onClick?: () => void; title?: string; muted?: boolean; empty?: boolean }
 
 /**
- * The deck's button strip — exact per-slide positions. Items without onClick render
+ * The deck's button strip — exact positions per round screen. Items without onClick render
  * as the countdown/display slot (still drawn, as in the deck).
  */
-export function Strip({ slide, items }: { slide: 1 | 2 | 3 | 4 | 56 | 7 | 8; items: StripItem[] }) {
-    const spec: Record<number, { y: number; xs: number[] }> = {
-        1: { y: 4.69, xs: [2.25, 3.59, 4.92, 6.25] },
-        2: { y: 4.69, xs: [2.31, 3.65, 4.98, 6.32] },
-        3: { y: 6.52, xs: [2.31, 3.65, 4.98, 6.32] },
-        4: { y: 4.68, xs: [2.37, 3.71, 5.04, 6.38] },
-        56: { y: 4.9, xs: [2.9, 4.21, 5.49] },
-        7: { y: 4.67, xs: [2.38, 3.72, 5.05, 6.38] },
-        8: { y: 4.67, xs: [1.66, 2.99, 4.31, 5.64, 6.98] },
+export function Strip({ layout, items }: { layout: LayoutKey; items: StripItem[] }) {
+    const spec: Record<LayoutKey, { y: number; xs: number[] }> = {
+        "khoi-dong-rieng": { y: 4.69, xs: [2.25, 3.59, 4.92, 6.25] },
+        "khoi-dong-chung": { y: 4.69, xs: [2.31, 3.65, 4.98, 6.32] },
+        "giai-ma": { y: 6.52, xs: [2.31, 3.65, 4.98, 6.32] },
+        "but-pha": { y: 4.68, xs: [2.37, 3.71, 5.04, 6.38] },
+        "ve-dich-pick": { y: 4.9, xs: [2.9, 4.21, 5.49] },
+        "ve-dich-chung": { y: 4.67, xs: [2.38, 3.72, 5.05, 6.38] },
+        "ve-dich-rieng": { y: 4.67, xs: [1.66, 2.99, 4.31, 5.64, 6.98] },
     }
-    const { y, xs } = spec[slide]
+    const { y, xs } = spec[layout]
     return (
         <>
             {items.map((item, i) =>
@@ -296,8 +297,6 @@ export function QuestionBlock({ question, mediaHint = "hình ảnh câu hỏi" }
 
 // ── the screens' contract ────────────────────────────────────────────────────
 
-export type SlideId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
-
 /**
  * Everything a round screen may render with — built ONCE by the orchestrator
  * (live-console), which owns every hook, derived fact and action. Screens are
@@ -306,7 +305,6 @@ export type SlideId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 export interface DeckCtx {
     /** The polled live read: projection carries stage/open/oral/board/table. */
     v: LiveResponse
-    slide: SlideId
     roundEnded: boolean
     started: boolean
     remaining: number | null

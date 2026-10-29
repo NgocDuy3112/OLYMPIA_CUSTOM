@@ -4,33 +4,34 @@ import { formatRemaining } from "@shared/lib/clock"
 import { DECK_PAD, STRIP_R, px, py, pt } from "./geometry"
 import {
     type AnswerValue,
+    type LayoutKey,
     type PlayerQuestion,
     type PlayerView,
     type VeDichCommand,
 } from "./types"
 
 
-const BAND: Record<number, { x: number; y: number; w: number }> = {
-    1: { x: 2.25, y: 4.69, w: 5.21 },
-    2: { x: 2.31, y: 4.69, w: 5.22 },
-    3: { x: 2.31, y: 6.52, w: 5.22 },
-    4: { x: 2.37, y: 4.68, w: 5.22 },
-    56: { x: 2.9, y: 4.9, w: 3.79 },
-    7: { x: 2.38, y: 4.67, w: 5.23 },
-    8: { x: 1.66, y: 4.67, w: 6.53 },
+// The player's ActionBar rectangle + the MC-option slots, per round screen.
+// Keyed by LayoutKey — screens pass their own constant, nothing is derived.
+const BAND: Record<LayoutKey, { x: number; y: number; w: number }> = {
+    "khoi-dong-rieng": { x: 2.25, y: 4.69, w: 5.21 },
+    "khoi-dong-chung": { x: 2.31, y: 4.69, w: 5.22 },
+    "giai-ma": { x: 2.31, y: 6.52, w: 5.22 },
+    "but-pha": { x: 2.37, y: 4.68, w: 5.22 },
+    "ve-dich-pick": { x: 2.9, y: 4.9, w: 3.79 },
+    "ve-dich-chung": { x: 2.38, y: 4.67, w: 5.23 },
+    "ve-dich-rieng": { x: 1.66, y: 4.67, w: 6.53 },
 }
 
-const STRIP_XS: Record<number, number[]> = {
-    1: [2.25, 3.59, 4.92, 6.25],
-    2: [2.31, 3.65, 4.98, 6.32],
-    3: [2.31, 3.65, 4.98, 6.32],
-    4: [2.37, 3.71, 5.04, 6.38],
-    56: [2.9, 4.21, 5.49],
-    7: [2.38, 3.72, 5.05, 6.38],
-    8: [1.66, 2.99, 4.31, 5.64, 6.98],
+const STRIP_XS: Record<LayoutKey, number[]> = {
+    "khoi-dong-rieng": [2.25, 3.59, 4.92, 6.25],
+    "khoi-dong-chung": [2.31, 3.65, 4.98, 6.32],
+    "giai-ma": [2.31, 3.65, 4.98, 6.32],
+    "but-pha": [2.37, 3.71, 5.04, 6.38],
+    "ve-dich-pick": [2.9, 4.21, 5.49],
+    "ve-dich-chung": [2.38, 3.72, 5.05, 6.38],
+    "ve-dich-rieng": [1.66, 2.99, 4.31, 5.64, 6.98],
 }
-export type BandId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 56
-export type SlideId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
 const inputCls =
     "h-full min-h-[1.9em] flex-1 rounded-lg border border-input bg-background px-3 font-sans text-foreground outline-none focus:ring-2 focus:ring-ring disabled:bg-muted"
@@ -238,8 +239,8 @@ export function MainCard({ y = 0.39, h = 4.12, children }: { y?: number; h?: num
  * slots, the buzzer, the keyword box, the pick confirm. Muted by default (a
  * display slot, like the strip's countdown cells), primary when actionable.
  */
-export function Band({ slide, children }: { slide: BandId; children: ReactNode }) {
-    const { x, y, w } = BAND[slide]
+export function Band({ layout, children }: { layout: LayoutKey; children: ReactNode }) {
+    const { x, y, w } = BAND[layout]
     return (
         <Box x={x} y={y} w={w} className="flex min-h-[0.44rem] flex-wrap items-center gap-2" style={{ minHeight: py(0.44) }}>
             {children}
@@ -261,8 +262,8 @@ export function Status({ y, error, hint }: { y: number; error?: string | null; h
 }
 
 
-export function AnswerBand({ slide, question, answerState, verdict, disabled, busy, error, onSubmit }: {
-    slide: BandId
+export function AnswerBand({ layout, question, answerState, verdict, disabled, busy, error, onSubmit }: {
+    layout: LayoutKey
     question: PlayerQuestion | null
     answerState?: "none" | "draft" | "final"
     verdict?: "CORRECT" | "INCORRECT"
@@ -293,15 +294,15 @@ export function AnswerBand({ slide, question, answerState, verdict, disabled, bu
 
     if (isMc) {
         // MC options land EXACTLY on the deck's strip button slots.
-        const xs = STRIP_XS[slide]
+        const xs = STRIP_XS[layout]
         const row = xs.slice(0, Math.max(4, options.length))
         return (
             <>
                 {options.map((option, i) => (
                     <Box
                         key={option.id}
-                        x={row[i] ?? BAND[slide].x + i * 1.34}
-                        y={BAND[slide].y} w={1.21} h={0.44}
+                        x={row[i] ?? BAND[layout].x + i * 1.34}
+                        y={BAND[layout].y} w={1.21} h={0.44}
                         onClick={disabled || busy ? undefined : () => setDraft({ qid, picked: option.id, text: "" })}
                         title={option.text}
                         className={`flex cursor-pointer items-center justify-center px-1 text-center font-sans font-semibold leading-tight shadow-sm transition ${optionCls(state.picked === option.id)} ${disabled ? "cursor-default opacity-60" : ""}`}
@@ -313,7 +314,7 @@ export function AnswerBand({ slide, question, answerState, verdict, disabled, bu
                     </Box>
                 ))}
                 <Box
-                    x={(row[3] ?? BAND[slide].x + 3 * 1.34) + 1.34} y={BAND[slide].y} w={1.21} h={0.44}
+                    x={(row[3] ?? BAND[layout].x + 3 * 1.34) + 1.34} y={BAND[layout].y} w={1.21} h={0.44}
                     onClick={state.picked && !disabled && !busy ? () => onSubmit({ picked: [state.picked] }) : undefined}
                     className={`flex items-center justify-center rounded-lg font-sans font-semibold uppercase shadow-sm ${submitCls} ${!state.picked || disabled || busy ? "cursor-default opacity-50" : "cursor-pointer"}`}
                     style={{ fontSize: pt(11), borderRadius: STRIP_R }}
@@ -325,7 +326,7 @@ export function AnswerBand({ slide, question, answerState, verdict, disabled, bu
     }
 
     // Text answer: one input + Gửi, filling the band.
-    const { x, y, w } = BAND[slide]
+    const { x, y, w } = BAND[layout]
     return (
         <>
             <Box x={x} y={y} w={w - 1.35} h={0.44}>
@@ -367,7 +368,7 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
     }
     return (
         <>
-            <Box x={BAND[3].x} y={BAND[3].y} w={BAND[3].w - 1.35} h={0.44}>
+            <Box x={BAND["giai-ma"].x} y={BAND["giai-ma"].y} w={BAND["giai-ma"].w - 1.35} h={0.44}>
                 <input
                     type="text"
                     value={draft.text}
@@ -386,7 +387,7 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
                 />
             </Box>
             <Box
-                x={BAND[3].x + BAND[3].w - 1.21} y={BAND[3].y} w={1.21} h={0.44}
+                x={BAND["giai-ma"].x + BAND["giai-ma"].w - 1.21} y={BAND["giai-ma"].y} w={1.21} h={0.44}
                 onClick={draft.text.trim() && !busy ? () => { onSubmit(draft.text.trim()); setDraft({ locked: true, text: draft.text }) } : undefined}
                 className={`flex items-center justify-center rounded-lg font-sans font-semibold uppercase shadow-sm ${submitCls} ${!draft.text.trim() || busy ? "cursor-default opacity-50" : "cursor-pointer"}`}
                 style={{ fontSize: pt(11), borderRadius: STRIP_R }}
@@ -414,8 +415,6 @@ export function Gate({ title, body, children }: { title: string; body: string; c
 export interface PlayerCtx {
     /** The pushed player view: stage/open/me/board/table/keyword/oral. */
     v: PlayerView
-    slide: SlideId
-    bandSlide: BandId
     stage: string
     open: PlayerView["open"]
     remaining: number

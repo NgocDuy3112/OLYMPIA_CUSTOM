@@ -64,7 +64,7 @@ export function VeDichPickScreen({ ctx }: { ctx: DeckCtx }) {
             </MainCard>
             <Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} />
             <Strip
-                slide={56}
+                layout="ve-dich-pick"
                 items={[
                     {
                         label: "Bắt đầu",

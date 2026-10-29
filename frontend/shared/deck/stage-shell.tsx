@@ -9,7 +9,7 @@ import type { ReactNode } from "react"
  * owns the match data its board is drawn from: columns come from the questions'
  * domains, rows from their point values, so any count fits.
  *
- * The old static deck (verbatim OC3.pptm slides + demo harness with hardcoded
+ * The old static deck (verbatim OC3.pptm canvas + demo harness with hardcoded
  * domain labels) was unreachable dead code and has been deleted — this frame
  * is all StageShell is, and all it needs to be.
  */

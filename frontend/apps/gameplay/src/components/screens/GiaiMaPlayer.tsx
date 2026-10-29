@@ -51,10 +51,10 @@ export function GiaiMaPlayer({ ctx }: { ctx: PlayerCtx }) {
                 </Box>
             </MainCard>
             <Rail variant="answers" view={v} myId={myId} currentQid={hintWindow?.questionId ?? keyword?.questionId ?? null} />
-            <Band slide={3}>
+            <Band layout="giai-ma">
                 {hintWindow ? (
                     <AnswerBand
-                        slide={3}
+                        layout="giai-ma"
                         question={hintWindow.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[hintWindow.questionId]}

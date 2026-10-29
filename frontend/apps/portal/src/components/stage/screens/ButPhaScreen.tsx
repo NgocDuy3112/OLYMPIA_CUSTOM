@@ -18,7 +18,7 @@ export function ButPhaScreen({ ctx }: { ctx: DeckCtx }) {
             </MainCard>
             <Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />
             <Strip
-                slide={4}
+                layout="but-pha"
                 items={[
                     openQ
                         ? { label: "Tính giờ", empty: true, muted: true } // the clock lives top-right only

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest"
 
-import { hetLuotAction, ketThucPlan, railVariantOf, slideOf, type KetThucInput } from "@/lib/deck-logic"
+import { hetLuotAction, ketThucPlan, railVariantOf, type KetThucInput } from "@/lib/deck-logic"
 import type { QuestionAnswerRow } from "@/lib/live"
 
-// The MC console's decisions, table-tested: slide derivation, the rail variant,
-// and the two action planners behind the deck's buttons (Kết thúc / Hết lượt).
+// The MC console's decisions, table-tested: the rail variant and the two
+// action planners behind the deck's buttons (Kết thúc / Hết lượt).
 
 const input = (over: Partial<KetThucInput> = {}): KetThucInput => ({
     roundId: "khoi-dong",
@@ -25,36 +25,20 @@ const row = (userId: string, verdict: QuestionAnswerRow["verdict"], judged: bool
     pointsAwarded: verdict === "CORRECT" ? 10 : 0,
 })
 
-describe("slideOf — which slide the deck shows", () => {
-    it("maps the simple rounds: giai-ma → 3, but-pha → 4", () => {
-        expect(slideOf({ roundId: "giai-ma", stage: "hints", openCount: 0, veDichPhase: null })).toBe(3)
-        expect(slideOf({ roundId: "but-pha", stage: "question", openCount: 0, veDichPhase: null })).toBe(4)
-    })
-
-    it("khoi-dong and unknown rounds follow the phase", () => {
-        expect(slideOf({ roundId: "khoi-dong", stage: "phase1", openCount: 0, veDichPhase: null })).toBe(1)
-        expect(slideOf({ roundId: "khoi-dong", stage: "phase2", openCount: 0, veDichPhase: null })).toBe(2)
-        expect(slideOf({ roundId: "mystery", stage: "phase2", openCount: 0, veDichPhase: null })).toBe(2)
-    })
-
-    it("ve-dich splits board (5/6) from question (7/8) by phase and openness", () => {
-        expect(slideOf({ roundId: "ve-dich", stage: "phase1", openCount: 0, veDichPhase: 1 })).toBe(6)
-        expect(slideOf({ roundId: "ve-dich", stage: "phase2", openCount: 0, veDichPhase: 2 })).toBe(5)
-        expect(slideOf({ roundId: "ve-dich", stage: "phase1", openCount: 1, veDichPhase: 1 })).toBe(7)
-        expect(slideOf({ roundId: "ve-dich", stage: "phase2", openCount: 1, veDichPhase: 2 })).toBe(8)
-    })
-})
-
 describe("railVariantOf — identity cards vs answer rows", () => {
-    it("board/turn slides draw compact cards; judging slides draw answer rows", () => {
-        expect(railVariantOf(1)).toBe("compact")
-        expect(railVariantOf(5)).toBe("compact")
-        expect(railVariantOf(8)).toBe("compact")
-        expect(railVariantOf(2)).toBe("answers")
-        expect(railVariantOf(3)).toBe("answers")
-        expect(railVariantOf(4)).toBe("answers")
-        expect(railVariantOf(6)).toBe("answers")
-        expect(railVariantOf(7)).toBe("answers")
+    it("the personal rounds draw compact cards; the judging rounds draw answer rows", () => {
+        // khoi-dong's oral round (and an unknown round's phase 1)
+        expect(railVariantOf({ roundId: "khoi-dong", stage: "phase1", veDichPhase: null })).toBe("compact")
+        expect(railVariantOf({ roundId: "mystery", stage: "phase1", veDichPhase: null })).toBe("compact")
+        // khoi-dong's batch round (and an unknown round's phase 2)
+        expect(railVariantOf({ roundId: "khoi-dong", stage: "phase2", veDichPhase: null })).toBe("answers")
+        expect(railVariantOf({ roundId: "mystery", stage: "phase2", veDichPhase: null })).toBe("answers")
+        // the fixed judging rounds
+        expect(railVariantOf({ roundId: "giai-ma", stage: "hints", veDichPhase: null })).toBe("answers")
+        expect(railVariantOf({ roundId: "but-pha", stage: "question", veDichPhase: null })).toBe("answers")
+        // ve-dich: phase 1 judges with answer rows, phase 2 shows identity cards
+        expect(railVariantOf({ roundId: "ve-dich", stage: "phase1", veDichPhase: 1 })).toBe("answers")
+        expect(railVariantOf({ roundId: "ve-dich", stage: "phase2", veDichPhase: 2 })).toBe("compact")
     })
 })
 

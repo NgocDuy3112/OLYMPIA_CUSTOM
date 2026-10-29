@@ -22,10 +22,10 @@ export function KhoiDongChungPlayer({ ctx }: { ctx: PlayerCtx }) {
                 <QuestionBlock question={s2Q?.question ?? null} />
             </MainCard>
             <Rail variant="answers" view={v} myId={myId} currentQid={s2Q?.questionId ?? null} />
-            <Band slide={2}>
+            <Band layout="khoi-dong-chung">
                 {s2Q ? (
                     <AnswerBand
-                        slide={2}
+                        layout="khoi-dong-chung"
                         question={s2Q.question}
                         answerState={answeredSet.has(s2Q.questionId)
                             ? v.me.finalized?.includes(s2Q.questionId) ? "final" : "draft"

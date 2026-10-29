@@ -40,7 +40,6 @@ function deckCtx(
     }
     return {
         v,
-        slide: 1,
         roundEnded: false,
         started: true,
         remaining: 30,

@@ -18,7 +18,7 @@ export function KhoiDongChungScreen({ ctx }: { ctx: DeckCtx }) {
             </MainCard>
             <Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />
             <Strip
-                slide={2}
+                layout="khoi-dong-chung"
                 items={[
                     { label: "Tính giờ", empty: true, muted: true }, // the clock lives top-right only
                     { label: "Đúng", onClick: ctx.target ? () => ctx.setVerdict(true) : undefined},

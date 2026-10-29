@@ -7,7 +7,7 @@ import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
 // the answerer, the public power declaration for everyone. Pure: every value
 // comes from the orchestrator's PlayerCtx.
 export function VeDichChungPlayer({ ctx }: { ctx: PlayerCtx }) {
-    const { v, bandSlide, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
+    const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
     const stripCells = (v.board ?? []).filter((cell) => cell.where !== "free").slice(0, 4)
@@ -29,7 +29,7 @@ export function VeDichChungPlayer({ ctx }: { ctx: PlayerCtx }) {
                 <QuestionBlock question={openQ.question ?? null} />
             </MainCard>
             <Rail variant="answers" view={v} myId={myId} currentQid={qid || null} />
-            <Band slide={bandSlide}>
+            <Band layout="ve-dich-chung">
                 {/* powers first: declaring is public and one-shot */}
                 {v.me.canDeclarePower && (
                     <>
@@ -54,7 +54,7 @@ export function VeDichChungPlayer({ ctx }: { ctx: PlayerCtx }) {
                     </>
                 )}
                 <AnswerBand
-                    slide={7}
+                    layout="ve-dich-chung"
                     question={openQ.question}
                     answerState={v.me.answerState}
                     verdict={v.me.verdicts?.[qid]}

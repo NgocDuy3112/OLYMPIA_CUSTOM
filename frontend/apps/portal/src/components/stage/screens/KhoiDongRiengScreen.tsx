@@ -20,7 +20,7 @@ export function KhoiDongRiengScreen({ ctx }: { ctx: DeckCtx }) {
             </MainCard>
             <Rail variant="compact" cards={baseCards} />
             <Strip
-                slide={1}
+                layout="khoi-dong-rieng"
                 items={[
                     {
                         label: "Tính giờ",
