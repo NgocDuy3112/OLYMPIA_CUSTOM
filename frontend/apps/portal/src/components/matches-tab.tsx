@@ -103,7 +103,7 @@ export function MatchesTab({
                                                         {match.joinCode && (
                                                             <span
                                                                 className="font-mono text-xs tracking-widest text-muted-foreground"
-                                                                title="Mã thí sinh nhập ở /join"
+                                                                title="Mã thí sinh nhập ở /join của app gameplay"
                                                             >
                                                                 PIN {match.joinCode}
                                                             </span>
