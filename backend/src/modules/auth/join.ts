@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { matches } from "../../db/schema/index.js";
+import { matches, tournaments } from "../../db/schema/index.js";
 import { users } from "../../db/schema/auth.js";
 import { setSessionCookie } from "../../lib/cookies.js";
 import { signToken } from "../../lib/jwt.js";
@@ -55,6 +55,16 @@ async function matchByCode(code: string) {
     return row ?? null;
 }
 
+/** The match's tournament slug — the player's deck lives under /s/:slug. */
+async function slugOfMatch(match: { tournamentId: string }): Promise<string | null> {
+    const [row] = await db
+        .select({ slug: tournaments.slug })
+        .from(tournaments)
+        .where(eq(tournaments.id, match.tournamentId))
+        .limit(1);
+    return row?.slug ?? null;
+}
+
 export async function joinRoutes(app: FastifyInstance) {
     const perIp = { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } };
 
@@ -79,6 +89,7 @@ export async function joinRoutes(app: FastifyInstance) {
 
             return {
                 matchId: match.id,
+                slug: await slugOfMatch(match),
                 label: match.label,
                 status: match.status,
                 seats: userIds.map((id) => ({
@@ -119,7 +130,7 @@ export async function joinRoutes(app: FastifyInstance) {
                 tokenVersion: user.tokenVersion,
             });
             setSessionCookie(reply, "GAMEPLAY", token);
-            return { matchId: match.id, displayName: user.displayName };
+            return { matchId: match.id, slug: await slugOfMatch(match), displayName: user.displayName };
         }
     );
 }
