@@ -1,26 +1,21 @@
-import { Box, Badges, MainCard, Rail, Status, Strip, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, type DeckCtx } from "../deck"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
 
 // Về đích — bảng chọn câu (S5 = phase 2 bốc 3 câu · S6 = phase 1 chọn 1 câu).
-// No question is open; the grid is data-driven: columns = the frozen set's
-// domains, rows = its point values; beyond the classic 6×4 the stride (and then
-// the cell) shrinks. Pure: everything comes from DeckCtx.
+// No question is open; the grid is a CSS grid driven by the frozen set —
+// columns = domains, rows follow from the count; any size fits, none clipped.
 export function VeDichPickScreen({ ctx }: { ctx: DeckCtx }) {
     const { v, roundEnded, started, questions, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
     const phase2 = mcVeDich?.phase === 2
 
-    // ── the board ─────────────────────────────────────────────────────────────
     const boardQs = questions.filter((q) => q.roundId === "ve-dich").sort((a, b) => a.position - b.position)
     const cols = [...new Set(boardQs.map((q) => q.domain ?? ""))]
-    const vals = [...new Set(boardQs.map((q) => q.points))].sort((a, b) => a - b)
     const boardMap = new Map((projection.board ?? []).map((c) => [c.questionId, c.where]))
-    const stepX = cols.length > 1 ? Math.min(1.49, 7.45 / (cols.length - 1)) : 1.49
-    const stepY = vals.length > 1 ? Math.min(0.74, 2.22 / (vals.length - 1)) : 0.74
-    const cellW = Math.min(1.33, stepX - 0.16)
-    const cellH = Math.min(0.59, stepY - 0.15)
-    const colX = (i: number) => 0.54 + i * stepX
-    const rowY = (r: number) => 1.57 + r * stepY
+    // The grid flows row-major: rows = point values, cells left→right by domain.
+    const cells = [...boardQs].sort(
+        (a, b) => a.points - b.points || cols.indexOf(a.domain ?? "") - cols.indexOf(b.domain ?? ""),
+    )
 
     const boardHint = !started
         ? undefined
@@ -33,38 +28,37 @@ export function VeDichPickScreen({ ctx }: { ctx: DeckCtx }) {
                 : "hết lượt — chuyển phase"
 
     return (
-        <>
-            <MainCard h={4.24}>
-                <Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} onRoundClick={openRounds} />
-                {boardQs.map((q) => {
-                    const ci = cols.indexOf(q.domain ?? "")
-                    const ri = vals.indexOf(q.points)
-                    if (ci < 0 || ri < 0) return null
-                    const where = boardMap.get(q._id) ?? "taken"
-                    return (
-                        <Box
-                            key={q._id}
-                            x={colX(ci)} y={rowY(ri)} w={cellW} h={cellH}
-                            title={where === "taken" ? "đã dùng" : where === "pending" ? "thí sinh đã chọn — chờ mở" : where === "open" ? "đang mở" : "còn trống"}
-                            className={`flex flex-col items-center justify-center rounded-lg shadow-sm ring-1 ${where === "open"
-                                    ? "bg-primary text-primary-foreground ring-primary"
-                                    : where === "pending"
-                                        ? "bg-sky-50 ring-2 ring-sky-500 text-sky-800"
-                                        : where === "free"
-                                            ? "bg-card ring-border"
-                                            : "bg-muted text-muted-foreground/50 ring-border"
-                                }`}
-                            style={DECK_PAD}
-                        >
-                            <span className="truncate text-center font-display leading-tight" style={{ fontSize: pt(12) }}>{q.domain}</span>
-                            <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{q.points}</b>
-                        </Box>
-                    )
-                })}
+        <StageLayout rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} />}>
+            <MainCard>
+                <CardHeader left={<Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} onRoundClick={openRounds} />} />
+                <div
+                    className="grid min-h-0 flex-1 content-start gap-[0.9cqw]"
+                    style={{ gridTemplateColumns: `repeat(${Math.max(1, cols.length)}, minmax(0, 1fr))` }}
+                >
+                    {cells.map((q) => {
+                        const where = boardMap.get(q._id) ?? "taken"
+                        return (
+                            <div
+                                key={q._id}
+                                title={where === "taken" ? "đã dùng" : where === "pending" ? "thí sinh đã chọn — chờ mở" : where === "open" ? "đang mở" : "còn trống"}
+                                className={`flex aspect-[133/59] flex-col items-center justify-center rounded-lg shadow-sm ring-1 ${where === "open"
+                                        ? "bg-primary text-primary-foreground ring-primary"
+                                        : where === "pending"
+                                            ? "bg-sky-50 ring-2 ring-sky-500 text-sky-800"
+                                            : where === "free"
+                                                ? "bg-card ring-border"
+                                                : "bg-muted text-muted-foreground/50 ring-border"
+                                    }`}
+                                style={DECK_PAD}
+                            >
+                                <span className="truncate text-center font-display leading-tight" style={{ fontSize: pt(12) }}>{q.domain}</span>
+                                <b className="font-display leading-none" style={{ fontSize: pt(20) }}>{q.points}</b>
+                            </div>
+                        )
+                    })}
+                </div>
             </MainCard>
-            <Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} />
             <Strip
-                layout="ve-dich-pick"
                 items={[
                     {
                         label: "Bắt đầu",
@@ -86,7 +80,7 @@ export function VeDichPickScreen({ ctx }: { ctx: DeckCtx }) {
                     { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
                 ]}
             />
-            <Status y={5.44} error={flash} hint={boardHint} />
-        </>
+            <Status error={flash} hint={boardHint} />
+        </StageLayout>
     )
 }

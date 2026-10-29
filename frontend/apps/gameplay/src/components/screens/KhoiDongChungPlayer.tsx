@@ -1,5 +1,5 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { Band, Badges, MainCard, Progress, QuestionBlock, Rail, Status, Timer, AnswerBand, type PlayerCtx } from "@shared/deck/player-deck"
+import { Band, Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Timer, AnswerBand, type PlayerCtx } from "@shared/deck/player-deck"
 import { pt } from "@shared/deck/geometry"
 
 // Khởi động — lượt chung (S2): 6 questions, one shared deadline — squares
@@ -9,23 +9,27 @@ export function KhoiDongChungPlayer({ ctx }: { ctx: PlayerCtx }) {
     const open = ctx.open
     const answeredSet = new Set(v.me.answered ?? [])
     return (
-        <>
+        <StageLayout rail={<Rail variant="answers" view={v} myId={myId} currentQid={s2Q?.questionId ?? null} />}>
             <MainCard>
-                <Badges round="Khởi động" mode="Lượt chung" />
-                <Progress
-                    total={open.length || 6}
-                    done={open.filter((q) => answeredSet.has(q.questionId)).length}
-                    active={s2Idx}
-                    onPick={(i) => open[i] && pickS2(open[i].questionId, i)}
+                <CardHeader
+                    left={<Badges round="Khởi động" mode="Lượt chung" />}
+                    right={
+                        <>
+                            <Progress
+                                total={open.length || 6}
+                                done={open.filter((q) => answeredSet.has(q.questionId)).length}
+                                active={s2Idx}
+                                onPick={(i) => open[i] && pickS2(open[i].questionId, i)}
+                            />
+                            <Timer remaining={remaining} fallback="60s" />
+                        </>
+                    }
                 />
-                <Timer remaining={remaining} fallback="60s" />
-                <QuestionBlock question={s2Q?.question ?? null} />
+                <QuestionBlock question={s2Q?.question?.questionText ?? null} media={s2Q?.question?.media ?? null} />
             </MainCard>
-            <Rail variant="answers" view={v} myId={myId} currentQid={s2Q?.questionId ?? null} />
-            <Band layout="khoi-dong-chung">
+            <Band>
                 {s2Q ? (
                     <AnswerBand
-                        layout="khoi-dong-chung"
                         question={s2Q.question}
                         answerState={answeredSet.has(s2Q.questionId)
                             ? v.me.finalized?.includes(s2Q.questionId) ? "final" : "draft"
@@ -40,7 +44,7 @@ export function KhoiDongChungPlayer({ ctx }: { ctx: PlayerCtx }) {
                     <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Đã hết 60 giây — chờ MC chấm.</span>
                 )}
             </Band>
-            <Status y={5.24} error={flash} hint={open.length > 0 ? `còn ${formatRemaining(remaining)} · câu ${s2Idx + 1}/${open.length}` : "chờ MC chấm"} />
-        </>
+            <Status error={flash} hint={open.length > 0 ? `còn ${formatRemaining(remaining)} · câu ${s2Idx + 1}/${open.length}` : "chờ MC chấm"} />
+        </StageLayout>
     )
 }

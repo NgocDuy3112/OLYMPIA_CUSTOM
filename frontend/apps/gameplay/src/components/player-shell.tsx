@@ -21,8 +21,8 @@ import { Link } from "react-router-dom"
 import { useCountdown } from "@shared/lib/clock"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
-import { Box, Badges, Gate, MainCard, Rail, type PlayerCtx } from "@shared/deck/player-deck"
-import { DECK_PAD, ROUND_LABEL, isKnownRound, isWaitingStage, pt } from "@shared/deck/geometry"
+import { Badges, Gate, MainCard, Rail, StageLayout, type PlayerCtx } from "@shared/deck/player-deck"
+import { ROUND_LABEL, isKnownRound, isWaitingStage, pt } from "@shared/deck/geometry"
 import { KhoiDongChungPlayer } from "@/components/screens/KhoiDongChungPlayer"
 import { KhoiDongRiengPlayer } from "@/components/screens/KhoiDongRiengPlayer"
 import { GiaiMaPlayer } from "@/components/screens/GiaiMaPlayer"
@@ -167,16 +167,17 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         // Lobby still loading: the deck's own waiting card (no flicker of a blank canvas).
         return (
             <StageShell>
-                <MainCard>
-                    <Badges round={ROUND_LABEL[roundId] ?? roundId} />
-                    <Box x={0.59} y={1.6} w={8.0} className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(16), ...DECK_PAD }}>
-                        {lobbyHint}
-                    </Box>
-                    <Box x={0.59} y={2.3} w={8.0} className="font-sans text-muted-foreground" style={{ fontSize: pt(13), ...DECK_PAD }}>
-                        Điểm của bạn: <b className="tabular-nums text-foreground">{v.me.points ?? v.me.score ?? 0}</b>
-                    </Box>
-                </MainCard>
-                <Rail variant="compact" view={v} myId={myId} />
+                <StageLayout rail={<Rail variant="compact" view={v} myId={myId} />}>
+                    <MainCard>
+                        <Badges round={ROUND_LABEL[roundId] ?? roundId} />
+                        <p className="font-sans leading-relaxed text-foreground" style={{ fontSize: pt(16) }}>
+                            {lobbyHint}
+                        </p>
+                        <p className="font-sans text-muted-foreground" style={{ fontSize: pt(13) }}>
+                            Điểm của bạn: <b className="tabular-nums text-foreground">{v.me.points ?? v.me.score ?? 0}</b>
+                        </p>
+                    </MainCard>
+                </StageLayout>
             </StageShell>
         )
     }

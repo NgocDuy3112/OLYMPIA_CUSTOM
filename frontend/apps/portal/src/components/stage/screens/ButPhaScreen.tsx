@@ -1,6 +1,7 @@
-import { Badges, MainCard, Progress, QuestionBlock, Rail, Status, Strip, Timer, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "../deck"
 
-
+// Bứt phá (S4): sequential typed questions, one open at a time — Tính giờ
+// opens, Đúng/Sai judge the ledger, Về sảnh ends. Pure: DeckCtx in, JSX out.
 export function ButPhaScreen({ ctx }: { ctx: DeckCtx }) {
     const { v, roundEnded, started, remaining, baseCards, bpDone, flash, openRounds } = ctx
     const open = v.projection.open
@@ -9,26 +10,28 @@ export function ButPhaScreen({ ctx }: { ctx: DeckCtx }) {
     const done = roundEnded ? 4 : pos ?? bpDone
 
     return (
-        <>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
             <MainCard>
-                <Badges round="Bứt phá" onRoundClick={openRounds} />
-                <Progress total={4} done={done} active={pos ?? done} />
-                <Timer remaining={remaining} />
+                <CardHeader
+                    left={<Badges round="Bứt phá" onRoundClick={openRounds} />}
+                    right={
+                        <>
+                            <Progress total={4} done={done} active={pos ?? done} />
+                            <Timer remaining={remaining} />
+                        </>
+                    }
+                />
                 <QuestionBlock question={openQ?.question?.questionText ?? "Nhấn Tính giờ để mở câu tiếp theo"} />
             </MainCard>
-            <Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />
             <Strip
-                layout="but-pha"
                 items={[
-                    openQ
-                        ? { label: "Tính giờ", empty: true, muted: true } // the clock lives top-right only
-                        : { label: "Tính giờ", onClick: started ? () => ctx.send({ kind: "but-pha.openQuestion" }) : undefined},
-                    { label: "Đúng", onClick: ctx.target && openQ ? () => ctx.setVerdict(true) : undefined},
-                    { label: "Sai", onClick: ctx.target && openQ ? () => ctx.setVerdict(false) : undefined},
+                    { label: "Tính giờ", onClick: openQ ? undefined : started ? () => ctx.send({ kind: "but-pha.openQuestion" }) : undefined },
+                    { label: "Đúng", onClick: ctx.target && openQ ? () => ctx.setVerdict(true) : undefined },
+                    { label: "Sai", onClick: ctx.target && openQ ? () => ctx.setVerdict(false) : undefined },
                     { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
                 ]}
             />
-            <Status y={5.23} error={flash} hint={openQ ? `câu ${done + 1}/4` : roundEnded ? "đã hết câu" : "mở câu tiếp theo bằng Tính giờ"} />
-        </>
+            <Status error={flash} hint={openQ ? `câu ${done + 1}/4` : roundEnded ? "đã hết câu" : "mở câu tiếp theo bằng Tính giờ"} />
+        </StageLayout>
     )
 }

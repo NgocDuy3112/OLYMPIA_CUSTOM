@@ -68,9 +68,9 @@ function deckCtx(
     }
 }
 
-/** The clickable labels in DOM order — strip items keep their index order. */
+/** The clickable labels in DOM order — real buttons + role=button divs (tiles). */
 function clickables(): string[] {
-    return Array.from(document.querySelectorAll('[role="button"]')).map((el) => el.textContent ?? "")
+    return Array.from(document.querySelectorAll("button, [role=\"button\"]")).map((el) => el.textContent ?? "")
 }
 
 /** Assert the given labels appear on screen in exactly this relative order. */

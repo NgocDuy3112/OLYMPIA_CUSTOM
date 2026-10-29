@@ -4,13 +4,12 @@ import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import {
     Badges,
-    Box,
-    MainCard,
+    StageLayout,
     type CardData,
     type DeckCtx,
 } from "@/components/stage/deck"
 import { valueText } from "@/components/stage/ledger"
-import { DECK_PAD, ROUND_LABEL, isKnownRound, pt } from "@shared/deck/geometry"
+import { ROUND_LABEL, isKnownRound, pt } from "@shared/deck/geometry"
 import { KhoiDongChungScreen } from "@/components/stage/screens/KhoiDongChungScreen"
 import { KhoiDongRiengScreen } from "@/components/stage/screens/KhoiDongRiengScreen"
 import { GiaiMaScreen } from "@/components/stage/screens/GiaiMaScreen"
@@ -333,12 +332,12 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     else {
         // Unknown round, lobby still loading: hold the deck instead of a blank canvas.
         screen = (
-            <MainCard>
+            <StageLayout>
                 <Badges round={ROUND_LABEL[roundId] ?? roundId} onRoundClick={openRounds} />
-                <Box x={0.59} y={1.4} w={8.0} className="font-sans text-muted-foreground" style={{ fontSize: pt(14), ...DECK_PAD }}>
+                <p className="font-sans text-muted-foreground" style={{ fontSize: pt(14) }}>
                     Đang chờ dữ liệu vòng…
-                </Box>
-            </MainCard>
+                </p>
+            </StageLayout>
         )
     }
 

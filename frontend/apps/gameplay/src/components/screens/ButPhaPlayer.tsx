@@ -1,5 +1,5 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { Band, Badges, MainCard, Progress, QuestionBlock, Rail, Status, Timer, AnswerBand, type PlayerCtx } from "@shared/deck/player-deck"
+import { Band, Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Timer, AnswerBand, type PlayerCtx } from "@shared/deck/player-deck"
 import { pt } from "@shared/deck/geometry"
 
 // Bứt phá (S4): sequential typed questions, one open at a time. Pure: every
@@ -10,18 +10,22 @@ export function ButPhaPlayer({ ctx }: { ctx: PlayerCtx }) {
     const pos = openQ?.question?.position ?? null
     const done = ctx.stage === "ended" ? 4 : pos !== null ? pos : 0
     return (
-        <>
+        <StageLayout rail={<Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />}>
             <MainCard>
-                <Badges round="Bứt phá" />
-                <Progress total={4} done={done} active={pos ?? done} />
-                <Timer remaining={openQ ? remaining : null} fallback="30s" />
-                <QuestionBlock question={openQ?.question ?? null} />
+                <CardHeader
+                    left={<Badges round="Bứt phá" />}
+                    right={
+                        <>
+                            <Progress total={4} done={done} active={pos ?? done} />
+                            <Timer remaining={openQ ? remaining : null} fallback="30s" />
+                        </>
+                    }
+                />
+                <QuestionBlock question={openQ?.question?.questionText ?? null} media={openQ?.question?.media ?? null} />
             </MainCard>
-            <Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />
-            <Band layout="but-pha">
+            <Band>
                 {openQ ? (
                     <AnswerBand
-                        layout="but-pha"
                         question={openQ.question}
                         answerState={v.me.answerState}
                         verdict={v.me.verdicts?.[openQ.questionId]}
@@ -33,7 +37,7 @@ export function ButPhaPlayer({ ctx }: { ctx: PlayerCtx }) {
                     <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ MC mở câu tiếp theo…</span>
                 )}
             </Band>
-            <Status y={5.23} error={flash} hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ MC"} />
-        </>
+            <Status error={flash} hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ MC"} />
+        </StageLayout>
     )
 }

@@ -1,19 +1,15 @@
 import { type CSSProperties } from "react"
 
-// ── deck geometry & helpers (OC3.pptm inches → canvas units) ─────────────────
-// No components in this file (react-refresh): the pure math, constants and
-// labels the deck's components and screens share — the PLAYER deck lives here
-// (@shared/deck/player-deck), the MC's drawn console keeps its own primitives.
-//
-// Shared by both apps: the portal's MC deck and the gameplay app's player deck
-// must agree on the canvas, so the geometry has exactly one source of truth.
+// ── the deck's typography & constants ────────────────────────────────────────
+// No components in this file (react-refresh): the pure helpers the flow stage
+// (@shared/deck/stage) and both surfaces' screens share. Layout is flex/grid —
+// these are the few numbers left: text sizing, radii, padding, round labels.
 
 export const CANVAS_W = 13.3333
-export const CANVAS_H = 7.5
-export const px = (i: number) => `${+((i / CANVAS_W) * 100).toFixed(3)}%`
-export const py = (i: number) => `${+((i / CANVAS_H) * 100).toFixed(3)}%`
 const PT_SCALE = 0.75
+/** Points → container-width units, so text scales with the projection. */
 export const pt = (v: number) => `${+(((v * PT_SCALE) / 72 / CANVAS_W) * 100).toFixed(3)}cqw`
+/** The deck's rounded control radius (0.44-high buttons), in cqw. */
 export const STRIP_R = `${+(((0.44 * 0.31623) / CANVAS_W) * 100).toFixed(3)}cqw`
 /** PowerPoint's default text insets (verified across all 406 bodyPr in the deck). */
 export const DECK_PAD: CSSProperties = {
@@ -22,19 +18,6 @@ export const DECK_PAD: CSSProperties = {
     paddingTop: "0.375cqw",
     paddingBottom: "0.375cqw",
 }
-
-// Everything sits this much lower on the deck than the template — shrinking it
-// trims the visible top gap above the card (user: "make the top padding smaller").
-export const TOP_SHIFT = 0.25
-
-/** A child box in deck inches relative to its card → % of that card. */
-export const at = (cardW: number, cardH: number) => (x: number, y: number, w: number, h: number): CSSProperties => ({
-    position: "absolute",
-    left: `${+((x / cardW) * 100).toFixed(3)}%`,
-    top: `${+((y / cardH) * 100).toFixed(3)}%`,
-    width: `${+((w / cardW) * 100).toFixed(3)}%`,
-    height: `${+((h / cardH) * 100).toFixed(3)}%`,
-})
 
 // ── deck labels ──────────────────────────────────────────────────────────────
 export const ROUND_LABEL: Record<string, string> = {
