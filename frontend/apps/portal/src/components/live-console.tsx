@@ -8,7 +8,6 @@ import {
     MainCard,
     type CardData,
     type DeckCtx,
-    type SlideId,
 } from "@/components/stage/deck"
 import { valueText } from "@/components/stage/ledger"
 import { DECK_PAD, ROUND_LABEL, isKnownRound, pt } from "@shared/deck/geometry"
@@ -20,7 +19,6 @@ import { VeDichChungScreen } from "@/components/stage/screens/VeDichChungScreen"
 import { VeDichPickScreen } from "@/components/stage/screens/VeDichPickScreen"
 import { VeDichRiengScreen } from "@/components/stage/screens/VeDichRiengScreen"
 import {
-    mergedVerdicts,
     startActionPayload,
     useLive,
     useLiveAction,
@@ -29,6 +27,7 @@ import {
     type GiaiMaMc,
     type VeDichMc,
 } from "@/lib/live"
+import { hetLuotAction, ketThucPlan, railVariantOf, slideOf } from "@/lib/deck-logic"
 import { useMatches } from "@/lib/tournament"
 
 
@@ -177,29 +176,13 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         return rows.find((r) => r.userId === uid)?.verdict ?? null
     }
 
-    // overrides grouped per question — the commit set for KẾT THÚC's chain
-    const overriddenQs = () => {
-        const grouped = new Map<string, Array<{ playerId: string; correct: boolean }>>()
-        for (const [key, correct] of Object.entries(overrides)) {
-            const idx = key.indexOf(":")
-            const qid = key.slice(0, idx)
-            const uid = key.slice(idx + 1)
-            if (!grouped.has(qid)) grouped.set(qid, [])
-            grouped.get(qid)!.push({ playerId: uid, correct })
-        }
-        return grouped
-    }
-
-    let slide: SlideId
-    if (roundId === "giai-ma") slide = 3
-    else if (roundId === "but-pha") slide = 4
-    else if (roundId === "ve-dich") {
-        const phase2 = mcVeDich?.phase === 2
-        slide = open.length > 0 ? (phase2 ? 8 : 7) : phase2 ? 5 : 6
-    } else slide = stage === "phase2" ? 2 : 1
-
-    const railVariant: "compact" | "answers" =
-        slide === 1 || slide === 5 || slide === 8 ? "compact" : "answers"
+    const slide = slideOf({
+        roundId,
+        stage,
+        openCount: open.length,
+        veDichPhase: mcVeDich ? mcVeDich.phase : null,
+    })
+    const railVariant = railVariantOf(slide)
 
     const openRounds = () => setRoundsView(true)
 
@@ -208,54 +191,30 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     const hetLuot = () => {
         if (!mcVeDich || open.length === 0) return
         const qid = open[0].questionId
-        const answerer = mcVeDich.answererId
-        if (!answerer || verdictOf(qid, answerer) === null) return // verdict needed first
-        const payload: Record<string, unknown> = { kind: "ve-dich.resolve", answerer: verdictOf(qid, answerer) === "CORRECT" }
-        if (mcVeDich.buzzerId) {
-            const b = verdictOf(qid, mcVeDich.buzzerId)
-            if (b === null) return
-            payload.buzzer = b === "CORRECT"
-        }
-        send(payload)
+        const action = hetLuotAction({
+            answererVerdict: mcVeDich.answererId ? verdictOf(qid, mcVeDich.answererId) : null,
+            buzzerId: mcVeDich.buzzerId,
+            buzzerVerdict: mcVeDich.buzzerId ? verdictOf(qid, mcVeDich.buzzerId) : null,
+        })
+        if (action) send(action)
     }
 
+    /** Kết thúc = run this round's action plan (deck-logic decides WHAT). */
     const ketThuc = () => {
-        if (roundEnded) return send({ kind: "round.advance" })
-        switch (roundId) {
-            case "khoi-dong": {
-                if (stage === "phase1") {
-                    return projection.oral
-                        ? send({ kind: "khoi-dong.timeOutRun" })
-                        : send({ kind: "khoi-dong.beginPhase2" })  // phase 1 complete
-                }
-                // phase 2: commit overrides, then end (endKhoiDong closes the window too)
-                const chains: Record<string, unknown>[] = []
-                for (const [qid, verdicts] of overriddenQs()) {
-                    if (open.some((q) => q.questionId === qid)) chains.push({ kind: "khoi-dong.finalize", questionId: qid, verdicts })
-                }
-                chains.push({ kind: "khoi-dong.endRound" })
-                return void sendChain(chains)
-            }
-            case "giai-ma":
-                return open.length > 0
-                    ? send({ kind: "giai-ma.closeHintWindow" })
-                    : send({ kind: "giai-ma.endRound" })
-            case "but-pha": {
-                if (open.length === 0) return send({ kind: "but-pha.endRound" })
-                // finalize once (engine refuses a second time), then close — server checks UNJUDGED
-                const chains: Record<string, unknown>[] = []
-                if (rows.length > 0 && rows.some((r) => !r.judged)) {
-                    chains.push({ kind: "but-pha.finalize", questionId: open[0].questionId, verdicts: mergedVerdicts(open[0].questionId, rows, overrides) })
-                }
-                chains.push({ kind: "but-pha.closeQuestion" })
-                setBp({ roundId, done: Math.min(4, (bp.roundId === roundId ? bp.done : 0) + 1) })
-                return void sendChain(chains)
-            }
-            default:
-                // ve-dich: the TURN is hetLuot's job — this ends the whole round
-                // (the engine closes any open question with it).
-                return send({ kind: "ve-dich.endRound" })
+        const plan = ketThucPlan({
+            roundId,
+            stage,
+            roundEnded,
+            hasOralRun: Boolean(projection.oral),
+            openIds: open.map((q) => q.questionId),
+            rows,
+            overrides,
+        })
+        if (!roundEnded && roundId === "but-pha" && open.length > 0) {
+            setBp({ roundId, done: Math.min(4, (bp.roundId === roundId ? bp.done : 0) + 1) })
         }
+        if (plan.length > 1) return void sendChain(plan)
+        if (plan.length === 1) return send(plan[0])
     }
 
     // ── rail cards per slide ──────────────────────────────────────────────────

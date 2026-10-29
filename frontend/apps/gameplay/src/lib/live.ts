@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
+import type { BandId, SlideId } from "@shared/deck/player-deck"
 import type { LobbyData } from "@shared/deck/types"
 import { useSocketStream } from "./ws"
 
@@ -217,6 +218,26 @@ export function playerScreenOf(view: LiveView): PlayerScreen {
                 : stage === "phase2" ? "ve-dich-rieng" : "ve-dich-chung"
     }
 }
+
+/**
+ * The player's slide — the MC's locked mapping, from the PLAYER's view:
+ * ve-dich S8/S5 = phase 2, S7/S6 = phase 1; khoi-dong S2 = phase 2.
+ * Pure; table-tested in tests/live.test.ts.
+ */
+export function slideOf(view: Pick<LiveView, "roundId" | "stage" | "open">): SlideId {
+    const { roundId, stage, open } = view
+    if (roundId === "giai-ma") return 3
+    if (roundId === "but-pha") return 4
+    if (roundId === "ve-dich") {
+        const phase2 = stage === "phase2"
+        return open.length > 0 ? (phase2 ? 8 : 7) : phase2 ? 5 : 6
+    }
+    return stage === "phase2" ? 2 : 1
+}
+
+/** The band's slide: the board shares one band (56); the locked question keeps 8. */
+export const bandSlideOf = (slide: SlideId): BandId =>
+    slide === 5 || slide === 6 ? 56 : slide === 8 ? 8 : slide
 
 // ── the lobby ───────────────────────────────────────────────────────────────────
 

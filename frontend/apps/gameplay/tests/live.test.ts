@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { playerScreenOf, type LiveView } from "../src/lib/live"
+import { bandSlideOf, playerScreenOf, slideOf, type LiveView } from "../src/lib/live"
 
 // A view factory: only the fields playerScreenOf reads are varied; everything
 // else arrives as the empty-but-well-formed shape the server would send.
@@ -85,5 +85,31 @@ describe("playerScreenOf — degrading kindly", () => {
         )).toBe("lobby")
         expect(playerScreenOf(view({ roundId: "mystery-round", stage: "pending" }))).toBe("lobby")
         expect(playerScreenOf(view({ roundId: "mystery-round", stage: "phase2" }))).toBe("lobby")
+    })
+})
+
+describe("slideOf — the MC's locked mapping, from the player's view", () => {
+    it("simple rounds follow the phase; giai-ma and but-pha are fixed", () => {
+        expect(slideOf(view({ roundId: "khoi-dong", stage: "phase1" }))).toBe(1)
+        expect(slideOf(view({ roundId: "khoi-dong", stage: "phase2" }))).toBe(2)
+        expect(slideOf(view({ roundId: "giai-ma", stage: "hints" }))).toBe(3)
+        expect(slideOf(view({ roundId: "but-pha", stage: "question" }))).toBe(4)
+    })
+
+    it("ve-dich splits board (6/5) from question (7/8) by phase and openness", () => {
+        expect(slideOf(view({ roundId: "ve-dich", stage: "phase1" }))).toBe(6)
+        expect(slideOf(view({ roundId: "ve-dich", stage: "phase2" }))).toBe(5)
+        expect(slideOf(view({ roundId: "ve-dich", stage: "phase1", open: openWindow("q1") }))).toBe(7)
+        expect(slideOf(view({ roundId: "ve-dich", stage: "phase2", open: openWindow("q1") }))).toBe(8)
+    })
+})
+
+describe("bandSlideOf — which band slot the ActionBar fills", () => {
+    it("the board slides share band 56, the locked question keeps 8, others pass through", () => {
+        expect(bandSlideOf(5)).toBe(56)
+        expect(bandSlideOf(6)).toBe(56)
+        expect(bandSlideOf(8)).toBe(8)
+        expect(bandSlideOf(1)).toBe(1)
+        expect(bandSlideOf(7)).toBe(7)
     })
 })

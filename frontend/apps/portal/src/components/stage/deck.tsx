@@ -22,6 +22,14 @@ export function Box({
         <div
             className={`absolute ${className}`}
             onClick={onClick}
+            role={onClick ? "button" : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            onKeyDown={onClick ? (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    onClick()
+                }
+            } : undefined}
             title={title}
             style={{
                 left: px(x), top: py(y - TOP_SHIFT),

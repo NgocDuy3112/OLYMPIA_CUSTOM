@@ -21,7 +21,7 @@ import { Link } from "react-router-dom"
 import { useCountdown } from "@shared/lib/clock"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
-import { Box, Badges, Gate, MainCard, Rail, type BandId, type PlayerCtx, type SlideId } from "@shared/deck/player-deck"
+import { Box, Badges, Gate, MainCard, Rail, type PlayerCtx } from "@shared/deck/player-deck"
 import { DECK_PAD, ROUND_LABEL, isKnownRound, isWaitingStage, pt } from "@shared/deck/geometry"
 import { KhoiDongChungPlayer } from "@/components/screens/KhoiDongChungPlayer"
 import { KhoiDongRiengPlayer } from "@/components/screens/KhoiDongRiengPlayer"
@@ -31,7 +31,9 @@ import { VeDichChungPlayer } from "@/components/screens/VeDichChungPlayer"
 import { VeDichPickPlayer } from "@/components/screens/VeDichPickPlayer"
 import { VeDichRiengPlayer } from "@/components/screens/VeDichRiengPlayer"
 import {
+    bandSlideOf,
     playerScreenOf,
+    slideOf,
     useLiveAnswer,
     useLiveKeyword,
     useLiveLobby,
@@ -138,17 +140,9 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     const flash = refusalOf(answer.error) ?? refusalOf(keywordSubmit.error) ?? refusalOf(cmd.error)
     const nameOf = (id: string) => v.table.find((row) => row.id === id)?.displayName ?? "Thí sinh"
 
-    // slide derivation — the MC's locked mapping, from the PLAYER's view:
-    // ve-dich S8/S5 = phase 2, S7/S6 = phase 1; khoi-dong S2 = phase 2.
-    let slide: SlideId
-    if (roundId === "giai-ma") slide = 3
-    else if (roundId === "but-pha") slide = 4
-    else if (roundId === "ve-dich") {
-        const phase2 = stage === "phase2"
-        slide = open.length > 0 ? (phase2 ? 8 : 7) : phase2 ? 5 : 6
-    } else slide = stage === "phase2" ? 2 : 1
-
-    const bandSlide: BandId = slide === 5 || slide === 6 ? 56 : slide === 8 ? 8 : slide
+    // slide + band derivation — pure rules in lib/live (table-tested there).
+    const slide = slideOf(v)
+    const bandSlide = bandSlideOf(slide)
 
     // S2: which of the batch is on screen (derived: drop a qid that closed)
     const s2Idx = Math.min(view2.idx, Math.max(0, open.length - 1))
