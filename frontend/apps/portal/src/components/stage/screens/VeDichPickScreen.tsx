@@ -32,8 +32,8 @@ export function VeDichPickScreen({ ctx }: { ctx: DeckCtx }) {
             <MainCard>
                 <CardHeader left={<Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} onRoundClick={openRounds} />} />
                 <div
-                    className="grid min-h-0 flex-1 content-start gap-[0.9cqw]"
-                    style={{ gridTemplateColumns: `repeat(${Math.max(1, cols.length)}, minmax(0, 1fr))` }}
+                    className="grid min-h-0 flex-1 content-start justify-start gap-[0.9cqw]"
+                    style={{ gridTemplateColumns: `repeat(${Math.max(1, cols.length)}, minmax(0, 10cqw))` }}
                 >
                     {cells.map((q) => {
                         const where = boardMap.get(q._id) ?? "taken"

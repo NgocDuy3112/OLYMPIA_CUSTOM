@@ -8,6 +8,9 @@ const dir = fileURLToPath(new URL(".", import.meta.url))
 
 export default defineConfig({
     root: dir,
+    // Per-app optimizer cache: the portal and gameplay dev servers must never
+    // fight over one .vite dir (concurrent dev = stale-hash 504 loops).
+    cacheDir: path.resolve(dir, "node_modules/.vite"),
     publicDir: path.resolve(dir, "../../public"),
     plugins: [react(), tailwindcss()],
     resolve: {

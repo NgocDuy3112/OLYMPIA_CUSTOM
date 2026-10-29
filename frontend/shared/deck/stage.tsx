@@ -24,7 +24,7 @@ export function StageLayout({ rail, children }: { rail?: ReactNode; children: Re
 /** THE content card — fills the column, everything inside flows top-down. */
 export function MainCard({ className = "", children }: { className?: string; children?: ReactNode }) {
     return (
-        <section className={`flex min-h-0 flex-1 flex-col gap-[1.2cqw] rounded-2xl bg-card p-[1.6cqw] shadow-md ring-1 ring-border ${className}`}>
+        <section className={`flex min-h-0 flex-1 flex-col gap-[1.2cqw] overflow-hidden rounded-2xl bg-card p-[1.6cqw] shadow-md ring-1 ring-border ${className}`}>
             {children}
         </section>
     )
