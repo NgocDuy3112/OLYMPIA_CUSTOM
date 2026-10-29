@@ -13,7 +13,6 @@ const draftRow = {
     id: "q1",
     kind: "TEXT",
     questionText: "Sự kiện nào diễn ra vào cuối tháng 4 năm 1975?",
-    tag: "XHPL",
     status: "DRAFT",
     timeLimit: null,
     payload: {
@@ -30,21 +29,20 @@ function stubBank() {
         "GET /portal/auth/me": {
             body: { id: "u1", username: "ada", displayName: "Ada", role: "ADMIN", emailVerified: true, totpEnabled: true, avatarUrl: null },
         },
-        "GET /portal/questions?limit=20&offset=0": list([draftRow]),
+        "GET /portal/questions?limit=20&offset=0&kind=TEXT": list([draftRow]),
         "POST /portal/questions": { body: { id: "q2" } },
         "PATCH /portal/questions/q1/status": { body: { ...draftRow, status: "PENDING" } },
     })
 }
 
 describe("QuestionsPage", () => {
-    it("lists the bank with kind, tag, status and the draft's actions", async () => {
+    it("lists the bank with kind, status and the draft's actions", async () => {
         stubBank()
         renderWithProviders(<QuestionsPage />)
 
         expect(await screen.findByText(draftRow.questionText)).toBeInTheDocument()
         const row = screen.getByText(draftRow.questionText).closest("tr")!
         expect(within(row).getByText("TEXT")).toBeInTheDocument()
-        expect(within(row).getByText("XHPL")).toBeInTheDocument()
         expect(within(row).getByText("Draft")).toBeInTheDocument()
         expect(within(row).getByRole("button", { name: /Submit/ })).toBeInTheDocument()
         expect(within(row).getByRole("button", { name: /Archive/ })).toBeInTheDocument()
@@ -62,7 +60,6 @@ describe("QuestionsPage", () => {
         const dialog = await screen.findByRole("dialog")
 
         await user.type(within(dialog).getByLabelText("Question"), "Thủ đô của Việt Nam là?")
-        await user.type(within(dialog).getByLabelText("Tag"), "XHPL")
         await user.type(within(dialog).getByLabelText(/Accepted answers/), "Hà Nội\nHa Noi")
 
         await user.click(within(dialog).getByRole("button", { name: "Save" }))
@@ -75,7 +72,7 @@ describe("QuestionsPage", () => {
         expect(body).toEqual({
             kind: "TEXT",
             questionText: "Thủ đô của Việt Nam là?",
-            tag: "XHPL",
+            domain: null,
             payload: {
                 acceptedAnswers: ["Hà Nội", "Ha Noi"],
                 normalize: { caseSensitive: false, trim: true, stripAccents: true },

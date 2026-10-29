@@ -36,7 +36,6 @@ function defaultScoring(template: ScoringRule["template"]): ScoringRule {
                 template: "outcome_multipliers",
                 correct: 1,
                 incorrect: -0.5,
-                faceValues: { THTH: 20, TNSS: 30, XHPL: 40, VHNT: 40, TTGT: 50, KTTH: 50 },
                 powers: {
                     hope: { correct: 1.5, incorrect: -1 },
                     shield: { correct: 0.5, incorrect: 0 }
@@ -342,26 +341,6 @@ export function TournamentRulesDialog({
                                                                 }
                                                             } as ScoringRule)
                                                         }
-                                                    />
-                                                </label>
-                                                <label className="flex items-center gap-2">
-                                                    <span className="text-xs text-muted-foreground">face values</span>
-                                                    <Input
-                                                        className="h-8 w-72 font-mono text-xs"
-                                                        value={JSON.stringify(main.faceValues ?? {})}
-                                                        onChange={(event) => {
-                                                            try {
-                                                                const faceValues = JSON.parse(event.target.value)
-                                                                if (faceValues && typeof faceValues === "object") {
-                                                                    setScoring(round.id, {
-                                                                        ...scoring,
-                                                                        faceValues
-                                                                    } as ScoringRule)
-                                                                }
-                                                            } catch {
-                                                                // Half-typed JSON: leave the last good value.
-                                                            }
-                                                        }}
                                                     />
                                                 </label>
                                             </>

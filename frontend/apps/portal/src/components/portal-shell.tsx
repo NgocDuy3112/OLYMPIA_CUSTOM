@@ -5,10 +5,7 @@ import { useLogout } from "@/lib/auth"
 import { useMe } from "@/lib/session"
 import { useMatches } from "@/lib/tournament"
 
-// The sidebar lists GLOBAL features; tournament-scoped screens (matches,
-// standings, stages, roster…) stay inside a tournament's own pages — the
-// sidebar never offers a second way to the same place. Operators is admin-only:
-// the nav mirrors what the role may actually open (its API is ADMIN-gated).
+
 const NAV = [
     {
         to: "/",

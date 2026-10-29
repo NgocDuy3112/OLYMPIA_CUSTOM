@@ -13,7 +13,7 @@ const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     questionText: "text",
     timeLimit: null,
     points: 10,
-    tag: "THTH",
+    domain: "THTH",
     payload: {},
     ...over,
 })

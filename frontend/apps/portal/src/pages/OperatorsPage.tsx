@@ -16,14 +16,7 @@ import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
 
-// Who may run the show: staff accounts (operators + admins). Creating one
-// returns an invite token shown EXACTLY ONCE — the invitee exchanges it for a
-// password via POST /portal/invites/accept. There is no invite-accept UI yet,
-// so the dialog shows the ready-to-send request itself instead of pretending a
-// link exists.
-//
-//   GET  /portal/operators        → {items}          (ADMIN)
-//   POST /portal/operators        → {operatorId, username, inviteToken}  (ADMIN)
+
 
 interface Operator {
     id: string
@@ -80,8 +73,8 @@ function InviteOperatorDialog({ open, onClose }: { open: boolean; onClose: () =>
     const reason = !username.trim()
         ? "A username is required"
         : !usernameOk
-          ? "3–50 chars: letters, digits, dot, dash, underscore"
-          : null
+            ? "3–50 chars: letters, digits, dot, dash, underscore"
+            : null
 
     const request = inviteToken
         ? `POST /portal/invites/accept\n{"token": "${inviteToken}", "password": "<their chosen password>"}`
@@ -201,7 +194,6 @@ export function OperatorsPage() {
         <Page>
             <PageHeader
                 title="Operators"
-                description="Who may run the show: staff accounts and their invite state."
                 actions={
                     <Button onClick={() => setInviting(true)}>
                         <UserPlus className="size-4" aria-hidden /> New operator

@@ -35,7 +35,6 @@ export type ScoringRule =
         template: "outcome_multipliers"
         correct: number
         incorrect: number
-        faceValues?: Record<string, number>
         powers: {
             hope: { correct: number; incorrect: number }
             shield: { correct: number; incorrect: number }
@@ -43,7 +42,7 @@ export type ScoringRule =
     }
 
 export interface RoundConfig {
-    allowedKinds: Array<"MC" | "TEXT" | "KEYWORD">
+    allowedKinds: Array<"MC" | "TEXT" | "KEYWORD" | "HINT">
     scoring: ScoringRule
     turns: TurnConfig[]
 }
@@ -75,7 +74,7 @@ export interface MatchSummary {
     label: string
     status: "UPCOMING" | "LIVE" | "FINISHED"
     scheduledAt: string
-    /** The player's door-in code (STANDARD only) — staff display, /join entry. */
+    /** The player's door-in code (STANDARD only) — staff display; players enter it on the gameplay app's /join. */
     joinCode?: string | null
     players: MatchSeat[]
     questions: unknown[]
@@ -145,6 +144,13 @@ export function useMatches(tournamentId: string) {
     })
 }
 
+export interface AssemblyEntry {
+    roundId: string
+    turnId: string
+    sourceId: string
+    position?: number
+}
+
 export function useCreateMatch(tournamentId: string) {
     const queryClient = useQueryClient()
 
@@ -154,6 +160,7 @@ export function useCreateMatch(tournamentId: string) {
             stageId: string
             scheduledAt: string
             playerIds: string[]
+            questions?: AssemblyEntry[]
         }) =>
             api<MatchSummary>(`/portal/tournaments/${tournamentId}/matches`, {
                 method: "POST",
@@ -167,6 +174,7 @@ export function useCreateMatch(tournamentId: string) {
                         userId,
                         seed: seat + 1,
                     })),
+                    questions: input.questions,
                 }),
             }),
         onSuccess: () => {
@@ -239,9 +247,8 @@ export function useRecomputeStandings(tournamentId: string) {
 
 export interface BankQuestion {
     id: string
-    kind: "MC" | "TEXT" | "KEYWORD"
+    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
     questionText: string
-    tag: string
     status: string
 }
 

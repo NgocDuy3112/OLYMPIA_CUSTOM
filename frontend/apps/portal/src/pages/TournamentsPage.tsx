@@ -56,7 +56,6 @@ export function TournamentsPage() {
         <Page>
             <PageHeader
                 title="Tournaments"
-                description={data ? `${total} tournament${total === 1 ? "" : "s"}` : undefined}
                 actions={
                     <Button size="sm" onClick={() => setCreating(true)}>
                         New tournament

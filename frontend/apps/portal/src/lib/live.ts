@@ -9,14 +9,15 @@ import { api } from "@shared/lib/api"
 
 export interface ConsoleQuestion {
     _id: string
-    kind: "MC" | "TEXT" | "KEYWORD"
+    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
     roundId: string
     turnId: string
     position: number
     questionText: string
     timeLimit: number | null
     points: number
-    tag: string
+    // Board category: copied from the question's domain at assembly.
+    domain?: string | null
     // The JUDGE sees everything: options and the correct set are both here on
     // purpose — this is the staff route's own copy of the frozen set.
     payload: { options?: Array<{ id: string; text: string }>; [key: string]: unknown }
@@ -29,7 +30,7 @@ export interface SanitizedQuestion {
     questionText: string
     media: { url: string; type: string } | null
     timeLimit: number | null
-    tag: string
+    // No tag field: the sanitizer never sees one (the bank has none).
     payload: { options?: Array<{ id: string; text: string }> }
 }
 
@@ -93,8 +94,8 @@ export interface LobbyData {
     status: "UPCOMING" | "LIVE" | "FINISHED"
     /** The round waiting to start (the live record's, else the match's first). */
     roundId: string | null
-    /** The match's rounds in tournament order — the controller's start buttons. */
-    rounds: Array<{ id: string; name: string }>
+    /** The match's rounds in tournament order — the controller's open/start buttons. */
+    rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended" }>
     table: Array<{ id: string; displayName: string; points: number; rank: number }>
     /** User ids with a live socket right now — the lobby's connected dots. */
     connected: string[]
@@ -171,10 +172,12 @@ export function useLiveAction(tournamentId: string, matchId: string) {
 export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
     return useQuery({
         queryKey: ["question-answers", matchId, questionId],
+        // The route wraps: { items: [...] } — unwrap here or `rows.find` gets an
+        // object and the console unmounts (blank stage page).
         queryFn: () =>
-            api<QuestionAnswerRow[]>(
+            api<{ items: QuestionAnswerRow[] }>(
                 `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
-            ),
+            ).then((body) => body.items),
         enabled: Boolean(questionId),
         retry: false,
     })

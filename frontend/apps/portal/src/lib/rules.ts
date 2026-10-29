@@ -3,7 +3,7 @@ import type { RoundConfig, TournamentDetail } from "@/lib/tournament"
 // The shape of a round's rules, and how to read them. Pure helpers, shared by the
 // read surface and the edit dialog.
 
-const KINDS = ["MC", "TEXT", "KEYWORD"] as const
+const KINDS = ["MC", "TEXT", "KEYWORD", "HINT"] as const
 export type Kind = (typeof KINDS)[number]
 export const KINDS_LIST = KINDS
 

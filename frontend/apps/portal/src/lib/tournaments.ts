@@ -71,8 +71,6 @@ export interface Tournament {
     slug: string
     visibility: "PUBLIC" | "PRIVATE"
     ownerId: string
-    // The tags decide which questions of the global bank this tournament may assemble.
-    tags: string[]
     current: boolean
     stages: Stage[]
     rounds: TournamentRound[]
@@ -112,7 +110,6 @@ export function useTournaments({
 
 export interface TournamentCreate {
     name: string
-    tags?: string[]
     visibility?: "PUBLIC" | "PRIVATE"
     current?: boolean
 }

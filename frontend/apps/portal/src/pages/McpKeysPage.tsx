@@ -16,14 +16,6 @@ import { Input } from "@shared/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@shared/ui/table"
 import { EmptyState, ErrorPanel, ListSkeleton, Page, PageHeader } from "@/components/page"
 
-// MCP access keys — issuing a key shows its raw token EXACTLY ONCE (the server
-// keeps only a hash; there is no second look). Revoking is one-way, so it gets
-// its own confirm dialog (an operation on a dialog, per ui-patterns.md), and the
-// table reports the truth: active / revoked / expired.
-//
-//   POST   /portal/mcp-keys        {label, scopes?, expiresAt?} → {token, key}
-//   GET    /portal/mcp-keys        → {items, total, limit, offset}
-//   DELETE /portal/mcp-keys/:id    → 204 (revoke, idempotent)
 
 type Scope = "READ" | "WRITE" | "ANNOUNCE"
 const ALL_SCOPES: Scope[] = ["READ", "WRITE", "ANNOUNCE"]
@@ -271,7 +263,6 @@ export function McpKeysPage() {
         <Page>
             <PageHeader
                 title="MCP keys"
-                description="Access keys for MCP agents — issued once, revoked forever."
                 actions={
                     <Button onClick={() => setIssuing(true)}>
                         <Plus className="size-4" aria-hidden /> New key
