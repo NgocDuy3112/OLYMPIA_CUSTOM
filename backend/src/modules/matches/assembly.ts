@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { and, inArray, notInArray, sql } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { questionBank, tournaments } from "../../db/schema/index.js";
 import type { MatchQuestion, RoundConfig, ScoringRule } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { assemblyEligibility } from "../questions/service.js";
-import type { AssemblyEntry, AutoPick } from "./schemas.js";
+import type { AssemblyEntry } from "./schemas.js";
 
 type TournamentRow = typeof tournaments.$inferSelect;
 type BankRow = typeof questionBank.$inferSelect;
-type QuestionKind = "MC" | "TEXT" | "KEYWORD";
+type QuestionKind = "MC" | "TEXT" | "KEYWORD" | "HINT";
 
 
 // §5: points are a per-question base. Templates that ignore them (the ve-dich
@@ -85,7 +85,7 @@ function copyOf(params: {
         media: source.media ?? null,
         timeLimit: source.timeLimit,
         points,
-        tag: source.tag,
+        domain: source.domain ?? null,
         payload: source.payload,
         sourceId: source.id
     };
@@ -96,9 +96,8 @@ export async function buildQuestionCopies(params: {
     tournament: TournamentRow;
     roundConfigs: Record<string, RoundConfig>;
     entries: AssemblyEntry[];
-    autoPick: AutoPick[];
 }): Promise<MatchQuestion[]> {
-    const { tournament, roundConfigs, entries, autoPick } = params;
+    const { tournament, roundConfigs, entries } = params;
 
     const copies: MatchQuestion[] = [];
     const nextPosition = new Map<string, number>();
@@ -141,12 +140,6 @@ export async function buildQuestionCopies(params: {
                     `${where}: question ${entry.sourceId} is ${source.status}, not PUBLISHED`
                 );
             }
-            if (!tournament.tags.includes(source.tag)) {
-                throw new MatchError(
-                    "VALIDATION",
-                    `${where}: question ${entry.sourceId} is not tagged for this tournament`
-                );
-            }
             if (!config.allowedKinds.includes(source.kind as QuestionKind)) {
                 throw new MatchError(
                     "VALIDATION",
@@ -163,53 +156,6 @@ export async function buildQuestionCopies(params: {
                 position: positionFor(entry.roundId, entry.turnId, entry.position),
                 mode,
                 points: entry.points ?? basePoints(config.scoring)
-            }));
-        }
-    }
-
-    for (const [index, request] of autoPick.entries()) {
-        const where = `autoPick[${index}]`;
-        const { config, mode } = requireTurn({
-            tournament,
-            roundConfigs,
-            roundId: request.roundId,
-            turnId: request.turnId,
-            where
-        });
-
-        // Same visibility rule as the paged read: one place, two consumers.
-        const conditions = [
-            ...assemblyEligibility(tournament.tags),
-            inArray(questionBank.kind, config.allowedKinds as QuestionKind[])
-        ];
-
-        if (usedSourceIds.size > 0) {
-            conditions.push(notInArray(questionBank.id, [...usedSourceIds]));
-        }
-
-        const picked = await db
-            .select()
-            .from(questionBank)
-            .where(and(...conditions))
-            .orderBy(sql`random()`)
-            .limit(request.count);
-
-        if (picked.length < request.count) {
-            throw new MatchError(
-                "VALIDATION",
-                `${where}: only ${picked.length} eligible question(s) for round "${request.roundId}" turn "${request.turnId}", ${request.count} requested`
-            );
-        }
-
-        for (const source of picked) {
-            usedSourceIds.add(source.id);
-            copies.push(copyOf({
-                source,
-                roundId: request.roundId,
-                turnId: request.turnId,
-                position: positionFor(request.roundId, request.turnId),
-                mode,
-                points: basePoints(config.scoring)
             }));
         }
     }

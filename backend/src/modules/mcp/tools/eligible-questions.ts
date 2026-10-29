@@ -6,13 +6,12 @@ import { audit, mcpAuditDetails } from "../../audit/service.js";
 import { actorFrom, requireScope } from "../actor.js";
 import { assertTournamentVisible } from "../access.js";
 import { runTool } from "../result.js";
-import { requireTournament } from "../../tournaments/service.js";
 import { toAgentQuestion } from "../map.js";
 
 
 export const eligibleQuestionsInput = z.object({
     tournamentId: z.uuid(),
-    kind: z.enum(["MC", "TEXT", "KEYWORD"]).optional(),
+    kind: z.enum(["MC", "TEXT", "KEYWORD", "HINT"]).optional(),
     search: z.string().min(1).max(200).optional(),
     limit: z.number().int().min(1).max(100).default(20),
     offset: z.number().int().min(0).default(0)
@@ -25,7 +24,7 @@ export function registerEligibleQuestions(server: McpServer): void {
         {
             title: "Eligible questions",
             description:
-                "Browse what a match may draw from: the PUBLISHED questions tagged for this tournament. Use this for assembly. Unlike list_questions, ARCHIVED is excluded.",
+                "Browse the pool a match may draw from: the PUBLISHED questions (narrow with `kind`). Use this for assembly. Unlike list_questions, ARCHIVED is excluded.",
             inputSchema: eligibleQuestionsInput,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false }
         },
@@ -34,10 +33,8 @@ export function registerEligibleQuestions(server: McpServer): void {
                 const actor = actorFrom(ctx.http?.authInfo);
                 requireScope(actor, "READ");
                 await assertTournamentVisible(args.tournamentId, actor.role);
-                const tournament = await requireTournament(args.tournamentId);
 
                 const page = await listForAssembly(
-                    tournament.tags,
                     {
                         kinds: args.kind ? [args.kind as QuestionKindValue] : undefined,
                         search: args.search

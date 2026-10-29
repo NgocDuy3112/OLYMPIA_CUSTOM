@@ -5,7 +5,6 @@ export interface AgentQuestion {
     id: string;
     kind: string;
     questionText: string;
-    tag: string;
     status: string;
     usable: boolean;
     media: unknown;
@@ -21,7 +20,6 @@ export function toAgentQuestion(row: QuestionRow): AgentQuestion {
         id: row.id,
         kind: row.kind,
         questionText: row.questionText,
-        tag: row.tag,
         status: row.status,
         usable: row.status === "PUBLISHED",
         media: row.media,

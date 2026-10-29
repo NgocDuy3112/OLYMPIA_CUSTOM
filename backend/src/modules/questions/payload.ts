@@ -1,7 +1,7 @@
 import type { QuestionPayload } from "../../game/contracts/index.js";
 import { QuestionError } from "./errors.js";
 
-export type QuestionKindValue = "MC" | "TEXT" | "KEYWORD";
+export type QuestionKindValue = "MC" | "TEXT" | "KEYWORD" | "HINT";
 
 function fail(message: string, details: string[] = []): never {
     throw new QuestionError("VALIDATION", message, details);
@@ -34,7 +34,9 @@ export function assertPayloadForKind(kind: QuestionKindValue, payload: QuestionP
         return;
     }
 
-    if (kind === "TEXT") {
+    // HINT shares TEXT's shape on purpose: a hint is a typed answer with the
+    // same normalization rules — only its role in a match differs.
+    if (kind === "TEXT" || kind === "HINT") {
         if (!Array.isArray(p.acceptedAnswers)) {
             fail("TEXT questions require payload.acceptedAnswers");
         }

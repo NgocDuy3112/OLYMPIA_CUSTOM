@@ -1,5 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
-import { McKind, TextKind, KeywordKind, OralMode, TextMode } from "./primitives.js";
+import { McKind, TextKind, KeywordKind, HintKind, OralMode, TextMode } from "./primitives.js";
 
 
 export const ScoringRuleSchema = Type.Union([
@@ -29,9 +29,6 @@ export const ScoringRuleSchema = Type.Union([
         template: Type.Literal("outcome_multipliers"),
         correct: Type.Number(),
         incorrect: Type.Number(),
-        // The face value of a question, by its domain (the question's tag). A domain
-        // that is not listed uses `correct`'s counterpart: the base face value.
-        faceValues: Type.Optional(Type.Record(Type.String(), Type.Integer())),
         powers: Type.Object({
             hope: Type.Object({ correct: Type.Number(), incorrect: Type.Number() }),
             shield: Type.Object({ correct: Type.Number(), incorrect: Type.Number() })
@@ -60,7 +57,7 @@ export const TurnConfigSchema = Type.Object({
 export type TurnConfig = Static<typeof TurnConfigSchema>;
 
 export const RoundConfigSchema = Type.Object({
-    allowedKinds: Type.Array(Type.Union([McKind, TextKind, KeywordKind])),
+    allowedKinds: Type.Array(Type.Union([McKind, TextKind, KeywordKind, HintKind])),
     scoring: ScoringRuleSchema,
     turns: Type.Array(TurnConfigSchema)
 });

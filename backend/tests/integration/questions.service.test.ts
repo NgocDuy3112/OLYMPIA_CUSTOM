@@ -27,7 +27,7 @@ const page = { limit: 50, offset: 0 };
 const mc = (text = "2 + 2?"): CreateQuestionInput => ({
     kind: "MC",
     questionText: text,
-    tag: "THTH",
+    
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
@@ -76,16 +76,7 @@ describe("createQuestion", () => {
         expect(row.createdBy).toBe(ownerId);
     });
 
-    it("accepts any tag in the global bank", async () => {
-        const row = await createQuestion({ actorId: ownerId }, { ...mc("global"), tag: "ANYTHING" });
 
-        expect(row.tag).toBe("ANYTHING");
-    });
-
-    it("accepts any tag in the global bank", async () => {
-        const row = await createQuestion({ actorId: ownerId }, { ...mc("any tag"), tag: "ANYTHING" });
-        expect(row.tag).toBe("ANYTHING");
-    });
 
     it("rejects a payload that does not match the kind", async () => {
         await expect(
@@ -192,7 +183,7 @@ describe("question search (tsvector + unaccent)", () => {
     const mcText = (text: string): CreateQuestionInput => ({
         kind: "MC",
         questionText: text,
-        tag: "THTH",
+        
         payload: { options: [{ id: "A", text: "4" }], correctSet: ["A"] }
     });
 
@@ -232,7 +223,7 @@ describe("question search (tsvector + unaccent)", () => {
             {
                 kind: "TEXT",
                 questionText: "Tìm kiếm chung TEXT",
-                tag: "THTH",
+                
                 payload: {
                     acceptedAnswers: ["x"],
                     normalize: { caseSensitive: false, trim: true, stripAccents: true }
@@ -273,7 +264,7 @@ describe("question search (tsvector + unaccent)", () => {
         await publish(own.id);
         await publish(global.id);
 
-        const res = await listForAssembly(["THTH"], { search: "eligible search" }, page);
+        const res = await listForAssembly({ search: "eligible search" }, page);
         const ids = res.items.map((q) => q.id);
 
         expect(ids).toContain(own.id);
@@ -284,7 +275,7 @@ describe("question search (tsvector + unaccent)", () => {
 
 describe("listQuestions — the bank", () => {
     it("lists every question of the global bank", async () => {
-        await createQuestion({ actorId: ownerId }, { ...mc("one"), tag: "GLOBAL" });
+        await createQuestion({ actorId: ownerId }, { ...mc("one") });
         await createQuestion({ actorId: ownerId }, mc("two"));
 
         const every = await listQuestions({}, page);
@@ -294,8 +285,8 @@ describe("listQuestions — the bank", () => {
 
 
 describe("listForAssembly — the visibility choke point", () => {
-    it("returns the PUBLISHED questions of the tournament's tags only", async () => {
-        const globalPublished = await createQuestion({ actorId: ownerId }, { ...mc("asm global"), tag: "THTH" });
+    it("returns every PUBLISHED question — the bank is global", async () => {
+        const globalPublished = await createQuestion({ actorId: ownerId }, { ...mc("asm global") });
         await publish(globalPublished.id);
 
         const ownPublished = await createQuestion({ actorId: ownerId }, mc("asm own"));
@@ -307,18 +298,18 @@ describe("listForAssembly — the visibility choke point", () => {
         const ownArchived = await createQuestion({ actorId: ownerId }, mc("asm archived"));
         await transitionQuestion(ownArchived.id, "ARCHIVED", "OPERATOR");
 
-        // A question of another tag is not this tournament's to assemble.
-        const foreignPublished = await createQuestion({ actorId: otherId }, { ...mc("asm foreign"), tag: "OTHER" });
+        // Every published question is eligible, whoever authored it.
+        const foreignPublished = await createQuestion({ actorId: otherId }, { ...mc("asm foreign") });
         await publish(foreignPublished.id);
 
-        const ids = (await listForAssembly(["THTH"], {}, { limit: 50, offset: 0 })).items.map((q) => q.id);
+        const ids = (await listForAssembly({}, { limit: 50, offset: 0 })).items.map((q) => q.id);
 
         expect(ids).toContain(globalPublished.id);
         expect(ids).toContain(ownPublished.id);
         expect(ids).not.toContain(ownDraft.id);
         expect(ids).not.toContain(ownPending.id);
         expect(ids).not.toContain(ownArchived.id);
-        expect(ids).not.toContain(foreignPublished.id);
+        expect(ids).toContain(foreignPublished.id);
     });
 
     it("is paged and can filter by kind", async () => {
@@ -328,7 +319,7 @@ describe("listForAssembly — the visibility choke point", () => {
                 {
                     kind: "TEXT",
                     questionText: name,
-                    tag: "THTH",
+                    
                     payload: {
                         acceptedAnswers: ["x"],
                         normalize: { caseSensitive: false, trim: true, stripAccents: true }
@@ -341,7 +332,7 @@ describe("listForAssembly — the visibility choke point", () => {
         await publish(first.id);
         await publish(second.id);
 
-        const page = await listForAssembly(["THTH"], { kinds: ["TEXT"] }, { limit: 1, offset: 0 });
+        const page = await listForAssembly({ kinds: ["TEXT"] }, { limit: 1, offset: 0 });
 
         expect(Object.keys(page).sort()).toEqual(["items", "limit", "offset", "total"]);
         expect(page.items).toHaveLength(1);

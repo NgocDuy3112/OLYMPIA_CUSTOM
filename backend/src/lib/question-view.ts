@@ -12,7 +12,6 @@ export interface SanitizedQuestion {
     questionText: string;
     media: MatchQuestion["media"];
     timeLimit: number | null;
-    tag: string;
     // MC carries its options; KEYWORD carries the PUBLIC code length (delta D3:
     // "MẬT MÃ GỒM CÓ 25 CHỮ CÁI" is shown on every screen — the letters never
     // are); every other kind arrives as {}. The correct set is never part of this shape.
@@ -30,7 +29,6 @@ export function sanitizeQuestion(question: MatchQuestion): SanitizedQuestion {
         questionText: question.questionText,
         media: question.media,
         timeLimit: question.timeLimit,
-        tag: question.tag,
         payload: question.kind === "MC"
             ? { options: (question.payload as { options: Array<{ id: string; text: string }> }).options }
             : question.kind === "KEYWORD" &&

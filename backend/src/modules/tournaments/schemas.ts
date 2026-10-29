@@ -12,8 +12,6 @@ import { TournamentError } from "./errors.js";
 
 export const CreateTournamentInput = Type.Object({
     name: Type.String({ minLength: 1 }),
-    // The tags decide which questions of the global bank this tournament may assemble.
-    tags: Type.Optional(Type.Array(Type.String({ minLength: 1 }))),
     visibility: Type.Optional(Type.Union([Type.Literal("PUBLIC"), Type.Literal("PRIVATE")])),
     stages: Type.Optional(Type.Array(StageSchema)),
     rounds: Type.Optional(Type.Array(TournamentRoundSchema)),

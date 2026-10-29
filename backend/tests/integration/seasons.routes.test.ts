@@ -20,7 +20,7 @@ const portalCookie = (userId: string, role: "ADMIN" | "OPERATOR" | "PLAYER") =>
 
 const validTournament = (name = "Tournament 1"): CreateTournamentInput => ({
     name,
-    tags: ["THTH"],
+    
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: {
         competitorsPerMatch: 4,
@@ -99,7 +99,6 @@ describe("POST /portal/tournaments — create", () => {
         expect(body.slug).toBe("tournament-one");
         expect(body.ownerId).toBe(ownerId);
         expect(body.visibility).toBe("PUBLIC");
-        expect(body.tags).toEqual(["THTH"]);
         expect(body.current).toBe(false);
         expect(body.deletedAt).toBeNull();
     });

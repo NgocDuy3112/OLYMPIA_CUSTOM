@@ -8,14 +8,19 @@ export interface LiveRecord<S> {
     version: number;
     roundId: string;
     state: S;
+    /** Rounds the controller has LEFT, kept per round — any round can be re-opened. */
+    archive?: Record<string, S>;
 }
 
 // What a transition produces: the next state, the facts to append alongside it, and
 // optionally a new round id (round advancement). Omitting roundId keeps the current one.
+// `archive` is the full per-round map AFTER the switch — set it when the transition
+// leaves a round so its state is preserved for a later re-visit.
 export interface Transition<S> {
     state: S;
     facts: LiveFact[];
     roundId?: string;
+    archive?: Record<string, S>;
 }
 
 // The transaction handle. Facts and answers are read and written through it, so a
@@ -63,11 +68,16 @@ export async function mutateLive<S>(
 ): Promise<LiveRecord<S>> {
     return store.transact(async (tx) => {
         const current = await tx.load();
-        const { state, facts, roundId } = await transition(current, tx);
+        const { state, facts, roundId, archive } = await transition(current, tx);
         const next: LiveRecord<S> = {
             version: nextVersion(current.version),
             roundId: roundId ?? current.roundId,
-            state
+            state,
+            ...(archive !== undefined
+                ? { archive }
+                : current.archive !== undefined
+                  ? { archive: current.archive }
+                  : {})
         };
         await tx.save(next);
         if (facts.length > 0) await tx.recordFacts(facts);
@@ -83,11 +93,16 @@ export async function applyLiveAction<S>(
         const current = await tx.load();
         assertVersion(action.expectedVersion, current.version);
 
-        const { state, facts, roundId } = await action.transition(current, tx);
+        const { state, facts, roundId, archive } = await action.transition(current, tx);
         const next: LiveRecord<S> = {
             version: nextVersion(current.version),
             roundId: roundId ?? current.roundId,
-            state
+            state,
+            ...(archive !== undefined
+                ? { archive }
+                : current.archive !== undefined
+                  ? { archive: current.archive }
+                  : {})
         };
         await tx.save(next);
         if (facts.length > 0) await tx.recordFacts(facts);

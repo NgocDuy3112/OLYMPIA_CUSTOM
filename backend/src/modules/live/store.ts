@@ -33,7 +33,8 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                         return {
                             version: row.version,
                             roundId: row.roundId,
-                            state: row.state as unknown as S
+                            state: row.state as unknown as S,
+                            archive: (row.archive ?? {}) as Record<string, S>
                         };
                     },
                     async save(next: LiveRecord<S>): Promise<void> {
@@ -43,6 +44,9 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                                 version: next.version,
                                 roundId: next.roundId,
                                 state: next.state as Record<string, unknown>,
+                                ...(next.archive !== undefined
+                                    ? { archive: next.archive as Record<string, Record<string, unknown>> }
+                                    : {}),
                                 updatedAt: new Date()
                             })
                             .where(eq(matchLive.matchId, matchId));
@@ -278,12 +282,15 @@ export async function readLive(matchId: string): Promise<{
     version: number;
     roundId: string;
     state: Record<string, unknown>;
+    archive: Record<string, Record<string, unknown>>;
 } | null> {
     const [row] = await db
-        .select({ version: matchLive.version, roundId: matchLive.roundId, state: matchLive.state })
+        .select({ version: matchLive.version, roundId: matchLive.roundId, state: matchLive.state, archive: matchLive.archive })
         .from(matchLive)
         .where(eq(matchLive.matchId, matchId))
         .limit(1);
-    return row ? { version: row.version, roundId: row.roundId, state: row.state } : null;
+    return row
+        ? { version: row.version, roundId: row.roundId, state: row.state, archive: row.archive ?? {} }
+        : null;
 }
 

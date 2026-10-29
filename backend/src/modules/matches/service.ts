@@ -14,7 +14,7 @@ import {
 import { pageResult, type Page, type PageResult } from "../../lib/pagination.js";
 import { nextRoundId, orderedMatchRounds } from "./rounds.js";
 import { buildMatchResults } from "./scoring.js";
-import { buildStageInputs, tournamentRoundConfigs } from "./stage-inputs.js";
+import { tournamentRoundConfigs } from "./stage-inputs.js";
 import { recomputeStandings } from "../standings/service.js";
 import { checkMatchAgainstFormat } from "../bracket/service.js";
 
@@ -77,7 +77,6 @@ async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
                 roundId: question?.roundId ?? "unknown",
                 questionId: r.questionId,
                 userId: r.userId,
-                tag: question?.tag ?? null,
                 basePoints: question?.points ?? null,
                 answered: true,
                 correct: r.verdict === "CORRECT",
@@ -251,21 +250,15 @@ export async function createMatch(
         });
     }
 
-    // The questions come from the rulebook, when it declares any. A rulebook that asks
-    // for no questions leaves the match empty: the staff assemble it later.
-    let entries = input.questions ?? [];
-    let autoPick = input.autoPick ?? [];
-    const declaresQuestions = Object.values(roundConfigs).some((config) =>
-        config.turns.some((turn) => (turn.questionCount ?? 0) > 0));
-    if (entries.length === 0 && autoPick.length === 0 && declaresQuestions) {
-        entries = (await buildStageInputs(tournament, roundConfigs)).questions;
-    }
+    // The questions were chosen by whoever created the match (the New-match
+    // picker): nothing stages itself from the rulebook anymore. A match created
+    // without questions stays empty until staff assemble it.
+    const entries = input.questions ?? [];
 
     const questions = await buildQuestionCopies({
         tournament,
         roundConfigs,
-        entries,
-        autoPick
+        entries
     });
 
     // STANDARD matches get a join code. The partial unique index owns collisions:
@@ -407,9 +400,8 @@ export async function assembleMatch(
     }
 
     const entries = input.questions ?? [];
-    const autoPick = input.autoPick ?? [];
-    if (entries.length === 0 && autoPick.length === 0) {
-        throw new MatchError("VALIDATION", "provide questions and/or autoPick");
+    if (entries.length === 0) {
+        throw new MatchError("VALIDATION", "provide questions");
     }
 
     const tournament = await requireTournament(tournamentId);
@@ -417,8 +409,7 @@ export async function assembleMatch(
     const questions = await buildQuestionCopies({
         tournament,
         roundConfigs: existing.roundConfigs,
-        entries,
-        autoPick
+        entries
     });
 
     const [row] = await db

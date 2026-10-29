@@ -39,14 +39,14 @@ const validTournament = (name: string, tags = ["THTH"]) => ({
 const mc = (text = "2 + 2?"): CreateQuestionInput => ({
     kind: "MC",
     questionText: text,
-    tag: "THTH",
+    
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
 const textQ = (text = "The answer?"): CreateQuestionInput => ({
     kind: "TEXT",
     questionText: text,
-    tag: "THTH",
+    
     payload: {
         acceptedAnswers: ["42"],
         normalize: { caseSensitive: false, trim: true, stripAccents: true }
@@ -56,7 +56,7 @@ const textQ = (text = "The answer?"): CreateQuestionInput => ({
 const keywordQ = (text = "Decode?"): CreateQuestionInput => ({
     kind: "KEYWORD",
     questionText: text,
-    tag: "THTH",
+    
     payload: { code: "OLYMPIA", normalize: { caseSensitive: true, trim: true, stripAccents: false } }
 });
 
@@ -137,12 +137,6 @@ describe("POST /portal/questions — the global bank", () => {
 
     it("201 for any operator — the bank is shared", async () => {
         expect((await create(mc(), otherCookie)).statusCode).toBe(201);
-    });
-
-    it("accepts any tag — the tournament's tags scope the assembly, not the bank", async () => {
-        const res = await create({ ...mc(), tag: "VNTT" });
-        expect(res.statusCode).toBe(201);
-        expect(res.json().tag).toBe("VNTT");
     });
 });
 
@@ -325,18 +319,6 @@ describe("PATCH — content edits", () => {
         expect(res.statusCode).toBe(400);
     });
 
-    it("allows any tag", async () => {
-        const row = await create(mc("tagged"));
-        const res = await app.inject({
-            method: "PATCH",
-            url: `/portal/questions/${row.json().id}`,
-            headers: auth(ownerCookie),
-            payload: { tag: "VNTT" },
-        });
-        expect(res.statusCode).toBe(200);
-        expect(res.json().tag).toBe("VNTT");
-    });
-
     it("409 IMMUTABLE when editing an archived question", async () => {
         const row = await create(mc("archived"));
         await patchStatus(row.json().id, "ARCHIVED", ownerCookie);
@@ -449,7 +431,7 @@ describe("GET /portal/tournaments/:id/eligible-questions — the assembly browse
     it("returns the tournament's published questions, and only those", async () => {
         const own = await create(mc("eligible own"));
         const draft = await create(mc("still a draft"));
-        const other = await create({ ...mc("another tag"), tag: "VNTT" });
+        const other = await create({ ...mc("another tag") });
 
         await publish(own.json().id);
         await publish(other.json().id);
@@ -464,8 +446,8 @@ describe("GET /portal/tournaments/:id/eligible-questions — the assembly browse
         const ids = res.json().items.map((q: { id: string }) => q.id);
         expect(ids).toContain(own.json().id);
         expect(ids).not.toContain(draft.json().id);
-        // the tournament's tags are THTH: a VNTT question is not its to assemble
-        expect(ids).not.toContain(other.json().id);
+        // the bank is global: every published question is eligible, whoever authored it
+        expect(ids).toContain(other.json().id);
     });
 
     it("filters by kinds and searches text", async () => {

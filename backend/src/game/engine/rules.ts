@@ -116,11 +116,7 @@ export const VE_DICH_DEFAULTS = {
     hope: { correct: 1.5, incorrect: -1 },
     shield: { correct: 0.5, incorrect: 0 },
     buzzWindowS: 5,
-    pickCount: 3,
-    // The face value of a question, by its domain.
-    faceValues: {
-        THTH: 20, TNSS: 30, XHPL: 40, VHNT: 40, TTGT: 50, KTTH: 50
-    }
+    pickCount: 3
 };
 
 export interface VeDichRules {
@@ -130,7 +126,6 @@ export interface VeDichRules {
     shield: { correct: number; incorrect: number };
     buzzWindowS: number;
     pickCount: number;
-    faceValues: Record<string, number>;
 }
 
 export function veDichRules(config: RoundConfig | undefined): VeDichRules {
@@ -145,8 +140,7 @@ export function veDichRules(config: RoundConfig | undefined): VeDichRules {
         hope: main?.powers.hope ?? VE_DICH_DEFAULTS.hope,
         shield: main?.powers.shield ?? VE_DICH_DEFAULTS.shield,
         buzzWindowS: phase2?.buzzWindowSeconds ?? VE_DICH_DEFAULTS.buzzWindowS,
-        pickCount: phase2?.pickCount ?? VE_DICH_DEFAULTS.pickCount,
-        faceValues: main?.faceValues ?? VE_DICH_DEFAULTS.faceValues
+        pickCount: phase2?.pickCount ?? VE_DICH_DEFAULTS.pickCount
     };
 }
 

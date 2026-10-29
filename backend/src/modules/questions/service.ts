@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { questionBank } from "../../db/schema/index.js";
 import { QuestionError } from "./errors.js";
@@ -42,7 +42,8 @@ function questionValues(ctx: WriteContext, input: CreateQuestionInput) {
     return {
         kind: input.kind,
         questionText: input.questionText,
-        tag: input.tag,
+        domain: input.domain ?? null,
+        keywordId: input.keywordId ?? null,
         payload: input.payload,
         media: input.media ?? null,
         timeLimit: input.timeLimit ?? null,
@@ -52,11 +53,52 @@ function questionValues(ctx: WriteContext, input: CreateQuestionInput) {
 }
 
 
+// The set rules for HINT questions, enforced at write time: a hint lives inside
+// a KEYWORD question (the database has the containment CHECK too), and a set
+// holds at most HINTS_PER_SET — the dialog shows the count, the write enforces it.
+const HINTS_PER_SET = 8;
+
+async function assertHintSet(
+    kind: string,
+    keywordId: string | null | undefined,
+    excludeHintId?: string
+): Promise<void> {
+    if (kind !== "HINT") {
+        if (keywordId) {
+            throw new QuestionError("VALIDATION", "keywordId applies to HINT questions only");
+        }
+        return;
+    }
+    if (!keywordId) {
+        throw new QuestionError("VALIDATION", "a HINT belongs to a keyword set (keywordId is required)");
+    }
+
+    const [keyword] = await db
+        .select({ kind: questionBank.kind })
+        .from(questionBank)
+        .where(eq(questionBank.id, keywordId))
+        .limit(1);
+    if (!keyword || keyword.kind !== "KEYWORD") {
+        throw new QuestionError("VALIDATION", `keyword ${keywordId} is not a KEYWORD question`);
+    }
+
+    const inSet = and(
+        eq(questionBank.kind, "HINT"),
+        eq(questionBank.keywordId, keywordId),
+        ...(excludeHintId ? [ne(questionBank.id, excludeHintId)] : [])
+    );
+    const [tally] = await db.select({ value: count() }).from(questionBank).where(inSet);
+    if ((tally?.value ?? 0) >= HINTS_PER_SET) {
+        throw new QuestionError("VALIDATION", `this set already holds ${HINTS_PER_SET}/${HINTS_PER_SET} hints`);
+    }
+}
+
 export async function createQuestion(
     ctx: WriteContext,
     input: CreateQuestionInput
 ): Promise<QuestionRow> {
     assertQuestionPayload(input);
+    await assertHintSet(input.kind, input.keywordId);
 
     const [row] = await db
         .insert(questionBank)
@@ -83,8 +125,38 @@ export async function updateQuestion(
         throw new QuestionError("IMMUTABLE", `question ${id} is archived and cannot be edited`);
     }
 
+    // The kind may change only between TEXT and HINT: their payload shapes are
+    // identical, so reclassifying a hint (or un-hinting one) is a safe write.
+    // Any other kind change would orphan the payload.
+    if (patch.kind !== undefined && patch.kind !== existing.kind) {
+        const convertible =
+            (existing.kind === "TEXT" && patch.kind === "HINT") ||
+            (existing.kind === "HINT" && patch.kind === "TEXT");
+        if (!convertible) {
+            throw new QuestionError(
+                "VALIDATION",
+                `kind cannot change from ${existing.kind} to ${patch.kind}`,
+                ["only TEXT ↔ HINT conversion is allowed"]
+            );
+        }
+    }
+
     if (patch.payload) {
-        assertPayloadForKind(existing.kind as QuestionKindValue, patch.payload);
+        assertPayloadForKind((patch.kind ?? existing.kind) as QuestionKindValue, patch.payload);
+    }
+
+    // Set rules: entering HINT needs a keyword (sent in the patch, or the row's
+    // own); a conversion from TEXT must carry one. Leaving HINT drops the link
+    // unless the patch re-links it.
+    const nextKind = patch.kind ?? existing.kind;
+    if (nextKind === "HINT") {
+        const keywordId = patch.keywordId !== undefined ? patch.keywordId : existing.keywordId;
+        await assertHintSet("HINT", keywordId, existing.kind === "HINT" ? existing.id : undefined);
+    } else if (patch.keywordId !== undefined || existing.kind === "HINT") {
+        await assertHintSet(nextKind, patch.keywordId);
+        if (existing.kind === "HINT" && patch.keywordId === undefined) {
+            patch = { ...patch, keywordId: null };
+        }
     }
 
 
@@ -139,10 +211,9 @@ export function questionSearch(term: string) {
 
 
 export interface ListFilters {
-
     status?: QuestionStatusValue;
     kind?: QuestionKindValue;
-    tag?: string;
+    keywordId?: string;
     search?: string;
 }
 
@@ -153,7 +224,7 @@ function filterConditions(filters: ListFilters) {
 
     if (filters.status) conditions.push(eq(questionBank.status, filters.status));
     if (filters.kind) conditions.push(eq(questionBank.kind, filters.kind));
-    if (filters.tag) conditions.push(eq(questionBank.tag, filters.tag));
+    if (filters.keywordId) conditions.push(eq(questionBank.keywordId, filters.keywordId));
 
     return conditions;
 }
@@ -191,14 +262,10 @@ export async function listQuestions(
 
 
 // The single visibility rule for assembly (schema.md §question_bank):
-// PUBLISHED questions, tagged with one of the tournament's own tags. The bank is global;
-// the tags are what scope it.
-// Shared by the paged read below and by the auto-pick query in assembly.ts.
-export function assemblyEligibility(tags: string[]) {
-    return [
-        eq(questionBank.status, "PUBLISHED"),
-        inArray(questionBank.tag, tags.length > 0 ? tags : [""])
-    ];
+// PUBLISHED questions. The bank is global — a match names its own questions,
+// so only status and the round's allowed kinds scope the pool.
+export function assemblyEligibility() {
+    return [eq(questionBank.status, "PUBLISHED")];
 }
 
 
@@ -210,11 +277,10 @@ export interface AssemblyFilters {
 
 // Paged: an unpaged version returned every eligible row (18.7k at 25k bank size).
 export async function listForAssembly(
-    tags: string[],
     filters: AssemblyFilters,
     page: Page
 ): Promise<PageResult<QuestionRow>> {
-    const conditions = assemblyEligibility(tags);
+    const conditions = assemblyEligibility();
     const search = filters.search ? questionSearch(filters.search) : null;
 
     if (filters.kinds && filters.kinds.length > 0) {
@@ -279,13 +345,11 @@ function canonicalize(value: unknown): unknown {
 function fingerprint(input: {
     kind: string;
     questionText: string;
-    tag: string;
     payload: unknown;
 }): string {
     return JSON.stringify([
         input.kind,
         input.questionText,
-        input.tag,
         canonicalize(input.payload)
     ]);
 }
@@ -358,18 +422,16 @@ export async function importQuestions(
     const remaining = accepted.filter(({ index }) => !duplicatedInBatch.has(index));
 
     if (remaining.length > 0) {
-        const tags = [...new Set(remaining.map(({ input }) => input.tag))];
-
+        // No tags to bucket by anymore: dedupe compares the whole bank — the
+        // rows are narrow (id/kind/text/payload) and the bank grows by hand.
         const existing = await db
             .select({
                 id: questionBank.id,
                 kind: questionBank.kind,
                 questionText: questionBank.questionText,
-                tag: questionBank.tag,
                 payload: questionBank.payload
             })
-            .from(questionBank)
-            .where(inArray(questionBank.tag, tags));
+            .from(questionBank);
 
         const existingByPrint = new Map(
             existing.map((row) => [fingerprint(row), row.id])
@@ -417,29 +479,24 @@ export async function importQuestions(
 }
 
 
-export function agentEligibility(tags: string[]) {
-    return [
-        inArray(questionBank.status, ["PUBLISHED", "ARCHIVED"]),
-        inArray(questionBank.tag, tags.length > 0 ? tags : [""])
-    ];
+// Operators see the whole bank: PUBLISHED and ARCHIVED (never DRAFT).
+export function agentEligibility() {
+    return [inArray(questionBank.status, ["PUBLISHED", "ARCHIVED"])];
 }
 
 export interface AgentFilters {
     kind?: QuestionKindValue;
-    tag?: string;
     search?: string;
 }
 
 export async function listForAgent(
-    tags: string[],
     filters: AgentFilters,
     page: Page
 ): Promise<PageResult<QuestionRow>> {
-    const conditions = agentEligibility(tags);
+    const conditions = agentEligibility();
     const search = filters.search ? questionSearch(filters.search) : null;
 
     if (filters.kind) conditions.push(eq(questionBank.kind, filters.kind));
-    if (filters.tag) conditions.push(eq(questionBank.tag, filters.tag));
     if (search) conditions.push(search.condition);
 
     const where = and(...conditions);
@@ -463,13 +520,12 @@ export async function listForAgent(
 
 
 export async function getForAgent(
-    tags: string[],
     questionId: string
 ): Promise<QuestionRow> {
     const [row] = await db
         .select()
         .from(questionBank)
-        .where(and(eq(questionBank.id, questionId), ...agentEligibility(tags)))
+        .where(and(eq(questionBank.id, questionId), ...agentEligibility()))
         .limit(1);
 
     if (!row) throw new QuestionError("NOT_FOUND", `question ${questionId} not found`);

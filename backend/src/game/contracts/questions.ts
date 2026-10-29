@@ -1,5 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
-import { Uuid, McKind, TextKind, KeywordKind, OralMode, TextMode } from "./primitives.js";
+import { Uuid, McKind, TextKind, KeywordKind, HintKind, OralMode, TextMode } from "./primitives.js";
 
 
 export const MediaSchema = Type.Object({
@@ -40,12 +40,14 @@ export const MatchQuestionSchema = Type.Object({
     turnId: Type.String(),
     position: Type.Integer(),
     mode: Type.Union([OralMode, TextMode]),
-    kind: Type.Union([McKind, TextKind, KeywordKind]),
+    kind: Type.Union([McKind, TextKind, KeywordKind, HintKind]),
     questionText: Type.String(),
     media: Type.Union([MediaSchema, Type.Null()]),
     timeLimit: Type.Union([Type.Integer(), Type.Null()]),
     points: Type.Integer(),
-    tag: Type.String(),
+    // The ve-dich board's category label (presentation only). Optional: copies
+    // frozen before this field existed simply carry none.
+    domain: Type.Optional(Type.Union([Type.String(), Type.Null()])),
     payload: QuestionPayloadSchema,
     sourceId: Uuid
 });

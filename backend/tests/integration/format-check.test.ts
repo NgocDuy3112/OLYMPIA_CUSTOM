@@ -69,7 +69,7 @@ beforeAll(async () => {
     const tournamentSlug = "fc-tournament-tournament";
 
     const [tournament] = await db.insert(tournaments).values({
-        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "FC Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: {
@@ -104,7 +104,7 @@ beforeAll(async () => {
         Array.from({ length: 8 }, (_, i) => ({
             kind: "MC" as const,
             questionText: `Q${i}`,
-            tag: "THTH",
+            
             payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
             timeLimit: 30,
             status: "PUBLISHED" as const,

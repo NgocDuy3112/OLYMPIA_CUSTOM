@@ -49,7 +49,7 @@ const GATE_ACTIONS: Partial<Record<string, AuditAction>> = {
 
 async function auditGate(
     request: Parameters<typeof auditFromRequest>[0],
-    question: { id: string; status: string; tag: string; kind: string }
+    question: { id: string; status: string; kind: string }
 ): Promise<void> {
     const action = GATE_ACTIONS[question.status];
     if (!action) return;
@@ -57,7 +57,6 @@ async function auditGate(
     await auditFromRequest(request, action, {
         details: {
             questionId: question.id,
-            tag: question.tag,
             kind: question.kind
         }
     });
@@ -127,7 +126,7 @@ export async function questionRoutes(app: FastifyInstance) {
                 {
                     status: query.status,
                     kind: query.kind,
-                    tag: query.tag,
+                    keywordId: query.keywordId,
                     search: query.search
                 },
                 parsePage(query)
@@ -135,7 +134,8 @@ export async function questionRoutes(app: FastifyInstance) {
         }
     );
 
-    // Browse what a tournament may assemble: the published questions of its own tags.
+    // Browse the pool a match may draw from: every PUBLISHED question, narrowed
+    // by the kinds the caller asks for.
     app.get(
         "/portal/tournaments/:tournamentId/eligible-questions",
         {
@@ -165,7 +165,6 @@ export async function questionRoutes(app: FastifyInstance) {
             const kinds = query.kinds?.split(",") as QuestionKindValue[] | undefined;
 
             return listForAssembly(
-                tournament.tags,
                 { kinds, search: query.search },
                 parsePage(query)
             );

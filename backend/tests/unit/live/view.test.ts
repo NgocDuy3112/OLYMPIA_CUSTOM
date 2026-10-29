@@ -231,7 +231,7 @@ const frozen = (ids: string[], kind: "MC" | "TEXT" = "MC"): MatchQuestion[] =>
         questionText: `Text of ${id}`,
         media: null,
         timeLimit: null,
-        tag: "THTH",
+        
         payload: kind === "MC"
             ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] }
             : { acceptedAnswers: ["x"] },

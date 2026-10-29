@@ -40,7 +40,7 @@ const STAGES = [
 
 const validTournament = (name: string, visibility?: "PRIVATE") => ({
     name,
-    tags: ["THTH"],
+    
     rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
     format: {
         competitorsPerMatch: 4,
@@ -126,7 +126,7 @@ beforeAll(async () => {
         Array.from({ length: 8 }, (_, i) => ({
             kind: "MC" as const,
             questionText: `CANARY-QUESTION-${i}`,
-            tag: "THTH",
+            
             payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
             timeLimit: 30,
             status: "PUBLISHED" as const,
@@ -138,7 +138,7 @@ beforeAll(async () => {
 // The shared tournament body, minus the identity the insert adds per row.
 function baseTournament() {
     return {
-        tags: ["THTH"],
+        
         rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
         format: {
             competitorsPerMatch: 4,

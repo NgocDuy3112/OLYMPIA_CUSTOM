@@ -25,7 +25,7 @@ const eventsFor = (action: string, predicate: (details: Record<string, unknown>)
 
 const tournamentInput = (name: string) => ({
     name,
-    tags: ["THTH"],
+    
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: {
         competitorsPerMatch: 2,
@@ -58,7 +58,7 @@ async function makePublishedQuestion(): Promise<string> {
         payload: {
             kind: "MC",
             questionText: "audit question",
-            tag: "THTH",
+            
             payload: { options: [{ id: "A", text: "4" }], correctSet: ["A"] }
         }
     });
@@ -171,7 +171,7 @@ describe("audit wiring — the question review gate", () => {
             payload: {
                 kind: "MC",
                 questionText: "gate question",
-                tag: "THTH",
+                
                 payload: { options: [{ id: "A", text: "4" }], correctSet: ["A"] }
             }
         });
@@ -199,7 +199,7 @@ describe("audit wiring — the question review gate", () => {
         const published = await eventsFor("question_published", (d) => d.questionId === questionId);
         expect(published).toHaveLength(1);
         expect(published[0].actorId).toBe(adminId);            // the reviewer is recorded
-        expect(published[0].details).toMatchObject({ tag: "THTH", kind: "MC" });
+        expect(published[0].details).toMatchObject({ kind: "MC" });
 
         await app.inject({
             method: "DELETE",

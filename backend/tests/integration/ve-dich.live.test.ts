@@ -27,7 +27,7 @@ const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
 
 const question = (domain: string, value: number, position: number): MatchQuestion => ({
     _id: randomUUID(), roundId: "ve-dich", turnId: "grid", position, mode: "text", kind: "TEXT",
-    questionText: `${domain} ${value}`, media: null, timeLimit: null, points: value, tag: domain,
+    questionText: `${domain} ${value}`, media: null, timeLimit: null, points: value, domain,
     payload: { acceptedAnswers: ["x"], normalize: { caseSensitive: false, trim: true, stripAccents: true } },
     sourceId: randomUUID()
 });
@@ -54,7 +54,7 @@ beforeAll(async () => {
     const tournamentSlug = "vd-tournament-tournament";
 
     const [tournament] = await db.insert(tournaments).values({
-        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "VD Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: { competitorsPerMatch: 2, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },

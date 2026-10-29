@@ -82,7 +82,7 @@ beforeAll(async () => {
     const tournamentSlug = "st-tournament-tournament";
 
     const [tournament] = await db.insert(tournaments).values({
-        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "ST Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: {
@@ -105,7 +105,7 @@ beforeAll(async () => {
         Array.from({ length: 8 }, (_, i) => ({
             kind: "MC" as const,
             questionText: `Q${i}`,
-            tag: "THTH",
+            
             payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },
             timeLimit: 30,
             status: "PUBLISHED" as const,
@@ -121,7 +121,7 @@ afterAll(async () => {
 
 
 describe("a match placed by hand", () => {
-    it("takes the tournament's rules and assembles the questions", async () => {
+    it("takes the tournament's rules but stages no questions by itself", async () => {
         const created = await createMatch({
             players: playerIds.slice(0, 4).map((userId, seat) => ({ kind: "user", userId, seed: seat + 1 }))
         });
@@ -130,8 +130,8 @@ describe("a match placed by hand", () => {
         const body = created.json();
         expect(body.kind).toBe("STANDARD");
         expect(body.roundConfigs).toHaveProperty("ve-dich");
-        // The rulebook asks for four questions in the only turn of the only round.
-        expect(body.questions).toHaveLength(4);
+        // Manual picks only: nothing is staged from the rulebook automatically.
+        expect(body.questions).toHaveLength(0);
     });
 
     it("refuses a group that is the wrong size for the format", async () => {

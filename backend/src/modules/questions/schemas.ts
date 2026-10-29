@@ -2,17 +2,19 @@ import "../../lib/typebox-formats.js";
 import { Type, Static, TSchema } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import {
+    HintKind,
     KeywordKind,
     McKind,
     MediaSchema,
     QuestionPayloadSchema,
-    TextKind
+    TextKind,
+    Uuid
 } from "../../game/contracts/index.js";
 import { QuestionError } from "./errors.js";
 
 export const MAX_BATCH_SIZE = 500;
 
-export const QuestionKind = Type.Union([McKind, TextKind, KeywordKind]);
+export const QuestionKind = Type.Union([McKind, TextKind, KeywordKind, HintKind]);
 
 export const QuestionStatus = Type.Union([
     Type.Literal("DRAFT"),
@@ -25,7 +27,11 @@ export const QuestionStatus = Type.Union([
 export const CreateQuestionInput = Type.Object({
     kind: QuestionKind,
     questionText: Type.String({ minLength: 1 }),
-    tag: Type.String({ minLength: 1, maxLength: 64 }),
+    // Presentation-only board category for the ve-dich grid.
+    domain: Type.Optional(Type.Union([Type.String({ maxLength: 64 }), Type.Null()])),
+    // A HINT carries the keyword of its set; the service enforces the pairing.
+    // Null clears the link (a HINT converted back to TEXT).
+    keywordId: Type.Optional(Type.Union([Uuid, Type.Null()])),
     payload: QuestionPayloadSchema,
     media: Type.Optional(Type.Union([MediaSchema, Type.Null()])),
     timeLimit: Type.Optional(Type.Union([Type.Integer({ minimum: 1 }), Type.Null()]))
@@ -33,9 +39,7 @@ export const CreateQuestionInput = Type.Object({
 export type CreateQuestionInput = Static<typeof CreateQuestionInput>;
 
 
-export const UpdateQuestionInput = Type.Partial(
-    Type.Omit(CreateQuestionInput, ["kind"])
-);
+export const UpdateQuestionInput = Type.Partial(CreateQuestionInput);
 export type UpdateQuestionInput = Static<typeof UpdateQuestionInput>;
 
 
@@ -57,7 +61,7 @@ export type BatchEnvelope = Static<typeof BatchEnvelope>;
 export const ListQuery = Type.Object({
     status: Type.Optional(QuestionStatus),
     kind: Type.Optional(QuestionKind),
-    tag: Type.Optional(Type.String({ maxLength: 64 })),
+    keywordId: Type.Optional(Type.String({ format: "uuid" })),
     search: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
     limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
     offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))
@@ -66,7 +70,7 @@ export type ListQuery = Static<typeof ListQuery>;
 
 // Eligible-for-assembly browse: scope comes from the URL (own + global bank).
 export const EligibleListQuery = Type.Object({
-    kinds: Type.Optional(Type.String({ pattern: "^(MC|TEXT|KEYWORD)(,(MC|TEXT|KEYWORD))*$" })),
+    kinds: Type.Optional(Type.String({ pattern: "^(MC|TEXT|KEYWORD|HINT)(,(MC|TEXT|KEYWORD|HINT))*$" })),
     search: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
     limit: Type.Optional(Type.String({ pattern: "^\\d+$" })),
     offset: Type.Optional(Type.String({ pattern: "^\\d+$" }))

@@ -150,6 +150,15 @@ export type VeDichAction = Static<typeof VeDichActionSchema>;
 export const RoundAdvanceActionSchema = Type.Object({ kind: Type.Literal("round.advance") });
 export type RoundAdvanceAction = Static<typeof RoundAdvanceActionSchema>;
 
+// Round-level navigation: make ANY round the active one. The current round's
+// state is archived and the target's saved state (if any) is restored — the
+// controller may re-visit finished or mid-play rounds (no one-way doors).
+export const RoundGoToAction = Type.Object({
+    kind: Type.Literal("round.goTo"),
+    roundId: Type.String({ minLength: 1 })
+});
+export type RoundGoToAction = Static<typeof RoundGoToAction>;
+
 // What a client may send: every controller action, but no server-built answer action.
 export const LiveActionSchema = Type.Union([
     GiaiMaStart,
@@ -177,6 +186,7 @@ export const LiveActionSchema = Type.Union([
     VeDichResolve,
     VeDichAdvanceTurn,
     VeDichEndRound,
-    RoundAdvanceActionSchema
+    RoundAdvanceActionSchema,
+    RoundGoToAction
 ]);
 export type LiveAction = Static<typeof LiveActionSchema>;

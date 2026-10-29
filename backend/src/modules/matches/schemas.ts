@@ -24,13 +24,6 @@ export const AssemblyEntry = Type.Object({
 });
 export type AssemblyEntry = Static<typeof AssemblyEntry>;
 
-export const AutoPick = Type.Object({
-    roundId: Type.String({ minLength: 1 }),
-    turnId: Type.String({ minLength: 1 }),
-    count: Type.Integer({ minimum: 1, maximum: 200 })
-});
-export type AutoPick = Static<typeof AutoPick>;
-
 
 export const CreateMatchInput = Type.Object({
     // Accepted for compatibility; only STANDARD exists.
@@ -42,8 +35,7 @@ export const CreateMatchInput = Type.Object({
     players: Type.Optional(Type.Array(SeatSchema)),
     // Optional: a match created by hand takes the tournament's saved rules.
     roundConfigs: Type.Optional(Type.Record(Type.String(), RoundConfigSchema)),
-    questions: Type.Optional(Type.Array(AssemblyEntry)),
-    autoPick: Type.Optional(Type.Array(AutoPick))
+    questions: Type.Optional(Type.Array(AssemblyEntry))
 });
 export type CreateMatchInput = Static<typeof CreateMatchInput>;
 
@@ -59,8 +51,7 @@ export type UpdateMatchInput = Static<typeof UpdateMatchInput>;
 
 
 export const AssembleMatchInput = Type.Object({
-    questions: Type.Optional(Type.Array(AssemblyEntry)),
-    autoPick: Type.Optional(Type.Array(AutoPick))
+    questions: Type.Optional(Type.Array(AssemblyEntry))
 });
 export type AssembleMatchInput = Static<typeof AssembleMatchInput>;
 

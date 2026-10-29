@@ -38,7 +38,7 @@ const question = {
     media: null,
     timeLimit: 60_000,
     points: 10,
-    tag: "math",
+    
     payload: { acceptedAnswers: ["4", "four"], caseSensitive: false },
     sourceId: "88888888-8888-8888-8888-888888888888"
 };
@@ -79,7 +79,7 @@ const tournamentRow = (overrides: Partial<TournamentRow> = {}): TournamentRow =>
     slug: "olympia-custom-3",
     visibility: "PUBLIC",
     ownerId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
-    tags: ["math", "history", "secret-tag"],
+    
     current: true,
     rounds: [{ id: "khoi-dong", name: "Khởi động", order: 1, chart: "…" }],
     format: { competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },

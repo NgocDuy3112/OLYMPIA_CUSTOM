@@ -54,7 +54,7 @@ const tournamentInput = (slug: string) => ({
 const mc = (text: string) => ({
     kind: "MC",
     questionText: text,
-    tag: "THTH",
+    
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
@@ -65,7 +65,7 @@ async function makeTournament(slug: string, visibility?: "PRIVATE", cookie = own
         headers: auth(cookie),
         payload: {
             name: slug,
-            tags: ["THTH"],
+            
             rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
             format: {
                 competitorsPerMatch: 4,
@@ -241,7 +241,7 @@ describe("GET /mcp — transport and auth", () => {
 
 
 describe("list_questions", () => {
-    it("returns PUBLISHED and ARCHIVED of the tournament's tags, excludes DRAFT and other tags", async () => {
+    it("returns PUBLISHED and ARCHIVED, excludes DRAFT", async () => {
         const { client, transport } = await connect(operatorToken);
         const { isError, data } = await callTool(client, "list_questions", {
             tournamentId: pubTournamentId
@@ -251,9 +251,8 @@ describe("list_questions", () => {
         const items = data!.items as Array<{ id: string; status: string; usable: boolean }>;
         const ids = items.map((i) => i.id).sort();
 
-        expect(ids).toEqual([globalArchivedId, globalPublishedId, tournamentPublishedId].sort());
+        expect(ids).toEqual([globalArchivedId, globalPublishedId, tournamentPublishedId, foreignPublishedId].sort());
         expect(ids).not.toContain(globalDraftId);
-        expect(ids).not.toContain(foreignPublishedId);
 
         const archived = items.find((i) => i.id === globalArchivedId)!;
         expect(archived.status).toBe("ARCHIVED");
@@ -262,7 +261,7 @@ describe("list_questions", () => {
         const published = items.find((i) => i.id === globalPublishedId)!;
         expect(published.usable).toBe(true);
 
-        expect(data!.total).toBe(3);
+        expect(data!.total).toBe(4);
 
         await transport.terminateSession();
         await client.close();
@@ -277,7 +276,7 @@ describe("list_questions", () => {
         });
 
         expect((data!.items as unknown[]).length).toBe(2);
-        expect(data!.total).toBe(3);
+        expect(data!.total).toBe(4);
 
         await transport.terminateSession();
         await client.close();
@@ -311,7 +310,7 @@ describe("list_questions", () => {
             tournamentId: privateTournamentId
         });
         expect(ad.isError).toBe(false);
-        expect(ad.data!.total).toBe(3); // the tournament's tags: published, archived, published
+        expect(ad.data!.total).toBe(4); // the whole visible bank: published, archived, published, published
         await admin.transport.terminateSession();
         await admin.client.close();
     });
@@ -348,7 +347,7 @@ describe("get_question", () => {
         await client.close();
     });
 
-    it("404s for a DRAFT and for another tournament's question", async () => {
+    it("404s for a DRAFT; any published question is fetchable", async () => {
         const { client, transport } = await connect(operatorToken);
 
         const draft = await callTool(client, "get_question", {
@@ -362,8 +361,8 @@ describe("get_question", () => {
             tournamentId: pubTournamentId,
             questionId: foreignPublishedId
         });
-        expect(foreign.isError).toBe(true);
-        expect((foreign.data as { error: string }).error).toBe("NOT_FOUND");
+        // The bank is global: "another tournament's question" no longer exists.
+        expect(foreign.isError).toBe(false);
 
         await transport.terminateSession();
         await client.close();
@@ -381,9 +380,9 @@ describe("eligible_questions", () => {
         expect(isError).toBe(false);
         const ids = (data!.items as Array<{ id: string }>).map((i) => i.id).sort();
 
-        expect(ids).toEqual([globalPublishedId, tournamentPublishedId].sort());
+        expect(ids).toEqual([globalPublishedId, tournamentPublishedId, foreignPublishedId].sort());
         expect(ids).not.toContain(globalArchivedId);
-        expect(data!.total).toBe(2);
+        expect(data!.total).toBe(3);
 
         await transport.terminateSession();
         await client.close();

@@ -7,6 +7,8 @@ export const IsoDateTime = Type.String({ format: "date-time" });
 export const McKind = Type.Literal("MC");
 export const TextKind = Type.Literal("TEXT");
 export const KeywordKind = Type.Literal("KEYWORD");
+// A giai-ma hint: a typed answer question that belongs to a keyword set.
+export const HintKind = Type.Literal("HINT");
 export const VerdictSchema = Type.Union([Type.Literal("CORRECT"), Type.Literal("INCORRECT")]);
 
 // JSONB vocabularies — lowercase (turn mode, seat kind)

@@ -172,7 +172,6 @@ export const matchStats = pgTable(
         userId: uuid("user_id").references(() => users.id),
         teamId: uuid("team_id"),
 
-        tag: varchar("tag", { length: 64 }),
         basePoints: integer("base_points"),
         answered: boolean("answered"),
         correct: boolean("correct"),
@@ -257,6 +256,9 @@ export const matchLive = pgTable(
         version: integer("version").notNull().default(0),
         roundId: text("round_id").notNull(),
         state: jsonb("state").$type<Record<string, unknown>>().notNull(),
+        // Rounds the controller has left — kept per round so any round can be
+        // re-opened later (no one-way doors for the MC).
+        archive: jsonb("archive").$type<Record<string, Record<string, unknown>>>().notNull().default(sql`'{}'::jsonb`),
         updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [

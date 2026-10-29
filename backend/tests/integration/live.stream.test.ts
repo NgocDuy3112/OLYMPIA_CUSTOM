@@ -24,7 +24,7 @@ const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
 const hintQuestion = (position: number): MatchQuestion => ({
     _id: randomUUID(), roundId: "giai-ma", turnId: "hints", position, mode: "text", kind: "TEXT",
-    questionText: `Hint ${position}`, media: null, timeLimit: null, points: 0, tag: "THTH",
+    questionText: `Hint ${position}`, media: null, timeLimit: null, points: 0, 
     payload: { acceptedAnswers: ["x"], normalize: { caseSensitive: false, trim: true, stripAccents: true } },
     sourceId: randomUUID()
 });
@@ -58,7 +58,7 @@ beforeAll(async () => {
     const tournamentSlug = "stream-tournament-tournament";
 
     const [tournament] = await db.insert(tournaments).values({
-        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "Stream Tournament",
         rounds: [{ id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 1, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },

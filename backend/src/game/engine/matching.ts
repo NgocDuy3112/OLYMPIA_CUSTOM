@@ -6,7 +6,7 @@ import type {
     QuestionPayload
 } from "../contracts/index.js";
 
-export type QuestionKind = "MC" | "TEXT" | "KEYWORD";
+export type QuestionKind = "MC" | "TEXT" | "KEYWORD" | "HINT";
 
 // Vietnamese-aware normalization. Order matters: trim, then case, then đ/Đ -> d,
 // then strip combining diacritics. NFD does not decompose đ, so it needs its own step.
@@ -53,7 +53,8 @@ export function autoMatch(
     const submitted = value.text;
     if (submitted.length === 0) return false;
 
-    if (kind === "TEXT") {
+    // A hint answers exactly like TEXT — same payload, same rules.
+    if (kind === "TEXT" || kind === "HINT") {
         const { acceptedAnswers, normalize } = payload as TextPayload;
         const needle = normalizeText(submitted, normalize);
         return acceptedAnswers.some((answer) => normalizeText(answer, normalize) === needle);

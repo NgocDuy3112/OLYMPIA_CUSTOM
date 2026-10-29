@@ -19,7 +19,7 @@ const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
 const validTournament = (name: string) => ({
     name,
-    tags: ["THTH"],
+    
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: {
         competitorsPerMatch: 2,
@@ -49,7 +49,7 @@ const seats = () => [
 const mc = (text: string) => ({
     kind: "MC",
     questionText: text,
-    tag: "THTH",
+    domain: "THTH",
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
 });
 
@@ -241,7 +241,7 @@ describe("matches — assembly (explicit)", () => {
         expect(question.turnId).toBe("turn-1");
         expect(question.mode).toBe("oral");
         expect(question.points).toBe(10);
-        expect(question.tag).toBe("THTH");
+        expect(question.domain).toBe("THTH");
         expect(question._id).not.toBe(sourceId);
         expect(question.payload.correctSet).toEqual(["A"]);
     });
@@ -315,51 +315,6 @@ describe("matches — assembly (explicit)", () => {
 });
 
 
-describe("matches — assembly (auto-pick)", () => {
-    it("picks distinct PUBLISHED questions up to the requested count", async () => {
-        const s = await makeTournament("m-auto");
-        await makeBankQuestion("auto one");
-        await makeBankQuestion("auto two");
-
-        const res = await createMatch(s.id, matchBody({
-            autoPick: [{ roundId: "r1", turnId: "turn-1", count: 2 }]
-        }));
-
-        expect(res.statusCode).toBe(201);
-        const questions = res.json().questions;
-        expect(questions).toHaveLength(2);
-        expect(new Set(questions.map((q: { sourceId: string }) => q.sourceId)).size).toBe(2);
-        expect(new Set(questions.map((q: { position: number }) => q.position))).toEqual(new Set([0, 1]));
-    });
-
-    it("400 when fewer questions are eligible than requested", async () => {
-        const s = await makeTournament("m-auto-short");
-
-        // TEXT-only round: the global bank holds no TEXT questions in this file,
-        // so the eligible pool is deterministic (global bank is eligible too).
-        const text = {
-            kind: "TEXT", questionText: "only text one", tag: "THTH",
-            payload: { acceptedAnswers: ["42"], normalize: { caseSensitive: false, trim: true, stripAccents: true } }
-        };
-        const created = await app.inject({
-            method: "POST",
-            url: `/portal/questions`,
-            headers: auth(ownerCookie),
-            payload: text
-        });
-        const idle = `/portal/questions/${created.json().id}/status`;
-        await app.inject({ method: "PATCH", url: idle, headers: auth(ownerCookie), payload: { status: "PENDING" } });
-        await app.inject({ method: "PATCH", url: idle, headers: auth(adminCookie), payload: { status: "PUBLISHED" } });
-
-        const res = await createMatch(s.id, matchBody({
-            roundConfigs: roundConfigs({ allowedKinds: ["TEXT"] }),
-            autoPick: [{ roundId: "r1", turnId: "turn-1", count: 3 }]
-        }));
-
-        expect(res.statusCode).toBe(400);
-        expect(res.json().message).toContain("only 1 eligible question");
-    });
-});
 
 
 describe("matches — re-assembly & freeze", () => {
@@ -596,7 +551,7 @@ describe("matches — bank tenancy", () => {
             method: "POST",
             url: "/portal/questions",
             headers: auth(adminCookie),
-            payload: { ...mc("bank question"), tag: "THTH" }
+            payload: { ...mc("bank question") }
         });
         expect(created.statusCode).toBe(201);
 
@@ -622,59 +577,7 @@ describe("matches — bank tenancy", () => {
         expect(res.json().questions[0].sourceId).toBe(globalId);
     });
 
-    it("400 for a question that is not tagged for this tournament", async () => {
-        const s = await makeTournament("m-tenancy");
 
-        // The bank is global; the tournament's tags decide what it may assemble.
-        const foreignSource = await app.inject({
-            method: "POST",
-            url: "/portal/questions",
-            headers: auth(ownerCookie),
-            payload: { ...mc("foreign question"), tag: "OTHER" }
-        }).then((res) => res.json().id);
-        await app.inject({
-            method: "PATCH",
-            url: `/portal/questions/${foreignSource}/status`,
-            headers: auth(ownerCookie),
-            payload: { status: "PENDING" }
-        });
-        await app.inject({
-            method: "PATCH",
-            url: `/portal/questions/${foreignSource}/status`,
-            headers: auth(adminCookie),
-            payload: { status: "PUBLISHED" }
-        });
-
-        const res = await createMatch(s.id, matchBody({
-            questions: [{ roundId: "r1", turnId: "turn-1", sourceId: foreignSource }]
-        }));
-
-        expect(res.statusCode).toBe(400);
-        expect(res.json().message).toContain("is not tagged for this tournament");
-    });
-
-    it("auto-pick never reuses a question already placed by an explicit entry", async () => {
-        const s = await makeTournament("m-auto-exclude");
-        const first = await makeBankQuestion("explicit pick");
-        await makeBankQuestion("another candidate");
-
-        const res = await createMatch(s.id, matchBody({
-            questions: [{ roundId: "r1", turnId: "turn-1", sourceId: first }],
-            autoPick: [{ roundId: "r1", turnId: "turn-1", count: 1 }]
-        }));
-
-        expect(res.statusCode).toBe(201);
-        const questions = res.json().questions;
-
-        expect(questions).toHaveLength(2);
-        expect(questions[0].sourceId).toBe(first);
-        // the property under test: the auto-pick is a DIFFERENT bank row
-        expect(questions[1].sourceId).not.toBe(first);
-
-        // and auto-pick draws from (global OR own), so the pool can include
-        // global-bank questions — assert distinctness, not a specific pick
-        expect(new Set(questions.map((q: { sourceId: string }) => q.sourceId)).size).toBe(2);
-    });
 });
 
 

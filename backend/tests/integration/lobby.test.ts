@@ -46,7 +46,7 @@ beforeAll(async () => {
     outsiderCookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
 
     const [tournament] = await db.insert(tournaments).values({
-        ownerId: owner.id, visibility: "PUBLIC", tags: ["THTH"],
+        ownerId: owner.id, visibility: "PUBLIC", 
         slug: `lobby-${randomUUID().slice(0, 8)}`,
         name: "Lobby Cup",
         // Deliberately NOT alphabetical: the lobby must show declared order.

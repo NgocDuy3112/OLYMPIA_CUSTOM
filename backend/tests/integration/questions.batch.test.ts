@@ -19,7 +19,7 @@ const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
 const validTournament = (name: string) => ({
     name,
-    tags: ["THTH"],
+    
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: {
         competitorsPerMatch: 2,
@@ -124,9 +124,9 @@ describe("batch import — dry run", () => {
                 row("ok"),
                 row("a free tag", "NOPE"),
                 row("ok too"),
-                { kind: "MC", tag: "THTH" },
+                { kind: "MC" },
                 {
-                    kind: "MC", questionText: "dangling", tag: "THTH",
+                    kind: "MC", questionText: "dangling", 
                     payload: { options: [{ id: "A", text: "4" }], correctSet: ["Z"] }
                 }
             ]
@@ -173,7 +173,7 @@ describe("batch import — commit", () => {
 
         const res = await batchFlat({
             questions: [row("would be fine"), row("broken payload"), {
-                kind: "MC", questionText: "dangling", tag: "THTH",
+                kind: "MC", questionText: "dangling", 
                 payload: { options: [{ id: "A", text: "4" }], correctSet: ["Z"] }
             }]
         });

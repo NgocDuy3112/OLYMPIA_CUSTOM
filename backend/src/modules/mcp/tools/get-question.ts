@@ -19,7 +19,7 @@ export function registerGetQuestion(server: McpServer): void {
         {
             title: "Get question",
             description:
-                "Fetch one question visible to operators (PUBLISHED or ARCHIVED, tagged for the given tournament). Answers are included.",
+                "Fetch one question visible to operators (PUBLISHED or ARCHIVED). Answers are included.",
             inputSchema: getQuestionInput,
             annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false }
         },
@@ -28,9 +28,8 @@ export function registerGetQuestion(server: McpServer): void {
                 const actor = actorFrom(ctx.http?.authInfo);
                 requireScope(actor, "READ");
                 await assertTournamentVisible(args.tournamentId, actor.role);
-                const tournament = await requireTournament(args.tournamentId);
 
-                const row = await getForAgent(tournament.tags, args.questionId);
+                const row = await getForAgent(args.questionId);
 
                 await audit({
                     action: "mcp_tool_call",

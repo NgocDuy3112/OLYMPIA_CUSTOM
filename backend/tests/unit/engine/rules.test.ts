@@ -56,8 +56,6 @@ describe("the defaults — the format's numbers", () => {
         expect(rules.shield).toEqual({ correct: 0.5, incorrect: 0 });
         expect(rules.buzzWindowS).toBe(5);
         expect(rules.pickCount).toBe(3);
-        expect(rules.faceValues.THTH).toBe(20);
-        expect(rules.faceValues.KTTH).toBe(50);
     });
 });
 
@@ -120,7 +118,6 @@ describe("the rulebook wins", () => {
                 template: "outcome_multipliers",
                 correct: 2,
                 incorrect: -1,
-                faceValues: { THTH: 10, TNSS: 20 },
                 powers: {
                     hope: { correct: 3, incorrect: -2 },
                     shield: { correct: 1, incorrect: 0 }
@@ -135,7 +132,6 @@ describe("the rulebook wins", () => {
         expect(rules.correctPct).toBe(2);
         expect(rules.incorrectPct).toBe(-1);
         expect(rules.hope).toEqual({ correct: 3, incorrect: -2 });
-        expect(rules.faceValues).toEqual({ THTH: 10, TNSS: 20 });
         expect(rules.pickCount).toBe(5);
         expect(rules.buzzWindowS).toBe(8);
     });

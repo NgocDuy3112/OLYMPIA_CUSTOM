@@ -9,8 +9,10 @@ import {
     uniqueIndex,
     primaryKey,
     index,
+    check,
     pgEnum,
     pgTable,
+    type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { users } from "./auth.js";
@@ -26,7 +28,7 @@ import {
 
 
 export const visibility = pgEnum("visibility", ["PUBLIC", "PRIVATE"]);
-export const questionKind = pgEnum("question_kind", ["MC", "TEXT", "KEYWORD"]);
+export const questionKind = pgEnum("question_kind", ["MC", "TEXT", "KEYWORD", "HINT"]);
 export const questionStatus = pgEnum("question_status", ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]);
 
 
@@ -41,8 +43,6 @@ export const tournaments = pgTable(
             .notNull()
             .references(() => users.id),
 
-        // The tags decide which questions of the global bank this tournament may assemble.
-        tags: text("tags").array().notNull(),
         current: boolean("current").notNull().default(false),
 
         rounds: jsonb("rounds").$type<TournamentRound[]>().notNull(),
@@ -88,7 +88,11 @@ export const questionBank = pgTable(
         id: uuid("id").primaryKey().defaultRandom(),
         kind: questionKind("kind").notNull(),
         questionText: text("question_text").notNull(),
-        tag: varchar("tag", { length: 64 }).notNull(),
+        // The ve-dich board's category label — presentation only: no filtering,
+        // no eligibility, no scoring. Copied into the match at assembly.
+        domain: varchar("domain", { length: 64 }),
+        // A hint belongs to exactly one keyword: the set it lives under.
+        keywordId: uuid("keyword_id").references((): AnyPgColumn => questionBank.id),
         media: jsonb("media").$type<Media>(), 
         payload: jsonb("payload").$type<QuestionPayload>().notNull(),
         timeLimit: integer("time_limit"),
@@ -103,7 +107,8 @@ export const questionBank = pgTable(
     },
     (table) => [
         index("question_bank_status_idx").on(table.status),
-        index("question_bank_tag_idx").on(table.tag),
-        index("question_bank_tag_status_idx").on(table.tag, table.status)
+        index("question_bank_keyword_idx").on(table.keywordId),
+        // Containment lives in the database: a HINT without its keyword cannot exist.
+        check("question_bank_hint_needs_keyword", sql`kind <> 'HINT' OR keyword_id IS NOT NULL`)
     ]
 );

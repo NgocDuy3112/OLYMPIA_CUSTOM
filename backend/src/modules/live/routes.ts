@@ -115,12 +115,12 @@ function khoiDongContext(
     };
 }
 
-// The 24 ve-dich questions: value from the question's points, domain from its tag.
+// The ve-dich board: value from the question's points, category from its domain.
 function veDichQuestions(match: { questions: MatchQuestion[] }) {
     return match.questions
         .filter((q) => q.roundId === "ve-dich")
         .sort((a, b) => a.position - b.position)
-        .map((q) => ({ id: q._id, domain: q.tag, value: q.points }));
+        .map((q) => ({ id: q._id, domain: q.domain ?? "", value: q.points }));
 }
 
 // The match's questions for a round, in position order. Resolved server-side, so a client
@@ -157,7 +157,7 @@ async function lobbyOf(match: MatchRow): Promise<{
     label: string;
     status: "UPCOMING" | "LIVE" | "FINISHED";
     roundId: string | null;
-    rounds: Array<{ id: string; name: string }>;
+    rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended" }>;
     table: ReturnType<typeof rankTable>;
     connected: string[];
 }> {
@@ -166,9 +166,18 @@ async function lobbyOf(match: MatchRow): Promise<{
 
     // The rounds this match actually plays, in the tournament's declared order.
     const ordered = orderedMatchRounds(tournament.rounds, match.roundConfigs);
+    // Per-round status for the navigator: new (never started) · playing (mid-play
+    // or parked) · ended. The active round reads its state, the others their archive.
+    const statusOf = (id: string, raw: unknown): "new" | "playing" | "ended" => {
+        if (!raw || Object.keys(raw as Record<string, unknown>).length === 0) return "new";
+        return isRoundEnded(id, raw) ? "ended" : "playing";
+    };
     const rounds = ordered.map((id) => ({
         id,
         name: tournament.rounds.find((round) => round.id === id)?.name ?? id,
+        status: id === live?.roundId
+            ? statusOf(id, live?.state)
+            : statusOf(id, live?.archive?.[id] ?? {})
     }));
 
     return {
@@ -409,7 +418,31 @@ export async function liveRoutes(app: FastifyInstance) {
                             if (!following) {
                                 throw new RuleError("NO_NEXT_ROUND", "no further round in this tournament");
                             }
-                            return { state: {}, facts: [], roundId: following };
+                            // Preserve the round we're leaving — it stays re-visitable.
+                            return {
+                                state: current.archive?.[following] ?? {},
+                                facts: [],
+                                roundId: following,
+                                archive: { ...(current.archive ?? {}), [current.roundId]: current.state }
+                            };
+                        }
+
+                        // Free navigation: any round may become active. Its saved
+                        // state (if any) is restored, so ended AND mid-play rounds
+                        // can be re-opened — the controller's re-visit right.
+                        if (action.kind === "round.goTo") {
+                            if (!ordered.includes(action.roundId)) {
+                                throw new RuleError("UNKNOWN_ROUND", `round ${action.roundId} is not part of this match`);
+                            }
+                            if (action.roundId === current.roundId) {
+                                return { state: current.state, facts: [] };
+                            }
+                            return {
+                                state: current.archive?.[action.roundId] ?? {},
+                                facts: [],
+                                roundId: action.roundId,
+                                archive: { ...(current.archive ?? {}), [current.roundId]: current.state }
+                            };
                         }
 
                         // An action must belong to the round that is active.
@@ -609,7 +642,9 @@ export async function liveRoutes(app: FastifyInstance) {
             const { me: _observer, ...projection } = view;
 
             return {
-                ...live,
+                version: live.version,
+                roundId: live.roundId,
+                state: live.state,
                 // The judge's view: the full frozen set, answers included.
                 questions: match.questions,
                 projection,

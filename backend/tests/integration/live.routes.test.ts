@@ -27,14 +27,14 @@ const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
 
 const textQuestion = (roundId: string, turnId: string, position: number): MatchQuestion => ({
     _id: randomUUID(), roundId, turnId, position, mode: "text", kind: "TEXT",
-    questionText: `Hint ${position}`, media: null, timeLimit: null, points: 0, tag: "THTH",
+    questionText: `Hint ${position}`, media: null, timeLimit: null, points: 0, 
     payload: { acceptedAnswers: ["Hà Nội"], normalize: { caseSensitive: false, trim: true, stripAccents: true } },
     sourceId: randomUUID()
 });
 
 const keywordQuestion = (roundId: string): MatchQuestion => ({
     _id: randomUUID(), roundId, turnId: "keyword", position: 0, mode: "text", kind: "KEYWORD",
-    questionText: "The keyword", media: null, timeLimit: null, points: 100, tag: "THTH",
+    questionText: "The keyword", media: null, timeLimit: null, points: 100, 
     payload: { code: "DIENBIENPHU", normalize: { caseSensitive: false, trim: true, stripAccents: true } },
     sourceId: randomUUID()
 });
@@ -66,7 +66,7 @@ beforeAll(async () => {
     const tournamentSlug = "live-tournament-tournament";
 
     const [tournament] = await db.insert(tournaments).values({
-        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "Live Tournament",
         rounds: [
             { id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" },
@@ -403,6 +403,26 @@ describe("round progression", () => {
             mc: null,
             roundEnded: false
         });
+    });
+
+    it("round.goTo re-opens the finished round — states are archived, not wiped", async () => {
+        // Back to giai-ma: the round we left was ARCHIVED, so its ended state
+        // comes back with it — the controller may re-visit a finished round.
+        const back = await act({ kind: "round.goTo", roundId: "giai-ma" });
+        expect(back.statusCode).toBe(200);
+        expect(back.json().roundId).toBe("giai-ma");
+        expect(back.json().state.stage).toBe("ended");
+
+        // …and forward again: but-pha is still the untouched pending round, and
+        // both left rounds live in the archive (re-visit in either direction).
+        const forward = await act({ kind: "round.goTo", roundId: "but-pha" });
+        expect(forward.statusCode).toBe(200);
+        expect(forward.json().roundId).toBe("but-pha");
+        expect(forward.json().state).toEqual({});
+
+        const [row] = await db.select().from(matchLive).where(eq(matchLive.matchId, matchId));
+        expect(row.archive["giai-ma"]).toMatchObject({ stage: "ended" });
+        expect(row.archive["but-pha"]).toEqual({});
     });
 
     it("a giai-ma action on another round is rejected with 409 WRONG_ROUND", async () => {

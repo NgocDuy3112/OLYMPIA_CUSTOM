@@ -25,7 +25,7 @@ const asPlayer = (cookie: string) => ({ cookie: `gameplay_session=${cookie}` });
 
 const question = (turnId: string, position: number): MatchQuestion => ({
     _id: randomUUID(), roundId: "khoi-dong", turnId, position, mode: turnId === "phase1" ? "oral" : "text",
-    kind: "TEXT", questionText: `${turnId} ${position}`, media: null, timeLimit: null, points: 10, tag: "THTH",
+    kind: "TEXT", questionText: `${turnId} ${position}`, media: null, timeLimit: null, points: 10, 
     payload: { acceptedAnswers: ["Hà Nội"], normalize: { caseSensitive: false, trim: true, stripAccents: true } },
     sourceId: randomUUID()
 });
@@ -52,7 +52,7 @@ beforeAll(async () => {
     const tournamentSlug = "kd-tournament-tournament";
 
     const [tournament] = await db.insert(tournaments).values({
-        ownerId: tournamentOwner, visibility: "PUBLIC", tags: tournamentTags, slug: tournamentSlug,
+        ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "KD Tournament",
         rounds: [{ id: "khoi-dong", name: "Khoi Dong", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 2, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
