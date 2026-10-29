@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { screenFor, type LiveScreen, type LiveView } from "../src/lib/live"
+import { playerScreenOf, type LiveView } from "../src/lib/live"
 
-// A view factory: only the fields screenFor reads are varied; everything else
-// arrives as the empty-but-well-formed shape the server would send.
+// A view factory: only the fields playerScreenOf reads are varied; everything
+// else arrives as the empty-but-well-formed shape the server would send.
 const view = (over: Partial<LiveView>): LiveView => ({
     matchId: "m1",
     roundId: "khoi-dong",
@@ -18,73 +18,72 @@ const openWindow = (questionId: string) => [
     { questionId, deadlineAt: "2026-01-01T00:00:15.000Z", question: null },
 ]
 
-describe("screenFor — the lobby", () => {
+describe("playerScreenOf — the lobby", () => {
     it("a round the MC has not started is the lobby", () => {
-        expect(screenFor(view({ stage: "pending" }))).toBe("lobby")
+        expect(playerScreenOf(view({ stage: "pending" }))).toBe("lobby")
+        expect(playerScreenOf(view({ roundId: "ve-dich", stage: "pending" }))).toBe("lobby")
     })
 
     it("an ended round is the lobby — waiting for the MC to advance", () => {
-        expect(screenFor(view({ roundId: "giai-ma", stage: "ended" }))).toBe("lobby")
-        expect(screenFor(view({ roundId: "but-pha", stage: "ended" }))).toBe("lobby")
-        expect(screenFor(view({ roundId: "ve-dich", stage: "ended" }))).toBe("lobby")
+        expect(playerScreenOf(view({ roundId: "giai-ma", stage: "ended" }))).toBe("lobby")
+        expect(playerScreenOf(view({ roundId: "but-pha", stage: "ended" }))).toBe("lobby")
+        expect(playerScreenOf(view({ roundId: "ve-dich", stage: "ended" }))).toBe("lobby")
+    })
+
+    it("an ended round is the lobby for EVERY round — one rule, no exceptions", () => {
+        // The khoi-dong engine never sends "ended" (it stops at phase2), but the
+        // waiting-stage rule still covers it — no round-specific branch anywhere.
+        expect(playerScreenOf(view({ roundId: "khoi-dong", stage: "ended" }))).toBe("lobby")
     })
 })
 
-describe("screenFor — khoi-dong", () => {
-    it("phase 1 is the oral screen, phase 2 the batch", () => {
-        expect(screenFor(view({ roundId: "khoi-dong", stage: "phase1" }))).toBe("khoi-dong-oral")
-        expect(screenFor(view({ roundId: "khoi-dong", stage: "phase2" }))).toBe("khoi-dong-batch")
+describe("playerScreenOf — khoi-dong", () => {
+    it("phase 1 is the rieng screen, phase 2 the chung", () => {
+        expect(playerScreenOf(view({ roundId: "khoi-dong", stage: "phase1" }))).toBe("khoi-dong-rieng")
+        expect(playerScreenOf(view({ roundId: "khoi-dong", stage: "phase2" }))).toBe("khoi-dong-chung")
     })
 
-    it("a stage khoi-dong never has degrades to unknown", () => {
-        expect(screenFor(view({ roundId: "khoi-dong", stage: "phase3" }))).toBe("unknown")
+    it("a stage khoi-dong never has degrades to the rieng layout", () => {
+        expect(playerScreenOf(view({ roundId: "khoi-dong", stage: "phase3" }))).toBe("khoi-dong-rieng")
     })
 })
 
-describe("screenFor — giai-ma", () => {
-    it("between windows it is idle; an open window wins", () => {
-        expect(screenFor(view({ roundId: "giai-ma", stage: "hints" }))).toBe("giai-ma-idle")
-        expect(screenFor(
+describe("playerScreenOf — giai-ma and but-pha", () => {
+    it("giai-ma plays one screen: windows open or not", () => {
+        expect(playerScreenOf(view({ roundId: "giai-ma", stage: "hints" }))).toBe("giai-ma")
+        expect(playerScreenOf(
             view({ roundId: "giai-ma", stage: "hints", open: openWindow("h2") })
-        )).toBe("giai-ma-window")
+        )).toBe("giai-ma")
     })
 
-    it("a stage it does not know degrades to unknown", () => {
-        expect(screenFor(view({ roundId: "giai-ma", stage: "picking" }))).toBe("unknown")
-    })
-})
-
-describe("screenFor — but-pha and ve-dich", () => {
     it("but-pha plays its sprint screen", () => {
-        expect(screenFor(view({ roundId: "but-pha", stage: "question" }))).toBe("but-pha")
-    })
-
-    it("ve-dich plays both phases on the same screen", () => {
-        expect(screenFor(view({ roundId: "ve-dich", stage: "phase1" }))).toBe("ve-dich")
-        expect(screenFor(view({ roundId: "ve-dich", stage: "phase2" }))).toBe("ve-dich")
+        expect(playerScreenOf(view({ roundId: "but-pha", stage: "question" }))).toBe("but-pha")
     })
 })
 
-describe("screenFor — degrading kindly", () => {
-    it("an unknown round never throws — it says unknown", () => {
-        expect(screenFor(view({ roundId: "mystery-round", stage: "question" }))).toBe("unknown")
+describe("playerScreenOf — ve-dich", () => {
+    it("no open question is the board, in both phases", () => {
+        expect(playerScreenOf(view({ roundId: "ve-dich", stage: "phase1" }))).toBe("ve-dich-pick")
+        expect(playerScreenOf(view({ roundId: "ve-dich", stage: "phase2" }))).toBe("ve-dich-pick")
     })
 
-    it("every view maps to exactly one screen", () => {
-        const screens: LiveScreen[] = [
-            "lobby", "khoi-dong-oral", "khoi-dong-batch", "giai-ma-window",
-            "giai-ma-idle", "but-pha", "ve-dich", "unknown",
-        ]
-        const samples = [
-            view({ stage: "pending" }),
-            view({ stage: "phase1" }),
-            view({ stage: "phase2" }),
-            view({ roundId: "giai-ma", stage: "hints", open: openWindow("h1") }),
-            view({ roundId: "giai-ma", stage: "hints" }),
-            view({ roundId: "but-pha", stage: "question" }),
-            view({ roundId: "ve-dich", stage: "phase2" }),
-            view({ roundId: "mystery", stage: "question" }),
-        ]
-        expect(samples.map(screenFor)).toEqual(screens)
+    it("an open question splits by phase: typed chung, oral rieng", () => {
+        expect(playerScreenOf(
+            view({ roundId: "ve-dich", stage: "phase1", open: openWindow("q1") })
+        )).toBe("ve-dich-chung")
+        expect(playerScreenOf(
+            view({ roundId: "ve-dich", stage: "phase2", open: openWindow("q1") })
+        )).toBe("ve-dich-rieng")
+    })
+})
+
+describe("playerScreenOf — degrading kindly", () => {
+    it("an unknown round is ALWAYS the lobby — it has no screen", () => {
+        expect(playerScreenOf(view({ roundId: "mystery-round", stage: "question" }))).toBe("lobby")
+        expect(playerScreenOf(
+            view({ roundId: "mystery-round", stage: "question", open: openWindow("q1") })
+        )).toBe("lobby")
+        expect(playerScreenOf(view({ roundId: "mystery-round", stage: "pending" }))).toBe("lobby")
+        expect(playerScreenOf(view({ roundId: "mystery-round", stage: "phase2" }))).toBe("lobby")
     })
 })

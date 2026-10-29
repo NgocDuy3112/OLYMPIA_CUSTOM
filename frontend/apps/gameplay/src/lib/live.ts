@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
+import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
+import type { LobbyData } from "@shared/deck/types"
 import { useSocketStream } from "./ws"
 
 // An API refusal, shaped for the gate screens: each status is a screen, never
@@ -35,12 +37,11 @@ export function failureOf(error: unknown): ViewFailure | null {
 
 export interface LiveQuestion {
     questionId: string
-    kind: "MC" | "TEXT" | "KEYWORD"
+    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
     position: number
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null
     timeLimit: number | null
-    tag: string
     // MC carries options; never the correct set — the sanitizer's rule.
     payload: { options?: Array<{ id: string; text: string }> }
 }
@@ -122,51 +123,6 @@ interface StreamFrame {
     data?: { view?: LiveView }
 }
 
-// ── the screens ──────────────────────────────────────────────────────────────
-
-export type LiveScreen =
-    | "lobby"           // round not started / ended — waiting for the MC
-    | "khoi-dong-oral"  // phase 1: the oral question on every screen, budget bar
-    | "khoi-dong-batch" // phase 2: 6 questions, shared 60 s
-    | "giai-ma-window"  // a hint's 15 s window is open
-    | "giai-ma-idle"    // between windows: hints, keyword box
-    | "but-pha"         // one question, 30 s sprint
-    | "ve-dich"         // turns, board, buzz, powers
-    | "unknown"         // a round this client does not know — say so, stay calm
-
-/**
- * Which screen a view renders. Pure — the view is the only input, so the rule is
- * unit-testable and the component never re-derives it.
- *
- * Ended stages read as `lobby`: a finished round is exactly "waiting for the MC
- * to advance", which is what the lobby says.
- */
-export function screenFor(view: LiveView): LiveScreen {
-    if (view.stage === "pending") return "lobby"
-
-    switch (view.roundId) {
-        case "khoi-dong":
-            if (view.stage === "phase1") return "khoi-dong-oral"
-            if (view.stage === "phase2") return "khoi-dong-batch"
-            return "unknown"
-        case "giai-ma":
-            if (view.stage === "ended") return "lobby"
-            if (view.open.length > 0) return "giai-ma-window"
-            if (view.stage === "hints") return "giai-ma-idle"
-            return "unknown"
-        case "but-pha":
-            if (view.stage === "question") return "but-pha"
-            if (view.stage === "ended") return "lobby"
-            return "unknown"
-        case "ve-dich":
-            if (view.stage === "phase1" || view.stage === "phase2") return "ve-dich"
-            if (view.stage === "ended") return "lobby"
-            return "unknown"
-        default:
-            return "unknown"
-    }
-}
-
 // ── the query + push ─────────────────────────────────────────────────────────
 
 export const liveKey = (matchId: string) => ["live", matchId] as const
@@ -223,6 +179,63 @@ export function useLiveMatch(matchId: string, enabled: boolean): UseLiveMatch {
         clock,
         refetch: () => void query.refetch(),
     }
+}
+
+// ── which screen a view renders ────────────────────────────────────────────
+
+export type PlayerScreen =
+    | "lobby"            // round not started / ended — waiting for the MC
+    | "khoi-dong-rieng"  // phase 1: the oral run on every screen, budget bar
+    | "khoi-dong-chung"  // phase 2: 6 questions, shared 60 s
+    | "giai-ma"          // hint windows + the keyword box (one screen, two bands)
+    | "but-pha"          // one question, 30 s sprint
+    | "ve-dich-pick"     // the board — cells ARE the picker
+    | "ve-dich-chung"    // the open question, phase 1: typed
+    | "ve-dich-rieng"    // the open question, phase 2: oral + buzz + powers
+
+/**
+ * Which screen a view renders. Pure — the view is the only input, so the rule
+ * is unit-testable and the orchestrator never re-derives it. One reason per
+ * line: the lobby wins whenever a round screen does not exist.
+ */
+export function playerScreenOf(view: LiveView): PlayerScreen {
+    const { roundId, stage, open } = view
+
+    if (!isKnownRound(roundId)) return "lobby" // a round this client has no screen for
+    if (isWaitingStage(stage)) return "lobby"  // not started / over / unrecognized stage
+
+    switch (roundId) {
+        case "khoi-dong":
+            return stage === "phase2" ? "khoi-dong-chung" : "khoi-dong-rieng"
+        case "giai-ma":
+            return "giai-ma"
+        case "but-pha":
+            return "but-pha"
+        default: // ve-dich
+            return open.length === 0
+                ? "ve-dich-pick"
+                : stage === "phase2" ? "ve-dich-rieng" : "ve-dich-chung"
+    }
+}
+
+// ── the lobby ───────────────────────────────────────────────────────────────────
+
+export const lobbyKey = (matchId: string) => ["lobby", matchId] as const
+
+/**
+ * The player's lobby read — asked WHILE WAITING: /live 409s until the match is
+ * LIVE and says "pending" until the MC starts a round, but the lobby answers
+ * in every case — seats, connected dots, the round waiting to start.
+ */
+export function useLiveLobby(matchId: string, enabled: boolean) {
+    return useQuery({
+        queryKey: lobbyKey(matchId),
+        queryFn: () => api<LobbyData>(`/gameplay/matches/${matchId}/lobby`),
+        enabled: enabled && Boolean(matchId),
+        refetchInterval: 3_000,
+        retry: false,
+        staleTime: 0,
+    })
 }
 
 // ── the three commands ───────────────────────────────────────────────────────

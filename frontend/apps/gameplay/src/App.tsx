@@ -1,11 +1,12 @@
 import { useMemo } from "react"
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate, useParams, useOutletContext } from "react-router-dom"
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useParams, useOutletContext } from "react-router-dom"
 import { ApiError } from "@shared/lib/api"
 import { AppShell } from "@/components/layout/AppShell"
 import { SchedulePage } from "@/pages/SchedulePage"
 import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
-import { LiveMatchView } from "@/components/live/LiveMatchView"
+import { JoinPage } from "@/pages/JoinPage"
+import { PlayerShell } from "@/components/player-shell"
 import { useSchedule, useStandings, useTournament, useTournamentList, type TournamentDetail } from "@/lib/api"
 import { toMatch, toStandings } from "@/lib/adapters"
 
@@ -106,7 +107,6 @@ function StandingsRoute() {
 function MatchRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
     const { id } = useParams()
-    const navigate = useNavigate()
     const schedule = useSchedule(tournament.slug)
 
     if (schedule.isPending) return <LoadingState />
@@ -115,16 +115,10 @@ function MatchRoute() {
     const row = schedule.data.items.find((m) => m.id === id)
     if (!row) return <NotFoundPage />
 
-    const match = toMatch(row, tournament.rounds)
-    const back = () => navigate(`/s/${tournament.slug}`)
-
-    // LIVE: the player's live surface — it owns the full page (L3). Every other
-    // match opens as the schedule's sidebar, so a deep link lands there (2510).
-    if (row.status === "LIVE") {
-        return <LiveMatchView match={match} rounds={tournament.rounds} onBack={back} />
-    }
-
-    return <Navigate to={`/s/${tournament.slug}?match=${row.id}`} replace />
+    // The player's deck owns the whole page (L3) — LIVE renders the round,
+    // anything else gates to the lobby inside the same canvas. Every other
+    // match entry stays the schedule's sidebar (2510).
+    return <PlayerShell matchId={row.id} />
 }
 
 // "/" and "/standings" lead to the CURRENT tournament — the one the staff flagged,
@@ -156,6 +150,12 @@ function App() {
                     <Route path="/standings" element={<CurrentTournamentRedirect path={(slug) => `/s/${slug}/standings`} />} />
                     <Route path="*" element={<NotFoundPage />} />
                 </Route>
+
+                {/* The player's door: PIN join → the seat's GAMEPLAY session →
+                    the deck at /s/:slug/matches/:id. Players live HERE, never
+                    in the portal (user decision) — so it sits outside the
+                    AppShell, like the portal's old /join did. */}
+                <Route path="/join" element={<JoinPage />} />
             </Routes>
         </BrowserRouter>
     )
