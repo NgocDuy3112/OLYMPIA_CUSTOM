@@ -85,6 +85,15 @@ export function phase1Complete(state: VeDichState): boolean {
     return state.phase === 1 && state.open === null && state.turnIndex >= state.players.length;
 }
 
+/**
+ * Phase 1 recorded NOTHING — the MC may skip it (Về đích · Riêng starts the
+ * summit on untouched scores, the confirmed rule). Any completed turn or open
+ * question keeps PHASE1_INCOMPLETE guarding: finish phase 1 first.
+ */
+export function phase1Untouched(state: VeDichState): boolean {
+    return state.phase === 1 && state.turnIndex === 0 && state.open === null && state.pendingPicks.length === 0;
+}
+
 export function phase2Complete(state: VeDichState): boolean {
     return state.phase === 2 && state.open === null && state.turnIndex >= state.players.length;
 }
@@ -92,7 +101,7 @@ export function phase2Complete(state: VeDichState): boolean {
 // Move to phase 2. The turn order is fixed HERE, by score at this moment (lowest first).
 export function beginPhase2(state: VeDichState): VeDichState {
     if (state.phase !== 1) fail("WRONG_PHASE", "already in phase 2");
-    if (!phase1Complete(state)) fail("PHASE1_INCOMPLETE", "phase 1 is not complete");
+    if (!phase1Complete(state) && !phase1Untouched(state)) fail("PHASE1_INCOMPLETE", "phase 1 is not complete");
     return {
         ...state,
         phase: 2,

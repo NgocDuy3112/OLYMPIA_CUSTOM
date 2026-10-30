@@ -313,8 +313,11 @@ describe("phase transitions", () => {
         expect(s.pendingPicks).toEqual([]);
     });
 
-    it("beginPhase2 refuses an incomplete phase 1", () => {
-        expect(codeOf(() => beginPhase2(createVeDich(POOL, players)))).toBe("PHASE1_INCOMPLETE");
+    it("beginPhase2 skips an untouched phase 1 but refuses a touched one", () => {
+        // Untouched → "Về đích · Riêng" may start the summit directly (confirmed rule);
+        // one completed turn = touched → PHASE1_INCOMPLETE keeps guarding.
+        expect(beginPhase2(createVeDich(POOL, players)).phase).toBe(2);
+        expect(codeOf(() => beginPhase2(advanceTurn(createVeDich(POOL, players))))).toBe("PHASE1_INCOMPLETE");
     });
 
     it("beginPhase2 cannot run twice", () => {

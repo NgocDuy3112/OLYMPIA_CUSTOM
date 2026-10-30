@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildPlayerView, type SubmittedAnswer } from "../../../src/modules/live/view.js";
 import { openHint, startGiaiMa } from "../../../src/game/engine/turns/giai-ma.js";
 import { openCurrentQuestion, startButPha, submitAnswer } from "../../../src/game/engine/turns/but-pha.js";
-import { startKhoiDong } from "../../../src/game/engine/turns/khoi-dong-round.js";
+import { endKhoiDong, startKhoiDong } from "../../../src/game/engine/turns/khoi-dong-round.js";
 import {
     advanceTurn,
     beginPhase2 as beginVeDichPhase2,
@@ -143,6 +143,19 @@ describe("player view — khoi-dong", () => {
             ]
         }));
         expect(view.me.verdicts).toEqual({ b2: "CORRECT", b3: "INCORRECT" });
+    });
+
+    it("an ENDED round surfaces the waiting stage — Về sảnh lands on the lobby", () => {
+        // endKhoiDong sets `ended` but keeps the stage it was in; without the
+        // view mapping BOTH surfaces stay stuck on the round screen and the
+        // lobby gate (isWaitingStage) never fires — "the button does nothing".
+        const oral = endKhoiDong(startKhoiDong(["p0", "p1"], P1));
+        expect(buildPlayerView(base({ roundId: "khoi-dong", state: oral })).stage).toBe("ended");
+
+        const batch = endKhoiDong(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2, NOW));
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state: batch }));
+        expect(view.stage).toBe("ended");
+        expect(view.open).toEqual([]); // endKhoiDong closes phase 2 — nothing left to type
     });
 });
 

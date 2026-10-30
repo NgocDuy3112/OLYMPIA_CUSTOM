@@ -34,8 +34,15 @@ export function applyKhoiDongAction(
     ctx: KhoiDongContext
 ): Transition<KhoiDongState> {
     switch (action.kind) {
-        case "khoi-dong.start":
-            return { state: startKhoiDong(ctx.playerIds, ctx.phase1QuestionIds), facts: [] };
+        case "khoi-dong.start": {
+            const started = startKhoiDong(ctx.playerIds, ctx.phase1QuestionIds);
+            // phase: 2 — the navigator's "· Chung" entry: skip the untouched
+            // oral phase and open the batch in the SAME action (atomic, one version).
+            if (action.phase === 2) {
+                return { state: beginPhase2(started, ctx.phase2QuestionIds, ctx.now), facts: [] };
+            }
+            return { state: started, facts: [] };
+        }
 
         case "khoi-dong.recordOral": {
             const playerId = activePlayerId(state);

@@ -68,9 +68,21 @@ describe("applyKhoiDongAction — phase 2", () => {
         return s;
     }
 
-    it("cannot begin before phase 1 is complete", () => {
-        expect(() => applyKhoiDongAction(started(), { kind: "khoi-dong.beginPhase2" }, ctx()))
+    it("cannot begin once phase 1 HAS answers but is unfinished — only an untouched phase skips", () => {
+        // One recorded oral answer = touched: PHASE1_INCOMPLETE keeps guarding
+        // (the skip rule costs phase 1 only while it recorded NOTHING).
+        let s = started();
+        s = applyKhoiDongAction(s, { kind: "khoi-dong.recordOral", correct: true, spentS: 1 }, ctx()).state;
+        expect(() => applyKhoiDongAction(s, { kind: "khoi-dong.beginPhase2" }, ctx()))
             .toThrow(RuleError);
+    });
+
+    it("start with phase: 2 skips the untouched oral phase and opens Chung", () => {
+        const s = applyKhoiDongAction({} as KhoiDongState, { kind: "khoi-dong.start", phase: 2 }, ctx()).state;
+        expect(s.stage).toBe("phase2");
+        expect(s.ended).toBe(false);
+        // no oral results carried over — phase 1 scored nothing
+        expect(Object.values(s.runs).every((r) => Object.keys(r.results).length === 0)).toBe(true);
     });
 
     it("beginPhase2 opens the typed phase and stamps the clock", () => {

@@ -209,7 +209,10 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
             matchId: input.matchId,
             roundId: input.roundId,
             version: input.version,
-            stage: "phase1",
+            // endKhoiDong keeps state.stage — without this mapping the ended
+            // round still reads "phase1" and BOTH surfaces stay on the round
+            // screen ("Về sảnh" looks dead: the lobby's waiting gate never fires).
+            stage: state.ended ? "ended" : "phase1",
             open: [],                                   // phase 1 is oral: nothing to type
             table: rankTable(input.table),
             // The engine tracks the run as a consumed budget (elapsedS/budgetS),
@@ -248,7 +251,8 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         matchId: input.matchId,
         roundId: input.roundId,
         version: input.version,
-        stage: "phase2",
+        // See the phase-1 branch: ended must surface as a waiting stage.
+        stage: state.ended ? "ended" : "phase2",
         open,
         table: rankTable(input.table),
         me: {

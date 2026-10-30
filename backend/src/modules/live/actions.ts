@@ -71,7 +71,11 @@ export type ButPhaAction = Static<typeof ButPhaActionSchema>;
 // ── khoi-dong ─────────────────────────────────────────────────────────────────
 // Phase 1 is oral: the MC records each verdict and the seconds spent. Phase 2 is typed:
 // the player route builds the answer action, with the server's measured time.
-export const KhoiDongStart = Type.Object({ kind: Type.Literal("khoi-dong.start") });
+export const KhoiDongStart = Type.Object({
+    kind: Type.Literal("khoi-dong.start"),
+    /** 2 = start straight at Chung: untouched phase 1 is skipped (no oral points). */
+    phase: Type.Optional(Type.Union([Type.Literal(1), Type.Literal(2)]))
+});
 export const KhoiDongRecordOral = Type.Object({
     kind: Type.Literal("khoi-dong.recordOral"),
     correct: Type.Boolean(),
@@ -102,7 +106,11 @@ export type KhoiDongAction = Static<typeof KhoiDongActionSchema>;
 // ── ve-dich ───────────────────────────────────────────────────────────────────
 // Controller actions drive the phases; players pick, declare powers, and buzz. Those
 // arrive as server-built actions, never from a client claiming a playerId.
-export const VeDichStart = Type.Object({ kind: Type.Literal("ve-dich.start") });
+export const VeDichStart = Type.Object({
+    kind: Type.Literal("ve-dich.start"),
+    /** 2 = start straight at Riêng: the summit runs on untouched scores. */
+    phase: Type.Optional(Type.Union([Type.Literal(1), Type.Literal(2)]))
+});
 export const VeDichBeginPhase2 = Type.Object({ kind: Type.Literal("ve-dich.beginPhase2") });
 export const VeDichOpenQuestion = Type.Object({
     kind: Type.Literal("ve-dich.openQuestion"),

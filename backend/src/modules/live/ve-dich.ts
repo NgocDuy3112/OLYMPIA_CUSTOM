@@ -68,7 +68,13 @@ export function applyVeDichAction(
                 score: p.score,                    // cumulative, so phase 1 ordering is real
                 powersLeft: ["HOPE", "SHIELD"]
             }));
-            return { state: createVeDich(ctx.questions, players, ctx.rules), facts: [] };
+            const created = createVeDich(ctx.questions, players, ctx.rules);
+            // phase: 2 — the navigator's "· Riêng" entry: straight to the summit
+            // on untouched scores, in the SAME action (atomic, one version).
+            if (action.phase === 2) {
+                return { state: beginPhase2(created), facts: [] };
+            }
+            return { state: created, facts: [] };
         }
 
         case "ve-dich.pick": {

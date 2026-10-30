@@ -67,6 +67,15 @@ export function phase1Complete(state: KhoiDongState): boolean {
     return state.order.every((id) => state.runs[id].ended);
 }
 
+/**
+ * Phase 1 has recorded NOTHING yet — the MC may skip it (starting straight at
+ * Chung costs the oral runs, which is the confirmed rule). The moment ANY
+ * oral answer exists, PHASE1_INCOMPLETE keeps guarding: finish phase 1 first.
+ */
+export function phase1Untouched(state: KhoiDongState): boolean {
+    return state.order.every((id) => Object.keys(state.runs[id].results).length === 0);
+}
+
 // Move to the next player's run. At the last player the index stays; phase1Complete
 // reports whether everyone is done.
 function advanceActive(state: KhoiDongState): KhoiDongState {
@@ -106,7 +115,7 @@ export function beginPhase2(
     openedAt: string
 ): KhoiDongState {
     if (state.stage !== "phase1") fail("WRONG_STAGE", "phase 1 is over");
-    if (!phase1Complete(state)) fail("PHASE1_INCOMPLETE", "not every player has finished phase 1");
+    if (!phase1Complete(state) && !phase1Untouched(state)) fail("PHASE1_INCOMPLETE", "not every player has finished phase 1");
     return { ...state, stage: "phase2", phase2: startPhase2(phase2Ids), phase2OpenedAt: openedAt };
 }
 

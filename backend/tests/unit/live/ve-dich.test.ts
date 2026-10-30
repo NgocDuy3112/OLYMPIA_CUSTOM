@@ -58,6 +58,18 @@ describe("ve-dich start", () => {
         expect(s.phase).toBe(1);
         expect(s.ended).toBe(false);
     });
+
+    it("start with phase: 2 skips the untouched phase 1 — the summit runs on current scores", () => {
+        const s = applyVeDichAction(createVeDich([], []), { kind: "ve-dich.start", phase: 2 }, ctx({
+            players: PLAYERS.map((id, i) => ({ id, score: [10, 50, 0][i] }))
+        })).state;
+        expect(s.phase).toBe(2);
+        expect(s.turnIndex).toBe(0);
+        expect(s.open).toBeNull();
+        // phase 2's rule: lowest score first, from the scores as they stand
+        expect(s.players.map((p) => p.id)).toEqual(["p2", "p0", "p1"]);
+    });
+
 });
 
 describe("ve-dich picks", () => {
@@ -182,7 +194,10 @@ describe("ve-dich flow actions", () => {
         expect(ended.state.ended).toBe(true);
     });
 
-    it("beginPhase2 before phase 1 is complete is rejected", () => {
-        expect(() => applyVeDichAction(started(), { kind: "ve-dich.beginPhase2" }, ctx())).toThrow(VeDichRuleError);
+    it("beginPhase2 is rejected while phase 1 has unfinished turns", () => {
+        // Untouched may now skip (the confirmed rule) — one completed turn may not.
+        let s = started();
+        s = advanceTurn(s);
+        expect(() => applyVeDichAction(s, { kind: "ve-dich.beginPhase2" }, ctx())).toThrow(VeDichRuleError);
     });
 });

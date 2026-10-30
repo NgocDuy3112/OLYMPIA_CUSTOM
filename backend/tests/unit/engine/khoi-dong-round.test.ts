@@ -90,8 +90,14 @@ describe("khoi-dong round — phase 1 is one run per player", () => {
 });
 
 describe("khoi-dong round — phase 2 begins only after phase 1", () => {
-    it("cannot begin early", () => {
-        expect(codeOf(() => beginPhase2At(startKhoiDong(PLAYERS, P1), P2))).toBe("PHASE1_INCOMPLETE");
+    it("may begin early ONLY while phase 1 recorded nothing (the skip rule)", () => {
+        // Untouched → jumping straight to Chung is the confirmed MC choice.
+        expect(beginPhase2At(startKhoiDong(PLAYERS, P1), P2).stage).toBe("phase2");
+    });
+
+    it("cannot begin early once phase 1 recorded an answer", () => {
+        const touched = recordOral(startKhoiDong(PLAYERS, P1), { correct: true, spentS: 5 });
+        expect(codeOf(() => beginPhase2At(touched, P2))).toBe("PHASE1_INCOMPLETE");
     });
 
     it("begins once everyone has finished", () => {
