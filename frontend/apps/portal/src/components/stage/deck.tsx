@@ -161,13 +161,9 @@ export interface ConsoleFacts {
     v: LiveResponse
     /** The live stage (phase1/phase2/…) — round modules route on it. */
     stage: string
-    roundEnded: boolean
-    started: boolean
     remaining: number | null
     rows: QuestionAnswerRow[]
     baseCards: CardData[]
-    /** but-pha's question cursor mirror (orchestrator state, reset per round). */
-    bpDone: number
     /** the question the ledger is reading (khoi-dong S2 / but-pha S4). */
     judgingId: string | null
     /** verdict target = clicked card, else the first answering player. */
@@ -182,6 +178,8 @@ export interface ConsoleFacts {
     hetLuot: () => void
     /** end the whole ROUND (turn-based: the turn itself is hetLuot's job). */
     ketThuc: () => void
+    /** Tính giờ — pick the round's NEXT question (but-pha's question cursor). */
+    pickQuestion: () => void
     byId: (id: string) => ConsoleQuestion | null
     verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
     /** the MC's stopwatch (khoi-dong S1) — `watchMs` comes from the interval. */

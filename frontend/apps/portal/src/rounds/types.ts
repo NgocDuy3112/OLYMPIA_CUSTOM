@@ -4,11 +4,13 @@ import type { QuestionAnswerRow } from "@/lib/live"
 
 export type RoundAction = Record<string, unknown>
 
-/** What a round's Kết thúc planner needs — the orchestrator gathers it. */
+/** What a round's planners need — the orchestrator gathers it. */
 export interface RoundPlanInput {
     stage: string
     hasOralRun: boolean
     openIds: string[]
+    /** 1-based position of the open question (but-pha's cursor), null when none. */
+    openQuestionPosition: number | null
     rows: QuestionAnswerRow[]
     /** The MC's staged verdicts, keyed `${questionId}:${userId}`. */
     overrides: Record<string, boolean>
@@ -27,13 +29,13 @@ export interface HetLuotFacts {
  */
 export type ScreenCore = Pick<
     ConsoleFacts,
-    "v" | "started" | "flash" | "baseCards" | "send" | "ketThuc" | "openRounds"
+    "v" | "flash" | "baseCards" | "send" | "ketThuc" | "openRounds"
 >
 
 /** The pass-through core: what every screen's ctx starts from. */
 export function screenCore(facts: ConsoleFacts): ScreenCore {
-    const { v, started, flash, baseCards, send, ketThuc, openRounds } = facts
-    return { v, started, flash, baseCards, send, ketThuc, openRounds }
+    const { v, flash, baseCards, send, ketThuc, openRounds } = facts
+    return { v, flash, baseCards, send, ketThuc, openRounds }
 }
 
 /**
@@ -52,8 +54,10 @@ export interface RoundModule {
     render: (facts: ConsoleFacts) => ReactNode
     /** Which rail the round draws. */
     railVariant: (facts: { stage: string; veDichPhase: 1 | 2 | null }) => "compact" | "answers"
-    /** The actions Kết thúc sends for the round (roundEnded → advance is global). */
+    /** The actions Kết thúc sends for the round — one press ends it. */
     ketThucPlan: (input: RoundPlanInput) => RoundAction[]
+    /** Tính giờ's plan: the round's NEXT question (rounds with a question cursor). */
+    nextQuestionPlan?: (input: RoundPlanInput) => RoundAction[]
     /** Turn-based rounds only: the action that finishes the current TURN. */
     hetLuotAction?: (facts: HetLuotFacts) => RoundAction | null
 }

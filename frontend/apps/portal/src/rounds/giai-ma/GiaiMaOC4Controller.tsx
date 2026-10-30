@@ -14,7 +14,7 @@ export type GiaiMaCtx = ScreenCore & {
 }
 
 export function GiaiMaOC4Controller({ ctx }: { ctx: GiaiMaCtx }) {
-    const { v, started, remaining, questions, baseCards, mcGiaiMa, flash, openRounds } = ctx
+    const { v, remaining, questions, baseCards, mcGiaiMa, flash, openRounds } = ctx
     const open = v.projection.open
 
     const keywordQ = questions.find((q) => q.roundId === "giai-ma" && q.kind === "KEYWORD")
@@ -40,7 +40,7 @@ export function GiaiMaOC4Controller({ ctx }: { ctx: GiaiMaCtx }) {
             <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
                 {hintQuestions.map((q, i) => {
                     const s = tileState(q._id)
-                    const interactive = started && s === "free"
+                    const interactive = s === "free"
                     return (
                         <div
                             key={q._id}
@@ -80,9 +80,9 @@ export function GiaiMaOC4Controller({ ctx }: { ctx: GiaiMaCtx }) {
             </MainCard>
             <Strip
                 items={[
-                    { label: "Đúng", onClick: started ? () => ctx.send({ kind: "giai-ma.resolveHint" }) : undefined },
+                    { label: "Đúng", onClick: () => ctx.send({ kind: "giai-ma.resolveHint" }) },
                     { label: "Sai" },
-                    { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
+                    { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
             <Status error={flash} hint={open.length > 0 ? "cửa sổ hint đang mở" : `${hintQuestions.length - (mcGiaiMa?.hintsPicked.length ?? 0)} hint còn lại`} />

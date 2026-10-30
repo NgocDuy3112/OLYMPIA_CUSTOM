@@ -17,7 +17,7 @@ export type VeDichChungCtx = ScreenCore & {
 }
 
 export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
-    const { v, started, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
+    const { v, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
 
     const stripCells = (projection.board ?? []).filter((c) => c.where !== "free")
@@ -41,7 +41,7 @@ export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
                     { label: "Đúng", onClick: ctx.target ? () => ctx.setVerdict(true) : undefined },
                     { label: "Sai", onClick: ctx.target ? () => ctx.setVerdict(false) : undefined },
                     { label: "Hết lượt", onClick: needsVerdict ? undefined : () => ctx.hetLuot() },
-                    { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
+                    { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
             <Status

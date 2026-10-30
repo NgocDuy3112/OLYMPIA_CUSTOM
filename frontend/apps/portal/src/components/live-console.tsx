@@ -9,8 +9,8 @@ import {
     type ConsoleFacts,
 } from "@/components/stage/deck"
 import { valueText } from "@/components/stage/ledger"
-import { ROUND_LABEL, isKnownRound, pt } from "@shared/deck/geometry"
-import { ketThucPlanOf, railVariantOf, roundModuleOf } from "@/rounds"
+import { ROUND_LABEL, isKnownRound, isWaitingStage, pt } from "@shared/deck/geometry"
+import { ketThucPlanOf, nextQuestionPlanOf, railVariantOf, roundModuleOf } from "@/rounds"
 import {
     startActionPayload,
     useLive,
@@ -39,7 +39,6 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     const [overrides, setOverrides] = useState<Record<string, boolean>>({})
     const [selectedQ, setSelectedQ] = useState<string | null>(null)
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
-    const [bp, setBp] = useState({ roundId: "", done: 0 })
     const oralQuestionId = live.data?.projection.oral?.questionId ?? null
     const effWatch = watch.qid === oralQuestionId ? watch : freshWatch(oralQuestionId)
 
@@ -53,12 +52,9 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
 
     const v = live.data
     const roundId = v?.roundId ?? ""
-    // but-pha mirror: valid only for the round it was recorded in (derived reset)
-    const bpDone = bp.roundId === roundId ? bp.done : 0
     const projection = v?.projection
     const stage = projection?.stage ?? "pending"
     const open = projection?.open ?? []
-    const roundEnded = v?.roundEnded ?? false
     const remaining = useCountdown(open[0]?.deadlineAt ?? null, clock)
 
     // The ledger reads ITS question — one hook, one derived id (no hooks in loops).
@@ -79,7 +75,10 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     })
     const peers = useRtcPeerTracks(rtc.room)
 
-    const roundScreenReady = stage !== "pending" && isKnownRound(roundId) && !roundsView
+    // An ended/unknown/pending stage is the WAITING ROOM (same rule the player
+    // surface has) — exit a round and both sides land on the lobby, never a
+    // dead screen. The MC routes manually from its round buttons.
+    const roundScreenReady = !isWaitingStage(stage) && isKnownRound(roundId) && !roundsView
     const viewPainted = projection !== undefined // the GET/push has not delivered a view yet
     const transportRefused = live.isError
     const waiting = transportRefused || !viewPainted || !roundScreenReady
@@ -185,19 +184,27 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         if (action) send(action)
     }
 
-    /** Kết thúc = run the round module's plan (src/rounds decides WHAT). */
+    /** Everything the round planners decide on — gathered once per call. */
+    const planInput = () => ({
+        stage,
+        hasOralRun: Boolean(projection.oral),
+        openIds: open.map((q) => q.questionId),
+        openQuestionPosition: open.length > 0 ? byId(open[0].questionId)?.position ?? null : null,
+        rows,
+        overrides,
+    })
+
+    /** Kết thúc = end the round in ONE press — the round module decides WHAT. */
     const ketThuc = () => {
-        const plan = ketThucPlanOf(roundId, {
-            stage,
-            roundEnded,
-            hasOralRun: Boolean(projection.oral),
-            openIds: open.map((q) => q.questionId),
-            rows,
-            overrides,
-        })
-        if (!roundEnded && roundId === "but-pha" && open.length > 0) {
-            setBp({ roundId, done: Math.min(4, (bp.roundId === roundId ? bp.done : 0) + 1) })
-        }
+        const plan = ketThucPlanOf(roundId, planInput())
+        if (plan.length > 1) return void sendChain(plan)
+        if (plan.length === 1) return send(plan[0])
+    }
+
+    /** Tính giờ — but-pha picks a NEW question: commit the current one, advance, open. */
+    const pickQuestion = () => {
+        const plan = nextQuestionPlanOf(roundId, planInput())
+            ?? [{ kind: "but-pha.openQuestion" }]
         if (plan.length > 1) return void sendChain(plan)
         if (plan.length === 1) return send(plan[0])
     }
@@ -282,12 +289,9 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     const facts: ConsoleFacts = {
         v,
         stage,
-        roundEnded,
-        started,
         remaining,
         rows,
         baseCards,
-        bpDone,
         judgingId,
         target,
         setSelectedQ,
@@ -296,6 +300,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         send,
         hetLuot,
         ketThuc,
+        pickQuestion,
         byId,
         verdictOf,
         watchRunning: effWatch.running,

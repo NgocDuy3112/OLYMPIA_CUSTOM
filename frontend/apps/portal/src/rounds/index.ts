@@ -32,11 +32,15 @@ export function railVariantOf(facts: { roundId: string; stage: string; veDichPha
 }
 
 /**
- * What Kết thúc sends: the GLOBAL rule first (an ended round just returns to
- * the hall), then the round module's plan. Unknown rounds plan nothing — they
- * never render a strip (the lobby owns them).
+ * What Kết thúc sends: ONE press ends the round (the module plans finalize+end
+ * as needed). Unknown rounds plan nothing — they never render a strip (the
+ * lobby owns them).
  */
-export function ketThucPlanOf(roundId: string, input: RoundPlanInput & { roundEnded: boolean }): RoundAction[] {
-    if (input.roundEnded) return [{ kind: "round.advance" }]
+export function ketThucPlanOf(roundId: string, input: RoundPlanInput): RoundAction[] {
     return ROUNDS[roundId]?.ketThucPlan(input) ?? []
+}
+
+/** What Tính giờ sends — the round's NEXT question (rounds with a cursor). */
+export function nextQuestionPlanOf(roundId: string, input: RoundPlanInput): RoundAction[] {
+    return ROUNDS[roundId]?.nextQuestionPlan?.(input) ?? []
 }

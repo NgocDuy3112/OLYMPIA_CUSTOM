@@ -8,8 +8,7 @@ import type { ScreenCore } from "../types"
 /** Bứt phá: four typed questions, one open at a time. */
 export type ButPhaCtx = ScreenCore & {
     remaining: number | null
-    roundEnded: boolean
-    bpDone: number
+    pickQuestion: () => void
     target: string | null
     setVerdict: (correct: boolean) => void
     setSelectedPlayer: (userId: string) => void
@@ -17,11 +16,11 @@ export type ButPhaCtx = ScreenCore & {
 }
 
 export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
-    const { v, roundEnded, started, remaining, baseCards, bpDone, flash, openRounds } = ctx
+    const { v, remaining, baseCards, flash, openRounds } = ctx
     const open = v.projection.open
     const openQ = open[0] ?? null
     const pos = openQ ? (ctx.byId(openQ.questionId)?.position ?? 0) : null
-    const done = roundEnded ? 4 : pos ?? bpDone
+    const done = pos ?? 0
 
     return (
         <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
@@ -39,13 +38,13 @@ export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
             </MainCard>
             <Strip
                 items={[
-                    { label: "Tính giờ", onClick: openQ ? undefined : started ? () => ctx.send({ kind: "but-pha.openQuestion" }) : undefined },
+                    { label: "Tính giờ", onClick: () => ctx.pickQuestion() },
                     { label: "Đúng", onClick: ctx.target && openQ ? () => ctx.setVerdict(true) : undefined },
                     { label: "Sai", onClick: ctx.target && openQ ? () => ctx.setVerdict(false) : undefined },
-                    { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
+                    { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status error={flash} hint={openQ ? `câu ${done + 1}/4` : roundEnded ? "đã hết câu" : "mở câu tiếp theo bằng Tính giờ"} />
+            <Status error={flash} hint={openQ ? `câu ${done + 1}/4` : "mở câu tiếp theo bằng Tính giờ"} />
         </StageLayout>
     )
 }

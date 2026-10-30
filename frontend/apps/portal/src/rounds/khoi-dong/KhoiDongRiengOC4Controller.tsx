@@ -14,7 +14,7 @@ export type KhoiDongRiengCtx = ScreenCore & {
 }
 
 export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
-    const { v, started, baseCards, flash, openRounds } = ctx
+    const { v, baseCards, flash, openRounds } = ctx
     const oral = v.projection.oral
     const overBudget = oral
         ? ctx.watchMs > Math.max(0, (oral.budgetS - oral.elapsedS) * 1000)
@@ -42,7 +42,7 @@ export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
                     },
                     { label: "Đúng", onClick: oral && !overBudget ? () => ctx.send({ kind: "khoi-dong.recordOral", correct: true, spentS: Math.max(0, Math.floor(ctx.watchMs / 1000)) }) : undefined },
                     { label: "Sai", onClick: oral && !overBudget ? () => ctx.send({ kind: "khoi-dong.recordOral", correct: false, spentS: Math.max(0, Math.floor(ctx.watchMs / 1000)) }) : undefined },
-                    { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
+                    { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
             <Status error={flash} hint={overBudget ? "vượt ngân sách" : oral ? `câu ${oral.index + 1}/${oral.total}` : "chuyển người chơi…"} />

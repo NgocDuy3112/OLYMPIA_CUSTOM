@@ -9,13 +9,12 @@ import type { ScreenCore } from "../types"
 
 /** Về đích · board: the picker grid while nothing is open. */
 export type VeDichPickCtx = ScreenCore & {
-    roundEnded: boolean
     questions: ConsoleQuestion[]
     mcVeDich: VeDichMc | null
 }
 
 export function VeDichPickOC4Controller({ ctx }: { ctx: VeDichPickCtx }) {
-    const { v, roundEnded, started, questions, baseCards, mcVeDich, flash, openRounds } = ctx
+    const { v, questions, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
     const phase2 = mcVeDich?.phase === 2
 
@@ -27,9 +26,7 @@ export function VeDichPickOC4Controller({ ctx }: { ctx: VeDichPickCtx }) {
         (a, b) => a.points - b.points || cols.indexOf(a.domain ?? "") - cols.indexOf(b.domain ?? ""),
     )
 
-    const boardHint = !started
-        ? undefined
-        : phase2
+    const boardHint = phase2
             ? mcVeDich?.pendingQuestionId
                 ? "có câu chờ mở"
                 : "chờ thí sinh chọn 3 câu"
@@ -72,22 +69,18 @@ export function VeDichPickOC4Controller({ ctx }: { ctx: VeDichPickCtx }) {
                 items={[
                     {
                         label: "Bắt đầu",
-                        onClick: started
-                            ? phase2
-                                ? () => ctx.send({ kind: "ve-dich.openQuestion", questionId: mcVeDich?.pendingQuestionId ?? "" })
-                                : () => ctx.send({ kind: "ve-dich.beginPhase2" })
-                            : undefined,
+                        onClick: phase2
+                            ? () => ctx.send({ kind: "ve-dich.openQuestion", questionId: mcVeDich?.pendingQuestionId ?? "" })
+                            : () => ctx.send({ kind: "ve-dich.beginPhase2" }),
                     },
                     {
                         label: "Chọn lại",
-                        onClick: started && !roundEnded
-                            ? () =>
-                                mcVeDich && mcVeDich.turnPlayerId === null && mcVeDich.phase === 1
-                                    ? ctx.send({ kind: "ve-dich.beginPhase2" })
-                                    : ctx.send({ kind: "ve-dich.advanceTurn" })
-                            : undefined,
+                        onClick: () =>
+                            mcVeDich && mcVeDich.turnPlayerId === null && mcVeDich.phase === 1
+                                ? ctx.send({ kind: "ve-dich.beginPhase2" })
+                                : ctx.send({ kind: "ve-dich.advanceTurn" }),
                     },
-                    { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
+                    { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
             <Status error={flash} hint={boardHint} />

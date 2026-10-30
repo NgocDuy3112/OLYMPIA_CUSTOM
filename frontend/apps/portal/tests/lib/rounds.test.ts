@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { ketThucPlanOf, railVariantOf } from "@/rounds"
+import { ketThucPlanOf, nextQuestionPlanOf, railVariantOf } from "@/rounds"
 import { hetLuotAction } from "@/rounds/ve-dich/logic"
 import type { QuestionAnswerRow } from "@/lib/live"
 
@@ -12,9 +12,9 @@ type PlanInput = Parameters<typeof ketThucPlanOf>[1]
 
 const input = (over: Partial<PlanInput> = {}): PlanInput => ({
     stage: "phase2",
-    roundEnded: false,
     hasOralRun: false,
     openIds: [],
+    openQuestionPosition: null,
     rows: [],
     overrides: {},
     ...over,
@@ -45,12 +45,7 @@ describe("railVariantOf — identity cards vs answer rows", () => {
     })
 })
 
-describe("ketThucPlanOf — what Kết thúc sends", () => {
-    it("an ended round just advances to the hall, whatever round it is", () => {
-        expect(ketThucPlanOf("ve-dich", input({ roundEnded: true })))
-            .toEqual([{ kind: "round.advance" }])
-    })
-
+describe("ketThucPlanOf — what Kết thúc sends (one press ends the round)", () => {
     it("an unknown round plans nothing — the lobby owns it", () => {
         expect(ketThucPlanOf("mystery", input())).toEqual([])
     })
@@ -92,12 +87,8 @@ describe("ketThucPlanOf — what Kết thúc sends", () => {
             .toEqual([{ kind: "giai-ma.endRound" }])
     })
 
-    it("but-pha: no open question ends the round", () => {
-        expect(ketThucPlanOf("but-pha", input({ stage: "question" })))
-            .toEqual([{ kind: "but-pha.endRound" }])
-    })
-
-    it("but-pha: an unjudged ledger finalizes first, then closes — judged rows just close", () => {
+    it("but-pha: ONE press ends — committing the open question first if unjudged", () => {
+        // unjudged drafts → finalize, then end (never a separate close step)
         expect(ketThucPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
@@ -112,19 +103,54 @@ describe("ketThucPlanOf — what Kết thúc sends", () => {
                     { playerId: "u2", correct: true }, // MC's staged flip wins
                 ],
             },
-            { kind: "but-pha.closeQuestion" },
+            { kind: "but-pha.endRound" },
         ])
 
+        // already judged / nobody answered → straight end
         expect(ketThucPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
             rows: [row("u1", "INCORRECT", true)],
-        }))).toEqual([{ kind: "but-pha.closeQuestion" }])
+        }))).toEqual([{ kind: "but-pha.endRound" }])
+
+        expect(ketThucPlanOf("but-pha", input({ stage: "question" })))
+            .toEqual([{ kind: "but-pha.endRound" }])
     })
 
     it("ve-dich: the round just ends — Hết lượt owns the open question", () => {
         expect(ketThucPlanOf("ve-dich", input({ stage: "phase2", openIds: ["v1"] })))
             .toEqual([{ kind: "ve-dich.endRound" }])
+    })
+})
+
+describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", () => {
+    it("no open question → just open the clock", () => {
+        expect(nextQuestionPlanOf("but-pha", input({ stage: "question" })))
+            .toEqual([{ kind: "but-pha.openQuestion" }])
+    })
+
+    it("mid-round: commit the current question, advance, open the next", () => {
+        expect(nextQuestionPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b1"],
+            openQuestionPosition: 2,
+            rows: [row("u2", null, false)],
+        }))).toEqual([
+            { kind: "but-pha.finalize", questionId: "b1", verdicts: [{ playerId: "u2", correct: false }] },
+            { kind: "but-pha.closeQuestion" },
+            { kind: "but-pha.openQuestion" },
+        ])
+    })
+
+    it("the LAST question: commit and advance only — the engine ends the round", () => {
+        expect(nextQuestionPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b4"],
+            openQuestionPosition: 4,
+            rows: [row("u1", "CORRECT", true)],
+        }))).toEqual([
+            { kind: "but-pha.closeQuestion" },
+        ])
     })
 })
 

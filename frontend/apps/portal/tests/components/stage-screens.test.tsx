@@ -37,12 +37,9 @@ function facts(
     return {
         v,
         stage: "phase1",
-        roundEnded: false,
-        started: true,
         remaining: 30,
         rows: [],
         baseCards: [],
-        bpDone: 0,
         judgingId: null,
         target: null,
         setSelectedQ: vi.fn(),
@@ -51,6 +48,7 @@ function facts(
         send: vi.fn(),
         hetLuot: vi.fn(),
         ketThuc: vi.fn(),
+        pickQuestion: vi.fn(),
         byId: () => null,
         verdictOf: () => null,
         watchRunning: false,
@@ -155,7 +153,7 @@ describe("ButPha — S4", () => {
 
         expectButtonsInOrder(["Tính giờ", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Tính giờ" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "but-pha.openQuestion" })
+        expect(f.pickQuestion).toHaveBeenCalledOnce()
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
         expect(f.ketThuc).toHaveBeenCalledOnce()
     })

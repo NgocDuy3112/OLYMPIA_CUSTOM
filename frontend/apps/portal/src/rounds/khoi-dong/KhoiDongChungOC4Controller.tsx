@@ -18,7 +18,7 @@ export type KhoiDongChungCtx = ScreenCore & {
 }
 
 export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
-    const { v, started, remaining, baseCards, flash, openRounds } = ctx
+    const { v, remaining, baseCards, flash, openRounds } = ctx
     const open = v.projection.open
     const activeQ = ctx.judgingId
 
@@ -40,7 +40,7 @@ export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
                 items={[
                     { label: "Đúng", onClick: ctx.target ? () => ctx.setVerdict(true) : undefined },
                     { label: "Sai", onClick: ctx.target ? () => ctx.setVerdict(false) : undefined },
-                    { label: "Về sảnh", onClick: started ? ctx.ketThuc : undefined },
+                    { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
             <Status error={flash} hint="chọn ô để so câu khác" />

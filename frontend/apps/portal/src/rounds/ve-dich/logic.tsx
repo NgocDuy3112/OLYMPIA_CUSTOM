@@ -15,7 +15,6 @@ import { screenCore, type HetLuotFacts, type RoundAction, type RoundModule } fro
 function pickCtx(f: ConsoleFacts): VeDichPickCtx {
     return {
         ...screenCore(f),
-        roundEnded: f.roundEnded,
         questions: f.v.questions,
         mcVeDich: (f.v.mc ?? null) as VeDichMc | null,
     }
