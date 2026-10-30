@@ -13,7 +13,7 @@ export interface LiveRecord<S> {
 }
 
 // What a transition produces: the next state, the facts to append alongside it, and
-// optionally a new round id (round advancement). Omitting roundId keeps the current one.
+// optionally a new round id (round.goTo navigation). Omitting roundId keeps the current one.
 // `archive` is the full per-round map AFTER the switch — set it when the transition
 // leaves a round so its state is preserved for a later re-visit.
 export interface Transition<S> {

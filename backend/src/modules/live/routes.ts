@@ -4,7 +4,7 @@ import { requireAuth, requireRole } from "../../lib/guards.js";
 import { getMatch, getMatchById, requireMatchScope, type MatchRow } from "../matches/service.js";
 import { MatchError, toHttpStatus } from "../matches/errors.js";
 import { namesOf } from "../standings/service.js";
-import { nextRoundId, orderedMatchRounds } from "../matches/rounds.js";
+import { orderedMatchRounds } from "../matches/rounds.js";
 import { isSeatedInMatch } from "../matches/seats.js";
 import { auditFromRequest } from "../audit/service.js";
 import { canWriteTournament } from "../../lib/tournament-access.js";
@@ -410,23 +410,6 @@ export async function liveRoutes(app: FastifyInstance) {
                 {
                     expectedVersion: body.expectedVersion,
                     transition: async (current, tx): Promise<Transition<Record<string, unknown>>> => {
-                        if (action.kind === "round.advance") {
-                            if (!isRoundEnded(current.roundId, current.state)) {
-                                throw new RuleError("ROUND_NOT_ENDED", `round ${current.roundId} has not ended`);
-                            }
-                            const following = nextRoundId(ordered, current.roundId);
-                            if (!following) {
-                                throw new RuleError("NO_NEXT_ROUND", "no further round in this tournament");
-                            }
-                            // Preserve the round we're leaving — it stays re-visitable.
-                            return {
-                                state: current.archive?.[following] ?? {},
-                                facts: [],
-                                roundId: following,
-                                archive: { ...(current.archive ?? {}), [current.roundId]: current.state }
-                            };
-                        }
-
                         // Free navigation: any round may become active. Its saved
                         // state (if any) is restored, so ended AND mid-play rounds
                         // can be re-opened — the controller's re-visit right.

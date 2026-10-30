@@ -146,10 +146,6 @@ export const VeDichActionSchema = Type.Union([
 ]);
 export type VeDichAction = Static<typeof VeDichActionSchema>;
 
-// Round-level action: close the current round and open the next.
-export const RoundAdvanceActionSchema = Type.Object({ kind: Type.Literal("round.advance") });
-export type RoundAdvanceAction = Static<typeof RoundAdvanceActionSchema>;
-
 // Round-level navigation: make ANY round the active one. The current round's
 // state is archived and the target's saved state (if any) is restored — the
 // controller may re-visit finished or mid-play rounds (no one-way doors).
@@ -186,7 +182,6 @@ export const LiveActionSchema = Type.Union([
     VeDichResolve,
     VeDichAdvanceTurn,
     VeDichEndRound,
-    RoundAdvanceActionSchema,
     RoundGoToAction
 ]);
 export type LiveAction = Static<typeof LiveActionSchema>;

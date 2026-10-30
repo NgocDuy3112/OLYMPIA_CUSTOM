@@ -347,13 +347,6 @@ describe("player submission guards", () => {
 });
 
 describe("round progression", () => {
-    it("advancing before the round has ended returns 409 ROUND_NOT_ENDED", async () => {
-        // player 1 is still active, so the round has not ended.
-        const res = await act({ kind: "round.advance" });
-        expect(res.statusCode).toBe(409);
-        expect(res.json().error).toBe("ROUND_NOT_ENDED");
-    });
-
     it("resolving the expired window reveals the hint to the correct answerer", async () => {
         const res = await act({ kind: "giai-ma.resolveHint" });
         expect(res.statusCode).toBe(200);
@@ -388,9 +381,9 @@ describe("round progression", () => {
         });
     });
 
-    it("with both players locked the round is over; advance moves to the next round", async () => {
+    it("with both players locked the round is over; goTo opens the next round fresh", async () => {
         expect((await act({ kind: "giai-ma.endRound" })).statusCode).toBe(200);
-        const advanced = await act({ kind: "round.advance" });
+        const advanced = await act({ kind: "round.goTo", roundId: "but-pha" });
         expect(advanced.statusCode).toBe(200);
         expect(advanced.json().roundId).toBe("but-pha");
         expect(advanced.json().state).toEqual({});
@@ -559,10 +552,10 @@ describe("but-pha round — draft, then finalize", () => {
         expect(res.json().state.ended).toBe(true);
     });
 
-    it("advancing past the last round returns 409 NO_NEXT_ROUND", async () => {
-        const res = await act({ kind: "round.advance" });
+    it("round.goTo an unknown round returns 409 UNKNOWN_ROUND", async () => {
+        const res = await act({ kind: "round.goTo", roundId: "mystery-round" });
         expect(res.statusCode).toBe(409);
-        expect(res.json().error).toBe("NO_NEXT_ROUND");
+        expect(res.json().error).toBe("UNKNOWN_ROUND");
     });
 });
 

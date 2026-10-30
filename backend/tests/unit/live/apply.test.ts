@@ -122,7 +122,7 @@ describe("applyLiveAction — facts commit with the state", () => {
     });
 });
 
-describe("applyLiveAction — round advancement", () => {
+describe("applyLiveAction — round navigation (round.goTo changes the round id)", () => {
     it("a transition may change the round id", async () => {
         const m = memoryStore<Counter>(rec(0, 0, "giai-ma"));
         const out = await applyLiveAction(m.store, {

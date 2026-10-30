@@ -266,12 +266,6 @@ describe("ve-dich — round end and results", () => {
         expect(res.json().state.ended).toBe(true);
     });
 
-    it("advancing past the last round returns 409 NO_NEXT_ROUND", async () => {
-        const res = await act({ kind: "round.advance" });
-        expect(res.statusCode).toBe(409);
-        expect(res.json().error).toBe("NO_NEXT_ROUND");
-    });
-
     it("finishing the match folds ve-dich into the result, signed points included", async () => {
         const res = await app.inject({
             method: "PATCH", url: statusUrl(), headers: auth(ownerCookie),

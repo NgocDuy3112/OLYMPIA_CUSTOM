@@ -264,11 +264,6 @@ describe("khoi-dong — phase 2 (typed, draft then judge)", () => {
         expect(res.json().state.ended).toBe(true);
     });
 
-    it("advancing past the last round returns 409 NO_NEXT_ROUND", async () => {
-        const res = await act({ kind: "round.advance" });
-        expect(res.statusCode).toBe(409);
-        expect(res.json().error).toBe("NO_NEXT_ROUND");
-    });
 });
 
 describe("khoi-dong — match end", () => {
