@@ -155,6 +155,17 @@ export const RoundGoToAction = Type.Object({
 });
 export type RoundGoToAction = Static<typeof RoundGoToAction>;
 
+// Match-level score correction — NOT bound to a round (handled like round.goTo,
+// before the round guard): the controller's audited delta lands in the
+// score_adjustments ledger and folds into the scoreboard and final results.
+export const ScoreAdjustActionSchema = Type.Object({
+    kind: Type.Literal("score.adjust"),
+    userId: Type.String({ minLength: 1 }),
+    delta: Type.Integer({ minimum: -9999, maximum: 9999 }),
+    reason: Type.String({ minLength: 1, maxLength: 200 })
+});
+export type ScoreAdjustAction = Static<typeof ScoreAdjustActionSchema>;
+
 // What a client may send: every controller action, but no server-built answer action.
 export const LiveActionSchema = Type.Union([
     GiaiMaStart,
@@ -182,6 +193,7 @@ export const LiveActionSchema = Type.Union([
     VeDichResolve,
     VeDichAdvanceTurn,
     VeDichEndRound,
-    RoundGoToAction
+    RoundGoToAction,
+    ScoreAdjustActionSchema
 ]);
 export type LiveAction = Static<typeof LiveActionSchema>;

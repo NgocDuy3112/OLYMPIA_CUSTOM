@@ -2,7 +2,7 @@
 // the match_live row, so concurrent actions serialize and a rollback leaves no trace.
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { answers, matchEvents, matchLive, users } from "../../db/schema/index.js";
+import { answers, matchEvents, matchLive, scoreAdjustments, users } from "../../db/schema/index.js";
 import type { AnswerDraft, LiveRecord, LiveStore, LiveTx } from "./apply.js";
 import type { LiveFact } from "./facts.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
@@ -97,6 +97,20 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                                 kind: f.kind,
                                 payload: f.payload
                             }))).onConflictDoNothing();
+                        }
+
+                        const adjustRows = facts.filter((f) => f.type === "adjust");
+                        if (adjustRows.length > 0) {
+                            // Append-only match-level ledger. No idempotency key needed:
+                            // the version guard rejects a replayed action BEFORE this
+                            // transaction ever runs, so a row can't double-count.
+                            await tx.insert(scoreAdjustments).values(adjustRows.map((f) => ({
+                                matchId,
+                                userId: f.userId,
+                                delta: f.delta,
+                                reason: f.reason,
+                                createdBy: f.actorId
+                            })));
                         }
                     },
                     async readAnswerDrafts(questionId: string): Promise<AnswerDraft[]> {
@@ -199,6 +213,22 @@ export async function sumPointsByPlayer(matchId: string): Promise<Record<string,
     const sums: Record<string, number> = {};
     for (const row of rows) {
         sums[row.userId] = (sums[row.userId] ?? 0) + (row.points ?? 0);
+    }
+    return sums;
+}
+
+// The controller's manual score corrections per player — folded into the live
+// scoreboard (scoreTable) and the frozen results at FINISH. Match-level: the
+// round engines' own points (and the ve-dich start seed) stay untouched.
+export async function sumAdjustmentsByPlayer(matchId: string): Promise<Record<string, number>> {
+    const rows = await db
+        .select({ userId: scoreAdjustments.userId, delta: scoreAdjustments.delta })
+        .from(scoreAdjustments)
+        .where(eq(scoreAdjustments.matchId, matchId));
+
+    const sums: Record<string, number> = {};
+    for (const row of rows) {
+        sums[row.userId] = (sums[row.userId] ?? 0) + row.delta;
     }
     return sums;
 }

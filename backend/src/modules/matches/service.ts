@@ -1,7 +1,7 @@
 import { randomInt } from "node:crypto";
 import { and, asc, count, eq, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
-import { answers, matchLive, matchResults, matchStats, matches, tournaments } from "../../db/schema/index.js";
+import { answers, matchLive, matchResults, matchStats, matches, scoreAdjustments, tournaments } from "../../db/schema/index.js";
 import type { ResultEntry, RoundConfig, Seat } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { buildQuestionCopies } from "./assembly.js";
@@ -54,8 +54,20 @@ async function scoreMatch(tx: Tx, match: MatchRow): Promise<void> {
         .filter((seat) => seat.kind === "user")
         .map((seat) => ({ userId: seat.userId }));
 
+    // Manual score corrections, read in the SAME transaction as the freeze —
+    // the frozen totals must equal what the live scoreboard showed.
+    const adjustmentRows = await tx
+        .select({ userId: scoreAdjustments.userId, delta: scoreAdjustments.delta })
+        .from(scoreAdjustments)
+        .where(eq(scoreAdjustments.matchId, match.id));
+    const adjustments: Record<string, number> = {};
+    for (const r of adjustmentRows) {
+        adjustments[r.userId] = (adjustments[r.userId] ?? 0) + r.delta;
+    }
+
     const results = buildMatchResults({
         competitors,
+        adjustments,
         answers: rows.map((r) => ({
             userId: r.userId,
             roundId: questionById.get(r.questionId)?.roundId ?? "unknown",

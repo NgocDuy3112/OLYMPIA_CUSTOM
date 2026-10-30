@@ -28,7 +28,8 @@ export type AuditAction =
     | "tournament_drawn"
     | "tournament_updated"
     | "match_opened"
-    | "match_advanced";
+    | "match_advanced"
+    | "score_adjusted";
 
 export interface AuditEvent {
     action: AuditAction;

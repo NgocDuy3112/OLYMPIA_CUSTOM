@@ -11,6 +11,8 @@ export interface AnswerForScoring {
 export interface MatchResultInput {
     competitors: Array<{ userId: string }>;
     answers: AnswerForScoring[];
+    /** The controller's manual corrections, per player (userId → Σdelta). */
+    adjustments?: Record<string, number>;
 }
 
 // Dense ranking: equal totals share a rank, and the next distinct total takes the next
@@ -45,6 +47,14 @@ export function buildMatchResults(input: MatchResultInput): ResultEntry[] {
         bucket.total += answer.pointsAwarded;
         bucket.roundScores[answer.roundId] =
             (bucket.roundScores[answer.roundId] ?? 0) + answer.pointsAwarded;
+    }
+
+    // Manual corrections join the totals BEFORE ranking — the frozen results
+    // must never disagree with the live scoreboard (scoreTable applies the same
+    // deltas). Match-level: roundScores stay answer-only.
+    for (const [userId, delta] of Object.entries(input.adjustments ?? {})) {
+        const bucket = byUser.get(userId);
+        if (bucket) bucket.total += delta;
     }
 
     const ranks = denseRanks([...byUser].map(([key, value]) => ({ key, total: value.total })));

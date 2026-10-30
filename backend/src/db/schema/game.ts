@@ -131,6 +131,25 @@ export const matchResults = pgTable(
     }
 );
 
+// The controller's manual score corrections — an append-only, audited ledger at
+// MATCH level (round engines keep their own points untouched). Rows fold into
+// the live scoreboard (scoreTable) and the frozen results (scoring.ts).
+export const scoreAdjustments = pgTable(
+    "score_adjustments",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        matchId: uuid("match_id").notNull().references(() => matches.id),
+        userId: uuid("user_id").notNull().references(() => users.id),
+        delta: integer("delta").notNull(),
+        reason: varchar("reason", { length: 200 }).notNull(),
+        createdBy: uuid("created_by").references(() => users.id),
+        createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow()
+    },
+    (table) => [
+        index("score_adjustments_match_user_idx").on(table.matchId, table.userId)
+    ]
+);
+
 
 export const tournamentStandings = pgTable(
     "tournament_standings",

@@ -36,4 +36,15 @@ export interface JudgeFact {
     pointsAwarded: number;
 }
 
-export type LiveFact = AnswerFact | EventFact | JudgeFact;
+// The controller's manual score correction. Written in the SAME transaction as
+// the version bump (recordFacts → score_adjustments), so the pushed view can
+// never disagree with the queryable ledger; actorId is the audit trail.
+export interface AdjustFact {
+    type: "adjust";
+    userId: string;
+    delta: number;
+    reason: string;
+    actorId: string;
+}
+
+export type LiveFact = AnswerFact | EventFact | JudgeFact | AdjustFact;

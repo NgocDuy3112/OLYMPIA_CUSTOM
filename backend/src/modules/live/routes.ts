@@ -10,7 +10,7 @@ import { auditFromRequest } from "../audit/service.js";
 import { canWriteTournament } from "../../lib/tournament-access.js";
 import { applyLiveAction, mutateLive, type AnswerDraft, type Transition } from "./apply.js";
 import { LiveConflictError } from "./conflict.js";
-import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
+import { isSessionActive, readLive, readPlayerAnswers, readQuestionAnswers, sumAdjustmentsByPlayer, sumPointsByPlayer, LiveNotFoundError, pgLiveStore } from "./store.js";
 import { RuleError } from "../../game/engine/turns/errors.js";
 import { VeDichRuleError } from "../../game/engine/turns/ve-dich.js";
 import { LiveActionSchema, type ButPhaAction, type GiaiMaAction, type KhoiDongAction, type LiveAction, type VeDichAction } from "./actions.js";
@@ -133,16 +133,21 @@ function roundQuestionIds(match: { questions: MatchQuestion[] }, roundId: string
 }
 
 // The live scoreboard: every seated player's match total with the name to show it
-// by. Totals come from the answers ledger (the facts each action commits); the view
-// only ranks them.
+// by. Totals come from the answers ledger (the facts each action commits) PLUS
+// the controller's manual score adjustments; the view only ranks them.
 async function scoreTable(match: MatchRow): Promise<ScoreRow[]> {
     const userIds = match.players.flatMap((seat) =>
         seat.kind === "user" && seat.userId ? [seat.userId] : []);
-    const [sums, names] = await Promise.all([
+    const [sums, adjustments, names] = await Promise.all([
         sumPointsByPlayer(match.id),
+        sumAdjustmentsByPlayer(match.id),
         namesOf(userIds)
     ]);
-    return userIds.map((id) => ({ id, displayName: names[id] ?? id, points: sums[id] ?? 0 }));
+    return userIds.map((id) => ({
+        id,
+        displayName: names[id] ?? id,
+        points: (sums[id] ?? 0) + (adjustments[id] ?? 0)
+    }));
 }
 
 /**
@@ -403,6 +408,14 @@ export async function liveRoutes(app: FastifyInstance) {
             }
             const action = body.action as LiveAction;
 
+            if (action.kind === "score.adjust") {
+                if (action.delta === 0) throw app.httpErrors.badRequest("delta must not be 0");
+                const seated = match.players.some(
+                    (seat) => seat.kind === "user" && seat.userId === action.userId
+                );
+                if (!seated) throw app.httpErrors.forbidden("player is not seated in this match");
+            }
+
             const ordered = orderedMatchRounds(scope.tournament.rounds, match.roundConfigs);
 
             const next = await applyLiveAction(
@@ -410,6 +423,22 @@ export async function liveRoutes(app: FastifyInstance) {
                 {
                     expectedVersion: body.expectedVersion,
                     transition: async (current, tx): Promise<Transition<Record<string, unknown>>> => {
+                        // Manual score correction — match-level like round.goTo, before the
+                        // round guard: the fact writes the score_adjustments row IN THIS
+                        // transaction, so the version bump and the ledger can't disagree.
+                        if (action.kind === "score.adjust") {
+                            return {
+                                state: current.state,
+                                facts: [{
+                                    type: "adjust",
+                                    userId: action.userId,
+                                    delta: action.delta,
+                                    reason: action.reason,
+                                    actorId: user.id
+                                }]
+                            };
+                        }
+
                         // Free navigation: any round may become active. Its saved
                         // state (if any) is restored, so ended AND mid-play rounds
                         // can be re-opened — the controller's re-visit right.
@@ -553,6 +582,13 @@ export async function liveRoutes(app: FastifyInstance) {
                         questionId: action.questionId,
                         verdicts: action.verdicts
                     }
+                });
+            }
+
+            if (action.kind === "score.adjust") {
+                await auditFromRequest(request, "score_adjusted", {
+                    matchId,
+                    details: { userId: action.userId, delta: action.delta, reason: action.reason }
                 });
             }
 

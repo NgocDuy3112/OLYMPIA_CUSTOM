@@ -94,3 +94,46 @@ describe("buildMatchResults", () => {
         expect(results.map((r) => r.userId)).toEqual(["a", "z"]);
     });
 });
+
+describe("buildMatchResults — manual score adjustments", () => {
+    it("corrections join the totals BEFORE ranking (and never touch roundScores)", () => {
+        const results = buildMatchResults({
+            competitors: [{ userId: "a" }, { userId: "b" }],
+            answers: [
+                { userId: "a", roundId: "but-pha", pointsAwarded: 30 },
+                { userId: "b", roundId: "but-pha", pointsAwarded: 40 }
+            ],
+            adjustments: { a: 20, b: -15 }
+        });
+
+        const a = results.find((r) => r.userId === "a")!;
+        const b = results.find((r) => r.userId === "b")!;
+        expect(a).toMatchObject({ totalScore: 50, rank: 1 });   // 30 + 20 beats 40 - 15
+        expect(b).toMatchObject({ totalScore: 25, rank: 2 });
+        // match-level: the per-round ledger stays answers-only
+        expect(a.roundScores).toEqual({ "but-pha": 30 });
+        expect(b.roundScores).toEqual({ "but-pha": 40 });
+    });
+
+    it("a negative correction can push a total below zero (rank still last)", () => {
+        const results = buildMatchResults({
+            competitors: [{ userId: "a" }, { userId: "b" }],
+            answers: [{ userId: "b", roundId: "khoi-dong", pointsAwarded: 10 }],
+            adjustments: { a: -50 }
+        });
+        expect(results.map((r) => [r.userId, r.totalScore, r.rank])).toEqual([
+            ["b", 10, 1],
+            ["a", -50, 2]
+        ]);
+    });
+
+    it("a correction for a non-competitor is ignored, not invented", () => {
+        const results = buildMatchResults({
+            competitors: [{ userId: "a" }],
+            answers: [],
+            adjustments: { ghost: 99 }
+        });
+        expect(results).toHaveLength(1);
+        expect(results[0]).toMatchObject({ userId: "a", totalScore: 0 });
+    });
+});
