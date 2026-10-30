@@ -27,6 +27,7 @@ import { standingsRoutes } from "./modules/standings/routes.js";
 import { gameplayReadRoutes } from "./modules/gameplay-read/routes.js";
 import { mcpKeyRoutes } from "./modules/mcp-keys/routes.js";
 import { mcpRoutes } from "./modules/mcp/index.js";
+import { rtcRoutes } from "./modules/rtc/routes.js";
 
 const ALLOWED_ORIGINS = [
     "https://olympia-custom.io.vn",
@@ -79,6 +80,7 @@ export async function buildApp() {
     await app.register(gameplayReadRoutes);
     await app.register(mcpKeyRoutes);
     await app.register(mcpRoutes);
+    await app.register(rtcRoutes);
 
     app.get("/health", async () => ({ status: "ok" }));
 
