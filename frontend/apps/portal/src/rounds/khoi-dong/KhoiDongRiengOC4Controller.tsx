@@ -20,7 +20,7 @@ export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
         ? ctx.watchMs > Math.max(0, (oral.budgetS - oral.elapsedS) * 1000)
         : false
     return (
-        <StageLayout rail={<Rail variant="compact" cards={baseCards} />}>
+        <StageLayout rail={<Rail variant="compact" cards={baseCards} onAdjust={ctx.openAdjust} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Khởi động" mode="Lượt cá nhân" onRoundClick={openRounds} />}

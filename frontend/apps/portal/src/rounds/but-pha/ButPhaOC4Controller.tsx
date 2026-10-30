@@ -22,7 +22,7 @@ export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
     const done = pos ?? 0
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Bứt phá" onRoundClick={openRounds} />}

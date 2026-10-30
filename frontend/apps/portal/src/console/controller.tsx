@@ -2,6 +2,7 @@ import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import { Badges, StageLayout } from "@/components/stage/deck"
 import { ROUND_LABEL, pt } from "@shared/deck/geometry"
+import { AdjustScoreDialog } from "./AdjustScoreDialog"
 import { useConsoleModel } from "./use-console-model"
 
 // The CONTROLLER's host: fetch → gate → let the round module draw. The UI is
@@ -76,5 +77,16 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                 </p>
             </StageLayout>
         )
-    return <StageShell>{screen}</StageShell>
+    return (
+        <StageShell>
+            {screen}
+            {model.adjustFor && (
+                <AdjustScoreDialog
+                    playerName={facts.baseCards.find((c) => c.id === model.adjustFor)?.name ?? model.adjustFor}
+                    onCancel={model.closeAdjust}
+                    onSubmit={model.submitAdjust}
+                />
+            )}
+        </StageShell>
+    )
 }

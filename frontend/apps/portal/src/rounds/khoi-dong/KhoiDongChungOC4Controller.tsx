@@ -23,7 +23,7 @@ export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
     const activeQ = ctx.judgingId
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Khởi động" mode="Lượt chung" onRoundClick={openRounds} />}

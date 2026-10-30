@@ -27,7 +27,7 @@ export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
         mcVeDich?.answererId ? ctx.verdictOf(qid, mcVeDich.answererId) === null : true
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Về đích" mode="Lượt chung" onRoundClick={openRounds} />}

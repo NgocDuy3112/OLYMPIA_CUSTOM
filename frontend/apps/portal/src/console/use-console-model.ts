@@ -25,7 +25,13 @@ import { navigatorStartPlan } from "./navigator-plan"
 interface WatchState { qid: string | null; running: boolean; startedAt: number; base: number; shown: number }
 const freshWatch = (qid: string | null): WatchState => ({ qid, running: false, startedAt: 0, base: 0, shown: 0 })
 
-export type ConsoleModel =
+export type ConsoleModel = {
+    /** The score-adjust dialog: which player, and the callbacks the host wires. */
+    adjustFor: string | null
+    openAdjust: (userId: string) => void
+    closeAdjust: () => void
+    submitAdjust: (delta: number, reason: string) => void
+} & (
     /** the first GET/push has not painted yet */
     | { phase: "loading" }
     /** transport failed and no lobby answered — say why, offer a retry */
@@ -45,6 +51,7 @@ export type ConsoleModel =
     }
     /** a round is running — the round module draws the controller's screen */
     | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null }
+)
 
 export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
     // ── hooks first — early returns belong to the HOST, not here ────────────
@@ -58,6 +65,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const [overrides, setOverrides] = useState<Record<string, boolean>>({})
     const [selectedQ, setSelectedQ] = useState<string | null>(null)
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+    const [adjustFor, setAdjustFor] = useState<string | null>(null)
     const oralQuestionId = live.data?.projection.oral?.questionId ?? null
     const effWatch = watch.qid === oralQuestionId ? watch : freshWatch(oralQuestionId)
 
@@ -159,6 +167,16 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     const openRounds = () => setRoundsView(true)
 
+    // score.adjust: the controller's match-level correction — one audited row
+    // (backend ledger) that folds into the scoreboard and the final results.
+    const openAdjust = (userId: string) => setAdjustFor(userId)
+    const closeAdjust = () => setAdjustFor(null)
+    const submitAdjust = (delta: number, reason: string) => {
+        if (!adjustFor) return
+        setAdjustFor(null) // the refusal flash carries any failure
+        send({ kind: "score.adjust", userId: adjustFor, delta, reason })
+    }
+
     /** ve-dich only: finish the current TURN — verdicts first (the round module
      *  owns the rule; ending the ROUND is ketThuc's job). */
     const hetLuot = () => {
@@ -250,11 +268,14 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     }
 
     // ── the phase the host draws ──────────────────────────────────────────────
-    if (live.isPending) return { phase: "loading" }
+    const adjust = { adjustFor, openAdjust, closeAdjust, submitAdjust } as const
+
+    if (live.isPending) return { phase: "loading", ...adjust }
 
     if (live.isError || !v || !projection) {
-        if (lobby.data) return { phase: "not-live", lobby: lobby.data }
+        if (lobby.data) return { phase: "not-live", lobby: lobby.data, ...adjust }
         return {
+            ...adjust,
             phase: "error",
             message: live.error?.message ?? "Không đọc được trạng thái vòng thi",
             retry: live.refetch,
@@ -263,6 +284,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     if (!roundScreenReady && lobby.data) {
         return {
+            ...adjust,
             phase: "lobby",
             lobby: lobby.data,
             canBack: started,
@@ -297,6 +319,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         toggleWatch,
         flash,
         openRounds,
+        openAdjust,
     }
-    return { phase: "deck", facts, roundModule: roundModuleOf(roundId) }
+    return { phase: "deck", facts, roundModule: roundModuleOf(roundId), ...adjust }
 }

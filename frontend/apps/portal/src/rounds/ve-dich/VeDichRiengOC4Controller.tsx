@@ -30,7 +30,7 @@ export function VeDichRiengOC4Controller({ ctx }: { ctx: VeDichRiengCtx }) {
         mcVeDich?.buzzerId ? ctx.verdictOf(qid, mcVeDich.buzzerId) === null : false
 
     return (
-        <StageLayout rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
+        <StageLayout rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Về đích" mode="Lượt cá nhân" onRoundClick={openRounds} />}

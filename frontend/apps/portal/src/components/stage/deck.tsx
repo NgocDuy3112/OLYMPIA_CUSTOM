@@ -76,14 +76,14 @@ function CardVideo({ track }: { track: RemoteVideoTrack }) {
 }
 
 /** The rail column: who's playing, what they answered, the MC's verdict on them. */
-export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
+export function Rail({ variant, cards, onSelect, onAdjust }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void; onAdjust?: (id: string) => void }) {
     const isAnswers = variant === "answers"
     const Interactive = onSelect ? "button" : "div"
     return (
         <>
             {cards.map((c) => (
-                <Interactive
-                    key={c.id}
+                <div key={c.id} className="relative">
+                    <Interactive
                     {...(onSelect ? { type: "button" as const, onClick: () => onSelect(c.id) } : {})}
                     className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] text-left shadow-sm ring-1 ring-border transition ${onSelect ? "cursor-pointer hover:ring-sky-400" : ""
                         } ${c.ring === "selected" ? "ring-2 ring-primary" : c.ring === "active" ? "ring-2 ring-amber-400" : ""} ${c.dimmed ? "opacity-60" : ""
@@ -143,6 +143,19 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                         </div>
                     ) : null}
                 </Interactive>
+                    {onAdjust && (
+                        <button
+                            type="button"
+                            aria-label={`Điều chỉnh điểm của ${c.name}`}
+                            title="Điều chỉnh điểm"
+                            onClick={() => onAdjust(c.id)}
+                            className="absolute bottom-[0.5cqw] right-[0.5cqw] flex size-[1.5cqw] items-center justify-center rounded-full bg-muted font-sans font-bold leading-none text-foreground/80 ring-1 ring-border transition hover:bg-accent"
+                            style={{ fontSize: pt(9) }}
+                        >
+                            ±
+                        </button>
+                    )}
+                </div>
             ))}
         </>
     )
@@ -190,4 +203,6 @@ export interface ConsoleFacts {
     flash: string | null
     /** the round badge → the rounds navigator. */
     openRounds: () => void
+    /** open the score-adjust dialog for one seated player. */
+    openAdjust: (userId: string) => void
 }

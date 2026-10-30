@@ -35,7 +35,7 @@ export function VeDichPickOC4Controller({ ctx }: { ctx: VeDichPickCtx }) {
                 : "hết lượt — chuyển phase"
 
     return (
-        <StageLayout rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} />}>
+        <StageLayout rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} onAdjust={ctx.openAdjust} />}>
             <MainCard>
                 <CardHeader left={<Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} onRoundClick={openRounds} />} />
                 <div

@@ -29,13 +29,13 @@ export interface HetLuotFacts {
  */
 export type ScreenCore = Pick<
     ConsoleFacts,
-    "v" | "flash" | "baseCards" | "send" | "ketThuc" | "openRounds"
+    "v" | "flash" | "baseCards" | "send" | "ketThuc" | "openRounds" | "openAdjust"
 >
 
 /** The pass-through core: what every screen's ctx starts from. */
 export function screenCore(facts: ConsoleFacts): ScreenCore {
-    const { v, flash, baseCards, send, ketThuc, openRounds } = facts
-    return { v, flash, baseCards, send, ketThuc, openRounds }
+    const { v, flash, baseCards, send, ketThuc, openRounds, openAdjust } = facts
+    return { v, flash, baseCards, send, ketThuc, openRounds, openAdjust }
 }
 
 /**
