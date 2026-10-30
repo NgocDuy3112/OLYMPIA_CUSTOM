@@ -1,4 +1,4 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { Value } from "@sinclair/typebox/value";
 import { requireAuth, requireRole } from "../../lib/guards.js";
 import { getMatch, getMatchById, requireMatchScope, type MatchRow } from "../matches/service.js";
@@ -597,35 +597,37 @@ export async function liveRoutes(app: FastifyInstance) {
     );
 
     // The answers for a question, with their drafts, so the controller can judge them.
+    // ONE handler, two doors: the operator console and the link-only spectate
+    // twin — the Discord audience watches exactly what the host's screen shows.
+    const answersSchema = {
+        params: matchParams,
+        querystring: {
+            type: "object",
+            required: ["questionId"],
+            additionalProperties: false,
+            properties: { questionId: { type: "string", pattern: UUID_PATTERN } }
+        }
+    } as const;
+    const publicReadRate = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } };
+    const answersHandler = async (request: FastifyRequest) => {
+        const { matchId } = request.params as { matchId: string };
+        const { questionId } = request.query as { questionId: string };
+        return { items: await readQuestionAnswers(matchId, questionId) };
+    };
     app.get(
         "/portal/tournaments/:tournamentId/matches/:matchId/live/answers",
-        {
-            onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
-            schema: {
-                params: matchParams,
-                querystring: {
-                    type: "object",
-                    required: ["questionId"],
-                    additionalProperties: false,
-                    properties: { questionId: { type: "string", pattern: UUID_PATTERN } }
-                }
-            },
-        },
-        async (request) => {
-            const { matchId } = request.params as { matchId: string };
-            const { questionId } = request.query as { questionId: string };
-            return { items: await readQuestionAnswers(matchId, questionId) };
-        }
+        { onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])], schema: answersSchema },
+        answersHandler
+    );
+    app.get(
+        "/spectate/tournaments/:tournamentId/matches/:matchId/live/answers",
+        { ...publicReadRate, schema: answersSchema },
+        answersHandler
     );
 
-    // Read the current state and version. The console calls this after a 409.
-    app.get(
-        "/portal/tournaments/:tournamentId/matches/:matchId/live",
-        {
-            onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
-            schema: { params: matchParams },
-        },
-        async (request) => {
+    // Read the current state and version. The console calls this after a 409 —
+    // the spectate twin serves the identical body to the link-only audience.
+    const liveHandler = async (request: FastifyRequest) => {
             const { matchId } = request.params as { matchId: string };
             const live = await readLive(matchId);
             if (!live) throw app.httpErrors.notFound("no live round");
@@ -673,22 +675,35 @@ export async function liveRoutes(app: FastifyInstance) {
                 connected: connectedUsers(matchId),
                 mc: mcFacts(live.roundId, live.state)
             };
-        }
+    };
+    app.get(
+        "/portal/tournaments/:tournamentId/matches/:matchId/live",
+        { onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])], schema: { params: matchParams } },
+        liveHandler
+    );
+    app.get(
+        "/spectate/tournaments/:tournamentId/matches/:matchId/live",
+        { ...publicReadRate, schema: { params: matchParams } },
+        liveHandler
     );
 
     // The LOBBY: same payload before the match is LIVE (the /live read 404s
-    // until then) — the deck's waiting screen for the MC.
+    // until then) — the deck's waiting screen for the MC. The spectate twin
+    // gives the link-only audience the same waiting room.
+    const lobbyHandler = async (request: FastifyRequest) => {
+        const { matchId } = request.params as { matchId: string };
+        const match = await getMatchById(matchId);
+        return lobbyOf(match);
+    };
     app.get(
         "/portal/tournaments/:tournamentId/matches/:matchId/lobby",
-        {
-            onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])],
-            schema: { params: matchParams },
-        },
-        async (request) => {
-            const { matchId } = request.params as { matchId: string };
-            const match = await getMatchById(matchId);
-            return lobbyOf(match);
-        }
+        { onRequest: [requireRole("PORTAL", ["ADMIN", "OPERATOR"])], schema: { params: matchParams } },
+        lobbyHandler
+    );
+    app.get(
+        "/spectate/tournaments/:tournamentId/matches/:matchId/lobby",
+        { ...publicReadRate, schema: { params: matchParams } },
+        lobbyHandler
     );
 
     // ── Player surface ────────────────────────────────────────────────────────
