@@ -54,11 +54,8 @@ export function Controller({ tournamentId, matchId }: { tournamentId: string; ma
                     mc={{
                         canStart: true, // match is LIVE (the live read exists) — version in hand
                         busy: model.busy,
-                        canBack: model.canBack,
-                        onBack: model.onBack,
                         onStart: model.onStart,
                     }}
-                    hint={model.hint}
                 />
             </StageShell>
         )

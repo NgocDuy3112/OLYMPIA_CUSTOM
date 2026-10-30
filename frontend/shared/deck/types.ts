@@ -1,4 +1,5 @@
 // ── the player deck's wire contract ──────────────────────────────────────────
+import type { RemoteVideoTrack } from "livekit-client"
 // The PLAYER-facing shape of the live view (docs/live-surface.md § L3). This is
 // the backend's contract, so it lives with the shared deck instead of inside
 // either app — both apps' clients (portal player-live's PlayerView, gameplay's
@@ -113,9 +114,21 @@ export interface LobbyData {
     status: "UPCOMING" | "LIVE" | "FINISHED"
     /** The round waiting to start (the live record's, else the match's first). */
     roundId: string | null
-    /** The match's rounds in tournament order — the controller's open/start buttons. */
-    rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended" }>
-    table: Array<{ id: string; displayName: string; points: number; rank: number }>
+    /** The match's rounds in tournament order — the controller's open/start buttons.
+     *  Khởi động & Về đích are PAIRED client-side (phase 1/2 → "· Riêng/· Chung"):
+     *  two entries share the id, `phase` tells a fresh start which side to open. */
+    rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended"; phase?: 1 | 2 }>
+    /** The live stage's phase — which split entry is "where you are" (console-derived). */
+    currentPhase?: 1 | 2 | null
+    table: Array<{
+        id: string
+        displayName: string
+        points: number
+        rank: number
+        /** The seat's live camera — the console enriches it from its Room
+         *  (identity === row id); players fill their own from SelfBroadcast. */
+        video?: RemoteVideoTrack | null
+    }>
     /** User ids with a live socket right now — the lobby's connected dots. */
     connected: string[]
 }

@@ -15,8 +15,9 @@ import {
     type VeDichMc,
 } from "@/lib/live"
 import { useMatches } from "@/lib/tournament"
-import { fetchOperatorRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
-import { navigatorStartPlan } from "./navigator-plan"
+import { fetchOperatorRtcToken, fetchViewerRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
+import { useApiSurface } from "@/lib/surface"
+import { expandRoundEntries, navigatorStartPlan } from "./navigator-plan"
 
 // The CONTROLLER's model — every hook, derived fact and action the portal's
 // match control needs. No JSX lives here: the controller host draws whichever
@@ -42,12 +43,8 @@ export type ConsoleModel = {
     | {
         phase: "lobby"
         lobby: LobbyData
-        /** the active round has state → the deck is returnable from here */
-        canBack: boolean
-        onBack: () => void
-        onStart: (roundId: string) => void
+        onStart: (roundId: string, phase?: 1 | 2) => void
         busy: boolean
-        hint: string
     }
     /** a round is running — the round module draws the controller's screen */
     | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null }
@@ -62,6 +59,11 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const [roundsView, setRoundsView] = useState(false)
 
     const [watch, setWatch] = useState<WatchState>(() => freshWatch(null))
+    // The MC NAVIGATED into the current round (the lobby's round buttons) — a
+    // waiting stage (e.g. a saved ENDED state re-opened for review) must still
+    // show the deck. Automatic ends (Về sảnh) clear it → both surfaces fall
+    // back to the lobby. Players never set it: they follow the pushed view.
+    const [entered, setEntered] = useState(false)
     const [overrides, setOverrides] = useState<Record<string, boolean>>({})
     const [selectedQ, setSelectedQ] = useState<string | null>(null)
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
@@ -95,24 +97,29 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const answers = useQuestionAnswers(tournamentId, matchId, judgingId ?? resolvingId)
     const rows = answers.data ?? []
 
+    const surface = useApiSurface()
     const rtc = useRtcRoom({
         enabled: Boolean(live.data),
         autoSubscribe: true,
-        getToken: () => fetchOperatorRtcToken(tournamentId, matchId),
+        // The spectator has no portal session — its door is the public viewer
+        // token (video only: Discord carries the show's audio).
+        getToken: () =>
+            surface === "spectate"
+                ? fetchViewerRtcToken(matchId)
+                : fetchOperatorRtcToken(tournamentId, matchId),
     })
     const peers = useRtcPeerTracks(rtc.room)
 
     // An ended/unknown/pending stage is the WAITING ROOM (same rule the player
     // surface has) — exit a round and both sides land on the lobby, never a
     // dead screen. The controller routes manually from its round buttons.
-    const roundScreenReady = !isWaitingStage(stage) && isKnownRound(roundId) && !roundsView
+    const roundScreenReady = (entered || !isWaitingStage(stage)) && isKnownRound(roundId) && !roundsView
     const viewPainted = projection !== undefined
     const transportRefused = live.isError
     const waiting = transportRefused || !viewPainted || !roundScreenReady
     const lobby = useLobby(tournamentId, matchId, waiting)
 
     // ── derived facts ─────────────────────────────────────────────────────────
-    const started = stage !== "pending"
     const userSeats = (matches.data?.items.find((m) => m.id === matchId)?.players ?? [])
         .flatMap((seat) => ("userId" in seat && seat.userId ? [seat.userId] : []))
     const questions = v?.questions ?? []
@@ -202,7 +209,16 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     /** Kết thúc = end the round in ONE press — the round module decides WHAT. */
     const ketThuc = () => {
+        // The round is already finished → pure navigation back to the lobby.
+        if (stage === "ended") {
+            setEntered(false)
+            return
+        }
         const plan = ketThucPlanOf(roundId, planInput())
+        // Ending plans drop the intent flag so the pushed "ended" view lands
+        // both surfaces on the lobby; phase-advancing plans (khoi-dong phase 1)
+        // keep it — we're still inside the round.
+        if (plan.some((action) => typeof action.kind === "string" && action.kind.endsWith("endRound"))) setEntered(false)
         if (plan.length > 1) return void sendChain(plan)
         if (plan.length === 1) return send(plan[0])
     }
@@ -255,11 +271,15 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const flash = writer.isError ? (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại" : null
 
     /** The rounds navigator's start click — one tested plan, one executor. */
-    const onStart = (nextRoundId: string) => {
+    const onStart = (nextRoundId: string, phase?: 1 | 2) => {
         if (!lobby.data) return
         setRoundsView(false)
+        setEntered(true) // navigating IN — waiting stages (saved ended) still show the deck
         const startPayload = {
             kind: `${nextRoundId}.start`,
+            // The paired rounds' "· Chung/· Riêng" entry: skip the untouched
+            // phase 1 in the SAME start action (the engine refuses a touched one).
+            ...(phase === 2 ? { phase: 2 as const } : {}),
             ...startActionPayload(nextRoundId, userSeats, questions),
         }
         const plan = navigatorStartPlan(lobby.data, nextRoundId, startPayload)
@@ -270,10 +290,20 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     // ── the phase the host draws ──────────────────────────────────────────────
     const adjust = { adjustFor, openAdjust, closeAdjust, submitAdjust } as const
 
+    /** The lobby, ready to draw: seats + their cameras, the Khởi động/Về đích
+     *  phase pairs, and which phase this surface is standing in. */
+    const stagePhase: 1 | 2 | null = stage === "phase1" ? 1 : stage === "phase2" ? 2 : null
+    const prepareLobby = (l: LobbyData): LobbyData => ({
+        ...l,
+        currentPhase: stagePhase,
+        rounds: expandRoundEntries(l.rounds),
+        table: l.table.map((r) => ({ ...r, video: peers.get(r.id)?.video ?? null })),
+    })
+
     if (live.isPending) return { phase: "loading", ...adjust }
 
     if (live.isError || !v || !projection) {
-        if (lobby.data) return { phase: "not-live", lobby: lobby.data, ...adjust }
+        if (lobby.data) return { phase: "not-live", lobby: prepareLobby(lobby.data), ...adjust }
         return {
             ...adjust,
             phase: "error",
@@ -286,14 +316,9 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         return {
             ...adjust,
             phase: "lobby",
-            lobby: lobby.data,
-            canBack: started,
-            onBack: () => setRoundsView(false),
+            lobby: prepareLobby(lobby.data),
             onStart,
             busy: writer.isPending,
-            hint: started
-                ? "Chọn vòng để mở lại — ▶ vòng chưa chơi để bắt đầu"
-                : "Chọn vòng — ✓ đã chơi · ● đang dở · ▶ chưa chơi (bấm là vào được hết).",
         }
     }
 

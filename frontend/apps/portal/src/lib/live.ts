@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
+import { useApiPrefix } from "@/lib/surface"
 
 // The MC console's data layer: one polled read, one version-guarded action
 // writer, one drafts reader for judging — plus the pure helpers that decide
@@ -94,9 +95,20 @@ export interface LobbyData {
     status: "UPCOMING" | "LIVE" | "FINISHED"
     /** The round waiting to start (the live record's, else the match's first). */
     roundId: string | null
-    /** The match's rounds in tournament order — the controller's open/start buttons. */
-    rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended" }>
-    table: Array<{ id: string; displayName: string; points: number; rank: number }>
+    /** The match's rounds in tournament order — the controller's open/start buttons.
+     *  Khởi động & Về đích are PAIRED client-side (phase 1/2 → "· Riêng/· Chung"):
+     *  two entries share the id, `phase` tells a fresh start which side to open. */
+    rounds: Array<{ id: string; name: string; status: "new" | "playing" | "ended"; phase?: 1 | 2 }>
+    /** The live stage's phase — which split entry is "where you are" (model-derived). */
+    currentPhase?: 1 | 2 | null
+    table: Array<{
+        id: string
+        displayName: string
+        points: number
+        rank: number
+        /** The seat's live camera — model-derived from the console's Room. */
+        video?: import("livekit-client").RemoteVideoTrack | null
+    }>
     /** User ids with a live socket right now — the lobby's connected dots. */
     connected: string[]
 }
@@ -106,10 +118,11 @@ export const lobbyKey = (tournamentId: string, matchId: string) =>
 
 /** The MC's lobby read: polled like /live (presence moves without a round change). */
 export function useLobby(tournamentId: string, matchId: string, enabled: boolean) {
+    const prefix = useApiPrefix()
     return useQuery({
         queryKey: lobbyKey(tournamentId, matchId),
         queryFn: () =>
-            api<LobbyData>(`/portal/tournaments/${tournamentId}/matches/${matchId}/lobby`),
+            api<LobbyData>(`${prefix}/tournaments/${tournamentId}/matches/${matchId}/lobby`),
         enabled: enabled && Boolean(tournamentId && matchId),
         refetchInterval: 3_000,
         retry: false,
@@ -133,10 +146,11 @@ export const liveKey = (tournamentId: string, matchId: string) =>
 // The console's eyes: poll while the round runs. 404 (no round yet) and 409 are
 // answers, not crashes — no retry storm.
 export function useLive(tournamentId: string, matchId: string) {
+    const prefix = useApiPrefix()
     return useQuery({
         queryKey: liveKey(tournamentId, matchId),
         queryFn: () =>
-            api<LiveResponse>(`/portal/tournaments/${tournamentId}/matches/${matchId}/live`),
+            api<LiveResponse>(`${prefix}/tournaments/${tournamentId}/matches/${matchId}/live`),
         enabled: Boolean(tournamentId && matchId),
         refetchInterval: 3_000,
         staleTime: 0,
@@ -149,11 +163,12 @@ export function useLive(tournamentId: string, matchId: string) {
 // reject, don't queue.
 export function useLiveAction(tournamentId: string, matchId: string) {
     const queryClient = useQueryClient()
+    const prefix = useApiPrefix()
 
     return useMutation({
         mutationFn: (input: { expectedVersion: number; action: Record<string, unknown> }) =>
             api<{ version?: number }>(
-                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
+                `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/actions`,
                 { method: "POST", body: JSON.stringify(input) }
             ),
         onSuccess: () => {
@@ -175,13 +190,14 @@ export function useLiveAction(tournamentId: string, matchId: string) {
 // console-side mutation — window-focus refetch is globally off too. Without
 // this interval the MC's Đúng stays dead until a reload (smoke-tested).
 export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
+    const prefix = useApiPrefix()
     return useQuery({
         queryKey: ["question-answers", matchId, questionId],
         // The route wraps: { items: [...] } — unwrap here or `rows.find` gets an
         // object and the console unmounts (blank stage page).
         queryFn: () =>
             api<{ items: QuestionAnswerRow[] }>(
-                `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
+                `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
             ).then((body) => body.items),
         enabled: Boolean(questionId),
         // Same cadence as the lobby — only while a question is open (enabled).
