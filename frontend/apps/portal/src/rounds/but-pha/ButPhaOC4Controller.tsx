@@ -1,7 +1,6 @@
 import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
 
-// Bứt phá (S4): sequential typed questions, one open at a time — Tính giờ
-// opens, Đúng/Sai judge the ledger, Về sảnh ends. Pure: its ctx in, JSX out.
+
 import type { ConsoleQuestion } from "@/lib/live"
 import type { ScreenCore } from "../types"
 

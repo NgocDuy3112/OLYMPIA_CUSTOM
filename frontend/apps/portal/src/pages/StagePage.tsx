@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom"
-import { LiveConsole } from "@/components/live-console"
+import { Controller } from "@/console/controller"
 
 
 export function StagePage() {
@@ -8,7 +8,7 @@ export function StagePage() {
     return (
         <div className="flex min-h-screen w-full items-start justify-center bg-background p-2">
             <div className="w-full max-w-[1800px]">
-                <LiveConsole tournamentId={tournamentId!} matchId={matchId!} />
+                <Controller tournamentId={tournamentId!} matchId={matchId!} />
             </div>
         </div>
     )

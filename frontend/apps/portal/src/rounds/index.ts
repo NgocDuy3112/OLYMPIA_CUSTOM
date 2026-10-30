@@ -3,6 +3,7 @@ import { giaiMaOc4 } from "./giai-ma/logic"
 import { khoiDongOc4 } from "./khoi-dong/logic"
 import { veDichOc4 } from "./ve-dich/logic"
 import type { RoundAction, RoundModule, RoundPlanInput } from "./types"
+export type { HetLuotFacts, RoundAction, RoundModule, RoundPlanInput, ScreenCore } from "./types"
 
 // ── the controller's round registry ─────────────────────────────────────────
 // One entry per RULESET (see types.ts): the live view's roundId picks the

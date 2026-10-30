@@ -3,11 +3,7 @@ import { ButPhaOC4Controller, type ButPhaCtx } from "./ButPhaOC4Controller"
 import { mergedVerdicts } from "@/lib/live"
 import { screenCore, type RoundAction, type RoundModule, type RoundPlanInput } from "../types"
 
-// Bứt phá — the OC4 ruleset: FOUR typed questions, each against its own clock.
-// Tính giờ picks the NEXT question (commit the current ledger, advance the
-// cursor, open the next — the engine auto-ends after the fourth). Kết thúc ends
-// the round in ONE press: commit whatever is open, then end. The exit button
-// never touches the question lifecycle.
+
 
 const TOTAL_QUESTIONS = 4
 

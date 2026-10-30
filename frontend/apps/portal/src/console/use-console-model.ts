@@ -1,16 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { useCountdown, useServerClock } from "@shared/lib/clock"
-import { StageShell } from "@shared/deck/stage-shell"
-import { Lobby } from "@shared/deck/lobby"
-import {
-    Badges,
-    StageLayout,
-    type CardData,
-    type ConsoleFacts,
-} from "@/components/stage/deck"
+import type { CardData, ConsoleFacts } from "@/components/stage/deck"
 import { valueText } from "@/components/stage/ledger"
-import { ROUND_LABEL, isKnownRound, isWaitingStage, pt } from "@shared/deck/geometry"
-import { ketThucPlanOf, nextQuestionPlanOf, railVariantOf, roundModuleOf } from "@/rounds"
+import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
+import { ketThucPlanOf, nextQuestionPlanOf, railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
 import {
     startActionPayload,
     useLive,
@@ -18,17 +11,43 @@ import {
     useLobby,
     useQuestionAnswers,
     type GiaiMaMc,
+    type LobbyData,
     type VeDichMc,
 } from "@/lib/live"
 import { useMatches } from "@/lib/tournament"
 import { fetchOperatorRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
+import { navigatorStartPlan } from "./navigator-plan"
 
+// The CONTROLLER's model — every hook, derived fact and action the portal's
+// match control needs. No JSX lives here: the controller host draws whichever
+// phase this returns, and `rounds/*` draws the deck itself from `facts`.
 
 interface WatchState { qid: string | null; running: boolean; startedAt: number; base: number; shown: number }
 const freshWatch = (qid: string | null): WatchState => ({ qid, running: false, startedAt: 0, base: 0, shown: 0 })
 
-export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; matchId: string }) {
-    // ── every hook first — early returns must not move the hook line ─────────
+export type ConsoleModel =
+    /** the first GET/push has not painted yet */
+    | { phase: "loading" }
+    /** transport failed and no lobby answered — say why, offer a retry */
+    | { phase: "error"; message: string; retry: () => void }
+    /** the match is not LIVE yet — waiting lobby, starts disabled */
+    | { phase: "not-live"; lobby: LobbyData }
+    /** a round is (re)selectable: the waiting room with the rounds navigator */
+    | {
+        phase: "lobby"
+        lobby: LobbyData
+        /** the active round has state → the deck is returnable from here */
+        canBack: boolean
+        onBack: () => void
+        onStart: (roundId: string) => void
+        busy: boolean
+        hint: string
+    }
+    /** a round is running — the round module draws the controller's screen */
+    | { phase: "deck"; facts: ConsoleFacts; roundModule: RoundModule | null }
+
+export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
+    // ── hooks first — early returns belong to the HOST, not here ────────────
     const live = useLive(tournamentId, matchId)
     const matches = useMatches(tournamentId)
     const writer = useLiveAction(tournamentId, matchId)
@@ -77,59 +96,28 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
 
     // An ended/unknown/pending stage is the WAITING ROOM (same rule the player
     // surface has) — exit a round and both sides land on the lobby, never a
-    // dead screen. The MC routes manually from its round buttons.
+    // dead screen. The controller routes manually from its round buttons.
     const roundScreenReady = !isWaitingStage(stage) && isKnownRound(roundId) && !roundsView
-    const viewPainted = projection !== undefined // the GET/push has not delivered a view yet
+    const viewPainted = projection !== undefined
     const transportRefused = live.isError
     const waiting = transportRefused || !viewPainted || !roundScreenReady
     const lobby = useLobby(tournamentId, matchId, waiting)
-
-    if (live.isPending) {
-        return (
-            <StageShell>
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Đang tải vòng thi…</div>
-            </StageShell>
-        )
-    }
-    if (live.isError || !v || !projection) {
-        if (lobby.data) {
-            return (
-                <StageShell>
-                    <Lobby
-                        data={lobby.data}
-                        mc={{
-                            canStart: false, // no live version to guard a start until the match is LIVE
-                            onStart: () => { /* disabled until LIVE */ },
-                        }}
-                        hint="Trận chưa bắt đầu — mở ở trang trận để chuyển sang LIVE."
-                    />
-                </StageShell>
-            )
-        }
-        return (
-            <StageShell>
-                <div role="alert" className="flex h-full items-center justify-center p-8 text-sm text-destructive">
-                    {live.error?.message ?? "Không đọc được trạng thái vòng thi"}
-                </div>
-            </StageShell>
-        )
-    }
 
     // ── derived facts ─────────────────────────────────────────────────────────
     const started = stage !== "pending"
     const userSeats = (matches.data?.items.find((m) => m.id === matchId)?.players ?? [])
         .flatMap((seat) => ("userId" in seat && seat.userId ? [seat.userId] : []))
-    const questions = v.questions
-    const table = projection.table
-    const mcGiaiMa = roundId === "giai-ma" ? (v.mc as GiaiMaMc | null) : null
-    const mcVeDich = roundId === "ve-dich" ? (v.mc as VeDichMc | null) : null
+    const questions = v?.questions ?? []
+    const table = projection?.table ?? []
+    const mcGiaiMa = roundId === "giai-ma" ? (v?.mc as GiaiMaMc | null) : null
+    const mcVeDich = roundId === "ve-dich" ? (v?.mc as VeDichMc | null) : null
 
     const byId = (id: string) => questions.find((q) => q._id === id) ?? null
     const send = (act: Record<string, unknown>) =>
-        writer.mutate({ expectedVersion: v.version, action: act })
+        writer.mutate({ expectedVersion: v!.version, action: act })
     /** Sequential actions, each carrying the version the previous one returned. */
     const sendChain = async (actions: Record<string, unknown>[]) => {
-        let ver = v.version
+        let ver = v!.version
         for (const action of actions) {
             try {
                 const res = await writer.mutateAsync({ expectedVersion: ver, action })
@@ -171,8 +159,8 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
 
     const openRounds = () => setRoundsView(true)
 
-    /** ve-dich only: finish the current TURN — the open question, verdicts first.
-     *  (Ending the whole round is ketThuc's job — the two are separate buttons.) */
+    /** ve-dich only: finish the current TURN — verdicts first (the round module
+     *  owns the rule; ending the ROUND is ketThuc's job). */
     const hetLuot = () => {
         if (!mcVeDich || open.length === 0) return
         const qid = open[0].questionId
@@ -187,7 +175,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     /** Everything the round planners decide on — gathered once per call. */
     const planInput = () => ({
         stage,
-        hasOralRun: Boolean(projection.oral),
+        hasOralRun: Boolean(projection?.oral),
         openIds: open.map((q) => q.questionId),
         openQuestionPosition: open.length > 0 ? byId(open[0].questionId)?.position ?? null : null,
         rows,
@@ -204,7 +192,6 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     /** Tính giờ — but-pha picks a NEW question: commit the current one, advance, open. */
     const pickQuestion = () => {
         const plan = nextQuestionPlanOf(roundId, planInput())
-            ?? [{ kind: "but-pha.openQuestion" }]
         if (plan.length > 1) return void sendChain(plan)
         if (plan.length === 1) return send(plan[0])
     }
@@ -220,7 +207,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
             name: t.displayName,
             points: t.points,
             ring: isTarget ? "selected" : undefined,
-            connected: v.connected?.includes(t.id) ?? false,
+            connected: v?.connected?.includes(t.id) ?? false,
             // identity === user id → the player's camera joins by plain equality
             video: peers.get(t.id)?.video ?? null,
         }
@@ -242,50 +229,52 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         return card
     })
     // the oral round: ring the player whose run is open (oral exists only in phase 1)
-    if (projection.oral) {
-        for (const c of baseCards) c.ring = c.id === projection.oral!.playerId ? "active" : undefined
+    if (projection?.oral) {
+        const oralPlayerId = projection.oral.playerId
+        for (const c of baseCards) c.ring = c.id === oralPlayerId ? "active" : undefined
     }
 
     const flash = writer.isError ? (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại" : null
 
-
-    if (!roundScreenReady && lobby.data) {
-        return (
-            <StageShell>
-                <Lobby
-                    data={lobby.data}
-                    mc={{
-                        canStart: true, // match is LIVE (this view 404s otherwise) — version in hand
-                        busy: writer.isPending,
-                        canBack: started, // the active round has state → the deck is returnable
-                        onBack: () => setRoundsView(false),
-                        onStart: (roundId) => {
-                            setRoundsView(false)
-                            const target = lobby.data?.rounds.find((r) => r.id === roundId)
-                            const isActive = lobby.data?.roundId === roundId
-                            const startPayload = {
-                                kind: `${roundId}.start`,
-                                ...startActionPayload(roundId, userSeats, questions),
-                            }
-                            if (target?.status === "new" && isActive) {
-                                return void send(startPayload)
-                            }
-                            const chain: Record<string, unknown>[] = [{ kind: "round.goTo", roundId }]
-                            if (target?.status !== "ended" && target?.status !== "playing") {
-                                chain.push(startPayload)
-                            }
-                            return void sendChain(chain)
-                        },
-                    }}
-                    hint={started
-                        ? "Chọn vòng để mở lại — ▶ vòng chưa chơi để bắt đầu"
-                        : "Chọn vòng — ✓ đã chơi · ● đang dở · ▶ chưa chơi (bấm là vào được hết)."}
-                />
-            </StageShell>
-        )
+    /** The rounds navigator's start click — one tested plan, one executor. */
+    const onStart = (nextRoundId: string) => {
+        if (!lobby.data) return
+        setRoundsView(false)
+        const startPayload = {
+            kind: `${nextRoundId}.start`,
+            ...startActionPayload(nextRoundId, userSeats, questions),
+        }
+        const plan = navigatorStartPlan(lobby.data, nextRoundId, startPayload)
+        if (plan.length > 1) return void sendChain(plan)
+        if (plan.length === 1) return send(plan[0])
     }
 
-    // ── everything the console knows — modules project their narrow slice ────
+    // ── the phase the host draws ──────────────────────────────────────────────
+    if (live.isPending) return { phase: "loading" }
+
+    if (live.isError || !v || !projection) {
+        if (lobby.data) return { phase: "not-live", lobby: lobby.data }
+        return {
+            phase: "error",
+            message: live.error?.message ?? "Không đọc được trạng thái vòng thi",
+            retry: live.refetch,
+        }
+    }
+
+    if (!roundScreenReady && lobby.data) {
+        return {
+            phase: "lobby",
+            lobby: lobby.data,
+            canBack: started,
+            onBack: () => setRoundsView(false),
+            onStart,
+            busy: writer.isPending,
+            hint: started
+                ? "Chọn vòng để mở lại — ▶ vòng chưa chơi để bắt đầu"
+                : "Chọn vòng — ✓ đã chơi · ● đang dở · ▶ chưa chơi (bấm là vào được hết).",
+        }
+    }
+
     const facts: ConsoleFacts = {
         v,
         stage,
@@ -309,24 +298,5 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         flash,
         openRounds,
     }
-
-    // ── one screen per round module (src/rounds owns the RULES) ──────────────
-    const roundModule = roundModuleOf(roundId)
-    let screen: ReactNode
-    if (roundModule) {
-        screen = roundModule.render(facts)
-    }
-    else {
-        // Unknown round, lobby still loading: hold the deck instead of a blank canvas.
-        screen = (
-            <StageLayout>
-                <Badges round={ROUND_LABEL[roundId] ?? roundId} onRoundClick={openRounds} />
-                <p className="font-sans text-muted-foreground" style={{ fontSize: pt(14) }}>
-                    Đang chờ dữ liệu vòng…
-                </p>
-            </StageLayout>
-        )
-    }
-
-    return <StageShell>{screen}</StageShell>
+    return { phase: "deck", facts, roundModule: roundModuleOf(roundId) }
 }

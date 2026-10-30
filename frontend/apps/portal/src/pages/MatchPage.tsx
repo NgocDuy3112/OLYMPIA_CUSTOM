@@ -5,7 +5,7 @@ import { Badge } from "@shared/ui/badge"
 import { PageHeader, EmptyState, ErrorPanel } from "@/components/page"
 import { useMatches } from "@/lib/tournament"
 import { StandardMatchControl } from "@/components/standard-match-control"
-import { LiveConsole } from "@/components/live-console"
+import { Controller } from "@/console/controller"
 
 
 function FullPage({ children }: { children: ReactNode }) {
@@ -84,7 +84,7 @@ export function MatchPage() {
             />
 
             {match.status === "LIVE" && (
-                <LiveConsole tournamentId={tournamentId!} matchId={match.id} />
+                <Controller tournamentId={tournamentId!} matchId={match.id} />
             )}
             <StandardMatchControl tournamentId={tournamentId!} match={match} />
         </FullPage>
