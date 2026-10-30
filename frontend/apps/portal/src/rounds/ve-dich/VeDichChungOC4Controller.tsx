@@ -34,7 +34,7 @@ export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
                     mid={<VeDichStripCells cells={stripCells} phase2={false} />}
                     right={<Timer remaining={remaining} />}
                 />
-                <QuestionBlock question={openNow.question?.questionText ?? ""} />
+                <QuestionBlock question={openNow.question?.questionText ?? ""} media={openNow.question?.media ?? null} />
             </MainCard>
             <Strip
                 items={[

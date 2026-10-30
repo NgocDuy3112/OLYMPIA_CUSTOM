@@ -33,7 +33,7 @@ export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
                         </>
                     }
                 />
-                <QuestionBlock question={openQ?.question?.questionText ?? "Nhấn Tính giờ để mở câu tiếp theo"} />
+                <QuestionBlock question={openQ?.question?.questionText ?? "Nhấn Tính giờ để mở câu tiếp theo"} media={openQ?.question?.media ?? null} />
             </MainCard>
             <Strip
                 items={[

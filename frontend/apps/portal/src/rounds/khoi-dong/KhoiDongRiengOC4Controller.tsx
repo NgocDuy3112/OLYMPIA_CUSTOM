@@ -31,7 +31,7 @@ export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
                         </>
                     }
                 />
-                <QuestionBlock question={oral?.question?.questionText ?? "Đang chuyển người chơi…"} />
+                <QuestionBlock question={oral?.question?.questionText ?? "Đang chuyển người chơi…"} media={oral?.question?.media ?? null} />
             </MainCard>
             <Strip
                 items={[

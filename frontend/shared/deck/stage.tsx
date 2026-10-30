@@ -1,17 +1,9 @@
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { CheckCircle2, Hourglass, XCircle } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
 import { DECK_PAD, STRIP_R, pt, toClock } from "./geometry"
 
-// ── the flow stage ───────────────────────────────────────────────────────────
-// The 16:9 container (StageShell) + flex/grid regions — NO absolute deck
-// coordinates anywhere. Sizes stay proportional through cqw (1cqw = 1% of the
-// stage width), so every region scales with the projection.
 
-/**
- * The stage frame: a flow column (card · action strip · status) beside the
- * rail column. Screens compose the column; the rail slots on the right.
- */
 export function StageLayout({ rail, children }: { rail?: ReactNode; children: ReactNode }) {
     return (
         <div className="absolute inset-0 flex gap-[4cqw] p-[3cqw] pt-[2.9cqw]">
@@ -73,13 +65,12 @@ export function Progress({ total, done, active, onPick }: { total: number; done:
     return (
         <div className="flex shrink-0 items-center gap-[0.98cqw]">
             {Array.from({ length: total }, (_, i) => {
-                const className = `flex items-center justify-center font-display font-bold leading-none ${
-                    i < done
+                const className = `flex items-center justify-center font-display font-bold leading-none ${i < done
                         ? "bg-primary text-primary-foreground"
                         : i === active
-                          ? "bg-card text-foreground ring-2 ring-primary"
-                          : "bg-card text-muted-foreground ring-1 ring-border"
-                } ${onPick ? "cursor-pointer hover:ring-sky-500" : ""}`
+                            ? "bg-card text-foreground ring-2 ring-primary"
+                            : "bg-card text-muted-foreground ring-1 ring-border"
+                    } ${onPick ? "cursor-pointer hover:ring-sky-500" : ""}`
                 const style = { width: "1.95cqw", height: "1.95cqw", fontSize: pt(12), borderRadius: STRIP_R }
                 return onPick ? (
                     <button key={i} type="button" onClick={() => onPick(i)} className={className} style={style}>{i + 1}</button>
@@ -108,25 +99,64 @@ export function Timer({ remaining, fallback = "45", size = 40 }: {
  * (placeholder well); the player passes the question object's media and gets
  * the actual image.
  */
+/**
+ * The question: the TEXT takes the whole card when there is no media (no empty
+ * gray well for nothing); with media, text sits left of a well that hugs the
+ * image's natural aspect — horizontal images span the row, vertical ones stay
+ * narrow instead of pillarboxing inside a wide box. A broken URL falls back to
+ * the placeholder rather than a torn icon.
+ */
 export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu hỏi" }: {
     question: string | null
-    media?: { url: string; type: "image" | "audio" | "video" } | null
+    media?: { url: string; type: string } | null
     mediaHint?: string
 }) {
     return (
-        <div className="flex min-h-0 flex-1 gap-[1.4cqw]">
-            <p className="w-[26.7cqw] shrink-0 font-sans font-medium leading-snug text-foreground" style={{ fontSize: pt(14), ...DECK_PAD }}>
+        <div className="flex min-h-0 flex-1 items-stretch gap-[1.4cqw]">
+            <p
+                className={`min-w-0 font-sans font-medium leading-snug text-foreground ${media ? "w-[26.7cqw] shrink-0" : "flex-1"}`}
+                style={{ fontSize: pt(14), ...DECK_PAD }}
+            >
                 {question ?? "Đang chờ MC…"}
             </p>
-            <div className="flex min-w-0 flex-1 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border">
-                {media?.type === "image" ? (
-                    <img src={media.url} alt="" className="h-full w-full object-contain" />
-                ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
-                        {media ? `media: ${media.type}` : mediaHint}
-                    </span>
-                )}
+            {media && <MediaWell media={media} mediaHint={mediaHint} />}
+        </div>
+    )
+}
+
+function MediaWell({ media, mediaHint }: { media: { url: string; type: string }; mediaHint: string }) {
+    const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
+    const [broken, setBroken] = useState(false)
+
+    // Audio/video (or a broken link): a modest labeled well — the deck never
+    // plays media inline; the show surface does.
+    if (media.type !== "image" || broken) {
+        return (
+            <div className="ml-auto flex h-full w-[37.4cqw] shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border">
+                <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>
+                    {broken ? mediaHint : `media: ${media.type}`}
+                </span>
             </div>
+        )
+    }
+
+    // Image: the well tracks the natural aspect (16:9 until it loads) and
+    // never exceeds the row — width clamps, the img contains inside it.
+    return (
+        <div
+            className="ml-auto flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted ring-1 ring-border"
+            style={{ height: "100%", aspectRatio: natural ? `${natural.w} / ${natural.h}` : "16 / 9", maxWidth: "100%" }}
+        >
+            <img
+                src={media.url}
+                alt=""
+                className="max-h-full max-w-full object-contain"
+                onLoad={(event) => {
+                    const { naturalWidth: w, naturalHeight: h } = event.currentTarget
+                    if (w > 0 && h > 0) setNatural({ w, h })
+                }}
+                onError={() => setBroken(true)}
+            />
         </div>
     )
 }

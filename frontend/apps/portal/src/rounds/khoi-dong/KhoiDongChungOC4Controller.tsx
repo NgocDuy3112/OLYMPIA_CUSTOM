@@ -21,6 +21,7 @@ export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
     const { v, remaining, baseCards, flash, openRounds } = ctx
     const open = v.projection.open
     const activeQ = ctx.judgingId
+    const activeQuestionId = activeQ ?? open[0]?.questionId ?? ""
 
     return (
         <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
@@ -34,7 +35,10 @@ export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
                         </>
                     }
                 />
-                <QuestionBlock question={ctx.byId(activeQ ?? open[0]?.questionId ?? "")?.questionText ?? "Cả bảng đang trả lời…"} />
+                <QuestionBlock
+                    question={ctx.byId(activeQuestionId)?.questionText ?? "Cả bảng đang trả lời…"}
+                    media={open.find((q) => q.questionId === activeQuestionId)?.question?.media ?? null}
+                />
             </MainCard>
             <Strip
                 items={[
