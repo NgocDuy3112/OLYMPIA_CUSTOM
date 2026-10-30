@@ -101,9 +101,10 @@ export function Timer({ remaining, fallback = "45", size = 40 }: {
  */
 /**
  * The question: the TEXT takes the whole card when there is no media (no empty
- * gray well for nothing); with media, text sits left of a well that hugs the
- * image's natural aspect — horizontal images span the row, vertical ones stay
- * narrow instead of pillarboxing inside a wide box. A broken URL falls back to
+ * gray well for nothing); with media, the well hugs the image's natural aspect
+ * (horizontal images span the row, vertical ones stay narrow instead of
+ * pillarboxing), is always aligned to the RIGHT of the card with breathing
+ * room (right padding only when media exists), and a broken URL falls back to
  * the placeholder rather than a torn icon.
  */
 export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu hỏi" }: {
@@ -112,7 +113,7 @@ export function QuestionBlock({ question, media, mediaHint = "hình ảnh câu h
     mediaHint?: string
 }) {
     return (
-        <div className="flex min-h-0 flex-1 items-stretch gap-[1.4cqw]">
+        <div className={`flex min-h-0 flex-1 items-stretch gap-[1.4cqw] ${media ? "pr-[1.2cqw]" : ""}`}>
             <p
                 className={`min-w-0 font-sans font-medium leading-snug text-foreground ${media ? "w-[26.7cqw] shrink-0" : "flex-1"}`}
                 style={{ fontSize: pt(14), ...DECK_PAD }}

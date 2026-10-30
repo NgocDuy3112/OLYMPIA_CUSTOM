@@ -63,3 +63,18 @@ describe("QuestionBlock — degradation", () => {
         expect(container.textContent).toContain("media: audio")
     })
 })
+
+describe("QuestionBlock — media alignment", () => {
+    it("with media: the row reserves right padding and the well sits flush right (ml-auto)", () => {
+        const { container, img } = renderCard({ media: image("https://x/h.jpg") })
+        const row = container.firstElementChild!
+        expect(row.className).toContain("pr-[1.2cqw]")
+        expect(img!.parentElement!.className).toContain("ml-auto")
+    })
+
+    it("without media: no right padding — the text owns the full row", () => {
+        const { container } = renderCard()
+        const row = container.firstElementChild!
+        expect(row.className).not.toContain("pr-[1.2cqw]")
+    })
+})
