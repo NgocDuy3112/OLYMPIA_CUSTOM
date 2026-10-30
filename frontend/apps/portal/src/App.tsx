@@ -5,6 +5,7 @@ import { SignupPage } from "@/pages/SignupPage"
 import { TournamentsPage } from "./pages/TournamentsPage"
 import { TournamentDetailPage } from "@/pages/TournamentDetailPage"
 import { MatchPage } from "@/pages/MatchPage"
+import { SpectatePage } from "@/pages/SpectatePage"
 import { StagePage } from "@/pages/StagePage"
 import { QuestionsPage } from "@/pages/QuestionsPage"
 import { McpKeysPage } from "@/pages/McpKeysPage"
@@ -45,6 +46,13 @@ export default function App() {
 
         {/* The player's door (PIN join) and the player's deck moved to the
             GAMEPLAY app — players never enter the portal (user decision). */}
+
+        {/* The link-only spectator deck: the controller's pages, read-only,
+            OUTSIDE RequireAuth — no session, Discord carries the audio. */}
+        <Route
+          path="/tournaments/:tournamentId/matches/:matchId/spectate"
+          element={<SpectatePage />}
+        />
 
         <Route
           path="/login"

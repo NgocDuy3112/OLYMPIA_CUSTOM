@@ -29,6 +29,8 @@ export default defineConfig({
             // including the live stream's socket upgrade.
             "/portal": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
             "/gameplay": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false, ws: true },
+            // The link-only spectator twins (public reads — same backend).
+            "/spectate": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
         },
     },
 })

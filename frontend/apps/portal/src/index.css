@@ -156,3 +156,11 @@
     @apply font-sans;
   }
 }
+/* The spectator surface: the controller's pages as pure display. Every control
+   disappears (Discord carries the show's audio; spectators DO nothing). */
+.spectate button,
+.spectate input,
+.spectate textarea,
+.spectate select {
+  display: none !important;
+}
