@@ -64,7 +64,7 @@ export function GiaiMaOC4Player({ ctx }: { ctx: PlayerCtx }) {
                         Bạn không giải được từ khóa — bị loại vòng này
                     </span>
                 ) : locked ? (
-                    <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(13) }}>
+                    <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>
                         Đã khóa từ khóa <VerdictIcon verdict={v.me.verdicts?.[keyword?.questionId ?? ""]} />
                     </span>
                 ) : keyword ? (
