@@ -1,8 +1,22 @@
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
+import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
 
 // Bứt phá (S4): sequential typed questions, one open at a time — Tính giờ
-// opens, Đúng/Sai judge the ledger, Về sảnh ends. Pure: DeckCtx in, JSX out.
-export function ButPhaOC4Controller({ ctx }: { ctx: DeckCtx }) {
+// opens, Đúng/Sai judge the ledger, Về sảnh ends. Pure: its ctx in, JSX out.
+import type { ConsoleQuestion } from "@/lib/live"
+import type { ScreenCore } from "../types"
+
+/** Bứt phá: four typed questions, one open at a time. */
+export type ButPhaCtx = ScreenCore & {
+    remaining: number | null
+    roundEnded: boolean
+    bpDone: number
+    target: string | null
+    setVerdict: (correct: boolean) => void
+    setSelectedPlayer: (userId: string) => void
+    byId: (id: string) => ConsoleQuestion | null
+}
+
+export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
     const { v, roundEnded, started, remaining, baseCards, bpDone, flash, openRounds } = ctx
     const open = v.projection.open
     const openQ = open[0] ?? null

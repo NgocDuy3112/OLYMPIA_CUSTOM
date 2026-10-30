@@ -1,6 +1,7 @@
-import { KhoiDongChungOC4Controller } from "./KhoiDongChungOC4Controller"
-import { KhoiDongRiengOC4Controller } from "./KhoiDongRiengOC4Controller"
-import type { RoundAction, RoundModule } from "../types"
+import type { ConsoleFacts } from "@/components/stage/deck"
+import { KhoiDongChungOC4Controller, type KhoiDongChungCtx } from "./KhoiDongChungOC4Controller"
+import { KhoiDongRiengOC4Controller, type KhoiDongRiengCtx } from "./KhoiDongRiengOC4Controller"
+import { screenCore, type RoundAction, type RoundModule } from "../types"
 
 // Khởi động — the OC4 ruleset: phase 1 walks the oral runs one by one, phase 2
 // is the shared typed batch against one deadline. Kết thúc ends the open run
@@ -22,11 +23,29 @@ function groupedOverrides(overrides: Record<string, boolean>): Array<{
     return [...grouped].map(([questionId, verdicts]) => ({ questionId, verdicts }))
 }
 
+/** The round's narrow slices — the screens' ctx types, projected from facts. */
+function riengCtx(f: ConsoleFacts): KhoiDongRiengCtx {
+    return { ...screenCore(f), watchRunning: f.watchRunning, watchMs: f.watchMs, toggleWatch: f.toggleWatch }
+}
+
+function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {
+    return {
+        ...screenCore(f),
+        remaining: f.remaining,
+        judgingId: f.judgingId,
+        target: f.target,
+        setSelectedQ: f.setSelectedQ,
+        setVerdict: f.setVerdict,
+        setSelectedPlayer: f.setSelectedPlayer,
+        byId: f.byId,
+    }
+}
+
 export const khoiDongOc4: RoundModule = {
-    render: (ctx) =>
-        ctx.stage === "phase2"
-            ? <KhoiDongChungOC4Controller ctx={ctx} />
-            : <KhoiDongRiengOC4Controller ctx={ctx} />,
+    render: (f) =>
+        f.stage === "phase2"
+            ? <KhoiDongChungOC4Controller ctx={chungCtx(f)} />
+            : <KhoiDongRiengOC4Controller ctx={riengCtx(f)} />,
     railVariant: ({ stage }) => (stage === "phase2" ? "answers" : "compact"),
     ketThucPlan: (input): RoundAction[] => {
         if (input.stage === "phase1") {

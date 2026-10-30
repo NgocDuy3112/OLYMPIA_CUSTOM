@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import type { DeckCtx } from "@/components/stage/deck"
+import type { ConsoleFacts } from "@/components/stage/deck"
 import type { QuestionAnswerRow } from "@/lib/live"
 
 export type RoundAction = Record<string, unknown>
@@ -21,15 +21,35 @@ export interface HetLuotFacts {
 }
 
 /**
+ * The slice EVERY controller screen gets. A screen's ctx type is this plus
+ * its round's extras — `ScreenCore & { remaining: number | null, … }` —
+ * declared in the screen file and projected by the round's logic module.
+ */
+export type ScreenCore = Pick<
+    ConsoleFacts,
+    "v" | "started" | "flash" | "baseCards" | "send" | "ketThuc" | "openRounds"
+>
+
+/** The pass-through core: what every screen's ctx starts from. */
+export function screenCore(facts: ConsoleFacts): ScreenCore {
+    const { v, started, flash, baseCards, send, ketThuc, openRounds } = facts
+    return { v, started, flash, baseCards, send, ketThuc, openRounds }
+}
+
+/**
  * A round as ONE pluggable module. The registry (`@/rounds`) maps the live
  * view's roundId to it — swapping a module swaps the RULES, so a custom
  * tournament can mix OC4 rounds with future variants (the OC4 suffix names
  * THIS ruleset). The controller side owns: which screen draws the round, which
  * rail it shows, what Kết thúc sends, and what Hết lượt sends.
+ *
+ * `render` receives the console's FACTS (what the orchestrator knows); the
+ * module projects the narrow slice its screens need — screens never see the
+ * wide object.
  */
 export interface RoundModule {
     /** Draw the round — returns elements (never a component made during render). */
-    render: (ctx: DeckCtx) => ReactNode
+    render: (facts: ConsoleFacts) => ReactNode
     /** Which rail the round draws. */
     railVariant: (facts: { stage: string; veDichPhase: 1 | 2 | null }) => "compact" | "answers"
     /** The actions Kết thúc sends for the round (roundEnded → advance is global). */

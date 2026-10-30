@@ -1,10 +1,10 @@
 
+import { useEffect, useRef } from "react"
+import type { RemoteVideoTrack } from "livekit-client"
 import {
     type ConsoleQuestion,
     type LiveResponse,
-    type GiaiMaMc,
     type QuestionAnswerRow,
-    type VeDichMc,
 } from "@/lib/live"
 import { pt } from "@shared/deck/geometry"
 import { VerdictIcon } from "@shared/deck/stage"
@@ -41,6 +41,9 @@ export interface CardData {
     dimmed?: boolean       // giai-ma eliminated
     /** has a live player socket right now (the hub's connected list) */
     connected?: boolean
+    /** the player's live camera — Room identity === card id, so a plain map
+     *  lookup by `id` feeds this slot; absent → the initials show */
+    video?: RemoteVideoTrack | null
 }
 
 const badgePill = (tone: "primary" | "amber" | "emerald") =>
@@ -50,6 +53,27 @@ const badgePill = (tone: "primary" | "amber" | "emerald") =>
             ? "bg-amber-50 text-amber-700 ring-1 ring-amber-300"
             : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300"
     }`
+
+/**
+ * The card's live camera: attaches the remote track to a <video> for exactly
+ * as long as the card holds it, laid OVER the initials (which stay as the
+ * no-camera base). Not mirrored — the MC is looking AT the player.
+ */
+function CardVideo({ track }: { track: RemoteVideoTrack }) {
+    const holder = useRef<HTMLSpanElement>(null)
+    useEffect(() => {
+        const box = holder.current
+        if (!box) return
+        const video = track.attach()
+        video.className = "absolute inset-0 h-full w-full object-cover"
+        box.append(video)
+        return () => {
+            track.detach(video)
+            video.remove()
+        }
+    }, [track])
+    return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
+}
 
 /** The rail column: who's playing, what they answered, the MC's verdict on them. */
 export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
@@ -74,6 +98,7 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
                             >
                                 {c.name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"}
                             </div>
+                            {c.video && <CardVideo track={c.video} />}
                             {/* connected dot — green = at a device, gray = gone/idle */}
                             <span
                                 className={`absolute right-[0.3cqw] top-[0.4cqw] size-[1.2cqw] rounded-full ring-2 ring-card ${c.connected
@@ -126,11 +151,12 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
 // ── the screens' contract ────────────────────────────────────────────────────
 
 /**
- * Everything a round screen may render with — built ONCE by the orchestrator
- * (live-console), which owns every hook, derived fact and action. Screens are
- * PURE: no hooks, no fetches, no mutations of their own.
+ * Everything the MC console KNOWS — the orchestrator gathers it ONCE and
+ * screens never see it. Each round module projects the narrow slice its own
+ * screens need (rounds/<round>/logic), so every screen's ctx type is declared next
+ * to the screen: `ScreenCore & { …the round's extras… }`.
  */
-export interface DeckCtx {
+export interface ConsoleFacts {
     /** The polled live read: projection carries stage/open/oral/board/table. */
     v: LiveResponse
     /** The live stage (phase1/phase2/…) — round modules route on it. */
@@ -138,13 +164,8 @@ export interface DeckCtx {
     roundEnded: boolean
     started: boolean
     remaining: number | null
-    questions: ConsoleQuestion[]
     rows: QuestionAnswerRow[]
     baseCards: CardData[]
-    /** giai-ma facts (null outside the round). */
-    mcGiaiMa: GiaiMaMc | null
-    /** ve-dich facts (null outside the round). */
-    mcVeDich: VeDichMc | null
     /** but-pha's question cursor mirror (orchestrator state, reset per round). */
     bpDone: number
     /** the question the ledger is reading (khoi-dong S2 / but-pha S4). */

@@ -1,9 +1,23 @@
-import { Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, VeDichStripCells, type DeckCtx } from "@/components/stage/deck"
+import { Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, VeDichStripCells } from "@/components/stage/deck"
 
 // Về đích — câu hỏi mở, phase 2 (S8, locked): the personal round — oral answer,
 // the 5-second buzz window, and a verdict for both answerer and buzzer. Pure:
-// everything comes from DeckCtx.
-export function VeDichRiengOC4Controller({ ctx }: { ctx: DeckCtx }) {
+// everything comes from its ctx.
+import type { VeDichMc } from "@/lib/live"
+import type { ScreenCore } from "../types"
+
+/** Về đích · phase 2 question: oral + buzz + powers + the judging strip. */
+export type VeDichRiengCtx = ScreenCore & {
+    remaining: number | null
+    mcVeDich: VeDichMc | null
+    target: string | null
+    setVerdict: (correct: boolean) => void
+    setSelectedPlayer: (userId: string) => void
+    verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
+    hetLuot: () => void
+}
+
+export function VeDichRiengOC4Controller({ ctx }: { ctx: VeDichRiengCtx }) {
     const { v, started, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
 

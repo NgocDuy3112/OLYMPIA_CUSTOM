@@ -1,9 +1,23 @@
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
+import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
 
 // Khởi động — lượt chung (S2): the whole field faces 6 shared questions, one
 // deadline; the MC picks a square to judge per card. Pure: every value comes
-// from the orchestrator's DeckCtx — no hooks here.
-export function KhoiDongChungOC4Controller({ ctx }: { ctx: DeckCtx }) {
+// from its narrow ctx — no hooks here.
+import type { ConsoleQuestion } from "@/lib/live"
+import type { ScreenCore } from "../types"
+
+/** Khởi động · lượt chung: the shared batch + the judging ledger. */
+export type KhoiDongChungCtx = ScreenCore & {
+    remaining: number | null
+    judgingId: string | null
+    target: string | null
+    setSelectedQ: (questionId: string | null) => void
+    setVerdict: (correct: boolean) => void
+    setSelectedPlayer: (userId: string) => void
+    byId: (id: string) => ConsoleQuestion | null
+}
+
+export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
     const { v, started, remaining, baseCards, flash, openRounds } = ctx
     const open = v.projection.open
     const activeQ = ctx.judgingId

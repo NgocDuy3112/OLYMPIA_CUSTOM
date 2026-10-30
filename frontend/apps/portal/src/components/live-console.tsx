@@ -6,7 +6,7 @@ import {
     Badges,
     StageLayout,
     type CardData,
-    type DeckCtx,
+    type ConsoleFacts,
 } from "@/components/stage/deck"
 import { valueText } from "@/components/stage/ledger"
 import { ROUND_LABEL, isKnownRound, pt } from "@shared/deck/geometry"
@@ -21,6 +21,7 @@ import {
     type VeDichMc,
 } from "@/lib/live"
 import { useMatches } from "@/lib/tournament"
+import { fetchOperatorRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
 
 
 interface WatchState { qid: string | null; running: boolean; startedAt: number; base: number; shown: number }
@@ -71,16 +72,19 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     const answers = useQuestionAnswers(tournamentId, matchId, judgingId ?? resolvingId)
     const rows = answers.data ?? []
 
+    const rtc = useRtcRoom({
+        enabled: Boolean(live.data),
+        autoSubscribe: true,
+        getToken: () => fetchOperatorRtcToken(tournamentId, matchId),
+    })
+    const peers = useRtcPeerTracks(rtc.room)
 
-    // A round screen exists only while a KNOWN round is running with the rounds
-    // navigator closed — in every other state the LOBBY is the screen.
     const roundScreenReady = stage !== "pending" && isKnownRound(roundId) && !roundsView
     const viewPainted = projection !== undefined // the GET/push has not delivered a view yet
     const transportRefused = live.isError
     const waiting = transportRefused || !viewPainted || !roundScreenReady
     const lobby = useLobby(tournamentId, matchId, waiting)
 
-    // ── early returns (hooks above never move) ────────────────────────────────
     if (live.isPending) {
         return (
             <StageShell>
@@ -89,9 +93,6 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         )
     }
     if (live.isError || !v || !projection) {
-        // The expected waiting case — match not LIVE yet (/live 404s) — is the
-        // LOBBY, not an error. Any OTHER failure (401/403/500) stays an error
-        // unless the lobby answered too, in which case trust the lobby.
         if (lobby.data) {
             return (
                 <StageShell>
@@ -213,6 +214,8 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
             points: t.points,
             ring: isTarget ? "selected" : undefined,
             connected: v.connected?.includes(t.id) ?? false,
+            // identity === user id → the player's camera joins by plain equality
+            video: peers.get(t.id)?.video ?? null,
         }
         if (railVariant === "answers" && railQ) {
             card.answer = row ? valueText(row, railQuestion) : "—"
@@ -238,10 +241,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
 
     const flash = writer.isError ? (writer.error as { message?: string } | null)?.message ?? "Trạng thái đã đổi — đã tải lại" : null
 
-    // The rounds NAVIGATOR: shown while the active round has no state (pre-start
-    // or after an explicit advance) and on demand via the round badge. Every round
-    // is reachable — ▶ new starts it, ✓/● parked rounds re-open their saved state
-    // (round.goTo archives the round being left: no one-way doors).
+
     if (!roundScreenReady && lobby.data) {
         return (
             <StageShell>
@@ -278,18 +278,15 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         )
     }
 
-    // ── the context every screen renders from ─────────────────────────────────
-    const ctx: DeckCtx = {
+    // ── everything the console knows — modules project their narrow slice ────
+    const facts: ConsoleFacts = {
         v,
         stage,
         roundEnded,
         started,
         remaining,
-        questions,
         rows,
         baseCards,
-        mcGiaiMa,
-        mcVeDich,
         bpDone,
         judgingId,
         target,
@@ -312,7 +309,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     const roundModule = roundModuleOf(roundId)
     let screen: ReactNode
     if (roundModule) {
-        screen = roundModule.render(ctx)
+        screen = roundModule.render(facts)
     }
     else {
         // Unknown round, lobby still loading: hold the deck instead of a blank canvas.

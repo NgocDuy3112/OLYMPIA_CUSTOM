@@ -1,8 +1,22 @@
-import { Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, VeDichStripCells, type DeckCtx } from "@/components/stage/deck"
+import { Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, VeDichStripCells } from "@/components/stage/deck"
 
 // Về đích — câu hỏi mở, phase 1 (S7): the shared round — the picked player
-// types the answer, the MC judges. Pure: everything comes from DeckCtx.
-export function VeDichChungOC4Controller({ ctx }: { ctx: DeckCtx }) {
+// types the answer, the MC judges. Pure: everything comes from its ctx.
+import type { VeDichMc } from "@/lib/live"
+import type { ScreenCore } from "../types"
+
+/** Về đích · phase 1 question: the typed answer + the judging strip. */
+export type VeDichChungCtx = ScreenCore & {
+    remaining: number | null
+    mcVeDich: VeDichMc | null
+    target: string | null
+    setVerdict: (correct: boolean) => void
+    setSelectedPlayer: (userId: string) => void
+    verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
+    hetLuot: () => void
+}
+
+export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
     const { v, started, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
 

@@ -1,9 +1,19 @@
-import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
+import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
 
 // Giải mã (S3): the hint tile grid (count-driven — any hint count fits), then
-// the lower question card, the keyword strip and the ledger rail. Pure: DeckCtx.
-export function GiaiMaOC4Controller({ ctx }: { ctx: DeckCtx }) {
+// the lower question card, the keyword strip and the ledger rail. Pure: its ctx.
+import type { ConsoleQuestion, GiaiMaMc } from "@/lib/live"
+import type { ScreenCore } from "../types"
+
+/** Giải mã: hint windows + the typed keyword. */
+export type GiaiMaCtx = ScreenCore & {
+    remaining: number | null
+    questions: ConsoleQuestion[]
+    mcGiaiMa: GiaiMaMc | null
+}
+
+export function GiaiMaOC4Controller({ ctx }: { ctx: GiaiMaCtx }) {
     const { v, started, remaining, questions, baseCards, mcGiaiMa, flash, openRounds } = ctx
     const open = v.projection.open
 

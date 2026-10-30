@@ -1,10 +1,19 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
+import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
 
 // Khởi động — lượt cá nhân (S1): one player's oral run, projected to the whole
 // room. Nobody types here — the MC's stopwatch drives Đúng/Sai. Pure: every
-// value comes from the orchestrator's DeckCtx — no hooks here.
-export function KhoiDongRiengOC4Controller({ ctx }: { ctx: DeckCtx }) {
+// value comes from its narrow ctx — no hooks here.
+import type { ScreenCore } from "../types"
+
+/** Khởi động · lượt cá nhân: the oral run + the MC's stopwatch. */
+export type KhoiDongRiengCtx = ScreenCore & {
+    watchRunning: boolean
+    watchMs: number
+    toggleWatch: () => void
+}
+
+export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
     const { v, started, baseCards, flash, openRounds } = ctx
     const oral = v.projection.oral
     const overBudget = oral
