@@ -37,3 +37,35 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+
+  # WebRTC SFU for the players' webcams (see docs/rtc-webcams.md). Media flows
+  # browser ↔ this container directly; the backend only mints join tokens.
+  livekit:
+    container_name: oc-livekit
+    image: docker.io/livekit/livekit-server:v1.13.11
+    restart: unless-stopped
+    env_file:
+      - ./configs/.env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        cat > /tmp/livekit.yaml <<EOF
+        port: 7880
+        keys:
+          $${LIVEKIT_API_KEY}: $${LIVEKIT_API_SECRET}
+        rtc:
+          node_ip: 127.0.0.1
+          udp_port: 7882            # ONE mux port for media (not 50000-60000)
+          tcp_port: 7881            # ICE-over-TCP fallback
+        EOF
+        exec /livekit-server --config /tmp/livekit.yaml
+    ports:
+      - "7880:7880"                 # HTTP + WebSocket signaling
+      - "7881:7881/tcp"             # ICE/TCP fallback
+      - "7882:7882/udp"             # WebRTC media
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7880"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
