@@ -1,10 +1,10 @@
-import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, type DeckCtx } from "@/components/stage/deck"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
 
 // Về đích — bảng chọn câu (S5 = phase 2 bốc 3 câu · S6 = phase 1 chọn 1 câu).
 // No question is open; the grid is a CSS grid driven by the frozen set —
 // columns = domains, rows follow from the count; any size fits, none clipped.
-export function VeDichPickScreen({ ctx }: { ctx: DeckCtx }) {
+export function VeDichPickOC4Controller({ ctx }: { ctx: DeckCtx }) {
     const { v, roundEnded, started, questions, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
     const phase2 = mcVeDich?.phase === 2

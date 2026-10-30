@@ -4,7 +4,7 @@ import { pt } from "@shared/deck/geometry"
 
 // Khởi động — lượt chung (S2): 6 questions, one shared deadline — squares
 // switch, band types. Pure: every value comes from the orchestrator's PlayerCtx.
-export function KhoiDongChungPlayer({ ctx }: { ctx: PlayerCtx }) {
+export function KhoiDongChungOC4Player({ ctx }: { ctx: PlayerCtx }) {
     const { v, remaining, myId, flash, s2Q, s2Idx, pickS2, answerBusy, submitAnswer } = ctx
     const open = ctx.open
     const answeredSet = new Set(v.me.answered ?? [])

@@ -6,7 +6,7 @@ import { STRIP_R, pt } from "@shared/deck/geometry"
 // Về đích — câu hỏi mở, phase 2 (S8): the personal round — everyone sees the
 // question; the answer is oral, the buzz window is the typed part, and powers
 // are declared here. Pure: every value comes from the orchestrator's PlayerCtx.
-export function VeDichRiengPlayer({ ctx }: { ctx: PlayerCtx }) {
+export function VeDichRiengOC4Player({ ctx }: { ctx: PlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId

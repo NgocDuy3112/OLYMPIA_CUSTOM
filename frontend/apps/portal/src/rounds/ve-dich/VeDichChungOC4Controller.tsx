@@ -1,8 +1,8 @@
-import { Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, VeDichStripCells, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, VeDichStripCells, type DeckCtx } from "@/components/stage/deck"
 
 // Về đích — câu hỏi mở, phase 1 (S7): the shared round — the picked player
 // types the answer, the MC judges. Pure: everything comes from DeckCtx.
-export function VeDichChungScreen({ ctx }: { ctx: DeckCtx }) {
+export function VeDichChungOC4Controller({ ctx }: { ctx: DeckCtx }) {
     const { v, started, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
 

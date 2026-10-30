@@ -1,10 +1,10 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
 
 // Khởi động — lượt cá nhân (S1): one player's oral run, projected to the whole
 // room. Nobody types here — the MC's stopwatch drives Đúng/Sai. Pure: every
 // value comes from the orchestrator's DeckCtx — no hooks here.
-export function KhoiDongRiengScreen({ ctx }: { ctx: DeckCtx }) {
+export function KhoiDongRiengOC4Controller({ ctx }: { ctx: DeckCtx }) {
     const { v, started, baseCards, flash, openRounds } = ctx
     const oral = v.projection.oral
     const overBudget = oral

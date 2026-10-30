@@ -11,25 +11,19 @@
  * driven by the pushed LiveView — no static demo data anywhere.
  *
  * STRUCTURE: this file is the ORCHESTRATOR — hooks, gates, derived facts and
- * the per-round switch; the drawn primitives + the band controls live in
- * @shared/deck/player-deck, and each round renders through ONE pure screen in
- * `components/player-screens` (PlayerCtx in, JSX out). Players reach the match
+ * the registry dispatch; the drawn primitives + the band controls live in
+ * @shared/deck/player-deck, and each round draws through ONE module in
+ * `src/rounds` (PlayerCtx in, JSX out). Players reach the match
  * through THIS app (gameplay), never the portal — the PIN join lives at /join.
  */
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useCountdown } from "@shared/lib/clock"
 import { StageShell } from "@shared/deck/stage-shell"
 import { Lobby } from "@shared/deck/lobby"
 import { Badges, Gate, MainCard, Rail, StageLayout, type PlayerCtx } from "@shared/deck/player-deck"
 import { ROUND_LABEL, isKnownRound, isWaitingStage, pt } from "@shared/deck/geometry"
-import { KhoiDongChungPlayer } from "@/components/screens/KhoiDongChungPlayer"
-import { KhoiDongRiengPlayer } from "@/components/screens/KhoiDongRiengPlayer"
-import { GiaiMaPlayer } from "@/components/screens/GiaiMaPlayer"
-import { ButPhaPlayer } from "@/components/screens/ButPhaPlayer"
-import { VeDichChungPlayer } from "@/components/screens/VeDichChungPlayer"
-import { VeDichPickPlayer } from "@/components/screens/VeDichPickPlayer"
-import { VeDichRiengPlayer } from "@/components/screens/VeDichRiengPlayer"
+import { roundModuleOf } from "@/rounds"
 import {
     playerScreenOf,
     useLiveAnswer,
@@ -182,7 +176,7 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         )
     }
 
-    // ── one pure screen per round (components/player-screens) ──────────────────
+    // ── the context every round module renders from ──────────────────────────────────────────
     const submitAnswer = (questionId: string, value: AnswerValue) => answer.mutate({ questionId, value })
     const submitKeyword = (questionId: string, text: string) => keywordSubmit.mutate({ questionId, value: { text } })
     const command = (action: LivePlayerCommand) => cmd.mutate(action)
@@ -208,17 +202,9 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         command,
     }
 
-    let body: ReactNode
-    switch (screen) {
-        case "khoi-dong-rieng": body = <KhoiDongRiengPlayer ctx={ctx} />; break
-        case "khoi-dong-chung": body = <KhoiDongChungPlayer ctx={ctx} />; break
-        case "giai-ma": body = <GiaiMaPlayer ctx={ctx} />; break
-        case "but-pha": body = <ButPhaPlayer ctx={ctx} />; break
-        case "ve-dich-pick": body = <VeDichPickPlayer ctx={ctx} />; break
-        case "ve-dich-chung": body = <VeDichChungPlayer ctx={ctx} />; break
-        case "ve-dich-rieng": body = <VeDichRiengPlayer ctx={ctx} />; break
-        default: body = null // "lobby" already returned above
-    }
+    // One screen per round module (src/rounds owns the RULES) — "lobby"
+    // already returned above; unknown rounds never reach here.
+    const body = roundModuleOf(roundId)?.render(ctx) ?? null
 
     return <StageShell>{body}</StageShell>
 }

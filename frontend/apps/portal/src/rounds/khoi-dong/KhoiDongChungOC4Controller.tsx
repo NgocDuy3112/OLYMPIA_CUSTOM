@@ -1,9 +1,9 @@
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
 
 // Khởi động — lượt chung (S2): the whole field faces 6 shared questions, one
 // deadline; the MC picks a square to judge per card. Pure: every value comes
 // from the orchestrator's DeckCtx — no hooks here.
-export function KhoiDongChungScreen({ ctx }: { ctx: DeckCtx }) {
+export function KhoiDongChungOC4Controller({ ctx }: { ctx: DeckCtx }) {
     const { v, started, remaining, baseCards, flash, openRounds } = ctx
     const open = v.projection.open
     const activeQ = ctx.judgingId

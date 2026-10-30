@@ -1,8 +1,8 @@
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
 
 // Bứt phá (S4): sequential typed questions, one open at a time — Tính giờ
 // opens, Đúng/Sai judge the ledger, Về sảnh ends. Pure: DeckCtx in, JSX out.
-export function ButPhaScreen({ ctx }: { ctx: DeckCtx }) {
+export function ButPhaOC4Controller({ ctx }: { ctx: DeckCtx }) {
     const { v, roundEnded, started, remaining, baseCards, bpDone, flash, openRounds } = ctx
     const open = v.projection.open
     const openQ = open[0] ?? null

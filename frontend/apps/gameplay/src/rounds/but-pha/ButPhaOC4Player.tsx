@@ -4,7 +4,7 @@ import { pt } from "@shared/deck/geometry"
 
 // Bứt phá (S4): sequential typed questions, one open at a time. Pure: every
 // value comes from the orchestrator's PlayerCtx.
-export function ButPhaPlayer({ ctx }: { ctx: PlayerCtx }) {
+export function ButPhaOC4Player({ ctx }: { ctx: PlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
     const openQ = ctx.open[0] ?? null
     const pos = openQ?.question?.position ?? null

@@ -133,6 +133,8 @@ export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answe
 export interface DeckCtx {
     /** The polled live read: projection carries stage/open/oral/board/table. */
     v: LiveResponse
+    /** The live stage (phase1/phase2/…) — round modules route on it. */
+    stage: string
     roundEnded: boolean
     started: boolean
     remaining: number | null

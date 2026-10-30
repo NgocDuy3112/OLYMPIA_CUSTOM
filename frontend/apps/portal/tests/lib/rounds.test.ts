@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest"
 
-import { hetLuotAction, ketThucPlan, railVariantOf, type KetThucInput } from "@/lib/deck-logic"
+import { ketThucPlanOf, railVariantOf } from "@/rounds"
+import { hetLuotAction } from "@/rounds/ve-dich/logic"
 import type { QuestionAnswerRow } from "@/lib/live"
 
-// The MC console's decisions, table-tested: the rail variant and the two
-// action planners behind the deck's buttons (Kết thúc / Hết lượt).
+// The controller's round RULES, table-tested through the registry: which rail
+// each round draws and the two action planners behind the deck's buttons
+// (Kết thúc / Hết lượt). A new ruleset = a new module + rows here.
 
-const input = (over: Partial<KetThucInput> = {}): KetThucInput => ({
-    roundId: "khoi-dong",
+type PlanInput = Parameters<typeof ketThucPlanOf>[1]
+
+const input = (over: Partial<PlanInput> = {}): PlanInput => ({
     stage: "phase2",
     roundEnded: false,
     hasOralRun: false,
@@ -42,21 +45,25 @@ describe("railVariantOf — identity cards vs answer rows", () => {
     })
 })
 
-describe("ketThucPlan — what Kết thúc sends", () => {
+describe("ketThucPlanOf — what Kết thúc sends", () => {
     it("an ended round just advances to the hall, whatever round it is", () => {
-        expect(ketThucPlan(input({ roundEnded: true, roundId: "ve-dich" })))
+        expect(ketThucPlanOf("ve-dich", input({ roundEnded: true })))
             .toEqual([{ kind: "round.advance" }])
     })
 
+    it("an unknown round plans nothing — the lobby owns it", () => {
+        expect(ketThucPlanOf("mystery", input())).toEqual([])
+    })
+
     it("khoi-dong phase 1: time out the open run, or move to phase 2 when complete", () => {
-        expect(ketThucPlan(input({ stage: "phase1", hasOralRun: true })))
+        expect(ketThucPlanOf("khoi-dong", input({ stage: "phase1", hasOralRun: true })))
             .toEqual([{ kind: "khoi-dong.timeOutRun" }])
-        expect(ketThucPlan(input({ stage: "phase1", hasOralRun: false })))
+        expect(ketThucPlanOf("khoi-dong", input({ stage: "phase1", hasOralRun: false })))
             .toEqual([{ kind: "khoi-dong.beginPhase2" }])
     })
 
     it("khoi-dong phase 2: finalize staged verdicts for OPEN questions only, then end", () => {
-        const plan = ketThucPlan(input({
+        const plan = ketThucPlanOf("khoi-dong", input({
             openIds: ["q1"],
             overrides: { "q1:u1": true, "q1:u2": false, "q2:u3": true },
         }))
@@ -74,25 +81,26 @@ describe("ketThucPlan — what Kết thúc sends", () => {
     })
 
     it("khoi-dong phase 2 without staged verdicts just ends", () => {
-        expect(ketThucPlan(input({ openIds: ["q1"] }))).toEqual([{ kind: "khoi-dong.endRound" }])
+        expect(ketThucPlanOf("khoi-dong", input({ openIds: ["q1"] })))
+            .toEqual([{ kind: "khoi-dong.endRound" }])
     })
 
     it("giai-ma: closes the open hint window, else ends the round", () => {
-        expect(ketThucPlan(input({ roundId: "giai-ma", stage: "hints", openIds: ["h1"] })))
+        expect(ketThucPlanOf("giai-ma", input({ stage: "hints", openIds: ["h1"] })))
             .toEqual([{ kind: "giai-ma.closeHintWindow" }])
-        expect(ketThucPlan(input({ roundId: "giai-ma", stage: "hints" })))
+        expect(ketThucPlanOf("giai-ma", input({ stage: "hints" })))
             .toEqual([{ kind: "giai-ma.endRound" }])
     })
 
     it("but-pha: no open question ends the round", () => {
-        expect(ketThucPlan(input({ roundId: "but-pha", stage: "question" })))
+        expect(ketThucPlanOf("but-pha", input({ stage: "question" })))
             .toEqual([{ kind: "but-pha.endRound" }])
     })
 
     it("but-pha: an unjudged ledger finalizes first, then closes — judged rows just close", () => {
-        const openQ = { roundId: "but-pha", openIds: ["b1"] }
-        expect(ketThucPlan(input({
-            ...openQ,
+        expect(ketThucPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b1"],
             rows: [row("u1", "CORRECT", true), row("u2", null, false)],
             overrides: { "b1:u2": true },
         }))).toEqual([
@@ -107,12 +115,15 @@ describe("ketThucPlan — what Kết thúc sends", () => {
             { kind: "but-pha.closeQuestion" },
         ])
 
-        expect(ketThucPlan(input({ ...openQ, rows: [row("u1", "INCORRECT", true)] })))
-            .toEqual([{ kind: "but-pha.closeQuestion" }])
+        expect(ketThucPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b1"],
+            rows: [row("u1", "INCORRECT", true)],
+        }))).toEqual([{ kind: "but-pha.closeQuestion" }])
     })
 
     it("ve-dich: the round just ends — Hết lượt owns the open question", () => {
-        expect(ketThucPlan(input({ roundId: "ve-dich", stage: "phase2", openIds: ["v1"] })))
+        expect(ketThucPlanOf("ve-dich", input({ stage: "phase2", openIds: ["v1"] })))
             .toEqual([{ kind: "ve-dich.endRound" }])
     })
 })

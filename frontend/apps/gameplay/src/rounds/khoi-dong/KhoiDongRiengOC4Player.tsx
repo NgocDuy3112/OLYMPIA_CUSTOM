@@ -4,7 +4,7 @@ import { STRIP_R, pt } from "@shared/deck/geometry"
 // Khởi động — lượt cá nhân (S1): the oral run projected to everyone. Nobody
 // types — the band carries the run status + budget bar. Pure: every value
 // comes from the orchestrator's PlayerCtx.
-export function KhoiDongRiengPlayer({ ctx }: { ctx: PlayerCtx }) {
+export function KhoiDongRiengOC4Player({ ctx }: { ctx: PlayerCtx }) {
     const { v, myId, flash, nameOf } = ctx
     const oral = v.oral
     const mine = v.me.isMyRun === true

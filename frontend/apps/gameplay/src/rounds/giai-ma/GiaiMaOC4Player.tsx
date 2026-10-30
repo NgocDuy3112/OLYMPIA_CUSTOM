@@ -4,7 +4,7 @@ import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
 // Giải mã (S3): keyword banner, the count-driven hint tile grid, the lower
 // question card, and a band that is either the hint answer box or the keyword
 // box. Pure: every value comes from the orchestrator's PlayerCtx.
-export function GiaiMaPlayer({ ctx }: { ctx: PlayerCtx }) {
+export function GiaiMaOC4Player({ ctx }: { ctx: PlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, keywordBusy, submitKeyword } = ctx
     const hintWindow = ctx.open[0] ?? null
     const keyword = v.keyword

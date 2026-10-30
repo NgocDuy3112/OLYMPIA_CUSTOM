@@ -1,9 +1,9 @@
-import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "../deck"
+import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, Timer, type DeckCtx } from "@/components/stage/deck"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
 
 // Giải mã (S3): the hint tile grid (count-driven — any hint count fits), then
 // the lower question card, the keyword strip and the ledger rail. Pure: DeckCtx.
-export function GiaiMaScreen({ ctx }: { ctx: DeckCtx }) {
+export function GiaiMaOC4Controller({ ctx }: { ctx: DeckCtx }) {
     const { v, started, remaining, questions, baseCards, mcGiaiMa, flash, openRounds } = ctx
     const open = v.projection.open
 

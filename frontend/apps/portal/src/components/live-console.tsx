@@ -10,13 +10,7 @@ import {
 } from "@/components/stage/deck"
 import { valueText } from "@/components/stage/ledger"
 import { ROUND_LABEL, isKnownRound, pt } from "@shared/deck/geometry"
-import { KhoiDongChungScreen } from "@/components/stage/screens/KhoiDongChungScreen"
-import { KhoiDongRiengScreen } from "@/components/stage/screens/KhoiDongRiengScreen"
-import { GiaiMaScreen } from "@/components/stage/screens/GiaiMaScreen"
-import { ButPhaScreen } from "@/components/stage/screens/ButPhaScreen"
-import { VeDichChungScreen } from "@/components/stage/screens/VeDichChungScreen"
-import { VeDichPickScreen } from "@/components/stage/screens/VeDichPickScreen"
-import { VeDichRiengScreen } from "@/components/stage/screens/VeDichRiengScreen"
+import { ketThucPlanOf, railVariantOf, roundModuleOf } from "@/rounds"
 import {
     startActionPayload,
     useLive,
@@ -26,7 +20,6 @@ import {
     type GiaiMaMc,
     type VeDichMc,
 } from "@/lib/live"
-import { hetLuotAction, ketThucPlan, railVariantOf } from "@/lib/deck-logic"
 import { useMatches } from "@/lib/tournament"
 
 
@@ -147,16 +140,15 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         }
     }
 
-    // `shown` comes from the interval — render stays pure (no Date.now here).
+    // `shown` comes from the interval — render stays pure (no Date.now here):
+    // the stopwatch reads the clock only inside this state updater.
     const watchMs = effWatch.shown
-    const freshWatchMs = () =>
-        effWatch.running ? effWatch.base + (Date.now() - effWatch.startedAt) : effWatch.shown
     const toggleWatch = () =>
         setWatch((w) => {
             const cur = w.qid === oralQuestionId ? w : freshWatch(oralQuestionId)
-            return cur.running
-                ? { ...cur, running: false, startedAt: 0, base: freshWatchMs(), shown: freshWatchMs() }
-                : { ...cur, running: true, startedAt: Date.now(), base: cur.shown }
+            if (!cur.running) return { ...cur, running: true, startedAt: Date.now(), base: cur.shown }
+            const shown = cur.base + (Date.now() - cur.startedAt)
+            return { ...cur, running: false, startedAt: 0, base: shown, shown }
         })
 
     // verdict target = clicked card, else the first answering player
@@ -184,18 +176,17 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     const hetLuot = () => {
         if (!mcVeDich || open.length === 0) return
         const qid = open[0].questionId
-        const action = hetLuotAction({
+        const action = roundModuleOf(roundId)?.hetLuotAction?.({
             answererVerdict: mcVeDich.answererId ? verdictOf(qid, mcVeDich.answererId) : null,
             buzzerId: mcVeDich.buzzerId,
             buzzerVerdict: mcVeDich.buzzerId ? verdictOf(qid, mcVeDich.buzzerId) : null,
-        })
+        }) ?? null
         if (action) send(action)
     }
 
-    /** Kết thúc = run this round's action plan (deck-logic decides WHAT). */
+    /** Kết thúc = run the round module's plan (src/rounds decides WHAT). */
     const ketThuc = () => {
-        const plan = ketThucPlan({
-            roundId,
+        const plan = ketThucPlanOf(roundId, {
             stage,
             roundEnded,
             hasOralRun: Boolean(projection.oral),
@@ -290,6 +281,7 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
     // ── the context every screen renders from ─────────────────────────────────
     const ctx: DeckCtx = {
         v,
+        stage,
         roundEnded,
         started,
         remaining,
@@ -316,18 +308,11 @@ export function LiveConsole({ tournamentId, matchId }: { tournamentId: string; m
         openRounds,
     }
 
-    // ── one pure screen per round (stage/screens) ─────────────────────────────
+    // ── one screen per round module (src/rounds owns the RULES) ──────────────
+    const roundModule = roundModuleOf(roundId)
     let screen: ReactNode
-    if (roundId === "khoi-dong") screen = stage === "phase2" ? <KhoiDongChungScreen ctx={ctx} /> : <KhoiDongRiengScreen ctx={ctx} />
-    else if (roundId === "giai-ma") screen = <GiaiMaScreen ctx={ctx} />
-    else if (roundId === "but-pha") screen = <ButPhaScreen ctx={ctx} />
-    else if (roundId === "ve-dich") {
-        // ve-dich: board while nothing is open, else the open question by phase
-        screen = ctx.v.projection.open.length === 0
-            ? <VeDichPickScreen ctx={ctx} />
-            : ctx.mcVeDich?.phase === 2
-                ? <VeDichRiengScreen ctx={ctx} />
-                : <VeDichChungScreen ctx={ctx} />
+    if (roundModule) {
+        screen = roundModule.render(ctx)
     }
     else {
         // Unknown round, lobby still loading: hold the deck instead of a blank canvas.

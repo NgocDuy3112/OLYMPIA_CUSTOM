@@ -6,7 +6,7 @@ import { STRIP_R } from "@shared/deck/geometry"
 // Về đích — câu hỏi mở, phase 1 (S7): the shared round — the typed form for
 // the answerer, the public power declaration for everyone. Pure: every value
 // comes from the orchestrator's PlayerCtx.
-export function VeDichChungPlayer({ ctx }: { ctx: PlayerCtx }) {
+export function VeDichChungOC4Player({ ctx }: { ctx: PlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId

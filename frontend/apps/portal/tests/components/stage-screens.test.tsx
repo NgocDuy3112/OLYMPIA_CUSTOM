@@ -4,13 +4,13 @@ import userEvent from "@testing-library/user-event"
 
 import type { DeckCtx } from "@/components/stage/deck"
 import type { LiveResponse, VeDichMc } from "@/lib/live"
-import { KhoiDongRiengScreen } from "@/components/stage/screens/KhoiDongRiengScreen"
-import { KhoiDongChungScreen } from "@/components/stage/screens/KhoiDongChungScreen"
-import { GiaiMaScreen } from "@/components/stage/screens/GiaiMaScreen"
-import { ButPhaScreen } from "@/components/stage/screens/ButPhaScreen"
-import { VeDichPickScreen } from "@/components/stage/screens/VeDichPickScreen"
-import { VeDichChungScreen } from "@/components/stage/screens/VeDichChungScreen"
-import { VeDichRiengScreen } from "@/components/stage/screens/VeDichRiengScreen"
+import { KhoiDongRiengOC4Controller } from "@/rounds/khoi-dong/KhoiDongRiengOC4Controller"
+import { KhoiDongChungOC4Controller } from "@/rounds/khoi-dong/KhoiDongChungOC4Controller"
+import { GiaiMaOC4Controller } from "@/rounds/giai-ma/GiaiMaOC4Controller"
+import { ButPhaOC4Controller } from "@/rounds/but-pha/ButPhaOC4Controller"
+import { VeDichPickOC4Controller } from "@/rounds/ve-dich/VeDichPickOC4Controller"
+import { VeDichChungOC4Controller } from "@/rounds/ve-dich/VeDichChungOC4Controller"
+import { VeDichRiengOC4Controller } from "@/rounds/ve-dich/VeDichRiengOC4Controller"
 
 /**
  * Every MC screen is pure (DeckCtx in, JSX out), so the fixture IS the state.
@@ -40,6 +40,7 @@ function deckCtx(
     }
     return {
         v,
+        stage: "phase1",
         roundEnded: false,
         started: true,
         remaining: 30,
@@ -104,7 +105,7 @@ describe("KhoiDongRiengScreen — S1, the oral run", () => {
         const ctx = deckCtx({ send }, {
             oral: { questionId: "q1", question: null, playerId: "u1", index: 0, total: 6, elapsedS: 10, budgetS: 45 },
         })
-        render(<KhoiDongRiengScreen ctx={ctx} />)
+        render(<KhoiDongRiengOC4Controller ctx={ctx} />)
 
         expectButtonsInOrder(["Tính giờ", "Đúng", "Sai", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Đúng" }))
@@ -114,13 +115,13 @@ describe("KhoiDongRiengScreen — S1, the oral run", () => {
     })
 
     it("locks Đúng/Sai while no run is open, and once the budget is blown", () => {
-        const { rerender } = render(<KhoiDongRiengScreen ctx={deckCtx()} />)
+        const { rerender } = render(<KhoiDongRiengOC4Controller ctx={deckCtx()} />)
         expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
         expect(screen.getByRole("button", { name: "Về sảnh" })).toBeInTheDocument()
 
         // overBudget reads the MC's stopwatch: 6s watched into a 5s budget left
         rerender(
-            <KhoiDongRiengScreen
+            <KhoiDongRiengOC4Controller
                 ctx={deckCtx({ watchMs: 6_000 }, {
                     oral: { questionId: "q1", question: null, playerId: "u1", index: 2, total: 6, elapsedS: 40, budgetS: 45 },
                 })}
@@ -134,7 +135,7 @@ describe("KhoiDongChungScreen — S2, the shared typed round", () => {
     it("judges only when a player is selected", async () => {
         const user = userEvent.setup()
         const setVerdict = vi.fn()
-        render(<KhoiDongChungScreen ctx={deckCtx({ setVerdict, target: "u1" })} />)
+        render(<KhoiDongChungOC4Controller ctx={deckCtx({ setVerdict, target: "u1" })} />)
 
         expectButtonsInOrder(["Đúng", "Sai", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Sai" }))
@@ -142,7 +143,7 @@ describe("KhoiDongChungScreen — S2, the shared typed round", () => {
     })
 
     it("offers no verdict buttons without a target", () => {
-        render(<KhoiDongChungScreen ctx={deckCtx({ target: null })} />)
+        render(<KhoiDongChungOC4Controller ctx={deckCtx({ target: null })} />)
         expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
         expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
     })
@@ -152,7 +153,7 @@ describe("GiaiMaScreen — S3", () => {
     it("Đúng resolves the hint window; Sai stays inert (auto-scored)", async () => {
         const user = userEvent.setup()
         const send = vi.fn()
-        render(<GiaiMaScreen ctx={deckCtx({ send })} />)
+        render(<GiaiMaOC4Controller ctx={deckCtx({ send })} />)
 
         expectButtonsInOrder(["Đúng", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Đúng" }))
@@ -167,7 +168,7 @@ describe("ButPhaScreen — S4", () => {
         const user = userEvent.setup()
         const send = vi.fn()
         const ctx = deckCtx({ send })
-        render(<ButPhaScreen ctx={ctx} />)
+        render(<ButPhaOC4Controller ctx={ctx} />)
 
         expectButtonsInOrder(["Tính giờ", "Về sảnh"])
         await user.click(screen.getByRole("button", { name: "Tính giờ" }))
@@ -182,7 +183,7 @@ describe("VeDichPickScreen — S5/S6, the board", () => {
         const user = userEvent.setup()
         const send = vi.fn()
         render(
-            <VeDichPickScreen
+            <VeDichPickOC4Controller
                 ctx={deckCtx({ send, mcVeDich: veDichMc({ phase: 1 }) })}
             />,
         )
@@ -198,7 +199,7 @@ describe("VeDichPickScreen — S5/S6, the board", () => {
         const user = userEvent.setup()
         const send = vi.fn()
         render(
-            <VeDichPickScreen
+            <VeDichPickOC4Controller
                 ctx={deckCtx({ send, mcVeDich: veDichMc({ phase: 2, pendingQuestionId: "q9" }) })}
             />,
         )
@@ -211,7 +212,7 @@ describe("VeDichPickScreen — S5/S6, the board", () => {
 describe("VeDichChungScreen — S7, phase 1 question", () => {
     it("keeps Hết lượt locked while the answerer has no verdict", () => {
         render(
-            <VeDichChungScreen
+            <VeDichChungOC4Controller
                 ctx={deckCtx({ target: "u1", mcVeDich: veDichMc({ phase: 1 }) }, { open: [openQ] })}
             />,
         )
@@ -222,7 +223,7 @@ describe("VeDichChungScreen — S7, phase 1 question", () => {
         const user = userEvent.setup()
         const hetLuot = vi.fn()
         render(
-            <VeDichChungScreen
+            <VeDichChungOC4Controller
                 ctx={deckCtx(
                     { hetLuot, target: "u1", mcVeDich: veDichMc({ phase: 1 }), verdictOf: () => "CORRECT" },
                     { open: [openQ] },
@@ -246,7 +247,7 @@ describe("VeDichRiengScreen — S8, phase 2 question", () => {
         const send = vi.fn()
         const hetLuot = vi.fn()
         render(
-            <VeDichRiengScreen
+            <VeDichRiengOC4Controller
                 ctx={deckCtx(
                     { send, hetLuot, target: "u1", mcVeDich: veDichMc({ phase: 2 }), verdictOf: () => "CORRECT" },
                     { open: [openQ] },
@@ -263,7 +264,7 @@ describe("VeDichRiengScreen — S8, phase 2 question", () => {
 
     it("locks Hết lượt while a recorded buzzer has no verdict", () => {
         render(
-            <VeDichRiengScreen
+            <VeDichRiengOC4Controller
                 ctx={deckCtx(
                     {
                         mcVeDich: veDichMc({ phase: 2, openStage: "buzz", buzzerId: "u2" }),
@@ -279,7 +280,7 @@ describe("VeDichRiengScreen — S8, phase 2 question", () => {
     it("Về sảnh always sends ketThuc while the round runs", async () => {
         const user = userEvent.setup()
         const ctx = deckCtx({ mcVeDich: veDichMc({ phase: 2 }), verdictOf: () => "CORRECT" }, { open: [openQ] })
-        render(<VeDichRiengScreen ctx={ctx} />)
+        render(<VeDichRiengOC4Controller ctx={ctx} />)
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
         expect(ctx.ketThuc).toHaveBeenCalledOnce()
     })

@@ -3,7 +3,7 @@ import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
 
 // Về đích — bảng chọn câu (S6 = phase 1 chọn 1 · S5 = phase 2 bốc 3): cells
 // ARE the picker — a CSS grid driven by the board's own domains × values.
-export function VeDichPickPlayer({ ctx }: { ctx: PlayerCtx }) {
+export function VeDichPickOC4Player({ ctx }: { ctx: PlayerCtx }) {
     const { v, myId, flash, pickedCells, setPickedCells, cmdBusy, command } = ctx
     const phase2 = ctx.stage === "phase2"
     const board = v.board ?? []
