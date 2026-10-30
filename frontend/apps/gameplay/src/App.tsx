@@ -7,6 +7,8 @@ import { StandingsPage } from "@/pages/StandingsPage"
 import { NotFoundPage } from "@/pages/NotFoundPage"
 import { JoinPage } from "@/pages/JoinPage"
 import { PlayerShell } from "@/components/player-shell"
+import { CameraPanel } from "@/components/live/CameraPanel"
+import { SelfBroadcastContext, useSelfBroadcast } from "@shared/lib/rtc"
 import { useSchedule, useStandings, useTournament, useTournamentList, type TournamentDetail } from "@/lib/api"
 import { toMatch, toStandings } from "@/lib/adapters"
 
@@ -108,6 +110,11 @@ function MatchRoute() {
     const { tournament } = useOutletContext<TournamentContext>()
     const { id } = useParams()
     const schedule = useSchedule(tournament.slug)
+    // This player's own broadcast lives ABOVE every early return (one hook
+    // line, one room): the deck's Rail and the CameraPanel controls both read
+    // it through the context. resetKey = the match id — navigating between
+    // matches re-dials even though this component never remounts.
+    const selfCam = useSelfBroadcast(id ?? "")
 
     if (schedule.isPending) return <LoadingState />
     if (schedule.error) return <ErrorState onRetry={() => void schedule.refetch()} />
@@ -118,7 +125,16 @@ function MatchRoute() {
     // The player's deck owns the whole page (L3) — LIVE renders the round,
     // anything else gates to the lobby inside the same canvas. Every other
     // match entry stays the schedule's sidebar (2510).
-    return <PlayerShell matchId={row.id} />
+    // The CameraPanel is the CONTROL bar (status + mic/cam) and hides ITSELF
+    // when the token says the match isn't LIVE / the seat isn't ours
+    // (401/403/404/409/503); the feed itself renders in the player's own Rail
+    // card through the same context.
+    return (
+        <SelfBroadcastContext.Provider value={selfCam}>
+            <PlayerShell matchId={row.id} />
+            <CameraPanel />
+        </SelfBroadcastContext.Provider>
+    )
 }
 
 // "/" and "/standings" lead to the CURRENT tournament — the one the staff flagged,

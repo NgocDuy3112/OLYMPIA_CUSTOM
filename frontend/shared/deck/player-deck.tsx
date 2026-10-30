@@ -1,4 +1,6 @@
-import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import { useEffect, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react"
+import type { LocalVideoTrack } from "livekit-client"
+import { useSelfCam } from "@shared/lib/rtc"
 import { STRIP_R, pt } from "./geometry"
 import {
     type AnswerValue,
@@ -50,6 +52,27 @@ const optionCls = (selected: boolean) =>
     }`
 
 /**
+ * My own camera inside MY rail card's rectangle — a LOCAL track attached
+ * directly (players never subscribe to anyone). The initials stay underneath
+ * as the base; cam-off / not-connected falls back to them naturally.
+ */
+function SelfVideo({ track }: { track: LocalVideoTrack }) {
+    const holder = useRef<HTMLSpanElement>(null)
+    useEffect(() => {
+        const box = holder.current
+        if (!box) return
+        const video = track.attach()
+        video.className = "absolute inset-0 h-full w-full object-cover"
+        box.append(video)
+        return () => {
+            track.detach(video)
+            video.remove()
+        }
+    }, [track])
+    return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
+}
+
+/**
  * Contestant cards — the rail column: initials, name, score, and (on the
  * judging screens) this player's verdict on the open question. THE me-HIGHLIGHT: this
  * player's own card gets a sky ring; the active oral run wears amber.
@@ -61,6 +84,9 @@ export function Rail({ variant, view, myId, currentQid }: {
     currentQid?: string | null
 }) {
     const compact = variant === "compact"
+    // This player's own broadcast (null outside the match provider — then all
+    // cards stay initials, which is exactly right).
+    const selfCam = useSelfCam()
     return (
         <>
             {view.table.slice(0, 4).map((row) => {
@@ -71,28 +97,29 @@ export function Rail({ variant, view, myId, currentQid }: {
                     <div
                         key={row.id}
                         title={mine ? "Bạn" : undefined}
-                        className={`flex ${compact ? "h-[9.3cqw]" : "h-[11.9cqw]"} shrink-0 flex-col gap-[0.4cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] shadow-sm ring-1 ring-border ${mine ? "ring-2 ring-sky-500" : activeRun ? "ring-2 ring-amber-400" : ""}`}
+                        className={`flex ${compact ? "h-[9.3cqw]" : "h-[11.9cqw]"} shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] shadow-sm ring-1 ring-border ${mine ? "ring-2 ring-sky-500" : activeRun ? "ring-2 ring-amber-400" : ""}`}
                     >
                         <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
                             <div
-                                className="flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
+                                className="relative flex w-[52%] shrink-0 items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
                                 style={{ fontSize: pt(16) }}
                                 aria-hidden
                             >
                                 {row.displayName.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"}
+                                {mine && selfCam?.camOn && selfCam.video && <SelfVideo track={selfCam.video} />}
                             </div>
-                            <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.3cqw] text-center">
+                            <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
                                 <span className="flex min-w-0 items-center justify-center gap-[0.3cqw] font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>
                                     <span className="truncate">{row.displayName}</span>
                                     {mine && <span className="rounded bg-sky-500 px-[0.3cqw] text-[0.65em] leading-none text-white">BẠN</span>}
                                 </span>
-                                <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(compact ? 34 : 40) }}>
+                                <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(compact ? 34 : 44) }}>
                                     {row.points}
                                 </span>
                             </div>
                         </div>
                         {!compact && (
-                            <div className="flex shrink-0 items-center justify-center gap-[0.4cqw] text-center" style={{ fontSize: pt(11) }}>
+                            <div className="flex shrink-0 items-center justify-center gap-[0.4cqw] text-center" style={{ fontSize: pt(12) }}>
                                 <span className="inline-flex items-center gap-[0.3cqw] text-muted-foreground">
                                     câu này <VerdictIcon verdict={myVerdict ?? null} />
                                 </span>
@@ -128,7 +155,7 @@ export function AnswerBand({ question, answerState, verdict, disabled, busy, err
 
     if (answerState === "draft" || answerState === "final") {
         return (
-            <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold" style={{ fontSize: pt(13) }}>
+            <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold" style={{ fontSize: pt(12) }}>
                 {state.picked || state.text ? `Đã trả lời: ${state.picked || state.text}` : "Đã trả lời"}
                 <VerdictIcon verdict={verdict ?? null} />
             </span>
@@ -206,7 +233,7 @@ export function KeywordBox({ busy, onSubmit }: { busy: boolean; onSubmit: (text:
     // `locked` flips true on submit: the box confirms locally until the pushed
     // view carries keywordLocked (the server is the truth either way).
     if (draft.locked) {
-        return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(13) }}>Đã nộp từ khóa — chờ MC chốt</span>
+        return <span className="inline-flex items-center gap-[0.5cqw] font-sans font-semibold text-emerald-600" style={{ fontSize: pt(12) }}>Đã nộp từ khóa — chờ MC chốt</span>
     }
     const commit = () => {
         if (!draft.text.trim() || busy) return
