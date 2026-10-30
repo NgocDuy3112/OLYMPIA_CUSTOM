@@ -30,7 +30,7 @@ export function VeDichRiengOC4Controller({ ctx }: { ctx: VeDichRiengCtx }) {
         mcVeDich?.buzzerId ? ctx.verdictOf(qid, mcVeDich.buzzerId) === null : false
 
     return (
-        <StageLayout rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
+        <StageLayout rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Về đích" mode="Lượt cá nhân" onRoundClick={openRounds} />}
@@ -51,14 +51,7 @@ export function VeDichRiengOC4Controller({ ctx }: { ctx: VeDichRiengCtx }) {
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status
-                error={flash}
-                hint={
-                    mcVeDich?.openStage === "buzz"
-                        ? "cửa sổ chuông 5s"
-                        : "đóng phần trả lời → mở chuông"
-                }
-            />
+            <Status error={flash} />
         </StageLayout>
     )
 }

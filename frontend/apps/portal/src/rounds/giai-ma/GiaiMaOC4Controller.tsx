@@ -27,7 +27,7 @@ export function GiaiMaOC4Controller({ ctx }: { ctx: GiaiMaCtx }) {
         qid === openHintId ? "open" : mcGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onAdjust={ctx.openAdjust} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} />}>
             {keywordLength !== null && (
                 <div className="flex shrink-0 items-center justify-center rounded-2xl bg-card px-[2cqw] py-[0.7cqw] shadow-md ring-1 ring-border">
                     <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(32) }}>
@@ -85,7 +85,7 @@ export function GiaiMaOC4Controller({ ctx }: { ctx: GiaiMaCtx }) {
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status error={flash} hint={open.length > 0 ? "cửa sổ hint đang mở" : `${hintQuestions.length - (mcGiaiMa?.hintsPicked.length ?? 0)} hint còn lại`} />
+            <Status error={flash} />
         </StageLayout>
     )
 }

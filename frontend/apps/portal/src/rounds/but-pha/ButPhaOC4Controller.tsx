@@ -22,7 +22,7 @@ export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
     const done = pos ?? 0
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Bứt phá" onRoundClick={openRounds} />}
@@ -43,7 +43,7 @@ export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status error={flash} hint={openQ ? `câu ${done + 1}/4` : "mở câu tiếp theo bằng Tính giờ"} />
+            <Status error={flash} />
         </StageLayout>
     )
 }

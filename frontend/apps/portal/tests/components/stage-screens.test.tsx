@@ -257,15 +257,6 @@ function expectButtonsInOrder(expected: string[]) {
     }
 }
 
-describe("score adjust — the rail's ± chip", () => {
-    it("every controller's rail opens the dialog for that player", async () => {
-        const user = userEvent.setup()
-        const f = renderRound("khoi-dong", {
-            baseCards: [{ id: "u1", name: "An", points: 10 }],
-        })
+// score adjust's ± chip was removed from the controller's rail (MC's call) —
+// the dialog/machinery stays dormant; no UI asserts it any more.
 
-        const chip = screen.getByRole("button", { name: "Điều chỉnh điểm của An" })
-        await user.click(chip)
-        expect(f.openAdjust).toHaveBeenCalledWith("u1")
-    })
-})

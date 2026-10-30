@@ -1,7 +1,6 @@
 import type { ReactNode } from "react"
 import { Link, useParams } from "react-router-dom"
 import { SearchX } from "lucide-react"
-import { Badge } from "@shared/ui/badge"
 import { PageHeader, EmptyState, ErrorPanel } from "@/components/page"
 import { useMatches } from "@/lib/tournament"
 import { StandardMatchControl } from "@/components/standard-match-control"
@@ -15,18 +14,6 @@ function FullPage({ children }: { children: ReactNode }) {
         </div>
     )
 }
-
-const STATUS_VN = {
-    UPCOMING: "Sắp diễn ra",
-    LIVE: "Trực tiếp",
-    FINISHED: "Đã kết thúc",
-} as const
-
-const STATUS_VARIANT = {
-    UPCOMING: "outline",
-    LIVE: "destructive",
-    FINISHED: "secondary",
-} as const
 
 export function MatchPage() {
     const { tournamentId, matchId } = useParams()
@@ -71,18 +58,8 @@ export function MatchPage() {
         )
     }
 
-    const statusBadge = <Badge variant={STATUS_VARIANT[match.status]}>{STATUS_VN[match.status]}</Badge>
-
     return (
         <FullPage>
-            <PageHeader
-                title={match.label}
-                description={`${match.stageId}${match.slot !== null ? ` · Slot ${match.slot}` : ""}${
-                    match.joinCode ? ` · PIN ${match.joinCode}` : ""
-                }`}
-                actions={statusBadge}
-            />
-
             {match.status === "LIVE" && (
                 <Controller tournamentId={tournamentId!} matchId={match.id} />
             )}

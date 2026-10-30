@@ -1,9 +1,6 @@
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { BookOpen, KeyRound, LogOut, Trophy, Users } from "lucide-react"
-import { Button } from "@shared/ui/button"
-import { useLogout } from "@/lib/auth"
+import { Link, Outlet, useLocation } from "react-router-dom"
+import { BookOpen, KeyRound, Trophy, Users } from "lucide-react"
 import { useMe } from "@/lib/session"
-import { useMatches } from "@/lib/tournament"
 
 
 const NAV = [
@@ -19,34 +16,9 @@ const NAV = [
 ] as const
 
 
-function MatchContext({ tournamentId, matchId }: { tournamentId: string; matchId: string }) {
-    const matches = useMatches(tournamentId)
-    const match = matches.data?.items.find((m) => m.id === matchId)
-
-    return (
-        <div className="border-b px-3 py-2.5 text-sm">
-            <p className="flex items-center gap-1.5 font-medium">
-                <span className="truncate">{match?.label ?? `Match ${matchId.slice(0, 8)}…`}</span>
-                {match?.status === "LIVE" && (
-                    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-600">
-                        <span className="size-1.5 rounded-full bg-emerald-500" aria-hidden />
-                        LIVE
-                    </span>
-                )}
-                {match?.status === "FINISHED" && (
-                    <span className="shrink-0 text-xs text-muted-foreground">finished</span>
-                )}
-            </p>
-        </div>
-    )
-}
-
 export function PortalShell() {
     const { data: me } = useMe()
-    const logout = useLogout()
-    const navigate = useNavigate()
     const { pathname } = useLocation()
-    const deep = /^\/tournaments\/([^/]+)\/matches\/([^/]+)$/.exec(pathname)
 
     return (
         <div className="flex min-h-dvh">
@@ -63,8 +35,6 @@ export function PortalShell() {
                     </span>
                     Olympia Custom
                 </Link>
-
-                {deep && <MatchContext tournamentId={deep[1]} matchId={deep[2]} />}
 
                 <nav className="flex flex-col gap-1 p-2">
                     {NAV.map((item) => {
@@ -88,27 +58,6 @@ export function PortalShell() {
                         )
                     })}
                 </nav>
-
-                <div className="mt-auto space-y-2 border-t p-3">
-                    <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-medium">{me?.displayName ?? "…"}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{me?.role}</span>
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full justify-center"
-                        disabled={logout.isPending}
-                        onClick={() =>
-                            logout.mutate(undefined, {
-                                onSuccess: () => navigate("/login", { replace: true }),
-                            })
-                        }
-                    >
-                        <LogOut className="size-4" aria-hidden />
-                        {logout.isPending ? "Signing out…" : "Sign out"}
-                    </Button>
-                </div>
             </aside>
 
             <main className="min-w-0 flex-1">

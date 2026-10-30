@@ -26,16 +26,8 @@ export function VeDichPickOC4Controller({ ctx }: { ctx: VeDichPickCtx }) {
         (a, b) => a.points - b.points || cols.indexOf(a.domain ?? "") - cols.indexOf(b.domain ?? ""),
     )
 
-    const boardHint = phase2
-            ? mcVeDich?.pendingQuestionId
-                ? "có câu chờ mở"
-                : "chờ thí sinh chọn 3 câu"
-            : mcVeDich?.turnPlayerId
-                ? "chờ thí sinh chọn câu"
-                : "hết lượt — chuyển phase"
-
     return (
-        <StageLayout rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} onAdjust={ctx.openAdjust} />}>
+        <StageLayout rail={<Rail variant={phase2 ? "compact" : "answers"} cards={baseCards} />}>
             <MainCard>
                 <CardHeader left={<Badges round="Về đích" mode={phase2 ? "Lượt cá nhân" : "Lượt chung"} onRoundClick={openRounds} />} />
                 <div
@@ -83,7 +75,7 @@ export function VeDichPickOC4Controller({ ctx }: { ctx: VeDichPickCtx }) {
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status error={flash} hint={boardHint} />
+            <Status error={flash} />
         </StageLayout>
     )
 }

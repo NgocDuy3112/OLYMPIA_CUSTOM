@@ -20,7 +20,7 @@ export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
         ? ctx.watchMs > Math.max(0, (oral.budgetS - oral.elapsedS) * 1000)
         : false
     return (
-        <StageLayout rail={<Rail variant="compact" cards={baseCards} onAdjust={ctx.openAdjust} />}>
+        <StageLayout rail={<Rail variant="compact" cards={baseCards} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Khởi động" mode="Lượt cá nhân" onRoundClick={openRounds} />}
@@ -45,7 +45,7 @@ export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status error={flash} hint={overBudget ? "vượt ngân sách" : oral ? `câu ${oral.index + 1}/${oral.total}` : "chuyển người chơi…"} />
+            <Status error={flash} />
         </StageLayout>
     )
 }

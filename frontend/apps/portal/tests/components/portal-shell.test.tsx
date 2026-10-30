@@ -49,17 +49,15 @@ describe("PortalShell", () => {
         expect(screen.getByText("MCP keys")).toBeInTheDocument()
         // admin sees the admin-only item
         expect(await screen.findByText("Operators")).toBeInTheDocument()
-        // user + sign out live in the sidebar footer
-        expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
-        expect(screen.getByRole("button", { name: /Sign out/ })).toBeInTheDocument()
+        // no signed-in footer any more (MC's call): nav only
+        expect(screen.queryByRole("button", { name: /Sign out/ })).toBeNull()
     })
 
     it("hides the Operators item from a non-admin", async () => {
         stubFetch({ "GET /portal/auth/me": me("OPERATOR") })
         renderShell("/")
 
-        expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument()
-        expect(screen.getByText("Questions")).toBeInTheDocument()
+        expect(await screen.findByText("Questions")).toBeInTheDocument()
         expect(screen.queryByText("Operators")).toBeNull()
     })
 
@@ -72,22 +70,16 @@ describe("PortalShell", () => {
         expect(screen.getByRole("link", { name: "Tournaments" })).not.toHaveAttribute("aria-current")
     })
 
-    it("shows the controller context on a match page — state, not a route", async () => {
+    it("shows NO context block on a match page either (removed — the page itself is the context)", async () => {
         stubFetch({
             "GET /portal/auth/me": me("ADMIN"),
-            "GET /portal/tournaments/t1/matches?limit=100": {
-                body: {
-                    items: [{ id: "m1", label: "Slot 2 · Match", status: "LIVE" }],
-                    total: 1,
-                },
-            },
         })
         renderShell("/tournaments/t1/matches/m1")
 
         expect(await screen.findByText("match page")).toBeInTheDocument()
-        expect(await screen.findByText("Slot 2 · Match")).toBeInTheDocument()
-        expect(screen.getByText("LIVE")).toBeInTheDocument()
-        // the sidebar shows NO route — wayfinding stays on the page's breadcrumb
+        // no label, no status pill, no route echo — the match page carries it all
+        expect(screen.queryByText("Slot 2 · Match")).toBeNull()
+        expect(screen.queryByText(/LIVE/)).toBeNull()
         expect(screen.queryByRole("link", { name: /t1/ })).toBeNull()
     })
 

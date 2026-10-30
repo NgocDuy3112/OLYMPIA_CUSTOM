@@ -24,7 +24,7 @@ export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
     const activeQuestionId = activeQ ?? open[0]?.questionId ?? ""
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Khởi động" mode="Lượt chung" onRoundClick={openRounds} />}
@@ -47,7 +47,7 @@ export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status error={flash} hint="chọn ô để so câu khác" />
+            <Status error={flash} />
         </StageLayout>
     )
 }

@@ -27,7 +27,7 @@ export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
         mcVeDich?.answererId ? ctx.verdictOf(qid, mcVeDich.answererId) === null : true
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} onAdjust={ctx.openAdjust} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
             <MainCard>
                 <CardHeader
                     left={<Badges round="Về đích" mode="Lượt chung" onRoundClick={openRounds} />}
@@ -44,10 +44,7 @@ export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />
-            <Status
-                error={flash}
-                hint={mcVeDich?.turnPlayerId ? "thí sinh đang đáp" : undefined}
-            />
+            <Status error={flash} />
         </StageLayout>
     )
 }
