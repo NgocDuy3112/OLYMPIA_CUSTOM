@@ -169,6 +169,11 @@ export function useLiveAction(tournamentId: string, matchId: string) {
 }
 
 // The drafts ledger for ONE question — the judging panel's raw material.
+//
+// Polling is the ONLY signal here: a player's submission bumps no live version
+// (answers live outside the round state), pushes no frame, and crosses no
+// console-side mutation — window-focus refetch is globally off too. Without
+// this interval the MC's Đúng stays dead until a reload (smoke-tested).
 export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
     return useQuery({
         queryKey: ["question-answers", matchId, questionId],
@@ -179,6 +184,8 @@ export function useQuestionAnswers(tournamentId: string, matchId: string, questi
                 `/portal/tournaments/${tournamentId}/matches/${matchId}/live/answers?questionId=${questionId}`
             ).then((body) => body.items),
         enabled: Boolean(questionId),
+        // Same cadence as the lobby — only while a question is open (enabled).
+        refetchInterval: 3_000,
         retry: false,
     })
 }
