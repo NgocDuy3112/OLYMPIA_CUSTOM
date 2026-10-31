@@ -9,7 +9,9 @@ import {
     closeCurrentAnswer,
     createVeDich,
     openPhase2Question,
+    pickPhase1,
     pickPhase2,
+    resolveQuestion,
     type PlayerState,
     type VeDichQuestion
 } from "../../../src/game/engine/turns/ve-dich.js";
@@ -322,14 +324,39 @@ describe("player view — ve-dich board (G3)", () => {
     const POOL = [VQ("THTH", 50), VQ("THTH", 40), VQ("TNTT", 30), VQ("XHPL", 20)];
     const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
 
-    it("lists only the 20/30 cells while Chung runs — 40/50 wait for the summit", () => {
-        const state = createVeDich(POOL, [P("p0"), P("p1")]);
-        const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0" }));
+    // The board is built from the FROZEN set now — give the view one.
+    const veFrozen = (qs: VeDichQuestion[]): MatchQuestion[] =>
+        qs.map((q, index) => ({
+            ...frozen([q.id])[0],
+            roundId: "ve-dich",
+            domain: q.domain,
+            points: q.value
+        } as unknown as MatchQuestion));
 
-        expect(view.board).toHaveLength(2);                       // TNTT-30 + XHPL-20
-        expect(view.board?.every((cell) => cell.value === 20 || cell.value === 30)).toBe(true);
+    it("shows the FULL table — every frozen cell with its own state", () => {
+        const state = createVeDich(POOL, [P("p0"), P("p1")]);
+        const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
+
+        expect(view.board).toHaveLength(4);                          // one entry per frozen cell
         expect(view.board).toContainEqual({ questionId: "TNTT-30", domain: "TNTT", value: 30, where: "free" });
-        expect(view.board?.some((cell) => cell.value >= 40)).toBe(false);
+        expect(view.board).toContainEqual({ questionId: "XHPL-20", domain: "XHPL", value: 20, where: "free" });
+        // Chung: the 40/50s are on the table but waiting upstairs (deferred)
+        expect(view.board).toContainEqual({ questionId: "THTH-50", domain: "THTH", value: 50, where: "deferred" });
+        expect(view.board).toContainEqual({ questionId: "THTH-40", domain: "THTH", value: 40, where: "deferred" });
+        expect(view.board?.filter((c) => c.where === "free").every((c) => c.value <= 30)).toBe(true);
+    });
+
+    it("a picked cell STAYS on the board — open now, taken (black) from the next turn", () => {
+        let state = createVeDich(POOL, [P("p0"), P("p1")]);
+        const view = () => buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0", questions: veFrozen(POOL) }));
+        state = pickPhase1(state, "p0", "TNTT-30");   // highest free = 30
+        expect(view().board)
+            .toContainEqual({ questionId: "TNTT-30", domain: "TNTT", value: 30, where: "open" });
+
+        state = resolveQuestion(state, { answerer: true });
+        state = advanceTurn(state);                     // this turn is over
+        expect(view().board)
+            .toContainEqual({ questionId: "TNTT-30", domain: "TNTT", value: 30, where: "taken" });
     });
 
     it("marks the open question and this turn's picks, each cell exactly once", () => {
@@ -340,7 +367,7 @@ describe("player view — ve-dich board (G3)", () => {
         state = pickPhase2(state, "p0", ids);
         state = openPhase2Question(state, ids[0]);
 
-        const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p1" }));
+        const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p1", questions: veFrozen(POOL) }));
         const cellIds = (view.board ?? []).map((cell) => cell.questionId);
         expect(new Set(cellIds).size).toBe(cellIds.length);     // no duplicates
         expect(view.board?.find((cell) => cell.where === "open")?.questionId).toBe(ids[0]);

@@ -21,7 +21,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
     const { v, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
 
-    const stripCells = (projection.board ?? []).filter((c) => c.where !== "free")
+    const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
     const openNow = projection.open[0]
     const qid = openNow.questionId
     const needsVerdict =

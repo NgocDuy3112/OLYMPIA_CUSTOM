@@ -73,8 +73,9 @@ export interface PlayerView {
         elapsedS: number;
         budgetS: number;
     } | null;
-    // ve-dich: the board as the state knows it — free cells plus this turn's picks.
-    board?: Array<{ questionId: string; domain: string; value: number; where: "free" | "pending" | "open" }>;
+    // ve-dich: the FULL show table — every frozen cell with its state: playable
+    // now, this turn's batch, picked (black), or (in Chung) waiting upstairs.
+    board?: Array<{ questionId: string; domain: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>;
     // giai-ma: THE keyword question — without it a player cannot submit the one
     // thing the round is about. Sanitized like every other exposure.
     keyword?: { questionId: string; question: SanitizedQuestion | null } | null;
@@ -280,22 +281,27 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
           }];
 
     // The board the state knows: free cells, this turn's batch, the open question.
-    // Cells asked in earlier turns are gone from the state by design — the show
-    // board shows what can still be played.
-    const board: NonNullable<PlayerView["board"]> = [
-        ...(open !== null
-            ? [{
-                  questionId: open.question.id,
-                  domain: open.question.domain,
-                  value: open.question.value,
-                  where: "open" as const
-              }]
-            : []),
-        ...state.pendingPicks
-            .filter((q) => open?.question.id !== q.id)
-            .map((q) => ({ questionId: q.id, domain: q.domain, value: q.value, where: "pending" as const })),
-        ...state.remaining.map((q) => ({ questionId: q.id, domain: q.domain, value: q.value, where: "free" as const }))
-    ];
+    // The show table keeps EVERY cell visible: playable (free), this turn's
+    // batch (pending/open), already picked (taken — the black cells), and in
+    // Chung the 40/50s that haven't reached the table yet (deferred). One entry
+    // per frozen question — no duplicates by construction.
+    const openId = open?.question.id ?? null;
+    const pendingIds = new Set(state.pendingPicks.map((q) => q.id));
+    const freeIds = new Set(state.remaining.map((q) => q.id));
+    const deferredIds = new Set((state.deferred ?? []).map((q) => q.id));
+    const board: NonNullable<PlayerView["board"]> = (input.questions ?? [])
+        .filter((q) => q.roundId === "ve-dich")
+        .map((q) => {
+            const where =
+                q._id === openId ? "open" as const
+                : pendingIds.has(q._id) ? "pending" as const
+                : freeIds.has(q._id) ? "free" as const
+                // pre-rule archives carry no deferred list: in Chung a big cell
+                // can only be waiting, never picked.
+                : deferredIds.has(q._id) || (state.phase === 1 && q.points > 30) ? "deferred" as const
+                : "taken" as const;
+            return { questionId: q._id, domain: q.domain ?? "", value: q.points, where };
+        });
 
     const isMyTurn = !state.ended && open === null
         && state.players[state.turnIndex]?.id === input.userId;

@@ -1,5 +1,6 @@
 import { Badges, Band, CardHeader, MainCard, Rail, StageLayout, Status, type PlayerCtx } from "@shared/deck/player-deck"
 import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
+import { sortVeCells } from "@shared/deck/ve-dich-board"
 
 // Về đích — bảng chọn câu (S6 = phase 1 chọn 1 · S5 = phase 2 bốc 3): cells
 // ARE the picker — a CSS grid driven by the board's own domains × values.
@@ -7,11 +8,11 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
     const { v, myId, flash, pickedCells, setPickedCells, cmdBusy, command } = ctx
     const phase2 = ctx.stage === "phase2"
     const board = v.board ?? []
-    const domains = [...new Set(board.map((cell) => cell.domain))]
-    // Row-major flow: rows = values, cells left→right by domain (as drawn).
-    const cells = [...board].sort(
-        (a, b) => a.value - b.value || domains.indexOf(a.domain) - domains.indexOf(b.domain),
-    )
+    // The fixed matrix: canonical domains × score bands (20 → 50, as drawn).
+    const cells = sortVeCells(board, (cell) => cell.domain, (cell) => cell.value)
+    const domains = [...new Set(cells.map((cell) => cell.domain))]
+    // Chung: only the TOP free band is pickable this turn — everything lower fades.
+    const maxFree = Math.max(-1, ...cells.filter((c) => c.where === "free").map((c) => c.value))
     const pending = new Set(v.me.pendingPicks ?? [])
     const picking = v.me.isMyTurn === true && pending.size === 0
     const need = phase2 ? 3 : 1
@@ -39,7 +40,10 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
                 >
                     {cells.map((cell) => {
                         const chosen = pickedCells.includes(cell.questionId)
-                        const actionable = picking && cell.where === "free"
+                        const pickableNow = phase2 || cell.value === maxFree
+                        const actionable = picking && cell.where === "free" && pickableNow
+                        const faded = cell.where === "deferred"
+                            || (cell.where === "free" && !pickableNow)
                         return (
                             <button
                                 key={cell.questionId}
@@ -47,12 +51,27 @@ export function VeDichPickAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
                                 disabled={!actionable}
                                 aria-pressed={chosen}
                                 onClick={() => toggle(cell.questionId)}
-                                title={cell.where === "free" ? (picking ? "Chọn câu này" : "chưa tới lượt bạn") : cell.where === "pending" ? "đã có thí sinh chọn" : "đang mở"}
+                                title={
+                                    cell.where === "free"
+                                        ? !picking
+                                            ? "chưa tới lượt bạn"
+                                            : actionable
+                                                ? "Chọn câu này"
+                                                : "lượt này không chọn được"
+                                        : cell.where === "pending" ? "đã có thí sinh chọn"
+                                        : cell.where === "open" ? "đang mở"
+                                        : cell.where === "deferred" ? "dành cho Lượt cá nhân"
+                                        : "đã dùng"
+                                }
                                 className={`flex aspect-[133/59] flex-col items-center justify-center rounded-lg shadow-sm ring-1 transition ${
                                     cell.where === "open"
                                         ? "bg-primary text-primary-foreground ring-primary"
                                         : cell.where === "pending"
                                           ? "bg-sky-50 ring-2 ring-sky-500 text-sky-800"
+                                        : cell.where === "taken"
+                                          ? "bg-black text-white ring-black"
+                                        : faded
+                                          ? "cursor-default bg-card text-muted-foreground/40 ring-border opacity-50"
                                           : chosen
                                             ? "bg-sky-50 ring-2 ring-sky-500 text-foreground"
                                             : actionable

@@ -78,7 +78,7 @@ export interface PlayerView {
         questionId: string
         domain: string
         value: number
-        where: "free" | "pending" | "open"
+        where: "free" | "pending" | "open" | "taken" | "deferred"
     }>
     // giai-ma: THE keyword question.
     keyword?: { questionId: string; question: PlayerQuestion | null } | null

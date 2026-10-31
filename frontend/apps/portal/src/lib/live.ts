@@ -51,7 +51,7 @@ export interface Projection {
         elapsedS: number
         budgetS: number
     } | null
-    board?: Array<{ questionId: string; domain: string; value: number; where: "free" | "pending" | "open" }>
+    board?: Array<{ questionId: string; domain: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
 }
 
 export interface GiaiMaMc {

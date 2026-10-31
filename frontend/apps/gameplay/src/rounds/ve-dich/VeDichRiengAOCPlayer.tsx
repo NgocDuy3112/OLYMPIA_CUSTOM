@@ -10,7 +10,7 @@ export function VeDichRiengAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
-    const stripCells = (v.board ?? []).filter((cell) => cell.where !== "free")
+    const stripCells = (v.board ?? []).filter((cell) => cell.where === "open" || cell.where === "pending")
     return (
         <StageLayout rail={<Rail variant="compact" view={v} myId={myId} currentQid={qid || null} />}>
             <MainCard>
