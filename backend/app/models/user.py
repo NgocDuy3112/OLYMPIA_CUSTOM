@@ -21,7 +21,7 @@ def utcnow():
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
-        CheckConstraint("user_code LIKE 'OC_U%'", name='check_user_code_starts_with_OC_U'),
+        CheckConstraint("user_code LIKE 'OCF_U%'", name='check_user_code_starts_with_OCF_U'),
     )
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, unique=True, nullable=False, index=True, primary_key=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from logger import global_logger
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 BUZZER_LOCK_KEY_PREFIX = "buzzer_lock:"
@@ -21,11 +21,11 @@ def buzzer_lock_key(match_code: str, question_code: str) -> str:
 
 
 async def try_acquire_buzzer_lock(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     question_code: str,
 ) -> str | None:
-    if not valkey or not match_code or not question_code:
+    if not redis or not match_code or not question_code:
         return None
 
     key = buzzer_lock_key(match_code, question_code)
@@ -33,7 +33,7 @@ async def try_acquire_buzzer_lock(
     try:
 
 
-        acquired = await valkey.set(
+        acquired = await redis.set(
             key,
             token,
             nx=True,
@@ -63,17 +63,17 @@ end
 
 
 async def release_buzzer_lock(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     question_code: str,
     token: str,
 ) -> bool:
-    if not valkey or not match_code or not question_code or not token:
+    if not redis or not match_code or not question_code or not token:
         return False
 
     key = buzzer_lock_key(match_code, question_code)
     try:
-        result = await valkey.eval(
+        result = await redis.eval(
             _RELEASE_SCRIPT,
             1,
             key,

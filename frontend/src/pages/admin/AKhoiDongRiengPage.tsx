@@ -28,7 +28,7 @@ import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 const logger = createLogger("AKhoiDongRieng");
 
 const TIME_LIMIT = 40;
-const QUESTION_PREFIX = "OC3_Q_KD";
+const QUESTION_PREFIX = "OCF_Q_KD";
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",

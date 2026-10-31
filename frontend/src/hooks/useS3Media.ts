@@ -15,7 +15,7 @@ function mimeFromPath(path: string): string | null {
 }
 
 export function isS3Key(url: string): boolean {
-    return url.startsWith("OC3_M") && url.includes("/");
+    return url.startsWith("OCF_M") && url.includes("/");
 }
 
 const presignCache = new Map<string, string>();

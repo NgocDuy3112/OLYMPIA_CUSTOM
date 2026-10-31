@@ -1,6 +1,19 @@
-const MATCH_PATTERN = /^OC3_M/;
-const QUESTION_PATTERN = /^OC3_Q/;
-const USER_PATTERN = /^OC_U/;
+/**
+ * Client-side input validation.
+ *
+ * Code prefixes mirror the backend (backend/app/configs.py):
+ *   match_code    → OCF_M…
+ *   question_code → OCF_Q…
+ *   user_code     → OCF_U…
+ *
+ * OCF replaced the old season-based scheme (SEASON was removed). Keep these in
+ * sync with backend/app/configs.py — if the prefixes ever change again, both
+ * sides must change together or the UI will reject requests the API accepts.
+ */
+
+const MATCH_PATTERN = /^OCF_M/;
+const QUESTION_PATTERN = /^OCF_Q/;
+const USER_PATTERN = /^OCF_U/;
 const ROLES = ["player", "mc", "admin"] as const;
 
 export type Role = typeof ROLES[number];
@@ -13,15 +26,15 @@ export const isRoundNumber = (value: unknown): value is number => typeof value =
 export const isMultipleOfFive = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value % 5 === 0;
 
 export function assertMatchCode(value: unknown): asserts value is string {
-    if (!isMatchCode(value)) throw new Error("match_code must start with 'OC3_M'");
+    if (!isMatchCode(value)) throw new Error("match_code must start with 'OCF_M'");
 }
 
 export function assertQuestionCode(value: unknown): asserts value is string {
-    if (!isQuestionCode(value)) throw new Error("question_code must start with 'OC3_Q'");
+    if (!isQuestionCode(value)) throw new Error("question_code must start with 'OCF_Q'");
 }
 
 export function assertUserCode(value: unknown): asserts value is string {
-    if (!isUserCode(value)) throw new Error("user_code must start with 'OC_U'");
+    if (!isUserCode(value)) throw new Error("user_code must start with 'OCF_U'");
 }
 
 export function validateAnswerInput(input: { match_code: unknown; user_code: unknown; question_code: unknown; answer_text?: unknown; has_buzzed: unknown }): void {
@@ -35,7 +48,7 @@ export function validateScoreEvent(input: { match_code: unknown; question_code: 
     assertMatchCode(input.match_code);
     assertQuestionCode(input.question_code);
     if (!Array.isArray(input.user_codes) || input.user_codes.some((code) => !isUserCode(code))) {
-        throw new Error("user_codes must contain only player codes");
+        throw new Error("user_codes must contain only player codes starting with 'OCF_U'");
     }
 }
 
@@ -59,7 +72,6 @@ export function validateRecordInput(input: { match_code: unknown; user_code: unk
     if (!isMultipleOfFive(input.points)) throw new Error("points must be a multiple of 5");
 }
 
-
 export function validateQuestionInput(input: { match_code: unknown; question_code: unknown; media_url?: unknown }): void {
     assertMatchCode(input.match_code);
     assertQuestionCode(input.question_code);
@@ -70,6 +82,6 @@ export function validateMediaUrl(value: unknown): void {
     if (value === null || value === undefined || value === "") return;
     const first = String(value).split(",")[0].trim();
     if (!/^https?:\/\//.test(first) && !(isMatchCode(first.split("/")[0]) && first.includes("/"))) {
-        throw new Error("media_url must be an http(s) URL or an S3 key");
+        throw new Error("media_url must be an http(s) URL or an S3 key (OCF_M…/filename)");
     }
 }

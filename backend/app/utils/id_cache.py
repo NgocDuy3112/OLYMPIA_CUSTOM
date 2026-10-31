@@ -6,17 +6,17 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from logger import global_logger
-from configs import ValkeySettings
+from configs import RedisSettings
 from models.match import Match
 from models.question import Question
 from models.user import User, RoleEnum
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
-_ID_CACHE_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
+_ID_CACHE_TTL_SECONDS = RedisSettings().REDIS_STATE_TTL_SECONDS
 
 _MATCH_KEY = "id:match:{match_code}"
 _USER_KEY = "id:user:{user_code}"
@@ -37,14 +37,14 @@ async def resolve_buzz_ids(
     user_code: str,
     question_code: str,
     session: "AsyncSession",
-    valkey: "Valkey",
+    redis: "Redis",
 ) -> tuple[uuid.UUID | None, uuid.UUID | None, uuid.UUID | None]:
     m_key = _MATCH_KEY.format(match_code=match_code)
     u_key = _USER_KEY.format(user_code=user_code)
     q_key = _QUESTION_KEY.format(question_code=question_code)
 
     try:
-        cached = await valkey.mget(m_key, u_key, q_key)
+        cached = await redis.mget(m_key, u_key, q_key)
     except Exception as exc:
         global_logger.warning(f"[id_cache] MGET failed: {exc}", exc_info=True)
         cached = [None, None, None]
@@ -62,7 +62,7 @@ async def resolve_buzz_ids(
         )
         if match_id is not None:
             try:
-                await valkey.set(m_key, str(match_id), ex=_ID_CACHE_TTL_SECONDS)
+                await redis.set(m_key, str(match_id), ex=_ID_CACHE_TTL_SECONDS)
             except Exception as exc:
                 global_logger.warning(f"[id_cache] SET match failed: {exc}", exc_info=True)
 
@@ -76,7 +76,7 @@ async def resolve_buzz_ids(
         )
         if player_id is not None:
             try:
-                await valkey.set(u_key, str(player_id), ex=_ID_CACHE_TTL_SECONDS)
+                await redis.set(u_key, str(player_id), ex=_ID_CACHE_TTL_SECONDS)
             except Exception as exc:
                 global_logger.warning(f"[id_cache] SET user failed: {exc}", exc_info=True)
 
@@ -89,7 +89,7 @@ async def resolve_buzz_ids(
         )
         if question_id is not None:
             try:
-                await valkey.set(q_key, str(question_id), ex=_ID_CACHE_TTL_SECONDS)
+                await redis.set(q_key, str(question_id), ex=_ID_CACHE_TTL_SECONDS)
             except Exception as exc:
                 global_logger.warning(f"[id_cache] SET question failed: {exc}", exc_info=True)
 

@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from valkey.asyncio import Valkey
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from dependencies.valkey_store import get_valkey
+from dependencies.redis_store import get_redis
 from dependencies.postgresql_db import get_db
 from dependencies.user_auth import require_roles
 from core.scoreboard import calculate_score_event, get_scoreboard_for_a_match_from_db, adjust_player_score
@@ -21,11 +21,11 @@ router = APIRouter(prefix='/scoreboard', tags=['Bảng xếp hạng'])
 )
 async def get_scoreboard_for_match(
     match_code: str,
-    valkey: Valkey = Depends(get_valkey),
+    redis: Redis = Depends(get_redis),
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
     try:
-        return await get_scoreboard_for_a_match_from_db(match_code, valkey, session)
+        return await get_scoreboard_for_a_match_from_db(match_code, redis, session)
     except HTTPException:
         raise
     except Exception as e:
@@ -40,10 +40,10 @@ async def get_scoreboard_for_match(
 )
 async def calculate_score(
     request: ScoreEventRequest,
-    valkey: Valkey = Depends(get_valkey),
+    redis: Redis = Depends(get_redis),
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
-    return await calculate_score_event(request, valkey, session)
+    return await calculate_score_event(request, redis, session)
 
 
 @router.patch(
@@ -54,11 +54,11 @@ async def calculate_score(
 )
 async def adjust_score(
     request: ScoreAdjustRequest,
-    valkey: Valkey = Depends(get_valkey),
+    redis: Redis = Depends(get_redis),
     session: AsyncSession = Depends(get_db),
 ) -> BaseResponse:
     try:
-        return await adjust_player_score(request, valkey, session)
+        return await adjust_player_score(request, redis, session)
     except HTTPException:
         raise
     except Exception as e:

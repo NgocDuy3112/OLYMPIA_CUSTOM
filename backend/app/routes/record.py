@@ -19,7 +19,7 @@ router = APIRouter(prefix='/records', tags=['Bản ghi'])
     status_code=200
 )
 async def get_records(
-    match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OC3_M'")],
+    match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OCF_M'")],
     user_code: Annotated[str | None, Query(description="Mã người chơi. Nếu bỏ qua, trả về tất cả records trong match.")] = None,
     session: AsyncSession = Depends(get_db)
 ) -> BaseResponse:

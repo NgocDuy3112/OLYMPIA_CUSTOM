@@ -18,9 +18,9 @@ compete with perfectly synchronized state (score updates, buzzer timing, round t
 even when a split second determines who answers first.
 
 The approach: a FastAPI backend coordinating game state through PostgreSQL for durable
-records and Valkey pub/sub for instant, low-latency broadcasts to every connected client
-over WebSocket, with a companion Discord bot layer for music and sound effects during live
-matches.
+records and Redis pub/sub for instant, low-latency broadcasts to every connected client
+over WebSocket, with music and sound effects played directly in the browser from the
+admin/MC clients during live matches.
 
 ## Tech Stack
 
@@ -28,9 +28,9 @@ matches.
 |---|---|---|
 | Backend | FastAPI (async Python), SQLAlchemy 2.0 | Async-first, low boilerplate for a WebSocket-heavy, I/O-bound workload |
 | Database | PostgreSQL | Durable storage for matches, scores, and questions |
-| Cache / Pub-Sub | Valkey (Redis-compatible) | Instant leaderboard updates and WebSocket broadcast across all connected clients |
+| Cache / Pub-Sub | Redis (Redis-compatible) | Instant leaderboard updates and WebSocket broadcast across all connected clients |
 | Media Storage | S3-compatible object storage | Question media, decoupled from the app server |
-| Discord Integration | discord.py (3 separate bots) | Background music, sound effects, and connectivity checks during live matches |
+| Audio | Web Audio / HTMLAudioElement (browser) | Background music, sound effects and pings played client-side — no external bot process |
 | Auth | JWT (HS256) | Role-based access for Admin / Host / Player |
 | Deployment | Podman, Nginx (reverse proxy), Certbot (Let's Encrypt) | Self-hosted, rootless containers, free automated SSL |
 
@@ -39,20 +39,14 @@ matches.
 ```
 Browser (React SPA — Admin / Host / Player)
   ├─ HTTP /api/*         ──────────────► FastAPI Backend
-  └─ WebSocket /ws/{match_code}
-                                            │
-                                       Valkey pub/sub
-                                     (channel = match_code)
-                                            │
-                                 ┌──────────┼──────────┬────────────┐
-                             BGM Bot     SFX Bot     Ping Bot
-                          (bgm_bot.py) (sfx_bot.py) (ping_bot.py)
-                          Discord voice  Discord voice  Discord voice
+  ├─ WebSocket /ws/{match_code}  ◄────── game events (round, timer, SFX, pings)
+  └─ Audio (useGameAudio)  ─────────────► S3: audios/bgm | sfx | ping
+                                          (plays BGM, timer music, SFX, pings)
 
 FastAPI Backend
   ├─ PostgreSQL   (persistence: matches, scores, questions)
-  ├─ Valkey       (cache + leaderboard + pub/sub)
-  └─ S3-compatible storage (question media)
+  ├─ Redis        (cache + leaderboard + pub/sub)
+  └─ S3-compatible storage (question media + audio assets)
 
 Reverse proxy: Nginx + Let's Encrypt (Certbot), self-hosted via Podman
 ```
@@ -61,22 +55,25 @@ Reverse proxy: Nginx + Let's Encrypt (Certbot), self-hosted via Podman
 
 - Real-time synchronized match state across Admin, Host, and Player clients (~0.5s latency)
 - Role-based access control — each role can only perform actions permitted to it
-- Discord-integrated background music and sound effects during live rounds
+- Background music and sound effects played in the browser during live rounds
 - Self-hosted deployment with automated HTTPS certificate renewal
 
 ## Technical Decisions & Challenges
 
-**1. Separate Discord bots per function (BGM/SFX/Ping) instead of one unified bot**
+**1. Audio playback: from Discord bots to the browser**
 
-Initially split into three bots — one for background music, one for sound effects, one for
-connectivity checks — to keep responsibilities clear and make debugging easier while building
-out the system. After monitoring resource usage in production (`podman stats`), the three
-separate processes together consumed ~217MB of RAM, each paying its own overhead for loading
-the discord.py runtime and maintaining its own gateway connection to Discord — combined, this
-was heavier than the main game logic service (~122MB). This highlighted a trade-off between
-early-stage debuggability and runtime resource efficiency. The lesson carried into the next
-iteration: consolidate into a single process with separate internal modules (cogs), preserving
-code separation without duplicating runtime overhead.
+Audio originally ran through three separate Discord bots (BGM / SFX / ping), each holding its
+own voice connection so sounds could overlap — a single bot user can only hold one voice
+connection per guild, so one process meant strictly sequential playback. Splitting them cost
+~217MB of RAM, each paying the `discord.py` runtime and its own gateway connection, which was
+heavier than the entire game-logic service (~122MB).
+
+The evolution: three bots → recognising the runtime overhead → removing the bots entirely and
+moving playback into the browser (`useGameAudio`), driven by the same WebSocket events the bots
+consumed. This eliminated the extra containers, the third-party voice channel, the duplicate
+S3 sync in every bot, and the concurrency problem between them — the browser can mix audio
+freely, which a single Discord voice client cannot. The transferable lesson: keep the event
+model (what should play, and when) decoupled from the playback mechanism.
 
 **2. Capacity planning for an 8GB VPS under concurrent matches**
 
@@ -91,7 +88,7 @@ shared resources — rather than upgrading the VPS ahead of having real usage da
 **3. Real-time fairness under WebSocket broadcast**
 
 In a quiz format where being first to buzz in matters, naive polling or delayed broadcast
-would break the game. WebSocket updates via Valkey pub/sub keep all clients within ~0.5s of
+would break the game. WebSocket updates via Redis pub/sub keep all clients within ~0.5s of
 each other, which was treated as a hard requirement rather than a nice-to-have during design.
 
 ## Getting Started
@@ -128,7 +125,7 @@ curl -X POST http://localhost:8000/auth/signup \
   -H "Content-Type: application/json" \
   -d '{
     "user_name": "Admin User",
-    "user_code": "OC_U001",
+    "user_code": "OCF_U0001",
     "password": "admin123",
     "role": "admin"
   }'
@@ -136,8 +133,7 @@ curl -X POST http://localhost:8000/auth/signup \
 
 ## Roadmap
 
-- [ ] Consolidate the three Discord bots into a single process (in progress on the next
-      iteration, built with Fastify/Node.js)
+- [x] Replace the three Discord bots with in-browser audio playback (`useGameAudio`)
 - [ ] Support multiple tournaments running concurrently with proper match-state namespacing
 - [ ] Migrate backend from FastAPI to Fastify (Node.js/TypeScript)
 - [ ] Automated test coverage for match state transitions

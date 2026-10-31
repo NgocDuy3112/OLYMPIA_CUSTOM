@@ -3,14 +3,12 @@ import { useMatchCode } from "@/hooks/useMatchCode";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { MCWebSocketProvider } from "@/contexts/MCWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useGameAudio } from "@/hooks/useGameAudio";
 
 import MGameAccessPage from "@/pages/mc/MGameAccessPage";
 import MWaitingPage from "@/pages/mc/MWaitingPage";
-import MKhoiDongChungPage from "@/pages/mc/MKhoiDongChungPage";
 import MKhoiDongRiengPage from "@/pages/mc/MKhoiDongRiengPage";
 import MButPhaPage from "@/pages/mc/MButPhaPage";
-import MGiaiMaPage from "@/pages/mc/MGiaiMaPage";
-import MVeDichChungPage from "@/pages/mc/MVeDichChungPage";
 import MVeDichRiengPage from "@/pages/mc/MVeDichRiengPage";
 import MVeDichPickPage from "@/pages/mc/MVeDichPickPage";
 import { VeDichRound } from "@/types/veDich";
@@ -29,6 +27,10 @@ const MCAutoNavigator: React.FC = () => {
     const location = useLocation();
     const { lastMessage, sendMessage } = useGameWebSocket();
     const matchCode = localStorage.getItem("matchCode") || "";
+
+    // Browser-side replacement for the Discord BGM/SFX bots.
+    useGameAudio();
+
     useEffect(() => {
         if (!lastMessage) return;
         const raw = typeof lastMessage === "string" ? JSON.parse(lastMessage) : lastMessage;
@@ -98,28 +100,12 @@ const MCRoutes = () => {
                 <Route path="/waiting" element={<MWaitingPage />} />
                 <Route path="/waiting/:matchCode" element={<MWaitingPage />} />
                 <Route
-                    path="/kdc/:matchCode"
-                    element={<ProtectedMcRoute><MKhoiDongChungPage /></ProtectedMcRoute>}
-                />
-                <Route
                     path="/kdr/:matchCode"
                     element={<ProtectedMcRoute><MKhoiDongRiengPage /></ProtectedMcRoute>}
                 />
                 <Route
                     path="/bp/:matchCode"
                     element={<ProtectedMcRoute><MButPhaPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/gm/:matchCode"
-                    element={<ProtectedMcRoute><MGiaiMaPage /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vdc/pick/:matchCode"
-                    element={<ProtectedMcRoute><MVeDichPickPage round={VeDichRound.CHUNG} /></ProtectedMcRoute>}
-                />
-                <Route
-                    path="/vdc/:matchCode"
-                    element={<ProtectedMcRoute><MVeDichChungPage /></ProtectedMcRoute>}
                 />
                 <Route
                     path="/vdr/pick/:matchCode"

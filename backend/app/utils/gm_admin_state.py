@@ -5,16 +5,16 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
-from configs import ValkeySettings
+from configs import RedisSettings
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 GM_ADMIN_STATE_KEY_PREFIX = "gm:admin_state:"
 
 
-GM_ADMIN_STATE_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
+GM_ADMIN_STATE_TTL_SECONDS = RedisSettings().REDIS_STATE_TTL_SECONDS
 
 
 def gm_admin_state_key(match_code: str) -> str:
@@ -22,22 +22,22 @@ def gm_admin_state_key(match_code: str) -> str:
 
 
 async def set_admin_field(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     field: str,
     value: Any,
 ) -> None:
-    if not valkey or not match_code or not field:
+    if not redis or not match_code or not field:
         return
     if value is None:
         return
     try:
-        await valkey.hset(
+        await redis.hset(
             gm_admin_state_key(match_code),
             field,
             json.dumps(value, ensure_ascii=False),
         )
-        await valkey.expire(gm_admin_state_key(match_code), GM_ADMIN_STATE_TTL_SECONDS)
+        await redis.expire(gm_admin_state_key(match_code), GM_ADMIN_STATE_TTL_SECONDS)
     except Exception as exc:
         global_logger.warning(
             f"[gm_admin_state] HSET failed for match={match_code!r} "
@@ -47,13 +47,13 @@ async def set_admin_field(
 
 
 async def get_admin_state(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
 ) -> dict[str, Any]:
-    if not valkey or not match_code:
+    if not redis or not match_code:
         return {}
     try:
-        raw = await valkey.hgetall(gm_admin_state_key(match_code))
+        raw = await redis.hgetall(gm_admin_state_key(match_code))
     except Exception as exc:
         global_logger.warning(
             f"[gm_admin_state] HGETALL failed for match={match_code!r}: {exc}",
@@ -75,11 +75,11 @@ async def get_admin_state(
     return out
 
 
-async def clear_admin_state(valkey: Valkey, match_code: str) -> None:
-    if not valkey or not match_code:
+async def clear_admin_state(redis: Redis, match_code: str) -> None:
+    if not redis or not match_code:
         return
     try:
-        await valkey.delete(gm_admin_state_key(match_code))
+        await redis.delete(gm_admin_state_key(match_code))
         global_logger.debug(
             f"[gm_admin_state] Cleared admin state for match={match_code!r}"
         )

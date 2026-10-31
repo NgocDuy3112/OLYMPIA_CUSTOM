@@ -11,8 +11,6 @@ class AppSettings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
-    SEASON: int = 3
-
     @computed_field
     @property
     def APP_URL(self) -> str:
@@ -21,12 +19,17 @@ class AppSettings(BaseSettings):
     @computed_field
     @property
     def MATCH_PATTERN(self) -> str:
-        return f"OC{self.SEASON}_M"
+        return "OCF_M"
 
     @computed_field
     @property
     def QUESTION_PATTERN(self) -> str:
-        return f"OC{self.SEASON}_Q"
+        return "OCF_Q"
+
+    @computed_field
+    @property
+    def USER_PATTERN(self) -> str:
+        return "OCF_U"
 
 
 class PostgreSQLSettings(BaseSettings):
@@ -44,22 +47,22 @@ class PostgreSQLSettings(BaseSettings):
         return f"postgresql+asyncpg://{self.POSTGRES_DB_USER}:{self.POSTGRES_DB_PASSWORD}@{self.POSTGRES_DB_HOST}:{self.POSTGRES_DB_PORT}/{self.POSTGRES_DB_NAME}"
 
 
-class ValkeySettings(BaseSettings):
+class RedisSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    VALKEY_USER: str
-    VALKEY_PASSWORD: str
-    VALKEY_HOST: str
-    VALKEY_PORT: int
-    VALKEY_TIMEOUT: float = 5.0
-    VALKEY_HEALTH_CHECK_INTERVAL: int = 30
-    VALKEY_STATE_TTL_SECONDS: int = 900
+    REDIS_USER: str
+    REDIS_PASSWORD: str
+    REDIS_HOST: str
+    REDIS_PORT: int
+    REDIS_TIMEOUT: float = 5.0
+    REDIS_HEALTH_CHECK_INTERVAL: int = 30
+    REDIS_STATE_TTL_SECONDS: int = 900
 
 
     @computed_field
     @property
-    def VALKEY_URL(self) -> str:
-        return f"valkey://{self.VALKEY_USER}:{self.VALKEY_PASSWORD}@{self.VALKEY_HOST}:{self.VALKEY_PORT}"
+    def REDIS_URL(self) -> str:
+        return f"redis://{self.REDIS_USER}:{self.REDIS_PASSWORD}@{self.REDIS_HOST}:{self.REDIS_PORT}"
 
 
 class S3Settings(BaseSettings):
@@ -72,28 +75,3 @@ class S3Settings(BaseSettings):
     S3_SECRET_ACCESS_KEY: str
     S3_PRESIGNED_URL_EXPIRY: int = 3600
     S3_MAX_UPLOAD_SIZE_MB: int = 50
-
-
-class EmailSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str
-    SMTP_PASSWORD: str
-    EMAIL_FROM_NAME: str = "Olympia Custom"
-
-    FRONTEND_URL: str = "http://localhost:5173"
-
-
-    APP_ENV: str = "stage"
-
-    @computed_field
-    @property
-    def IS_BETA(self) -> bool:
-        return self.APP_ENV.lower() != "prod"
-
-    @computed_field
-    @property
-    def EMAIL_SUBJECT_PREFIX(self) -> str:
-        return "[Olympia Custom BETA] " if self.IS_BETA else "[Olympia Custom] "

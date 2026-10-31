@@ -20,13 +20,13 @@ services:
       start_period: 10s
 
   # ── Cache + WebSocket pub/sub ─────────────────────────────
-  valkey:
-    container_name: olympia-valkey
-    image: docker.io/valkey/valkey:9-alpine
-    command: valkey-server /etc/valkey/valkey.conf
+  redis:
+    container_name: olympia-redis
+    image: docker.io/library/redis:7-alpine
+    command: redis-server /etc/redis/redis.conf
     volumes:
-      - ./configs/valkey.conf:/etc/valkey/valkey.conf:ro
-      - ./data/valkey:/data
+      - ./configs/redis.conf:/etc/redis/redis.conf:ro
+      - ./data/redis:/data
     networks:
       - olympia-network
     restart: unless-stopped
@@ -42,19 +42,18 @@ services:
       - ./configs/.env
     environment:
       APP_HOST: 0.0.0.0
-      FRONTEND_URL: https://olympia-custom.io.vn
       DRIVE_CREDENTIALS_FILE: /app/configs/credentials.json
       POSTGRES_DB_HOST: postgresql
       POSTGRES_DB_PORT: 5432
-      VALKEY_HOST: valkey
-      VALKEY_PORT: 6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     volumes:
       - ./configs:/app/configs:ro
       - ./logs:/var/log/olympia
     depends_on:
       postgresql:
         condition: service_healthy
-      valkey:
+      redis:
         condition: service_started
     networks:
       - olympia-network
@@ -70,55 +69,6 @@ services:
     - VITE_APP_ENV=prod
     depends_on:
       - app
-    networks:
-      - olympia-network
-    restart: unless-stopped
-
-  # ── Discord / BGM bot ─────────────────────────────────────
-  bgm-bot:
-    container_name: olympia-bgm-bot
-    build:
-      context: .
-      dockerfile: backend/discord/Dockerfile
-    command: ["sh", "-c", "python bgm_bot.py > /var/log/olympia/bgm.log 2>&1"]
-    env_file:
-      - ./configs/.env
-    volumes:
-      - ./logs:/var/log/olympia
-    depends_on:
-      - valkey
-    networks:
-      - olympia-network
-    restart: unless-stopped
-
-  sfx-bot:
-    container_name: olympia-sfx-bot
-    build:
-      context: .
-      dockerfile: backend/discord/Dockerfile
-    command: ["sh", "-c", "python sfx_bot.py > /var/log/olympia/sfx.log 2>&1"]
-    env_file:
-      - ./configs/.env
-    volumes:
-      - ./logs:/var/log/olympia
-    depends_on:
-      - valkey
-    networks:
-      - olympia-network
-    restart: unless-stopped
-  
-  ping-bot:
-    container_name: olympia-ping-bot
-    build:
-      context: .
-      dockerfile: backend/discord/Dockerfile
-    command: ["sh", "-c", "python ping_bot.py > /var/log/olympia/ping.log 2>&1"]
-    env_file:
-      - ./configs/.env
-    volumes:
-      - ./logs:/var/log/olympia
-    depends_on:
-      - valkey
     networks:
       - olympia-network
     restart: unless-stopped

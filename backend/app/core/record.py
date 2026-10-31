@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from valkey.asyncio import Valkey
+from redis.asyncio import Redis
 
 from logger import global_logger
 from models.record import Record
@@ -16,12 +16,12 @@ from schemas.record import *
 async def post_record_to_db(
     request: RecordPostRequest, 
     session: AsyncSession,
-    valkey: Valkey
+    redis: Redis
 ) -> BaseResponse:
     log_message = f"POST request received to create record for user_code: {request.user_code}, match_code: {request.match_code}, question_code: {request.question_code}."
     global_logger.debug(log_message)
     try:
-        await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: request.points}, incr=True)
+        await redis.zadd(f"leaderboard:{request.match_code}", {request.user_code: request.points}, incr=True)
 
         user_id = await session.scalar(
             select(User.id).where(

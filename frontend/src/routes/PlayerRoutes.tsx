@@ -3,14 +3,12 @@ import { useMatchCode } from "@/hooks/useMatchCode";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { PlayerWebSocketProvider } from "@/contexts/PlayerWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useGameAudio } from "@/hooks/useGameAudio";
 
-import PKhoiDongChungPage from "@/pages/player/PKhoiDongChungPage";
 import PKhoiDongRiengPage from "@/pages/player/PKhoiDongRiengPage";
 import PButPhaPage from "@/pages/player/PButPhaPage";
-import PVeDichChungPage from "@/pages/player/PVeDichChungPage";
 import PVeDichRiengPage from "@/pages/player/PVeDichRiengPage";
 import PVeDichPickPage from "@/pages/player/PVeDichPickPage";
-import PGiaiMaPage from "@/pages/player/PGiaiMaPage";
 import PGameAccessPage from "@/pages/player/PGameAccessPage";
 import PWaitingPage from "@/pages/player/PWaitingPage";
 import { VeDichRound } from "@/types/veDich";
@@ -36,6 +34,10 @@ const PlayerAutoNavigator: React.FC = () => {
     const playerCode = sessionStorage.getItem("playerCode") || "";
     const matchCode = localStorage.getItem("matchCode") || "";
     const { lastMessage, sendMessage } = useGameWebSocket();
+
+    // Browser-side replacement for the Discord BGM/SFX bots.
+    useGameAudio();
+
     useEffect(() => {
         if (!lastMessage) return;
 
@@ -118,14 +120,6 @@ const PlayerRoutes = () => {
                 <Route path="/access" element={<PGameAccessPage />} />
                 <Route path="/waiting/:matchCode" element={<PWaitingPage />} />
                 <Route
-                    path="/kdc/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PKhoiDongChungPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
                     path="/kdr/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
@@ -142,22 +136,6 @@ const PlayerRoutes = () => {
                     }
                 />
                 <Route
-                    path="/vdc/pick/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PVeDichPickPage round={VeDichRound.CHUNG} />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/vdc/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PVeDichChungPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
                     path="/vdr/pick/:matchCode"
                     element={
                         <ProtectedPlayerRoute>
@@ -170,14 +148,6 @@ const PlayerRoutes = () => {
                     element={
                         <ProtectedPlayerRoute>
                             <PVeDichRiengPage />
-                        </ProtectedPlayerRoute>
-                    }
-                />
-                <Route
-                    path="/gm/:matchCode"
-                    element={
-                        <ProtectedPlayerRoute>
-                            <PGiaiMaPage />
                         </ProtectedPlayerRoute>
                     }
                 />

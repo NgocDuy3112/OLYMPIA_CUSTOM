@@ -26,7 +26,7 @@ export interface VeDichCodeInfo {
 }
 
 export function parseVeDichCode(code: string): VeDichCodeInfo | null {
-	const m = code.match(/OC3_Q_VD[A-Z]*_([A-Z]+)_(\d+)$/i);
+	const m = code.match(/OCF_Q_VD[A-Z]*_([A-Z]+)_(\d+)$/i);
 	if (!m) return null;
 	const abbrev = m[1].toUpperCase();
 	const points = parseInt(m[2], 10);
@@ -69,7 +69,7 @@ export function generateVeDichPlaceholderCodes(): string[] {
 		for (let tierIdx = 0; tierIdx < 4; tierIdx++) {
 			const abbrev = Object.keys(ABBREV_TO_CAT_IDX).find(key => ABBREV_TO_CAT_IDX[key] === catIdx) || "KTTH";
 			const points = VEDICH_POINTS[tierIdx];
-			codes.push(`OC3_Q_VD_${abbrev}_${points}`);
+			codes.push(`OCF_Q_VD_${abbrev}_${points}`);
 		}
 	}
 	return codes;

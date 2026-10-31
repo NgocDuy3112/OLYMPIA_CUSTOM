@@ -1,7 +1,7 @@
 fastapi[standard]
 uvicorn[standard]
 
-valkey
+redis
 asyncpg
 sqlalchemy
 

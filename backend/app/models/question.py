@@ -20,7 +20,7 @@ class Question(Base):
     __table_args__ = (
         CheckConstraint(
             f"question_code LIKE '{_QUESTION_PATTERN}%'",
-            name='check_question_code_starts_with_season_prefix',
+            name='check_question_code_starts_with_OCF_Q',
         ),
     )
 

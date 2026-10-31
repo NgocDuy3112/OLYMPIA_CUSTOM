@@ -11,7 +11,6 @@ type SignupFormProps = {
     successMessage: string;
     loginMessage: string;
     description?: string;
-    password?: boolean;
 };
 
 export const SignupForm = ({
@@ -21,7 +20,6 @@ export const SignupForm = ({
     successMessage,
     loginMessage,
     description,
-    password = false,
 }: SignupFormProps) => {
     const [form, setForm] = useState({ email: "", userName: "", password: "" });
     const navigate = useNavigate();
@@ -36,7 +34,7 @@ export const SignupForm = ({
                     user_name: form.userName,
                     email: form.email,
                     role,
-                    ...(password && { password: form.password }),
+                    password: form.password,
                 }),
             });
 
@@ -66,14 +64,12 @@ export const SignupForm = ({
                     value={form.userName}
                     onChange={(event) => setForm({ ...form, userName: event.target.value })}
                 />
-                {password && (
-                    <InputField
-                        label="Mật khẩu"
-                        type="password"
-                        value={form.password}
-                        onChange={(event) => setForm({ ...form, password: event.target.value })}
-                    />
-                )}
+                <InputField
+                    label="Mật khẩu"
+                    type="password"
+                    value={form.password}
+                    onChange={(event) => setForm({ ...form, password: event.target.value })}
+                />
                 {description && <p className="text-sm text-gray-300">{description}</p>}
                 <button type="submit" className="mt-4 btn-primary-full">
                     {role === "admin" ? "TẠO TÀI KHOẢN ADMIN" : "TẠO TÀI KHOẢN"}

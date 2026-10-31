@@ -5,27 +5,27 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
-from configs import ValkeySettings
+from configs import RedisSettings
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 GM_HINTS_KEY_PREFIX = "gm:hints:"
 
 
-GM_HINTS_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
+GM_HINTS_TTL_SECONDS = RedisSettings().REDIS_STATE_TTL_SECONDS
 
 
 def gm_hints_key(match_code: str) -> str:
     return f"{GM_HINTS_KEY_PREFIX}{match_code}"
 
 
-async def get_hints(valkey: Valkey, match_code: str) -> dict[str, dict[str, Any]]:
-    if not valkey or not match_code:
+async def get_hints(redis: Redis, match_code: str) -> dict[str, dict[str, Any]]:
+    if not redis or not match_code:
         return {}
     try:
-        raw = await valkey.hgetall(gm_hints_key(match_code))
+        raw = await redis.hgetall(gm_hints_key(match_code))
     except Exception as exc:
         global_logger.warning(
             f"[gm_hints] HGETALL failed for match={match_code!r}: {exc}",
@@ -49,7 +49,7 @@ async def get_hints(valkey: Valkey, match_code: str) -> dict[str, dict[str, Any]
 
 
 async def set_hint(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     clue_index: int,
     text: str | None,
@@ -57,8 +57,8 @@ async def set_hint(
     target_players: list[str],
     shown_at: int | None = None,
 ) -> dict[str, dict[str, Any]]:
-    if not valkey or not match_code or not isinstance(clue_index, int):
-        return await get_hints(valkey, match_code)
+    if not redis or not match_code or not isinstance(clue_index, int):
+        return await get_hints(redis, match_code)
 
     payload = {
         "text": text or None,
@@ -73,8 +73,8 @@ async def set_hint(
     key = gm_hints_key(match_code)
     field = str(clue_index)
     try:
-        await valkey.hset(key, field, json.dumps(payload))
-        await valkey.expire(key, GM_HINTS_TTL_SECONDS)
+        await redis.hset(key, field, json.dumps(payload))
+        await redis.expire(key, GM_HINTS_TTL_SECONDS)
     except Exception as exc:
         global_logger.warning(
             f"[gm_hints] HSET/EXPIRE failed for match={match_code!r} "
@@ -82,21 +82,21 @@ async def set_hint(
             exc_info=True,
         )
 
-    return await get_hints(valkey, match_code)
+    return await get_hints(redis, match_code)
 
 
 async def clear_hint(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     clue_index: int,
 ) -> dict[str, dict[str, Any]]:
-    if not valkey or not match_code or not isinstance(clue_index, int):
-        return await get_hints(valkey, match_code)
+    if not redis or not match_code or not isinstance(clue_index, int):
+        return await get_hints(redis, match_code)
 
     key = gm_hints_key(match_code)
     field = str(clue_index)
     try:
-        await valkey.hdel(key, field)
+        await redis.hdel(key, field)
         global_logger.debug(
             f"[gm_hints] HDEL match={match_code!r} clue={clue_index!r}"
         )
@@ -107,14 +107,14 @@ async def clear_hint(
             exc_info=True,
         )
 
-    return await get_hints(valkey, match_code)
+    return await get_hints(redis, match_code)
 
 
-async def clear_all_hints(valkey: Valkey, match_code: str) -> None:
-    if not valkey or not match_code:
+async def clear_all_hints(redis: Redis, match_code: str) -> None:
+    if not redis or not match_code:
         return
     try:
-        await valkey.delete(gm_hints_key(match_code))
+        await redis.delete(gm_hints_key(match_code))
         global_logger.debug(
             f"[gm_hints] Cleared hints for match={match_code!r}"
         )

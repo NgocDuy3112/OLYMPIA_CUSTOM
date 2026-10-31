@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from logger import global_logger
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 POWER_LOCK_KEY_PREFIX = "vd:power_lock:"
@@ -21,17 +21,17 @@ def power_lock_key(match_code: str, user_code: str) -> str:
 
 
 async def try_acquire_power_lock(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     user_code: str,
 ) -> str | None:
-    if not valkey or not match_code or not user_code:
+    if not redis or not match_code or not user_code:
         return None
 
     key = power_lock_key(match_code, user_code)
     token = uuid.uuid4().hex
     try:
-        acquired = await valkey.set(
+        acquired = await redis.set(
             key,
             token,
             nx=True,
@@ -58,17 +58,17 @@ end
 
 
 async def release_power_lock(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     user_code: str,
     token: str,
 ) -> bool:
-    if not valkey or not match_code or not user_code or not token:
+    if not redis or not match_code or not user_code or not token:
         return False
 
     key = power_lock_key(match_code, user_code)
     try:
-        result = await valkey.eval(
+        result = await redis.eval(
             _RELEASE_SCRIPT,
             1,
             key,

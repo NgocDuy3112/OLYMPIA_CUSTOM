@@ -28,7 +28,7 @@ const logger = createLogger("AKhoiDongChung");
 
 const TIME_LIMIT = 60;
 const MAX_QUESTION_INDEX = 6;
-const QUESTION_PREFIX = "OC3_Q_KD_C";
+const QUESTION_PREFIX = "OCF_Q_KD_C";
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",

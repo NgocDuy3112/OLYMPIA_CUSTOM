@@ -30,9 +30,7 @@ const AVeDichPickQuestion = () => {
 		}
 	}, [currentMatchCode, navigate]);
 
-	const currentPath = window.location.pathname;
-	const isChung = currentPath.includes("/vdc/pick") && !currentPath.includes("/vdr/");
-	const round = isChung ? VeDichRound.CHUNG : VeDichRound.RIENG;
+	const round = VeDichRound.RIENG;
 	const roundTitle = getVeDichRoundLabel(round);
 
 	const [players, setPlayers] = useState<PlayerStatus[]>([]);
@@ -48,14 +46,14 @@ const AVeDichPickQuestion = () => {
 	const [placeholderQuestions, setPlaceholderQuestions] = useState<Question[]>([]);
 	const initialSelectionPublishedRef = useRef(false);
 
-	const requiredCount = isChung ? players.length : round;
+	const requiredCount: number = round;
 
 	const questionCategories = questions.map((q, idx) => getVeDichMeta(q.questionCode, idx).category);
 	const questionPoints     = questions.map((q, idx) => getVeDichMeta(q.questionCode, idx).points);
 
 	const toggleQuestionSelection = useCallback((questionCode: string) => {
 
-		if (!isChung && !selectedPlayerCode) {
+		if (!selectedPlayerCode) {
 			setErrorMessage("Vui lòng chọn thí sinh tham gia lượt thi trước");
 			return;
 		}
@@ -72,7 +70,7 @@ const AVeDichPickQuestion = () => {
 				return prev;
 			}
 		});
-	}, [requiredCount, isChung, selectedPlayerCode]);
+	}, [requiredCount, selectedPlayerCode]);
 
 	useEffect(() => {
 		if (!currentMatchCode) return;
@@ -82,7 +80,7 @@ const AVeDichPickQuestion = () => {
 		sendMessage({
 			type: "vd_selection_update",
 			match_code: currentMatchCode,
-			round: isChung ? "chung" : "rieng",
+			round: "rieng",
 			selected_question_codes: selectedQuestionCodes,
 			all_question_codes: allCodes,
 			used_question_codes: usedQuestionCodes,
@@ -97,18 +95,17 @@ const AVeDichPickQuestion = () => {
 		} else {
 			localStorage.removeItem(`vd_pick_selected_${currentMatchCode}`);
 		}
-	}, [selectedQuestionCodes, questions, currentMatchCode, isChung, sendMessage]);
+	}, [selectedQuestionCodes, questions, currentMatchCode, sendMessage]);
 
 	useEffect(() => {
 		if (!currentMatchCode) return;
-		if (isChung) return;
 
 		sendMessage({ type: "blocked_buzz", user_code: selectedPlayerCode ?? null, match_code: currentMatchCode });
 
 		try {
 			localStorage.setItem(`vd_rieng_selected_player_${currentMatchCode}`, selectedPlayerCode ?? "");
 		} catch {  }
-	}, [selectedPlayerCode, currentMatchCode, isChung, sendMessage]);
+	}, [selectedPlayerCode, currentMatchCode, sendMessage]);
 
 	const toggleSelectedPlayer = useCallback((playerCode: string) => {
 		setSelectedPlayerCode((prev) => (prev === playerCode ? null : playerCode));
@@ -163,7 +160,7 @@ const AVeDichPickQuestion = () => {
 		await sendMessage({
 			type: "vd_selection_update",
 			match_code: currentMatchCode,
-			round: isChung ? "chung" : "rieng",
+			round: "rieng",
 			selected_question_codes: selectedQuestionCodes,
 			all_question_codes: allCodes,
 			used_question_codes: usedQuestionCodes,
@@ -172,7 +169,7 @@ const AVeDichPickQuestion = () => {
 			const payload = {
 				type: "vd_questions_selected",
 				match_code: currentMatchCode,
-				round: isChung ? "chung" : "rieng",
+				round: "rieng",
 				selected_question_codes: selectedQuestionCodes,
 				all_question_codes: allCodes,
 				question_metadata: selectedQuestionCodes.map((code) => {
@@ -181,10 +178,10 @@ const AVeDichPickQuestion = () => {
 				}),
 				timestamp: Date.now(),
 			};
-			if (!isChung) (payload as any).selected_player_code = selectedPlayerCode ?? null;
+			(payload as any).selected_player_code = selectedPlayerCode ?? null;
 			await sendMessage(payload);
 		}
-	}, [currentMatchCode, isChung, loadPlayersState, questionCategories, questionPoints, questions, selectedPlayerCode, selectedQuestionCodes, sendMessage, usedQuestionCodes]);
+	}, [currentMatchCode, loadPlayersState, questionCategories, questionPoints, questions, selectedPlayerCode, selectedQuestionCodes, sendMessage, usedQuestionCodes]);
 
 	const sendRoundSnapshot = useCallback(async () => {
 		await loadPlayersState();
@@ -227,7 +224,7 @@ const AVeDichPickQuestion = () => {
 			sendMessage({
 				type: "vd_selection_update",
 				match_code: currentMatchCode,
-				round: isChung ? "chung" : "rieng",
+				round: "rieng",
 				selected_question_codes: [],
 				all_question_codes: allPlaceholderCodes,
 				used_question_codes: [],
@@ -237,7 +234,7 @@ const AVeDichPickQuestion = () => {
 				localStorage.setItem(`vd_pick_all_codes_${currentMatchCode}`, JSON.stringify(allPlaceholderCodes));
 			} catch {  }
 		}
-	}, [currentMatchCode, isChung, sendMessage]);
+	}, [currentMatchCode, sendMessage]);
 
 	useEffect(() => {
 		const fetchQuestions = async () => {
@@ -264,7 +261,7 @@ const AVeDichPickQuestion = () => {
 				const rawQuestions = Array.isArray(result.data) ? result.data : [result.data].filter(Boolean);
 
 				const veDichRaw = rawQuestions.filter((q: { question_code?: string }) =>
-					q.question_code?.includes("_VD_") || q.question_code?.startsWith("OC3_Q_VD")
+					q.question_code?.includes("_VD_") || q.question_code?.startsWith("OCF_Q_VD")
 				);
 
 				const mapped: Question[] = veDichRaw.map((q: {
@@ -332,7 +329,7 @@ const AVeDichPickQuestion = () => {
 				sendMessage({
 					type: "vd_selection_update",
 					match_code: currentMatchCode,
-					round: isChung ? "chung" : "rieng",
+					round: "rieng",
 					selected_question_codes: [],
 					all_question_codes: allCodes,
 					used_question_codes: usedQuestionCodes,
@@ -366,13 +363,12 @@ const AVeDichPickQuestion = () => {
 			return;
 		}
 
-		if (!isChung && !selectedPlayerCode) {
+		if (!selectedPlayerCode) {
 			setErrorMessage("Vui lòng chọn thí sinh tham gia lượt thi trước");
 			return;
 		}
-		const minimumRequired = isChung ? 2 : requiredCount;
-		if (selectedQuestionCodes.length < minimumRequired || (!isChung && selectedQuestionCodes.length !== requiredCount)) {
-			setErrorMessage(isChung ? "Vui lòng chọn ít nhất 2 câu hỏi" : `Vui lòng chọn đủ ${requiredCount} câu hỏi`);
+		if (selectedQuestionCodes.length !== requiredCount) {
+			setErrorMessage(`Vui lòng chọn đủ ${requiredCount} câu hỏi`);
 			return;
 		}
 
@@ -397,7 +393,7 @@ const AVeDichPickQuestion = () => {
 			const payload = {
 				type: "vd_questions_selected",
 				match_code: currentMatchCode,
-				round: isChung ? "chung" : "rieng",
+				round: "rieng",
 				selected_question_codes: selectedQuestionCodes,
 				all_question_codes: allCodes,
 				question_metadata: selectedQuestionCodes.map((code) => {
@@ -410,38 +406,26 @@ const AVeDichPickQuestion = () => {
 				}),
 				timestamp: Date.now(),
 			};
-			if (!isChung) {
-				(payload as any).selected_player_code = selectedPlayerCode ?? null;
-			}
+			(payload as any).selected_player_code = selectedPlayerCode ?? null;
 			sendMessage(payload);
 			void sendRoundSnapshot();
 
-			const playerPath = isChung ? "/player/vdc" : "/player/vdr";
-			sendMessage({ type: "navigate", user_code: "", path: playerPath });
+			sendMessage({ type: "navigate", user_code: "", path: "/player/vdr" });
 
 			if (currentMatchCode) {
-				const codesKey = isChung
-					? `vd_chung_codes_${currentMatchCode}`
-					: `vd_rieng_codes_${currentMatchCode}`;
-				localStorage.setItem(codesKey, JSON.stringify(selectedQuestionCodes));
-				if (!isChung) {
-					const selKey = `vd_rieng_selected_player_${currentMatchCode}`;
-					localStorage.setItem(selKey, selectedPlayerCode ?? "");
-				}
+				localStorage.setItem(`vd_rieng_codes_${currentMatchCode}`, JSON.stringify(selectedQuestionCodes));
+				localStorage.setItem(`vd_rieng_selected_player_${currentMatchCode}`, selectedPlayerCode ?? "");
 			}
 			setSuccessMessage(`Đã chọn ${requiredCount} câu hỏi. Chuyển đến vòng thi...`);
 
 			setTimeout(() => {
-				const dest = isChung
-					? `/admin/vdc/${currentMatchCode}`
-					: `/admin/vdr/${currentMatchCode}`;
-				navigate(dest);
+				navigate(`/admin/vdr/${currentMatchCode}`);
 			}, 1500);
 		} catch (err) {
 			logger.error("Failed to confirm selection:", err);
 			setErrorMessage("Lỗi khi xác nhận câu hỏi");
 		}
-	}, [selectedQuestionCodes, questions, requiredCount, currentMatchCode, isChung, sendMessage, navigate, selectedPlayerCode, questionCategories, questionPoints, sendRoundSnapshot]);
+	}, [selectedQuestionCodes, questions, requiredCount, currentMatchCode, sendMessage, navigate, selectedPlayerCode, questionCategories, questionPoints, sendRoundSnapshot]);
 
 	const handleResetSelection = useCallback(() => {
 		setSelectedQuestionCodes([]);
@@ -468,7 +452,7 @@ const AVeDichPickQuestion = () => {
 			sendMessage({
 				type: "vd_selection_update",
 				match_code: currentMatchCode,
-				round: isChung ? "chung" : "rieng",
+				round: "rieng",
 				selected_question_codes: selectedQuestionCodes,
 				all_question_codes: questions.map((q) => q.questionCode),
 				silent: true,
@@ -479,13 +463,13 @@ const AVeDichPickQuestion = () => {
 			logger.error("Failed to reset used questions:", err);
 			setErrorMessage("Không thể reset câu hỏi");
 		}
-	}, [currentMatchCode, questions, selectedQuestionCodes, isChung, sendMessage]);
+	}, [currentMatchCode, questions, selectedQuestionCodes, sendMessage]);
 
 	const topControlButtons = (
 		<>
 			<AControlButton
 				onClick={handleConfirmSelection}
-				disabled={selectedQuestionCodes.length < (isChung ? 2 : requiredCount) || requiredCount === 0 || isLoading}
+				disabled={selectedQuestionCodes.length < requiredCount || requiredCount === 0 || isLoading}
 			>
 				<CheckCircle size={20} />
 				<span className="ml-2 font-bold">XÁC NHẬN</span>
@@ -531,7 +515,7 @@ const AVeDichPickQuestion = () => {
 			selectedQuestionCodes={selectedQuestionCodes}
 			onQuestionSelect={toggleQuestionSelection}
 			disabledQuestionCodes={usedQuestionCodes}
-			canSelectQuestions={!isChung ? !!selectedPlayerCode : true}
+			canSelectQuestions={!!selectedPlayerCode}
 			topControlButtons={topControlButtons}
 			bottomActionButtons={bottomActionButtons}
 			statusMessages={statusMessages}
@@ -541,8 +525,8 @@ const AVeDichPickQuestion = () => {
 						key={player.playerCode}
 						player={player}
 						isActive={selectedPlayerCode === player.playerCode}
-						isCurrent={!isChung && selectedPlayerCode === player.playerCode}
-						onClick={isChung ? undefined : () => toggleSelectedPlayer(player.playerCode)}
+						isCurrent={selectedPlayerCode === player.playerCode}
+						onClick={() => toggleSelectedPlayer(player.playerCode)}
 						disabled={false}
 						onEditScore={handleEditScore}
 						token={token}

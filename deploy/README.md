@@ -1,7 +1,7 @@
 # Deploy OLYMPIA CUSTOM to Production
 
 Step-by-step guide to deploy the quiz game on a VPS using **Podman** only.
-The host needs **no other software** — Nginx, Certbot, PostgreSQL, Valkey,
+The host needs **no other software** — Nginx, Certbot, PostgreSQL, Redis,
 and the app all run as containers.
 
 ---
@@ -74,11 +74,11 @@ POSTGRES_DB_HOST=postgresql
 POSTGRES_DB_PORT=5432
 POSTGRES_DB_NAME=olympia_custom
 
-# Valkey
-VALKEY_USER=default
-VALKEY_PASSWORD=<strong-password>
-VALKEY_HOST=valkey
-VALKEY_PORT=6379
+# Redis
+REDIS_USER=default
+REDIS_PASSWORD=<strong-password>
+REDIS_HOST=redis
+REDIS_PORT=6379
 
 # Google Drive
 GOOGLE_DRIVE_SCOPE=https://www.googleapis.com/auth/drive
@@ -138,7 +138,7 @@ This starts **5 containers**:
 | Container | Purpose |
 |-----------|---------|
 | `olympia-postgresql` | Database |
-| `olympia-valkey` | Cache + WebSocket pub/sub |
+| `olympia-redis` | Cache + WebSocket pub/sub |
 | `olympia-app` | FastAPI backend |
 | `olympia-nginx` | Reverse proxy + static files |
 | `olympia-certbot` | Let's Encrypt TLS certificates |

@@ -4,27 +4,27 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from logger import global_logger
-from configs import ValkeySettings
+from configs import RedisSettings
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 BUZZER_WINNER_KEY_PREFIX = "buzzer_winner:"
 
 
-BUZZER_WINNER_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
+BUZZER_WINNER_TTL_SECONDS = RedisSettings().REDIS_STATE_TTL_SECONDS
 
 
 def buzzer_winner_key(match_code: str) -> str:
     return f"{BUZZER_WINNER_KEY_PREFIX}{match_code}"
 
 
-async def get_buzzer_winners(valkey: Valkey, match_code: str) -> dict[str, str]:
-    if not valkey or not match_code:
+async def get_buzzer_winners(redis: Redis, match_code: str) -> dict[str, str]:
+    if not redis or not match_code:
         return {}
     try:
-        raw = await valkey.hgetall(buzzer_winner_key(match_code))
+        raw = await redis.hgetall(buzzer_winner_key(match_code))
     except Exception as exc:
         global_logger.warning(
             f"[buzzer_winners] HGETALL failed for match={match_code!r}: {exc}",
@@ -37,22 +37,22 @@ async def get_buzzer_winners(valkey: Valkey, match_code: str) -> dict[str, str]:
 
 
 async def set_buzzer_winner(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     question_code: str,
     user_code: str,
 ) -> dict[str, str]:
-    if not valkey or not match_code or not question_code or not user_code:
-        return await get_buzzer_winners(valkey, match_code)
+    if not redis or not match_code or not question_code or not user_code:
+        return await get_buzzer_winners(redis, match_code)
 
     key = buzzer_winner_key(match_code)
     try:
 
 
-        await valkey.hsetnx(key, question_code, user_code)
+        await redis.hsetnx(key, question_code, user_code)
 
 
-        await valkey.expire(key, BUZZER_WINNER_TTL_SECONDS)
+        await redis.expire(key, BUZZER_WINNER_TTL_SECONDS)
     except Exception as exc:
         global_logger.warning(
             f"[buzzer_winners] HSETNX/EXPIRE failed for match={match_code!r} "
@@ -60,14 +60,14 @@ async def set_buzzer_winner(
             exc_info=True,
         )
 
-    return await get_buzzer_winners(valkey, match_code)
+    return await get_buzzer_winners(redis, match_code)
 
 
-async def clear_buzzer_winners(valkey: Valkey, match_code: str) -> None:
-    if not valkey or not match_code:
+async def clear_buzzer_winners(redis: Redis, match_code: str) -> None:
+    if not redis or not match_code:
         return
     try:
-        await valkey.delete(buzzer_winner_key(match_code))
+        await redis.delete(buzzer_winner_key(match_code))
         global_logger.debug(
             f"[buzzer_winners] Cleared buzzer winners for match={match_code!r}"
         )

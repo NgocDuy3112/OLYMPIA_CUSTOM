@@ -20,7 +20,7 @@ from routes import (
 )
 from sqlalchemy import text
 from dependencies.postgresql_db import *
-from dependencies.valkey_store import get_valkey
+from dependencies.redis_store import get_redis
 from dependencies.s3_services import init_s3_client, close_s3_client
 from dependencies.ws_manager import get_ws_manager
 from logger import global_logger
@@ -32,20 +32,20 @@ async def lifespan(app: FastAPI):
 
     global_logger.info("Application startup: Database engine initialized")
 
-    valkey = None
-    valkey_listener_task = None
+    redis = None
+    redis_listener_task = None
     manager = await get_ws_manager()
 
     try:
-        valkey = await get_valkey()
-        manager.set_valkey(valkey)
-        global_logger.info("WebSocket Connection Manager initialized with Valkey.")
+        redis = await get_redis()
+        manager.set_redis(redis)
+        global_logger.info("WebSocket Connection Manager initialized with Redis.")
 
         async def relay_buzzer_events():
-            pubsub = valkey.pubsub()
+            pubsub = redis.pubsub()
             try:
                 await pubsub.psubscribe("events:*")
-                global_logger.info("[BUZZ RELAY] Valkey subscriber started")
+                global_logger.info("[BUZZ RELAY] Redis subscriber started")
                 async for message in pubsub.listen():
                     if message.get("type") != "pmessage":
                         continue
@@ -71,12 +71,12 @@ async def lifespan(app: FastAPI):
             finally:
                 await pubsub.close()
 
-        valkey_listener_task = asyncio.create_task(relay_buzzer_events())
+        redis_listener_task = asyncio.create_task(relay_buzzer_events())
     except Exception as e:
         global_logger.error(
-            f"Failed to initialize Valkey connection: {str(e)}. "
+            f"Failed to initialize Redis connection: {str(e)}. "
             f"WebSocket pub/sub features will be unavailable. "
-            f"Please verify VALKEY_HOST, VALKEY_PORT and VALKEY_PASSWORD environment variables.",
+            f"Please verify REDIS_HOST, REDIS_PORT and REDIS_PASSWORD environment variables.",
             exc_info=True
         )
 
@@ -98,10 +98,10 @@ async def lifespan(app: FastAPI):
     global_logger.info("Application Shutdown: Disposing of database engine.")
 
 
-    if valkey_listener_task is not None:
-        valkey_listener_task.cancel()
+    if redis_listener_task is not None:
+        redis_listener_task.cancel()
         try:
-            await valkey_listener_task
+            await redis_listener_task
         except asyncio.CancelledError:
             pass
 
@@ -110,12 +110,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         global_logger.warning(f"Error shutting down ConnectionManager: {e}", exc_info=True)
 
-    if valkey:
+    if redis:
         try:
-            await valkey.close()
-            global_logger.info("Valkey connection pool closed.")
+            await redis.close()
+            global_logger.info("Redis connection pool closed.")
         except Exception as e:
-            global_logger.warning(f"Error closing Valkey connection: {e}", exc_info=True)
+            global_logger.warning(f"Error closing Redis connection: {e}", exc_info=True)
 
 
     await close_s3_client()

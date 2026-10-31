@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 from logger import global_logger
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 TURN_KEY_PREFIX = "vd:turn:"
@@ -21,12 +21,12 @@ def old_turn_key(match_code: str) -> str:
     return f"{OLD_TURN_KEY_PREFIX}{match_code}"
 
 
-async def migrate_turn_key(valkey: Valkey, match_code: str) -> None:
+async def migrate_turn_key(redis: Redis, match_code: str) -> None:
     new_key = turn_key(match_code)
     old_key = old_turn_key(match_code)
-    if await valkey.exists(new_key) or not await valkey.exists(old_key):
+    if await redis.exists(new_key) or not await redis.exists(old_key):
         return
-    await valkey.rename(old_key, new_key)
+    await redis.rename(old_key, new_key)
 
 
 def _decode(value: object) -> str | None:
@@ -40,15 +40,15 @@ def _decode(value: object) -> str | None:
     return str(value)
 
 
-async def set_turn_player(valkey: Valkey, match_code: str, user_code: str | None) -> None:
-    if not valkey or not match_code:
+async def set_turn_player(redis: Redis, match_code: str, user_code: str | None) -> None:
+    if not redis or not match_code:
         return
     if not user_code:
-        await clear_turn_player(valkey, match_code)
+        await clear_turn_player(redis, match_code)
         return
     try:
-        await migrate_turn_key(valkey, match_code)
-        await valkey.set(turn_key(match_code), user_code)
+        await migrate_turn_key(redis, match_code)
+        await redis.set(turn_key(match_code), user_code)
     except Exception as exc:
         global_logger.warning(
             f"[ve_dich_turn] SET failed for match={match_code!r}: {exc}",
@@ -56,12 +56,12 @@ async def set_turn_player(valkey: Valkey, match_code: str, user_code: str | None
         )
 
 
-async def get_turn_player(valkey: Valkey, match_code: str) -> str | None:
-    if not valkey or not match_code:
+async def get_turn_player(redis: Redis, match_code: str) -> str | None:
+    if not redis or not match_code:
         return None
     try:
-        await migrate_turn_key(valkey, match_code)
-        raw = await valkey.get(turn_key(match_code))
+        await migrate_turn_key(redis, match_code)
+        raw = await redis.get(turn_key(match_code))
     except Exception as exc:
         global_logger.warning(
             f"[ve_dich_turn] GET failed for match={match_code!r}: {exc}",
@@ -72,11 +72,11 @@ async def get_turn_player(valkey: Valkey, match_code: str) -> str | None:
     return value or None
 
 
-async def clear_turn_player(valkey: Valkey, match_code: str) -> None:
-    if not valkey or not match_code:
+async def clear_turn_player(redis: Redis, match_code: str) -> None:
+    if not redis or not match_code:
         return
     try:
-        await valkey.delete(turn_key(match_code), old_turn_key(match_code))
+        await redis.delete(turn_key(match_code), old_turn_key(match_code))
     except Exception as exc:
         global_logger.warning(
             f"[ve_dich_turn] DEL failed for match={match_code!r}: {exc}",

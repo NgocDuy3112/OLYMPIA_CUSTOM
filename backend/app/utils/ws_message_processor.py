@@ -109,7 +109,7 @@ def is_allowed_by_role(user_role: str, msg_type: str) -> bool:
     return True
 
 
-KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY"
+KEYWORD_QUESTION_CODE = "OCF_Q_GM_KEY"
 
 
 async def send_initial_snapshot(
@@ -135,7 +135,7 @@ async def send_initial_snapshot(
                 room_data = {}
 
             try:
-                score_resp = await get_scoreboard_for_a_match_from_db(match_code, ws_manager.valkey, session)
+                score_resp = await get_scoreboard_for_a_match_from_db(match_code, ws_manager.redis, session)
                 scoreboard_list = (score_resp.data or {}).get("scoreboard", []) if isinstance(score_resp.data, dict) else []
             except Exception as e:
                 global_logger.warning(f"[SNAPSHOT] scoreboard fetch failed for {match_code!r}: {e}")
@@ -159,7 +159,7 @@ async def send_initial_snapshot(
                 for record in records:
                     code = str(record.get("user_code", ""))
                     points = int(record.get("points", 0) or 0)
-                    if record.get("question_code") == "OC3_Q_ADMIN_ADJUST":
+                    if record.get("question_code") == "OCF_Q_ADMIN_ADJUST":
                         adjustments[code] = adjustments.get(code, 0) + points
                         continue
                     totals[code] = totals.get(code, 0) + points
@@ -228,7 +228,7 @@ async def send_initial_snapshot(
                 global_logger.warning(f"[SNAPSHOT] keyword fetch failed for {match_code!r}: {e}")
 
             try:
-                snapshot_messages = await get_round_snapshot_messages(ws_manager.valkey, match_code) if ws_manager.valkey else []
+                snapshot_messages = await get_round_snapshot_messages(ws_manager.redis, match_code) if ws_manager.redis else []
                 for snapshot_message in snapshot_messages:
                     await websocket.send_json(snapshot_message)
             except Exception as e:
@@ -262,10 +262,10 @@ async def handle_player_reconnect(
     )
 
 
-    if ws_manager.valkey:
+    if ws_manager.redis:
         try:
             submission = await get_player_keyword_submission(
-                ws_manager.valkey, match_code, user_code,
+                ws_manager.redis, match_code, user_code,
             )
             if submission:
                 await ws_manager.broadcast_to_room(match_code, {
@@ -330,7 +330,7 @@ async def _replay_role_state(
 
     if include_powers:
         try:
-            used_powers = await get_used_powers(ws_manager.valkey, match_code) if ws_manager.valkey else {}
+            used_powers = await get_used_powers(ws_manager.redis, match_code) if ws_manager.redis else {}
             if used_powers:
                 await ws_manager.send_to_room_local(match_code, {
                     "type": "vd_powers_used",
@@ -350,7 +350,7 @@ async def _replay_role_state(
 
 
     try:
-        buzzer_winners = await get_buzzer_winners(ws_manager.valkey, match_code) if ws_manager.valkey else {}
+        buzzer_winners = await get_buzzer_winners(ws_manager.redis, match_code) if ws_manager.redis else {}
         if buzzer_winners:
             for question_code, winner_user_code in buzzer_winners.items():
                 await ws_manager.send_to_room_local(match_code, {
@@ -372,7 +372,7 @@ async def _replay_role_state(
 
 
     try:
-        gm_hints = await get_gm_hints(ws_manager.valkey, match_code) if ws_manager.valkey else {}
+        gm_hints = await get_gm_hints(ws_manager.redis, match_code) if ws_manager.redis else {}
         if gm_hints:
             for clue_index_str, hint_payload in gm_hints.items():
 
@@ -418,7 +418,7 @@ async def apply_vedich_turn_player(
     msg_type = data.get("type", "")
 
     if msg_type in ("round_start", "round_end", "clear_question"):
-        await clear_ve_dich_turn_player(ws_manager.valkey, match_code)
+        await clear_ve_dich_turn_player(ws_manager.redis, match_code)
         global_logger.debug(
             f"[VD TURN] VDR turn player cleared on {msg_type!r} "
             f"for match={match_code!r}"
@@ -433,14 +433,14 @@ async def apply_vedich_turn_player(
 
 
     if round_kind == "rieng" and picked and not str(picked).startswith("ADMIN"):
-        await set_turn_player(ws_manager.valkey, match_code, picked)
+        await set_turn_player(ws_manager.redis, match_code, picked)
         global_logger.info(
             f"[VD TURN] VDR turn player set to {picked!r} for match={match_code!r}"
         )
     else:
 
 
-        await clear_ve_dich_turn_player(ws_manager.valkey, match_code)
+        await clear_ve_dich_turn_player(ws_manager.redis, match_code)
         if round_kind == "rieng":
             global_logger.debug(
                 f"[VD TURN] VDR turn player cleared for match={match_code!r} "
@@ -469,7 +469,7 @@ async def apply_vedich_power_gating(
             )
             try:
                 used_powers, changed = await set_used_power(
-                    ws_manager.valkey, match_code, user_code, chosen_power,
+                    ws_manager.redis, match_code, user_code, chosen_power,
                     data.get("question_code"),
                 )
             except Exception as exc:
@@ -502,14 +502,14 @@ async def apply_vedich_power_gating(
 
 
         try:
-            used_powers = await get_used_powers(ws_manager.valkey, match_code)
+            used_powers = await get_used_powers(ws_manager.redis, match_code)
         except Exception as exc:
             global_logger.warning(
                 f"[WS] get_used_powers failed: {exc}", exc_info=True,
             )
             used_powers = {}
 
-        turn_player = await get_turn_player(ws_manager.valkey, match_code)
+        turn_player = await get_turn_player(ws_manager.redis, match_code)
         connected_codes = ws_manager.user_codes_in_room(match_code)
 
 
@@ -547,7 +547,7 @@ async def apply_buzzer_clear(
         return data
 
     try:
-        await clear_buzzer_winners(ws_manager.valkey, match_code)
+        await clear_buzzer_winners(ws_manager.redis, match_code)
         global_logger.debug(
             f"[WS] Cleared buzzer winners for match={match_code!r} on clear_buzz"
         )
@@ -584,7 +584,7 @@ async def apply_gm_hint_store(
 
         try:
             await set_gm_hint(
-                ws_manager.valkey,
+                ws_manager.redis,
                 match_code,
                 clue_index,
                 text=data.get("hint_content") or None,
@@ -611,7 +611,7 @@ async def apply_gm_hint_store(
             return data
 
         try:
-            await clear_gm_hint(ws_manager.valkey, match_code, clue_index)
+            await clear_gm_hint(ws_manager.redis, match_code, clue_index)
         except Exception as exc:
             global_logger.warning(
                 f"[WS] clear_gm_hint failed for match={match_code!r} "
@@ -622,7 +622,7 @@ async def apply_gm_hint_store(
 
     if msg_type in ("clear_question", "round_start"):
         try:
-            await clear_all_gm_hints(ws_manager.valkey, match_code)
+            await clear_all_gm_hints(ws_manager.redis, match_code)
         except Exception as exc:
             global_logger.warning(
                 f"[WS] clear_all_gm_hints failed for match={match_code!r}: {exc}",
@@ -639,10 +639,10 @@ async def apply_gm_admin_state(
     data: dict[str, Any],
 ) -> dict[str, Any]:
     msg_type = data.get("type", "")
-    valkey = ws_manager.valkey
+    redis = ws_manager.redis
 
 
-    if not valkey:
+    if not redis:
         return data
 
     try:
@@ -657,10 +657,10 @@ async def apply_gm_admin_state(
                 idx = None
 
             if idx is not None and 0 <= idx < 8:
-                await set_admin_field(valkey, match_code, "active_clue_index", idx)
+                await set_admin_field(redis, match_code, "active_clue_index", idx)
 
 
-                prev = await get_admin_state(valkey, match_code)
+                prev = await get_admin_state(redis, match_code)
                 prev_states = prev.get("clue_states") or ["idle"] * 8
                 if not isinstance(prev_states, list) or len(prev_states) != 8:
                     prev_states = ["idle"] * 8
@@ -668,16 +668,16 @@ async def apply_gm_admin_state(
                     ("active" if i == idx else ("used" if s == "active" else s))
                     for i, s in enumerate(prev_states)
                 ]
-                await set_admin_field(valkey, match_code, "clue_states", next_states)
+                await set_admin_field(redis, match_code, "clue_states", next_states)
                 if prev_states[idx] == "idle":
                     prev_total = int(prev.get("total_opened_clues_count") or 0)
                     await set_admin_field(
-                        valkey, match_code, "total_opened_clues_count", prev_total + 1
+                        redis, match_code, "total_opened_clues_count", prev_total + 1
                     )
 
 
                 await set_admin_field(
-                    valkey,
+                    redis,
                     match_code,
                     "current_question",
                     {
@@ -687,10 +687,10 @@ async def apply_gm_admin_state(
                     },
                 )
 
-                await set_admin_field(valkey, match_code, "pending_clue_action", True)
-                await set_admin_field(valkey, match_code, "hidden_question_content", False)
-                await set_admin_field(valkey, match_code, "hint_hidden", False)
-                await set_admin_field(valkey, match_code, "shown_hint_content", None)
+                await set_admin_field(redis, match_code, "pending_clue_action", True)
+                await set_admin_field(redis, match_code, "hidden_question_content", False)
+                await set_admin_field(redis, match_code, "hint_hidden", False)
+                await set_admin_field(redis, match_code, "shown_hint_content", None)
             return data
 
         if msg_type == "show_hint":
@@ -701,7 +701,7 @@ async def apply_gm_admin_state(
             if idx is not None and 0 <= idx < 8:
                 hint_content = data.get("hint_content") or ""
                 hint_media = data.get("hint_media_source") or None
-                prev = await get_admin_state(valkey, match_code)
+                prev = await get_admin_state(redis, match_code)
                 prev_hints = prev.get("revealed_hints") or {}
                 if not isinstance(prev_hints, dict):
                     prev_hints = {}
@@ -709,18 +709,18 @@ async def apply_gm_admin_state(
                     "text": hint_content or None,
                     "media_url": hint_media,
                 }
-                await set_admin_field(valkey, match_code, "revealed_hints", prev_hints)
+                await set_admin_field(redis, match_code, "revealed_hints", prev_hints)
                 prev_states = prev.get("clue_states") or ["idle"] * 8
                 if not isinstance(prev_states, list) or len(prev_states) != 8:
                     prev_states = ["idle"] * 8
                 next_states = list(prev_states)
                 if next_states[idx] != "used":
                     next_states[idx] = "used"
-                await set_admin_field(valkey, match_code, "clue_states", next_states)
-                await set_admin_field(valkey, match_code, "hidden_question_content", True)
-                await set_admin_field(valkey, match_code, "pending_clue_action", False)
+                await set_admin_field(redis, match_code, "clue_states", next_states)
+                await set_admin_field(redis, match_code, "hidden_question_content", True)
+                await set_admin_field(redis, match_code, "pending_clue_action", False)
                 await set_admin_field(
-                    valkey, match_code, "shown_hint_content", hint_content or None
+                    redis, match_code, "shown_hint_content", hint_content or None
                 )
             return data
 
@@ -730,25 +730,25 @@ async def apply_gm_admin_state(
             except (TypeError, ValueError):
                 idx = None
             if idx is not None and 0 <= idx < 8:
-                prev = await get_admin_state(valkey, match_code)
+                prev = await get_admin_state(redis, match_code)
                 prev_hints = prev.get("revealed_hints") or {}
                 if isinstance(prev_hints, dict):
                     prev_hints.pop(str(idx), None)
-                await set_admin_field(valkey, match_code, "revealed_hints", prev_hints)
-                await set_admin_field(valkey, match_code, "hidden_question_content", True)
-                await set_admin_field(valkey, match_code, "hint_hidden", True)
+                await set_admin_field(redis, match_code, "revealed_hints", prev_hints)
+                await set_admin_field(redis, match_code, "hidden_question_content", True)
+                await set_admin_field(redis, match_code, "hint_hidden", True)
             return data
 
         if msg_type == "start_the_timer":
-            await set_admin_field(valkey, match_code, "timer", int(data.get("time_limit") or 0))
+            await set_admin_field(redis, match_code, "timer", int(data.get("time_limit") or 0))
             try:
                 await set_admin_field(
-                    valkey, match_code, "timer_started_at", int(data.get("started_at") or 0)
+                    redis, match_code, "timer_started_at", int(data.get("started_at") or 0)
                 )
             except (TypeError, ValueError):
                 pass
             await set_admin_field(
-                valkey,
+                redis,
                 match_code,
                 "is_keyword_timer_running",
                 bool(data.get("phase") == "gm_keyword"),
@@ -756,17 +756,17 @@ async def apply_gm_admin_state(
             return data
 
         if msg_type == "keyword_locked":
-            await set_admin_field(valkey, match_code, "keyword_phase_active", True)
+            await set_admin_field(redis, match_code, "keyword_phase_active", True)
             return data
 
         if msg_type == "keyword_clues_locked":
-            await set_admin_field(valkey, match_code, "keyword_clues_locked", True)
+            await set_admin_field(redis, match_code, "keyword_clues_locked", True)
             return data
 
         if msg_type == "keyword_submit":
             user_code = data.get("user_code")
             if user_code:
-                prev = await get_admin_state(valkey, match_code)
+                prev = await get_admin_state(redis, match_code)
                 prev_subs = prev.get("keyword_submissions") or {}
                 if not isinstance(prev_subs, dict):
                     prev_subs = {}
@@ -774,7 +774,7 @@ async def apply_gm_admin_state(
                     "text": data.get("keyword_text") or "",
                     "cluesOpened": data.get("clues_opened"),
                 }
-                await set_admin_field(valkey, match_code, "keyword_submissions", prev_subs)
+                await set_admin_field(redis, match_code, "keyword_submissions", prev_subs)
             return data
 
         if msg_type == "send_keyword_answers":
@@ -783,26 +783,26 @@ async def apply_gm_admin_state(
                 revealed_codes = sorted(
                     {str(a.get("user_code")) for a in answers if a.get("user_code")}
                 )
-                await set_admin_field(valkey, match_code, "keyword_revealed_codes", revealed_codes)
+                await set_admin_field(redis, match_code, "keyword_revealed_codes", revealed_codes)
             return data
 
         if msg_type == "reveal_keyword_answer":
-            await set_admin_field(valkey, match_code, "keyword_answer_revealed", True)
-            await set_admin_field(valkey, match_code, "keyword_answer", data.get("answer"))
-            await set_admin_field(valkey, match_code, "keyword_banner", data.get("keyword_banner"))
+            await set_admin_field(redis, match_code, "keyword_answer_revealed", True)
+            await set_admin_field(redis, match_code, "keyword_answer", data.get("answer"))
+            await set_admin_field(redis, match_code, "keyword_banner", data.get("keyword_banner"))
             return data
 
         if msg_type == "send_keyword_info":
             banner = data.get("banner")
             if banner:
-                await set_admin_field(valkey, match_code, "keyword_banner", banner)
+                await set_admin_field(redis, match_code, "keyword_banner", banner)
             return data
 
         if msg_type in ("round_start", "clear_question"):
 
 
             try:
-                await clear_admin_state(valkey, match_code)
+                await clear_admin_state(redis, match_code)
             except Exception as exc:
                 global_logger.warning(
                     f"[WS] clear_admin_state failed for match={match_code!r}: {exc}",
@@ -826,9 +826,9 @@ async def apply_gm_player_state(
     data: dict[str, Any],
 ) -> dict[str, Any]:
     msg_type = data.get("type", "")
-    valkey = ws_manager.valkey
+    redis = ws_manager.redis
 
-    if not valkey:
+    if not redis:
         return data
 
     try:
@@ -845,7 +845,7 @@ async def apply_gm_player_state(
             except (TypeError, ValueError):
                 clues_opened_int = None
             await set_player_keyword_submission(
-                valkey,
+                redis,
                 match_code,
                 str(user_code),
                 keyword_text=str(data.get("keyword_text") or ""),
@@ -856,7 +856,7 @@ async def apply_gm_player_state(
 
         if msg_type in ("round_start", "clear_question"):
             try:
-                await clear_all_player_submissions(valkey, match_code)
+                await clear_all_player_submissions(redis, match_code)
             except Exception as exc:
                 global_logger.warning(
                     f"[WS] clear_all_player_submissions failed for match={match_code!r}: {exc}",

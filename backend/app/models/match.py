@@ -23,7 +23,7 @@ class Match(Base):
     __table_args__ = (
         CheckConstraint(
             f"match_code LIKE '{_MATCH_PATTERN}%'",
-            name='check_match_code_starts_with_season_prefix',
+            name='check_match_code_starts_with_OCF_M',
         ),
     )
 
