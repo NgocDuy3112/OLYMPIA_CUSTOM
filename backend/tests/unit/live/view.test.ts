@@ -322,13 +322,14 @@ describe("player view — ve-dich board (G3)", () => {
     const POOL = [VQ("THTH", 50), VQ("THTH", 40), VQ("TNTT", 30), VQ("XHPL", 20)];
     const P = (id: string): PlayerState => ({ id, score: 0, powersLeft: ["HOPE", "SHIELD"] });
 
-    it("lists every free cell with its domain and value", () => {
+    it("lists only the 20/30 cells while Chung runs — 40/50 wait for the summit", () => {
         const state = createVeDich(POOL, [P("p0"), P("p1")]);
         const view = buildPlayerView(base({ roundId: "ve-dich", state, userId: "p0" }));
 
-        expect(view.board).toHaveLength(4);
-        expect(view.board?.every((cell) => cell.where === "free")).toBe(true);
-        expect(view.board).toContainEqual({ questionId: "THTH-50", domain: "THTH", value: 50, where: "free" });
+        expect(view.board).toHaveLength(2);                       // TNTT-30 + XHPL-20
+        expect(view.board?.every((cell) => cell.value === 20 || cell.value === 30)).toBe(true);
+        expect(view.board).toContainEqual({ questionId: "TNTT-30", domain: "TNTT", value: 30, where: "free" });
+        expect(view.board?.some((cell) => cell.value >= 40)).toBe(false);
     });
 
     it("marks the open question and this turn's picks, each cell exactly once", () => {
@@ -344,6 +345,8 @@ describe("player view — ve-dich board (G3)", () => {
         expect(new Set(cellIds).size).toBe(cellIds.length);     // no duplicates
         expect(view.board?.find((cell) => cell.where === "open")?.questionId).toBe(ids[0]);
         expect(view.board?.some((cell) => cell.where === "free")).toBe(true);
+        // the deferred 40/50s joined the pool when phase 2 began
+        expect(cellIds).toContain("THTH-50");
     });
 });
 

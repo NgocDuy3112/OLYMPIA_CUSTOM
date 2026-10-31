@@ -44,7 +44,12 @@ function phase1Done(): VeDichState {
 
 function phase2Open(playerId: string, questionId: string): VeDichState {
     let s = beginPhase2(phase1Done());
-    const ids = s.remaining.slice(0, 3).map((q) => q.id);
+    // The batch must contain the question this test opens — the pool is
+    // partitioned now (Chung leftovers + deferred 40/50), so slice(0,3)
+    // alone no longer guarantees the target.
+    const target = s.remaining.find((q) => q.id === questionId);
+    const others = s.remaining.filter((q) => q.id !== questionId).slice(0, 2);
+    const ids = (target ? [target, ...others] : s.remaining.slice(0, 3)).map((q) => q.id);
     s = pickPhase2(s, playerId, ids);
     return openPhase2Question(s, questionId);
 }
@@ -75,10 +80,10 @@ describe("ve-dich start", () => {
 describe("ve-dich picks", () => {
     it("a phase-1 pick records a PICK event and opens the question", () => {
         const s = started();
-        const res = applyVeDichAction(s, { kind: "ve-dich.pick", playerId: "p0", questionId: "THTH-50" }, ctx());
-        expect(res.state.open?.question.id).toBe("THTH-50");
+        const res = applyVeDichAction(s, { kind: "ve-dich.pick", playerId: "p0", questionId: "THTH-30" }, ctx());
+        expect(res.state.open?.question.id).toBe("THTH-30");
         expect(res.facts[0]).toMatchObject({
-            type: "event", questionId: "THTH-50", userId: "p0", kind: "PICK",
+            type: "event", questionId: "THTH-30", userId: "p0", kind: "PICK",
             payload: { kind: "PICK", turnId: "phase-1", pickOrder: 1 }
         });
     });
@@ -134,29 +139,29 @@ describe("ve-dich powers and buzz", () => {
 describe("ve-dich resolve", () => {
     it("phase 1, typed: finalizes the player's draft and scores by face value", () => {
         let s = started();
-        s = pickPhase1(s, "p0", "THTH-50");
+        s = pickPhase1(s, "p0", "THTH-30");   // Chung's table: only 20/30s
         const res = applyVeDichAction(s, { kind: "ve-dich.resolve", answerer: true },
             ctx({ drafts: [draft("p0")] }));
         expect(res.facts[0]).toEqual({
-            type: "judge", questionId: "THTH-50", userId: "p0", verdict: "CORRECT", pointsAwarded: 50
+            type: "judge", questionId: "THTH-30", userId: "p0", verdict: "CORRECT", pointsAwarded: 30
         });
-        expect(res.state.players.find((p) => p.id === "p0")!.score).toBe(50);
+        expect(res.state.players.find((p) => p.id === "p0")!.score).toBe(30);
     });
 
     it("phase 1, wrong with a HOPE: -100% and the points are recorded", () => {
         let s = started();
-        s = pickPhase1(s, "p0", "THTH-50");
+        s = pickPhase1(s, "p0", "THTH-30");
         s = applyVeDichAction(s, { kind: "ve-dich.declarePower", playerId: "p0", power: "HOPE" }, ctx()).state;
         const res = applyVeDichAction(s, { kind: "ve-dich.resolve", answerer: false }, ctx({ drafts: [draft("p0")] }));
-        expect(res.facts[0]).toMatchObject({ type: "judge", pointsAwarded: -50 });
+        expect(res.facts[0]).toMatchObject({ type: "judge", pointsAwarded: -30 });
     });
 
     it("phase 1, never submitted: the verdict still scores, as an operator row", () => {
         let s = started();
-        s = pickPhase1(s, "p0", "THTH-50");
+        s = pickPhase1(s, "p0", "THTH-30");
         const res = applyVeDichAction(s, { kind: "ve-dich.resolve", answerer: false }, ctx({ drafts: [] }));
         expect(res.facts[0]).toMatchObject({
-            type: "answer", userId: "p0", value: { oral: true }, verdict: "INCORRECT", pointsAwarded: -25
+            type: "answer", userId: "p0", value: { oral: true }, verdict: "INCORRECT", pointsAwarded: -15
         });
     });
 

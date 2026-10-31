@@ -73,19 +73,19 @@ describe("turn order", () => {
 describe("Phase 1 picks", () => {
     it("the current player takes the highest-value question", () => {
         const state = createVeDich(POOL, [player("a", 0), player("b", 0)]);
-        const next = pickPhase1(state, "a", "THTH-50");
-        expect(next.open?.question.id).toBe("THTH-50");
-        expect(next.remaining.find((q) => q.id === "THTH-50")).toBeUndefined();
+        const next = pickPhase1(state, "a", "THTH-30");
+        expect(next.open?.question.id).toBe("THTH-30");
+        expect(next.remaining.find((q) => q.id === "THTH-30")).toBeUndefined();
     });
 
     it("rejects a lower-value question while a higher one is still unchosen", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        expect(codeOf(() => pickPhase1(state, "a", "THTH-30"))).toBe("NOT_HIGHEST");
+        expect(codeOf(() => pickPhase1(state, "a", "THTH-20"))).toBe("NOT_HIGHEST");
     });
 
     it("allows any of several tied top-value questions", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        expect(codeOf(() => pickPhase1(state, "a", "TNSS-50"))).toBe("NO_ERROR");
+        expect(codeOf(() => pickPhase1(state, "a", "TNSS-30"))).toBe("NO_ERROR");
     });
 
     it("rejects a pick from a player whose turn it is not", () => {
@@ -99,59 +99,85 @@ describe("Phase 1 picks", () => {
     });
 });
 
+describe("Chung is a 20/30 table — the partition rule", () => {
+    it("phase 1 offers only 20s and 30s; 40/50 wait in deferred", () => {
+        const state = createVeDich(POOL, [player("a", 0)]);
+        expect(state.remaining.map((q) => q.value).sort((x, y) => x - y)).toEqual([20, 20, 30, 30]);
+        expect(state.deferred?.map((q) => q.value).sort((x, y) => x - y)).toEqual([40, 40, 50, 50]);
+    });
+
+    it("a 40/50 cell can never open in phase 1 — not even by id", () => {
+        const state = createVeDich(POOL, [player("a", 0)]);
+        expect(codeOf(() => pickPhase1(state, "a", "THTH-50"))).toBe("INVALID_QUESTION");
+        expect(codeOf(() => pickPhase1(state, "a", "THTH-40"))).toBe("INVALID_QUESTION");
+    });
+
+    it("the summit pool = deferred 40/50 PLUS every unplayed 20/30", () => {
+        const state = beginPhase2(createVeDich(POOL, [player("a", 0)]));
+        expect(state.remaining).toHaveLength(POOL.length);
+        expect(state.remaining.map((q) => q.value).sort((x, y) => x - y))
+            .toEqual([20, 20, 30, 30, 40, 40, 50, 50]);
+        expect(state.deferred).toEqual([]);
+    });
+});
+
 describe("Phase 1 scoring", () => {
     it("correct on a 30-pt question: +30", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        const opened = pickPhase1(state, "a", "THTH-50");
+        const opened = pickPhase1(state, "a", "THTH-30");
         const after = resolveQuestion(opened, { answerer: true });
-        expect(after.players[0].score).toBe(50);
+        expect(after.players[0].score).toBe(30);
     });
 
     it("wrong on a 30-pt question: −15", () => {
         const state = createVeDich(POOL, [player("a", 0)]);
-        const opened = pickPhase1(state, "a", "THTH-50");
+        const opened = pickPhase1(state, "a", "THTH-30");
         const after = resolveQuestion(opened, { answerer: false });
-        expect(after.players[0].score).toBe(-25);
+        expect(after.players[0].score).toBe(-15);
     });
 });
 
 describe("powers", () => {
     it("declared at open, spent, cannot be reused", () => {
         const base = createVeDich(POOL, [player("a", 0)]);
-        const opened = pickPhase1(base, "a", "THTH-50");
+        const opened = pickPhase1(base, "a", "THTH-30");
         const withHope = declarePower(opened, "a", "HOPE");
         expect(withHope.open?.power).toBe("HOPE");
         expect(withHope.players[0].powersLeft).toEqual(["SHIELD"]);
     });
 
     it("HOPE on a 40-pt question, correct → +60 (worked example)", () => {
-        const base = createVeDich(POOL, [player("a", 0)]);
-        const opened = declarePower(pickPhase1(base, "a", "THTH-50"), "a", "HOPE");
-        const after = resolveQuestion(opened, { answerer: true });
-        expect(after.players[0].score).toBe(75);
+        // 40/50 cells live in the summit now — open one through the REAL phase 2
+        // (untouched phase 1 may skip straight there).
+        let s = beginPhase2(createVeDich(POOL, [player("a", 0)]));
+        s = pickPhase2(s, "a", ["THTH-40", "THTH-50", "THTH-30"]);
+        s = declarePower(openPhase2Question(s, "THTH-40"), "a", "HOPE");
+        s = closeCurrentAnswer(s, NOW);   // phase 2 resolves through the window
+        const after = resolveQuestion(s, { answerer: true });
+        expect(after.players[0].score).toBe(60);
     });
 
     it("cannot declare the same power twice across questions", () => {
         const base = createVeDich(POOL, [player("a", 0)]);
         const first = resolveQuestion(
-            declarePower(pickPhase1(base, "a", "THTH-50"), "a", "HOPE"),
+            declarePower(pickPhase1(base, "a", "THTH-30"), "a", "HOPE"),
             { answerer: false }
         );
-        const second = pickPhase1(first, "a", "TNSS-50");
+        const second = pickPhase1(first, "a", "TNSS-30");
         expect(codeOf(() => declarePower(second, "a", "HOPE"))).toBe("POWER_UNAVAILABLE");
     });
 
     it("both powers may be used in the same phase on different questions", () => {
         let state = createVeDich(POOL, [player("a", 0)]);
-        state = resolveQuestion(declarePower(pickPhase1(state, "a", "THTH-50"), "a", "HOPE"), { answerer: true });
-        state = resolveQuestion(declarePower(pickPhase1(state, "a", "TNSS-50"), "a", "SHIELD"), { answerer: true });
+        state = resolveQuestion(declarePower(pickPhase1(state, "a", "THTH-30"), "a", "HOPE"), { answerer: true });
+        state = resolveQuestion(declarePower(pickPhase1(state, "a", "TNSS-30"), "a", "SHIELD"), { answerer: true });
         expect(state.players[0].powersLeft).toEqual([]);
     });
 
     it("a declared power counts as spent even if the question is wrong (SHIELD: no penalty)", () => {
         const base = createVeDich(POOL, [player("a", 0)]);
         const after = resolveQuestion(
-            declarePower(pickPhase1(base, "a", "THTH-50"), "a", "SHIELD"),
+            declarePower(pickPhase1(base, "a", "THTH-30"), "a", "SHIELD"),
             { answerer: false }
         );
         expect(after.players[0].score).toBe(0);
@@ -160,7 +186,7 @@ describe("powers", () => {
 
     it("only the current player may declare, and only at open", () => {
         const base = createVeDich(POOL, [player("a", 0), player("b", 0)]);
-        const opened = pickPhase1(base, "a", "THTH-50");
+        const opened = pickPhase1(base, "a", "THTH-30");
         expect(codeOf(() => declarePower(opened, "b", "HOPE"))).toBe("NOT_YOUR_TURN");
     });
 
@@ -175,8 +201,9 @@ describe("Phase 2 flow", () => {
     const players = [player("a", 40), player("b", 90), player("c", 10)];
 
     function phase2State() {
-        const phase1Done = { ...createVeDich(POOL, players), phase: 2 as const };
-        return { ...phase1Done, players: orderForPhase(players, 2), turnIndex: 0 };
+        // The REAL transition: phase, lowest-first order, turn reset AND the
+        // pool merge (deferred 40/50 join the unplayed 20/30s).
+        return beginPhase2(createVeDich(POOL, players));
     }
 
     it("the current player picks exactly 3 distinct questions", () => {
@@ -334,7 +361,7 @@ describe("phase transitions", () => {
 
     it("endVeDich sets the round ended and clears the open question", () => {
         let s = createVeDich(POOL, [player("a", 0)]);
-        s = pickPhase1(s, "a", "THTH-50");
+        s = pickPhase1(s, "a", "THTH-30");
         const ended = endVeDich(s);
         expect(ended.ended).toBe(true);
         expect(ended.open).toBeNull();
@@ -345,8 +372,7 @@ describe("the 5 s buzz window", () => {
     const players = [player("a", 40), player("b", 90), player("c", 10)];
 
     function buzzing() {
-        let s: VeDichState = { ...createVeDich(POOL, players), phase: 2 as const };
-        s = { ...s, players: orderForPhase(players, 2), turnIndex: 0 };
+        let s: VeDichState = beginPhase2(createVeDich(POOL, players));
         s = pickPhase2(s, "c", ["THTH-50", "THTH-40", "THTH-30"]);
         s = openPhase2Question(s, "THTH-50");
         return closeCurrentAnswer(s, NOW);
@@ -354,7 +380,7 @@ describe("the 5 s buzz window", () => {
 
     it("is closed before the current answer is closed", () => {
         expect(isBuzzOpen(openPhase2Question(
-            pickPhase2({ ...createVeDich(POOL, players), phase: 2 as const, players: orderForPhase(players, 2) },
+            pickPhase2(beginPhase2(createVeDich(POOL, players)),
                 "c", ["THTH-50", "THTH-40", "THTH-30"]),
             "THTH-50"
         ), NOW)).toBe(false);

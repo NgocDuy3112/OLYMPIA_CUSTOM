@@ -124,12 +124,13 @@ async function score(playerId: string): Promise<number> {
 }
 
 describe("ve-dich — start", () => {
-    it("builds the 24-question grid and both powers per player", async () => {
+    it("builds the grid: 12 cells for Chung, 12 deferred for the summit", async () => {
         const res = await act({ kind: "ve-dich.start" });
         expect(res.statusCode).toBe(200);
         const state = res.json().state;
         expect(state.phase).toBe(1);
-        expect(state.remaining).toHaveLength(24);
+        expect(state.remaining).toHaveLength(12);   // Chung: the 20s and 30s only
+        expect(state.deferred).toHaveLength(12);    // the 40s and 50s wait
         expect(state.players.map((p: { id: string }) => p.id)).toEqual(playerIds);
         expect(state.players.every((p: { powersLeft: string[] }) => p.powersLeft.length === 2)).toBe(true);
     });
@@ -142,41 +143,41 @@ describe("ve-dich — phase 1 (typed, one pick each)", () => {
     });
 
     it("player 0 picks, answers, and the controller finalizes it", async () => {
-        const picked = await command(playerCookies[0], { type: "pick", questionId: qid.get("THTH-50") });
+        const picked = await command(playerCookies[0], { type: "pick", questionId: qid.get("THTH-30") });
         expect(picked.statusCode).toBe(200);
         expect(picked.json()).toEqual({ applied: "pick" });
 
-        const drafted = await answer(playerCookies[0], qid.get("THTH-50")!, "x");
+        const drafted = await answer(playerCookies[0], qid.get("THTH-30")!, "x");
         expect(drafted.statusCode).toBe(200);
         expect(drafted.json()).toMatchObject({ drafted: true, suggested: "CORRECT" });
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: true });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[0])).toBe(50);
+        expect(await score(playerIds[0])).toBe(30);
 
         const [row] = await db.select().from(answers).where(and(
             eq(answers.matchId, matchId),
-            eq(answers.questionId, qid.get("THTH-50")!),
+            eq(answers.questionId, qid.get("THTH-30")!),
             eq(answers.userId, playerIds[0])
         ));
-        expect(row).toMatchObject({ judged: true, verdict: "CORRECT", pointsAwarded: 50 });
+        expect(row).toMatchObject({ judged: true, verdict: "CORRECT", pointsAwarded: 30 });
     });
 
     it("player 1 picks, never answers, and is still scored for it", async () => {
         expect((await act({ kind: "ve-dich.advanceTurn" })).statusCode).toBe(200);
-        expect((await command(playerCookies[1], { type: "pick", questionId: qid.get("TNSS-50") })).statusCode).toBe(200);
+        expect((await command(playerCookies[1], { type: "pick", questionId: qid.get("TNSS-30") })).statusCode).toBe(200);
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-25);      // -50% of 50
+        expect(await score(playerIds[1])).toBe(-15);      // -50% of 30
 
         const [row] = await db.select().from(answers).where(and(
             eq(answers.matchId, matchId),
-            eq(answers.questionId, qid.get("TNSS-50")!),
+            eq(answers.questionId, qid.get("TNSS-30")!),
             eq(answers.userId, playerIds[1])
         ));
         // no typed answer: the verdict is recorded as an operator row, not a judge of a draft
-        expect(row).toMatchObject({ judged: true, verdict: "INCORRECT", pointsAwarded: -25, autoMatched: false });
+        expect(row).toMatchObject({ judged: true, verdict: "INCORRECT", pointsAwarded: -15, autoMatched: false });
     });
 
     it("records a PICK event per pick", async () => {
@@ -220,8 +221,8 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false, buzzer: true });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-45);       // -25 - 20
-        expect(await score(playerIds[0])).toBe(90);        //  50 + 40
+        expect(await score(playerIds[1])).toBe(-35);       // -15 - 20
+        expect(await score(playerIds[0])).toBe(70);        //  30 + 40
     });
 
     it("a buzzer who buzzes twice, or a non-buzzer, is rejected", async () => {
@@ -237,7 +238,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-85);       // -45 - 40
+        expect(await score(playerIds[1])).toBe(-75);       // -35 - 40
     });
 
     it("SHIELD (wrong) costs nothing — and a second power is allowed in the same round", async () => {
@@ -248,7 +249,7 @@ describe("ve-dich — phase 2 (oral, buzz, powers)", () => {
 
         const resolved = await act({ kind: "ve-dich.resolve", answerer: false });
         expect(resolved.statusCode).toBe(200);
-        expect(await score(playerIds[1])).toBe(-85);       // unchanged: SHIELD absorbs it
+        expect(await score(playerIds[1])).toBe(-75);       // unchanged: SHIELD absorbs it
 
         // Both powers inserted for the same player in one round: this is what migration
         // 0006 fixed (the old index allowed one power per round).
@@ -277,9 +278,9 @@ describe("ve-dich — round end and results", () => {
         const p0 = row.results.find((r) => r.userId === playerIds[0])!;
         const p1 = row.results.find((r) => r.userId === playerIds[1])!;
 
-        expect(p0).toMatchObject({ totalScore: 90, rank: 1 });
-        expect(p1).toMatchObject({ totalScore: -85, rank: 2 });
-        expect(p1.roundScores).toEqual({ "ve-dich": -85 });
+        expect(p0).toMatchObject({ totalScore: 70, rank: 1 });
+        expect(p1).toMatchObject({ totalScore: -75, rank: 2 });
+        expect(p1.roundScores).toEqual({ "ve-dich": -75 });
 
         const stats = await db.select().from(matchStats).where(eq(matchStats.matchId, matchId));
         expect(stats).toHaveLength(6);      // 2 in phase 1 + 2 (answerer + buzzer) + 1 + 1

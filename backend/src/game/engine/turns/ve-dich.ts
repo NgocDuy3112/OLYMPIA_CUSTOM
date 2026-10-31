@@ -26,7 +26,12 @@ export interface VeDichState {
     rules: VeDichRules;
     phase: Phase;
     players: PlayerState[];
+    /** What can still be picked RIGHT NOW: phase 1 holds only the 20/30 cells. */
     remaining: VeDichQuestion[];
+    /** The 40/50 cells, held back from Chung — merged into `remaining` at
+     *  phase 2 together with the unplayed 20/30s (the summit's full pool).
+     *  Optional: states stored before this rule lack it (read as none). */
+    deferred?: VeDichQuestion[];
     turnIndex: number;
     pendingPicks: VeDichQuestion[];
     open: OpenQuestion | null;
@@ -67,11 +72,15 @@ export function createVeDich(
     players: PlayerState[],
     rules: VeDichRules = VE_DICH_DEFAULTS
 ): VeDichState {
+    // Chung plays the 20s and 30s ONLY; the 40s and 50s wait for the summit
+    // and join it together with whatever 20/30 cells Chung never reached.
+    const isChung = (q: VeDichQuestion) => q.value === 20 || q.value === 30;
     return {
         rules,
         phase: 1,
         players: orderForPhase(players, 1),
-        remaining: [...questions],
+        remaining: questions.filter(isChung),
+        deferred: questions.filter((q) => !isChung(q)),
         turnIndex: 0,
         pendingPicks: [],
         open: null,
@@ -105,6 +114,11 @@ export function beginPhase2(state: VeDichState): VeDichState {
     return {
         ...state,
         phase: 2,
+        // The summit's pool = every cell Chung didn't play (20/30 leftovers)
+        // PLUS the deferred 40/50s. `?? []` carries pre-rule archives, which
+        // stored no deferred list (their remaining already held everything).
+        remaining: [...state.remaining, ...(state.deferred ?? [])],
+        deferred: [],
         players: orderForPhase(state.players, 2),
         turnIndex: 0,
         pendingPicks: [],
@@ -147,6 +161,11 @@ export function pickPhase1(
 
     const question = state.remaining.find((q) => q.id === questionId);
     if (!question) fail("INVALID_QUESTION", `question ${questionId} is not available`);
+    // Chung is a 20/30 table by rule — guards pre-rule archived states too,
+    // where remaining may still list the big cells.
+    if (question.value !== 20 && question.value !== 30) {
+        fail("INVALID_QUESTION", "phase 1 only plays 20- and 30-point questions");
+    }
     if (question.value !== maxRemainingValue(state.remaining)) {
         fail("NOT_HIGHEST", "Phase 1 picks must be a highest-value remaining question");
     }

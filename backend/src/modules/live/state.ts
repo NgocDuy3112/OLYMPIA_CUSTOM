@@ -143,6 +143,9 @@ export const VeDichStateSchema = Type.Object({
     phase: Type.Union([Type.Literal(1), Type.Literal(2)]),
     players: Type.Array(VeDichPlayerSchema),
     remaining: Type.Array(VeDichQuestionSchema),
+    // The 40/50s held back from Chung. Optional: archives written before the
+    // rule don't carry it — they must still parse (their remaining held all).
+    deferred: Type.Optional(Type.Array(VeDichQuestionSchema)),
     turnIndex: Type.Integer({ minimum: 0 }),
     pendingPicks: Type.Array(VeDichQuestionSchema),
     open: Type.Union([VeDichOpenSchema, Type.Null()]),
