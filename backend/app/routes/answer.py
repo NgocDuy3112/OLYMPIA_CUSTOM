@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Annotated
 
 from dependencies.postgresql_db import get_db
-from dependencies.valkey_store import get_valkey
+from dependencies.redis_store import get_redis
 from dependencies.user_auth import require_roles
 from models.answer import *
 from schemas.answer import *
@@ -21,10 +21,10 @@ router = APIRouter(prefix='/answers', tags=['Câu trả lời'])
 async def post_answer(
     request: AnswerPostRequest,
     session: Annotated[AsyncSession, Depends(get_db)],
-    valkey: Annotated[Valkey, Depends(get_valkey)],
+    redis: Annotated[Redis, Depends(get_redis)],
 ) -> BaseResponse:
     try:
-        return await post_answer_to_db(request, session, valkey)
+        return await post_answer_to_db(request, session, redis)
     except HTTPException:
         raise
     except ValueError as e:
@@ -62,14 +62,14 @@ async def delete_answer(
     status_code=200
 )
 async def get_answer(
-    match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OC3_M'")],
+    match_code: Annotated[str, Query(..., description="Mã trận đấu, phải bắt đầu với 'OCF_M'")],
     user_code: Annotated[str | None, Query(description="Mã người chơi. Nếu bỏ qua, trả về tất cả answer trong match (hoặc theo question_code).")] = None,
     question_code: Annotated[str | None, Query(description="Mã câu hỏi. Nếu bỏ qua, trả về tất cả answer của player trong match.")] = None,
     session: Annotated[AsyncSession, Depends(get_db)] = None,
-    valkey: Annotated[Valkey, Depends(get_valkey)] = None,
+    redis: Annotated[Redis, Depends(get_redis)] = None,
 ) -> BaseResponse:
     try:
-        return await get_answer_from_db(match_code, user_code, question_code, session, valkey)
+        return await get_answer_from_db(match_code, user_code, question_code, session, redis)
     except HTTPException:
         raise
     except ValueError as e:

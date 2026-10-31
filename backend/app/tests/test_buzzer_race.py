@@ -20,11 +20,11 @@ _fastapi.WebSocketDisconnect = type("WebSocketDisconnect", (Exception,), {})
 _fastapi.HTTPException = _HTTPException
 sys.modules.setdefault("fastapi", _fastapi)
 
-_valkey_mod = types.ModuleType("valkey")
-_valkey_asyncio = types.ModuleType("valkey.asyncio")
-_valkey_asyncio.Valkey = type("Valkey", (), {})
-sys.modules.setdefault("valkey", _valkey_mod)
-sys.modules.setdefault("valkey.asyncio", _valkey_asyncio)
+_redis_mod = types.ModuleType("redis")
+_redis_asyncio = types.ModuleType("redis.asyncio")
+_redis_asyncio.Redis = type("Redis", (), {})
+sys.modules.setdefault("redis", _redis_mod)
+sys.modules.setdefault("redis.asyncio", _redis_asyncio)
 
 _jwt = types.ModuleType("jwt")
 _jwt.PyJWTError = type("PyJWTError", (Exception,), {})
@@ -49,11 +49,11 @@ _fastapi.WebSocket = type("WebSocket", (), {})
 _fastapi.WebSocketDisconnect = type("WebSocketDisconnect", (Exception,), {})
 sys.modules.setdefault("fastapi", _fastapi)
 
-_valkey_mod = types.ModuleType("valkey")
-_valkey_asyncio = types.ModuleType("valkey.asyncio")
-_valkey_asyncio.Valkey = type("Valkey", (), {})
-sys.modules.setdefault("valkey", _valkey_mod)
-sys.modules.setdefault("valkey.asyncio", _valkey_asyncio)
+_redis_mod = types.ModuleType("redis")
+_redis_asyncio = types.ModuleType("redis.asyncio")
+_redis_asyncio.Redis = type("Redis", (), {})
+sys.modules.setdefault("redis", _redis_mod)
+sys.modules.setdefault("redis.asyncio", _redis_asyncio)
 
 _jwt = types.ModuleType("jwt")
 _jwt.PyJWTError = type("PyJWTError", (Exception,), {})
@@ -91,7 +91,7 @@ class _FakeScalarResult:
         return _FakeResult(self._value)
 
 
-class _FakeValkey:
+class _FakeRedis:
 
     def __init__(self) -> None:
         self.store: dict[str, str] = {}
@@ -190,9 +190,9 @@ class _FakeSession:
         return None
 
 
-def _build_request(user_code: str, question_code: str = "OC3_Q_VD_TTTK_20") -> Any:
+def _build_request(user_code: str, question_code: str = "OCF_Q_VD_TTTK_20") -> Any:
     return types.SimpleNamespace(
-        match_code="OC3_M12",
+        match_code="OCF_M12",
         user_code=user_code,
         question_code=question_code,
         answer_text="x",
@@ -207,7 +207,7 @@ async def _run_two_consecutive_buzzes() -> tuple[str, str]:
     from core.answer import post_answer_to_db
     from fastapi import HTTPException
 
-    valkey = _FakeValkey()
+    redis = _FakeRedis()
     session_A = _FakeSession()
     session_A._set_player(session_A.player_id)
     session_B = _FakeSession()
@@ -216,18 +216,18 @@ async def _run_two_consecutive_buzzes() -> tuple[str, str]:
 
     first_status = "unknown"
     try:
-        await post_answer_to_db(_build_request("OC_U_3004"), session_A, valkey)
+        await post_answer_to_db(_build_request("OCF_U_3004"), session_A, redis)
         first_status = "201"
     except HTTPException as exc:
         first_status = f"{exc.status_code}"
 
 
-    lock_still_held = bool(any(k.startswith("buzzer_lock:") for k in valkey.store))
+    lock_still_held = bool(any(k.startswith("buzzer_lock:") for k in redis.store))
 
 
     second_status = "unknown"
     try:
-        await post_answer_to_db(_build_request("OC_U_3005"), session_B, valkey)
+        await post_answer_to_db(_build_request("OCF_U_3005"), session_B, redis)
         second_status = "201"
     except HTTPException as exc:
         second_status = f"{exc.status_code}"
@@ -235,7 +235,7 @@ async def _run_two_consecutive_buzzes() -> tuple[str, str]:
 
     winner_count = sum(
         1
-        for _channel, payload in valkey.publish_log
+        for _channel, payload in redis.publish_log
         if '"buzzer_winner"' in payload
     )
 
@@ -265,7 +265,7 @@ def test_prod_buzzer_race_single_winner_event():
     assert second == "409", "second buzz must be 409"
 
 
-    valkey = _FakeValkey()
+    redis = _FakeRedis()
     session_A = _FakeSession()
     session_A._set_player(session_A.player_id)
     session_B = _FakeSession()
@@ -276,17 +276,17 @@ def test_prod_buzzer_race_single_winner_event():
 
     async def _both() -> None:
         try:
-            await post_answer_to_db(_build_request("OC_U_3004"), session_A, valkey)
+            await post_answer_to_db(_build_request("OCF_U_3004"), session_A, redis)
         except HTTPException:
             pass
         try:
-            await post_answer_to_db(_build_request("OC_U_3005"), session_B, valkey)
+            await post_answer_to_db(_build_request("OCF_U_3005"), session_B, redis)
         except HTTPException:
             pass
 
     asyncio.run(_both())
     winner_publishes = sum(
-        1 for _ch, p in valkey.publish_log if '"buzzer_winner"' in p
+        1 for _ch, p in redis.publish_log if '"buzzer_winner"' in p
     )
     assert winner_publishes == 1, (
         f"exactly one buzzer_winner event must be published for a "

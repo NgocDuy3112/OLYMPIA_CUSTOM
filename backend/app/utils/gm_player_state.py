@@ -5,16 +5,16 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
-from configs import ValkeySettings
+from configs import RedisSettings
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 GM_PLAYER_STATE_KEY_PREFIX = "gm:player_state:"
 
 
-GM_PLAYER_STATE_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
+GM_PLAYER_STATE_TTL_SECONDS = RedisSettings().REDIS_STATE_TTL_SECONDS
 
 
 def gm_player_state_key(match_code: str, user_code: str) -> str:
@@ -26,14 +26,14 @@ def _match_prefix(match_code: str) -> str:
 
 
 async def set_player_keyword_submission(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     user_code: str,
     keyword_text: str,
     clues_opened: int | None,
     submitted_at: int | None = None,
 ) -> None:
-    if not valkey or not match_code or not user_code:
+    if not redis or not match_code or not user_code:
         return
     payload: dict[str, Any] = {
         "has_submitted_keyword": True,
@@ -48,8 +48,8 @@ async def set_player_keyword_submission(
 
     key = gm_player_state_key(match_code, user_code)
     try:
-        await valkey.hset(key, "state", json.dumps(payload, ensure_ascii=False))
-        await valkey.expire(key, GM_PLAYER_STATE_TTL_SECONDS)
+        await redis.hset(key, "state", json.dumps(payload, ensure_ascii=False))
+        await redis.expire(key, GM_PLAYER_STATE_TTL_SECONDS)
     except Exception as exc:
         global_logger.warning(
             f"[gm_player_state] HSET failed for match={match_code!r} "
@@ -59,14 +59,14 @@ async def set_player_keyword_submission(
 
 
 async def get_player_keyword_submission(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     user_code: str,
 ) -> dict[str, Any] | None:
-    if not valkey or not match_code or not user_code:
+    if not redis or not match_code or not user_code:
         return None
     try:
-        raw = await valkey.hget(gm_player_state_key(match_code, user_code), "state")
+        raw = await redis.hget(gm_player_state_key(match_code, user_code), "state")
     except Exception as exc:
         global_logger.warning(
             f"[gm_player_state] HGET failed for match={match_code!r} "
@@ -88,10 +88,10 @@ async def get_player_keyword_submission(
 
 
 async def list_player_submissions(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
 ) -> dict[str, dict[str, Any]]:
-    if not valkey or not match_code:
+    if not redis or not match_code:
         return {}
     prefix = _match_prefix(match_code)
     out: dict[str, dict[str, Any]] = {}
@@ -99,11 +99,11 @@ async def list_player_submissions(
 
         cursor = 0
         while True:
-            cursor, keys = await valkey.scan(cursor=cursor, match=f"{prefix}*", count=100)
+            cursor, keys = await redis.scan(cursor=cursor, match=f"{prefix}*", count=100)
             if keys:
 
                 for key in keys:
-                    raw = await valkey.hget(_decode(key), "state")
+                    raw = await redis.hget(_decode(key), "state")
                     if raw is None:
                         continue
                     try:
@@ -128,14 +128,14 @@ async def list_player_submissions(
 
 
 async def clear_player_submission(
-    valkey: Valkey,
+    redis: Redis,
     match_code: str,
     user_code: str,
 ) -> None:
-    if not valkey or not match_code or not user_code:
+    if not redis or not match_code or not user_code:
         return
     try:
-        await valkey.delete(gm_player_state_key(match_code, user_code))
+        await redis.delete(gm_player_state_key(match_code, user_code))
     except Exception as exc:
         global_logger.warning(
             f"[gm_player_state] DEL failed for match={match_code!r} "
@@ -144,16 +144,16 @@ async def clear_player_submission(
         )
 
 
-async def clear_all_player_submissions(valkey: Valkey, match_code: str) -> None:
-    if not valkey or not match_code:
+async def clear_all_player_submissions(redis: Redis, match_code: str) -> None:
+    if not redis or not match_code:
         return
     prefix = _match_prefix(match_code)
     try:
         cursor = 0
         while True:
-            cursor, keys = await valkey.scan(cursor=cursor, match=f"{prefix}*", count=100)
+            cursor, keys = await redis.scan(cursor=cursor, match=f"{prefix}*", count=100)
             if keys:
-                await valkey.delete(*[_decode(k) for k in keys])
+                await redis.delete(*[_decode(k) for k in keys])
             if cursor == 0:
                 break
         global_logger.debug(

@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 
-from valkey.asyncio import Valkey
+from redis.asyncio import Redis
 import json
 
 from logger import global_logger
@@ -17,7 +17,7 @@ from utils.buzzer_lock import (
 )
 from utils.buzzer_winners import set_buzzer_winner
 from utils.id_cache import resolve_buzz_ids
-from configs import ValkeySettings
+from configs import RedisSettings
 from utils.ws_connection import manager as ws_manager
 
 
@@ -43,7 +43,7 @@ async def get_first_buzzer(
 async def post_answer_to_db(
     request: AnswerPostRequest,
     session: AsyncSession,
-    valkey: Valkey
+    redis: Redis
 ) -> BaseResponse:
     if request.has_buzzed:
         global_logger.info(
@@ -69,7 +69,7 @@ async def post_answer_to_db(
             request.user_code,
             request.question_code,
             session,
-            valkey,
+            redis,
         )
         if match_id is None:
             log_message = f"Match with match_code={request.match_code} does not exist."
@@ -87,7 +87,7 @@ async def post_answer_to_db(
         is_buzz = request.has_buzzed is True
         if is_buzz:
             buzzer_lock_token = await try_acquire_buzzer_lock(
-                valkey, request.match_code, request.question_code,
+                redis, request.match_code, request.question_code,
             )
             if buzzer_lock_token is None:
                 global_logger.info(
@@ -155,17 +155,17 @@ async def post_answer_to_db(
             }
             try:
                 await set_buzzer_winner(
-                    valkey,
+                    redis,
                     request.match_code,
                     request.question_code,
                     request.user_code,
                 )
                 await ws_manager.send_to_room_local(request.match_code, winner_payload)
-                await valkey.publish(
+                await redis.publish(
                     channel=f"events:{request.match_code}",
                     message=json.dumps(winner_payload),
                 )
-                await valkey.publish(
+                await redis.publish(
                     channel=f"events:{request.match_code}",
                     message=json.dumps(block_payload),
                 )
@@ -187,8 +187,8 @@ async def post_answer_to_db(
                 "type": "answer",
             }
             try:
-                await valkey.set(cache_key, json.dumps(cache_payload), ex=ValkeySettings().VALKEY_STATE_TTL_SECONDS)
-                await valkey.publish(channel=f"events:{request.match_code}", message=json.dumps(cache_payload))
+                await redis.set(cache_key, json.dumps(cache_payload), ex=RedisSettings().REDIS_STATE_TTL_SECONDS)
+                await redis.publish(channel=f"events:{request.match_code}", message=json.dumps(cache_payload))
                 global_logger.debug(f"[KDC ANSWER SYNC] Cached and published answer for match={request.match_code} user={request.user_code} question={request.question_code} answer={request.answer_text} ts={effective_timestamp}")
             except Exception as e:
                 global_logger.error(f"Failed to cache/publish answer for key={cache_key}: {e}", exc_info=True)
@@ -211,10 +211,10 @@ async def post_answer_to_db(
         global_logger.error(log_message, exc_info=True)
         raise HTTPException(status_code=500, detail=f"{log_message} Reason: {e}")
     finally:
-        if buzzer_lock_token is not None and valkey:
+        if buzzer_lock_token is not None and redis:
             try:
                 await release_buzzer_lock(
-                    valkey,
+                    redis,
                     request.match_code,
                     request.question_code,
                     buzzer_lock_token,
@@ -233,7 +233,7 @@ async def get_answer_from_db(
     user_code: str | None,
     question_code: str | None,
     session: AsyncSession,
-    valkey: Valkey
+    redis: Redis
 ) -> BaseResponse:
     global_logger.debug(
         f"GET /answers/ match_code={match_code!r} user_code={user_code!r} question_code={question_code!r}"
@@ -241,7 +241,7 @@ async def get_answer_from_db(
     try:
         if user_code is not None and question_code is not None:
             cache_key = f"answer:{match_code}:{user_code}:{question_code}"
-            cached = await valkey.get(cache_key)
+            cached = await redis.get(cache_key)
             if cached is not None:
                 record_json = json.loads(cached)
                 global_logger.debug(f"[KDC ANSWER SYNC] CACHE HIT for key={cache_key}")

@@ -1,7 +1,7 @@
 import asyncio
 import json
 from fastapi import WebSocket, WebSocketDisconnect
-from valkey.asyncio import Valkey
+from redis.asyncio import Redis
 from logger import global_logger
 
 class ConnectionManager:
@@ -11,11 +11,11 @@ class ConnectionManager:
 
         self._socket_user: dict[WebSocket, str] = {}
         self._socket_role: dict[WebSocket, str] = {}
-        self.valkey: Valkey | None = None
+        self.redis: Redis | None = None
 
-    def set_valkey(self, valkey: Valkey):
-        self.valkey = valkey
-        global_logger.info("Valkey instance set in ConnectionManager.")
+    def set_redis(self, redis: Redis):
+        self.redis = redis
+        global_logger.info("Redis instance set in ConnectionManager.")
 
     async def connect(self, websocket: WebSocket, room_id: str, user_code: str | None = None, role: str = ""):
         await websocket.accept()
@@ -158,13 +158,13 @@ class ConnectionManager:
 
         await self.send_to_room_local(room_id, payload)
 
-        if self.valkey:
+        if self.redis:
             try:
                 event_channel = f"events:{room_id}"
-                await self.valkey.publish(event_channel, json.dumps(payload))
-                global_logger.debug(f"[WS] Published to Valkey channel {event_channel!r}")
+                await self.redis.publish(event_channel, json.dumps(payload))
+                global_logger.debug(f"[WS] Published to Redis channel {event_channel!r}")
             except Exception as e:
-                global_logger.error(f"[WS] Failed to publish to Valkey: {e}", exc_info=True)
+                global_logger.error(f"[WS] Failed to publish to Redis: {e}", exc_info=True)
 
     async def shutdown(self):
         self.rooms.clear()

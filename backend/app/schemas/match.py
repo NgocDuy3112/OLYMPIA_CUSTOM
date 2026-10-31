@@ -16,7 +16,7 @@ class MatchInfoPostRequest(BaseRequest):
     match_status: str | None = None
     players: list[MatchPlayerAssignment] | None = None
 
-    @field_validator('match_code')
+    @field_validator('match_code', mode='after')
     @classmethod
     def ensure_match_code_format(cls, value: str) -> str:
         if not value.startswith(_MATCH_PATTERN):

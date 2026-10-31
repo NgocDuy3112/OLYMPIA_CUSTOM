@@ -4,6 +4,7 @@ from configs import AppSettings
 _settings = AppSettings()
 _MATCH_PATTERN = _settings.MATCH_PATTERN
 _QUESTION_PATTERN = _settings.QUESTION_PATTERN
+_USER_PATTERN = _settings.USER_PATTERN
 
 
 class AnswerPostRequest(BaseRequest):
@@ -24,8 +25,8 @@ class AnswerPostRequest(BaseRequest):
     @field_validator('user_code', mode='after')
     @classmethod
     def ensure_player_code_format(cls, value: str) -> str:
-        if not value.startswith("OC_U"):
-            raise ValueError("user_code must start with 'OC_U'")
+        if not value.startswith(_USER_PATTERN):
+            raise ValueError(f"user_code must start with '{_USER_PATTERN}'")
         return value
 
     @field_validator('question_code', mode='after')

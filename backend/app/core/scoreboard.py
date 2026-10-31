@@ -1,4 +1,4 @@
-from valkey.asyncio import Valkey
+from redis.asyncio import Redis
 import json
 from fastapi import HTTPException
 
@@ -32,7 +32,7 @@ def _safe_convert_score(value) -> int:
 
 async def get_scoreboard_for_a_match_from_db(
     match_code: str,
-    valkey: Valkey,
+    redis: Redis,
     session: AsyncSession,
 ) -> BaseResponse:
     log_message = f"GET request received to fetch scoreboard for match_code: {match_code}."
@@ -65,9 +65,9 @@ async def get_scoreboard_for_a_match_from_db(
         
         player_codes = [p["user_code"] for p in players_data]
 
-        if await valkey.exists(leaderboard_key):
+        if await redis.exists(leaderboard_key):
             try:
-                scores = await valkey.zmscore(leaderboard_key, player_codes) or []
+                scores = await redis.zmscore(leaderboard_key, player_codes) or []
             except Exception:
                 scores = []
             scores = list(scores) + [None] * (len(player_codes) - len(scores))
@@ -101,7 +101,7 @@ async def get_scoreboard_for_a_match_from_db(
         chart_data: dict[str, list[dict[str, object]]] = {}
         chart_totals: dict[str, int] = {}
         for record, user_code in record_rows.all():
-            if record.question_code == "OC3_Q_ADMIN_ADJUST":
+            if record.question_code == "OCF_Q_ADMIN_ADJUST":
                 continue
             chart_totals[user_code] = chart_totals.get(user_code, 0) + record.points
             chart_data.setdefault(user_code, []).append({
@@ -136,15 +136,15 @@ def _apply_vedich_power(points: int, power: str | None) -> int:
 
 async def update_player_question_score(
     request: ScoreAdjustRequest,
-    valkey: Valkey,
+    redis: Redis,
     session: AsyncSession,
 ) -> BaseResponse:
     if request.question_code is None or request.points is None:
         raise HTTPException(status_code=422, detail="question_code and points are required")
 
     raw_points = request.points
-    if request.question_code.startswith("OC3_Q_VD"):
-        power_record = (await get_used_power_records(valkey, request.match_code)).get(request.user_code)
+    if request.question_code.startswith("OCF_Q_VD"):
+        power_record = (await get_used_power_records(redis, request.match_code)).get(request.user_code)
         power = power_record["power"] if power_record and power_record.get("question_code") == request.question_code else None
         if raw_points < 0 and power not in ("star", "shield"):
             raw_points = round(raw_points * 0.5)
@@ -183,9 +183,9 @@ async def update_player_question_score(
         Record.is_deleted == False,
     ))
     total = int(total or 0)
-    await valkey.zadd(f"leaderboard:{request.match_code}", {request.user_code: total})
+    await redis.zadd(f"leaderboard:{request.match_code}", {request.user_code: total})
 
-    scoreboard = await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)
+    scoreboard = await get_scoreboard_for_a_match_from_db(request.match_code, redis, session)
     chart_rows = await session.execute(
         select(Record, User.user_code).join(User, Record.player_id == User.id).where(
             Record.match_id == match_id,
@@ -199,7 +199,7 @@ async def update_player_question_score(
     for row in chart_rows.all():
         item = row[0]
         code = row[1]
-        if item.question_code == "OC3_Q_ADMIN_ADJUST":
+        if item.question_code == "OCF_Q_ADMIN_ADJUST":
             adjustments[code] = adjustments.get(code, 0) + item.points
             continue
         chart_totals[code] = chart_totals.get(code, 0) + item.points
@@ -236,7 +236,7 @@ async def update_player_question_score(
 
 async def calculate_score_event(
     request: ScoreEventRequest,
-    valkey: Valkey,
+    redis: Redis,
     session: AsyncSession,
 ) -> BaseResponse:
     match_id = await session.scalar(select(Match.id).where(Match.match_code == request.match_code, Match.is_deleted == False))
@@ -262,19 +262,19 @@ async def calculate_score_event(
     elif request.action == "kdr_wrong":
         if len(selected) != 1:
             raise HTTPException(status_code=422, detail="kdr_wrong requires one player")
-        await valkey.incr(f"score:kdr:attempts:{request.match_code}:{request.question_code}:{selected[0]}")
-        return await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)
+        await redis.incr(f"score:kdr:attempts:{request.match_code}:{request.question_code}:{selected[0]}")
+        return await get_scoreboard_for_a_match_from_db(request.match_code, redis, session)
     elif request.action == "kdr_correct":
         if len(selected) != 1:
             raise HTTPException(status_code=422, detail="kdr_correct requires one player")
-        attempts = _safe_convert_score(await valkey.get(f"score:kdr:attempts:{request.match_code}:{request.question_code}:{selected[0]}"))
+        attempts = _safe_convert_score(await redis.get(f"score:kdr:attempts:{request.match_code}:{request.question_code}:{selected[0]}"))
         points_by_player[selected[0]] = 10 if attempts == 0 else 5 if attempts == 1 else 0
     elif request.action == "gm_clue_correct":
         points_by_player = {code: 10 for code in selected}
     elif request.action == "gm_keyword_correct":
         from utils.gm_player_state import get_player_keyword_submission
         for code in selected:
-            submission = await get_player_keyword_submission(valkey, request.match_code, code)
+            submission = await get_player_keyword_submission(redis, request.match_code, code)
             if submission and submission.get("has_submitted_keyword"):
                 points_by_player[code] = max(0, 100 - 10 * _safe_convert_score(submission.get("clues_opened")))
     elif request.action in ("vdr_correct", "vdr_wrong"):
@@ -319,21 +319,21 @@ async def calculate_score_event(
         if points:
             await update_player_question_score(
                 ScoreAdjustRequest(match_code=request.match_code, user_code=code, question_code=request.question_code, points=points),
-                valkey,
+                redis,
                 session,
             )
-    return await get_scoreboard_for_a_match_from_db(request.match_code, valkey, session)
+    return await get_scoreboard_for_a_match_from_db(request.match_code, redis, session)
 
 
 async def adjust_player_score(
     request: ScoreAdjustRequest,
-    valkey: Valkey,
+    redis: Redis,
     session: AsyncSession,
 ) -> BaseResponse:
     match_code = request.match_code
     user_code = request.user_code
     if request.question_code is not None:
-        return await update_player_question_score(request, valkey, session)
+        return await update_player_question_score(request, redis, session)
 
     new_score = request.new_score
     reason = request.reason or "admin_adjust"
@@ -362,12 +362,12 @@ async def adjust_player_score(
             raise HTTPException(status_code=404, detail=f"Player {user_code} not found")
 
         leaderboard_key = f"leaderboard:{match_code}"
-        current_score = await valkey.zscore(leaderboard_key, user_code)
+        current_score = await redis.zscore(leaderboard_key, user_code)
         current_score = _safe_convert_score(current_score)
 
         delta = new_score - current_score
         if delta != 0:
-            await valkey.zadd(leaderboard_key, {user_code: delta}, incr=True)
+            await redis.zadd(leaderboard_key, {user_code: delta}, incr=True)
             global_logger.info(
                 f"Score adjusted: {user_code} in {match_code}: "
                 f"{current_score} → {new_score} (delta={delta})"
@@ -382,14 +382,14 @@ async def adjust_player_score(
 
         adjust_question = await session.scalar(
             select(QuestionModel.id).where(
-                QuestionModel.question_code == "OC3_Q_ADMIN_ADJUST",
+                QuestionModel.question_code == "OCF_Q_ADMIN_ADJUST",
                 QuestionModel.match_id == match,
                 QuestionModel.is_deleted == False,
             )
         )
         if adjust_question is None:
             new_q = QuestionModel(
-                question_code="OC3_Q_ADMIN_ADJUST",
+                question_code="OCF_Q_ADMIN_ADJUST",
                 content="(Admin score adjustment)",
                 answer="N/A",
                 match_id=match,
@@ -405,7 +405,7 @@ async def adjust_player_score(
                 match_id=match,
                 question_id=adjust_question,
                 points=rounded_delta,
-                question_code="OC3_Q_ADMIN_ADJUST",
+                question_code="OCF_Q_ADMIN_ADJUST",
             )
             session.add(record)
             await session.commit()
@@ -413,7 +413,7 @@ async def adjust_player_score(
             await session.commit()
 
         updated_scoreboard = await get_scoreboard_for_a_match_from_db(
-            match_code, valkey, session
+            match_code, redis, session
         )
         global_logger.info(f"Scoreboard: {updated_scoreboard}")
         return updated_scoreboard

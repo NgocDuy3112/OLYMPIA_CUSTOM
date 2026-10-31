@@ -33,8 +33,8 @@ const logger = createLogger("AGiaiMa");
 
 const TIME_LIMIT = 15;
 const CLUE_COUNT = 8;
-const CLUE_QUESTION_PREFIX = "OC3_Q_GM_";
-const KEYWORD_QUESTION_CODE = "OC3_Q_GM_KEY";
+const CLUE_QUESTION_PREFIX = "OCF_Q_GM_";
+const KEYWORD_QUESTION_CODE = "OCF_Q_GM_KEY";
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",

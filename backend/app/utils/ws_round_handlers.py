@@ -34,7 +34,7 @@ async def persist_round_state(
         persisted_data = await apply_vedich_power_gating(ws_manager, match_code, user_code, persisted_data)
     persisted_data = await apply_buzzer_clear(ws_manager, match_code, persisted_data)
     persisted_data = await apply_giai_ma_state(ws_manager, match_code, persisted_data)
-    await apply_round_snapshot(ws_manager.valkey, match_code, persisted_data)
+    await apply_round_snapshot(ws_manager.redis, match_code, persisted_data)
 
 
 async def apply_giai_ma_state(

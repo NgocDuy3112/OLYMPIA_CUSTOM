@@ -2,6 +2,9 @@ from pydantic import BaseModel, field_validator
 from typing import Literal
 
 from schemas.base import *
+from configs import AppSettings
+
+_USER_PATTERN = AppSettings().USER_PATTERN
 
 
 Role = Literal["player", "mc", "admin"]
@@ -11,15 +14,15 @@ class UserCreate(BaseModel):
     user_name: str
     user_code: str | None = None
 
-    password: str | None = None
+    password: str
     role: Role = "player"
     email: str | None = None
 
     @field_validator('user_code', mode='after')
     @classmethod
     def ensure_user_code_format(cls, value: str | None) -> str | None:
-        if value is not None and not value.startswith("OC_U"):
-            raise ValueError("user_code must start with 'OC_U'")
+        if value is not None and not value.startswith(_USER_PATTERN):
+            raise ValueError(f"user_code must start with '{_USER_PATTERN}'")
         return value
 
 

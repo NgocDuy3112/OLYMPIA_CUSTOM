@@ -195,7 +195,7 @@ const PVeDichPickPage = ({ round }: PVeDichPickPageProps) => {
 					{Array.from({ length: 6 * 4 }).map((_, idx) => {
 						const questionCode = allQuestionCodes[idx];
 
-						const fallbackCode = `OC3_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
+						const fallbackCode = `OCF_Q_VD_${Math.floor(idx / 4) + 1}_${(idx % 4) + 1}`;
 						const displayCode = questionCode || fallbackCode;
 
 						const rawCategory = CATEGORIES[Math.floor(idx / 4)] || "";

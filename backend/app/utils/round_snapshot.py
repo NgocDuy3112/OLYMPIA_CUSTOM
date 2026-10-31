@@ -4,14 +4,14 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from logger import global_logger
-from configs import ValkeySettings
+from configs import RedisSettings
 
 if TYPE_CHECKING:
-    from valkey.asyncio import Valkey
+    from redis.asyncio import Redis
 
 
 ROUND_SNAPSHOT_KEY_PREFIX = "round:snapshot:"
-ROUND_SNAPSHOT_TTL_SECONDS = ValkeySettings().VALKEY_STATE_TTL_SECONDS
+ROUND_SNAPSHOT_TTL_SECONDS = RedisSettings().REDIS_STATE_TTL_SECONDS
 
 SIMPLE_FIELDS = {
     "send_question": "current_question",
@@ -60,8 +60,8 @@ def round_snapshot_key(match_code: str) -> str:
     return f"{ROUND_SNAPSHOT_KEY_PREFIX}{match_code}"
 
 
-async def apply_round_snapshot(valkey: Valkey, match_code: str, data: dict[str, Any]) -> None:
-    if not valkey or not match_code:
+async def apply_round_snapshot(redis: Redis, match_code: str, data: dict[str, Any]) -> None:
+    if not redis or not match_code:
         return
 
     msg_type = data.get("type", "")
@@ -69,33 +69,33 @@ async def apply_round_snapshot(valkey: Valkey, match_code: str, data: dict[str, 
 
     try:
         if msg_type == "round_start" or (msg_type == "round_end" and data.get("round") != "gm"):
-            await valkey.delete(key)
+            await redis.delete(key)
             return
 
         if msg_type == "clear_question":
-            await valkey.hdel(key, *CLEAR_FIELDS)
-            await valkey.expire(key, ROUND_SNAPSHOT_TTL_SECONDS)
+            await redis.hdel(key, *CLEAR_FIELDS)
+            await redis.expire(key, ROUND_SNAPSHOT_TTL_SECONDS)
             return
 
         if msg_type == "clear_answers":
-            await valkey.hdel(key, "answers", "keyword_answers")
-            await valkey.expire(key, ROUND_SNAPSHOT_TTL_SECONDS)
+            await redis.hdel(key, "answers", "keyword_answers")
+            await redis.expire(key, ROUND_SNAPSHOT_TTL_SECONDS)
             return
 
         if msg_type == "vd_questions_selected":
             round_kind = str(data.get("round") or "")
             if round_kind == "chung":
-                await _set_field(valkey, key, "vd_selected_chung", data)
+                await _set_field(redis, key, "vd_selected_chung", data)
             elif round_kind == "rieng":
-                await _set_field(valkey, key, "vd_selected_rieng", data)
+                await _set_field(redis, key, "vd_selected_rieng", data)
             return
 
         if msg_type == "vdc_questions_meta":
-            await _set_field(valkey, key, "vdc_meta", data)
+            await _set_field(redis, key, "vdc_meta", data)
             return
 
         if msg_type == "vdr_questions_meta":
-            await _set_field(valkey, key, "vdr_meta", data)
+            await _set_field(redis, key, "vdr_meta", data)
             return
 
         if msg_type in ("vdc_question_state", "vdr_question_state"):
@@ -103,16 +103,16 @@ async def apply_round_snapshot(valkey: Valkey, match_code: str, data: dict[str, 
             question_code = data.get("question_code")
             if not question_code:
                 return
-            states = await _get_field(valkey, key, field)
+            states = await _get_field(redis, key, field)
             if not isinstance(states, dict):
                 states = {}
             states[str(question_code)] = data
-            await _set_field(valkey, key, field, states)
+            await _set_field(redis, key, field, states)
             return
 
         field = SIMPLE_FIELDS.get(msg_type)
         if field:
-            await _set_field(valkey, key, field, data)
+            await _set_field(redis, key, field, data)
     except Exception as exc:
         global_logger.warning(
             f"[round_snapshot] apply failed match={match_code!r} type={msg_type!r}: {exc}",
@@ -120,12 +120,12 @@ async def apply_round_snapshot(valkey: Valkey, match_code: str, data: dict[str, 
         )
 
 
-async def get_round_snapshot_messages(valkey: Valkey, match_code: str) -> list[dict[str, Any]]:
-    if not valkey or not match_code:
+async def get_round_snapshot_messages(redis: Redis, match_code: str) -> list[dict[str, Any]]:
+    if not redis or not match_code:
         return []
 
     try:
-        raw = await valkey.hgetall(round_snapshot_key(match_code))
+        raw = await redis.hgetall(round_snapshot_key(match_code))
     except Exception as exc:
         global_logger.warning(
             f"[round_snapshot] HGETALL failed match={match_code!r}: {exc}",
@@ -153,13 +153,13 @@ async def get_round_snapshot_messages(valkey: Valkey, match_code: str) -> list[d
     return messages
 
 
-async def _set_field(valkey: Valkey, key: str, field: str, value: Any) -> None:
-    await valkey.hset(key, field, json.dumps(value, ensure_ascii=False))
-    await valkey.expire(key, ROUND_SNAPSHOT_TTL_SECONDS)
+async def _set_field(redis: Redis, key: str, field: str, value: Any) -> None:
+    await redis.hset(key, field, json.dumps(value, ensure_ascii=False))
+    await redis.expire(key, ROUND_SNAPSHOT_TTL_SECONDS)
 
 
-async def _get_field(valkey: Valkey, key: str, field: str) -> Any:
-    raw = await valkey.hget(key, field)
+async def _get_field(redis: Redis, key: str, field: str) -> Any:
+    raw = await redis.hget(key, field)
     if raw is None:
         return None
     try:

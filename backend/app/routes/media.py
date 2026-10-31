@@ -56,7 +56,7 @@ async def upload_media(
     ),
 )
 async def get_media(
-    key: Annotated[str, Query(description="S3 object key, e.g. OC3_M01T/OC3_Q_KD_1_1.png")],
+    key: Annotated[str, Query(description="S3 object key, e.g. OCF_M01T/OCF_Q_KD_1_1.png")],
     s3_client=Depends(get_s3_client),
 ) -> RedirectResponse:
     url = await generate_presigned_url(
@@ -78,7 +78,7 @@ async def get_media(
     ),
 )
 async def get_presigned_url(
-    key: Annotated[str, Query(description="S3 object key, e.g. OC3_M01T/clip.mp4")],
+    key: Annotated[str, Query(description="S3 object key, e.g. OCF_M01T/clip.mp4")],
     s3_client=Depends(get_s3_client),
 ) -> dict[str, str]:
     url = await generate_presigned_url(

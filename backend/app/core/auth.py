@@ -3,7 +3,7 @@ import bcrypt as _bcrypt
 from datetime import datetime, timedelta
 import uuid
 
-from fastapi import HTTPException, BackgroundTasks
+from fastapi import HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
 from sqlalchemy import select, func
@@ -12,10 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.user import *
 from models.user import User
 from configs import AppSettings
-from utils.email import send_credentials_email_safe, send_password_reset_email_safe
-from models.password_reset_token import PasswordResetToken
 from datetime import timezone
-from logger import global_logger, mask_email
+from logger import global_logger
 
 
 settings = AppSettings()
@@ -39,18 +37,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 async def signup(
     user_data: UserCreate, 
     session: AsyncSession, 
-    background_tasks: BackgroundTasks
 ) -> TokenResponse:
     if user_data.user_code:
         user_code = user_data.user_code
     else:
-        prefix = "OC_U"
+        prefix = settings.USER_PATTERN
         if user_data.role == "admin":
-            prefix = "OC_U_A"
+            prefix = f"{settings.USER_PATTERN}_A"
         elif user_data.role == "player":
-            prefix = "OC_U_P03"
+            prefix = f"{settings.USER_PATTERN}_P03"
         elif user_data.role == "mc":
-            prefix = "OC_U_MC"
+            prefix = f"{settings.USER_PATTERN}_MC"
         user_code = f"{prefix}{uuid.uuid4().hex[:8].upper()}"
 
     result = await session.execute(
@@ -61,13 +58,7 @@ async def signup(
         raise HTTPException(status_code=400, detail="Username already exists")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    if getattr(user_data, 'password', None):
-        plain_password = user_data.password
-    else:
-        import secrets
-        import string
-        alphabet = string.ascii_letters + string.digits
-        plain_password = "".join(secrets.choice(alphabet) for _ in range(8))
+    plain_password = user_data.password
 
     new_user = User(
         user_name=user_data.user_name,
@@ -88,108 +79,12 @@ async def signup(
         }, 
         expires_delta=access_token_expires
     )
-    if new_user.email:
-        background_tasks.add_task(
-            send_credentials_email_safe,
-            to=new_user.email,
-            user_name=new_user.user_name,
-            user_code=new_user.user_code,
-            password=plain_password,
-        )
     return TokenResponse(
         access_token=token, 
         role=new_user.role, 
         user_code=new_user.user_code, 
         user_name=new_user.user_name
     )
-
-
-async def send_credentials(user_code: str, session: AsyncSession) -> BaseResponse:
-    import secrets
-    import string
-
-    result = await session.execute(
-        select(User).where(User.user_code == user_code, User.is_deleted == False)
-    )
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy người dùng với mã {user_code}.")
-
-    alphabet = string.ascii_letters + string.digits
-    new_password = "".join(secrets.choice(alphabet) for _ in range(8))
-
-    user.hashed_password = hash_password(new_password)
-    await session.commit()
-
-    email_note = ""
-    if user.email:
-        await send_credentials_email_safe(
-            to=user.email,
-            user_name=user.user_name,
-            user_code=user.user_code,
-            password=new_password,
-        )
-        email_note = f" và gửi email đến {user.email}"
-
-    log_email_note = f" và gửi email đến {mask_email(user.email)}" if user.email else ""
-    global_logger.info(f"Credentials reset{log_email_note} for user_code={user_code}.")
-    return BaseResponse(
-        status="success",
-        message=f"Đã đặt lại mật khẩu{email_note}.",
-        data={"plain_password": new_password, "user_code": user.user_code},
-    )
-
-
-async def send_reset_link(user_code: str, session: AsyncSession, expires_minutes: int = 60) -> BaseResponse:
-    result = await session.execute(
-        select(User).where(User.user_code == user_code, User.is_deleted == False)
-    )
-    user = result.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy người dùng với mã {user_code}.")
-    if not user.email:
-        raise HTTPException(status_code=400, detail=f"Người dùng {user_code} chưa có địa chỉ email.")
-
-    token = uuid.uuid4().hex
-    expires_at = datetime.utcnow() + timedelta(minutes=expires_minutes)
-    prt = PasswordResetToken(token=token, user_id=user.id, expires_at=expires_at)
-    session.add(prt)
-    await session.commit()
-
-    try:
-        from configs import EmailSettings
-        fe = EmailSettings()
-        reset_link = f"{fe.FRONTEND_URL}/auth/reset-password?token={token}"
-    except Exception:
-        reset_link = f"{settings.APP_URL}/auth/reset-password?token={token}"
-
-    await send_password_reset_email_safe(to=user.email, user_name=user.user_name, reset_link=reset_link)
-    return BaseResponse(status="success", message=f"Password reset link sent to {user.email}.")
-
-
-async def reset_password_by_token(token: str, new_password: str, session: AsyncSession) -> BaseResponse:
-    now = datetime.utcnow()
-    result = await session.execute(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token == token,
-            PasswordResetToken.used == False,
-            PasswordResetToken.expires_at > now,
-        )
-    )
-    prt = result.scalar_one_or_none()
-    if prt is None:
-        raise HTTPException(status_code=400, detail="Invalid or expired token")
-
-    result2 = await session.execute(select(User).where(User.id == prt.user_id, User.is_deleted == False))
-    user = result2.scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user.hashed_password = hash_password(new_password)
-    prt.used = True
-    await session.commit()
-
-    return BaseResponse(status="success", message="Mật khẩu đã được cập nhật.")
 
 
 async def change_password(user_code: str, old_password: str, new_password: str, session: AsyncSession) -> BaseResponse:

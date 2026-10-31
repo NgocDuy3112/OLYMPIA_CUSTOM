@@ -110,9 +110,7 @@ const AGameManagingPage = () => {
 
     const [userRoleFilter, setUserRoleFilter] = useState<string>("all");
 
-    const [sendingCredentials, setSendingCredentials] = useState<string | null>(null);
 
-    const [revealedPassword, setRevealedPassword] = useState<{ userCode: string; password: string } | null>(null);
 
     const [editingUser, setEditingUser] = useState<UserData | null>(null);
     const [editName, setEditName] = useState("");
@@ -178,29 +176,6 @@ const AGameManagingPage = () => {
         }
     }, [authHeaders]);
 
-    const sendCredentials = useCallback(async (userCode: string) => {
-        setSendingCredentials(userCode);
-        try {
-            const res = await fetch(`${API_BASE_URL}/auth/send-credentials/${userCode}`, {
-                method: "POST",
-                headers: authHeaders(),
-            });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body.detail ?? "Lỗi không xác định");
-            const plainPassword = (body.data as { plain_password?: string } | null)?.plain_password;
-            if (plainPassword) {
-                setRevealedPassword({ userCode, password: plainPassword });
-            } else {
-                alert(`✅ ${body.message}`);
-            }
-        } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            alert(`❌ Gửi thất bại: ${msg}`);
-            logger.error("Error sending credentials:", err);
-        } finally {
-            setSendingCredentials(null);
-        }
-    }, [authHeaders]);
 
     const lookupMatchByCode = useCallback(async (code: string) => {
         if (!code) return;
@@ -666,41 +641,7 @@ const AGameManagingPage = () => {
         <div className="grid grid-cols-2 grid-rows-[1fr_2fr] gap-4 p-6 h-screen text-white overflow-hidden">
             { }
 
-            {revealedPassword && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                    <div className="bg-blue-950 border border-blue-600 rounded-xl p-6 w-full max-w-sm flex flex-col gap-4 shadow-2xl">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-blue-200">Mật khẩu mới</h3>
-                            <button onClick={() => setRevealedPassword(null)} className="p-1 rounded hover:bg-blue-800 transition-colors">
-                                <X size={18} />
-                            </button>
-                        </div>
-                        <p className="text-xs text-blue-400 font-mono -mt-2">Mã: {revealedPassword.userCode}</p>
-                        <div className="flex flex-col gap-1">
-                            <label className="text-xs text-blue-300">Mật khẩu thô (plain password)</label>
-                            <div className="flex items-center gap-2">
-                                <span className="flex-1 px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white font-mono text-lg tracking-widest select-all">
-                                    {revealedPassword.password}
-                                </span>
-                                <button
-                                    onClick={() => navigator.clipboard.writeText(revealedPassword.password)}
-                                    className="px-3 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-xs transition-colors"
-                                    title="Sao chép"
-                                >
-                                    Copy
-                                </button>
-                            </div>
-                        </div>
-                        <p className="text-xs text-white-400">Lưu ý: mật khẩu này chỉ hiển thị một lần. Hãy sao chép lại.</p>
-                        <button
-                            onClick={() => setRevealedPassword(null)}
-                            className="px-4 py-2 rounded-lg bg-blue-700 hover:bg-blue-600 text-sm transition-colors self-end"
-                        >
-                            Đóng
-                        </button>
-                    </div>
-                </div>
-            )}
+
 
             { }
             {editingQuestion && (
@@ -749,7 +690,7 @@ const AGameManagingPage = () => {
                                         type="text"
                                         value={editQMediaUrl}
                                         onChange={(e) => setEditQMediaUrl(e.target.value)}
-                                        placeholder="OC3_M01T/OC3_Q_... (tuỳ chọn)"
+                                        placeholder="OCF_M01T/OCF_Q_... (tuỳ chọn)"
                                         className="px-3 py-2 rounded-lg bg-blue-900 border border-blue-700 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
                                     />
                                     <div className="flex items-center gap-2">
@@ -912,7 +853,7 @@ const AGameManagingPage = () => {
                         />
                         <input
                             type="text"
-                            placeholder="Mã người dùng (OC_U...) *"
+                            placeholder="Mã người dùng (OCF_U...) *"
                             value={newPlayerCode}
                             onChange={(e) => setNewPlayerCode(e.target.value)}
                             className="px-2 py-2 rounded bg-blue-950 border border-blue-700 text-white placeholder-blue-400 text-sm"
@@ -981,14 +922,6 @@ const AGameManagingPage = () => {
                                                     title="Sửa thông tin"
                                                 >
                                                     <Pencil size={13} />
-                                                </button>
-                                                <button
-                                                    onClick={() => sendCredentials(u.user_code)}
-                                                    disabled={sendingCredentials === u.user_code}
-                                                    className="text-xs px-2 py-1 rounded bg-blue-700 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                                                    title="Gửi Mã người dùng & mật khẩu qua email"
-                                                >
-                                                    {sendingCredentials === u.user_code ? "Đang gửi…" : "Gửi thông tin"}
                                                 </button>
                                                 <button
                                                     onClick={() => deleteUser(u.user_code, u.user_name)}

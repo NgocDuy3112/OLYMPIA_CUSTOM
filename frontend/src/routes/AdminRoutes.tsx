@@ -1,17 +1,15 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 
-import AKhoiDongChungPage from "@/pages/admin/AKhoiDongChungPage";
 import AKhoiDongRiengPage from "@/pages/admin/AKhoiDongRiengPage";
 import AButPhaPage from "@/pages/admin/AButPhaPage";
 import AVeDichPickQuestion from "@/pages/admin/AVeDichPickQuestionPage";
-import AVeDichChungPage from "@/pages/admin/AVeDichChungPage";
 import AVeDichRiengPage from "@/pages/admin/AVeDichRiengPage";
-import AGiaiMaPage from "@/pages/admin/AGiaiMaPage";
 import AGameManagingPage from "@/pages/admin/AGameManagingPage";
 import AWaitingPage from "@/pages/admin/AWaitingPage";
 import { AdminWebSocketProvider } from "@/contexts/AdminWebSocketContext";
 import { useGameWebSocket } from "@/hooks/useGameWebSocket";
+import { useGameAudio } from "@/hooks/useGameAudio";
 
 interface AProtectedRouteProps {
     children: React.ReactNode;
@@ -33,6 +31,10 @@ const AdminAutoNavigator: React.FC = () => {
     const location = useLocation();
     const { lastMessage, sendMessage } = useGameWebSocket();
     const matchCode = localStorage.getItem("matchCode") || "";
+
+    // Browser-side replacement for the Discord BGM/SFX bots.
+    useGameAudio();
+
     useEffect(() => {
         const msg = (lastMessage?.message ?? lastMessage) as { type?: string; path?: unknown } | null;
         if (msg?.type !== "navigate" || typeof msg.path !== "string" || !matchCode) return;
@@ -61,7 +63,7 @@ const AdminRoutes = () => {
     const stored = localStorage.getItem("matchCode") || "";
     const fromPath = (() => {
         try {
-            const m = location.pathname.match(/OC3_[A-Za-z0-9_-]+/);
+            const m = location.pathname.match(/OCF_[A-Za-z0-9_-]+/);
             return m ? m[0] : "";
         } catch {
             return "";
@@ -86,14 +88,6 @@ const AdminRoutes = () => {
             />
             {}
             <Route
-                path="/kdc/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AKhoiDongChungPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
                 path="/kdr/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
@@ -112,14 +106,6 @@ const AdminRoutes = () => {
             />
             {}
             <Route
-                path="/vdc/pick/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AVeDichPickQuestion />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
                 path="/vdr/pick/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
@@ -129,26 +115,10 @@ const AdminRoutes = () => {
             />
             {}
             <Route
-                path="/vdc/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AVeDichChungPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
                 path="/vdr/:matchCode?"
                 element={
                     <ProtectedAdminRoute>
                         <AVeDichRiengPage />
-                    </ProtectedAdminRoute>
-                }
-            />
-            <Route
-                path="/gm/:matchCode?"
-                element={
-                    <ProtectedAdminRoute>
-                        <AGiaiMaPage />
                     </ProtectedAdminRoute>
                 }
             />

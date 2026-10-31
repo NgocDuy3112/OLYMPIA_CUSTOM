@@ -297,7 +297,7 @@ const AVeDichRiengPage = () => {
 
 				const veDichRaw = rawQuestions.filter(
 					(q: any) =>
-						q.question_code?.includes("_VD_") || q.question_code?.startsWith("OC3_Q_VD"),
+						q.question_code?.includes("_VD_") || q.question_code?.startsWith("OCF_Q_VD"),
 				);
 
 				const mapped: Question[] = veDichRaw.map((q: any) => ({

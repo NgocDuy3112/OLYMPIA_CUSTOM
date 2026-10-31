@@ -14,7 +14,7 @@ type HoveredPoint = { playerCode: string; index: number } | null;
 const COLORS = ["#67E8F9", "#38BDF8", "#60A5FA", "#818CF8", "#A78BFA", "#BAE6FD"];
 
 function groupFor(code: string) {
-    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST" || code.startsWith("Điểm số đã chỉnh sửa")) return "ĐIỀU CHỈNH";
+    if (code === "ADJUST" || code === "OCF_Q_ADMIN_ADJUST" || code.startsWith("Điểm số đã chỉnh sửa")) return "ĐIỀU CHỈNH";
     if (code.startsWith("[Khởi động")) return "KĐ";
     if (code.startsWith("[Giải mã]")) return "GM";
     if (code.startsWith("[Bứt phá]")) return "BP";
@@ -23,7 +23,7 @@ function groupFor(code: string) {
     if (code.startsWith("GM")) return "GM";
     if (code.startsWith("BP")) return "BP";
     if (code.startsWith("VĐ")) return "VĐ";
-    const value = code.replace(/^OC3_Q_/, "");
+    const value = code.replace(/^OCF_Q_/, "");
     if (value.startsWith("KD")) return "KĐ";
     if (value.startsWith("GM")) return "GM";
     if (value.startsWith("BP")) return "BP";
@@ -37,16 +37,16 @@ function roundName(code: string) {
 }
 
 function labelFor(code: string) {
-    if (code === "ADJUST" || code === "OC3_Q_ADMIN_ADJUST") return "Điểm số đã chỉnh sửa";
+    if (code === "ADJUST" || code === "OCF_Q_ADMIN_ADJUST") return "Điểm số đã chỉnh sửa";
     if (/^(KĐ|GM|BP|VĐ)_/.test(code)) return code;
-    const value = code.replace(/^OC3_Q_/, "");
+    const value = code.replace(/^OCF_Q_/, "");
     const parts = value.split("_");
     if (parts[0] === "KD" && parts.length >= 2) return parts[1] === "C" ? `KĐ_C_${parts.slice(2).join("_")}` : `KĐ_${parts.slice(1).join("_")}`;
     return value.replace("KD_C", "KĐC").replace("GM", "GM").replace("BP", "BP").replace("VD", "VĐ");
 }
 
 function tooltipLabelFor(code: string, points?: number) {
-    const value = code.replace(/^OC3_Q_/, "").replace(/^KĐ_/, "KD_").replace(/^GM_/, "GM_").replace(/^BP_/, "BP_").replace(/^VĐ_/, "VD_");
+    const value = code.replace(/^OCF_Q_/, "").replace(/^KĐ_/, "KD_").replace(/^GM_/, "GM_").replace(/^BP_/, "BP_").replace(/^VĐ_/, "VD_");
     const parts = value.split("_");
     if (parts[0] === "KD") {
         const isCommon = parts[1] === "C";

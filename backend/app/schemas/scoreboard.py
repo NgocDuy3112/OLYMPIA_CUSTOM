@@ -4,6 +4,7 @@ from configs import AppSettings
 _settings = AppSettings()
 _MATCH_PATTERN = _settings.MATCH_PATTERN
 _QUESTION_PATTERN = _settings.QUESTION_PATTERN
+_USER_PATTERN = _settings.USER_PATTERN
 
 
 class ScoreEventRequest(BaseRequest):
@@ -29,8 +30,8 @@ class ScoreEventRequest(BaseRequest):
     @field_validator('user_codes', mode='after')
     @classmethod
     def ensure_user_codes_format(cls, value: list[str]) -> list[str]:
-        if any(not code.startswith('OC_U') for code in value):
-            raise ValueError("user_codes must contain only player codes")
+        if any(not code.startswith(_USER_PATTERN) for code in value):
+            raise ValueError(f"user_codes must contain only player codes starting with '{_USER_PATTERN}'")
         return value
 
 
@@ -52,8 +53,8 @@ class ScoreAdjustRequest(BaseRequest):
     @field_validator('user_code', mode='after')
     @classmethod
     def ensure_user_code_format(cls, value: str) -> str:
-        if not value.startswith("OC_U"):
-            raise ValueError("user_code must start with 'OC_U'")
+        if not value.startswith(_USER_PATTERN):
+            raise ValueError(f"user_code must start with '{_USER_PATTERN}'")
         return value
 
     @field_validator('question_code', mode='after')

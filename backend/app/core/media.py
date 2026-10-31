@@ -1,7 +1,7 @@
 import mimetypes
 from fastapi import UploadFile, HTTPException
 from logger import global_logger
-from dependencies.valkey_store import get_valkey
+from dependencies.redis_store import get_redis
 
 _EXT_TO_MIME: dict[str, str] = {
     "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
@@ -88,9 +88,9 @@ async def _presign_and_cache(s3_client, bucket: str, key: str, expiry: int) -> s
         raise HTTPException(status_code=500, detail="Failed to generate media URL.")
 
     try:
-        valkey = await get_valkey()
+        redis = await get_redis()
         cache_key = f"media:presign:{bucket}:{key}"
-        await valkey.set(cache_key, url, ex=_PRESIGN_CACHE_TTL_SECONDS)
+        await redis.set(cache_key, url, ex=_PRESIGN_CACHE_TTL_SECONDS)
     except Exception as exc:
         global_logger.warning(f"Failed to cache presigned URL for key={key!r}: {exc}")
 
@@ -106,8 +106,8 @@ async def generate_presigned_url(
 ) -> str:
     cache_key = f"media:presign:{bucket}:{key}"
     try:
-        valkey = await get_valkey()
-        cached = await valkey.get(cache_key)
+        redis = await get_redis()
+        cached = await redis.get(cache_key)
         if cached:
             global_logger.debug(f"Presigned URL cache hit for key={key!r}")
             return cached

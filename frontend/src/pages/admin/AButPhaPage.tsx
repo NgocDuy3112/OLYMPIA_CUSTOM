@@ -21,7 +21,7 @@ import { endRoundAndReturnToWaiting } from "@/utils/adminRoundNavigation";
 
 const TIME_LIMIT = 30;
 const MAX_QUESTION_INDEX = 5;
-const QUESTION_PREFIX = "OC3_Q_BP";
+const QUESTION_PREFIX = "OCF_Q_BP";
 
 const DEFAULT_QUESTION: Question = {
 	questionCode: "",

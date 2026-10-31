@@ -207,12 +207,9 @@ const AWaitingPage = () => {
 		[currentMatchCode, navigate, sendMessage, sendRoundSnapshot],
 	);
 
-	const handleNavigateToKDC = useCallback(() => { void broadcastNavigate("/admin/kdc", "/player/kdc", "kdc"); }, [broadcastNavigate]);
 	const handleNavigateToKDR = useCallback(() => { void broadcastNavigate("/admin/kdr", "/player/kdr", "kdr"); }, [broadcastNavigate]);
 	const handleNavigateToBP = useCallback(() => { void broadcastNavigate("/admin/bp", "/player/bp", "bp"); }, [broadcastNavigate]);
-	const handleNavigateToVDC = useCallback(() => { void broadcastNavigate("/admin/vdc/pick", "/player/vdc/pick", "vdc"); }, [broadcastNavigate]);
 	const handleNavigateToVDR = useCallback(() => { void broadcastNavigate("/admin/vdr/pick", "/player/vdr/pick", "vdr"); }, [broadcastNavigate]);
-	const handleNavigateToGM = useCallback(() => { void broadcastNavigate("/admin/gm", "/player/gm", "gm"); }, [broadcastNavigate]);
 	const handleNavigateToWaiting = useCallback(() => { void broadcastNavigate("/admin/waiting", "/player/waiting", "waiting"); }, [broadcastNavigate]);
 
 	if (!currentMatchCode) {
@@ -312,33 +309,11 @@ const AWaitingPage = () => {
 							Khởi Động Riêng
 						</AControlButton>
 						<AControlButton
-							onClick={handleNavigateToKDC}
-							disabled={!currentMatchCode}
-							className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
-						>
-							Khởi Động Chung
-						</AControlButton>
-
-						<AControlButton
-							onClick={handleNavigateToGM}
-							disabled={!currentMatchCode}
-							className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
-						>
-							Giải Mã
-						</AControlButton>
-						<AControlButton
 							onClick={handleNavigateToBP}
 							disabled={!currentMatchCode}
 							className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
 						>
 							Bứt Phá
-						</AControlButton>
-						<AControlButton
-							onClick={handleNavigateToVDC}
-							disabled={!currentMatchCode}
-							className="!min-w-40 !h-12 text-sm gap-2 flex items-center justify-center"
-						>
-							Về Đích Chung
 						</AControlButton>
 						<AControlButton
 							onClick={handleNavigateToVDR}
