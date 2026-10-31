@@ -1,9 +1,9 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
-import { KhoiDongChungOC4Controller, type KhoiDongChungCtx } from "./KhoiDongChungOC4Controller"
-import { KhoiDongRiengOC4Controller, type KhoiDongRiengCtx } from "./KhoiDongRiengOC4Controller"
+import { KhoiDongChungAOCController, type KhoiDongChungCtx } from "./KhoiDongChungAOCController"
+import { KhoiDongRiengAOCController, type KhoiDongRiengCtx } from "./KhoiDongRiengAOCController"
 import { screenCore, type RoundAction, type RoundModule } from "../types"
 
-// Khởi động — the OC4 ruleset: phase 1 walks the oral runs one by one, phase 2
+// Khởi động — the AOC ruleset: phase 1 walks the oral runs one by one, phase 2
 // is the shared typed batch against one deadline. Kết thúc ends the open run
 // (or jumps to phase 2 when the walks are complete), or commits the staged
 // verdicts and closes the batch.
@@ -41,11 +41,11 @@ function chungCtx(f: ConsoleFacts): KhoiDongChungCtx {
     }
 }
 
-export const khoiDongOc4: RoundModule = {
+export const khoiDongAOC: RoundModule = {
     render: (f) =>
         f.stage === "phase2"
-            ? <KhoiDongChungOC4Controller ctx={chungCtx(f)} />
-            : <KhoiDongRiengOC4Controller ctx={riengCtx(f)} />,
+            ? <KhoiDongChungAOCController ctx={chungCtx(f)} />
+            : <KhoiDongRiengAOCController ctx={riengCtx(f)} />,
     railVariant: ({ stage }) => (stage === "phase2" ? "answers" : "compact"),
     ketThucPlan: (input): RoundAction[] => {
         if (input.stage === "phase1") {

@@ -1,5 +1,5 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
-import { ButPhaOC4Controller, type ButPhaCtx } from "./ButPhaOC4Controller"
+import { ButPhaAOCController, type ButPhaCtx } from "./ButPhaAOCController"
 import { mergedVerdicts } from "@/lib/live"
 import { screenCore, type RoundAction, type RoundModule, type RoundPlanInput } from "../types"
 
@@ -31,8 +31,8 @@ function finalizeIfNeeded(input: RoundPlanInput): RoundAction[] {
     }]
 }
 
-export const butPhaOc4: RoundModule = {
-    render: (f) => <ButPhaOC4Controller ctx={butPhaCtx(f)} />,
+export const butPhaAOC: RoundModule = {
+    render: (f) => <ButPhaAOCController ctx={butPhaCtx(f)} />,
     railVariant: () => "answers",
     // ONE press ends the round — the engine closes any open question with it.
     ketThucPlan: (input): RoundAction[] =>

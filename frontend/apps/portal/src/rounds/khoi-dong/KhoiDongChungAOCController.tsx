@@ -17,7 +17,7 @@ export type KhoiDongChungCtx = ScreenCore & {
     byId: (id: string) => ConsoleQuestion | null
 }
 
-export function KhoiDongChungOC4Controller({ ctx }: { ctx: KhoiDongChungCtx }) {
+export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
     const { v, remaining, baseCards, flash, openRounds } = ctx
     const open = v.projection.open
     const activeQ = ctx.judgingId

@@ -1,11 +1,11 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
 import type { VeDichMc } from "@/lib/live"
-import { VeDichChungOC4Controller, type VeDichChungCtx } from "./VeDichChungOC4Controller"
-import { VeDichPickOC4Controller, type VeDichPickCtx } from "./VeDichPickOC4Controller"
-import { VeDichRiengOC4Controller, type VeDichRiengCtx } from "./VeDichRiengOC4Controller"
+import { VeDichChungAOCController, type VeDichChungCtx } from "./VeDichChungAOCController"
+import { VeDichPickAOCController, type VeDichPickCtx } from "./VeDichPickAOCController"
+import { VeDichRiengAOCController, type VeDichRiengCtx } from "./VeDichRiengAOCController"
 import { screenCore, type HetLuotFacts, type RoundAction, type RoundModule } from "../types"
 
-// Về đích — the OC4 ruleset: turn-based. Phase 1 each player picks the highest
+// Về đích — the AOC ruleset: turn-based. Phase 1 each player picks the highest
 // free cell (opens typed), phase 2 each picks three (oral + 5s buzz window).
 // The board draws while nothing is open. The TURN is Hết lượt's job (resolve,
 // verdicts first); Kết thúc ends the WHOLE round — the engine closes any open
@@ -51,12 +51,12 @@ export function hetLuotAction(facts: HetLuotFacts): RoundAction | null {
     return action
 }
 
-export const veDichOc4: RoundModule = {
+export const veDichAOC: RoundModule = {
     render: (f) => {
-        if (f.v.projection.open.length === 0) return <VeDichPickOC4Controller ctx={pickCtx(f)} />
+        if (f.v.projection.open.length === 0) return <VeDichPickAOCController ctx={pickCtx(f)} />
         return (f.v.mc as VeDichMc | null)?.phase === 2
-            ? <VeDichRiengOC4Controller ctx={riengCtx(f)} />
-            : <VeDichChungOC4Controller ctx={chungCtx(f)} />
+            ? <VeDichRiengAOCController ctx={riengCtx(f)} />
+            : <VeDichChungAOCController ctx={chungCtx(f)} />
     },
     railVariant: ({ veDichPhase }) => (veDichPhase === 2 ? "compact" : "answers"),
     ketThucPlan: (): RoundAction[] => [{ kind: "ve-dich.endRound" }],

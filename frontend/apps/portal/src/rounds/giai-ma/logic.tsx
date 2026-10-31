@@ -1,9 +1,9 @@
 import type { ConsoleFacts } from "@/components/stage/deck"
-import { GiaiMaOC4Controller, type GiaiMaCtx } from "./GiaiMaOC4Controller"
+import { GiaiMaAOCController, type GiaiMaCtx } from "./GiaiMaAOCController"
 import type { GiaiMaMc } from "@/lib/live"
 import { screenCore, type RoundAction, type RoundModule } from "../types"
 
-// Giải mã — the OC4 ruleset: hints open as timed windows, the keyword is
+// Giải mã — the AOC ruleset: hints open as timed windows, the keyword is
 // typed once. Kết thúc closes the open hint window, else ends the round.
 // Scoring is automatic (the engine) — Đúng on the strip only closes the window.
 
@@ -16,8 +16,8 @@ function giaiMaCtx(f: ConsoleFacts): GiaiMaCtx {
     }
 }
 
-export const giaiMaOc4: RoundModule = {
-    render: (f) => <GiaiMaOC4Controller ctx={giaiMaCtx(f)} />,
+export const giaiMaAOC: RoundModule = {
+    render: (f) => <GiaiMaAOCController ctx={giaiMaCtx(f)} />,
     railVariant: () => "answers",
     ketThucPlan: (input): RoundAction[] =>
         input.openIds.length > 0

@@ -13,7 +13,7 @@ export type GiaiMaCtx = ScreenCore & {
     mcGiaiMa: GiaiMaMc | null
 }
 
-export function GiaiMaOC4Controller({ ctx }: { ctx: GiaiMaCtx }) {
+export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     const { v, remaining, questions, baseCards, mcGiaiMa, flash, openRounds } = ctx
     const open = v.projection.open
 

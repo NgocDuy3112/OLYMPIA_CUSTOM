@@ -41,7 +41,7 @@ export function screenCore(facts: ConsoleFacts): ScreenCore {
 /**
  * A round as ONE pluggable module. The registry (`@/rounds`) maps the live
  * view's roundId to it — swapping a module swaps the RULES, so a custom
- * tournament can mix OC4 rounds with future variants (the OC4 suffix names
+ * tournament can mix AOC rounds with future variants (the AOC suffix names
  * THIS ruleset). The controller side owns: which screen draws the round, which
  * rail it shows, what Kết thúc sends, and what Hết lượt sends.
  *

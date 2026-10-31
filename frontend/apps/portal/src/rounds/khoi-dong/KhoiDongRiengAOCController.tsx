@@ -13,7 +13,7 @@ export type KhoiDongRiengCtx = ScreenCore & {
     toggleWatch: () => void
 }
 
-export function KhoiDongRiengOC4Controller({ ctx }: { ctx: KhoiDongRiengCtx }) {
+export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     const { v, baseCards, flash, openRounds } = ctx
     const oral = v.projection.oral
     const overBudget = oral

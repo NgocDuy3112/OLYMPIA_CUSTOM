@@ -13,7 +13,7 @@ export type VeDichPickCtx = ScreenCore & {
     mcVeDich: VeDichMc | null
 }
 
-export function VeDichPickOC4Controller({ ctx }: { ctx: VeDichPickCtx }) {
+export function VeDichPickAOCController({ ctx }: { ctx: VeDichPickCtx }) {
     const { v, questions, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
     const phase2 = mcVeDich?.phase === 2

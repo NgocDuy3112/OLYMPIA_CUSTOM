@@ -16,7 +16,7 @@ export type VeDichChungCtx = ScreenCore & {
     hetLuot: () => void
 }
 
-export function VeDichChungOC4Controller({ ctx }: { ctx: VeDichChungCtx }) {
+export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
     const { v, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
     const projection = v.projection
 

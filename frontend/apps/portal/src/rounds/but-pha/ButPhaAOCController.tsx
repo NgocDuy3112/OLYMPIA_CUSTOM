@@ -14,7 +14,7 @@ export type ButPhaCtx = ScreenCore & {
     byId: (id: string) => ConsoleQuestion | null
 }
 
-export function ButPhaOC4Controller({ ctx }: { ctx: ButPhaCtx }) {
+export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
     const { v, remaining, baseCards, flash, openRounds } = ctx
     const open = v.projection.open
     const openQ = open[0] ?? null
