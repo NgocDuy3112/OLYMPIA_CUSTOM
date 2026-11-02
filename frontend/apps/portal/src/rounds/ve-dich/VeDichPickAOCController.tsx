@@ -54,7 +54,7 @@ export function VeDichPickAOCController({ ctx }: { ctx: VeDichPickCtx }) {
                             ? ctx.send({ kind: "ve-dich.beginPhase2" })
                             : ctx.send({ kind: "ve-dich.advanceTurn" }),
                 },
-                backToLobbyAction(ctx.ketThuc),
+                backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
         >

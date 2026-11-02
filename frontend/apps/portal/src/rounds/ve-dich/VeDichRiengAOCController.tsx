@@ -81,7 +81,7 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                 },
                 ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
                 { label: COPY.endTurn, onClick: turnOpen ? undefined : () => ctx.hetLuot() },
-                backToLobbyAction(ctx.ketThuc),
+                backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
         >

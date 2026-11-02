@@ -30,7 +30,7 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
             actions={[
                 { label: COPY.startClock, onClick: ctx.pickQuestion },
                 ...verdictActions({ canVerdict: ctx.target !== null && openQ !== null, onVerdict: ctx.setVerdict }),
-                backToLobbyAction(ctx.ketThuc),
+                backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
         >

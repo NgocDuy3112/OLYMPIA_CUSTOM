@@ -8,7 +8,7 @@ import { screenCore, type HetLuotFacts, type RoundAction, type RoundModule } fro
 // Về đích — the AOC ruleset: turn-based. Phase 1 each player picks the highest
 // free cell (opens typed), phase 2 each picks three (oral + 5s buzz window).
 // The board draws while nothing is open. The TURN is Hết lượt's job (resolve,
-// verdicts first); Kết thúc ends the WHOLE round — the engine closes any open
+// verdicts first); Về sảnh ends the WHOLE round — the engine closes any open
 // question with it, so it stays the ungated escape hatch.
 
 /** The round's narrow slices — the screens' ctx types, projected from facts. */
@@ -59,6 +59,6 @@ export const veDichAOC: RoundModule = {
             : <VeDichChungAOCController ctx={chungCtx(f)} />
     },
     railVariant: ({ veDichPhase }) => (veDichPhase === 2 ? "compact" : "answers"),
-    ketThucPlan: (): RoundAction[] => [{ kind: "ve-dich.endRound" }],
+    endRoundPlan: (): RoundAction[] => [{ kind: "ve-dich.endRound" }],
     hetLuotAction,
 }

@@ -34,7 +34,7 @@ export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
             actions={[
                 ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
                 { label: COPY.endTurn, onClick: needsVerdict ? undefined : () => ctx.hetLuot() },
-                backToLobbyAction(ctx.ketThuc),
+                backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
         >

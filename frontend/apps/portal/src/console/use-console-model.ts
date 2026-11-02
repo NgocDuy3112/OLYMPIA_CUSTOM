@@ -3,7 +3,7 @@ import { useCountdown, useServerClock } from "@shared/lib/clock"
 import type { CardData, ConsoleFacts } from "@/components/stage/deck"
 import { valueText } from "@/components/stage/ledger"
 import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
-import { ketThucPlanOf, nextQuestionPlanOf, railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
+import { endRoundPlanOf, nextQuestionPlanOf, railVariantOf, roundModuleOf, type RoundModule } from "@/rounds"
 import {
     startActionPayload,
     useLive,
@@ -71,7 +71,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     // show the deck. Automatic ends (Về sảnh) clear it → both surfaces fall
     // back to the lobby. Players never set it: they follow the pushed view.
     const [entered, setEntered] = useState(false)
-    // Về sảnh / Kết thúc ALWAYS returns this console to the waiting room, whatever
+    // Về sảnh ALWAYS returns this console to the waiting room, whatever
     // the round's own end plan does (a giai-ma plan only closes its hint window,
     // a race only ends the round, an unknown round plans nothing). The flag
     // overrides the stage so the deck cannot keep drawing a live round.
@@ -253,7 +253,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     }
 
     /** ve-dich only: finish the current TURN — verdicts first (the round module
-     *  owns the rule; ending the ROUND is ketThuc's job). */
+     *  owns the rule; ending the ROUND is backToLobby's job). */
     const hetLuot = () => {
         if (!mcVeDich || open.length === 0) return
         const qid = open[0].questionId
@@ -276,7 +276,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     })
 
     /** Kết thúc = end the round in ONE press — the round module decides WHAT. */
-    const ketThuc = () => {
+    const backToLobby = () => {
         // The ONE rule every round shares: Về sảnh lands on the waiting room.
         // The plan below still tidies the engine's state first (close the open
         // window, commit, end the round) — the navigation does not wait for it,
@@ -285,7 +285,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         setEntered(false)
 
         if (stage === "ended") return
-        const plan = ketThucPlanOf(roundId, planInput())
+        const plan = endRoundPlanOf(roundId, planInput())
         if (plan.length > 1) return void sendChain(plan)
         if (plan.length === 1) return send(plan[0])
     }
@@ -417,7 +417,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         setVerdict,
         send,
         hetLuot,
-        ketThuc,
+        backToLobby,
         pickQuestion,
         byId,
         verdictOf,

@@ -1,4 +1,5 @@
 import { Badges, CardHeader, MainCard, Rail, StageLayout, Strip, Timer } from "@/components/stage/deck"
+import { backToLobbyAction } from "@/components/stage/actions"
 
 import type { ScreenCore } from "../types"
 
@@ -65,7 +66,7 @@ export function TieBreakAOCController({ ctx }: { ctx: TieBreakCtx }) {
                     { label: "Đúng", onClick: ctx.target && buzzerId ? () => ctx.setVerdict(true) : undefined },
                     { label: "Sai", onClick: ctx.target && buzzerId ? () => ctx.setVerdict(false) : undefined },
                     { label: "Hết lượt", onClick: unjudged ? undefined : () => ctx.hetLuot() },
-                    { label: "Về sảnh", onClick: ctx.ketThuc },
+                    backToLobbyAction(ctx.backToLobby),
                 ]}
             />
         </StageLayout>

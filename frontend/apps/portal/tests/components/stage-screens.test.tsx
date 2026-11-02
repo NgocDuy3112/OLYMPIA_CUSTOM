@@ -53,7 +53,7 @@ function facts(
         setVerdict: vi.fn(),
         send: vi.fn(),
         hetLuot: vi.fn(),
-        ketThuc: vi.fn(),
+        backToLobby: vi.fn(),
         pickQuestion: vi.fn(),
         byId: () => null,
         verdictOf: () => null,
@@ -107,7 +107,7 @@ describe("KhoiDongRieng — S1, the oral run", () => {
         await user.click(screen.getByRole("button", { name: "Đúng" }))
         expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.recordOral", correct: true, spentS: 0 })
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
-        expect(f.ketThuc).toHaveBeenCalledOnce()
+        expect(f.backToLobby).toHaveBeenCalledOnce()
     })
 
     it("locks Đúng/Sai while no run is open, and once the budget is blown", () => {
@@ -326,7 +326,7 @@ describe("ButPha — S4", () => {
         await user.click(screen.getByRole("button", { name: "Tính giờ" }))
         expect(f.pickQuestion).toHaveBeenCalledOnce()
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
-        expect(f.ketThuc).toHaveBeenCalledOnce()
+        expect(f.backToLobby).toHaveBeenCalledOnce()
     })
 })
 
@@ -403,11 +403,11 @@ describe("VeDichRieng — S8, phase 2 question", () => {
         expect(screen.queryByRole("button", { name: "Hết lượt" })).toBeNull()
     })
 
-    it("Về sảnh always sends ketThuc while the round runs", async () => {
+    it("Về sảnh always sends the round-end plan while the round runs", async () => {
         const user = userEvent.setup()
         const f = renderRound("ve-dich", { verdictOf: () => "CORRECT" }, { open: [openQ] }, veDichMc({ phase: 2 }))
         await user.click(screen.getByRole("button", { name: "Về sảnh" }))
-        expect(f.ketThuc).toHaveBeenCalledOnce()
+        expect(f.backToLobby).toHaveBeenCalledOnce()
     })
 })
 

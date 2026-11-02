@@ -37,7 +37,7 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
                     onClick: ctx.toggleWatch,
                 },
                 ...verdictActions({ canVerdict, onVerdict: record }),
-                backToLobbyAction(ctx.ketThuc),
+                backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
         >

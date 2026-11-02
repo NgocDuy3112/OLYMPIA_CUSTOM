@@ -37,7 +37,7 @@ export interface ConsoleFacts {
     /** turn-based (ve-dich): finish the current TURN — the open question, verdicts first. */
     hetLuot: () => void
     /** end the whole ROUND (turn-based: the turn itself is hetLuot's job). */
-    ketThuc: () => void
+    backToLobby: () => void
     /** Tính giờ — pick the round's NEXT question (but-pha's question cursor). */
     pickQuestion: () => void
     byId: (id: string) => ConsoleQuestion | null

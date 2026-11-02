@@ -37,7 +37,7 @@ export const butPhaAOC: RoundModule = {
     render: (f) => <ButPhaAOCController ctx={butPhaCtx(f)} />,
     railVariant: () => "answers",
     // ONE press ends the round — the engine closes any open question with it.
-    ketThucPlan: (input): RoundAction[] =>
+    endRoundPlan: (input): RoundAction[] =>
         [...finalizeIfNeeded(input), { kind: "but-pha.endRound" }],
     // Tính giờ: commit the current question, advance, open the next. Closing
     // the last question ends the round (engine rule) — so no open after it.

@@ -57,7 +57,7 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                 // Đúng từ khoá: one press judges every keyword draft — selected
                 // correct, the rest of the submitters wrong.
                 { label: COPY.judgeKeyword, onClick: ctx.commitKeywordReady ? () => ctx.commitKeyword() : undefined },
-                backToLobbyAction(ctx.ketThuc),
+                backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
         >

@@ -33,12 +33,12 @@ export function railVariantOf(facts: { roundId: string; stage: string; veDichPha
 }
 
 /**
- * What Kết thúc sends: ONE press ends the round (the module plans finalize+end
+ * What Về sảnh sends: ONE press ends the round (the module plans finalize+end
  * as needed). Unknown rounds plan nothing — they never render a strip (the
  * lobby owns them).
  */
-export function ketThucPlanOf(roundId: string, input: RoundPlanInput): RoundAction[] {
-    return ROUNDS[roundId]?.ketThucPlan(input) ?? []
+export function endRoundPlanOf(roundId: string, input: RoundPlanInput): RoundAction[] {
+    return ROUNDS[roundId]?.endRoundPlan(input) ?? []
 }
 
 /** What Tính giờ sends — the round's NEXT question (rounds with a cursor). */

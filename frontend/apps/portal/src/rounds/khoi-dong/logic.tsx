@@ -28,7 +28,7 @@ export const khoiDongAOC: RoundModule = {
             ? <KhoiDongChungAOCController ctx={chungCtx(f)} />
             : <KhoiDongRiengAOCController ctx={riengCtx(f)} />,
     railVariant: ({ stage }) => (stage === "phase2" ? "answers" : "compact"),
-    ketThucPlan: (input): RoundAction[] => {
+    endRoundPlan: (input): RoundAction[] => {
         if (input.stage === "phase1") {
             return [{ kind: input.hasOralRun ? "khoi-dong.timeOutRun" : "khoi-dong.beginPhase2" }]
         }

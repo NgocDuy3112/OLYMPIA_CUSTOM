@@ -52,7 +52,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                     // Nobody buzzed (or the question is judged) → move on.
                     onClick: buzzer === null ? () => ctx.send({ kind: "khoi-dong.nextQuestion" }) : undefined,
                 },
-                backToLobbyAction(ctx.ketThuc),
+                backToLobbyAction(ctx.backToLobby),
             ]}
             flash={flash}
         >

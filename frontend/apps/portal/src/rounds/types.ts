@@ -29,13 +29,13 @@ export interface HetLuotFacts {
  */
 export type ScreenCore = Pick<
     ConsoleFacts,
-    "v" | "flash" | "baseCards" | "send" | "ketThuc" | "openRounds" | "openAdjust"
+    "v" | "flash" | "baseCards" | "send" | "backToLobby" | "openRounds" | "openAdjust"
 >
 
 /** The pass-through core: what every screen's ctx starts from. */
 export function screenCore(facts: ConsoleFacts): ScreenCore {
-    const { v, flash, baseCards, send, ketThuc, openRounds, openAdjust } = facts
-    return { v, flash, baseCards, send, ketThuc, openRounds, openAdjust }
+    const { v, flash, baseCards, send, backToLobby, openRounds, openAdjust } = facts
+    return { v, flash, baseCards, send, backToLobby, openRounds, openAdjust }
 }
 
 /**
@@ -55,7 +55,7 @@ export interface RoundModule {
     /** Which rail the round draws. */
     railVariant: (facts: { stage: string; veDichPhase: 1 | 2 | null }) => "compact" | "answers"
     /** The actions Kết thúc sends for the round — one press ends it. */
-    ketThucPlan: (input: RoundPlanInput) => RoundAction[]
+    endRoundPlan: (input: RoundPlanInput) => RoundAction[]
     /** Tính giờ's plan: the round's NEXT question (rounds with a question cursor). */
     nextQuestionPlan?: (input: RoundPlanInput) => RoundAction[]
     /** Turn-based rounds only: the action that finishes the current TURN. */
