@@ -9,7 +9,6 @@ const STAGES = [
     { id: "final", title: "Final" }
 ];
 
-const TIERS = [{ min: 1, max: 2, points: 10 }];
 
 const roster = (ids: string[]) => ids.map((userId) => ({ userId, displayName: userId }));
 
@@ -52,8 +51,7 @@ describe("the tournament's places", () => {
                 match("m1", "round-1", 1, [["a", 10], ["b", 5]]),
                 match("m2", "final", 1, [["c", 30], ["d", 20]])
             ],
-            players: roster(["a", "b", "c", "d"]),
-            tiers: []
+            players: roster(["a", "b", "c", "d"])
         });
 
         // The final is the last stage, so its two players take the first two places.
@@ -68,8 +66,7 @@ describe("the tournament's places", () => {
                 match("m1", "round-1", 2, [["a", 10], ["b", 5]]),
                 match("m2", "round-1", 1, [["c", 10], ["d", 5]])
             ],
-            players: roster(["a", "b", "c", "d"]),
-            tiers: []
+            players: roster(["a", "b", "c", "d"])
         });
 
         // Slot 1 first, then slot 2 — the slot, not the points, orders them.
@@ -81,8 +78,7 @@ describe("the tournament's places", () => {
         const rows = buildStandings({
             stages: STAGES,
             matches: [match("m1", "round-1", 1, [["a", 10], ["b", 30], ["c", 20]])],
-            players: roster(["a", "b", "c"]),
-            tiers: []
+            players: roster(["a", "b", "c"])
         });
 
         expect(rows.map((row) => row.userId)).toEqual(["b", "c", "a"]);
@@ -97,8 +93,7 @@ describe("the tournament's places", () => {
                 match("m1", "round-1", 1, [["a", 100], ["b", 1]]),
                 match("m2", "final", 1, [["b", 1], ["c", 0]])
             ],
-            players: roster(["a", "b", "c"]),
-            tiers: []
+            players: roster(["a", "b", "c"])
         });
 
         // "a" scored the most, and is last: the progress decides.
@@ -118,8 +113,7 @@ describe("the tournament's places", () => {
                     { userId: "b", totalScore: 10, rank: 1 }
                 ]
             }],
-            players: roster(["a", "b"]),
-            tiers: []
+            players: roster(["a", "b"])
         });
 
         expect(rows.map((row) => row.place)).toEqual([1, 1]);
@@ -129,8 +123,7 @@ describe("the tournament's places", () => {
         const rows = buildStandings({
             stages: STAGES,
             matches: [match("m1", "final", 1, [["a", 10]])],
-            players: roster(["a", "b"]),
-            tiers: []
+            players: roster(["a", "b"])
         });
 
         expect(rows.map((row) => row.userId)).toEqual(["a", "b"]);
@@ -143,8 +136,7 @@ describe("the tournament's places", () => {
         const rows = buildStandings({
             stages: STAGES,
             matches: [match("m1", "mystery", 1, [["a", 10]])],
-            players: roster(["a"]),
-            tiers: []
+            players: roster(["a"])
         });
 
         expect(rows[0].place).toBeNull();
@@ -158,11 +150,9 @@ describe("the tournament's places", () => {
                 match("m2", "round-2", 1, [["d", 500]])
             ],
             players: roster(["a", "b", "c", "d"]),
-            tiers: TIERS
         });
 
         expect(rows.map((row) => row.place)).toEqual([1, 2, 3, 4]);
-        expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0]);
         // "d" scored the most by far, and has the last place.
         expect(rows[3].userId).toBe("d");
     });

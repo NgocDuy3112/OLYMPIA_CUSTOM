@@ -325,7 +325,6 @@ describe("GET /gameplay/tournaments/:slug/standings — the places", () => {
             displayName: "A. Voss",
             place: 1,
             matchesPlayed: 1,
-            placementPoints: 25,
             stageTitle: "Vòng Playoffs"
         });
     });

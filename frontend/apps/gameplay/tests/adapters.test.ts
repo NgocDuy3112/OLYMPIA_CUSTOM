@@ -156,7 +156,6 @@ describe("toStandings — the places model", () => {
                 displayName: "A. Voss",
                 place: 1,
                 matchesPlayed: 3,
-                placementPoints: 25,
                 stageId: "playoffs",
                 stageTitle: "Vòng Playoffs",
                 slot: 1,
@@ -169,7 +168,6 @@ describe("toStandings — the places model", () => {
             name: "A. Voss",
             stageTitle: "Vòng Playoffs",
             matchesPlayed: 3,
-            points: 25,
         })
     })
 
@@ -180,13 +178,12 @@ describe("toStandings — the places model", () => {
                 displayName: "Never Seated",
                 place: null,
                 matchesPlayed: 0,
-                placementPoints: 0,
                 stageId: null,
                 stageTitle: null,
                 slot: null,
             },
         ])
 
-        expect(row).toMatchObject({ rank: null, points: 0, matchesPlayed: 0, stageTitle: null })
+        expect(row).toMatchObject({ rank: null, matchesPlayed: 0, stageTitle: null })
     })
 })

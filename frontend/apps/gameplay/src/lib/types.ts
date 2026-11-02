@@ -31,7 +31,6 @@ export interface Match {
 }
 
 // A row of the places table: how far the player got, never a sum of scores.
-// `points` is the statistic (what the place was worth), never the ranking key.
 export interface StandingRow {
     id: string
     rank: number | null
@@ -39,5 +38,4 @@ export interface StandingRow {
     // The last stage the player reached — null for a player who never played.
     stageTitle: string | null
     matchesPlayed: number
-    points: number
 }

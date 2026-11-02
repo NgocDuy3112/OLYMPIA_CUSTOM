@@ -91,7 +91,6 @@ export interface StandingRow {
     displayName: string
     place: number | null
     matchesPlayed: number
-    placementPoints: number
     stageId: string | null
     stageTitle: string | null
     slot: number | null

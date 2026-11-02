@@ -163,7 +163,6 @@ export const tournamentStandings = pgTable(
             .notNull()
             .references(() => users.id),
         rank: integer("rank").notNull(),
-        placementPoints: integer("placement_points").notNull(),
         computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [

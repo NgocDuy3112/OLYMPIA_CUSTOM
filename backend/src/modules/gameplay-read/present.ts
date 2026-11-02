@@ -134,7 +134,6 @@ export function presentStanding(row: PlayerStanding) {
         displayName: row.displayName,
         place: row.place,
         matchesPlayed: row.matchesPlayed,
-        placementPoints: row.placementPoints,
         stageId: row.stageId,
         stageTitle: row.stageTitle,
         slot: row.slot

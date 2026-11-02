@@ -191,7 +191,7 @@ describe("the tournament's places", () => {
 
         const rows = (await standings()).json().rows as Array<{
             userId: string; displayName: string; place: number | null;
-            totalPoints: number; matchesPlayed: number; placementPoints: number;
+            totalPoints: number; matchesPlayed: number;
             stageTitle: string | null;
         }>;
 
@@ -205,8 +205,8 @@ describe("the tournament's places", () => {
         expect(rows.slice(0, 4).every((row) => row.stageTitle === "Round 2")).toBe(true);
 
         // Three of them finished on 50 points in the tournament; only the progress orders
-        // them. The bonus follows the place.
-        expect(rows.map((row) => row.placementPoints)).toEqual([10, 10, 0, 0, 0, 0]);
+        // them. A place carries no stored worth any more — the row is place + progress.
+        expect(rows.every((row) => !("placementPoints" in row))).toBe(true);
     });
 
     it("places the players who stopped in round 1 below them", async () => {

@@ -15,6 +15,13 @@
       "when": 1793586873636,
       "tag": "0001_extras",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793588693276,
+      "tag": "0002_drop_placement_points",
+      "breakpoints": true
     }
   ]
 }

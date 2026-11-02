@@ -54,11 +54,10 @@ export function PlayerDrawer({
 
                     <div className="flex flex-col gap-3">
                         <h3 className="text-xl font-semibold">Thành tích tại giải đấu</h3>
-                        <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+                        <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
                             <Stat label="Hạng" value={player.rank !== null ? `#${player.rank}` : "—"} strong />
                             <Stat label="Vòng đã tới" value={player.stageTitle ?? "—"} />
                             <Stat label="Trận đã đấu" value={player.matchesPlayed} />
-                            <Stat label="Điểm" value={player.points} />
                         </div>
                     </div>
 

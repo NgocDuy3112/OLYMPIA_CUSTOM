@@ -255,7 +255,6 @@ describe("presentStanding", () => {
             displayName: "A. Voss",
             place: 1,
             matchesPlayed: 3,
-            placementPoints: 25,
             stageId: "playoffs",
             stageTitle: "Vòng Playoffs",
             slot: 1
@@ -265,7 +264,6 @@ describe("presentStanding", () => {
             displayName: "A. Voss",
             place: 1,
             matchesPlayed: 3,
-            placementPoints: 25,
             stageId: "playoffs",
             stageTitle: "Vòng Playoffs",
             slot: 1

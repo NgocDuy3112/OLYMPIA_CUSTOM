@@ -78,8 +78,7 @@ export async function getStandings(tournamentId: string): Promise<PlayerStanding
     return buildStandings({
         stages: await tournamentStages(tournamentId),
         matches: await tournamentMatches(tournamentId),
-        players: await tournamentRoster(tournamentId),
-        tiers: tournament.placementTiers ?? []
+        players: await tournamentRoster(tournamentId)
     });
 }
 
@@ -99,8 +98,7 @@ export async function recomputeStandings(tournamentId: string): Promise<PlayerSt
             await tx.insert(tournamentStandings).values(storable.map((row) => ({
                 tournamentId,
                 userId: row.userId,
-                rank: row.place!,
-                placementPoints: row.placementPoints
+                rank: row.place!
             })));
         }
     });

@@ -134,7 +134,6 @@ export const PublicStandingRow = Type.Object({
     displayName: Type.String(),
     place: Type.Union([Type.Integer(), Type.Null()]),
     matchesPlayed: Type.Integer(),
-    placementPoints: Type.Integer(),
     stageId: Type.Union([Type.String(), Type.Null()]),
     stageTitle: Type.Union([Type.String(), Type.Null()]),
     slot: Type.Union([Type.Integer(), Type.Null()])

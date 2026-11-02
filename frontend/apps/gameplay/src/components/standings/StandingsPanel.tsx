@@ -19,7 +19,7 @@ import { cn } from "cn"
 import type { StandingRow } from "@/lib/types"
 
 // The places table: a player is ranked by HOW FAR THEY GOT — the last stage they
-// reached, and their rank inside it. The points are a statistic, never the key.
+// reached, and their rank inside it. A place has no stored worth to show.
 
 interface StandingsPanelProps {
     rows: StandingRow[]
@@ -51,7 +51,6 @@ export function StandingsPanel({
                             <TableHead>Thí sinh</TableHead>
                             <TableHead>Đã tới vòng</TableHead>
                             <TableHead className="text-center">Trận</TableHead>
-                            <TableHead className="text-center">Điểm</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -73,9 +72,6 @@ export function StandingsPanel({
                                 </TableCell>
                                 <TableCell className="text-center tabular-nums">
                                     {row.matchesPlayed}
-                                </TableCell>
-                                <TableCell className="text-center font-semibold tabular-nums">
-                                    {row.points}
                                 </TableCell>
                             </TableRow>
                         ))}

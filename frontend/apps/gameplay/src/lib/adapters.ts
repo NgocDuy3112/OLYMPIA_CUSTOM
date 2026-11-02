@@ -91,7 +91,7 @@ export function toMatch(row: Match, rounds: TournamentRound[]): ViewMatch {
 }
 
 // The places table: the wire's row IS the model's row under different names —
-// place is rank, placementPoints is the statistic the panel shows as points.
+// place is rank. A place carries no stored worth, so there is no points field.
 export function toStandingRow(row: ApiStandingRow): StandingRow {
     return {
         id: row.userId,
@@ -99,7 +99,6 @@ export function toStandingRow(row: ApiStandingRow): StandingRow {
         name: row.displayName,
         stageTitle: row.stageTitle,
         matchesPlayed: row.matchesPlayed,
-        points: row.placementPoints,
     }
 }
 

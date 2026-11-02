@@ -9,10 +9,11 @@
 // stage the slots, and inside a slot the match's own result. A player who never took a
 // seat has no place: they are listed at the bottom, with no points.
 //
-// The points are a statistic, not the ranking key: a tie for a placement shares the
-// place (dense numbering), never a silent break.
-import type { PlacementTier } from "../../contracts/index.js";
-import { pointsForPlace } from "./placement.js";
+// A tie for a placement shares the place (dense numbering), never a silent break.
+// What a place is WORTH is not computed here (nor stored): a standing is the place
+// and how far the player got. The tournament's placement tiers stay as
+// configuration for the places an operator wants to show, not as a stored column.
+
 
 export interface StageRef {
     id: string;
@@ -31,7 +32,6 @@ export interface PlayerStanding {
     displayName: string;
     place: number | null;         // null for a player who never played
     matchesPlayed: number;
-    placementPoints: number;       // what the place is worth, from the tournament's tiers
     stageId: string | null;        // the stage they got to
     stageTitle: string | null;
     slot: number | null;           // the match they were eliminated in
@@ -41,7 +41,6 @@ export interface BuildStandingsInput {
     stages: StageRef[];            // the tournament's stages, in order
     matches: MatchResultInput[];   // the points matches that were played
     players: Array<{ userId: string; displayName: string }>;   // the roster
-    tiers: PlacementTier[];
 }
 
 // The furthest a player got: the latest stage, then the lowest slot, then the best rank.
@@ -119,7 +118,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
             displayName: input.players.find((row) => row.userId === entry.userId)?.displayName ?? entry.userId,
             place,
             matchesPlayed: played.get(entry.userId) ?? 0,
-            placementPoints: pointsForPlace(input.tiers, place),
             stageId: value.stageId,
             stageTitle: value.stageTitle,
             slot: value.slot === Number.MAX_SAFE_INTEGER ? null : value.slot
@@ -137,7 +135,6 @@ export function buildStandings(input: BuildStandingsInput): PlayerStanding[] {
             displayName: row.displayName,
             place: null,
             matchesPlayed: 0,
-            placementPoints: 0,
             stageId: null,
             stageTitle: null,
             slot: null
