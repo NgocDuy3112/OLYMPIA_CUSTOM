@@ -11,7 +11,7 @@ import { toAgentQuestion } from "../map.js";
 
 export const eligibleQuestionsInput = z.object({
     tournamentId: z.uuid(),
-    kind: z.enum(["MC", "TEXT", "KEYWORD", "HINT"]).optional(),
+    kind: z.enum(["CHOICE", "TEXT", "KEYWORD", "HINT"]).optional(),
     search: z.string().min(1).max(200).optional(),
     limit: z.number().int().min(1).max(100).default(20),
     offset: z.number().int().min(0).default(0)

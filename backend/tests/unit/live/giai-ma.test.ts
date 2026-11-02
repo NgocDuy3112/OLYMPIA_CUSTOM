@@ -19,11 +19,11 @@ const draft = (userId: string): AnswerDraft =>
 
 const ctx = (answerDrafts: AnswerDraft[] = []): GiaiMaContext =>
     ({
-        actorId: "mc-1", rules: GIAI_MA_DEFAULTS, roundId: "giai-ma", hintTurnId: "hints",
+        actorId: "console-1", rules: GIAI_MA_DEFAULTS, roundId: "giai-ma", hintTurnId: "hints",
         answerDrafts, now: NOW
     });
 
-// The MC's commit: explicit verdicts for the players they staged.
+// The the console's commit: explicit verdicts for the players they staged.
 const resolve = (verdicts: Array<{ playerId: string; correct: boolean }>) =>
     ({ kind: "giai-ma.resolveHint" as const, verdicts });
 
@@ -51,7 +51,7 @@ describe("applyGiaiMaAction — state transitions", () => {
             .toThrow(RuleError);
     });
 
-    it("resolveHint applies the MC's explicit verdicts and consumes the hint", () => {
+    it("resolveHint applies the console's explicit verdicts and consumes the hint", () => {
         const open = applyGiaiMaAction(fresh(), { kind: "giai-ma.openHint", hintId: "h3" }, ctx()).state;
         const { state } = applyGiaiMaAction(open, resolve([
             { playerId: "a", correct: true },
@@ -73,7 +73,7 @@ describe("applyGiaiMaAction — state transitions", () => {
 
     it("a submitted answer without a verdict BLOCKS the resolve (no auto-verdict)", () => {
         const open = applyGiaiMaAction(fresh(), { kind: "giai-ma.openHint", hintId: "h1" }, ctx()).state;
-        // both submitted, but the MC staged only "a" → refuse, nothing is revealed
+        // both submitted, but the console staged only "a" → refuse, nothing is revealed
         expect(() => applyGiaiMaAction(open, resolve([{ playerId: "a", correct: true }]),
             ctx([draft("a"), draft("b")]))).toThrow(RuleError);
         try {
@@ -98,11 +98,11 @@ describe("applyGiaiMaAction — state transitions", () => {
 });
 
 describe("applyGiaiMaAction — facts", () => {
-    it("openHint records a PICK event for the MC", () => {
+    it("openHint records a PICK event for the console", () => {
         const { facts } = applyGiaiMaAction(fresh(), { kind: "giai-ma.openHint", hintId: "h3" }, ctx());
         expect(facts).toHaveLength(1);
         expect(facts[0]).toMatchObject({
-            type: "event", questionId: "h3", userId: "mc-1", roundId: "giai-ma",
+            type: "event", questionId: "h3", userId: "console-1", roundId: "giai-ma",
             kind: "PICK", payload: { kind: "PICK", turnId: "hints", pickOrder: 1 }
         });
     });
@@ -154,7 +154,7 @@ describe("applyGiaiMaAction — facts", () => {
         expect(state.players.find((p) => p.id === "a")!.keywordPoints).toBe(0);
     });
 
-    it("judgeKeyword UPDATES the draft row with the MC's verdict and the frozen value", () => {
+    it("judgeKeyword UPDATES the draft row with the console's verdict and the frozen value", () => {
         const opened = applyGiaiMaAction(fresh(), { kind: "giai-ma.openHint", hintId: "h1" }, ctx()).state;
         const submitted = applyGiaiMaAction(opened, {
             kind: "giai-ma.submitKeyword",

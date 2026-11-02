@@ -6,14 +6,14 @@ import { COPY } from "@shared/deck/copy"
 
 // Giải mã (S3): the hint tile grid (count-driven — any hint count fits), then
 // the lower question card, the keyword strip and the ledger rail. Pure: its ctx.
-import type { ConsoleQuestion, GiaiMaMc } from "@/lib/live"
+import type { ConsoleQuestion, GiaiMaConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
 /** Giải mã: hint windows + the typed keyword — NOTHING is auto-scored. */
 export type GiaiMaCtx = ScreenCore & {
     remaining: number | null
     questions: ConsoleQuestion[]
-    mcGiaiMa: GiaiMaMc | null
+    consoleGiaiMa: GiaiMaConsole | null
     /** multi-select: toggle a card — selected = the CORRECT answerers. */
     toggleSelect: (userId: string) => void
     /** the commits enable once a selected player submitted the question. */
@@ -26,7 +26,7 @@ export type GiaiMaCtx = ScreenCore & {
 }
 
 export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
-    const { v, remaining, questions, baseCards, mcGiaiMa, flash, openRounds } = ctx
+    const { v, remaining, questions, baseCards, consoleGiaiMa, flash, openRounds } = ctx
     const open = v.projection.open
 
     const keywordQ = questions.find((q) => q.roundId === "giai-ma" && q.kind === "KEYWORD")
@@ -34,9 +34,9 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     const hintQuestions = questions
         .filter((q) => q.roundId === "giai-ma" && q.kind !== "KEYWORD")
         .sort((a, b) => a.position - b.position)
-    const openHintId = mcGiaiMa?.openHintId ?? null
+    const openHintId = consoleGiaiMa?.openHintId ?? null
     const tileState = (qid: string): HintTile =>
-        qid === openHintId ? "open" : mcGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
+        qid === openHintId ? "open" : consoleGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
     const openHint = (qid: string) => ctx.send({ kind: "giai-ma.openHint", hintId: qid })
     // The board is the show's fixed EIGHT squares (as on the player's deck): the
     // i-th tile is the i-th hint of this round, and a tile past the round's hints

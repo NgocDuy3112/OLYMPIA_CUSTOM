@@ -21,7 +21,7 @@ export type VeDichRiengPlayerCtx = PlayerCore & {
 /** What the band says when this player has nothing to press. */
 function spectatorLine(ctx: VeDichRiengPlayerCtx): string {
     const me = ctx.v.me
-    if (me.isAnswerer) return "Bạn trả lời miệng trước MC"
+    if (me.isAnswerer) return "Bạn trả lời miệng trước ban điều hành"
     if (me.buzzer === ctx.myId && me.buzzerMs !== null && me.buzzerMs !== undefined) {
         return `Bạn bấm chuông nhanh nhất (${formatBuzzMs(me.buzzerMs)}) — trả lời đi!`
     }

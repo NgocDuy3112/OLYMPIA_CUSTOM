@@ -21,7 +21,7 @@ const url = (suffix: string) => `/portal/tournaments/${tournamentId}${suffix}`;
 
 const roundRules: Record<string, RoundConfig> = {
     "ve-dich": {
-        allowedKinds: ["MC"],
+        allowedKinds: ["CHOICE"],
         scoring: { template: "constant", points: 10 },
         turns: [{ id: "phase1", mode: "text", delivery: "batch", questionCount: 2 }]
     }

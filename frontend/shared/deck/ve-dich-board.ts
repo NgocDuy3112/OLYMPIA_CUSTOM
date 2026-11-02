@@ -46,7 +46,7 @@ export interface BoardRow<T> {
 /**
  * Group cells into the board's rows — one row per face value, bands top-down.
  * Within a band the input order stands (the server builds the board from the
- * frozen set, so that order is stable for the MC and the player alike).
+ * frozen set, so that order is stable for the console and the player alike).
  */
 export function boardRows<T>(cells: readonly T[], valueOf: (cell: T) => number): Array<BoardRow<T>> {
     const byValue = new Map<number, T[]>()
@@ -72,7 +72,7 @@ export function boardRows<T>(cells: readonly T[], valueOf: (cell: T) => number):
 }
 
 /** The chips above the open question: this turn's OPEN + PENDING cells only —
- *  the same slice the MC's card header shows, so both surfaces point at the
+ *  the same slice the console's card header shows, so both surfaces point at the
  *  same squares. */
 export function stripCellsOf<T extends { where: string }>(board: readonly T[] | null | undefined): T[] {
     return (board ?? []).filter((cell) => cell.where === "open" || cell.where === "pending")

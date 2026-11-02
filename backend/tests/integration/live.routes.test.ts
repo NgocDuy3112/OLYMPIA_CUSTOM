@@ -156,7 +156,7 @@ describe("the console contract (GET /live)", () => {
         const body = await live();
         expect(body).toMatchObject({
             projection: { stage: "hints", open: [] },
-            mc: { hintsRemaining: [], hintsPicked: [], openHintId: null },
+            console: { hintsRemaining: [], hintsPicked: [], openHintId: null },
             roundEnded: false
         });
         // the judge reads the full frozen set — answers included
@@ -178,7 +178,7 @@ describe("live actions — start", () => {
         expect(contract).toMatchObject({
             projection: { stage: "hints" },
             roundEnded: false,
-            mc: { hintsRemaining: hintIds, hintsPicked: [], openHintId: null }
+            console: { hintsRemaining: hintIds, hintsPicked: [], openHintId: null }
         });
     });
 });
@@ -270,9 +270,9 @@ describe("player submissions", () => {
     });
 });
 
-describe("resolve — the MC closes the window with explicit verdicts", () => {
-    it("resolveHint reveals the hint to the players the MC judged correct", async () => {
-        // both submitted; the MC stages p0 correct, p1 wrong — no auto-verdict
+describe("resolve — the console closes the window with explicit verdicts", () => {
+    it("resolveHint reveals the hint to the players the console judged correct", async () => {
+        // both submitted; the console stages p0 correct, p1 wrong — no auto-verdict
         const res = await act({
             kind: "giai-ma.resolveHint",
             verdicts: [
@@ -314,11 +314,11 @@ describe("facts — committed with the state", () => {
         expect(forHint[0].payload).toMatchObject({ kind: "PICK", pickOrder: 2 });
     });
 
-    it("the MC closes the window", async () => {
+    it("the console closes the window", async () => {
         expect((await act({ kind: "giai-ma.closeHintWindow" })).statusCode).toBe(200);
     });
 
-    it("the MC can enter a keyword for a player as a draft, then judge it", async () => {
+    it("the console can enter a keyword for a player as a draft, then judge it", async () => {
         // player 0 has one revealed hint → the value frozen at entry is 90.
         const entered = await act({
             kind: "giai-ma.submitKeyword",
@@ -327,7 +327,7 @@ describe("facts — committed with the state", () => {
         });
         expect(entered.statusCode).toBe(200);
 
-        // entered = locked + draft: NO verdict, NO points until the MC judges
+        // entered = locked + draft: NO verdict, NO points until the console judges
         const draftRows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[0])));
         expect(draftRows.find((r) => r.questionId === keywordQuestionId)).toMatchObject({
@@ -347,7 +347,7 @@ describe("facts — committed with the state", () => {
 });
 
 describe("player submission guards", () => {
-    it("the MC opens a fresh window", async () => {
+    it("the console opens a fresh window", async () => {
         expect((await act({ kind: "giai-ma.openHint", hintId: hintIds[2] })).statusCode).toBe(200);
     });
 
@@ -391,7 +391,7 @@ describe("round progression", () => {
         expect(empty.statusCode).toBe(409);
         expect(empty.json().error).toBe("UNJUDGED_ANSWERS");
 
-        // … and the MC's explicit verdict is what reveals the hint
+        // … and the console's explicit verdict is what reveals the hint
         const res = await act({
             kind: "giai-ma.resolveHint",
             verdicts: [{ playerId: playerIds[1], correct: true }]
@@ -419,14 +419,14 @@ describe("round progression", () => {
         expect(res.json().error).toBe("ALREADY_SUBMITTED");
     });
 
-    it("the keyword answer is a draft with the matcher's opinion — until the MC judges", async () => {
+    it("the keyword answer is a draft with the matcher's opinion — until the console judges", async () => {
         const rows = await db.select().from(answers)
             .where(and(eq(answers.matchId, matchId), eq(answers.userId, playerIds[1])));
         const draft = rows.find((r) => r.questionId === keywordQuestionId);
         expect(draft).toMatchObject({ judged: false, verdict: null, autoMatched: false });
         expect(draft!.drafts).toMatchObject({ auto: "CORRECT" });      // opinion, not verdict
 
-        // the MC's verdict is what makes it count — frozen value 90 (one revealed hint)
+        // the console's verdict is what makes it count — frozen value 90 (one revealed hint)
         const judged = await act({
             kind: "giai-ma.judgeKeyword",
             playerId: playerIds[1], questionId: keywordQuestionId, correct: true
@@ -446,12 +446,12 @@ describe("round progression", () => {
         expect(advanced.json().roundId).toBe("but-pha");
         expect(advanced.json().state).toEqual({});
 
-        // The console's view of the fresh round: pending until the MC starts it.
+        // The console's view of the fresh round: pending until the console starts it.
         const consoleView = await live();
         expect(consoleView).toMatchObject({
             roundId: "but-pha",
             projection: { stage: "pending", open: [] },
-            mc: null,
+            console: null,
             roundEnded: false
         });
     });
@@ -514,8 +514,8 @@ describe("the audience's read — public gameplay, no judge's extras", () => {
             expect(JSON.stringify(q.payload)).not.toContain("acceptedAnswers");
             expect(q.payload.code).toBeUndefined();
         }
-        // The MC's own facts are the CONSOLE's, not the audience's.
-        expect(body.mc).toBeNull();
+        // The the console's own facts are the CONSOLE's, not the audience's.
+        expect(body.console).toBeNull();
     });
 
     it("has no answers ledger — an audience does not judge", async () => {
@@ -546,7 +546,7 @@ describe("live actions — authorisation", () => {
 });
 
 describe("but-pha round — draft, then finalize", () => {
-    it("the MC starts but-pha with the match's questions in position order", async () => {
+    it("the console starts but-pha with the match's questions in position order", async () => {
         const res = await act({ kind: "but-pha.start" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.questionIds).toEqual(butPhaIds);
@@ -558,7 +558,7 @@ describe("but-pha round — draft, then finalize", () => {
         expect(res.json().message).toContain("clock has not started");
     });
 
-    it("the MC opens the first question", async () => {
+    it("the console opens the first question", async () => {
         const res = await act({ kind: "but-pha.openQuestion" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.questionOpenedAt).not.toBeNull();
@@ -607,7 +607,7 @@ describe("but-pha round — draft, then finalize", () => {
         expect(rows.find((r) => r.userId === playerIds[0])).toMatchObject({ verdict: "CORRECT", pointsAwarded: 60 });
     });
 
-    it("the MC closes the question once every answer is judged", async () => {
+    it("the console closes the question once every answer is judged", async () => {
         const res = await act({ kind: "but-pha.closeQuestion" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.cursor).toBe(1);
@@ -634,7 +634,7 @@ describe("but-pha round — draft, then finalize", () => {
         expect((await act({ kind: "but-pha.closeQuestion" })).statusCode).toBe(200);
     });
 
-    it("the MC ends the round", async () => {
+    it("the console ends the round", async () => {
         const res = await act({ kind: "but-pha.endRound" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.ended).toBe(true);
@@ -671,7 +671,7 @@ describe("match end — the results are frozen once", () => {
 
     it("the per-question analytics grain is written for the round", async () => {
         const rows = await db.select().from(matchStats).where(eq(matchStats.matchId, matchId));
-        // giai-ma: hint 0 (both) + hint 2 (one) + keyword (player) + keyword (MC) = 5
+        // giai-ma: hint 0 (both) + hint 2 (one) + keyword (player) + keyword (console) = 5
         // but-pha: two answers on question 1, one on question 2 = 3
         expect(rows).toHaveLength(8);
         expect(rows.filter((r) => r.roundId === "but-pha")).toHaveLength(3);

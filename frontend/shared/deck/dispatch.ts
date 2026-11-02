@@ -7,7 +7,7 @@ import { isKnownRound, isWaitingStage } from "./geometry"
 import type { LayoutKey, PlayerView } from "./types"
 
 export type PlayerScreen =
-    | "lobby"   // round not started / ended — waiting for the MC
+    | "lobby"   // round not started / ended — waiting for the console
     | LayoutKey // one of the deck's seven round screens (see ./types)
 
 /** The view is the only input, so this is unit-testable and never re-derived. */

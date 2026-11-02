@@ -27,7 +27,7 @@ import {
 
 
 export const visibility = pgEnum("visibility", ["PUBLIC", "PRIVATE"]);
-export const questionKind = pgEnum("question_kind", ["MC", "TEXT", "KEYWORD", "HINT"]);
+export const questionKind = pgEnum("question_kind", ["CHOICE", "TEXT", "KEYWORD", "HINT"]);
 export const questionStatus = pgEnum("question_status", ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]);
 // AOC group-stage membership (Nhóm A / Nhóm B). Nullable: classic tournaments have no groups.
 export const playerGroup = pgEnum("player_group", ["A", "B"]);

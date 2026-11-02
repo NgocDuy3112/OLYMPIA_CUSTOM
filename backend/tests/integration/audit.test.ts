@@ -49,7 +49,7 @@ async function makePublishedQuestion(): Promise<string> {
         url: `/portal/questions`,
         headers: auth(ownerCookie),
         payload: {
-            kind: "MC",
+            kind: "CHOICE",
             questionText: "audit question",
             
             payload: { options: [{ id: "A", text: "4" }], correctSet: ["A"] }
@@ -162,7 +162,7 @@ describe("audit wiring — the question review gate", () => {
             url: `/portal/questions`,
             headers: auth(ownerCookie),
             payload: {
-                kind: "MC",
+                kind: "CHOICE",
                 questionText: "gate question",
                 
                 payload: { options: [{ id: "A", text: "4" }], correctSet: ["A"] }
@@ -192,7 +192,7 @@ describe("audit wiring — the question review gate", () => {
         const published = await eventsFor("question_published", (d) => d.questionId === questionId);
         expect(published).toHaveLength(1);
         expect(published[0].actorId).toBe(adminId);            // the reviewer is recorded
-        expect(published[0].details).toMatchObject({ kind: "MC" });
+        expect(published[0].details).toMatchObject({ kind: "CHOICE" });
 
         await app.inject({
             method: "DELETE",
@@ -223,7 +223,7 @@ describe("audit wiring — match lifecycle", () => {
                 ],
                 roundConfigs: {
                     r1: {
-                        allowedKinds: ["MC", "TEXT", "KEYWORD"],
+                        allowedKinds: ["CHOICE", "TEXT", "KEYWORD"],
                         scoring: { template: "constant", points: 10 },
                         turns: [{ id: "turn-1", mode: "oral", delivery: "sequential" }]
                     }

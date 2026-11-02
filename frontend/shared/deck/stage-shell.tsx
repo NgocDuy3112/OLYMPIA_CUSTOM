@@ -5,7 +5,7 @@ import type { ReactNode } from "react"
  * The 16:9 stage canvas every surface renders into. Regions (Header · Main ·
  * Rail · ActionBar) are laid out per the deck's coordinates inside it — the
  * geometry lives in @shared/deck/geometry (one canvas, two surfaces: the
- * portal's MC console and the gameplay app's player deck), and each surface
+ * portal's console and the gameplay app's player deck), and each surface
  * owns the match data its board is drawn from: columns come from the questions'
  * domains, rows from their point values, so any count fits.
  *

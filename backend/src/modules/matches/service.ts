@@ -540,7 +540,7 @@ export async function transitionMatch(
             .returning();
 
         // Going LIVE opens the live round record at the tournament's first round. The round's
-        // engine state stays empty until the MC starts it. Idempotent: re-entering LIVE
+        // engine state stays empty until the console starts it. Idempotent: re-entering LIVE
         // never clobbers an in-progress round.
         if (next === "LIVE") {
             const tournament = await requireTournament(tournamentId);

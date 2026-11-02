@@ -68,7 +68,7 @@ export function phase1Complete(state: KhoiDongState): boolean {
 }
 
 /**
- * Phase 1 has recorded NOTHING yet — the MC may skip it (starting straight at
+ * Phase 1 has recorded NOTHING yet — the console may skip it (starting straight at
  * Chung costs the oral runs, which is the confirmed rule). The moment ANY
  * oral answer exists, PHASE1_INCOMPLETE keeps guarding: finish phase 1 first.
  */
@@ -82,7 +82,7 @@ function advanceActive(state: KhoiDongState): KhoiDongState {
     return { ...state, activeIndex: Math.min(state.activeIndex + 1, state.order.length - 1) };
 }
 
-// The MC records the active player's oral answer, with the seconds spent on it.
+// The console records the active player's oral answer, with the seconds spent on it.
 export function recordOral(
     state: KhoiDongState,
     params: { correct: boolean; spentS: number }
@@ -122,7 +122,7 @@ function requirePhase2(state: KhoiDongState): Phase2State {
     return state.phase2;
 }
 
-/** The MC opens (or re-opens) the buzz window for the question in play. */
+/** The the console opens (or re-opens) the buzz window for the question in play. */
 export function openBuzz(state: KhoiDongState, nowIso: string): KhoiDongState {
     return { ...state, phase2: openPhase2Buzz(requirePhase2(state), nowIso) };
 }
@@ -132,7 +132,7 @@ export function recordBuzz(state: KhoiDongState, playerId: string, nowIso: strin
     return { ...state, phase2: buzzPhase2(requirePhase2(state), playerId, nowIso) };
 }
 
-/** The MC's verdict on the buzzed answer: +10 first chance, +5 second, else dead. */
+/** The the console's verdict on the buzzed answer: +10 first chance, +5 second, else dead. */
 export function judgeBuzz(state: KhoiDongState, correct: boolean): KhoiDongState {
     return { ...state, phase2: judgePhase2(requirePhase2(state), correct, state.rules) };
 }

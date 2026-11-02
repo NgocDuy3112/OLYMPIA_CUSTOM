@@ -23,7 +23,7 @@ import { useMe } from "@/lib/session"
 // dialog; the draft is derived from the server row when the dialog opens and
 // Cancel discards it.
 //
-// The surface is split BY KIND (tabs): TEXT renders as plain rows, MC as
+// The surface is split BY KIND (tabs): TEXT renders as plain rows, CHOICE as
 // card-rows where the options are visible at a glance, KEYWORD as one big
 // set-card per keyword — the keyword as the title, the hints as sub rows, and
 // no prose beyond that.
@@ -45,7 +45,7 @@ import { useMe } from "@/lib/session"
 // this page renders without a Router in the test harness, and refresh/share
 // must keep the view. Search and tag apply debounced.
 
-type Kind = "MC" | "TEXT" | "KEYWORD" | "HINT"
+type Kind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
 type Status = "DRAFT" | "PENDING" | "PUBLISHED" | "ARCHIVED"
 
 interface BankQuestion {
@@ -131,7 +131,7 @@ interface UrlState {
     offset: number
 }
 
-const TAB_KINDS: TabKind[] = ["TEXT", "MC", "KEYWORD"]
+const TAB_KINDS: TabKind[] = ["TEXT", "CHOICE", "KEYWORD"]
 const STATUSES: Status[] = ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]
 
 function readUrlState(): UrlState {
@@ -229,7 +229,7 @@ function draftFrom(row: BankQuestion | null, presetKeywordId?: string, presetKin
 
 // null = the draft cannot be a valid payload yet (the dialog shows why).
 function buildPayload(draft: Draft): Record<string, unknown> | null {
-    if (draft.kind === "MC") {
+    if (draft.kind === "CHOICE") {
         const options = draft.options
             .filter((o) => o.text.trim())
             .map((o) => ({ id: o.id, text: o.text.trim() }))
@@ -272,7 +272,7 @@ function answerSummary(row: BankQuestion): string | null {
         const answers = payload.acceptedAnswers ?? []
         return answers.length > 0 ? `→ ${answers.join(" · ")}` : null
     }
-    if (row.kind === "MC") {
+    if (row.kind === "CHOICE") {
         const text = new Map((payload.options ?? []).map((option) => [option.id, option.text]))
         const correct = (payload.correctSet ?? [])
             .map((id) => text.get(id))
@@ -282,7 +282,7 @@ function answerSummary(row: BankQuestion): string | null {
     return payload.code ? `→ ${payload.code}` : null
 }
 
-// ── the row actions (shared by the table, the MC cards, the hint rows) ────────
+// ── the row actions (shared by the table, the console cards, the hint rows) ────────
 
 function RowActions({
     row,
@@ -432,7 +432,7 @@ function QuestionTable({
     )
 }
 
-// ── the MC cards ──────────────────────────────────────────────────────────────
+// ── the console cards ──────────────────────────────────────────────────────────────
 
 function McCard({
     row,
@@ -695,7 +695,7 @@ function PreviewDialog({ row, onClose }: { row: BankQuestion | null; onClose: ()
                         <p className="text-sm font-medium">{row.questionText}</p>
                     </div>
 
-                    {row.kind === "MC" && (
+                    {row.kind === "CHOICE" && (
                         <div className="grid gap-1">
                             <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                 Options · correct ticked
@@ -1129,14 +1129,14 @@ function QuestionDialog({
                             className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <option value="TEXT">TEXT — typed answer</option>
-                            {row === null && <option value="MC">MC — multiple choice</option>}
+                            {row === null && <option value="CHOICE">CHOICE — multiple choice</option>}
                             {row === null && <option value="KEYWORD">KEYWORD — the giai mã keyword</option>}
                             {(row !== null || presetKind === "HINT") && (
                                 <option value="HINT">HINT — the giai mã hint</option>
                             )}
                             {row !== null && row.kind !== "TEXT" && row.kind !== "HINT" && (
                                 <option value={row.kind}>
-                                    {row.kind === "MC" ? "MC — multiple choice" : "KEYWORD — the giai mã keyword"}
+                                    {row.kind === "CHOICE" ? "CHOICE — multiple choice" : "KEYWORD — the giai mã keyword"}
                                 </option>
                             )}
                         </select>
@@ -1168,7 +1168,7 @@ function QuestionDialog({
                     </div>
 
                     {/* ── the answer, shaped by the kind ── */}
-                    {draft.kind === "MC" && (
+                    {draft.kind === "CHOICE" && (
                         <div className="grid gap-2">
                             <span className="text-sm font-medium">Options · tick the correct one(s)</span>
                             {draft.options.map((option, index) => (
@@ -1546,7 +1546,7 @@ export function QuestionsPage() {
                 />
             )}
 
-            {list.data && rows.length > 0 && state.kind === "MC" && (
+            {list.data && rows.length > 0 && state.kind === "CHOICE" && (
                 <div className="grid gap-3">
                     {rows.map((row) => (
                         <McCard

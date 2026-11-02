@@ -76,7 +76,7 @@ function MediaWell({ media, mediaHint }: { media: { url: string; type: string };
 
 /**
  * Giải mã's public clue: "Mật mã gồm có N chữ cái" — above the tiles on both
- * surfaces, so the length is announced identically to the MC and the field.
+ * surfaces, so the length is announced identically to the console and the field.
  */
 export function KeywordLengthBanner({ length }: { length: number | null }) {
     if (length === null) return null
@@ -90,7 +90,7 @@ export function KeywordLengthBanner({ length }: { length: number | null }) {
 }
 
 /**
- * The whole question card: the round badge (clickable on the MC's deck), the
+ * The whole question card: the round badge (clickable on the console's deck), the
  * optional middle chips, the clock/progress on the right, then the question
  * itself. Screens that need a different body (giai-ma's hint grid, the vé-đích
  * board) build their own MainCard — this is for the five that don't.

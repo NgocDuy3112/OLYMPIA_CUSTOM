@@ -8,12 +8,12 @@ import type { RemoteVideoTrack } from "livekit-client"
 
 export interface PlayerQuestion {
     questionId: string
-    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
     position: number
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null
     timeLimit: number | null
-    // MC carries options; KEYWORD carries the public code length (D3).
+    // CHOICE carries options; KEYWORD carries the public code length (D3).
     payload: { options?: Array<{ id: string; text: string }>; codeLength?: number }
 }
 
@@ -92,7 +92,7 @@ export interface PlayerView {
     keyword?: { questionId: string; question: PlayerQuestion | null } | null
     me: PlayerMe
     /**
-     * Who was judged RIGHT, once the MC has judged — for rounds whose verdicts
+     * Who was judged RIGHT, once the console has judged — for rounds whose verdicts
      * are public (khởi động, bứt phá, về đích; NOT giải mã, whose hints and
      * keyword stay private). Absent while nothing has been judged.
      */
@@ -155,7 +155,7 @@ export interface LobbyData {
 
 /**
  * What every player screen may read. A screen's ctx type is this plus its
- * round's extras — `PlayerCore & { … }` — exactly as the MC's screens do with
+ * round's extras — `PlayerCore & { … }` — exactly as the console's screens do with
  * `ScreenCore`, so a screen shows which slice it actually depends on.
  */
 export type PlayerCore = Pick<PlayerCtx, "v" | "stage" | "open" | "myId" | "flash" | "nameOf">

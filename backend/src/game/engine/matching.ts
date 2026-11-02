@@ -6,7 +6,7 @@ import type {
     QuestionPayload
 } from "../contracts/index.js";
 
-export type QuestionKind = "MC" | "TEXT" | "KEYWORD" | "HINT";
+export type QuestionKind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT";
 
 // Vietnamese-aware normalization. Order matters: trim, then case, then đ/Đ -> d,
 // then strip combining diacritics. NFD does not decompose đ, so it needs its own step.
@@ -43,7 +43,7 @@ export function autoMatch(
     payload: QuestionPayload,
     value: AnswerValue
 ): boolean {
-    if (kind === "MC") {
+    if (kind === "CHOICE") {
         if (!("picked" in value)) return false;
         const { correctSet } = payload as McPayload;
         return value.picked.length > 0 && sameSet(value.picked, correctSet);

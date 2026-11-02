@@ -25,7 +25,7 @@ let otherTournamentId: string;
 const page = { limit: 50, offset: 0 };
 
 const mc = (text = "2 + 2?"): CreateQuestionInput => ({
-    kind: "MC",
+    kind: "CHOICE",
     questionText: text,
     
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }
@@ -175,7 +175,7 @@ describe("transitionQuestion", () => {
 
 describe("question search (tsvector + unaccent)", () => {
     const mcText = (text: string): CreateQuestionInput => ({
-        kind: "MC",
+        kind: "CHOICE",
         questionText: text,
         
         payload: { options: [{ id: "A", text: "4" }], correctSet: ["A"] }
@@ -210,7 +210,7 @@ describe("question search (tsvector + unaccent)", () => {
     it("combines search with structured filters", async () => {
         const matching = await createQuestion(
             { actorId: ownerId },
-            mcText("Tìm kiếm chung MC")
+            mcText("Tìm kiếm chung console")
         );
         const other = await createQuestion(
             { actorId: ownerId },

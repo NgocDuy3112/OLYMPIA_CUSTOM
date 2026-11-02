@@ -182,7 +182,7 @@ describe("live stream — authorisation", () => {
 });
 
 describe("live stream — submitting over the socket", () => {
-    it("the MC opens a fresh window", async () => {
+    it("the console opens a fresh window", async () => {
         const res = await act({ kind: "giai-ma.openHint", hintId: hintIds[1] });
         expect(res.statusCode).toBe(200);
     });
@@ -210,7 +210,7 @@ describe("live stream — submitting over the socket", () => {
         const next = inbox(socket);
         const snapshot = await next("view");
         expect(snapshot.data.view.open[0].questionId).toBe(hintIds[1]);
-        expect(snapshot.data.view.me.answerState).toBe("draft");   // awaiting the MC's verdict
+        expect(snapshot.data.view.me.answerState).toBe("draft");   // awaiting the console's verdict
         socket.close();
     });
 
@@ -289,7 +289,7 @@ describe("live stream — the console", () => {
         const view = message.data.view;
         expect(view.roundId).toBe("giai-ma");
         expect(view.projection.roundId).toBe("giai-ma");
-        expect(view.mc).toBeTruthy();                    // mc facts ride along
+        expect(view.console).toBeTruthy();               // the console facts ride along
         expect(Array.isArray(view.questions)).toBe(true);
         expect(typeof view.version).toBe("number");
         socket.close();

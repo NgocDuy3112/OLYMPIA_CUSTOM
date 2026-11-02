@@ -14,7 +14,7 @@ import { signToken } from "../../lib/jwt.js";
 // Staff read the code off the match page; a player types it on /join, sees the
 // seated names, taps their own, and lands in the player shell. The code is
 // match-scoped: anyone holding it may claim any UNCLAIMED seat — accepted for
-// a show floor (the MC watches who joins), and the seat list is the only thing
+// a show floor (the console watches who joins), and the seat list is the only thing
 // the code ever reveals.
 //
 // Both endpoints are pre-session (the player may have no session at all), so

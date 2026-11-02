@@ -157,7 +157,7 @@ async function scoreTable(match: MatchRow): Promise<ScoreRow[]> {
  * The LOBBY — what both shells show while waiting (match not LIVE yet, round not
  * started): tournament name, match label, the seats with live totals, who holds
  * a socket right now, and the match's rounds in play order (the controller's
- * start buttons). One payload, two surfaces (portal MC / gameplay player): the
+ * start buttons). One payload, two surfaces (portal console / gameplay player): the
  * endpoints below only differ in who may ask.
  */
 async function lobbyOf(match: MatchRow): Promise<{
@@ -305,7 +305,7 @@ function isRoundEnded(roundId: string, raw: unknown): boolean {
 // What only the controller needs beyond the shared projection — engine facts,
 // read through the engine's own parsers (never raw-shape guesses on a client).
 // null = the round has not started; {} = nothing extra for this round.
-function mcFacts(roundId: string, raw: unknown): Record<string, unknown> | null {
+function consoleFacts(roundId: string, raw: unknown): Record<string, unknown> | null {
     const value = raw as Record<string, unknown> | null;
     if (!value || Object.keys(value).length === 0) return null;
 
@@ -368,7 +368,7 @@ function publicQuestions(questions: MatchQuestion[]): MatchQuestion[] {
     return questions.map((q) => {
         const payload = q.payload as Record<string, unknown>;
         const safe =
-            q.kind === "MC" && Array.isArray(payload.options)
+            q.kind === "CHOICE" && Array.isArray(payload.options)
                 ? { options: payload.options }
                 : q.kind === "KEYWORD" && typeof payload.code === "string"
                     ? { codeLength: payload.code.length }
@@ -417,7 +417,7 @@ export async function liveRoutes(app: FastifyInstance) {
         reply.send(error);
     });
 
-    // ── MC surface ────────────────────────────────────────────────────────────
+    // ── console surface ────────────────────────────────────────────────────────────
     app.post(
         "/portal/tournaments/:tournamentId/matches/:matchId/live/actions",
         {
@@ -722,7 +722,7 @@ export async function liveRoutes(app: FastifyInstance) {
                 // Who has a live socket right now — the rail's connected dots
                 // (hub state, so it follows the socket, not the session).
                 connected: connectedUsers(matchId),
-                mc: mcFacts(live.roundId, live.state)
+                console: consoleFacts(live.roundId, live.state)
             };
     };
 
@@ -740,7 +740,7 @@ export async function liveRoutes(app: FastifyInstance) {
     const audienceViewOf = async (matchId: string): Promise<ConsoleView | null> => {
         const full = await consoleViewOf(matchId);
         if (!full) return null;
-        return { ...full, questions: publicQuestions(full.questions), mc: null };
+        return { ...full, questions: publicQuestions(full.questions), console: null };
     };
 
     // Read the current state and version. The console calls this after a 409 —
@@ -770,7 +770,7 @@ export async function liveRoutes(app: FastifyInstance) {
 
     // ── Console realtime channel ────────────────────────────────────────────────
     // The console's socket twin: the same payload as the GET above, pushed
-    // whenever the round changes — an MC action, a player's buzz, a verdict.
+    // whenever the round changes — an console action, a player's buzz, a verdict.
     // Two doors, as the GET has: the operator console (session-checked) and
     // the link-only spectate twin (public). The 3 s poll stays as the fallback.
     const openConsoleStream = async (
@@ -848,7 +848,7 @@ export async function liveRoutes(app: FastifyInstance) {
     );
 
     // The LOBBY: same payload before the match is LIVE (the /live read 404s
-    // until then) — the deck's waiting screen for the MC. The spectate twin
+    // until then) — the deck's waiting screen for the console. The spectate twin
     // gives the link-only audience the same waiting room.
     const lobbyHandler = async (request: FastifyRequest) => {
         const { matchId } = request.params as { matchId: string };
@@ -1046,7 +1046,7 @@ export async function liveRoutes(app: FastifyInstance) {
 
             const table = await scoreTable(match);
 
-            // A round the MC has not started yet has an empty state; say so plainly.
+            // A round the console has not started yet has an empty state; say so plainly.
             if (!live.state || Object.keys(live.state).length === 0) {
                 return {
                     matchId,
@@ -1097,9 +1097,9 @@ export async function liveRoutes(app: FastifyInstance) {
         }
     );
 
-    // A seated player submits a typed answer, only while the MC has its window open.
+    // A seated player submits a typed answer, only while the console has its window open.
     // The answer is auto-matched and stored; it does not touch the round state, so it
-    // never conflicts with the MC.
+    // never conflicts with the console.
     app.post(
         "/gameplay/matches/:matchId/live/answers",
         {

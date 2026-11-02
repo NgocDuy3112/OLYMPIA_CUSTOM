@@ -251,7 +251,7 @@ describe("the rulebook freeze", () => {
             payload: {
                 roundRules: {
                     r1: {
-                        allowedKinds: ["MC"],
+                        allowedKinds: ["CHOICE"],
                         scoring: { template: "constant", points: 10 },
                         turns: [{ id: "turn-1", mode: "oral", delivery: "sequential" }]
                     }

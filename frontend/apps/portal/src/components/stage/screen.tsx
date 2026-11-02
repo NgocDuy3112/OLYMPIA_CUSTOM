@@ -1,4 +1,4 @@
-// The MC screens' frame: the rail column, the round's card(s), the action strip
+// The console screens' frame: the rail column, the round's card(s), the action strip
 // and the status line. All seven controllers ended with the identical
 // StageLayout > …card… > Strip > Status stack; this is that stack, once — they
 // supply only the rail, the items and the flash.

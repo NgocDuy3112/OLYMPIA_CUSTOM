@@ -29,7 +29,7 @@ const H = ["h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8"];
 const NOW = "2026-01-01T00:00:00.000Z";
 const at = (sec: number) => new Date(Date.parse(NOW) + sec * 1000).toISOString();
 
-// The MC opens a hint window, players answer, the MC resolves it.
+// The the console opens a hint window, players answer, the console resolves it.
 function playHints(
     ids: string[],
     hintOrder: string[],
@@ -62,7 +62,7 @@ describe("giai-ma — setup", () => {
 });
 
 describe("giai-ma — hint windows", () => {
-    it("the MC may open hints in any order", () => {
+    it("the console may open hints in any order", () => {
         let s = openHint(startGiaiMa(["a"], H), "h5", NOW);
         expect(s.openHint).toBe("h5");
         s = resolveOpenHint(s, { a: true });
@@ -86,7 +86,7 @@ describe("giai-ma — hint windows", () => {
             .toBe("NO_OPEN_HINT");
     });
 
-    it("the MC may close a window without resolving; the hint stays available", () => {
+    it("the console may close a window without resolving; the hint stays available", () => {
         let s = openHint(startGiaiMa(["a"], H), "h3", NOW);
         s = closeHintWindow(s);
         expect(s.openHint).toBeNull();
@@ -138,7 +138,7 @@ describe("giai-ma — keyword submission and judgment", () => {
         s = resolveOpenHint(openHint(s, "h2", NOW), { a: true, b: false });
         s = lockKeyword(s, "a");
         expect(s.players.find((p) => p.id === "a")!.keywordLocked).toBe(true);
-        expect(giaiMaPoints(s, "a")).toBe(0);              // pending the MC's verdict
+        expect(giaiMaPoints(s, "a")).toBe(0);              // pending the console's verdict
         expect(s.players.find((p) => p.id === "a")!.eliminated).toBe(false);
     });
 
@@ -170,14 +170,14 @@ describe("giai-ma — keyword submission and judgment", () => {
         expect(codeOf(() => lockKeyword(s, "a"))).toBe("ALREADY_SUBMITTED");
     });
 
-    it("submitting does NOT end the round — the MC ends it", () => {
+    it("submitting does NOT end the round — the console ends it", () => {
         let s = lockKeyword(startGiaiMa(["a", "b"], H), "a");
         expect(s.stage).toBe("hints");
         s = lockKeyword(s, "b");
         expect(s.stage).toBe("hints");              // judgment is still pending
         s = judgeKeyword(s, "a", true);
         s = judgeKeyword(s, "b", false);
-        expect(s.stage).toBe("hints");              // still the MC's call
+        expect(s.stage).toBe("hints");              // still the console's call
         expect(endGiaiMa(s).stage).toBe("ended");
     });
 

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 import { useSocketStream } from "@shared/lib/ws"
 
-// The MC console's data layer: one polled read, one version-guarded action
+// The console's data layer: one polled read, one version-guarded action
 // writer, one drafts reader for judging — plus the pure helpers that decide
 // what the tools show (unit-tested in tests/lib/live.test.ts).
 
@@ -10,7 +10,7 @@ import { useSocketStream } from "@shared/lib/ws"
 
 export interface ConsoleQuestion {
     _id: string
-    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
     roundId: string
     turnId: string
     position: number
@@ -52,13 +52,13 @@ export interface Projection {
     board?: Array<{ questionId: string; value: number; where: "free" | "pending" | "open" | "taken" | "deferred" }>
 }
 
-export interface GiaiMaMc {
+export interface GiaiMaConsole {
     hintsRemaining: string[]
     hintsPicked: string[]
     openHintId: string | null
     players: Array<{ id: string; keywordLocked: boolean; eliminated: boolean }>
 }
-export interface VeDichMc {
+export interface VeDichConsole {
     phase: 1 | 2
     turnPlayerId: string | null
     openStage: "current" | "buzz" | null
@@ -71,7 +71,7 @@ export interface VeDichMc {
     assignedToId: string | null
     pendingQuestionId: string | null
 }
-export interface KhoiDongMc {
+export interface KhoiDongConsole {
     stage: "phase1" | "phase2"
     ended: boolean
     phase2Begun: boolean
@@ -82,7 +82,7 @@ export interface KhoiDongMc {
     attempt: 1 | 2 | null
     /** Is a buzz window running right now? */
     windowOpen: boolean
-    /** The fastest — the only player the MC may judge. */
+    /** The fastest — the only player the console may judge. */
     buzzerId: string | null
     /** How fast that buzz was, in ms (the race's stopwatch). */
     buzzerMs: number | null
@@ -99,7 +99,7 @@ export interface LiveResponse {
     roundEnded: boolean
     /** User ids with a live player socket right now — the rail's connected dots. */
     connected?: string[]
-    mc: Record<string, unknown> | null
+    console: Record<string, unknown> | null
 }
 
 // ── the lobby (both surfaces wait on this) ───────────────────────────────────
@@ -132,7 +132,7 @@ export interface LobbyData {
 export const lobbyKey = (tournamentId: string, matchId: string) =>
     ["lobby", tournamentId, matchId] as const
 
-/** The MC's lobby read: polled like /live (presence moves without a round change). */
+/** The the console's lobby read: polled like /live (presence moves without a round change). */
 export function useLobby(tournamentId: string, matchId: string, enabled: boolean) {
     return useQuery({
         queryKey: lobbyKey(tournamentId, matchId),
@@ -240,7 +240,7 @@ export function useLiveAction(tournamentId: string, matchId: string) {
 // Polling is the ONLY signal here: a player's submission bumps no live version
 // (answers live outside the round state), pushes no frame, and crosses no
 // console-side mutation — window-focus refetch is globally off too. Without
-// this interval the MC's Đúng stays dead until a reload (smoke-tested).
+// this interval the console's Đúng stays dead until a reload (smoke-tested).
 export function useQuestionAnswers(tournamentId: string, matchId: string, questionId: string | null) {
     return useQuery({
         queryKey: ["question-answers", matchId, questionId],
@@ -259,10 +259,10 @@ export function useQuestionAnswers(tournamentId: string, matchId: string, questi
 
 // ── pure decisions (tested) ──────────────────────────────────────────────────
 
-// The hints the MC may still open: everything not yet consumed, the currently
+// The hints the console may still open: everything not yet consumed, the currently
 // open window excluded (it gets its own panel), text resolved from the frozen set.
 export function hintPool(
-    mc: GiaiMaMc | null,
+    mc: GiaiMaConsole | null,
     questions: ConsoleQuestion[]
 ): Array<{ questionId: string; text: string }> {
     if (!mc) return []
@@ -272,7 +272,7 @@ export function hintPool(
         .map((id) => ({ questionId: id, text: byId.get(id)?.questionText ?? id }))
 }
 
-// The verdicts to SEND with a finalize: ONLY the rows the MC explicitly staged —
+// The verdicts to SEND with a finalize: ONLY the rows the console explicitly staged —
 // there is no default. An un-staged submitted answer makes the set incomplete and
 // the backend refuses it (UNJUDGED_ANSWERS → the flash shows the message), so an
 // answer can never be silently judged. Judged rows are already final and are not

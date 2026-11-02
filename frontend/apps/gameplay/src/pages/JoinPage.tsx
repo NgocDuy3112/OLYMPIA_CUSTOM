@@ -44,7 +44,7 @@ export function JoinPage() {
         } catch (err) {
             setError(
                 err instanceof ApiError && err.status === 404
-                    ? "Mã không đúng — kiểm tra lại 6 ký tự từ MC."
+                    ? "Mã không đúng — kiểm tra lại 6 ký tự từ ban điều hành."
                     : err instanceof Error ? err.message : "Không kết nối được máy chủ."
             )
         } finally {
@@ -69,7 +69,7 @@ export function JoinPage() {
                 err instanceof ApiError && err.status === 403
                     ? "Ghế này không thuộc về bạn — chọn tên của mình."
                     : err instanceof ApiError && err.status === 404
-                      ? "Mã đã hết hạn — xin mã mới từ MC."
+                      ? "Mã đã hết hạn — xin mã mới từ ban điều hành."
                       : err instanceof Error ? err.message : "Không vào được trận."
             )
             setBusy(false)
@@ -83,7 +83,7 @@ export function JoinPage() {
                     Vào trận
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                    Nhập mã 6 ký tự MC đọc, rồi chọn tên của bạn.
+                    Nhập mã 6 ký tự ban điều hành đọc, rồi chọn tên của bạn.
                 </p>
 
                 <form onSubmit={submitCode} className="mt-5 flex gap-2">
@@ -132,7 +132,7 @@ export function JoinPage() {
                             ))}
                         </ul>
                         {lookup.seats.length === 0 && (
-                            <p className="mt-2 text-sm text-muted-foreground">Trận này chưa có ghế — báo MC.</p>
+                            <p className="mt-2 text-sm text-muted-foreground">Trận này chưa có ghế — báo ban điều hành.</p>
                         )}
                     </div>
                 )}

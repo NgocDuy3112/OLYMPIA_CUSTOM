@@ -3,14 +3,14 @@ import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
 
 // Về đích — câu hỏi mở, phase 1 (S7): the shared round — the picked player
-// types the answer, the MC judges. Pure: everything comes from its ctx.
-import type { VeDichMc } from "@/lib/live"
+// types the answer, the console judges. Pure: everything comes from its ctx.
+import type { VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
 /** Về đích · phase 1 question: the typed answer + the judging strip. */
 export type VeDichChungCtx = ScreenCore & {
     remaining: number | null
-    mcVeDich: VeDichMc | null
+    consoleVeDich: VeDichConsole | null
     target: string | null
     setVerdict: (correct: boolean) => void
     setSelectedPlayer: (userId: string) => void
@@ -19,14 +19,14 @@ export type VeDichChungCtx = ScreenCore & {
 }
 
 export function VeDichChungAOCController({ ctx }: { ctx: VeDichChungCtx }) {
-    const { v, remaining, baseCards, mcVeDich, flash, openRounds } = ctx
+    const { v, remaining, baseCards, consoleVeDich, flash, openRounds } = ctx
     const projection = v.projection
 
     const stripCells = (projection.board ?? []).filter((c) => c.where === "open" || c.where === "pending")
     const openNow = projection.open[0]
     const qid = openNow.questionId
     const needsVerdict =
-        mcVeDich?.answererId ? ctx.verdictOf(qid, mcVeDich.answererId) === null : true
+        consoleVeDich?.answererId ? ctx.verdictOf(qid, consoleVeDich.answererId) === null : true
 
     return (
         <ConsoleStage

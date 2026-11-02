@@ -13,7 +13,7 @@ const draft = (userId: string, answeredMs: number, judged = false): AnswerDraft 
     ({ userId, suggestion: "CORRECT", answeredMs, judged });
 
 const ctx = (over: Partial<ButPhaContext> = {}): ButPhaContext => ({
-    actorId: "mc-1", roundId: "but-pha", now: NOW, rules: BUT_PHA_DEFAULTS,
+    actorId: "console-1", roundId: "but-pha", now: NOW, rules: BUT_PHA_DEFAULTS,
     questionIds: Q, answerDrafts: [], ...over
 });
 

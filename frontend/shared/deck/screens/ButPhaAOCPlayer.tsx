@@ -30,10 +30,10 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
                         onSubmit={(value) => submitAnswer(openQ.questionId, value)}
                     />
                 ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ MC mở câu tiếp theo…</span>
+                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở câu tiếp theo…</span>
                 )
             }
-            hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ MC"}
+            hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ điều hành"}
             flash={flash}
         >
             <QuestionFrame

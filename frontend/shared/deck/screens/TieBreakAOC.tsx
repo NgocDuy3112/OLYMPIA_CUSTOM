@@ -3,11 +3,11 @@ import { Band, Badges, CardHeader, MainCard, Rail, StageLayout, Timer, type Play
 import { STRIP_R, pt } from "../geometry"
 
 // Tie-break — câu hỏi phụ, the fastest-finger decider. Structurally the
-// ve-dich · Riêng screen WITHOUT the question boxes: the MC reads the question
+// ve-dich · Riêng screen WITHOUT the question boxes: the console reads the question
 // aloud, so nothing of it is rendered — only the clock and the bell.
 //
 // Flow (the view carries all of it; this screen is pure):
-//   - MC presses Tính giờ → a 15 s window opens: `canBuzz` goes true for
+//   - the console presses Tính giờ → a 15 s window opens: `canBuzz` goes true for
 //     everyone still in, `remaining` counts the 15 s down;
 //   - the fastest player buzzes: the window locks for the rest
 //     (`canBuzz` false, `buzzer` set) and the clock stops (`remaining` null).
@@ -45,10 +45,10 @@ export function TieBreakAOC({ ctx }: { ctx: PlayerCtx }) {
                         style={{ fontSize: pt(12), borderRadius: STRIP_R }}
                     >
                         {iBuzzed
-                            ? "Bạn đã bấm chuông — chờ MC phán"
+                            ? "Bạn đã bấm chuông — chờ điều hành phán"
                             : buzzer
                                 ? `Đập chuông trước: ${ctx.nameOf(buzzer)}`
-                                : "Chờ MC bấm Tính giờ"}
+                                : "Chờ điều hành bấm Tính giờ"}
                     </span>
                 )}
             </Band>

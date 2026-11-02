@@ -50,7 +50,7 @@ export async function submitVeDichCommand(
                 roundId: current.roundId,
                 now,
                 rules: VE_DICH_DEFAULTS,
-                questions: [],       // only start needs these, and only the MC starts
+                questions: [],       // only start needs these, and only the console starts
                 players: [],
                 drafts: []
             });

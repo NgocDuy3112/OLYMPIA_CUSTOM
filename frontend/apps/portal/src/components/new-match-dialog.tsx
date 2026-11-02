@@ -13,7 +13,7 @@ import type { AssemblyEntry, TournamentDetail } from "@/lib/tournament"
 // The bank's published questions — the pool the picker draws from.
 interface PoolQuestion {
     id: string
-    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
     questionText: string
     status: string
 }

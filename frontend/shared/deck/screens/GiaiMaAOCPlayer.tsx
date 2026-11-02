@@ -49,7 +49,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                         onSubmit={(text) => submitKeyword(keyword.questionId, text)}
                     />
                 ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ MC mở gợi ý.</span>
+                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ điều hành mở gợi ý.</span>
                 )
             }
             hint={hintWindow ? "cửa sổ hint đang mở" : `đã mở ${v.me.hintsRevealed ?? 0} gợi ý`}
@@ -78,7 +78,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
                 <p className="font-sans font-medium leading-snug text-foreground" style={{ fontSize: pt(14), ...DECK_PAD }}>
                     {hintWindow
                         ? hintWindow.question?.questionText ?? ""
-                        : keyword?.question?.questionText ?? "Chờ MC mở gợi ý"}
+                        : keyword?.question?.questionText ?? "Chờ điều hành mở gợi ý"}
                 </p>
             </MainCard>
         </PlayerStage>

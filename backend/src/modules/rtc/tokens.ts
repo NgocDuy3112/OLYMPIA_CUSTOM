@@ -45,7 +45,7 @@ const GRANTS: Record<RtcRole, { publish: boolean; hidden: boolean }> = {
     // audio → no feedback loops), but the grant allows subscribe anyway so a
     // future "see your opponents" view needs no token change.
     player: { publish: true, hidden: false },
-    // The MC console only watches — it has no camera of its own — and is not a
+    // The console console only watches — it has no camera of its own — and is not a
     // contestant, so it stays out of participant lists.
     operator: { publish: false, hidden: true },
     // Spectators are invisible guests: no publish, never listed. Their fan-out

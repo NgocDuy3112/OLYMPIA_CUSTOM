@@ -1,4 +1,4 @@
-// What the MC console KNOWS: the orchestrator gathers it ONCE (use-console-model)
+// What the console console KNOWS: the orchestrator gathers it ONCE (use-console-model)
 // and screens never see it whole. Each round module projects the narrow slice
 // its screens need (`rounds/<round>/logic` → `ScreenCore & { …extras }`), so a
 // screen's ctx type says exactly what it depends on.
@@ -42,7 +42,7 @@ export interface ConsoleFacts {
     pickQuestion: () => void
     byId: (id: string) => ConsoleQuestion | null
     verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
-    /** the MC's stopwatch (khoi-dong S1) — `watchMs` comes from the interval. */
+    /** the console's stopwatch (khoi-dong S1) — `watchMs` comes from the interval. */
     watchRunning: boolean
     watchMs: number
     toggleWatch: () => void

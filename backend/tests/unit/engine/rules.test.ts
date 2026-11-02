@@ -10,7 +10,7 @@ import type { RoundConfig } from "../../../src/game/contracts/index.js";
 // The rulebook is the source; the format's numbers are the defaults.
 
 const round = (config: Partial<RoundConfig>): RoundConfig => ({
-    allowedKinds: ["MC"],
+    allowedKinds: ["CHOICE"],
     scoring: { template: "constant", points: 10 },
     turns: [{ id: "phase1", mode: "text", delivery: "batch" }],
     ...config

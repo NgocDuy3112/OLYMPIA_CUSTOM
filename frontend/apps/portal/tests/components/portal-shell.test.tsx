@@ -49,7 +49,7 @@ describe("PortalShell", () => {
         expect(screen.getByText("MCP keys")).toBeInTheDocument()
         // admin sees the admin-only item
         expect(await screen.findByText("Operators")).toBeInTheDocument()
-        // no signed-in footer any more (MC's call): nav only
+        // no signed-in footer any more (the console's call): nav only
         expect(screen.queryByRole("button", { name: /Sign out/ })).toBeNull()
     })
 

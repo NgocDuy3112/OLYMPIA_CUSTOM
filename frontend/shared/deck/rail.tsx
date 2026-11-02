@@ -2,7 +2,7 @@
 // name, score, and (on the judging screens) their own verdict on the open
 // question. MY-HIGHLIGHT: my card wears a sky ring; the active oral run amber.
 //
-// The MC's rail is its own component (portal/components/stage/rail.tsx): the MC
+// The the console's rail is its own component (portal/components/stage/rail.tsx): the console
 // sees cameras and verdicts, the player sees "BẠN". Same frame, two different
 // jobs — sharing the frame but not the card keeps both readable.
 import { useEffect, useRef } from "react"

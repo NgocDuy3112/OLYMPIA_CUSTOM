@@ -1,4 +1,4 @@
-// Postgres-backed LiveStore. Every MC action runs inside one transaction that locks
+// Postgres-backed LiveStore. Every console action runs inside one transaction that locks
 // the match_live row, so concurrent actions serialize and a rollback leaves no trace.
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db/pool.js";
@@ -57,7 +57,7 @@ export function pgLiveStore<S>(matchId: string): LiveStore<S> {
                         const draftRows = facts.filter((f) => f.type === "draft");
                         if (draftRows.length > 0) {
                             // A submission stored as a DRAFT: no verdict, no points —
-                            // the MC judges later (judge fact UPDATEs this row).
+                            // the console judges later (judge fact UPDATEs this row).
                             await tx.insert(answers).values(draftRows.map((f) => ({
                                 matchId,
                                 questionId: f.questionId,

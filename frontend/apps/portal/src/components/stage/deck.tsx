@@ -1,4 +1,4 @@
-// The MC console's deck surface — ONE import site for the round screens.
+// The console's deck surface — ONE import site for the round screens.
 //
 //   @shared/deck/stage   the shared flow primitives, re-exported below
 //   ./rail.tsx           the operator's rail card (cameras, verdicts, badges)

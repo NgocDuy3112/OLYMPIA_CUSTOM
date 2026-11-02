@@ -93,7 +93,7 @@ describe("khoi-dong round — phase 1 is one run per player", () => {
 
 describe("khoi-dong round — phase 2 begins only after phase 1", () => {
     it("may begin early ONLY while phase 1 recorded nothing (the skip rule)", () => {
-        // Untouched → jumping straight to Chung is the confirmed MC choice.
+        // Untouched → jumping straight to Chung is the confirmed console choice.
         expect(beginPhase2At(startKhoiDong(PLAYERS, P1), P2).stage).toBe("phase2");
     });
 

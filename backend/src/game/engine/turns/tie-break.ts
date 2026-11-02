@@ -1,4 +1,4 @@
-// The tie-break round: when a match would end with tied totals, the MC opens a
+// The tie-break round: when a match would end with tied totals, the console opens a
 // tie-break for the tied players from the WaitingRoom's Tie-break button.
 //
 // MECHANISM ONLY. The question source is pluggable: startTieBreak receives
@@ -8,7 +8,7 @@
 // The rules, exactly:
 //   - tie-break points RANK ONLY — they are added to the TIE-BREAK SCORE, never
 //     to a match total. buildMatchResults totals stay untouched;
-//   - the MC opens one question at a time, players submit, the MC finalizes
+//   - the console opens one question at a time, players submit, the console finalizes
 //     verdicts (but-pha style: judging after the window, from the ledger);
 //   - when the round ends, the tie-break scores order the tied players, and a
 //     tie the round did NOT resolve stays a shared rank — the round breaks ties,
@@ -17,7 +17,7 @@
 // Pure, no I/O — same discipline as the other turn modules.
 import { fail } from "./errors.js";
 
-// The round's numbers, frozen when the MC opens it.
+// The round's numbers, frozen when the console opens it.
 export interface TieBreakRules {
     pointsPerCorrect: number;   // what one correct verdict is worth in the tie-break score
 }
@@ -28,7 +28,7 @@ export const TIE_BREAK_DEFAULTS: TieBreakRules = {
 
 export interface TieBreakAnswer {
     text: string;
-    correct: boolean | null;    // null until the MC finalizes this player's answer
+    correct: boolean | null;    // null until the console finalizes this player's answer
 }
 
 export interface TieBreakState {
@@ -36,7 +36,7 @@ export interface TieBreakState {
     ended: boolean;
     players: string[];                          // the tied players, entry order
     questionIds: string[];                      // the round's questions, in order
-    cursor: number;                             // 0-based; the question the MC has open
+    cursor: number;                             // 0-based; the question the console has open
     open: boolean;                              // the answer window for the current question
     // playerId → questionId → the submission and its verdict.
     answers: Record<string, Record<string, TieBreakAnswer>>;
@@ -81,7 +81,7 @@ function requireOpen(state: TieBreakState): string {
     return id;
 }
 
-// The MC opens the answer window for the current question.
+// The the console opens the answer window for the current question.
 export function openWindow(state: TieBreakState): TieBreakState {
     if (state.ended) fail("ENDED", "the tie-break has ended");
     if (currentQuestionId(state) === null) fail("NO_QUESTION", "no tie-break question in play");
@@ -89,7 +89,7 @@ export function openWindow(state: TieBreakState): TieBreakState {
     return { ...state, open: true };
 }
 
-// The MC closes the window — submissions stop, judging may begin.
+// The the console closes the window — submissions stop, judging may begin.
 export function closeWindow(state: TieBreakState): TieBreakState {
     if (state.ended) fail("ENDED", "the tie-break has ended");
     if (!state.open) return state;
@@ -97,7 +97,7 @@ export function closeWindow(state: TieBreakState): TieBreakState {
 }
 
 // A player submits an answer while the window is open. Re-submitting replaces
-// the previous text — until the MC finalizes, nothing is locked.
+// the previous text — until the console finalizes, nothing is locked.
 export function submit(
     state: TieBreakState,
     params: { playerId: string; text: string }
@@ -118,9 +118,9 @@ export function submit(
     };
 }
 
-// The MC's final verdicts for the current question — but-pha style, judged
+// The the console's final verdicts for the current question — but-pha style, judged
 // after the window from what was submitted. Finalizing a player who never
-// submitted is allowed: the verdict stands on the MC's call (0 text).
+// submitted is allowed: the verdict stands on the console's call (0 text).
 export function finalize(
     state: TieBreakState,
     params: { verdicts: Array<{ playerId: string; correct: boolean }> }
@@ -145,7 +145,7 @@ export function finalize(
     return { ...closed, answers };
 }
 
-// The MC moves to the next question. Every question after the first needs the
+// The console moves to the next question. Every question after the first needs the
 // current one judged first — an open verdict would be lost silently.
 export function nextQuestion(state: TieBreakState): TieBreakState {
     if (state.ended) fail("ENDED", "the tie-break has ended");
@@ -159,7 +159,7 @@ export function nextQuestion(state: TieBreakState): TieBreakState {
     return { ...state, cursor: state.cursor + 1, open: false };
 }
 
-// The MC ends the round — only once every question has been judged, so no
+// The console ends the round — only once every question has been judged, so no
 // verdict the show relied on is dropped.
 export function endTieBreak(state: TieBreakState): TieBreakState {
     if (state.ended) return state;

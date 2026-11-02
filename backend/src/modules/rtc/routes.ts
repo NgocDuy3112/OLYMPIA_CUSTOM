@@ -41,7 +41,7 @@ const viewerRate = { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } 
  * doors share two refusals: LiveKit un/partially configured → 503, and the
  * match not LIVE → 409 — the room exists exactly while the show does, so a
  * pre-show player warm-up happens in the LIVE match's pending stage, not
- * before the MC opens the match.
+ * before the console opens the match.
  */
 export async function rtcRoutes(app: FastifyInstance) {
     // A mint naming a match that does not exist (or was deleted) must answer
@@ -94,7 +94,7 @@ export async function rtcRoutes(app: FastifyInstance) {
         }
     );
 
-    // The MC console: subscribe-only, hidden from participant lists.
+    // The console console: subscribe-only, hidden from participant lists.
     app.post(
         "/portal/tournaments/:tournamentId/matches/:matchId/rtc/token",
         {

@@ -1,6 +1,6 @@
 // A rail card's STATE, as a class table. One place decides how "judged right",
 // "judged wrong / locked", "this player buzzed first" and "waiting" look — the
-// MC's rail and the player's rail read the same table, so a card means the same
+// the console's rail and the player's rail read the same table, so a card means the same
 // thing on both decks.
 //
 // The verbal rule (kept short on purpose):
@@ -36,7 +36,7 @@ const SCORE: Record<RailCardState, string> = {
 }
 
 /**
- * Which state a card is in. Verdict wins over "buzzing": once the MC has judged,
+ * Which state a card is in. Verdict wins over "buzzing": once the console has judged,
  * the outcome is what the card should say — the buzz was the moment before.
  */
 export function railCardState(input: {

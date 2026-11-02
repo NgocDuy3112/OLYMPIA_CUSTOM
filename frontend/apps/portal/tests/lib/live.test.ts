@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { hintPool, mergedVerdicts, startActionPayload, type ConsoleQuestion, type GiaiMaMc, type QuestionAnswerRow } from "@/lib/live"
+import { hintPool, mergedVerdicts, startActionPayload, type ConsoleQuestion, type GiaiMaConsole, type QuestionAnswerRow } from "@/lib/live"
 
 // The console's pure decisions: which hints remain, what start must carry,
 // and which verdicts a finalize sends (engine draft, MC overwrite wins).
 
 const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     _id: "q",
-    kind: "MC",
+    kind: "CHOICE",
     roundId: "giai-ma",
     turnId: "hints",
     position: 0,
@@ -17,7 +17,7 @@ const question = (over: Partial<ConsoleQuestion>): ConsoleQuestion => ({
     ...over,
 })
 
-const giaiMaMc = (over: Partial<GiaiMaMc> = {}): GiaiMaMc => ({
+const giaiMaMc = (over: Partial<GiaiMaConsole> = {}): GiaiMaConsole => ({
     hintsRemaining: [],
     hintsPicked: [],
     openHintId: null,
@@ -101,7 +101,7 @@ describe("mergedVerdicts", () => {
         // only p2 was staged → the others are ABSENT: the backend refuses this
         // incomplete set (UNJUDGED_ANSWERS) instead of silently judging it
         expect(mergedVerdicts("q9", rows, { "q9:p2": true })).toEqual([
-            { playerId: "p2", correct: true }    // exactly what the MC clicked
+            { playerId: "p2", correct: true }    // exactly what the console clicked
         ])
         expect(mergedVerdicts("q9", rows, {})).toEqual([])
     })

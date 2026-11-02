@@ -41,7 +41,7 @@ export type ScoringRule =
     }
 
 export interface RoundConfig {
-    allowedKinds: Array<"MC" | "TEXT" | "KEYWORD" | "HINT">
+    allowedKinds: Array<"CHOICE" | "TEXT" | "KEYWORD" | "HINT">
     scoring: ScoringRule
     turns: TurnConfig[]
 }
@@ -285,7 +285,7 @@ export function useAssignGroup(tournamentId: string) {
 
 export interface BankQuestion {
     id: string
-    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
     questionText: string
     status: string
 }

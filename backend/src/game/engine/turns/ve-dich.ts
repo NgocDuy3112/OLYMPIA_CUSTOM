@@ -155,7 +155,7 @@ export function phase1Complete(state: VeDichState): boolean {
 }
 
 /**
- * Phase 1 recorded NOTHING — the MC may skip it (Về đích · Riêng starts the
+ * Phase 1 recorded NOTHING — the console may skip it (Về đích · Riêng starts the
  * summit on untouched scores, the confirmed rule). Any completed turn or open
  * question keeps PHASE1_INCOMPLETE guarding: finish phase 1 first.
  */

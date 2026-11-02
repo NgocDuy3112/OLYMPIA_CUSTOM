@@ -46,7 +46,7 @@ const tournamentInput = (slug: string) => ({
 });
 
 const mc = (text: string) => ({
-    kind: "MC",
+    kind: "CHOICE",
     questionText: text,
     
     payload: { options: [{ id: "A", text: "4" }, { id: "B", text: "5" }], correctSet: ["A"] }

@@ -30,7 +30,7 @@ export function startButPha(questionIds: string[], rules: ButPhaRules = BUT_PHA_
     };
 }
 
-// The MC starts the clock for the current question.
+// The console starts the clock for the current question.
 export function openCurrentQuestion(state: ButPhaState, openedAt: string): ButPhaState {
     if (state.ended) fail("ENDED", "but-pha is over");
     if (state.questionOpenedAt !== null) fail("QUESTION_OPEN", "the question is already open");
@@ -137,7 +137,7 @@ export function finalizeQuestion(state: ButPhaState, results: FinalResult[]): Bu
     };
 }
 
-// The MC ends the round early.
+// The console ends the round early.
 export function endButPha(state: ButPhaState): ButPhaState {
     if (state.ended) return state;
     return { ...state, ended: true, questionOpenedAt: null };

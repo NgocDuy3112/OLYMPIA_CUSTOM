@@ -10,7 +10,7 @@ export type KhoiDongRiengPlayerCtx = PlayerCore
 function runLabel(mine: boolean, playerName: string | null): string {
     if (mine) return "ĐẾN LƯỢT BẠN — trả lời miệng"
     if (playerName) return `Đang thi: ${playerName}`
-    return "MC đang gọi thí sinh…"
+    return "Điều hành đang gọi thí sinh…"
 }
 
 export function KhoiDongRiengAOCPlayer({ ctx }: { ctx: KhoiDongRiengPlayerCtx }) {

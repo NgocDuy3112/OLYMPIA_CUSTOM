@@ -106,7 +106,7 @@ describe("requestIdOf", () => {
 });
 
 describe("the operator's race lock", () => {
-    it("is part of the action vocabulary the MC route accepts", () => {
+    it("is part of the action vocabulary the console route accepts", () => {
         expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzz" })).toBe(true);
         // it is an operator action with no payload: the STATE decides what is open
         expect(Value.Check(LiveActionSchema, { kind: "ve-dich.lockBuzz", playerId: "x" })).toBe(true);

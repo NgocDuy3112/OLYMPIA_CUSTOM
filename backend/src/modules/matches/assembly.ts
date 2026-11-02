@@ -9,7 +9,7 @@ import type { AssemblyEntry } from "./schemas.js";
 
 type TournamentRow = typeof tournaments.$inferSelect;
 type BankRow = typeof questionBank.$inferSelect;
-type QuestionKind = "MC" | "TEXT" | "KEYWORD" | "HINT";
+type QuestionKind = "CHOICE" | "TEXT" | "KEYWORD" | "HINT";
 
 
 // §5: points are a per-question base. Templates that ignore them (the ve-dich

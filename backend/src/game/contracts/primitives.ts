@@ -4,7 +4,7 @@ export const Uuid = Type.String({ format: "uuid" });
 export const IsoDateTime = Type.String({ format: "date-time" });
 
 // Enum mirrors — UPPERCASE (question_kind, verdict)
-export const McKind = Type.Literal("MC");
+export const ChoiceKind = Type.Literal("CHOICE");
 export const TextKind = Type.Literal("TEXT");
 export const KeywordKind = Type.Literal("KEYWORD");
 // A giai-ma hint: a typed answer question that belongs to a keyword set.

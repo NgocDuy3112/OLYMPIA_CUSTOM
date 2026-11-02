@@ -15,14 +15,14 @@ import { VeDichRiengAOCPlayer } from "@shared/deck/screens/VeDichRiengAOCPlayer"
 // camera. This is what catches the refactor class of bug — a screen that starts
 // depending on something the orchestrator no longer hands it.
 
-const question = (id: string, kind: "MC" | "TEXT" | "KEYWORD" = "TEXT") => ({
+const question = (id: string, kind: "CHOICE" | "TEXT" | "KEYWORD" = "TEXT") => ({
     questionId: id,
     kind,
     position: 1,
     questionText: `Câu hỏi ${id}`,
     media: null,
     timeLimit: 30,
-    payload: kind === "MC" ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }] } : {},
+    payload: kind === "CHOICE" ? { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }] } : {},
 })
 
 const board = [
@@ -81,7 +81,7 @@ const openQ = {
     deadlineAt: null,
     question: {
         questionId: "q1",
-        kind: "MC" as const,
+        kind: "CHOICE" as const,
         position: 1,
         questionText: "Câu hỏi mở",
         media: null,

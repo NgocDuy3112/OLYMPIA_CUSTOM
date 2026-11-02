@@ -19,7 +19,7 @@ function butPhaCtx(f: ConsoleFacts): ButPhaCtx {
     }
 }
 
-/** The open question's commit — the ledger's drafts need the MC's verdicts. */
+/** The open question's commit — the ledger's drafts need the console's verdicts. */
 function finalizeIfNeeded(input: RoundPlanInput): RoundAction[] {
     if (input.openIds.length === 0) return []
     if (input.rows.length === 0 || !input.rows.some((row) => !row.judged)) return []

@@ -10,10 +10,10 @@ import {
     useLiveAction,
     useLobby,
     useQuestionAnswers,
-    type GiaiMaMc,
-    type KhoiDongMc,
+    type GiaiMaConsole,
+    type KhoiDongConsole,
     type LobbyData,
-    type VeDichMc,
+    type VeDichConsole,
 } from "@/lib/live"
 import { useMatches } from "@/lib/tournament"
 import { fetchOperatorRtcToken, useRtcPeerTracks, useRtcRoom } from "@shared/lib/rtc"
@@ -66,7 +66,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const [roundsView, setRoundsView] = useState(false)
 
     const [watch, setWatch] = useState<WatchState>(() => freshWatch(null))
-    // The MC NAVIGATED into the current round (the lobby's round buttons) — a
+    // The operator NAVIGATED into the current round (the lobby's round buttons) — a
     // waiting stage (e.g. a saved ENDED state re-opened for review) must still
     // show the deck. Automatic ends (Về sảnh) clear it → the console falls
     // back to the lobby. Players never set it: they follow the pushed view.
@@ -157,9 +157,9 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         .flatMap((seat) => ("userId" in seat && seat.userId ? [seat.userId] : []))
     const questions = v?.questions ?? []
     const table = projection?.table ?? []
-    const mcGiaiMa = roundId === "giai-ma" ? (v?.mc as GiaiMaMc | null) : null
-    const mcVeDich = roundId === "ve-dich" ? (v?.mc as VeDichMc | null) : null
-    const mcKhoiDong = roundId === "khoi-dong" ? (v?.mc as KhoiDongMc | null) : null
+    const consoleGiaiMa = roundId === "giai-ma" ? (v?.console as GiaiMaConsole | null) : null
+    const consoleVeDich = roundId === "ve-dich" ? (v?.console as VeDichConsole | null) : null
+    const consoleKhoiDong = roundId === "khoi-dong" ? (v?.console as KhoiDongConsole | null) : null
 
     const byId = (id: string) => questions.find((q) => q._id === id) ?? null
     const send = (act: Record<string, unknown>) =>
@@ -237,7 +237,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         return rows.find((r) => r.userId === uid)?.verdict ?? null
     }
 
-    const railVariant = railVariantOf({ roundId, stage, veDichPhase: mcVeDich ? mcVeDich.phase : null })
+    const railVariant = railVariantOf({ roundId, stage, veDichPhase: consoleVeDich ? consoleVeDich.phase : null })
 
     const openRounds = () => setRoundsView(true)
 
@@ -254,12 +254,12 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     /** ve-dich only: finish the current TURN — verdicts first (the round module
      *  owns the rule; ending the ROUND is backToLobby's job). */
     const hetLuot = () => {
-        if (!mcVeDich || open.length === 0) return
+        if (!consoleVeDich || open.length === 0) return
         const qid = open[0].questionId
         const action = roundModuleOf(roundId)?.hetLuotAction?.({
-            answererVerdict: mcVeDich.answererId ? verdictOf(qid, mcVeDich.answererId) : null,
-            buzzerId: mcVeDich.buzzerId,
-            buzzerVerdict: mcVeDich.buzzerId ? verdictOf(qid, mcVeDich.buzzerId) : null,
+            answererVerdict: consoleVeDich.answererId ? verdictOf(qid, consoleVeDich.answererId) : null,
+            buzzerId: consoleVeDich.buzzerId,
+            buzzerVerdict: consoleVeDich.buzzerId ? verdictOf(qid, consoleVeDich.buzzerId) : null,
         }) ?? null
         if (action) send(action)
     }
@@ -320,25 +320,25 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
             card.value = row ? (row.pointsAwarded !== null ? String(row.pointsAwarded) : row.verdict === null ? "…" : valueText(row, railQuestion)) : "—"
             card.verdict = verdictOf(railQ, t.id)
         }
-        if (roundId === "giai-ma" && mcGiaiMa) {
-            const p = mcGiaiMa.players.find((pl) => pl.id === t.id)
+        if (roundId === "giai-ma" && consoleGiaiMa) {
+            const p = consoleGiaiMa.players.find((pl) => pl.id === t.id)
             if (p?.keywordLocked) card.badge = { text: "Giải mật mã", tone: "primary" }
             if (p?.eliminated) card.dimmed = true
         }
         // The live answerer wears the purple card (see @shared/deck/rail-card):
         // ve-dich's buzz winner, or the one who won a Khởi động race.
         const buzzedBy = roundId === "ve-dich"
-            ? mcVeDich?.buzzerId ?? null
-            : roundId === "khoi-dong" ? mcKhoiDong?.buzzerId ?? null : null
+            ? consoleVeDich?.buzzerId ?? null
+            : roundId === "khoi-dong" ? consoleKhoiDong?.buzzerId ?? null : null
         if (buzzedBy !== null && buzzedBy === t.id) card.buzzing = true
 
-        if (roundId === "ve-dich" && mcVeDich?.power) {
+        if (roundId === "ve-dich" && consoleVeDich?.power) {
             // STAR sits on the answerer (their multiplier); ASSIGN sits on the
             // player the question was HANDED TO — the badge follows the mechanic.
-            if (mcVeDich.power === "STAR" && mcVeDich.answererId === t.id) {
+            if (consoleVeDich.power === "STAR" && consoleVeDich.answererId === t.id) {
                 card.badge = { text: "Ngôi sao", tone: "amber" }
             }
-            if (mcVeDich.power === "ASSIGN" && mcVeDich.assignedToId === t.id) {
+            if (consoleVeDich.power === "ASSIGN" && consoleVeDich.assignedToId === t.id) {
                 card.badge = { text: "Được chỉ định", tone: "emerald" }
             }
         }

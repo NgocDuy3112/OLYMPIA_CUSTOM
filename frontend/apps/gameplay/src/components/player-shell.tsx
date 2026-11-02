@@ -1,7 +1,7 @@
 /**
  * PlayerShell — StageShell in PLAYER mode: the OC3.pptm deck, but the drawn
  * control strip is replaced by the player's own ActionBar band — input box,
- * MC option buttons, buzzer, keyword box, pick-confirm — exactly where the MC's
+ * choice-option buttons, buzzer, keyword box, pick-confirm — exactly where the console's
  * buttons used to sit (ui-structure-plan.md ③, decision: same shell, input
  * replaces controls in the ActionBar region).
  *
@@ -92,7 +92,7 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     if (failureStatus === 403) {
         return (
             <StageShell>
-                <Gate title="Không có trong trận" body="Ghế này không thuộc về bạn — báo lại với MC.">
+                <Gate title="Không có trong trận" body="Ghế này không thuộc về bạn — báo lại với ban điều hành.">
                     <Link to="/join" className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">Nhập mã khác</Link>
                 </Gate>
             </StageShell>
@@ -106,10 +106,10 @@ export function PlayerShell({ matchId }: { matchId: string }) {
                     <Lobby
                         data={lobby.data}
                         meId={myId}
-                        hint="Chờ MC mở trận — trang tự cập nhật."
+                        hint="Chờ điều hành mở trận — trang tự cập nhật."
                     />
                 ) : (
-                    <Gate title="Trận chưa bắt đầu" body="MC chưa mở trận — trang tự cập nhật khi trận sang LIVE.">
+                    <Gate title="Trận chưa bắt đầu" body="Điều hành chưa mở trận — trang tự cập nhật khi trận sang LIVE.">
                         <button onClick={live.refetch} className="rounded-lg bg-primary px-4 py-2 font-sans text-sm font-semibold text-primary-foreground">Thử lại</button>
                     </Gate>
                 )}
@@ -144,12 +144,12 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     // ── waiting / unknown rounds → THE LOBBY ───────────────────────────────────
     if (screen === "lobby") {
         // Why we're waiting: an unknown round or stage says so; an ended round
-        // says that; everything else is "waiting for the MC to start".
+        // says that; everything else is "waiting for the console to start".
         const lobbyHint = !isKnownRound(roundId) || stage === "unknown"
-            ? "Vòng này chưa có màn hình thí sinh — hỏi MC."
+            ? "Vòng này chưa có màn hình thí sinh — hỏi ban điều hành."
             : stage === "ended"
-              ? "Vòng đã kết thúc — chờ MC chuyển vòng."
-              : "Chờ MC bắt đầu vòng — trang tự cập nhật."
+              ? "Vòng đã kết thúc — chờ điều hành chuyển vòng."
+              : "Chờ điều hành bắt đầu vòng — trang tự cập nhật."
         if (lobby.data) {
             return (
                 <StageShell>

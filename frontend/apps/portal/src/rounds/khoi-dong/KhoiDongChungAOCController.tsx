@@ -10,21 +10,21 @@ import { formatBuzzMs } from "@shared/lib/clock"
 //   Câu tiếp    moves on — nobody buzzed, or the question is done
 //
 // Pure: every value comes from its narrow ctx.
-import type { KhoiDongMc } from "@/lib/live"
+import type { KhoiDongConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
 /** Khởi động · lượt chung: the buzz race. */
 export type KhoiDongChungCtx = ScreenCore & {
     remaining: number | null
-    mcKhoiDong: KhoiDongMc | null
+    consoleKhoiDong: KhoiDongConsole | null
 }
 
 export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
-    const { v, remaining, baseCards, flash, openRounds, mcKhoiDong } = ctx
+    const { v, remaining, baseCards, flash, openRounds, consoleKhoiDong } = ctx
     const open = v.projection.open
     const openNow = open[0]
-    const buzzer = mcKhoiDong?.buzzerId ?? null
-    const attempt = mcKhoiDong?.attempt ?? null
+    const buzzer = consoleKhoiDong?.buzzerId ?? null
+    const attempt = consoleKhoiDong?.attempt ?? null
 
     const judge = (correct: boolean) => ctx.send({ kind: "khoi-dong.judgeBuzz", correct })
 
@@ -35,7 +35,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 {
                     label: "Mở chuông",
                     // A window is open (or a buzz landed) → nothing to open.
-                    onClick: mcKhoiDong && mcKhoiDong.windowOpen === false && buzzer === null
+                    onClick: consoleKhoiDong && consoleKhoiDong.windowOpen === false && buzzer === null
                         ? () => ctx.send({ kind: "khoi-dong.openBuzz" })
                         : undefined,
                 },
@@ -51,7 +51,7 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 {
                     // The race's own number: how fast the winning buzz was.
                     label: "Chuông",
-                    content: formatBuzzMs(mcKhoiDong?.buzzerMs ?? null),
+                    content: formatBuzzMs(consoleKhoiDong?.buzzerMs ?? null),
                     muted: true
                 },
                 {
@@ -70,9 +70,9 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 right={
                     <>
                         <Progress
-                            total={mcKhoiDong?.questionCount || 12}
-                            done={mcKhoiDong?.questionIndex ?? 0}
-                            active={mcKhoiDong?.questionIndex ?? 0}
+                            total={consoleKhoiDong?.questionCount || 12}
+                            done={consoleKhoiDong?.questionIndex ?? 0}
+                            active={consoleKhoiDong?.questionIndex ?? 0}
                         />
                         <Timer remaining={remaining} fallback="5s" />
                     </>

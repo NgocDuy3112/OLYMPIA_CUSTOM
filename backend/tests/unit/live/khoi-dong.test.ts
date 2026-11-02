@@ -10,7 +10,7 @@ const P2 = Array.from({ length: 12 }, (_, i) => `b${i + 1}`);
 const NOW = "2026-01-01T00:00:00.000Z";
 
 const ctx = (over: Partial<KhoiDongContext> = {}): KhoiDongContext => ({
-    actorId: "mc-1", rules: KHOI_DONG_DEFAULTS, roundId: "khoi-dong", now: NOW,
+    actorId: "console-1", rules: KHOI_DONG_DEFAULTS, roundId: "khoi-dong", now: NOW,
     playerIds: ["p0", "p1"], phase1QuestionIds: P1, phase2QuestionIds: P2,
     ...over
 });
@@ -90,7 +90,7 @@ describe("applyKhoiDongAction — phase 2", () => {
         const s = applyKhoiDongAction(finishedPhase1(), { kind: "khoi-dong.beginPhase2" }, ctx()).state;
         expect(s.stage).toBe("phase2");
         expect(s.phase2?.questionIds).toEqual(P2);
-        expect(s.phase2?.current).toBeNull();            // nothing runs until the MC opens
+        expect(s.phase2?.current).toBeNull();            // nothing runs until the console opens
     });
 
     it("openBuzz starts the window, and nothing may be judged until someone buzzes", () => {

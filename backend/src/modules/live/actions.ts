@@ -1,6 +1,6 @@
 import { Type, Static } from "@sinclair/typebox";
 
-// Controller-only actions: the MC drives the flow. Players only submit answers.
+// Controller-only actions: the console drives the flow. Players only submit answers.
 
 export const GiaiMaStart = Type.Object({
     kind: Type.Literal("giai-ma.start"),
@@ -19,7 +19,7 @@ export const GiaiMaCloseHintWindow = Type.Object({
     kind: Type.Literal("giai-ma.closeHintWindow")
 });
 
-// Resolves the open hint with the MC's EXPLICIT verdicts — one per submitted
+// Resolves the open hint with the console's EXPLICIT verdicts — one per submitted
 // answer (staged in the console). Nothing may be omitted: the route refuses
 // when a submitted answer has no verdict, and each verdict judges that draft
 // row as the reveal happens.
@@ -31,7 +31,7 @@ export const GiaiMaResolveHint = Type.Object({
     }))
 });
 
-// The MC's verdict on a player's submitted (drafted, locked) keyword. The typed
+// The the console's verdict on a player's submitted (drafted, locked) keyword. The typed
 // text lives in the answers ledger — this action only judges the row that is
 // already there, so it can never invent a submission.
 export const GiaiMaJudgeKeyword = Type.Object({
@@ -42,9 +42,9 @@ export const GiaiMaJudgeKeyword = Type.Object({
 });
 
 // The keyword submission: locks participation and stores the typed text as a
-// DRAFT — it carries NO verdict; the MC judges later via giai-ma.judgeKeyword.
+// DRAFT — it carries NO verdict; the console judges later via giai-ma.judgeKeyword.
 // Built by the submit path from the keyword command (the player's door) and
-// also accepted from the wire (the MC may enter one on a player's behalf) —
+// also accepted from the wire (the console may enter one on a player's behalf) —
 // either way: lock + draft, never a verdict.
 export const GiaiMaSubmitKeyword = Type.Object({
     kind: Type.Literal("giai-ma.submitKeyword"),
@@ -91,7 +91,7 @@ export const ButPhaActionSchema = Type.Union([
 export type ButPhaAction = Static<typeof ButPhaActionSchema>;
 
 // ── khoi-dong ─────────────────────────────────────────────────────────────────
-// Phase 1 is oral: the MC records each verdict and the seconds spent. Phase 2 is typed:
+// Phase 1 is oral: the console records each verdict and the seconds spent. Phase 2 is typed:
 // the player route builds the answer action, with the server's measured time.
 export const KhoiDongStart = Type.Object({
     kind: Type.Literal("khoi-dong.start"),

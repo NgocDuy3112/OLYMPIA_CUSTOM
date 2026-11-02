@@ -1,5 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
-import { McKind, TextKind, KeywordKind, HintKind, OralMode, TextMode } from "./primitives.js";
+import { ChoiceKind, TextKind, KeywordKind, HintKind, OralMode, TextMode } from "./primitives.js";
 
 
 export const ScoringRuleSchema = Type.Union([
@@ -59,7 +59,7 @@ export const TurnConfigSchema = Type.Object({
 export type TurnConfig = Static<typeof TurnConfigSchema>;
 
 export const RoundConfigSchema = Type.Object({
-    allowedKinds: Type.Array(Type.Union([McKind, TextKind, KeywordKind, HintKind])),
+    allowedKinds: Type.Array(Type.Union([ChoiceKind, TextKind, KeywordKind, HintKind])),
     scoring: ScoringRuleSchema,
     turns: Type.Array(TurnConfigSchema)
 });

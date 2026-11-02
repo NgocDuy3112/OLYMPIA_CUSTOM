@@ -34,7 +34,7 @@ export interface SubmittedAnswer {
 /**
  * Rounds whose VERDICTS are public once judged: the whole field may see who got
  * the question right. giai-ma is deliberately absent — its hints and keyword are
- * private until the MC reveals them, so its verdicts stay with the player.
+ * private until the console reveals them, so its verdicts stay with the player.
  */
 const PUBLISHES_VERDICTS = new Set(["khoi-dong", "but-pha", "ve-dich"]);
 
@@ -90,9 +90,9 @@ export interface PlayerView {
     // thing the round is about. Sanitized like every other exposure.
     keyword?: { questionId: string; question: SanitizedQuestion | null } | null;
     /**
-     * Who was judged RIGHT, once the MC has judged — for rounds whose verdicts
+     * Who was judged RIGHT, once the console has judged — for rounds whose verdicts
      * are public (khởi động, bứt phá, về đích; NOT giải mã, whose hints and the
-     * keyword stay private until the MC reveals them).
+     * keyword stay private until the console reveals them).
      */
     publicVerdicts?: Array<{
         questionId: string;
@@ -237,7 +237,7 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
             open: [],                                   // phase 1 is oral: nothing to type
             table: rankTable(input.table),
             // The engine tracks the run as a consumed budget (elapsedS/budgetS),
-            // not a wall clock — the MC's recording drives it, so this is a bar,
+            // not a wall clock — the console's recording drives it, so this is a bar,
             // never a fake countdown.
             oral: run && currentId !== null
                 ? {

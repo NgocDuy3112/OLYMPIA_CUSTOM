@@ -36,12 +36,12 @@ export function failureOf(error: unknown): ViewFailure | null {
 
 export interface LiveQuestion {
     questionId: string
-    kind: "MC" | "TEXT" | "KEYWORD" | "HINT"
+    kind: "CHOICE" | "TEXT" | "KEYWORD" | "HINT"
     position: number
     questionText: string
     media: { url: string; type: "image" | "audio" | "video" } | null
     timeLimit: number | null
-    // MC carries options; never the correct set — the sanitizer's rule.
+    // CHOICE carries options; never the correct set — the sanitizer's rule.
     payload: { options?: Array<{ id: string; text: string }> }
 }
 
@@ -191,7 +191,7 @@ export const lobbyKey = (matchId: string) => ["lobby", matchId] as const
 
 /**
  * The player's lobby read — asked WHILE WAITING: /live 409s until the match is
- * LIVE and says "pending" until the MC starts a round, but the lobby answers
+ * LIVE and says "pending" until the console starts a round, but the lobby answers
  * in every case — seats, connected dots, the round waiting to start.
  */
 export function useLiveLobby(matchId: string, enabled: boolean) {

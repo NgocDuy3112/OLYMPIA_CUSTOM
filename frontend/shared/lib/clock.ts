@@ -56,7 +56,7 @@ export function isUrgent(ms: number): boolean {
 }
 
 // ── hooks ────────────────────────────────────────────────────────────────────
-// Kept here (shared) so the MC's console and the players' screens tick against
+// Kept here (shared) so the console's console and the players' screens tick against
 // the SAME skew rules — the two sides must never disagree about the time.
 
 export interface ServerClock {

@@ -33,7 +33,7 @@ export function expandRoundEntries(rounds: LobbyData["rounds"]): LobbyData["roun
 }
 
 /**
- * What the rounds navigator sends when the MC clicks a round: a fresh ("new")
+ * What the rounds navigator sends when the console clicks a round: a fresh ("new")
  * ACTIVE round starts bare; anything else re-opens via round.goTo, appending a
  * start only for rounds that never ran. Pure — table-tested.
  */

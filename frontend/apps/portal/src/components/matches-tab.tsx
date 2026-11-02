@@ -25,7 +25,7 @@ export function MatchesTab({
 
     const [creating, setCreating] = useState(false)
     // A match is played deck-first: Control opens the full-screen StageShell route
-    // (the MC's own view), not the page around it. The list stays where it is.
+    // (the console's own view), not the page around it. The list stays where it is.
     const openStage = (matchId: string) =>
         window.open(`/tournaments/${tournamentId}/matches/${matchId}/stage`, "_blank")
 

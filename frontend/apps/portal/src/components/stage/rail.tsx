@@ -1,6 +1,6 @@
-// The MC's rail — the contestant cards as the OPERATOR sees them: the live
+// The the console's rail — the contestant cards as the OPERATOR sees them: the live
 // camera from the match Room, who is connected, this round's badge/value, and
-// the MC's staged verdict. It is NOT the player's rail (a player sees "BẠN" and
+// the console's staged verdict. It is NOT the player's rail (a player sees "BẠN" and
 // their own verdict): same frame, different card, so neither grows flags.
 import { useEffect, useRef } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
@@ -45,7 +45,7 @@ const cardRing = (ring: CardData["ring"]): string =>
 /**
  * The card's live camera: attaches the remote track to a <video> for exactly
  * as long as the card holds it, laid OVER the initials (which stay as the
- * no-camera base). Not mirrored — the MC is looking AT the player.
+ * no-camera base). Not mirrored — the console is looking AT the player.
  */
 function CardVideo({ track }: { track: RemoteVideoTrack }) {
     const holder = useRef<HTMLSpanElement>(null)
@@ -66,7 +66,7 @@ function CardVideo({ track }: { track: RemoteVideoTrack }) {
 const initialsOf = (name: string): string =>
     name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"
 
-/** The rail column: who's playing, what they answered, the MC's verdict on them. */
+/** The rail column: who's playing, what they answered, the console's verdict on them. */
 export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
     const isAnswers = variant === "answers"
     const Interactive = onSelect ? "button" : "div"

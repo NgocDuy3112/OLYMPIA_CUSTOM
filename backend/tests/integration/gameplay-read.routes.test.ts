@@ -24,10 +24,10 @@ let playerIds: string[];
 
 const auth = (cookie: string) => ({ cookie: `portal_session=${cookie}` });
 
-// The rulebook the tournament is played on — four MC questions in one turn.
+// The rulebook the tournament is played on — four console questions in one turn.
 const roundRules: Record<string, RoundConfig> = {
     "khoi-dong": {
-        allowedKinds: ["MC"],
+        allowedKinds: ["CHOICE"],
         scoring: { template: "constant", points: 10 },
         turns: [{ id: "phase1", mode: "oral", delivery: "sequential", questionCount: 4 }]
     }
@@ -117,7 +117,7 @@ beforeAll(async () => {
     // appears in a public response, the frozen copies have leaked.
     await db.insert(questionBank).values(
         Array.from({ length: 8 }, (_, i) => ({
-            kind: "MC" as const,
+            kind: "CHOICE" as const,
             questionText: `CANARY-QUESTION-${i}`,
             
             payload: { options: [{ id: "a", text: "A" }, { id: "b", text: "B" }], correctSet: ["a"] },

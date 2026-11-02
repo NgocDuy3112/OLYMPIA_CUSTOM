@@ -1,5 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
-import { Uuid, McKind, TextKind, KeywordKind, HintKind, OralMode, TextMode } from "./primitives.js";
+import { Uuid, ChoiceKind, TextKind, KeywordKind, HintKind, OralMode, TextMode } from "./primitives.js";
 
 
 export const MediaSchema = Type.Object({
@@ -40,7 +40,7 @@ export const MatchQuestionSchema = Type.Object({
     turnId: Type.String(),
     position: Type.Integer(),
     mode: Type.Union([OralMode, TextMode]),
-    kind: Type.Union([McKind, TextKind, KeywordKind, HintKind]),
+    kind: Type.Union([ChoiceKind, TextKind, KeywordKind, HintKind]),
     questionText: Type.String(),
     media: Type.Union([MediaSchema, Type.Null()]),
     timeLimit: Type.Union([Type.Integer(), Type.Null()]),

@@ -8,16 +8,16 @@ import { VE_GRID_COLUMNS, boardRows } from "@shared/deck/ve-dich-board"
 // No question is open; the grid is the SHOW'S board: 6×20, 6×30, 4×40, 4×50 —
 // rows are the bands, and the higher bands are WIDER cells (span 3 of 12) so
 // every row is the same width and the board reads balanced.
-import type { ConsoleQuestion, VeDichMc } from "@/lib/live"
+import type { ConsoleQuestion, VeDichConsole } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
 /** Về đích · board: the picker grid while nothing is open. */
 export type VeDichPickCtx = ScreenCore & {
     questions: ConsoleQuestion[]
-    mcVeDich: VeDichMc | null
+    consoleVeDich: VeDichConsole | null
 }
 
-/** What each cell's title says — the state in the MC's words. */
+/** What each cell's title says — the state in the console's words. */
 const CELL_TITLE: Record<CellWhere, string> = {
     taken: "đã dùng",
     pending: "thí sinh đã chọn — chờ mở",
@@ -27,9 +27,9 @@ const CELL_TITLE: Record<CellWhere, string> = {
 }
 
 export function VeDichPickAOCController({ ctx }: { ctx: VeDichPickCtx }) {
-    const { v, questions, baseCards, mcVeDich, flash, openRounds } = ctx
+    const { v, questions, baseCards, consoleVeDich, flash, openRounds } = ctx
     const projection = v.projection
-    const phase2 = mcVeDich?.phase === 2
+    const phase2 = consoleVeDich?.phase === 2
 
     const boardQs = questions.filter((q) => q.roundId === "ve-dich")
     const boardMap = new Map((projection.board ?? []).map((c) => [c.questionId, c.where]))
@@ -44,13 +44,13 @@ export function VeDichPickAOCController({ ctx }: { ctx: VeDichPickCtx }) {
                 {
                     label: "Bắt đầu",
                     onClick: phase2
-                        ? () => ctx.send({ kind: "ve-dich.openQuestion", questionId: mcVeDich?.pendingQuestionId ?? "" })
+                        ? () => ctx.send({ kind: "ve-dich.openQuestion", questionId: consoleVeDich?.pendingQuestionId ?? "" })
                         : () => ctx.send({ kind: "ve-dich.beginPhase2" }),
                 },
                 {
                     label: "Chọn lại",
                     onClick: () =>
-                        mcVeDich && mcVeDich.turnPlayerId === null && mcVeDich.phase === 1
+                        consoleVeDich && consoleVeDich.turnPlayerId === null && consoleVeDich.phase === 1
                             ? ctx.send({ kind: "ve-dich.beginPhase2" })
                             : ctx.send({ kind: "ve-dich.advanceTurn" }),
                 },

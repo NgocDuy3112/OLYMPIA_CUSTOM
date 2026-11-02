@@ -29,7 +29,7 @@ const POOL = [
 const PLAYERS = ["p0", "p1", "p2"];
 
 const ctx = (over: Partial<VeDichContext> = {}): VeDichContext => ({
-    actorId: "mc-1", rules: VE_DICH_DEFAULTS, roundId: "ve-dich", now: NOW,
+    actorId: "console-1", rules: VE_DICH_DEFAULTS, roundId: "ve-dich", now: NOW,
     questions: POOL, players: PLAYERS.map((id) => ({ id, score: 0 })), drafts: [],
     ...over
 });

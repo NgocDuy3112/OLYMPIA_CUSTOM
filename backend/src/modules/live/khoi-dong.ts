@@ -67,7 +67,7 @@ export function applyKhoiDongAction(
                 value: { oral: true },
                 verdict: recorded.correct ? "CORRECT" : "INCORRECT",
                 pointsAwarded: recorded.points,
-                autoMatched: false            // the MC judged it
+                autoMatched: false            // the console judged it
             }];
             return { state: next, facts };
         }
@@ -101,7 +101,7 @@ export function applyKhoiDongAction(
                     value: { oral: true },                 // it was answered out loud
                     verdict: action.correct ? "CORRECT" : "INCORRECT",
                     pointsAwarded: awarded,
-                    autoMatched: false                     // the MC judged it
+                    autoMatched: false                     // the console judged it
                 });
             }
             return { state: next, facts };

@@ -12,7 +12,7 @@ export interface RoundPlanInput {
     /** 1-based position of the open question (but-pha's cursor), null when none. */
     openQuestionPosition: number | null
     rows: QuestionAnswerRow[]
-    /** The MC's staged verdicts, keyed `${questionId}:${userId}`. */
+    /** The the console's staged verdicts, keyed `${questionId}:${userId}`. */
     overrides: Record<string, boolean>
 }
 
