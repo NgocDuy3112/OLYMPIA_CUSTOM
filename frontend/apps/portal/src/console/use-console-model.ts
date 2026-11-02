@@ -71,6 +71,11 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     // show the deck. Automatic ends (Về sảnh) clear it → both surfaces fall
     // back to the lobby. Players never set it: they follow the pushed view.
     const [entered, setEntered] = useState(false)
+    // Về sảnh / Kết thúc ALWAYS returns this console to the waiting room, whatever
+    // the round's own end plan does (a giai-ma plan only closes its hint window,
+    // a race only ends the round, an unknown round plans nothing). The flag
+    // overrides the stage so the deck cannot keep drawing a live round.
+    const [atWaiting, setAtWaiting] = useState(false)
     const [overrides, setOverrides] = useState<Record<string, boolean>>({})
     const [selectedQ, setSelectedQ] = useState<string | null>(null)
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
@@ -143,7 +148,7 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     // An ended/unknown/pending stage is the WAITING ROOM (same rule the player
     // surface has) — exit a round and both sides land on the lobby, never a
     // dead screen. The controller routes manually from its round buttons.
-    const roundScreenReady = (entered || !isWaitingStage(stage)) && isKnownRound(roundId) && !roundsView
+    const roundScreenReady = !atWaiting && (entered || !isWaitingStage(stage)) && isKnownRound(roundId) && !roundsView
     const viewPainted = projection !== undefined
     const transportRefused = live.isError
     const waiting = transportRefused || !viewPainted || !roundScreenReady
@@ -272,16 +277,15 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
 
     /** Kết thúc = end the round in ONE press — the round module decides WHAT. */
     const ketThuc = () => {
-        // The round is already finished → pure navigation back to the lobby.
-        if (stage === "ended") {
-            setEntered(false)
-            return
-        }
+        // The ONE rule every round shares: Về sảnh lands on the waiting room.
+        // The plan below still tidies the engine's state first (close the open
+        // window, commit, end the round) — the navigation does not wait for it,
+        // and does not depend on it existing.
+        setAtWaiting(true)
+        setEntered(false)
+
+        if (stage === "ended") return
         const plan = ketThucPlanOf(roundId, planInput())
-        // Ending plans drop the intent flag so the pushed "ended" view lands
-        // both surfaces on the lobby; phase-advancing plans (khoi-dong phase 1)
-        // keep it — we're still inside the round.
-        if (plan.some((action) => typeof action.kind === "string" && action.kind.endsWith("endRound"))) setEntered(false)
         if (plan.length > 1) return void sendChain(plan)
         if (plan.length === 1) return send(plan[0])
     }
@@ -346,7 +350,8 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const onStart = (nextRoundId: string, phase?: 1 | 2) => {
         if (!lobby.data) return
         setRoundsView(false)
-        setEntered(true) // navigating IN — waiting stages (saved ended) still show the deck
+        setAtWaiting(false)   // leaving the waiting room for the round's deck
+        setEntered(true)      // navigating IN — waiting stages (saved ended) still show the deck
         const startPayload = {
             kind: `${nextRoundId}.start`,
             // The paired rounds' "· Chung/· Riêng" entry: skip the untouched
