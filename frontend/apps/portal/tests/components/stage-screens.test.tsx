@@ -16,12 +16,13 @@ function facts(
     over: Partial<ConsoleFacts> = {},
     projection: Partial<LiveResponse["projection"]> = {},
     mc: unknown = null,
+    questions: LiveResponse["questions"] = [],
 ): ConsoleFacts {
     const v: LiveResponse = {
         version: 1,
         roundId: "khoi-dong",
         state: {},
-        questions: [],
+        questions,
         projection: {
             matchId: "m1",
             roundId: "khoi-dong",
@@ -72,8 +73,9 @@ function renderRound(
     over: Partial<ConsoleFacts> = {},
     projection: Partial<LiveResponse["projection"]> = {},
     mc: unknown = null,
+    questions: LiveResponse["questions"] = [],
 ): ConsoleFacts {
-    const f = facts(over, projection, mc)
+    const f = facts(over, projection, mc, questions)
     const mod = roundModuleOf(roundId)
     if (!mod) throw new Error(`no round module for "${roundId}"`)
     render(mod.render(f))
@@ -173,6 +175,42 @@ describe("GiaiMa — S3", () => {
         await user.click(screen.getByText("Đúng từ khoá", BUTTON))
         expect(f.commitKeyword).toHaveBeenCalledOnce()
         expect(f.commitHint).not.toHaveBeenCalled()
+    })
+
+    it("draws the fixed EIGHT-tile board, whatever the round's hint count", () => {
+        // Six hints in this round → six live tiles, two inert ones: the grid never
+        // shrinks, so a viewer cannot read the hint count off the layout.
+        const hints = Array.from({ length: 6 }, (_, i) => ({
+            _id: `h${i + 1}`,
+            roundId: "giai-ma",
+            kind: "TEXT" as const,
+            position: i + 1,
+            questionText: `gợi ý ${i + 1}`,
+            domain: null,
+            points: 0,
+            timeLimit: 15,
+            payload: {},
+        }))
+        const keyword = {
+            _id: "k1",
+            roundId: "giai-ma",
+            kind: "KEYWORD" as const,
+            position: 9,
+            questionText: "từ khoá",
+            domain: null,
+            points: 0,
+            timeLimit: null,
+            payload: { code: "BONTUONG" },
+        }
+        const f = renderRound("giai-ma", {}, {}, null, [...hints, keyword] as unknown as LiveResponse["questions"])
+        const tiles = screen.getAllByText(/^[1-8]$/)
+        expect(tiles).toHaveLength(8)
+        // 1..6 are this round's hints (open-able); 7 and 8 exist but stay inert
+        expect(tiles.slice(0, 6).every((tile) => tile.getAttribute("role") === "button")).toBe(true)
+        expect(tiles.slice(6).map((tile) => tile.getAttribute("role"))).toEqual([null, null])
+        // the keyword length is announced from the code ("BONTUONG" = 8 letters)
+        expect(screen.getByText(/8 chữ cái/)).toBeInTheDocument()
+        expect(f.remaining).toBe(30)
     })
 
     it("the rail cards toggle the selection (multi-select)", async () => {

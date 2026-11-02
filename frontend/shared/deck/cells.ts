@@ -50,12 +50,23 @@ export const cellFaded = (where: CellWhere, pickableNow: boolean): boolean =>
 
 // ── giải mã hint tiles ───────────────────────────────────────────────────────
 
+/**
+ * The board is EIGHT squares on both surfaces — the show's fixed grid, not the
+ * round's hint count. A round with fewer hints leaves the last tiles `absent`,
+ * so a viewer can never read "this round kept something back" off the layout.
+ */
+export const HINT_TILES = 8
+
 const TILE = "flex aspect-[203/132] items-center justify-center rounded-2xl font-display font-bold leading-none shadow-md"
 
-/** The MC's tiles: free → clickable, open → the live window, used → spent. */
-export function hintTileClass(state: "free" | "open" | "used", interactive: boolean): string {
+export type HintTile = "free" | "open" | "used" | "absent"
+
+/** The MC's tiles: free → clickable, open → the live window, used → spent,
+ *  absent → this round has no hint here (inert, never a button). */
+export function hintTileClass(state: HintTile, interactive: boolean): string {
     if (state === "open") return `${TILE} bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background`
     if (state === "used") return `${TILE} bg-muted text-muted-foreground/50 ring-1 ring-border`
+    if (state === "absent") return `${TILE} bg-muted/40 text-muted-foreground/25 ring-1 ring-border`
     return `${TILE} bg-card text-foreground ring-1 ring-border ${interactive ? "cursor-pointer hover:ring-sky-500" : ""}`
 }
 

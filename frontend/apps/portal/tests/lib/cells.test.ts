@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { cellFaded, hintTileClass, mcCellClass, playerCellClass, type CellWhere } from "@shared/deck/cells"
+import { cellFaded, HINT_TILES, hintTileClass, mcCellClass, playerCellClass, type CellWhere } from "@shared/deck/cells"
 
 // The vé-đích / giải mã class tables: every state must be DISTINGUISHABLE and
 // must say what it is (a taken cell is black on both surfaces, an open one is
@@ -55,6 +55,15 @@ describe("vé-đích cells", () => {
 })
 
 describe("giải mã tiles", () => {
+    it("keeps the board EIGHT squares on both surfaces — the show's grid", () => {
+        expect(HINT_TILES).toBe(8)
+    })
+
+    it("an absent tile is quiet and never clickable", () => {
+        expect(hintTileClass("absent", false)).toContain("text-muted-foreground/25")
+        expect(hintTileClass("absent", false)).not.toContain("cursor-pointer")
+    })
+
     it("marks the open tile and greys the used one", () => {
         expect(hintTileClass("open", false)).toContain("bg-primary")
         expect(hintTileClass("used", false)).toContain("bg-muted")

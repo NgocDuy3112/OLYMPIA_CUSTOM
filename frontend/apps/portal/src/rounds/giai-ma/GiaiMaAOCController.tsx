@@ -1,7 +1,7 @@
 import { Badges, CardHeader, ConsoleStage, KeywordLengthBanner, MainCard, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
-import { hintTileClass } from "@shared/deck/cells"
+import { HINT_TILES, hintTileClass, type HintTile } from "@shared/deck/cells"
 import { COPY } from "@shared/deck/copy"
 
 // Giải mã (S3): the hint tile grid (count-driven — any hint count fits), then
@@ -35,9 +35,13 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
         .filter((q) => q.roundId === "giai-ma" && q.kind !== "KEYWORD")
         .sort((a, b) => a.position - b.position)
     const openHintId = mcGiaiMa?.openHintId ?? null
-    const tileState = (qid: string): "free" | "open" | "used" =>
+    const tileState = (qid: string): HintTile =>
         qid === openHintId ? "open" : mcGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
     const openHint = (qid: string) => ctx.send({ kind: "giai-ma.openHint", hintId: qid })
+    // The board is the show's fixed EIGHT squares (as on the player's deck): the
+    // i-th tile is the i-th hint of this round, and a tile past the round's hints
+    // is `absent` — inert, never a button, so the count never leaks.
+    const tiles = Array.from({ length: HINT_TILES }, (_, i) => hintQuestions[i] ?? null)
 
     return (
         <ConsoleStage
@@ -59,18 +63,18 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
         >
             <KeywordLengthBanner length={keywordLength} />
 
-            {/* the tiles: a count-driven grid — any hint count fits, none dropped */}
+            {/* the tiles: EIGHT fixed squares — a hint count fits without redrawing */}
             <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-                {hintQuestions.map((q, i) => {
-                    const state = tileState(q._id)
+                {tiles.map((q, i) => {
+                    const state: HintTile = q ? tileState(q._id) : "absent"
                     const interactive = state === "free"
                     return (
                         <div
-                            key={q._id}
-                            onClick={interactive ? () => openHint(q._id) : undefined}
+                            key={q?._id ?? `absent-${i}`}
+                            onClick={interactive && q ? () => openHint(q._id) : undefined}
                             role={interactive ? "button" : undefined}
                             tabIndex={interactive ? 0 : undefined}
-                            onKeyDown={interactive ? (event) => {
+                            onKeyDown={interactive && q ? (event) => {
                                 if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault()
                                     openHint(q._id)

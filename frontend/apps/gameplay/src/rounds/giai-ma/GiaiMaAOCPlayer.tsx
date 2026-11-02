@@ -1,6 +1,6 @@
 import { AnswerBand, Badges, CardHeader, KeywordBox, KeywordLengthBanner, MainCard, PlayerStage, Rail, Timer, VerdictIcon, type PlayerCore } from "@shared/deck/player-deck"
 import { DECK_PAD, STRIP_R, pt } from "@shared/deck/geometry"
-import { playerHintTileClass } from "@shared/deck/cells"
+import { HINT_TILES, playerHintTileClass } from "@shared/deck/cells"
 import type { AnswerValue } from "@shared/deck/types"
 
 // Giải mã (S3): keyword banner, the count-driven hint tile grid, the lower
@@ -13,9 +13,6 @@ export type GiaiMaPlayerCtx = PlayerCore & {
     keywordBusy: boolean
     submitKeyword: (questionId: string, text: string) => void
 }
-
-/** TILES: eight display squares — the count is the show's, not the round's. */
-const TILE_COUNT = 8
 
 export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, keywordBusy, submitKeyword } = ctx
@@ -62,7 +59,7 @@ export function GiaiMaAOCPlayer({ ctx }: { ctx: GiaiMaPlayerCtx }) {
 
             {/* the tiles: display squares — muted while a hint window is open */}
             <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-                {Array.from({ length: TILE_COUNT }, (_, i) => i + 1).map((n) => (
+                {Array.from({ length: HINT_TILES }, (_, i) => i + 1).map((n) => (
                     <div
                         key={n}
                         className={playerHintTileClass(hintWindow !== null)}
