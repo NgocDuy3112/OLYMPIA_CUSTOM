@@ -151,29 +151,23 @@ export const scoreAdjustments = pgTable(
 );
 
 
+// A standing is a PLACE for a USER: one row per (tournament, user). Teams are
+// gone, so there is no second identity and no partial index guarding one.
 export const tournamentStandings = pgTable(
     "tournament_standings",
     {
         tournamentId: uuid("tournament_id")
             .notNull()
             .references(() => tournaments.id),
-        userId: uuid("user_id").references(() => users.id),
-        teamId: uuid("team_id"),
+        userId: uuid("user_id")
+            .notNull()
+            .references(() => users.id),
         rank: integer("rank").notNull(),
         placementPoints: integer("placement_points").notNull(),
         computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [
-        uniqueIndex("tournament_standings_user_unique")
-            .on(table.tournamentId, table.userId)
-            .where(sql`team_id IS NULL`),
-        uniqueIndex("tournament_standings_team_unique")
-            .on(table.tournamentId, table.teamId)
-            .where(sql`user_id IS NULL`),
-        check(
-            "tournament_standings_one_identity_check",
-            sql`(user_id IS NULL) <> (team_id IS NULL)`
-        )
+        uniqueIndex("tournament_standings_user_unique").on(table.tournamentId, table.userId)
     ]
 );
 
@@ -188,8 +182,9 @@ export const matchStats = pgTable(
             .references(() => tournaments.id),
         roundId: text("round_id").notNull(),
         questionId: uuid("question_id"),
-        userId: uuid("user_id").references(() => users.id),
-        teamId: uuid("team_id"),
+        userId: uuid("user_id")
+            .notNull()
+            .references(() => users.id),
 
         basePoints: integer("base_points"),
         answered: boolean("answered"),
@@ -205,19 +200,12 @@ export const matchStats = pgTable(
     },
     (table) => [
         uniqueIndex("match_stats_member_unique")
-            .on(table.matchId, table.roundId, table.questionId, table.userId)
-            .where(sql`team_id IS NULL`),
-        uniqueIndex("match_stats_team_unique")
-            .on(table.matchId, table.roundId, table.teamId)
-            .where(sql`user_id IS NULL`),
+            .on(table.matchId, table.roundId, table.questionId, table.userId),
         index("match_stats_tournament_round_idx").on(table.tournamentId, table.roundId),
-        check(
-            "match_stats_one_identity_check",
-            sql`(user_id IS NULL) <> (team_id IS NULL)`
-        ),
+        // Stats are per QUESTION: one row per player per frozen question instance.
         check(
             "match_stats_question_grain_check",
-            sql`(team_id IS NULL) = (question_id IS NOT NULL)`
+            sql`question_id IS NOT NULL`
         )
     ]
 );

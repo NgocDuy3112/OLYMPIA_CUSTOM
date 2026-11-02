@@ -48,7 +48,7 @@ beforeAll(async () => {
         ownerId: owner.id, visibility: "PUBLIC", slug: "score-adjust-tournament",
         name: "Score Adjust Cup",
         rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
-        format: { competitorsPerMatch: 2, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
+        format: { competitorsPerMatch: 2 },
         placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();

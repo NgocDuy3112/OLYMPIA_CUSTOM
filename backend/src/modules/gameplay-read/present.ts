@@ -21,9 +21,9 @@ import type {
 type TournamentRow = typeof tournaments.$inferSelect;
 type MatchRow = typeof matches.$inferSelect;
 
-// A seat names either a user or a team — narrowed on its kind, never probed.
+// A seat names a USER (teams are gone — see SeatSchema).
 function seatId(seat: MatchRow["players"][number]): string {
-    return seat.kind === "user" ? seat.userId : seat.teamId;
+    return seat.userId;
 }
 
 // The tournament's window, derived from its stage list. A stage without dates does
@@ -114,7 +114,8 @@ export function presentMatch(
     if (!results) return base;
 
     const publicResults: PublicResultEntry[] = results.map((entry) => {
-        const id = entry.userId ?? entry.teamId!;        return {
+        const id = entry.userId;
+        return {
             id,
             name: names[id] ?? "Unknown",
             totalScore: entry.totalScore,

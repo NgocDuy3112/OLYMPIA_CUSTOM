@@ -82,7 +82,7 @@ const tournamentRow = (overrides: Partial<TournamentRow> = {}): TournamentRow =>
     
     current: true,
     rounds: [{ id: "khoi-dong", name: "Khởi động", order: 1, chart: "…" }],
-    format: { competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
+    format: { competitorsPerMatch: 4 },
     placementTiers: [{ min: 1, max: 1, points: 25 }],
     stages: [
         { id: "qualifiers", title: "Vòng loại", start: "2025-06-01T00:00:00Z", end: "2025-06-10T00:00:00Z" },
@@ -164,18 +164,6 @@ describe("presentMatch", () => {
         ]);
     });
 
-    it("resolves a team seat by its teamId", () => {
-        const out = presentMatch(
-            matchRow({
-                players: [{ kind: "team", teamId: "dddddddd-dddd-dddd-dddd-dddddddddddd", seed: 2 }]
-            }),
-            STAGE_TITLES,
-            { "dddddddd-dddd-dddd-dddd-dddddddddddd": "Team Lambda" }
-        );
-        expect(out.players).toEqual([
-            { id: "dddddddd-dddd-dddd-dddd-dddddddddddd", name: "Team Lambda", seed: 2 }
-        ]);
-    });
 });
 
 

@@ -75,15 +75,13 @@ export async function publicSchedule(slug: string, page: Page): Promise<PageResu
 
     const resultsByMatch = await resultEntriesOf(finishedIds);
 
-    // Every seat and every result may name a user; the schedule shows all of them.
+    // Every seat and every result names a user (teams are gone); the schedule shows them all.
     const ids = new Set<string>();
     for (const row of listed.items) {
-        for (const seat of row.players) {
-            ids.add(seat.kind === "user" ? seat.userId : seat.teamId);
-        }
+        for (const seat of row.players) ids.add(seat.userId);
     }
     for (const entries of resultsByMatch.values()) {
-        for (const entry of entries) ids.add(entry.userId ?? entry.teamId!);
+        for (const entry of entries) ids.add(entry.userId);
     }
     const names = await namesOf([...ids]);
 

@@ -22,13 +22,7 @@ const validTournament = (name = "Tournament 1"): CreateTournamentInput => ({
     name,
     
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    format: {
-        competitorsPerMatch: 4,
-        allowedSeatKinds: ["user"],
-        teamSize: null,
-        teamAggregation: null,
-        teamCountAggregation: null
-    },
+    format: { competitorsPerMatch: 4 },
     placementTiers: [{ min: 1, max: 4, points: 10 }],
     stages: [
         { id: "s1", title: "Qualifiers", start: "2026-01-01T00:00:00Z", end: "2026-06-01T00:00:00Z" }

@@ -36,13 +36,7 @@ const tournamentInput = (slug: string) => ({
     slug,
     defaultTags: ["THTH"],
     defaultRounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    defaultFormat: {
-        competitorsPerMatch: 4,
-        allowedSeatKinds: ["user" as const],
-        teamSize: null,
-        teamAggregation: null,
-        teamCountAggregation: null
-    },
+    defaultFormat: { competitorsPerMatch: 4 },
     defaultPlacementTiers: [{ min: 1, max: 4, points: 10 }]
 });
 

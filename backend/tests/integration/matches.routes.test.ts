@@ -21,13 +21,7 @@ const validTournament = (name: string) => ({
     name,
     
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    format: {
-        competitorsPerMatch: 2,
-        allowedSeatKinds: ["user"],
-        teamSize: null,
-        teamAggregation: null,
-        teamCountAggregation: null
-    },
+    format: { competitorsPerMatch: 2 },
     placementTiers: [{ min: 1, max: 2, points: 10 }],
     stages: [{ id: "stage-1", title: "Stage 1" }]
 });
@@ -196,13 +190,6 @@ describe("matches — create & validation", () => {
         expect(dupSeeds.statusCode).toBe(400);
         expect(dupSeeds.json().message).toContain("seeds must be unique");
 
-        const wrongKind = await createMatch(s.id, matchBody({
-            players: [
-                { kind: "team", teamId: "00000000-0000-4000-8000-000000000003", seed: 1 },
-                { kind: "user", userId: "00000000-0000-4000-8000-000000000001", seed: 2 }
-            ]
-        }));
-        expect(wrongKind.statusCode).toBe(400);
     });
 
     it("400 when roundConfigs references an unknown round", async () => {

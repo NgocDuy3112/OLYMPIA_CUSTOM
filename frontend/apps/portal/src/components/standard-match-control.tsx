@@ -29,12 +29,7 @@ export function StandardMatchControl({
     const names = new Map(
         (enrolled.data?.items ?? []).map((row) => [row.userId, row.displayName])
     )
-    const seated = match.players.flatMap((seat) => {
-        const userId = "userId" in seat && seat.userId ? seat.userId : undefined
-        const teamId = "teamId" in seat && seat.teamId ? seat.teamId : undefined
-        const id = userId ?? teamId
-        return id ? [{ id, seed: seat.seed }] : []
-    })
+    const seated = match.players.map((seat) => ({ id: seat.userId, seed: seat.seed }))
 
     const transitionError = transition.isError ? transition.error.message : null
     const saveError = save.isError ? save.error.message : null

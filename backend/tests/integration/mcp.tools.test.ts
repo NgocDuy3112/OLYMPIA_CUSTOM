@@ -41,13 +41,7 @@ const tournamentInput = (slug: string) => ({
     slug,
     defaultTags: ["THTH"],
     defaultRounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    defaultFormat: {
-        competitorsPerMatch: 4,
-        allowedSeatKinds: ["user"],
-        teamSize: null,
-        teamAggregation: null,
-        teamCountAggregation: null
-    },
+    defaultFormat: { competitorsPerMatch: 4 },
     defaultPlacementTiers: [{ min: 1, max: 4, points: 10 }]
 });
 
@@ -67,13 +61,7 @@ async function makeTournament(slug: string, visibility?: "PRIVATE", cookie = own
             name: slug,
             
             rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-            format: {
-                competitorsPerMatch: 4,
-                allowedSeatKinds: ["user"],
-                teamSize: null,
-                teamAggregation: null,
-                teamCountAggregation: null
-            },
+            format: { competitorsPerMatch: 4 },
             placementTiers: [{ min: 1, max: 4, points: 10 }],
             ...(visibility ? { visibility } : {})
         }

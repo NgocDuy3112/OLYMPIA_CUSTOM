@@ -42,13 +42,7 @@ const validTournament = (name: string, visibility?: "PRIVATE") => ({
     name,
     
     rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
-    format: {
-        competitorsPerMatch: 4,
-        allowedSeatKinds: ["user"],
-        teamSize: null,
-        teamAggregation: null,
-        teamCountAggregation: null
-    },
+    format: { competitorsPerMatch: 4 },
     placementTiers: [{ min: 1, max: 2, points: 25 }],
     stages: STAGES,
     ...(visibility ? { visibility } : {})
@@ -140,13 +134,7 @@ function baseTournament() {
     return {
         
         rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
-        format: {
-            competitorsPerMatch: 4,
-            allowedSeatKinds: ["user"] as Array<"user" | "team">,
-            teamSize: null,
-            teamAggregation: null,
-            teamCountAggregation: null
-        },
+        format: { competitorsPerMatch: 4 },
         placementTiers: [{ min: 1, max: 2, points: 25 }],
         stages: STAGES,
         roundRules

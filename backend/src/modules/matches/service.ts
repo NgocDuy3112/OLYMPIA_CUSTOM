@@ -173,14 +173,8 @@ function assertSeats(
         );
     }
 
-    const wrongKind = players.filter((seat) => !format.allowedSeatKinds.includes(seat.kind));
-    if (wrongKind.length > 0) {
-        throw new MatchError(
-            "VALIDATION",
-            "seats use kinds this tournament's format does not allow",
-            [`allowed: ${format.allowedSeatKinds.join(", ")}`]
-        );
-    }
+    // Seat KIND is no longer a property of the format: every seat is a user
+    // (teams were removed), so there is nothing to compare against.
 
     const seeds = players.map((seat) => seat.seed);
     if (new Set(seeds).size !== seeds.length) {

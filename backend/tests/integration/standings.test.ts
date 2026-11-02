@@ -85,10 +85,7 @@ beforeAll(async () => {
         ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "ST Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
-        format: {
-            competitorsPerMatch: 4, allowedSeatKinds: ["user"], teamSize: null,
-            teamAggregation: null, teamCountAggregation: null
-        },
+        format: { competitorsPerMatch: 4 },
         placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: STAGES,
         roundRules

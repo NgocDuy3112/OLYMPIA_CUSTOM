@@ -24,12 +24,9 @@ export interface Stage {
     end?: string
 }
 
+/** No team knobs: every seat is a user (mirrors the backend's SeatSchema). */
 export interface TournamentFormat {
     competitorsPerMatch: number
-    allowedSeatKinds: Array<"user" | "team">
-    teamSize: number | null
-    teamAggregation: "sum" | "best" | "avg" | null
-    teamCountAggregation: "sum" | "none" | null
 }
 
 export interface PlacementTier {

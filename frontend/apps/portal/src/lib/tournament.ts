@@ -60,10 +60,10 @@ export interface TournamentDetail extends Tournament {
     points: ScaleCoverage
 }
 
+/** A seat is a user — teams are gone (mirrors the backend's SeatSchema). */
 export interface MatchSeat {
-    kind: "user" | "team"
-    userId?: string
-    teamId?: string
+    kind: "user"
+    userId: string
     seed: number
 }
 

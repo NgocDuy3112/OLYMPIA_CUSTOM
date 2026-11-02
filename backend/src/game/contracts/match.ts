@@ -3,16 +3,14 @@ import {
     Uuid,
     IsoDateTime,
     VerdictSchema,
-    UserKind,
-    TeamKind
+    UserKind
 } from "./primitives.js";
 
 // ─── §1 — Seat ───────────────────────────────────────────────────────────────
 
-export const SeatSchema = Type.Union([
-    Type.Object({ kind: UserKind, userId: Uuid, seed: Type.Integer() }),
-    Type.Object({ kind: TeamKind, teamId: Uuid, seed: Type.Integer() })
-]);
+// A seat is a USER. (Teams were removed with the team format: a group stage
+// banks points per GROUP, which is a roster property, not a seat kind.)
+export const SeatSchema = Type.Object({ kind: UserKind, userId: Uuid, seed: Type.Integer() });
 export type Seat = Static<typeof SeatSchema>;
 
 // ─── §6 — AnswerValue ────────────────────────────────────────────────────────
@@ -51,9 +49,8 @@ export type MatchLive = Static<typeof MatchLiveSchema>;
 // ─── §9 — ResultEntry ────────────────────────────────────────────────────────
 
 export const ResultEntrySchema = Type.Object({
-    kind: Type.Union([UserKind, TeamKind]),
-    userId: Type.Optional(Uuid),
-    teamId: Type.Optional(Uuid),
+    kind: UserKind,
+    userId: Uuid,
     totalScore: Type.Integer(),
     rank: Type.Integer(),
     roundScores: Type.Record(Type.String(), Type.Integer())

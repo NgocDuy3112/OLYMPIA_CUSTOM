@@ -1,5 +1,5 @@
 import { Type, Static } from "@sinclair/typebox";
-import { IsoDateTime, UserKind, TeamKind } from "./primitives.js";
+import { IsoDateTime } from "./primitives.js";
 
 // ─── §10 — Stage ─────────────────────────────────────────────────────────────
 
@@ -47,16 +47,11 @@ export const TournamentFormatSchema = Type.Object({
     // competitorsPerMatch, which is also what classic tournaments use as the
     // splitting tier size.
     allowedCompetitorCounts: Type.Optional(Type.Array(Type.Integer(), { minItems: 1 })),
-    allowedSeatKinds: Type.Array(Type.Union([UserKind, TeamKind])),
-    teamSize: Type.Union([Type.Integer(), Type.Null()]),
-    teamAggregation: Type.Union([
-        Type.Literal("sum"),
-        Type.Literal("best"),
-        Type.Literal("avg"),
-        Type.Null()
-    ]),
-    teamCountAggregation: Type.Union([Type.Literal("sum"), Type.Literal("none"), Type.Null()])
 });
+
+// The format carries NO team knobs: teams are gone (see SeatSchema). A group
+// stage is a ROSTER property — `tournament_players.group` — and its accent is
+// the placement→group-point scale in engine/scoring/group-stage.ts.
 export type TournamentFormat = Static<typeof TournamentFormatSchema>;
 
 // The seat counts a match of this tournament is allowed to hold.

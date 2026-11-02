@@ -15,6 +15,5 @@ export const VerdictSchema = Type.Union([Type.Literal("CORRECT"), Type.Literal("
 export const OralMode = Type.Literal("oral");
 export const TextMode = Type.Literal("text");
 export const UserKind = Type.Literal("user");
-export const TeamKind = Type.Literal("team");
 
 export type Verdict = Static<typeof VerdictSchema>;

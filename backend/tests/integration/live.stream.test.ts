@@ -63,7 +63,7 @@ beforeAll(async () => {
         ownerId: tournamentOwner, visibility: "PUBLIC", slug: tournamentSlug,
         name: "Stream Tournament",
         rounds: [{ id: "giai-ma", name: "Giai Ma", order: 0, chart: "bars" }],
-        format: { competitorsPerMatch: 1, allowedSeatKinds: ["user"], teamSize: null, teamAggregation: null, teamCountAggregation: null },
+        format: { competitorsPerMatch: 1 },
         placementTiers: [{ min: 1, max: 1, points: 10 }],
         stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();

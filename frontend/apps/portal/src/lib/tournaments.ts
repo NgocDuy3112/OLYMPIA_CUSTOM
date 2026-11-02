@@ -10,12 +10,10 @@ export interface TournamentRound {
     chart: string
 }
 
+// No team knobs: every seat is a user (the contract's SeatSchema says so). An
+// AOC group stage is a ROSTER property (`tournament_players.group`), not a format one.
 export interface TournamentFormat {
     competitorsPerMatch: number
-    allowedSeatKinds: Array<"user" | "team">
-    teamSize: number | null
-    teamAggregation: "sum" | "best" | "avg" | null
-    teamCountAggregation: "sum" | "none" | null
 }
 
 export interface PlacementTier {

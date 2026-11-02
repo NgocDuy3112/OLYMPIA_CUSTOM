@@ -211,6 +211,13 @@
       "when": 1793418995359,
       "tag": "0029_magical_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1793584352411,
+      "tag": "0030_romantic_mister_sinister",
+      "breakpoints": true
     }
   ]
 }
