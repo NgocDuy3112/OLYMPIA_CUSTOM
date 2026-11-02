@@ -19,6 +19,7 @@ import {
     type KhoiDongState
 } from "../../game/engine/turns/khoi-dong-round.js";
 import { isBuzzOpen, mayBuzz, type VeDichState } from "../../game/engine/turns/ve-dich.js";
+import { isPhase2WindowOpen, mayBuzzPhase2 } from "../../game/engine/turns/khoi-dong.js";
 import { sanitizeQuestion, type SanitizedQuestion } from "../../lib/question-view.js";
 import type { MatchQuestion } from "../../game/contracts/index.js";
 
@@ -238,15 +239,20 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         };
     }
 
-    const questionIds = state.phase2?.questionIds ?? [];
-    const closed = state.phase2?.closed ?? true;
-    const open = !closed && state.phase2OpenedAt !== null
-        ? questionIds.map((questionId) => ({
-              questionId,
-              deadlineAt: plusSeconds(state.phase2OpenedAt!, 60),
-              question: questionOf(input, questionId)
-          }))
-        : [];
+    // ── phase 2: the buzz race ──────────────────────────────────────────────
+    const p2 = state.phase2;
+    const current = p2?.current ?? null;
+    const windowOpen = p2 !== null && isPhase2WindowOpen(p2, input.now);
+
+    const open: PlayerView["open"] = current === null
+        ? []
+        : [{
+              questionId: current.questionId,
+              deadlineAt: current.openedAt === null || p2 === null
+                  ? null
+                  : plusSeconds(current.openedAt, p2.buzzWindowS),
+              question: questionOf(input, current.questionId)
+          }];
 
     return {
         matchId: input.matchId,
@@ -258,8 +264,13 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
         table: rankTable(input.table),
         me: {
             points: khoiDongPoints(state, input.userId),
-            answered: questionIds.filter((q) => stateOf(input.submitted, q) !== "none"),
-            finalized: questionIds.filter((q) => stateOf(input.submitted, q) === "final"),
+            // The buzz is the phase's only action: offered only while a window is
+            // open, only to players the engine would actually admit.
+            canBuzz: p2 !== null && windowOpen && mayBuzzPhase2(p2, input.userId),
+            buzzer: current?.buzzer ?? null,
+            isAnswerer: current?.buzzer === input.userId,
+            lockedOut: current?.excluded.includes(input.userId) ?? false,
+            attempt: current?.attempt ?? null,
             verdicts: verdictsOf(input.submitted)
         }
     };

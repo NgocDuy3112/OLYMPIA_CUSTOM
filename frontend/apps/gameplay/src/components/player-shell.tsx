@@ -27,6 +27,7 @@ import { roundModuleOf } from "@/rounds"
 import {
     playerScreenOf,
     useLiveAnswer,
+    useLiveBuzz,
     useLiveKeyword,
     useLiveLobby,
     useLiveMatch,
@@ -54,6 +55,8 @@ export function PlayerShell({ matchId }: { matchId: string }) {
     const me = useMe()
     const live = useLiveMatch(matchId, true)
     const answer = useLiveAnswer(matchId)
+    // Khởi động chung: the buzz is that round's only player action (no payload).
+    const buzzAction = useLiveBuzz(matchId)
     const keywordSubmit = useLiveKeyword(matchId)
     const cmd = useLivePlayerCommand(matchId)
 
@@ -196,6 +199,8 @@ export function PlayerShell({ matchId }: { matchId: string }) {
         setPickedCells,
         answerBusy: answer.isPending,
         submitAnswer,
+        buzzBusy: buzzAction.isPending,
+        buzz: () => buzzAction.mutate({}),
         keywordBusy: keywordSubmit.isPending,
         submitKeyword,
         cmdBusy: cmd.isPending,

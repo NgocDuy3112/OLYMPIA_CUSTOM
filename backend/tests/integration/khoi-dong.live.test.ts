@@ -61,7 +61,8 @@ beforeAll(async () => {
     tournamentId = tournament.id;
 
     const p1 = [1, 2, 3, 4, 5, 6].map((n) => question("phase1", n));
-    const p2 = [1, 2, 3, 4, 5, 6].map((n) => question("phase2", n));
+    // Chung stages TWELVE questions; the engine refuses any other count.
+    const p2 = Array.from({ length: 12 }, (_, i) => question("phase2", i + 1));
     phase1Ids = p1.map((q) => q._id);
     phase2Ids = p2.map((q) => q._id);
 
@@ -77,7 +78,7 @@ beforeAll(async () => {
                 scoring: { template: "constant", points: 10 },
                 turns: [
                     { id: "phase1", mode: "oral", delivery: "sequential" },
-                    { id: "phase2", mode: "text", delivery: "batch" }
+                    { id: "phase2", mode: "oral", delivery: "sequential", buzzWindowSeconds: 5 }
                 ]
             }
         },
@@ -125,10 +126,10 @@ describe("khoi-dong — phase 1 (oral, one run per player)", () => {
         expect(res.json().state.runs[playerIds[0]].questionIds).toEqual(phase1Ids);
     });
 
-    it("a player cannot submit in the oral phase", async () => {
+    it("a player cannot submit a typed answer — chung takes buzzes only", async () => {
         const res = await answer(playerCookies[0], phase1Ids[0], "Hà Nội");
         expect(res.statusCode).toBe(409);
-        expect(res.json().message).toContain("phase 2 is not open");
+        expect(res.json().error).toBe("BUZZ_ONLY");
     });
 
     it("the MC records six correct answers for player 0, each worth 10", async () => {
@@ -159,102 +160,94 @@ describe("khoi-dong — phase 1 (oral, one run per player)", () => {
     });
 });
 
-describe("khoi-dong — phase 2 (typed, draft then judge)", () => {
-    it("the MC opens phase 2", async () => {
+describe("khoi-dong — phase 2: the buzz race", () => {
+    const buzz = (cookie: string) =>
+        app.inject({ method: "POST", url: `/gameplay/matches/${matchId}/live/buzz`, headers: asPlayer(cookie) });
+
+    it("the MC opens phase 2 with twelve questions, and nothing runs yet", async () => {
         const res = await act({ kind: "khoi-dong.beginPhase2" });
         expect(res.statusCode).toBe(200);
         expect(res.json().state.stage).toBe("phase2");
         expect(res.json().state.phase2.questionIds).toEqual(phase2Ids);
-        expect(res.json().state.phase2OpenedAt).not.toBeNull();
+        expect(res.json().state.phase2.questionIds).toHaveLength(12);
+        expect(res.json().state.phase2.current).toBeNull();
     });
 
-    it("a player's typed answer becomes a draft, not a verdict", async () => {
-        const res = await answer(playerCookies[0], phase2Ids[0], "ha noi");
-        expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual({ drafted: true });        // the ack reveals nothing
-
-        const [row] = await db.select().from(answers)
-            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
-        expect(row.judged).toBe(false);
-        expect(row.verdict).toBeNull();
-        expect(row.drafts).toMatchObject({ auto: "CORRECT" });
-    });
-
-    it("the controller can read the drafts before judging", async () => {
-        const res = await app.inject({
-            method: "GET", url: answersUrl(phase2Ids[0]), headers: auth(ownerCookie)
-        });
-        expect(res.statusCode).toBe(200);
-        expect(res.json().items).toHaveLength(1);
-        expect(res.json().items[0]).toMatchObject({ judged: false, drafts: { auto: "CORRECT" } });
-    });
-
-    it("a player may revise their draft before it is judged", async () => {
-        const res = await answer(playerCookies[0], phase2Ids[0], "Hải Phòng");
-        expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual({ drafted: true });            // opinion stays server-side
-        const rows = await db.select().from(answers)
-            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
-        expect(rows).toHaveLength(1);                              // revised in place
-        expect(rows[0].drafts).toMatchObject({ auto: "INCORRECT" });
-    });
-
-    it("judging an answer nobody submitted is rejected with 409 NO_ANSWER", async () => {
-        const res = await act({
-            kind: "khoi-dong.finalize", questionId: phase2Ids[0],
-            verdicts: [{ playerId: playerIds[1], correct: true }]
-        });
+    it("a buzz before the window opens is refused", async () => {
+        const res = await buzz(playerCookies[0]);
         expect(res.statusCode).toBe(409);
-        expect(res.json().error).toBe("NO_ANSWER");
+        expect(res.json().error).toBe("NOTHING_OPEN");
     });
 
-    it("the controller finalizes: the draft is replaced by a final verdict worth 10", async () => {
-        // the controller overwrites the incorrect draft with a correct verdict
-        const res = await act({
-            kind: "khoi-dong.finalize", questionId: phase2Ids[0],
-            verdicts: [{ playerId: playerIds[0], correct: true }]
+    it("the fastest buzz wins; the second player is blocked", async () => {
+        expect((await act({ kind: "khoi-dong.openBuzz" })).statusCode).toBe(200);
+
+        const first = await buzz(playerCookies[0]);
+        expect(first.statusCode).toBe(200);
+        expect(first.json()).toEqual({ buzzed: true });
+
+        const second = await buzz(playerCookies[1]);
+        expect(second.statusCode).toBe(409);
+        expect(second.json().error).toBe("ALREADY_OPEN");
+    });
+
+    it("the player view offers the buzz to nobody once the fastest has landed", async () => {
+        const mine = await app.inject({
+            method: "GET", url: `/gameplay/matches/${matchId}/live`, headers: asPlayer(playerCookies[0])
         });
+        const view = mine.json();
+        expect(view.open.map((o: { questionId: string }) => o.questionId)).toEqual([phase2Ids[0]]);
+        expect(view.me.isAnswerer).toBe(true);
+        expect(view.me.canBuzz).toBe(false);
+    });
+
+    it("the MC judges it wrong: the answerer is locked out and the re-buzz is armed", async () => {
+        const res = await act({ kind: "khoi-dong.judgeBuzz", correct: false });
+        expect(res.statusCode).toBe(200);
+        expect(res.json().state.phase2.current.excluded).toEqual([playerIds[0]]);
+        expect(res.json().state.phase2.current.attempt).toBe(2);
+
+        // A powers the second window; the wrong answerer is refused, the other lands it.
+        expect((await act({ kind: "khoi-dong.openBuzz" })).statusCode).toBe(200);
+        const barred = await buzz(playerCookies[0]);
+        expect(barred.statusCode).toBe(409);
+        expect(barred.json().error).toBe("NOT_YOUR_TURN");
+
+        expect((await buzz(playerCookies[1])).statusCode).toBe(200);
+    });
+
+    it("a correct second-chance answer is worth 5", async () => {
+        const res = await act({ kind: "khoi-dong.judgeBuzz", correct: true });
         expect(res.statusCode).toBe(200);
 
-        const [row] = await db.select().from(answers)
-            .where(and(eq(answers.matchId, matchId), eq(answers.questionId, phase2Ids[0])));
-        expect(row).toMatchObject({ judged: true, verdict: "CORRECT", pointsAwarded: 10 });
-        expect(res.json().state.phase2.answers[playerIds[0]][phase2Ids[0]]).toBe(true);
+        // The phase keeps its own ledger — stats are written at match end.
+        const awards = res.json().state.phase2.awards as Record<string, number>;
+        expect(awards[playerIds[1]]).toBe(5);
+        expect(awards[playerIds[0]] ?? 0).toBe(0);
+        expect(res.json().state.phase2.index).toBe(1);
     });
 
-    it("the player view shows the open batch and what the player has done", async () => {
-        const res = await app.inject({
-            method: "GET", url: `/gameplay/matches/${matchId}/live`,
-            headers: asPlayer(playerCookies[0])
-        });
+    it("nobody buzzing: the MC moves on and the question costs nothing", async () => {
+        expect((await act({ kind: "khoi-dong.openBuzz" })).statusCode).toBe(200);
+        const res = await act({ kind: "khoi-dong.nextQuestion" });
         expect(res.statusCode).toBe(200);
-        const view = res.json();
-        expect(view.roundId).toBe("khoi-dong");
-        expect(view.open.map((o: { questionId: string }) => o.questionId)).toEqual(phase2Ids);
-        expect(view.me.finalized).toContain(phase2Ids[0]);
+        expect(res.json().state.phase2.index).toBe(2);
     });
 
-    it("a player who is not seated cannot read the view", async () => {
+    it("a player who is not seated cannot buzz", async () => {
         const [outsider] = await db.insert(users).values({
-            role: "PLAYER", email: "kd-outsider@example.com", displayName: "Out", tokenVersion: 0
+            role: "PLAYER", email: "kd-buzz-outsider@example.com", displayName: "Out", tokenVersion: 0
         }).returning();
         const cookie = signToken(app, "GAMEPLAY", { sub: outsider.id, role: "PLAYER", tokenVersion: 0 });
-        const res = await app.inject({
-            method: "GET", url: `/gameplay/matches/${matchId}/live`, headers: asPlayer(cookie)
-        });
+        const res = await buzz(cookie);
         expect(res.statusCode).toBe(403);
     });
 
-    it("an answer cannot be re-drafted once it has a final verdict", async () => {
-        const res = await answer(playerCookies[0], phase2Ids[0], "Hà Nội");
-        expect(res.statusCode).toBe(409);
-        expect(res.json().error).toBe("ALREADY_JUDGED");
-    });
-
-    it("the MC closes phase 2; further answers are refused", async () => {
+    it("the MC closes phase 2; further buzzes are refused", async () => {
         expect((await act({ kind: "khoi-dong.closePhase2" })).statusCode).toBe(200);
-        const res = await answer(playerCookies[1], phase2Ids[1], "Hà Nội");
+        const res = await buzz(playerCookies[0]);
         expect(res.statusCode).toBe(409);
+        expect(res.json().error).toBe("PHASE_ENDED");
     });
 
     it("the MC ends the round", async () => {
@@ -262,7 +255,6 @@ describe("khoi-dong — phase 2 (typed, draft then judge)", () => {
         expect(res.statusCode).toBe(200);
         expect(res.json().state.ended).toBe(true);
     });
-
 });
 
 describe("khoi-dong — match end", () => {
@@ -276,9 +268,10 @@ describe("khoi-dong — match end", () => {
         const [row] = await db.select().from(matchResults).where(eq(matchResults.matchId, matchId));
         const p0 = row.results.find((r) => r.userId === playerIds[0])!;
         const p1 = row.results.find((r) => r.userId === playerIds[1])!;
-        // player 0: 6 oral (60) + 1 typed (10) = 70; player 1 timed out phase 1 = 0
-        expect(p0).toMatchObject({ totalScore: 70, rank: 1 });
-        expect(p0.roundScores).toEqual({ "khoi-dong": 70 });
-        expect(p1).toMatchObject({ totalScore: 0, rank: 2 });
+        // player 0: 6 oral = 60, and lost the buzz (wrong first answer).
+        // player 1: timed out phase 1, then took the second-chance buzz for 5.
+        expect(p0).toMatchObject({ totalScore: 60, rank: 1 });
+        expect(p0.roundScores).toEqual({ "khoi-dong": 60 });
+        expect(p1).toMatchObject({ totalScore: 5, rank: 2 });
     });
 });

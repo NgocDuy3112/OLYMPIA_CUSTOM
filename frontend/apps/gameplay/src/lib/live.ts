@@ -265,6 +265,11 @@ function useLiveCommandPost<TInput>(matchId: string, suffix: string) {
     })
 }
 
+/** Khởi động chung: the phase's only action — the buzz. */
+export function useLiveBuzz(matchId: string) {
+    return useLiveCommandPost<Record<string, never>>(matchId, "buzz")
+}
+
 export function useLiveAnswer(matchId: string) {
     return useLiveCommandPost<{ questionId: string; value: AnswerValue }>(matchId, "answers")
 }

@@ -1,14 +1,20 @@
-// khoi-dong as a whole round: phase 1 is one run per player (each with their own 45 s),
-// phase 2 is one shared 60 s in which every player types the same 6 questions.
+// khoi-dong as a whole round: phase 1 is one run per player (each with their own
+// 45 s); phase 2 is a twelve-question BUZZ race (see ./khoi-dong.ts Phase2State).
 // Composes the per-phase primitives in ./khoi-dong.ts; pure, no I/O.
 import {
     answerPhase1,
+    buzzPhase2,
     closePhase2,
+    isPhase2WindowOpen,
+    judgePhase2,
+    mayBuzzPhase2,
+    nextPhase2Question,
+    openPhase2Buzz,
     phase1Total,
+    phase2Complete,
     phase2Points,
     startPhase1,
     startPhase2,
-    submitPhase2,
     timeOutPhase1,
     type Phase1State,
     type Phase2State
@@ -25,7 +31,6 @@ export interface KhoiDongState {
     activeIndex: number;                    // whose phase-1 run is active
     runs: Record<string, Phase1State>;      // one run per player
     phase2: Phase2State | null;             // created when phase 2 begins
-    phase2OpenedAt: string | null;          // ISO time phase 2's 60 s clock started
 }
 
 export function startKhoiDong(
@@ -39,7 +44,7 @@ export function startKhoiDong(
     return {
         rules,
         stage: "phase1", ended: false, order: [...playerIds],
-        activeIndex: 0, runs, phase2: null, phase2OpenedAt: null
+        activeIndex: 0, runs, phase2: null
     };
 }
 
@@ -56,11 +61,6 @@ export function activeQuestionId(state: KhoiDongState): string | null {
     const run = state.runs[id];
     if (run.ended) return null;
     return run.questionIds[run.cursor] ?? null;
-}
-
-// Phase 2's shared clock, from the rulebook.
-export function phase2Budget(state: KhoiDongState): number {
-    return state.rules.phase2BudgetS;
 }
 
 export function phase1Complete(state: KhoiDongState): boolean {
@@ -108,71 +108,60 @@ export function timeOutRun(state: KhoiDongState): KhoiDongState {
     return advanceActive({ ...state, runs });
 }
 
-// Phase 2 opens once every player has finished their phase-1 run.
-export function beginPhase2(
-    state: KhoiDongState,
-    phase2Ids: string[],
-    openedAt: string
-): KhoiDongState {
+// Phase 2 opens once every player has finished their phase-1 run. There is no
+// shared clock: each question lives in its own 5 s buzz windows.
+export function beginPhase2(state: KhoiDongState, phase2Ids: string[]): KhoiDongState {
     if (state.stage !== "phase1") fail("WRONG_STAGE", "phase 1 is over");
     if (!phase1Complete(state) && !phase1Untouched(state)) fail("PHASE1_INCOMPLETE", "not every player has finished phase 1");
-    return { ...state, stage: "phase2", phase2: startPhase2(phase2Ids), phase2OpenedAt: openedAt };
+    return { ...state, stage: "phase2", phase2: startPhase2(phase2Ids, state.rules) };
 }
 
-// Seconds since phase 2's clock started. Throws if phase 2 is not open.
-export function elapsedPhase2Seconds(state: KhoiDongState, nowIso: string): number {
-    if (state.stage !== "phase2" || state.phase2OpenedAt === null) {
-        fail("WRONG_STAGE", "phase 2 is not open");
-    }
-    return (Date.parse(nowIso) - Date.parse(state.phase2OpenedAt)) / 1000;
-}
-
-// A player types an answer during the shared 60 s.
-export function recordTyped(
-    state: KhoiDongState,
-    params: { playerId: string; questionId: string; correct: boolean; atS: number }
-): KhoiDongState {
-    if (state.stage !== "phase2" || state.phase2 === null) fail("WRONG_STAGE", "phase 2 is not open");
-    return { ...state, phase2: submitPhase2(state.phase2, params) };
-}
-
-// The controller's final verdict for one player's phase-2 answer. Unlike recordTyped,
-// this does not check the clock: judging happens after the window.
-export function finalizeTyped(
-    state: KhoiDongState,
-    params: { playerId: string; questionId: string; correct: boolean }
-): KhoiDongState {
+function requirePhase2(state: KhoiDongState): Phase2State {
     if (state.stage !== "phase2" || state.phase2 === null) fail("WRONG_STAGE", "phase 2 is not open");
     if (state.ended) fail("ENDED", "the round has ended");
-    if (!state.phase2.questionIds.includes(params.questionId)) {
-        fail("INVALID_QUESTION", `question ${params.questionId} is not in phase 2`);
-    }
-
-    const mine = state.phase2.answers[params.playerId] ?? {};
-    return {
-        ...state,
-        phase2: {
-            ...state.phase2,
-            answers: {
-                ...state.phase2.answers,
-                [params.playerId]: { ...mine, [params.questionId]: params.correct }
-            }
-        }
-    };
+    return state.phase2;
 }
 
-export function closeTypedWindow(state: KhoiDongState): KhoiDongState {
-    if (state.stage !== "phase2" || state.phase2 === null) fail("WRONG_STAGE", "phase 2 is not open");
-    return { ...state, phase2: closePhase2(state.phase2) };
+/** The MC opens (or re-opens) the buzz window for the question in play. */
+export function openBuzz(state: KhoiDongState, nowIso: string): KhoiDongState {
+    return { ...state, phase2: openPhase2Buzz(requirePhase2(state), nowIso) };
 }
+
+/** A player's buzz — server receive order, one winner, everyone else blocked. */
+export function recordBuzz(state: KhoiDongState, playerId: string, nowIso: string): KhoiDongState {
+    return { ...state, phase2: buzzPhase2(requirePhase2(state), playerId, nowIso) };
+}
+
+/** The MC's verdict on the buzzed answer: +10 first chance, +5 second, else dead. */
+export function judgeBuzz(state: KhoiDongState, correct: boolean): KhoiDongState {
+    return { ...state, phase2: judgePhase2(requirePhase2(state), correct, state.rules) };
+}
+
+/** Move on: nobody buzzed, or the window ran out with no answer worth scoring. */
+export function nextQuestion(state: KhoiDongState): KhoiDongState {
+    return { ...state, phase2: nextPhase2Question(requirePhase2(state)) };
+}
+
+export function closeBuzzPhase(state: KhoiDongState): KhoiDongState {
+    return { ...state, phase2: closePhase2(requirePhase2(state)) };
+}
+
+export function phase2PointsOf(state: KhoiDongState, playerId: string): number {
+    return state.phase2 === null ? 0 : phase2Points(state.phase2, playerId);
+}
+
+export function phase2IsComplete(state: KhoiDongState): boolean {
+    return state.phase2 === null ? false : phase2Complete(state.phase2);
+}
+
+export { isPhase2WindowOpen, mayBuzzPhase2 };
 
 export function endKhoiDong(state: KhoiDongState): KhoiDongState {
     if (state.ended) return state;
     return {
         ...state,
         ended: true,
-        phase2: state.phase2 === null ? null : closePhase2(state.phase2),
-        phase2OpenedAt: state.phase2OpenedAt
+        phase2: state.phase2 === null ? null : closePhase2(state.phase2)
     };
 }
 

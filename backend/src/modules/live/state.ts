@@ -89,9 +89,23 @@ export const KhoiDongPhase1RunSchema = Type.Object({
 
 export const KhoiDongPhase2Schema = Type.Object({
     kind: Type.Literal("phase2"),
+    pointsPerCorrect: Type.Integer(),
+    secondChancePoints: Type.Integer(),
+    buzzWindowS: Type.Integer(),
     questionIds: Type.Array(Type.String()),
-    elapsedS: Type.Number(),
-    answers: Type.Record(Type.String(), Type.Record(Type.String(), Type.Boolean())),
+    index: Type.Integer({ minimum: 0 }),
+    current: Type.Union([
+        Type.Object({
+            questionId: Type.String(),
+            attempt: Type.Union([Type.Literal(1), Type.Literal(2)]),
+            openedAt: Type.Union([Type.String(), Type.Null()]),
+            buzzer: Type.Union([Type.String(), Type.Null()]),
+            excluded: Type.Array(Type.String()),
+            settled: Type.Union([Type.Integer(), Type.Null()])
+        }),
+        Type.Null()
+    ]),
+    awards: Type.Record(Type.String(), Type.Integer()),
     closed: Type.Boolean()
 });
 
@@ -101,8 +115,7 @@ export const KhoiDongStateSchema = Type.Object({
     order: Type.Array(Type.String()),
     activeIndex: Type.Integer({ minimum: 0 }),
     runs: Type.Record(Type.String(), KhoiDongPhase1RunSchema),
-    phase2: Type.Union([KhoiDongPhase2Schema, Type.Null()]),
-    phase2OpenedAt: Type.Union([Type.String(), Type.Null()])
+    phase2: Type.Union([KhoiDongPhase2Schema, Type.Null()])
 });
 
 export function parseKhoiDongState(raw: unknown): KhoiDongState {

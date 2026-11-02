@@ -20,7 +20,7 @@ import { applyButPhaAction } from "./but-pha.js";
 import { applyKhoiDongAction } from "./khoi-dong.js";
 import { applyVeDichAction } from "./ve-dich.js";
 import { buildPlayerView, rankTable, type PlayerView, type ScoreRow } from "./view.js";
-import { submitAnswer, submitKeyword, SubmitError } from "./submit.js";
+import { submitAnswer, submitKhoiDongBuzz, submitKeyword, SubmitError } from "./submit.js";
 import { submitVeDichCommand } from "./ve-dich-player.js";
 import {
     ackMessage,
@@ -70,7 +70,7 @@ const EMPTY_VE_DICH: VeDichState = {
 
 const EMPTY_KHOI_DONG: KhoiDongState = {
     rules: KHOI_DONG_DEFAULTS,
-    stage: "phase1", ended: false, order: [], activeIndex: 0, runs: {}, phase2: null, phase2OpenedAt: null
+    stage: "phase1", ended: false, order: [], activeIndex: 0, runs: {}, phase2: null
 };
 
 // but-pha.start replaces the state wholesale; this placeholder only satisfies the types.
@@ -338,9 +338,20 @@ function mcFacts(roundId: string, raw: unknown): Record<string, unknown> | null 
     }
     if (roundId === "khoi-dong") {
         const state = parseKhoiDongState(raw);
+        const p2 = state.phase2;
+        const current = p2?.current ?? null;
         return {
-            phase2Begun: state.phase2 !== null,
-            phase2Closed: state.phase2?.closed ?? false
+            stage: state.stage,
+            ended: state.ended,
+            phase2Begun: p2 !== null,
+            phase2Closed: p2?.closed ?? false,
+            // The buzz race's own facts — who is in play, on which chance.
+            questionIndex: p2?.index ?? 0,
+            questionCount: p2?.questionIds.length ?? 0,
+            attempt: current?.attempt ?? null,
+            windowOpen: current?.openedAt !== null && current?.openedAt !== undefined,
+            buzzerId: current?.buzzer ?? null,
+            lockedOut: current?.excluded ?? []
         };
     }
     return {};  // but-pha: the shared projection (stage/open/deadlines) says it all
@@ -557,14 +568,6 @@ export async function liveRoutes(app: FastifyInstance) {
                                 ? EMPTY_KHOI_DONG
                                 : parseKhoiDongState(current.state);
 
-                            // Finalize coverage, both directions: a verdict for a
-                            // non-submitter is NO_ANSWER; a waiting draft without a
-                            // verdict is UNJUDGED_ANSWERS — never a silent default.
-                            if (action.kind === "khoi-dong.finalize") {
-                                const drafts = await tx.readAnswerDrafts(action.questionId);
-                                assertVerdictCoverage(drafts, action.verdicts, "finalizing");
-                            }
-
                             const { state, facts } = applyKhoiDongAction(engine, action as KhoiDongAction, {
                                 ...khoiDongContext(match, current.roundId, user.id, new Date().toISOString())
                             });
@@ -611,14 +614,10 @@ export async function liveRoutes(app: FastifyInstance) {
             // Tell every connected player their view is stale.
             await publish(matchId);
 
-            if (action.kind === "khoi-dong.finalize") {
+            if (action.kind === "khoi-dong.judgeBuzz") {
                 await auditFromRequest(request, "answer_judged", {
                     matchId,
-                    details: {
-                        roundId: next.roundId,
-                        questionId: action.questionId,
-                        verdicts: action.verdicts
-                    }
+                    details: { roundId: next.roundId, correct: action.correct }
                 });
             }
 
@@ -1125,6 +1124,23 @@ export async function liveRoutes(app: FastifyInstance) {
             }
 
             throw app.httpErrors.badRequest("unknown command");
+        }
+    );
+
+    // Khởi động chung's only action: the BUZZ. The engine decides whether a
+    // window is open, who is locked out, and whose buzz was first.
+    app.post(
+        "/gameplay/matches/:matchId/live/buzz",
+        { onRequest: [requireAuth("GAMEPLAY")], schema: { params: matchIdParams } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { matchId } = request.params as { matchId: string };
+            return submitKhoiDongBuzz({
+                matchId,
+                userId: user.id,
+                ip: request.ip,
+                userAgent: request.headers["user-agent"] ?? null
+            });
         }
     );
 

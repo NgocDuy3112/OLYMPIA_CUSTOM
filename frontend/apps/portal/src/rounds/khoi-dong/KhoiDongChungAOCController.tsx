@@ -1,34 +1,57 @@
 import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
-import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
+import { backToLobbyAction } from "@/components/stage/actions"
+import { COPY } from "@shared/deck/copy"
 
-// Khởi động — lượt chung (S2): the whole field faces 6 shared questions, one
-// deadline; the MC picks a square to judge per card. Pure: every value comes
-// from its narrow ctx — no hooks here.
-import type { ConsoleQuestion } from "@/lib/live"
+// Khởi động — lượt chung (S2): the BUZZ race, twelve questions, one at a time.
+//
+//   Mở chuông   opens the 5 s window (the first attempt, or the re-buzz)
+//   Đúng / Sai  judges the FASTEST buzzer: +10 on attempt 1, +5 on attempt 2
+//   Câu tiếp    moves on — nobody buzzed, or the question is done
+//
+// Pure: every value comes from its narrow ctx.
+import type { KhoiDongMc } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
-/** Khởi động · lượt chung: the shared batch + the judging ledger. */
+/** Khởi động · lượt chung: the buzz race. */
 export type KhoiDongChungCtx = ScreenCore & {
     remaining: number | null
-    judgingId: string | null
-    target: string | null
-    setSelectedQ: (questionId: string | null) => void
-    setVerdict: (correct: boolean) => void
-    setSelectedPlayer: (userId: string) => void
-    byId: (id: string) => ConsoleQuestion | null
+    mcKhoiDong: KhoiDongMc | null
 }
 
 export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
-    const { v, remaining, baseCards, flash, openRounds } = ctx
+    const { v, remaining, baseCards, flash, openRounds, mcKhoiDong } = ctx
     const open = v.projection.open
-    const activeQ = ctx.judgingId
-    const activeQuestionId = activeQ ?? open[0]?.questionId ?? ""
+    const openNow = open[0]
+    const buzzer = mcKhoiDong?.buzzerId ?? null
+    const attempt = mcKhoiDong?.attempt ?? null
+
+    const judge = (correct: boolean) => ctx.send({ kind: "khoi-dong.judgeBuzz", correct })
 
     return (
         <ConsoleStage
-            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
+            rail={<Rail variant="answers" cards={baseCards} />}
             actions={[
-                ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
+                {
+                    label: "Mở chuông",
+                    // A window is open (or a buzz landed) → nothing to open.
+                    onClick: mcKhoiDong && mcKhoiDong.windowOpen === false && buzzer === null
+                        ? () => ctx.send({ kind: "khoi-dong.openBuzz" })
+                        : undefined,
+                },
+                {
+                    label: COPY.correct,
+                    content: attempt === 2 ? `${COPY.correct} ×5` : `${COPY.correct} ×10`,
+                    onClick: buzzer !== null ? () => judge(true) : undefined,
+                },
+                {
+                    label: COPY.wrong,
+                    onClick: buzzer !== null ? () => judge(false) : undefined,
+                },
+                {
+                    label: "Câu tiếp",
+                    // Nobody buzzed (or the question is judged) → move on.
+                    onClick: buzzer === null ? () => ctx.send({ kind: "khoi-dong.nextQuestion" }) : undefined,
+                },
                 backToLobbyAction(ctx.ketThuc),
             ]}
             flash={flash}
@@ -40,16 +63,15 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 right={
                     <>
                         <Progress
-                            total={open.length || 6}
-                            done={0}
-                            active={activeQ ? open.findIndex((q) => q.questionId === activeQ) : 0}
-                            onPick={(i) => open[i] && ctx.setSelectedQ(open[i].questionId)}
+                            total={mcKhoiDong?.questionCount || 12}
+                            done={mcKhoiDong?.questionIndex ?? 0}
+                            active={mcKhoiDong?.questionIndex ?? 0}
                         />
-                        <Timer remaining={remaining} />
+                        <Timer remaining={remaining} fallback="5s" />
                     </>
                 }
-                question={ctx.byId(activeQuestionId)?.questionText ?? "Cả bảng đang trả lời…"}
-                media={open.find((q) => q.questionId === activeQuestionId)?.question?.media ?? null}
+                question={openNow?.question?.questionText ?? "Chờ mở câu tiếp theo…"}
+                media={openNow?.question?.media ?? null}
             />
         </ConsoleStage>
     )

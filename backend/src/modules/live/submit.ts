@@ -17,7 +17,6 @@ import {
 } from "../../game/engine/turns/giai-ma.js";
 import { elapsedSeconds, openQuestionId } from "../../game/engine/turns/but-pha.js";
 
-import { elapsedPhase2Seconds, phase2Budget } from "../../game/engine/turns/khoi-dong-round.js";
 import { giaiMaRules } from "../../game/engine/rules.js";
 import type { RoundConfig } from "../../game/contracts/index.js";
 import { applyGiaiMaAction } from "./giai-ma.js";
@@ -25,6 +24,7 @@ import { mutateLive, type Transition } from "./apply.js";
 import { publish } from "./hub.js";
 import { pgLiveStore, readLive, writeDraft } from "./store.js";
 import { parseButPhaState, parseGiaiMaState, parseKhoiDongState, parseVeDichState } from "./state.js";
+import { recordBuzz } from "../../game/engine/turns/khoi-dong-round.js";
 
 export type Suggestion = "CORRECT" | "INCORRECT";
 
@@ -170,45 +170,7 @@ export async function submitAnswer(ctx: SubmitContext): Promise<AnswerResult> {
     }
 
     if (live.roundId === "khoi-dong") {
-        if (!("text" in value)) {
-            throw new SubmitError(400, "BAD_VALUE", "a khoi-dong phase-2 answer must be text");
-        }
-        const state = parseKhoiDongState(live.state);
-        if (state.ended) throw new SubmitError(409, "ENDED", "the round has ended");
-        if (state.stage !== "phase2" || state.phase2 === null) {
-            throw new SubmitError(409, "PHASE_CLOSED", "phase 2 is not open");
-        }
-        if (state.phase2.closed) throw new SubmitError(409, "PHASE_CLOSED", "phase 2 is closed");
-        if (!state.phase2.questionIds.includes(ctx.questionId)) {
-            throw new SubmitError(409, "NOT_IN_PHASE", "that question is not in phase 2");
-        }
-
-        let atS: number;
-        try {
-            atS = elapsedPhase2Seconds(state, now);
-        } catch {
-            throw new SubmitError(409, "NO_CLOCK", "phase 2's clock has not started");
-        }
-        if (atS > phase2Budget(state)) {
-            throw new SubmitError(409, "WINDOW_CLOSED", "the answer window has closed");
-        }
-
-        const question = match.questions.find((q) => q._id === ctx.questionId);
-        if (!question) throw new SubmitError(400, "NOT_IN_MATCH", "question is not part of this match");
-
-        const suggestion: Suggestion = autoMatch(question.kind as QuestionKind, question.payload, value)
-            ? "CORRECT" : "INCORRECT";
-
-        await writeDraft({
-            matchId: ctx.matchId,
-            questionId: ctx.questionId,
-            userId: ctx.userId,
-            value,
-            suggestion
-        });
-        await draftAudit(ctx, live.roundId, suggestion);
-        await publish(ctx.matchId);
-        return { drafted: true };
+        throw new SubmitError(409, "BUZZ_ONLY", "khởi động chung takes buzzes, not typed answers — use /live/buzz");
     }
 
     if (live.roundId === "ve-dich") {
@@ -303,4 +265,29 @@ export async function submitKeyword(ctx: SubmitContext): Promise<AnswerResult> {
 
     await publish(ctx.matchId);
     return { drafted: true };
+}
+
+/**
+ * Khởi động chung's only player action: the BUZZ. The engine decides whether a
+ * window is open, whether this player is locked out of the re-buzz, and whether
+ * someone was already faster.
+ */
+export async function submitKhoiDongBuzz(ctx: Omit<SubmitContext, "questionId" | "value">): Promise<{ buzzed: true }> {
+    const full = { ...ctx, questionId: "", value: null };
+    const { live } = await loadContext(full);
+    if (live.roundId !== "khoi-dong") {
+        throw new SubmitError(409, "NO_ROUND", `round ${live.roundId} is not khoi-dong`);
+    }
+
+    await mutateLive(
+        pgLiveStore<Record<string, unknown>>(ctx.matchId),
+        (current): Transition<Record<string, unknown>> => {
+            const state = parseKhoiDongState(current.state);
+            const next = recordBuzz(state, ctx.userId, new Date().toISOString());
+            return { state: next as unknown as Record<string, unknown>, facts: [] };
+        }
+    );
+
+    await publish(ctx.matchId);
+    return { buzzed: true };
 }

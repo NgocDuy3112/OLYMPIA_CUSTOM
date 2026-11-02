@@ -67,6 +67,8 @@ function ctx(over: Partial<PlayerCtx> = {}): PlayerCtx {
         answerBusy: false,
         submitAnswer: vi.fn(),
         keywordBusy: false,
+        buzzBusy: false,
+        buzz: vi.fn(),
         submitKeyword: vi.fn(),
         cmdBusy: false,
         command: vi.fn(),
@@ -89,12 +91,18 @@ const openQ = {
 }
 
 describe("player screens render from a plain fixture", () => {
-    it("khởi động · lượt chung — the squares and the answer band", () => {
-        const v = view({ roundId: "khoi-dong", open: [openQ, { ...openQ, questionId: "q2" }] })
-        const { getByText, getAllByRole } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v })} />)
-        expect(getByText("Khởi động")).toBeTruthy()
-        // one option per MC choice + Gửi
-        expect(getAllByRole("button").length).toBeGreaterThanOrEqual(3)
+    it("khởi động · lượt chung — a buzz race: the button appears only for an open window", () => {
+        const open = view({ roundId: "khoi-dong", open: [openQ] })
+        const racer = ctx({ v: open, s2Q: open.open[0] })
+        racer.v = { ...open, me: { ...open.me, canBuzz: true } }
+        expect(render(<KhoiDongChungAOCPlayer ctx={racer} />).getByText("Bấm chuông")).toBeTruthy()
+    })
+
+    it("khởi động · lượt chung — a player locked out of the re-buzz is told so", () => {
+        const open = view({ roundId: "khoi-dong", open: [openQ] })
+        const state = { ...open, me: { ...open.me, lockedOut: true, attempt: 2 as const } }
+        const { getByText } = render(<KhoiDongChungAOCPlayer ctx={ctx({ v: state, s2Q: open.open[0] })} />)
+        expect(getByText(/không được bấm chuông nữa/)).toBeTruthy()
     })
 
     it("khởi động · lượt cá nhân — the run pill names who is playing", () => {
@@ -130,8 +138,8 @@ describe("player screens render from a plain fixture", () => {
 
     it("về đích · lượt cá nhân — the buzz button is this player's", () => {
         const v = view({ roundId: "ve-dich", stage: "phase2", open: [openQ], me: { canBuzz: true, buzzWindowOpen: true } as PlayerView["me"] })
-        const { getByText } = render(<VeDichRiengAOCPlayer ctx={ctx({ v })} />)
-        expect(getByText("Bấm chuông")).toBeTruthy()
+        const { getAllByText } = render(<VeDichRiengAOCPlayer ctx={ctx({ v })} />)
+        expect(getAllByText("Bấm chuông").length).toBeGreaterThan(0)
     })
 
     it("về đích · the board — a picker with the fixed bands", () => {

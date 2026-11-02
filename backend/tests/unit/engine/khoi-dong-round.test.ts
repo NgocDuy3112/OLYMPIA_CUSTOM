@@ -3,24 +3,26 @@ import {
     activePlayerId,
     activeQuestionId,
     beginPhase2,
-    closeTypedWindow,
+    closeBuzzPhase,
+    judgeBuzz,
+    openBuzz,
+    recordBuzz,
     endKhoiDong,
     khoiDongPoints,
     phase1Complete,
     recordOral,
-    recordTyped,
     startKhoiDong,
     timeOutRun
 } from "../../../src/game/engine/turns/khoi-dong-round.js";
 import { RuleError } from "../../../src/game/engine/turns/errors.js";
 
 const OPENED = "2026-01-01T00:00:00.000Z";
-// beginPhase2 now takes the clock's start time.
 const beginPhase2At = (state: Parameters<typeof beginPhase2>[0], ids: string[]) =>
-    beginPhase2(state, ids, OPENED);
+    beginPhase2(state, ids);
 
 const P1 = ["a1", "a2", "a3", "a4", "a5", "a6"];
-const P2 = ["b1", "b2", "b3", "b4", "b5", "b6"];
+// Chung is TWELVE questions now — the phase refuses any other count.
+const P2 = Array.from({ length: 12 }, (_, i) => `b${i + 1}`);
 const PLAYERS = ["p0", "p1"];
 
 function codeOf(fn: () => unknown): string {
@@ -115,41 +117,37 @@ describe("khoi-dong round — phase 2 begins only after phase 1", () => {
     });
 });
 
-describe("khoi-dong round — phase 2 typed answers", () => {
+describe("khoi-dong round — phase 2: the buzz race", () => {
     function inPhase2() {
         return beginPhase2At(finishRun(finishRun(startKhoiDong(PLAYERS, P1))), P2);
     }
 
-    it("all players answer the same set; each scores independently", () => {
-        let s = inPhase2();
-        s = recordTyped(s, { playerId: "p0", questionId: "b1", correct: true, atS: 5 });
-        s = recordTyped(s, { playerId: "p0", questionId: "b2", correct: true, atS: 8 });
-        s = recordTyped(s, { playerId: "p1", questionId: "b1", correct: true, atS: 3 });
-        // both runs were completed (60 each); phase 2 differs by who answered what
-        expect(khoiDongPoints(s, "p0")).toBe(60 + 20);
-        expect(khoiDongPoints(s, "p1")).toBe(60 + 10);
+    it("opens a window, takes the fastest buzz, and pays 10 for the first correct", () => {
+        let s = openBuzz(inPhase2(), OPENED);
+        s = recordBuzz(s, "p0", OPENED);
+        s = judgeBuzz(s, true);
+        expect(khoiDongPoints(s, "p0")).toBe(60 + 10);        // 60 from phase 1
+        expect(s.phase2?.index).toBe(1);
     });
 
-    it("rejects a second answer to the same question", () => {
-        let s = inPhase2();
-        s = recordTyped(s, { playerId: "p0", questionId: "b1", correct: true, atS: 5 });
-        expect(codeOf(() => recordTyped(s, { playerId: "p0", questionId: "b1", correct: false, atS: 6 })))
-            .toBe("ALREADY_ANSWERED");
+    it("a wrong first answer locks that player out of the re-buzz, which pays 5", () => {
+        let s = openBuzz(inPhase2(), OPENED);
+        s = judgeBuzz(recordBuzz(s, "p0", OPENED), false);
+        expect(s.phase2?.current?.excluded).toEqual(["p0"]);
+
+        s = openBuzz(s, OPENED);
+        expect(codeOf(() => recordBuzz(s, "p0", OPENED))).toBe("NOT_YOUR_TURN");
+        s = judgeBuzz(recordBuzz(s, "p1", OPENED), true);
+        expect(khoiDongPoints(s, "p1")).toBe(60 + 5);
+        expect(khoiDongPoints(s, "p0")).toBe(60);
     });
 
-    it("rejects an answer after the 60 s window", () => {
-        const s = inPhase2();
-        expect(codeOf(() => recordTyped(s, { playerId: "p0", questionId: "b1", correct: true, atS: 61 })))
-            .toBe("LATE");
+    it("closing the phase rejects further buzzes", () => {
+        const s = closeBuzzPhase(inPhase2());
+        expect(codeOf(() => recordBuzz(s, "p0", OPENED))).toBe("PHASE_ENDED");
     });
 
-    it("closing the window rejects further answers", () => {
-        const s = closeTypedWindow(inPhase2());
-        expect(codeOf(() => recordTyped(s, { playerId: "p0", questionId: "b1", correct: true, atS: 1 })))
-            .toBe("PHASE_ENDED");
-    });
-
-    it("ending the round closes the window", () => {
+    it("ending the round closes the phase", () => {
         const s = endKhoiDong(inPhase2());
         expect(s.ended).toBe(true);
         expect(s.phase2?.closed).toBe(true);

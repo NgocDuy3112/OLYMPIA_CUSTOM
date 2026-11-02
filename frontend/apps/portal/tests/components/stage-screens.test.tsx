@@ -125,20 +125,51 @@ describe("KhoiDongRieng — S1, the oral run", () => {
     })
 })
 
-describe("KhoiDongChung — S2, the shared typed round", () => {
-    it("judges only when a player is selected", async () => {
-        const user = userEvent.setup()
-        const f = renderRound("khoi-dong", { stage: "phase2", setVerdict: vi.fn(), target: "u1" })
-
-        expectButtonsInOrder(["Đúng", "Sai", "Về sảnh"])
-        await user.click(screen.getByRole("button", { name: "Sai" }))
-        expect(f.setVerdict).toHaveBeenCalledWith(false)
+describe("KhoiDongChung — S2, the buzz race", () => {
+    const BUTTON = { selector: "button" } as const
+    const raced = (over: Record<string, unknown> = {}) => ({
+        stage: "phase2",
+        ended: false,
+        phase2Begun: true,
+        phase2Closed: false,
+        questionIndex: 0,
+        questionCount: 12,
+        attempt: 1,
+        windowOpen: false,
+        buzzerId: null,
+        lockedOut: [],
+        ...over,
     })
 
-    it("offers no verdict buttons without a target", () => {
-        renderRound("khoi-dong", { stage: "phase2", target: null })
-        expect(screen.queryByRole("button", { name: "Đúng" })).toBeNull()
-        expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
+    it("opens the window, and only when none is running", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("khoi-dong", { stage: "phase2" }, {}, raced())
+
+        await user.click(screen.getByText("Mở chuông", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.openBuzz" })
+    })
+
+    it("judges the FASTEST buzzer — Đúng carries the chance's worth", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("khoi-dong", { stage: "phase2" }, {}, raced({ windowOpen: true, buzzerId: "u1" }))
+
+        await user.click(screen.getByText("Đúng ×10", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.judgeBuzz", correct: true })
+
+        await user.click(screen.getByText("Sai", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({ kind: "khoi-dong.judgeBuzz", correct: false })
+    })
+
+    it("the re-buzz pays 5, and the label says so", () => {
+        renderRound("khoi-dong", { stage: "phase2" }, {}, raced({ attempt: 2, windowOpen: true, buzzerId: "u2" }))
+        expect(screen.getByText("Đúng ×5", BUTTON)).toBeInTheDocument()
+    })
+
+    it("nobody buzzed: Câu tiếp moves on, and there is nothing to judge", () => {
+        renderRound("khoi-dong", { stage: "phase2" }, {}, raced({ windowOpen: true }))
+        expect(screen.getByText("Câu tiếp", BUTTON)).toBeInTheDocument()
+        expect(screen.queryByText("Đúng ×10", BUTTON)).toBeNull()
+        expect(screen.queryByText("Sai", BUTTON)).toBeNull()
     })
 })
 

@@ -13,17 +13,21 @@ import type { RoundConfig, TurnConfig } from "../contracts/index.js";
 export const KHOI_DONG_DEFAULTS = {
     phase1Questions: 6,
     phase1BudgetS: 45,
-    phase2Questions: 6,
-    phase2BudgetS: 60,
-    pointsPerCorrect: 10
+    // Chung is a buzz race now: twelve questions, on a 5 s window each, no
+    // shared budget. First correct answers pays 10, the re-buzz pays 5.
+    phase2Questions: 12,
+    phase2BuzzWindowS: 5,
+    pointsPerCorrect: 10,
+    secondChancePoints: 5
 };
 
 export interface KhoiDongRules {
     phase1Questions: number;
     phase1BudgetS: number;
     phase2Questions: number;
-    phase2BudgetS: number;
+    phase2BuzzWindowS: number;
     pointsPerCorrect: number;
+    secondChancePoints: number;
 }
 
 export function khoiDongRules(config: RoundConfig | undefined): KhoiDongRules {
@@ -33,9 +37,11 @@ export function khoiDongRules(config: RoundConfig | undefined): KhoiDongRules {
     return {
         phase1Questions: phase1?.questionCount ?? KHOI_DONG_DEFAULTS.phase1Questions,
         phase1BudgetS: phase1?.timeBudgetSeconds ?? KHOI_DONG_DEFAULTS.phase1BudgetS,
-        phase2Questions: phase2?.questionCount ?? KHOI_DONG_DEFAULTS.phase2Questions,
-        phase2BudgetS: phase2?.timeBudgetSeconds ?? KHOI_DONG_DEFAULTS.phase2BudgetS,
-        pointsPerCorrect: constantPoints(config) ?? KHOI_DONG_DEFAULTS.pointsPerCorrect
+        // Fixed by the show: chung is TWELVE questions, whatever a rulebook says.
+        phase2Questions: KHOI_DONG_DEFAULTS.phase2Questions,
+        phase2BuzzWindowS: phase2?.buzzWindowSeconds ?? KHOI_DONG_DEFAULTS.phase2BuzzWindowS,
+        pointsPerCorrect: constantPoints(config) ?? KHOI_DONG_DEFAULTS.pointsPerCorrect,
+        secondChancePoints: KHOI_DONG_DEFAULTS.secondChancePoints
     };
 }
 

@@ -17,13 +17,15 @@ const round = (config: Partial<RoundConfig>): RoundConfig => ({
 });
 
 describe("the defaults — the format's numbers", () => {
-    it("khoi-dong: two phases of six, 45 s and 60 s, 10 points", () => {
+    it("khoi-dong: six oral runs of 45 s, then TWELVE buzz questions on a 5 s window", () => {
         const rules = khoiDongRules(undefined);
         expect(rules.phase1Questions).toBe(6);
         expect(rules.phase1BudgetS).toBe(45);
-        expect(rules.phase2Questions).toBe(6);
-        expect(rules.phase2BudgetS).toBe(60);
+        // The count is the show's: a rulebook cannot change it.
+        expect(rules.phase2Questions).toBe(12);
+        expect(rules.phase2BuzzWindowS).toBe(5);
         expect(rules.pointsPerCorrect).toBe(10);
+        expect(rules.secondChancePoints).toBe(5);
     });
 
     it("giai-ma: 8 hints, a 15 s window, a keyword of 100 − 10", () => {
@@ -59,18 +61,19 @@ describe("the defaults — the format's numbers", () => {
 });
 
 describe("the rulebook wins", () => {
-    it("khoi-dong: the phases' counts and clocks come from the turns", () => {
+    it("khoi-dong: phase 1's count and clock come from the turns; the buzz window too", () => {
         const rules = khoiDongRules(round({
             turns: [
                 { id: "phase1", mode: "oral", delivery: "sequential", questionCount: 8, timeBudgetSeconds: 30 },
-                { id: "phase2", mode: "text", delivery: "batch", questionCount: 10, timeBudgetSeconds: 90 }
+                { id: "phase2", mode: "oral", delivery: "sequential", questionCount: 10, buzzWindowSeconds: 7 }
             ]
         }));
 
         expect(rules.phase1Questions).toBe(8);
         expect(rules.phase1BudgetS).toBe(30);
-        expect(rules.phase2Questions).toBe(10);
-        expect(rules.phase2BudgetS).toBe(90);
+        // …but the twelve questions are fixed by the show, not by the rulebook.
+        expect(rules.phase2Questions).toBe(12);
+        expect(rules.phase2BuzzWindowS).toBe(7);
     });
 
     it("khoi-dong: the points come from the constant template", () => {

@@ -1,50 +1,66 @@
-import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "@shared/deck/player-deck"
-import { pt } from "@shared/deck/geometry"
-import type { AnswerValue, PlayerView } from "@shared/deck/types"
+import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "@shared/deck/player-deck"
+import { STRIP_R, pt } from "@shared/deck/geometry"
+import { COPY } from "@shared/deck/copy"
+import type { PlayerView } from "@shared/deck/types"
 
-// Khởi động — lượt chung (S2): 6 questions, one shared deadline — squares
-// switch, band types. Pure: every value comes from the orchestrator, narrowed
-// to what this screen actually reads (`PlayerCore & { … }`).
+// Khởi động — lượt chung (S2): NOW a buzz race. Twelve questions, one at a
+// time; the MC opens a 5 s window and the fastest buzz answers out loud.
+//
+//   attempt 1, correct → +10        | wrong → this player is locked out
+//   attempt 2, correct → +5         | wrong → the question dies
+//
+// Pure: every value comes from the orchestrator, narrowed to what this screen reads.
 export type KhoiDongChungPlayerCtx = PlayerCore & {
     remaining: number
-    /** the question on screen (the square this player is looking at) */
+    /** the question in play (one at a time now, not a batch) */
     s2Q: PlayerView["open"][number] | undefined
-    s2Idx: number
-    pickS2: (questionId: string, idx: number) => void
     answerBusy: boolean
-    submitAnswer: (questionId: string, value: AnswerValue) => void
+    buzzBusy: boolean
+    buzz: () => void
 }
 
-/** The answer's state for one question: never answered, staged, or frozen. */
-function answerStateOf(view: PlayerView, questionId: string): "none" | "draft" | "final" {
-    if (!(view.me.answered ?? []).includes(questionId)) return "none"
-    return (view.me.finalized ?? []).includes(questionId) ? "final" : "draft"
+/** What the band says when this player cannot or need not press anything. */
+function standDown(v: PlayerView, questionInPlay: boolean): string {
+    if (!questionInPlay) return "Chờ MC mở câu tiếp theo…"
+    if (v.me.lockedOut) return "Bạn đã trả lời sai — câu này không được bấm chuông nữa"
+    if (v.me.isAnswerer) return "Bạn nhanh nhất — trả lời đi!"
+    return "Chờ chuông…"
 }
 
 export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx }) {
-    const { v, remaining, myId, flash, s2Q, s2Idx, pickS2, answerBusy, submitAnswer } = ctx
-    const open = ctx.open
-    const answeredSet = new Set(v.me.answered ?? [])
+    const { v, remaining, myId, flash, s2Q, answerBusy, buzzBusy, buzz } = ctx
+    const inPlay = s2Q !== undefined
+
     return (
         <PlayerStage
             rail={<Rail variant="answers" view={v} myId={myId} currentQid={s2Q?.questionId ?? null} />}
             band={
-                s2Q ? (
-                    <AnswerBand
-                        question={s2Q.question}
-                        answerState={answerStateOf(v, s2Q.questionId)}
-                        verdict={v.me.verdicts?.[s2Q.questionId]}
-                        disabled={open.length === 0}
-                        busy={answerBusy}
-                        error={flash}
-                        onSubmit={(value) => submitAnswer(s2Q.questionId, value)}
-                    />
+                v.me.canBuzz ? (
+                    <button
+                        type="button"
+                        onClick={buzz}
+                        disabled={buzzBusy || answerBusy}
+                        className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2.4cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
+                        style={{ borderRadius: STRIP_R }}
+                        title={COPY.buzz}
+                    >
+                        <span className="size-[1.1cqw] rounded-full bg-destructive-foreground" aria-hidden />
+                        {COPY.buzz}
+                    </button>
                 ) : (
-                    <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Đã hết 60 giây — chờ MC chấm.</span>
+                    <span
+                        className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border"
+                        style={{ fontSize: pt(12), borderRadius: STRIP_R }}
+                    >
+                        {standDown(v, inPlay)}
+                    </span>
                 )
             }
-            hint={open.length > 0 ? `còn ${formatRemaining(remaining)} · câu ${s2Idx + 1}/${open.length}` : "chờ MC chấm"}
+            hint={
+                inPlay
+                    ? `còn ${formatSeconds(remaining)} · ${v.me.attempt === 2 ? "lượt 2 (×5)" : "lượt 1 (×10)"}`
+                    : "chờ MC"
+            }
             flash={flash}
         >
             <QuestionFrame
@@ -52,13 +68,8 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
                 mode="Lượt chung"
                 right={
                     <>
-                        <Progress
-                            total={open.length || 6}
-                            done={open.filter((q) => answeredSet.has(q.questionId)).length}
-                            active={s2Idx}
-                            onPick={(i) => open[i] && pickS2(open[i].questionId, i)}
-                        />
-                        <Timer remaining={remaining} fallback="60s" />
+                        <Progress total={12} done={0} active={0} />
+                        <Timer remaining={remaining} fallback="5s" />
                     </>
                 }
                 question={s2Q?.question?.questionText ?? null}
@@ -66,4 +77,9 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
             />
         </PlayerStage>
     )
+}
+
+/** Two digits, like every other clock on the deck. */
+function formatSeconds(remaining: number): string {
+    return `${Math.max(0, Math.ceil(remaining))}s`
 }

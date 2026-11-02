@@ -105,23 +105,25 @@ export const KhoiDongRecordOral = Type.Object({
 });
 export const KhoiDongTimeOutRun = Type.Object({ kind: Type.Literal("khoi-dong.timeOutRun") });
 export const KhoiDongBeginPhase2 = Type.Object({ kind: Type.Literal("khoi-dong.beginPhase2") });
+// The operator opens EVERY window — the first attempt and the re-buzz.
+export const KhoiDongOpenBuzz = Type.Object({ kind: Type.Literal("khoi-dong.openBuzz") });
+// The verdict on the buzzed answer: +10 on the first chance, +5 on the second.
+export const KhoiDongJudgeBuzz = Type.Object({
+    kind: Type.Literal("khoi-dong.judgeBuzz"),
+    correct: Type.Boolean()
+});
+// Move on: nobody buzzed, or the question is done.
+export const KhoiDongNextQuestion = Type.Object({ kind: Type.Literal("khoi-dong.nextQuestion") });
 export const KhoiDongClosePhase2 = Type.Object({ kind: Type.Literal("khoi-dong.closePhase2") });
 export const KhoiDongEndRound = Type.Object({ kind: Type.Literal("khoi-dong.endRound") });
 
 // The controller's final verdicts for one phase-2 question's answers. The player's
 // submission wrote a draft; this confirms or overwrites it and awards the points.
-export const KhoiDongFinalize = Type.Object({
-    kind: Type.Literal("khoi-dong.finalize"),
-    questionId: Type.String(),
-    verdicts: Type.Array(
-        Type.Object({ playerId: Type.String(), correct: Type.Boolean() }),
-        { minItems: 1 }
-    )
-});
 
 export const KhoiDongActionSchema = Type.Union([
     KhoiDongStart, KhoiDongRecordOral, KhoiDongTimeOutRun,
-    KhoiDongBeginPhase2, KhoiDongClosePhase2, KhoiDongEndRound, KhoiDongFinalize
+    KhoiDongBeginPhase2, KhoiDongOpenBuzz, KhoiDongJudgeBuzz, KhoiDongNextQuestion,
+    KhoiDongClosePhase2, KhoiDongEndRound
 ]);
 export type KhoiDongAction = Static<typeof KhoiDongActionSchema>;
 
@@ -221,9 +223,11 @@ export const LiveActionSchema = Type.Union([
     KhoiDongRecordOral,
     KhoiDongTimeOutRun,
     KhoiDongBeginPhase2,
+    KhoiDongOpenBuzz,
+    KhoiDongJudgeBuzz,
+    KhoiDongNextQuestion,
     KhoiDongClosePhase2,
     KhoiDongEndRound,
-    KhoiDongFinalize,
     VeDichStart,
     VeDichBeginPhase2,
     VeDichOpenQuestion,

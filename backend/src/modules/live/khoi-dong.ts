@@ -3,9 +3,11 @@ import {
     activePlayerId,
     activeQuestionId,
     beginPhase2,
-    closeTypedWindow,
+    openBuzz,
+    nextQuestion,
+    closeBuzzPhase,
     endKhoiDong,
-    finalizeTyped,
+    judgeBuzz,
     recordOral,
     startKhoiDong,
     timeOutRun
@@ -39,7 +41,7 @@ export function applyKhoiDongAction(
             // phase: 2 — the navigator's "· Chung" entry: skip the untouched
             // oral phase and open the batch in the SAME action (atomic, one version).
             if (action.phase === 2) {
-                return { state: beginPhase2(started, ctx.phase2QuestionIds, ctx.now), facts: [] };
+                return { state: beginPhase2(started, ctx.phase2QuestionIds), facts: [] };
             }
             return { state: started, facts: [] };
         }
@@ -74,33 +76,45 @@ export function applyKhoiDongAction(
             return { state: timeOutRun(state), facts: [] };
 
         case "khoi-dong.beginPhase2":
-            return { state: beginPhase2(state, ctx.phase2QuestionIds, ctx.now), facts: [] };
+            return { state: beginPhase2(state, ctx.phase2QuestionIds), facts: [] };
 
-        case "khoi-dong.closePhase2":
-            return { state: closeTypedWindow(state), facts: [] };
+        case "khoi-dong.openBuzz":
+            return { state: openBuzz(state, ctx.now), facts: [] };
 
-        case "khoi-dong.endRound":
-            return { state: endKhoiDong(state), facts: [] };
+        case "khoi-dong.judgeBuzz": {
+            // The verdict belongs to the FASTEST buzzer — read before judging.
+            const current = state.phase2?.current ?? null;
+            const buzzer = current?.buzzer ?? null;
+            const questionId = current?.questionId ?? null;
 
-        case "khoi-dong.finalize": {
-            let next = state;
+            const next = judgeBuzz(state, action.correct);
+
             const facts: LiveFact[] = [];
-            for (const verdict of action.verdicts) {
-                next = finalizeTyped(next, {
-                    playerId: verdict.playerId,
-                    questionId: action.questionId,
-                    correct: verdict.correct
-                });
+            if (buzzer !== null && questionId !== null) {
+                const points = state.phase2?.awards[buzzer] ?? 0;
+                const after = next.phase2?.awards[buzzer] ?? 0;
+                const awarded = after - points;            // 10, 5 or 0
                 facts.push({
-                    type: "judge",
-                    questionId: action.questionId,
-                    userId: verdict.playerId,
-                    verdict: verdict.correct ? "CORRECT" : "INCORRECT",
-                    pointsAwarded: khoiDongPoints(verdict.correct, ctx.rules.pointsPerCorrect)
+                    type: "answer",
+                    questionId,
+                    userId: buzzer,
+                    value: { oral: true },                 // it was answered out loud
+                    verdict: action.correct ? "CORRECT" : "INCORRECT",
+                    pointsAwarded: awarded,
+                    autoMatched: false                     // the MC judged it
                 });
             }
             return { state: next, facts };
         }
+
+        case "khoi-dong.nextQuestion":
+            return { state: nextQuestion(state), facts: [] };
+
+        case "khoi-dong.closePhase2":
+            return { state: closeBuzzPhase(state), facts: [] };
+
+        case "khoi-dong.endRound":
+            return { state: endKhoiDong(state), facts: [] };
 
         default: {
             const exhaustive: never = action;

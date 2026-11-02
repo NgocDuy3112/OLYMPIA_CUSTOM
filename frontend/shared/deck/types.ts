@@ -33,6 +33,13 @@ export interface PlayerMe {
     points?: number
     answered?: string[]
     finalized?: string[]
+    // khoi-dong · lượt chung (the buzz race)
+    /** A buzz window is open and the engine would admit this player. */
+    isAnswererBuzz?: boolean
+    /** Locked out of the re-buzz: this player answered the first window wrong. */
+    lockedOut?: boolean
+    /** Which chance is running: 1 pays 10, 2 pays 5. */
+    attempt?: 1 | 2 | null
     // giai-ma
     keywordLocked?: boolean
     eliminated?: boolean
@@ -174,6 +181,9 @@ export interface PlayerCtx {
     submitAnswer: (questionId: string, value: AnswerValue) => void
     keywordBusy: boolean
     submitKeyword: (questionId: string, text: string) => void
+    /** Khởi động chung: the buzz (phase 2 has no typed answers). */
+    buzzBusy: boolean
+    buzz: () => void
     cmdBusy: boolean
     command: (action: VeDichCommand) => void
 }

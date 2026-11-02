@@ -71,8 +71,20 @@ export interface VeDichMc {
     pendingQuestionId: string | null
 }
 export interface KhoiDongMc {
+    stage: "phase1" | "phase2"
+    ended: boolean
     phase2Begun: boolean
     phase2Closed: boolean
+    /** Which of the twelve is in play, and which chance (1 = ×10, 2 = ×5). */
+    questionIndex: number
+    questionCount: number
+    attempt: 1 | 2 | null
+    /** Is a buzz window running right now? */
+    windowOpen: boolean
+    /** The fastest — the only player the MC may judge. */
+    buzzerId: string | null
+    /** Locked out of the re-buzz (the wrong first answerer). */
+    lockedOut: string[]
 }
 
 export interface LiveResponse {

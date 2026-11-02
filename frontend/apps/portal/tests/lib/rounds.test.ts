@@ -57,27 +57,11 @@ describe("ketThucPlanOf — what Kết thúc sends (one press ends the round)", 
             .toEqual([{ kind: "khoi-dong.beginPhase2" }])
     })
 
-    it("khoi-dong phase 2: finalize staged verdicts for OPEN questions only, then end", () => {
-        const plan = ketThucPlanOf("khoi-dong", input({
+    it("khoi-dong phase 2 is a race — Kết thúc just ends the round", () => {
+        expect(ketThucPlanOf("khoi-dong", input({
             openIds: ["q1"],
-            overrides: { "q1:u1": true, "q1:u2": false, "q2:u3": true },
-        }))
-        expect(plan).toEqual([
-            {
-                kind: "khoi-dong.finalize",
-                questionId: "q1",
-                verdicts: [
-                    { playerId: "u1", correct: true },
-                    { playerId: "u2", correct: false },
-                ],
-            },
-            { kind: "khoi-dong.endRound" },
-        ])
-    })
-
-    it("khoi-dong phase 2 without staged verdicts just ends", () => {
-        expect(ketThucPlanOf("khoi-dong", input({ openIds: ["q1"] })))
-            .toEqual([{ kind: "khoi-dong.endRound" }])
+            overrides: { "q1:u1": true },
+        }))).toEqual([{ kind: "khoi-dong.endRound" }])
     })
 
     it("giai-ma: closes the open hint window, else ends the round", () => {
