@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { auditFromRequest } from "../audit/service.js";
 import { tournamentErrorHandler, tournamentGuards, tournamentParams } from "../tournament-shared.js";
 import { getStandings, recomputeStandings } from "./service.js";
+import { getGroupTables } from "./groups.js";
 
 export async function standingsRoutes(app: FastifyInstance) {
     tournamentErrorHandler(app);
@@ -16,6 +17,20 @@ export async function standingsRoutes(app: FastifyInstance) {
 
             await assertView(tournamentId, user.id, user.role);
             return { rows: await getStandings(tournamentId) };
+        }
+    );
+
+    // The AOC group stage: Nhóm A / Nhóm B, derived from the roster's groups and
+    // the phase matches' frozen results. Nothing is stored.
+    app.get(
+        "/portal/tournaments/:tournamentId/groups",
+        { onRequest: staff, schema: { params: tournamentParams } },
+        async (request) => {
+            const user = request.sessionUser!;
+            const { tournamentId } = request.params as { tournamentId: string };
+
+            await assertView(tournamentId, user.id, user.role);
+            return getGroupTables(tournamentId);
         }
     );
 

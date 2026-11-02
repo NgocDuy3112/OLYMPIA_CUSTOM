@@ -66,7 +66,7 @@ export function TournamentDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="groups">
-                    <GroupsTab />
+                    <GroupsTab tournamentId={tournamentId} />
                 </TabsContent>
 
                 <TabsContent value="points">

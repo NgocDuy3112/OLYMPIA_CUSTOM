@@ -20,6 +20,18 @@ export type GroupPhase = 1 | 2;
 // Which group a contestant banks for. null = classic format, no groups.
 export type GroupLabel = "A" | "B";
 
+// AOC phases ARE stages (docs/aoc-format.md §3.3): a group match names its phase
+// by its stage id. Anything else — playin, playoff, final — is not a group
+// match and accrues nothing.
+const GROUP_STAGE_PHASE: Record<string, GroupPhase> = {
+    "phase-1": 1,
+    "phase-2": 2
+};
+
+export function phaseOfStage(stageId: string): GroupPhase | null {
+    return GROUP_STAGE_PHASE[stageId] ?? null;
+}
+
 // ─── The phase scales ─────────────────────────────────────────────────────────
 
 // How many seats a group-stage match may hold: 3 or 4, staff's call per match.

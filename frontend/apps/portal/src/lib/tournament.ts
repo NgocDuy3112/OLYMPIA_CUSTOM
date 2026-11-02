@@ -243,6 +243,54 @@ export function useRecomputeStandings(tournamentId: string) {
     })
 }
 
+// ── The AOC group stage ──────────────────────────────────────────────────────
+
+/** One contestant's line in their group (or in the wildcard table). */
+export interface GroupRow {
+    userId: string
+    displayName: string
+    matchesPlayed: number
+    /** Σ team points this contestant banked for their group. */
+    bankedPoints: number
+    averages: { phase1: number | null; phase2: number | null; all: number | null }
+}
+
+export interface GroupTables {
+    /** The two groups, in label order; rows are rank-ordered by the engine. */
+    groups: Array<{ id: "A" | "B"; teamPoints: number; rows: GroupRow[] }>
+    /** Enrolled contestants with no group yet — the operator still has to draw them. */
+    unassigned: Array<{ userId: string; displayName: string }>
+    /** Every contestant with ≥ 1 match, best pooled average first. */
+    wildcard: Array<GroupRow & { avg: number }>
+}
+
+/** The group tables — DERIVED on the server from the roster's groups + frozen results. */
+export function useGroups(tournamentId: string) {
+    return useQuery({
+        queryKey: ["groups", tournamentId],
+        queryFn: () => api<GroupTables>(`/portal/tournaments/${tournamentId}/groups`),
+        enabled: Boolean(tournamentId),
+    })
+}
+
+/** The DRAW: place a contestant in Nhóm A / Nhóm B, or clear it with null. */
+export function useAssignGroup(tournamentId: string) {
+    const queryClient = useQueryClient()
+
+    return useMutation({
+        mutationFn: (placed: { userId: string; group: "A" | "B" | null }) =>
+            api<{ userId: string; group: "A" | "B" | null }>(
+                `/portal/tournaments/${tournamentId}/players/${placed.userId}/group`,
+                { method: "PATCH", body: JSON.stringify({ group: placed.group }) }
+            ),
+        onSuccess: () => {
+            // The roster carries the group, and the tables are derived from it.
+            void queryClient.invalidateQueries({ queryKey: ["groups", tournamentId] })
+            void queryClient.invalidateQueries({ queryKey: ["enrolled", tournamentId] })
+        },
+    })
+}
+
 // ── The questions ────────────────────────────────────────────────────────────
 
 export interface BankQuestion {

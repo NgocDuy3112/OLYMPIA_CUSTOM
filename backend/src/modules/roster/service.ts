@@ -14,18 +14,44 @@ export async function enrollPlayers(tournamentId: string, userIds: string[]): Pr
     return (await listEnrolled(tournamentId)).length;
 }
 
+/** Which group a contestant banks for, or null while they are still to be drawn. */
+export type GroupLabel = "A" | "B";
+
 export async function listEnrolled(
     tournamentId: string
-): Promise<Array<{ userId: string; displayName: string; enrolledAt: Date }>> {
+): Promise<Array<{ userId: string; displayName: string; group: GroupLabel | null; enrolledAt: Date }>> {
     return db
         .select({
             userId: tournamentPlayers.userId,
             displayName: users.displayName,
+            group: tournamentPlayers.group,
             enrolledAt: tournamentPlayers.enrolledAt
         })
         .from(tournamentPlayers)
         .innerJoin(users, eq(users.id, tournamentPlayers.userId))
         .where(eq(tournamentPlayers.tournamentId, tournamentId));
+}
+
+/**
+ * Place an enrolled contestant in a group (Nhóm A / Nhóm B), or clear it with
+ * null. The group stage's tables are derived from this, so this IS the draw.
+ * Only an enrolled player can be placed — the update matches nothing otherwise.
+ */
+export async function assignGroup(
+    tournamentId: string,
+    userId: string,
+    group: GroupLabel | null
+): Promise<boolean> {
+    const updated = await db
+        .update(tournamentPlayers)
+        .set({ group })
+        .where(and(
+            eq(tournamentPlayers.tournamentId, tournamentId),
+            eq(tournamentPlayers.userId, userId)
+        ))
+        .returning({ userId: tournamentPlayers.userId });
+
+    return updated.length > 0;
 }
 
 // The players of a match, in seat order.
