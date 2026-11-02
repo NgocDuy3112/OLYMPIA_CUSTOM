@@ -7,7 +7,7 @@ import {
     tournamentParams,
     UUID_PATTERN
 } from "../tournament-shared.js";
-import { assignGroup, enrollPlayers, GroupFullError, listEnrolled, type GroupLabel } from "./service.js";
+import { assignGroup, enrollPlayers, listEnrolled, type GroupLabel } from "./service.js";
 
 export async function rosterRoutes(app: FastifyInstance) {
     tournamentErrorHandler(app);
@@ -80,15 +80,7 @@ export async function rosterRoutes(app: FastifyInstance) {
             const { group } = request.body as { group: GroupLabel | null };
 
             await assertWrite(tournamentId, user.id, user.role);
-            let placed: boolean;
-            try {
-                placed = await assignGroup(tournamentId, userId, group);
-            } catch (e) {
-                if (e instanceof GroupFullError) {
-                    return reply.code(409).send({ code: "GROUP_FULL", message: e.message });
-                }
-                throw e;
-            }
+            const placed = await assignGroup(tournamentId, userId, group);
             if (!placed) {
                 return reply.code(404).send({ code: "NOT_ENROLLED", message: "this player is not enrolled in the tournament" });
             }

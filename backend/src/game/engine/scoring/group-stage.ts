@@ -34,10 +34,6 @@ export function phaseOfStage(stageId: string): GroupPhase | null {
 
 // ─── The phase scales ─────────────────────────────────────────────────────────
 
-// How many CONTESTANTS a Nhóm holds — the board draws four seats, so the draw
-// cannot place a fifth.
-export const GROUP_SEATS = 4;
-
 // How many seats a group-stage match may hold: 3 or 4, staff's call per match.
 export const GROUP_SEAT_COUNTS = [3, 4] as const;
 export type GroupSeatCount = (typeof GROUP_SEAT_COUNTS)[number];

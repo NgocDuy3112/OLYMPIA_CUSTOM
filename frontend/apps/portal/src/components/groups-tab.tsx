@@ -11,8 +11,12 @@ import { useAssignGroup, useGroups, type GroupRow } from "@/lib/tournament"
 // here is an editable score. The one write is the DRAW — placing a contestant in
 // a group — which is what turns the empty frame into a filled table.
 
-/** Four seats per group — the AOC group stage's fixed shape. */
-const SEATS_PER_GROUP = 4
+/**
+ * How many placeholder seats the frame draws while a Nhóm is still empty. NOT a
+ * cap: a group holds whatever is drawn into it (only MATCHES are limited to 3 or
+ * 4 contestants). The skeleton just keeps the two cards the same height.
+ */
+const FRAME_SEATS = 4
 
 const other = (group: "A" | "B"): "A" | "B" => (group === "A" ? "B" : "A")
 
@@ -49,7 +53,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                         <CardHeader>
                             <CardTitle className="text-base">Nhóm {block.id}</CardTitle>
                             <CardDescription>
-                                {block.rows.length}/{SEATS_PER_GROUP} seats · team points bank for the group
+                                {block.rows.length} seats · team points bank for the group
                             </CardDescription>
                             <CardAction>
                                 <span className="text-sm font-semibold tabular-nums">{block.teamPoints} pts</span>
@@ -76,7 +80,7 @@ export function GroupsTab({ tournamentId }: { tournamentId: string }) {
                                             onMove={() => place(row.userId, other(block.id))}
                                         />
                                     ))}
-                                    {Array.from({ length: Math.max(0, SEATS_PER_GROUP - block.rows.length) }, (_, i) => (
+                                    {Array.from({ length: Math.max(0, FRAME_SEATS - block.rows.length) }, (_, i) => (
                                         <TableRow key={`empty-${i}`}>
                                             <TableCell className="text-muted-foreground tabular-nums">
                                                 {block.rows.length + i + 1}

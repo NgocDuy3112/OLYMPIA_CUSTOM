@@ -53,15 +53,16 @@ describe("GroupsTab — the derived tables", () => {
         expect(screen.getByText("0 pts")).toBeInTheDocument()      // Nhóm B's total
     })
 
-    it("keeps the empty seats visible — a group is four seats, not a list of who showed up", async () => {
+    it("keeps the frame's placeholder seats visible while a group is under-filled", async () => {
         stubFetch({ [GROUPS_URL]: { body: tables() } })
         render()
 
         await screen.findByText("An")
         // Nhóm A holds 2 of 4; Nhóm B holds 0 of 4 → 6 placeholder rows in total.
         expect(screen.getAllByText("—")).toHaveLength(12)   // name + points per empty seat
-        expect(screen.getByText("2/4 seats · team points bank for the group")).toBeInTheDocument()
-        expect(screen.getByText("0/4 seats · team points bank for the group")).toBeInTheDocument()
+        // No cap is implied: the count is just how many are drawn.
+        expect(screen.getByText("2 seats · team points bank for the group")).toBeInTheDocument()
+        expect(screen.getByText("0 seats · team points bank for the group")).toBeInTheDocument()
     })
 
     it("says who is still to be drawn, and marks the frame when nobody is", async () => {

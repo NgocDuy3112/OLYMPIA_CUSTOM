@@ -154,27 +154,14 @@ describe("the draw", () => {
         expect(rows).toHaveLength(0);
     });
 
-    it("refuses a fifth contestant — a Nhóm draws FOUR seats", async () => {
-        // Start from a clean draw so the seat count is unambiguous.
+    it("holds any number of contestants — only MATCHES are limited to 3 or 4", async () => {
         for (const id of playerIds) await drawPlayer(id, null);
 
-        const firstFour = playerIds.slice(0, 4);
-        for (const id of firstFour) expect((await drawPlayer(id, "A")).statusCode).toBe(200);
+        // All five enrolled contestants in one Nhóm: the draw does not refuse.
+        for (const id of playerIds) expect((await drawPlayer(id, "A")).statusCode).toBe(200);
+        const body = (await groups()).json();
+        expect(body.groups.find((g: { id: string }) => g.id === "A").rows).toHaveLength(5);
 
-        const fifth = playerIds[4];
-        const refused = await drawPlayer(fifth, "A");
-        expect(refused.statusCode).toBe(409);
-        expect(refused.json().code).toBe("GROUP_FULL");
-
-        // A MOVE into a full group is refused the same way…
-        expect((await drawPlayer(fifth, "B")).statusCode).toBe(200);
-        expect((await drawPlayer(fifth, "A")).statusCode).toBe(409);
-
-        // …and freeing a seat lets them in.
-        expect((await drawPlayer(firstFour[0], null)).statusCode).toBe(200);
-        expect((await drawPlayer(fifth, "A")).statusCode).toBe(200);
-
-        // Leave a clean draw for the suites below.
         for (const id of playerIds) await drawPlayer(id, null);
     });
 
