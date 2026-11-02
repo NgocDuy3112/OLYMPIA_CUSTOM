@@ -18,7 +18,6 @@ import { sql } from "drizzle-orm";
 import { users } from "./auth.js";
 import { 
     Media, 
-    PlacementTier, 
     QuestionPayload, 
     TournamentRound, 
     Stage, 
@@ -49,7 +48,6 @@ export const tournaments = pgTable(
 
         rounds: jsonb("rounds").$type<TournamentRound[]>().notNull(),
         format: jsonb("format").$type<TournamentFormat>().notNull(),
-        placementTiers: jsonb("placement_tiers").$type<PlacementTier[]>().notNull(),
         stages: jsonb("stages").$type<Stage[]>().notNull(),
 
         // The rulebook the tournament is played on. Frozen once a match has been assembled,

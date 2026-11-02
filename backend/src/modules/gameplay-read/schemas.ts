@@ -4,7 +4,6 @@ import "../../lib/typebox-formats.js";
 import { Type, Static } from "@sinclair/typebox";
 import {
     IsoDateTime,
-    PlacementTierSchema,
     StageSchema,
     TournamentFormatSchema,
     TournamentRoundSchema,
@@ -69,15 +68,6 @@ export type PublicMatch = Static<typeof PublicMatch>;
 
 // ─── The tournament ──────────────────────────────────────────────────────────
 
-// What the points of a place are worth, and where the scale has gaps — the
-// standings' "Quy tắc tính điểm" panel reads this. Same shape as the portal's.
-export const ScaleCoverageSchema = Type.Object({
-    places: Type.Integer(),
-    covered: Type.Integer(),
-    missing: Type.Array(Type.Integer()),
-    beyond: Type.Array(Type.Integer())
-}, { additionalProperties: false });
-
 export const PublicTournament = Type.Object({
     id: Uuid,
     slug: Type.String(),
@@ -93,11 +83,7 @@ export const PublicTournament = Type.Object({
     format: TournamentFormatSchema,
     // The stage list is the tournament's spine and is meant to be public.
     stages: Type.Array(StageSchema),
-    // The points-for-places scale is a preset the tournament chose; it is the
-    // public rules of the show. The rulebook (roundRules) stays internal.
-    placementTiers: Type.Array(PlacementTierSchema),
-    places: Type.Integer(),
-    points: ScaleCoverageSchema
+    places: Type.Integer()
 }, { additionalProperties: false });
 export type PublicTournament = Static<typeof PublicTournament>;
 

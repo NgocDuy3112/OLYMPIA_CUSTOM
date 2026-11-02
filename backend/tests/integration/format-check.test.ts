@@ -73,7 +73,6 @@ beforeAll(async () => {
         name: "FC Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: { competitorsPerMatch: 4 },
-        placementTiers: [{ min: 1, max: 2, points: 10 }],
         // the first splitting round: the tier draw
         stages: [{ id: "splitting-1", title: "Splitting 1", role: "splitting" }],
         roundRules: {

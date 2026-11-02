@@ -101,7 +101,6 @@ beforeAll(async () => {
         name: "GRP Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: { competitorsPerMatch: 4, allowedCompetitorCounts: [3, 4] },
-        placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: STAGES,
         roundRules
     }).returning();

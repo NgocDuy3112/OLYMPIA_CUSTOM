@@ -4,7 +4,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@shared/ui/tabs"
 import { Page, PageHeader } from "@/components/page"
 import { useTournament } from "@/lib/tournament"
 import { MatchesTab } from "@/components/matches-tab"
-import { TournamentPointsCard } from "@/components/tournament-points-card"
 import { TournamentRulesTab } from "@/components/tournament-rules-tab"
 import { StagesTab } from "@/components/stages-tab"
 import { StandingsTab } from "@/components/standings-tab"
@@ -48,7 +47,6 @@ export function TournamentDetailPage() {
                     <TabsTrigger value="matches">Matches</TabsTrigger>
                     <TabsTrigger value="standings">Standings</TabsTrigger>
                     <TabsTrigger value="groups">Groups</TabsTrigger>
-                    <TabsTrigger value="points">Points</TabsTrigger>
                     <TabsTrigger value="stages">Stages</TabsTrigger>
                     <TabsTrigger value="rules">Round rules</TabsTrigger>
                 </TabsList>
@@ -67,10 +65,6 @@ export function TournamentDetailPage() {
 
                 <TabsContent value="groups">
                     <GroupsTab tournamentId={tournamentId} />
-                </TabsContent>
-
-                <TabsContent value="points">
-                    <TournamentPointsCard tournamentId={tournamentId} tournament={s} />
                 </TabsContent>
 
                 <TabsContent value="stages">

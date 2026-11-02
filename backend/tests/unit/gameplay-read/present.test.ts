@@ -71,7 +71,6 @@ const results: ResultEntry[] = [
     { kind: "user", userId: "22222222-2222-2222-2222-222222222222", totalScore: 21, rank: 2, roundScores: { "khoi-dong": 8, "ve-dich": 13 } }
 ];
 
-const COVERAGE = { places: 4, covered: 4, missing: [], beyond: [] };
 
 const tournamentRow = (overrides: Partial<TournamentRow> = {}): TournamentRow => ({
     id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
@@ -83,7 +82,6 @@ const tournamentRow = (overrides: Partial<TournamentRow> = {}): TournamentRow =>
     current: true,
     rounds: [{ id: "khoi-dong", name: "Khởi động", order: 1, chart: "…" }],
     format: { competitorsPerMatch: 4 },
-    placementTiers: [{ min: 1, max: 1, points: 25 }],
     stages: [
         { id: "qualifiers", title: "Vòng loại", start: "2025-06-01T00:00:00Z", end: "2025-06-10T00:00:00Z" },
         { id: "playoffs", title: "Vòng Playoffs", start: "2025-06-11T00:00:00Z", end: "2025-06-20T00:00:00Z" }
@@ -181,7 +179,7 @@ describe("matchRound", () => {
 
 describe("presentTournament", () => {
     it("never exposes the owner, the tags, the rulebook or the bookkeeping columns", () => {
-        const out = presentTournament(tournamentRow(), 4, COVERAGE);
+        const out = presentTournament(tournamentRow(), 4);
 
         expect(out).not.toHaveProperty("ownerId");
         expect(out).not.toHaveProperty("tags");
@@ -192,24 +190,20 @@ describe("presentTournament", () => {
     });
 
     it("derives the window from the stage list", () => {
-        const out = presentTournament(tournamentRow(), 4, COVERAGE);
+        const out = presentTournament(tournamentRow(), 4);
         expect(out.start).toBe("2025-06-01T00:00:00Z");
         expect(out.end).toBe("2025-06-20T00:00:00Z");
     });
 
-    it("carries the places and the points coverage it is given", () => {
-        const out = presentTournament(tournamentRow(), 4, COVERAGE);
+    it("carries the places it is given, and no points scale", () => {
+        const out = presentTournament(tournamentRow(), 4);
         expect(out.places).toBe(4);
-        expect(out.points).toEqual(COVERAGE);
-    });
-
-    it("keeps the points scale — it is the public rules of the show", () => {
-        const out = presentTournament(tournamentRow(), 4, COVERAGE);
-        expect(out.placementTiers).toEqual([{ min: 1, max: 1, points: 25 }]);
+        expect(out).not.toHaveProperty("points");
+        expect(out).not.toHaveProperty("placementTiers");
     });
 
     it("serializes the dates to ISO strings", () => {
-        const out = presentTournament(tournamentRow({ closedAt: new Date("2025-06-20T00:00:00Z") }), 4, COVERAGE);
+        const out = presentTournament(tournamentRow({ closedAt: new Date("2025-06-20T00:00:00Z") }), 4);
         expect(out.createdAt).toBe("2025-05-01T00:00:00.000Z");
         expect(out.closedAt).toBe("2025-06-20T00:00:00.000Z");
     });

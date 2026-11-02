@@ -22,7 +22,6 @@ const validTournament = (name: string) => ({
     
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: { competitorsPerMatch: 2 },
-    placementTiers: [{ min: 1, max: 2, points: 10 }],
     stages: [{ id: "stage-1", title: "Stage 1" }]
 });
 

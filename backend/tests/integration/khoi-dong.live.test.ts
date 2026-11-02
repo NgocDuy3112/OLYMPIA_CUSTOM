@@ -56,7 +56,6 @@ beforeAll(async () => {
         name: "KD Tournament",
         rounds: [{ id: "khoi-dong", name: "Khoi Dong", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 2 },
-        placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();
     tournamentId = tournament.id;

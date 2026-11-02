@@ -10,7 +10,7 @@ const SEASON = {
     id: "s1", name: "2026 Tournament", slug: "2026-tournament", visibility: "PUBLIC",
     ownerId: "u1", tags: ["THTH"], current: true,
     stages: [], rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
-    format: { competitorsPerMatch: 4 }, placementTiers: [], closedAt: null,
+    format: { competitorsPerMatch: 4 }, closedAt: null,
     createdAt: "2026-01-02T00:00:00.000Z", updatedAt: "2026-01-02T00:00:00.000Z",
 }
 

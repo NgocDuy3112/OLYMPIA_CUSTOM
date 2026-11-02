@@ -9,7 +9,6 @@
 import type { matches, tournaments } from "../../db/schema/index.js";
 import type { ResultEntry, Stage } from "../../game/contracts/index.js";
 import type { PlayerStanding } from "../../game/engine/scoring/standings.js";
-import type { ScaleCoverage } from "../../game/engine/scoring/placement.js";
 import type {
     PublicMatch,
     PublicPlayer,
@@ -38,11 +37,7 @@ export function stageRange(stages: Stage[]): { start: string | null; end: string
     return { start, end };
 }
 
-export function presentTournament(
-    row: TournamentRow,
-    places: number,
-    points: ScaleCoverage
-): PublicTournament {
+export function presentTournament(row: TournamentRow, places: number): PublicTournament {
     // ownerId, tags, roundRules, updatedAt and deletedAt are picked by NOBODY.
     const range = stageRange(row.stages);
     return {
@@ -57,9 +52,7 @@ export function presentTournament(
         rounds: row.rounds,
         format: row.format,
         stages: row.stages,
-        placementTiers: row.placementTiers,
-        places,
-        points
+        places
     };
 }
 

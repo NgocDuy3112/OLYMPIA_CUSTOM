@@ -1,6 +1,4 @@
 import { StandingsPanel } from "@/components/standings/StandingsPanel"
-import { PointsRulesPanel } from "@/components/standings/PointsRulesPanel"
-import type { PlacementTier } from "@/lib/api"
 import type { Match, StandingRow } from "@/lib/types"
 import { PlayerDrawer } from "@/components/standings/PlayerDrawer"
 import { useState } from "react"
@@ -8,11 +6,10 @@ import { useState } from "react"
 interface StandingsPageProps {
     rows: StandingRow[]
     matches: Match[]
-    placementTiers: PlacementTier[]
     loading?: boolean
 }
 
-export function StandingsPage({ rows, matches, placementTiers, loading = false }: StandingsPageProps) {
+export function StandingsPage({ rows, matches, loading = false }: StandingsPageProps) {
     const [selected, setSelected] = useState<StandingRow | null>(null)
     
     if (loading) {
@@ -47,7 +44,6 @@ export function StandingsPage({ rows, matches, placementTiers, loading = false }
                         }}
                     />
                 )}
-                <PointsRulesPanel tiers={placementTiers} />
             </div>
         </div>
     )

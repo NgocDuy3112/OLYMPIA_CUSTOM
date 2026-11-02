@@ -4,7 +4,6 @@ import { Value } from "@sinclair/typebox/value";
 import {
     TournamentRoundSchema,
     TournamentFormatSchema,
-    PlacementTierSchema,
     StageSchema,
     RoundConfigSchema
 } from "../../game/contracts/index.js";
@@ -16,7 +15,6 @@ export const CreateTournamentInput = Type.Object({
     stages: Type.Optional(Type.Array(StageSchema)),
     rounds: Type.Optional(Type.Array(TournamentRoundSchema)),
     format: Type.Optional(TournamentFormatSchema),
-    placementTiers: Type.Optional(Type.Array(PlacementTierSchema)),
     roundRules: Type.Optional(Type.Record(Type.String(), RoundConfigSchema)),
     current: Type.Optional(Type.Boolean())
 });

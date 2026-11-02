@@ -23,7 +23,6 @@ const validTournament = (name = "Tournament 1"): CreateTournamentInput => ({
     
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: { competitorsPerMatch: 4 },
-    placementTiers: [{ min: 1, max: 4, points: 10 }],
     stages: [
         { id: "s1", title: "Qualifiers", start: "2026-01-01T00:00:00Z", end: "2026-06-01T00:00:00Z" }
     ]
@@ -154,7 +153,7 @@ describe("GET /portal/tournaments/:id — read", () => {
         expect(res.statusCode).toBe(404);
     });
 
-    it("carries the places and the coverage of the points scale", async () => {
+    it("carries the places, and nothing about a points scale", async () => {
         const created = await makeTournament({ name: "Covered" });
         const res = await app.inject({
             method: "GET",
@@ -165,7 +164,8 @@ describe("GET /portal/tournaments/:id — read", () => {
 
         const body = res.json();
         expect(body.places).toBe(0);
-        expect(body.points.places).toBe(0);
+        expect(body).not.toHaveProperty("points");
+        expect(body).not.toHaveProperty("placementTiers");
     });
 
     it("404 for a PRIVATE tournament to another operator", async () => {

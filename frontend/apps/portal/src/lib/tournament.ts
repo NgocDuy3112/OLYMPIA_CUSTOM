@@ -47,17 +47,9 @@ export interface RoundConfig {
     turns: TurnConfig[]
 }
 
-export interface ScaleCoverage {
-    places: number
-    covered: number
-    missing: number[]
-    beyond: number[]
-}
-
 export interface TournamentDetail extends Tournament {
     roundRules: Record<string, RoundConfig> | null
     places: number
-    points: ScaleCoverage
 }
 
 /** A seat is a user — teams are gone (mirrors the backend's SeatSchema). */
@@ -105,7 +97,7 @@ export function useTournament(tournamentId: string) {
 export function useUpdateTournament(tournamentId: string) {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: (patch: Partial<Pick<TournamentDetail, "roundRules" | "stages" | "placementTiers">>) =>
+        mutationFn: (patch: Partial<Pick<TournamentDetail, "roundRules" | "stages">>) =>
             api<TournamentDetail>(`/portal/tournaments/${tournamentId}`, {
                 method: "PATCH",
                 body: JSON.stringify(patch),

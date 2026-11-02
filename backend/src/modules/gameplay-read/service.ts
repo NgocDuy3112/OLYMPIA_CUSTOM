@@ -6,7 +6,6 @@ import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/pool.js";
 import { matchResults, tournaments } from "../../db/schema/index.js";
 import type { ResultEntry } from "../../game/contracts/index.js";
-import { scaleCoverage } from "../../game/engine/scoring/placement.js";
 import { type Page, type PageResult } from "../../lib/pagination.js";
 import { tournamentPlaces } from "../bracket/service.js";
 import { listMatches } from "../matches/service.js";
@@ -39,12 +38,11 @@ export async function requirePublicTournamentBySlug(slug: string): Promise<Tourn
     return row;
 }
 
-// The identity view: the tournament, its places and its points coverage — the same
-// three things the portal's single read returns.
+// The identity view: the tournament and its places — the same things the portal's
+// single read returns.
 export async function publicTournament(slug: string): Promise<PublicTournament> {
     const row = await requirePublicTournamentBySlug(slug);
-    const places = await tournamentPlaces(row.id);
-    return presentTournament(row, places, scaleCoverage(row.placementTiers, places));
+    return presentTournament(row, await tournamentPlaces(row.id));
 }
 
 // Every public tournament, small: enough to pick one, nothing to leak. A spectator

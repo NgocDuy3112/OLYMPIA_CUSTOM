@@ -64,7 +64,6 @@ beforeAll(async () => {
         name: "VD Tournament",
         rounds: [{ id: "ve-dich", name: "Ve Dich", order: 0, chart: "grid" }],
         format: { competitorsPerMatch: 2 },
-        placementTiers: [{ min: 1, max: 2, points: 10 }],
         stages: [{ id: "s1", title: "Stage s1" }]
     }).returning();
     tournamentId = tournament.id;

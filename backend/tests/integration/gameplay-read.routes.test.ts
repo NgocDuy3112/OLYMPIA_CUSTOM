@@ -43,7 +43,6 @@ const validTournament = (name: string, visibility?: "PRIVATE") => ({
     
     rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
     format: { competitorsPerMatch: 4 },
-    placementTiers: [{ min: 1, max: 2, points: 25 }],
     stages: STAGES,
     ...(visibility ? { visibility } : {})
 });
@@ -135,7 +134,6 @@ function baseTournament() {
         
         rounds: [{ id: "khoi-dong", name: "Khởi động", order: 0, chart: "bars" }],
         format: { competitorsPerMatch: 4 },
-        placementTiers: [{ min: 1, max: 2, points: 25 }],
         stages: STAGES,
         roundRules
     };
@@ -176,16 +174,16 @@ describe("GET /gameplay/tournaments — the list", () => {
 
 
 describe("GET /gameplay/tournaments/:slug — one tournament", () => {
-    it("serves a public tournament with its stages, places and points scale", async () => {
+    it("serves a public tournament with its stages and places — no points scale", async () => {
         const res = await publicGet("/gr-public");
         expect(res.statusCode).toBe(200);
 
         const body = res.json();
         expect(body.name).toBe("GR Public");
         expect(body.stages.map((s: { id: string }) => s.id)).toEqual(["qualifiers", "playoffs"]);
-        expect(body.placementTiers).toEqual([{ min: 1, max: 2, points: 25 }]);
         expect(body.places).toBe(4);
-        expect(body.points).toMatchObject({ places: 4, covered: 2 });
+        expect(body).not.toHaveProperty("placementTiers");
+        expect(body).not.toHaveProperty("points");
     });
 
     it("404s a private tournament — never 403, existence never leaks", async () => {

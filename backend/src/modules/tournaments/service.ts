@@ -90,7 +90,6 @@ export async function createTournament(
             visibility: input.visibility ?? "PUBLIC",
             rounds: input.rounds ?? [],
             format: input.format ?? { competitorsPerMatch: 4 },
-            placementTiers: input.placementTiers ?? [],
             roundRules: input.roundRules ?? null,
             stages: input.stages ?? [],
             current: input.current ?? false

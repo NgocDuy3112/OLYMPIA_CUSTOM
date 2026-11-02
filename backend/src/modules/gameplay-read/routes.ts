@@ -52,7 +52,7 @@ export async function gameplayReadRoutes(app: FastifyInstance) {
         async () => ({ tournaments: await listPublicTournaments() })
     );
 
-    // One tournament: identity, stages, places, the points scale.
+    // One tournament: identity, stages, places.
     app.get(
         "/gameplay/tournaments/:slug",
         {

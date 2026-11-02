@@ -22,6 +22,13 @@
       "when": 1793588693276,
       "tag": "0002_drop_placement_points",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793590004488,
+      "tag": "0003_drop_placement_tiers",
+      "breakpoints": true
     }
   ]
 }

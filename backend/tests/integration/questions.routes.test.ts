@@ -26,7 +26,6 @@ const validTournament = (name: string, tags = ["THTH"]) => ({
     tags,
     rounds: [{ id: "r1", name: "Round One", order: 0, chart: "bars" }],
     format: { competitorsPerMatch: 4 },
-    placementTiers: [{ min: 1, max: 4, points: 10 }],
     stages: [{ id: "s1", title: "Stage 1" }]
 });
 

@@ -2,13 +2,6 @@ import { useQuery } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
 
 
-export interface ScaleCoverage {
-    places: number
-    covered: number
-    missing: number[]
-    beyond: number[]
-}
-
 export interface TournamentRound {
     id: string
     name: string
@@ -29,12 +22,6 @@ export interface TournamentFormat {
     competitorsPerMatch: number
 }
 
-export interface PlacementTier {
-    min: number
-    max: number
-    points: number
-}
-
 // The list route: enough to pick a tournament.
 export interface TournamentSummary {
     id: string
@@ -46,15 +33,13 @@ export interface TournamentSummary {
     end: string | null
 }
 
-// One tournament: identity, the stage list, the points scale, the places.
+// One tournament: identity, the stage list, the places.
 export interface TournamentDetail extends TournamentSummary {
     closedAt: string | null
     rounds: TournamentRound[]
     format: TournamentFormat
     stages: Stage[]
-    placementTiers: PlacementTier[]
     places: number
-    points: ScaleCoverage
 }
 
 export interface MatchPlayer {

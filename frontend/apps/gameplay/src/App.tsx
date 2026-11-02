@@ -100,7 +100,6 @@ function StandingsRoute() {
         <StandingsPage
             rows={rows}
             matches={matches}
-            placementTiers={tournament.placementTiers}
             loading={standings.isPending || schedule.isPending}
         />
     )

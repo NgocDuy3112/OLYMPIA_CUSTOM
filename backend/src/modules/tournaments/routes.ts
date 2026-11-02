@@ -4,7 +4,6 @@ import { PaginationError, parsePage } from "../../lib/pagination.js";
 import { canViewTournament, canWriteTournament } from "../../lib/tournament-access.js";
 import { TournamentError, toHttpStatus } from "./errors.js";
 import { tournamentPlaces } from "../bracket/service.js";
-import { scaleCoverage } from "../../game/engine/scoring/placement.js";
 import { CreateTournamentInput, ListTournamentsQuery, UpdateTournamentInput } from "./schemas.js";
 import {
     createTournament,
@@ -93,11 +92,7 @@ export async function tournamentRoutes(app: FastifyInstance) {
             }
 
             const places = await tournamentPlaces(tournamentId);
-            return {
-                ...tournament,
-                places,
-                points: scaleCoverage(tournament.placementTiers, places)
-            };
+            return { ...tournament, places };
         }
     );
 

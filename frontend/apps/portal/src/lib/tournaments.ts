@@ -16,32 +16,6 @@ export interface TournamentFormat {
     competitorsPerMatch: number
 }
 
-export interface PlacementTier {
-    min: number
-    max: number
-    points: number
-}
-
-// The scales a tournament can be set up with. A preset is a starting point, not a default:
-// the points for places are the tournament's own.
-export const PLACEMENT_SCALES = [
-    {
-        id: "olympia",
-        title: "Olympia",
-        description: "16 places, a finale of 4",
-        tiers: [
-            { min: 1, max: 1, points: 25 },
-            { min: 2, max: 2, points: 18 },
-            { min: 3, max: 3, points: 12 },
-            { min: 4, max: 4, points: 8 },
-            { min: 5, max: 7, points: 5 },
-            { min: 8, max: 10, points: 3 },
-            { min: 11, max: 13, points: 2 },
-            { min: 14, max: 16, points: 1 }
-        ]
-    }
-] as const
-
 // ── The tournament ────────────────────────────────────────────────────────────────
 
 // What a stage is for. The role tells the engine which rule the stage's matches must
@@ -73,7 +47,6 @@ export interface Tournament {
     stages: Stage[]
     rounds: TournamentRound[]
     format: TournamentFormat
-    placementTiers: PlacementTier[]
     closedAt: string | null
     createdAt: string
     updatedAt: string

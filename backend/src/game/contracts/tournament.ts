@@ -60,12 +60,3 @@ export type TournamentFormat = Static<typeof TournamentFormatSchema>;
 export function allowedSeatCounts(format: TournamentFormat): number[] {
     return format.allowedCompetitorCounts ?? [format.competitorsPerMatch];
 }
-
-// ─── §13 — PlacementTier ─────────────────────────────────────────────────────
-
-export const PlacementTierSchema = Type.Object({
-    min: Type.Integer(),
-    max: Type.Integer(),
-    points: Type.Integer()
-});
-export type PlacementTier = Static<typeof PlacementTierSchema>;
