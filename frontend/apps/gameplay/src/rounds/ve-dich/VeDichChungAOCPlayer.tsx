@@ -1,6 +1,6 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
-import type { AnswerValue, VeDichCommand } from "@shared/deck/types"
+import { AnswerBand, PlayerStage, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
+import type { AnswerValue } from "@shared/deck/types"
 import { stripCellsOf } from "@shared/deck/ve-dich-board"
 
 // Về đích — câu hỏi mở, phase 1 (S7): the shared round — the typed form for the
@@ -10,12 +10,10 @@ export type VeDichChungPlayerCtx = PlayerCore & {
     remaining: number
     answerBusy: boolean
     submitAnswer: (questionId: string, value: AnswerValue) => void
-    cmdBusy: boolean
-    command: (action: VeDichCommand) => void
 }
 
 export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
-    const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
+    const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
     return (
@@ -24,15 +22,7 @@ export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
             band={
                 <>
                     {/* powers first: declaring is public and one-shot */}
-                    {/* Chung offers STAR only: ASSIGN is a Riêng rule. */}
-                    {v.me.canDeclarePower && (
-                        <PowerButtons
-                            busy={cmdBusy}
-                            powers={["STAR"]}
-                            targets={[]}
-                            onDeclare={command}
-                        />
-                    )}
+                    {/* Chung has NO powers: both STAR and ASSIGN are Riêng rules. */}
                     <AnswerBand
                         question={openQ.question}
                         answerState={v.me.answerState}

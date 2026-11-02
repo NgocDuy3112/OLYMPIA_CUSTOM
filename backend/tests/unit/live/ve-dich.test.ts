@@ -174,12 +174,11 @@ describe("ve-dich resolve", () => {
         expect(res.state.players.find((p) => p.id === "p0")!.score).toBe(30);
     });
 
-    it("phase 1, wrong with a HOPE: -100% and the points are recorded", () => {
+    it("phase 1 is power-free: a wrong answer is the plain −50%", () => {
         let s = started();
         s = pickPhase1(s, "p0", "THTH-30");
-        s = applyVeDichAction(s, { kind: "ve-dich.declarePower", playerId: "p0", power: "STAR" }, ctx()).state;
         const res = applyVeDichAction(s, { kind: "ve-dich.resolve", answerer: false }, ctx({ drafts: [draft("p0")] }));
-        expect(res.facts[0]).toMatchObject({ type: "judge", pointsAwarded: -30 });
+        expect(res.facts[0]).toMatchObject({ type: "judge", pointsAwarded: -15 });
     });
 
     it("phase 1, never submitted: the verdict still scores, as an operator row", () => {

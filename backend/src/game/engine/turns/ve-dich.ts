@@ -292,17 +292,20 @@ export function declarePower(
         )
     };
 
-    // STAR — a multiplier on your OWN answer, anywhere in the round (Chung and
-    // Riêng alike). The answer flow is unchanged.
+    // Both powers are RIÊNG rules: Về đích Riêng is the summit, where a player
+    // gambles on their own answer (STAR) or hands the question to someone else
+    // (ASSIGN). Chung has no powers at all.
+    if (state.phase !== 2) {
+        fail("WRONG_PHASE_FOR_POWER", `${power} only exists in Về đích Riêng (phase 2)`);
+    }
+
+    // STAR — a multiplier on your OWN answer. The answer flow is unchanged.
     if (power === "STAR") {
         return { ...spent, open: { ...state.open, power } };
     }
 
-    // ASSIGN — Riêng only. Handing the question to another player turns it into
-    // a DUEL: nobody answers first, and the two of you race from this moment.
-    if (state.phase !== 2) {
-        fail("WRONG_PHASE_FOR_POWER", "ASSIGN only exists in Về đích Riêng (phase 2)");
-    }
+    // ASSIGN — handing the question to another player turns it into a DUEL:
+    // nobody answers first, and the two of you race from this moment.
     const targetId = options.targetId;
     if (!targetId) fail("INVALID_TARGET", "ASSIGN needs a player to hand the question to");
     if (targetId === playerId) fail("INVALID_TARGET", "you cannot assign the question to yourself");

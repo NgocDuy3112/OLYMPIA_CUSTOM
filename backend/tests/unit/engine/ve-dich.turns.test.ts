@@ -174,40 +174,40 @@ describe("Phase 1 scoring", () => {
 });
 
 describe("powers — STAR", () => {
-    it("is declared at open, spent, and cannot be reused", () => {
-        const base = createVeDich(POOL, [player("a", 0)]);
-        const opened = pickPhase1(base, "a", "THTH-30");
-        const withStar = declarePower(opened, "a", "STAR");
-        expect(withStar.open?.power).toBe("STAR");
-        expect(withStar.players[0].powersLeft).toEqual(["ASSIGN"]);
+    const riengOpen = () => {
+        let s = beginPhase2(createVeDich(POOL, [player("a", 0), player("b", 0)]));
+        s = pickPhase2(s, s.players[0].id, ["THTH-40", "THTH-50", "THTH-30"]);
+        return { state: s, a: s.players[0].id };
+    };
+
+    it("is a RIÊNG rule — Chung refuses every power", () => {
+        const chung = pickPhase1(createVeDich(POOL, [player("a", 0)]), "a", "THTH-30");
+        expect(codeOf(() => declarePower(chung, "a", "STAR"))).toBe("WRONG_PHASE_FOR_POWER");
     });
 
-    it("works in BOTH phases — Chung included (the old HOPE rule, renamed)", () => {
-        const chung = pickPhase1(createVeDich(POOL, [player("a", 0)]), "a", "THTH-30");
-        expect(codeOf(() => declarePower(chung, "a", "STAR"))).toBe("NO_ERROR");
-
-        let s = beginPhase2(createVeDich(POOL, [player("a", 0)]));
-        s = pickPhase2(s, "a", ["THTH-40", "THTH-50", "THTH-30"]);
-        expect(codeOf(() => declarePower(openPhase2Question(s, "THTH-40"), "a", "STAR"))).toBe("NO_ERROR");
+    it("is declared at open, spent, and cannot be reused", () => {
+        const { state, a } = riengOpen();
+        const withStar = declarePower(openPhase2Question(state, "THTH-40"), a, "STAR");
+        expect(withStar.open?.power).toBe("STAR");
+        expect(withStar.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);
     });
 
     it("STAR on a 40-pt question, correct → +60 (worked example)", () => {
-        let s = beginPhase2(createVeDich(POOL, [player("a", 0)]));
-        s = pickPhase2(s, "a", ["THTH-40", "THTH-50", "THTH-30"]);
-        s = declarePower(openPhase2Question(s, "THTH-40"), "a", "STAR");
+        const { state, a } = riengOpen();
+        let s = declarePower(openPhase2Question(state, "THTH-40"), a, "STAR");
         s = closeCurrentAnswer(s, NOW);
         const after = resolveQuestion(s, { answerer: true });
-        expect(after.players[0].score).toBe(60);
+        expect(after.players.find((p) => p.id === a)!.score).toBe(60);
     });
 
     it("a declared STAR is spent even when the answer is wrong (−100%)", () => {
-        const base = createVeDich(POOL, [player("a", 0)]);
+        const { state, a } = riengOpen();
         const after = resolveQuestion(
-            declarePower(pickPhase1(base, "a", "THTH-30"), "a", "STAR"),
+            closeCurrentAnswer(declarePower(openPhase2Question(state, "THTH-40"), a, "STAR"), NOW),
             { answerer: false }
         );
-        expect(after.players[0].score).toBe(-30);
-        expect(after.players[0].powersLeft).toEqual(["ASSIGN"]);
+        expect(after.players.find((p) => p.id === a)!.score).toBe(-40);
+        expect(after.players.find((p) => p.id === a)!.powersLeft).toEqual(["ASSIGN"]);
     });
 });
 

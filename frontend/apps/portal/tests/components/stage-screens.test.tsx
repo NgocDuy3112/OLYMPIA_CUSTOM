@@ -227,6 +227,47 @@ describe("GiaiMa — S3", () => {
     })
 })
 
+describe("VeDichRieng — the powers and the duel", () => {
+    const BUTTON = { selector: "button" } as const
+    const opened = { open: [openQ] }
+
+    it("the MC declares STAR for the player whose question it is", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", {}, opened, veDichMc({ phase: 2, turnPlayerId: "u1" }))
+
+        await user.click(screen.getByText("Ngôi sao", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({
+            kind: "ve-dich.declarePower",
+            playerId: "u1",
+            power: "STAR"
+        })
+    })
+
+    it("ASSIGN needs a target: no selected card, no button", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("ve-dich", { target: "u2" }, opened, veDichMc({ phase: 2, turnPlayerId: "u1" }))
+
+        await user.click(screen.getByText("Chỉ định", BUTTON))
+        expect(f.send).toHaveBeenCalledWith({
+            kind: "ve-dich.declarePower",
+            playerId: "u1",
+            power: "ASSIGN",
+            targetId: "u2"
+        })
+    })
+
+    it("during a duel the buzz slot is inert — an ASSIGN question has nothing to close", () => {
+        renderRound("ve-dich", {}, opened, veDichMc({ phase: 2, power: "ASSIGN", assignedToId: "u2" }))
+        expect(screen.queryByText("Mở chuông", BUTTON)).toBeNull()
+        expect(screen.getByText("Mở chuông")).toBeInTheDocument()      // still drawn, as a slot
+    })
+
+    it("before the duel, Mở chuông is a real button", () => {
+        renderRound("ve-dich", {}, opened, veDichMc({ phase: 2 }))
+        expect(screen.getByText("Mở chuông", BUTTON)).toBeInTheDocument()
+    })
+});
+
 describe("ButPha — S4", () => {
     it("Tính giờ opens the sprint, Về sảnh ends the round", async () => {
         const user = userEvent.setup()

@@ -34,13 +34,43 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
         mcVeDich?.buzzerId ? ctx.verdictOf(qid, mcVeDich.buzzerId) === null : false
     const turnOpen = needsVerdict || buzzerMissing
 
+    // The MC declares the powers for the player whose question it is (the show's
+    // deck is the operator's): STAR on their own answer, ASSIGN to the SELECTED
+    // card. Both are Riêng-only rules, and both need a question about to open.
+    const declarer = mcVeDich?.turnPlayerId ?? null
+    const canDeclare = declarer !== null && mcVeDich?.openStage === "current" && mcVeDich.power === null
+    const declare = (power: "STAR" | "ASSIGN") => {
+        if (!declarer) return
+        ctx.send({
+            kind: "ve-dich.declarePower",
+            playerId: declarer,
+            power,
+            ...(power === "ASSIGN" ? { targetId: ctx.target ?? "" } : {})
+        })
+    }
+
+    // A duel runs on the QUESTION's clock, so there is no answer to close: the
+    // engine would refuse it. Keep the slot inert while the pair races.
+    const racing = mcVeDich?.power === "ASSIGN"
+
     return (
         <ConsoleStage
             rail={<Rail variant="compact" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
             actions={[
                 {
                     label: "Mở chuông",
-                    onClick: mcVeDich?.openStage === "current" ? () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" }) : undefined,
+                    onClick: mcVeDich?.openStage === "current" && !racing
+                        ? () => ctx.send({ kind: "ve-dich.closeCurrentAnswer" })
+                        : undefined,
+                },
+                {
+                    label: COPY.powerStar,
+                    onClick: canDeclare ? () => declare("STAR") : undefined,
+                },
+                {
+                    label: COPY.powerAssign,
+                    // The target is the card the MC clicked — no card, no button.
+                    onClick: canDeclare && ctx.target ? () => declare("ASSIGN") : undefined,
                 },
                 ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
                 { label: COPY.endTurn, onClick: turnOpen ? undefined : () => ctx.hetLuot() },
