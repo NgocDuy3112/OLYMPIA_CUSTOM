@@ -3,6 +3,7 @@ import { formatRemaining } from "@shared/lib/clock"
 import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
 import { STRIP_R, pt } from "@shared/deck/geometry"
 import { stripCellsOf } from "@shared/deck/ve-dich-board"
+import { formatBuzzMs } from "@shared/lib/clock"
 import { COPY } from "@shared/deck/copy"
 import type { AnswerValue, VeDichCommand } from "@shared/deck/types"
 
@@ -21,6 +22,9 @@ export type VeDichRiengPlayerCtx = PlayerCore & {
 function spectatorLine(ctx: VeDichRiengPlayerCtx): string {
     const me = ctx.v.me
     if (me.isAnswerer) return "Bạn trả lời miệng trước MC"
+    if (me.buzzer === ctx.myId && me.buzzerMs !== null && me.buzzerMs !== undefined) {
+        return `Bạn bấm chuông nhanh nhất (${formatBuzzMs(me.buzzerMs)}) — trả lời đi!`
+    }
     if (me.buzzer) return `Đập chuông trước: ${ctx.nameOf(me.buzzer)}`
     if (me.power === "STAR") return "Ngôi sao đã công bố"
     if (me.power === "ASSIGN") return "Đã chỉ định người trả lời"

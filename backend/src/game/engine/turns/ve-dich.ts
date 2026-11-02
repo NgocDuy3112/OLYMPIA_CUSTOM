@@ -84,6 +84,9 @@ export interface OpenQuestion {
     power: Power | null;           // STAR: applies to the answerer. ASSIGN: the duel
     stage: "current" | "buzz";     // current answers first, then buzz window
     buzzer: string | null;         // set when a buzzer wins the window
+    /** How fast that buzz was, in ms from the window opening. Optional: states
+     *  written before the time was kept carry none. */
+    buzzerMs?: number | null;
     /**
      * ASSIGN only: the player the question was handed to. Set when the current
      * player declares ASSIGN — the same call that opens the race, since in a
@@ -427,7 +430,17 @@ export function buzz(state: VeDichState, playerId: string, nowIso: string): VeDi
     if (state.open.buzzer !== null) fail("ALREADY_OPEN", "someone already buzzed first");
     if (!mayBuzz(state, playerId)) fail("NOT_YOUR_TURN", "this question is not yours to buzz");
 
-    return { ...state, open: { ...state.open, buzzer: playerId } };
+    return {
+        ...state,
+        open: {
+            ...state.open,
+            buzzer: playerId,
+            // The race is a stopwatch: keep the time that decided it.
+            buzzerMs: state.buzzOpenedAt === null
+                ? 0
+                : Math.max(0, Date.parse(nowIso) - Date.parse(state.buzzOpenedAt))
+        }
+    };
 }
 
 export interface Verdicts {

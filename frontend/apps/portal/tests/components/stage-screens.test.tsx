@@ -90,6 +90,7 @@ const veDichMc = (over: Partial<VeDichMc> = {}): VeDichMc => ({
     openStage: "current",
     answererId: "u1",
     buzzerId: null,
+    buzzerMs: null,
     assignedToId: null,
     power: null,
     pendingQuestionId: null,
@@ -137,6 +138,7 @@ describe("KhoiDongChung — S2, the buzz race", () => {
         attempt: 1,
         windowOpen: false,
         buzzerId: null,
+        buzzerMs: null,
         lockedOut: [],
         ...over,
     })

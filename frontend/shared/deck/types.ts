@@ -40,6 +40,8 @@ export interface PlayerMe {
     lockedOut?: boolean
     /** Which chance is running: 1 pays 10, 2 pays 5. */
     attempt?: 1 | 2 | null
+    /** How fast the winning buzz was (ms) — the race's stopwatch. */
+    buzzerMs?: number | null
     // giai-ma
     keywordLocked?: boolean
     eliminated?: boolean

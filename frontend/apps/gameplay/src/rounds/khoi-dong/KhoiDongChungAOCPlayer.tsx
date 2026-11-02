@@ -1,6 +1,7 @@
 import { PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "@shared/deck/player-deck"
 import { STRIP_R, pt } from "@shared/deck/geometry"
 import { COPY } from "@shared/deck/copy"
+import { formatBuzzMs } from "@shared/lib/clock"
 import type { PlayerView } from "@shared/deck/types"
 
 // Khởi động — lượt chung (S2): NOW a buzz race. Twelve questions, one at a
@@ -23,7 +24,7 @@ export type KhoiDongChungPlayerCtx = PlayerCore & {
 function standDown(v: PlayerView, questionInPlay: boolean): string {
     if (!questionInPlay) return "Chờ MC mở câu tiếp theo…"
     if (v.me.lockedOut) return "Bạn đã trả lời sai — câu này không được bấm chuông nữa"
-    if (v.me.isAnswerer) return "Bạn nhanh nhất — trả lời đi!"
+    if (v.me.isAnswerer) return `Bạn nhanh nhất (${formatBuzzMs(v.me.buzzerMs)}) — trả lời đi!`
     return "Chờ chuông…"
 }
 
@@ -58,7 +59,8 @@ export function KhoiDongChungAOCPlayer({ ctx }: { ctx: KhoiDongChungPlayerCtx })
             }
             hint={
                 inPlay
-                    ? `còn ${formatSeconds(remaining)} · ${v.me.attempt === 2 ? "lượt 2 (×5)" : "lượt 1 (×10)"}`
+                    ? `còn ${formatSeconds(remaining)} · ${v.me.attempt === 2 ? "lượt 2 (×5)" : "lượt 1 (×10)"}` +
+                      (v.me.buzzer ? ` · chuông ${formatBuzzMs(v.me.buzzerMs)}` : "")
                     : "chờ MC"
             }
             flash={flash}

@@ -330,6 +330,7 @@ function mcFacts(roundId: string, raw: unknown): Record<string, unknown> | null 
             openStage: state.open?.stage ?? null,
             answererId: state.open?.answerer ?? null,
             buzzerId: state.open?.buzzer ?? null,
+            buzzerMs: state.open?.buzzerMs ?? null,
             power: state.open?.power ?? null,
             // ASSIGN names the partner: the console badges THAT card.
             assignedToId: state.open?.assignedTo ?? null,
@@ -351,6 +352,7 @@ function mcFacts(roundId: string, raw: unknown): Record<string, unknown> | null 
             attempt: current?.attempt ?? null,
             windowOpen: current?.openedAt !== null && current?.openedAt !== undefined,
             buzzerId: current?.buzzer ?? null,
+            buzzerMs: current?.buzzerMs ?? null,
             lockedOut: current?.excluded ?? []
         };
     }

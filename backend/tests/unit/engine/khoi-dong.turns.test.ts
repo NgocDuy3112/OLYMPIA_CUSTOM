@@ -105,6 +105,18 @@ describe("khoi-dong phase 2 — the buzz race", () => {
         expect(mayBuzzPhase2(buzzed, "b")).toBe(false);
     });
 
+    it("keeps the winning buzz's time", () => {
+        const buzzed = buzzPhase2(open(), "a", at(1.24));
+        expect(buzzed.current?.buzzerMs).toBe(1240);
+    });
+
+    it("a fresh window forgets the previous time", () => {
+        let s = judgePhase2(buzzPhase2(open(), "a", at(1)), false);
+        expect(s.current?.buzzerMs).toBeNull();
+        s = openPhase2Buzz(s, at(10));
+        expect(s.current?.buzzerMs).toBeNull();
+    });
+
     it("the window is exactly five seconds", () => {
         const s = open();
         expect(isPhase2WindowOpen(s, at(5))).toBe(true);

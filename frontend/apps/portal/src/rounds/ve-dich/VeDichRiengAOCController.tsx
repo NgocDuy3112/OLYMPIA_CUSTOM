@@ -1,6 +1,7 @@
 import { ConsoleStage, QuestionFrame, Rail, Timer, VeDichStripCells } from "@/components/stage/deck"
 import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
+import { formatBuzzMs } from "@shared/lib/clock"
 
 // Về đích — câu hỏi mở, phase 2 (S8, locked): the personal round — oral answer,
 // the 5-second buzz window, and a verdict for both answerer and buzzer. Pure:
@@ -69,6 +70,12 @@ export function VeDichRiengAOCController({ ctx }: { ctx: VeDichRiengCtx }) {
                 {
                     label: "Khoá chuông",
                     onClick: canLockBuzz ? () => ctx.send({ kind: "ve-dich.lockBuzz" }) : undefined,
+                },
+                {
+                    // The stopwatch: the winning buzz's reaction time.
+                    label: "Chuông",
+                    content: formatBuzzMs(mcVeDich?.buzzerMs ?? null),
+                    muted: true
                 },
                 {
                     label: COPY.powerStar,

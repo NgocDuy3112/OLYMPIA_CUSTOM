@@ -42,6 +42,15 @@ export function formatRemaining(ms: number): string {
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
+/**
+ * A buzz reaction time, as the deck shows it: "1.24s". Two decimals because the
+ * race is decided in hundredths — and only the number, never a unit word.
+ */
+export function formatBuzzMs(ms: number | null | undefined): string {
+    if (ms === null || ms === undefined) return "—"
+    return `${(ms / 1000).toFixed(2)}s`
+}
+
 export function isUrgent(ms: number): boolean {
     return ms > 0 && ms <= URGENT_BELOW_MS;
 }

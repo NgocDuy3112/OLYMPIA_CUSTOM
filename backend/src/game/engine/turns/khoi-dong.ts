@@ -92,6 +92,8 @@ export interface Phase2Buzz {
     attempt: 1 | 2;                 // which chance is running
     openedAt: string | null;        // the open window's start, null = no window
     buzzer: string | null;          // the fastest — the only one who may answer
+    /** How fast that buzz was (ms from the window opening). */
+    buzzerMs: number | null;
     /** Locked out of the re-buzz: the player who answered attempt 1 wrong. */
     excluded: string[];
     /** Points this question awarded, once judged. null = still live. */
@@ -170,8 +172,8 @@ export function openPhase2Buzz(state: Phase2State, nowIso: string): Phase2State 
     }
 
     const next: Phase2Buzz = current === null
-        ? { questionId: state.questionIds[state.index], attempt: 1, openedAt: nowIso, buzzer: null, excluded: [], settled: null }
-        : { ...current, openedAt: nowIso, buzzer: null };
+        ? { questionId: state.questionIds[state.index], attempt: 1, openedAt: nowIso, buzzer: null, buzzerMs: null, excluded: [], settled: null }
+        : { ...current, openedAt: nowIso, buzzer: null, buzzerMs: null };
 
     return { ...state, current: next };
 }
@@ -193,7 +195,15 @@ export function buzzPhase2(state: Phase2State, playerId: string, nowIso: string)
         fail("NOT_YOUR_TURN", "you are locked out of this question's re-buzz");
     }
 
-    return { ...state, current: { ...current, buzzer: playerId } };
+    return {
+        ...state,
+        current: {
+            ...current,
+            buzzer: playerId,
+            // The race is a stopwatch: keep the time that decided it.
+            buzzerMs: Math.max(0, Date.parse(nowIso) - Date.parse(current.openedAt))
+        }
+    };
 }
 
 /**
@@ -222,7 +232,7 @@ export function judgePhase2(state: Phase2State, correct: boolean, rules: KhoiDon
         // Arm the re-buzz: the wrong answerer watches the rest race for it.
         return {
             ...state,
-            current: { ...current, attempt: 2, openedAt: null, buzzer: null, excluded: [...current.excluded, buzzer] }
+            current: { ...current, attempt: 2, openedAt: null, buzzer: null, buzzerMs: null, excluded: [...current.excluded, buzzer] }
         };
     }
 

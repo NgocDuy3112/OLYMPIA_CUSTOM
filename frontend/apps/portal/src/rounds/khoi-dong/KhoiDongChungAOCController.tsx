@@ -1,6 +1,7 @@
 import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
 import { backToLobbyAction } from "@/components/stage/actions"
 import { COPY } from "@shared/deck/copy"
+import { formatBuzzMs } from "@shared/lib/clock"
 
 // Khởi động — lượt chung (S2): the BUZZ race, twelve questions, one at a time.
 //
@@ -46,6 +47,12 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
                 {
                     label: COPY.wrong,
                     onClick: buzzer !== null ? () => judge(false) : undefined,
+                },
+                {
+                    // The race's own number: how fast the winning buzz was.
+                    label: "Chuông",
+                    content: formatBuzzMs(mcKhoiDong?.buzzerMs ?? null),
+                    muted: true
                 },
                 {
                     label: "Câu tiếp",

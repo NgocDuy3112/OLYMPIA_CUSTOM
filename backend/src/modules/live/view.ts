@@ -268,6 +268,7 @@ function khoiDongView(input: ViewInput, state: KhoiDongState): PlayerView {
             // open, only to players the engine would actually admit.
             canBuzz: p2 !== null && windowOpen && mayBuzzPhase2(p2, input.userId),
             buzzer: current?.buzzer ?? null,
+            buzzerMs: current?.buzzerMs ?? null,
             isAnswerer: current?.buzzer === input.userId,
             lockedOut: current?.excluded.includes(input.userId) ?? false,
             attempt: current?.attempt ?? null,
@@ -343,6 +344,8 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
                 && mayBuzz(state, input.userId) && isBuzzOpen(state, input.now),
             power: open?.power ?? null,
             buzzer: open?.buzzer ?? null,
+            // The stopwatch: how fast the winning buzz was (ve-dich's windows).
+            buzzerMs: open?.buzzerMs ?? null,
             answerState: open === null ? "none" : stateOf(input.submitted, open.question.id),
             verdicts: verdictsOf(input.submitted)
         }

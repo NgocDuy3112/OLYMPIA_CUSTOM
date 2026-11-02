@@ -100,6 +100,7 @@ export const KhoiDongPhase2Schema = Type.Object({
             attempt: Type.Union([Type.Literal(1), Type.Literal(2)]),
             openedAt: Type.Union([Type.String(), Type.Null()]),
             buzzer: Type.Union([Type.String(), Type.Null()]),
+            buzzerMs: Type.Union([Type.Integer(), Type.Null()]),
             excluded: Type.Array(Type.String()),
             settled: Type.Union([Type.Integer(), Type.Null()])
         }),
@@ -152,6 +153,8 @@ export const VeDichOpenSchema = Type.Object({
     power: Type.Union([PowerSchema, Type.Null()]),
     stage: Type.Union([Type.Literal("current"), Type.Literal("buzz")]),
     buzzer: Type.Union([Type.String(), Type.Null()]),
+    // How fast the winning buzz was (optional: older states carry none).
+    buzzerMs: Type.Optional(Type.Union([Type.Integer(), Type.Null()])),
     // ASSIGN only: the player the question was handed to (optional for archives).
     assignedTo: Type.Optional(Type.Union([Type.String(), Type.Null()]))
 });

@@ -141,6 +141,13 @@ describe("player view — khoi-dong", () => {
         expect(theirs.me.canBuzz).toBe(false);
     });
 
+    it("phase 2: the board shows how fast the winning buzz was", () => {
+        const raced = recordBuzz(openBuzz(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW), "p0", at(1.24));
+        const view = buildPlayerView(base({ roundId: "khoi-dong", state: raced }));
+        expect(view.me.buzzer).toBe("p0");
+        expect(view.me.buzzerMs).toBe(1240);
+    });
+
     it("phase 2: the player who answered wrong is locked out of the re-buzz, and the view says so", () => {
         let state = recordBuzz(openBuzz(beginPhase2(finishSetup(["p0", "p1"], P1, P2), P2), NOW), "p0", at(1));
         state = judgeBuzz(state, false);

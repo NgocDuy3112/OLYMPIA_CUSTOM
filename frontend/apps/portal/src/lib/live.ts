@@ -65,6 +65,8 @@ export interface VeDichMc {
     openStage: "current" | "buzz" | null
     answererId: string | null
     buzzerId: string | null
+    /** How fast the winning buzz was, in ms (null before anyone buzzes). */
+    buzzerMs: number | null
     power: "STAR" | "ASSIGN" | null
     /** ASSIGN only: the player the question was handed to. */
     assignedToId: string | null
@@ -83,6 +85,8 @@ export interface KhoiDongMc {
     windowOpen: boolean
     /** The fastest — the only player the MC may judge. */
     buzzerId: string | null
+    /** How fast that buzz was, in ms (the race's stopwatch). */
+    buzzerMs: number | null
     /** Locked out of the re-buzz (the wrong first answerer). */
     lockedOut: string[]
 }

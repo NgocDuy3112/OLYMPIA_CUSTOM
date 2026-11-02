@@ -134,11 +134,9 @@ export function applyVeDichAction(
         case "ve-dich.buzz": {
             const questionId = state.open?.question.id;
             if (questionId === undefined) fail("NOTHING_OPEN", "no question is open");
-            const buzzMs = state.buzzOpenedAt === null
-                ? 0
-                : Math.max(0, Date.parse(ctx.now) - Date.parse(state.buzzOpenedAt));
-
             const next = buzz(state, action.playerId, ctx.now);
+            // One clock: the engine recorded the time when it accepted the buzz.
+            const buzzMs = next.open?.buzzerMs ?? 0;
             return {
                 state: next,
                 facts: [{
