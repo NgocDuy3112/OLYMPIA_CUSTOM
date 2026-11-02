@@ -41,6 +41,12 @@ export type TournamentRound = Static<typeof TournamentRoundSchema>;
 
 export const TournamentFormatSchema = Type.Object({
     competitorsPerMatch: Type.Integer(),
+    // The seat counts a match of this tournament may hold, when it is not a fixed
+    // number. AOC group-stage matches hold 3 or 4 per match (the team-point scale
+    // resolves by the actual count at match end): [3, 4]. Absent → the fixed
+    // competitorsPerMatch, which is also what classic tournaments use as the
+    // splitting tier size.
+    allowedCompetitorCounts: Type.Optional(Type.Array(Type.Integer(), { minItems: 1 })),
     allowedSeatKinds: Type.Array(Type.Union([UserKind, TeamKind])),
     teamSize: Type.Union([Type.Integer(), Type.Null()]),
     teamAggregation: Type.Union([
@@ -52,6 +58,13 @@ export const TournamentFormatSchema = Type.Object({
     teamCountAggregation: Type.Union([Type.Literal("sum"), Type.Literal("none"), Type.Null()])
 });
 export type TournamentFormat = Static<typeof TournamentFormatSchema>;
+
+// The seat counts a match of this tournament is allowed to hold.
+// A tournament with allowedCompetitorCounts (AOC: [3, 4]) accepts any of them,
+// per match; every other tournament holds exactly competitorsPerMatch seats.
+export function allowedSeatCounts(format: TournamentFormat): number[] {
+    return format.allowedCompetitorCounts ?? [format.competitorsPerMatch];
+}
 
 // ─── §13 — PlacementTier ─────────────────────────────────────────────────────
 

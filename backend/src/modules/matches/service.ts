@@ -5,6 +5,7 @@ import { answers, matchLive, matchResults, matchStats, matches, scoreAdjustments
 import type { ResultEntry, RoundConfig, Seat } from "../../game/contracts/index.js";
 import { MatchError } from "./errors.js";
 import { buildQuestionCopies } from "./assembly.js";
+import { allowedSeatCounts } from "../../game/contracts/index.js";
 import {
     AssembleMatchInput,
     CreateMatchInput,
@@ -162,11 +163,13 @@ function assertSeats(
     players: Seat[],
     format: TournamentRow["format"]
 ): void {
-    // A points match has a fixed number of seats.
-    if (players.length !== format.competitorsPerMatch) {
+    // A match holds one of the format's allowed seat counts: a fixed number
+    // (classic), or a set of them (AOC group stage — 3 or 4, per match).
+    const counts = allowedSeatCounts(format);
+    if (!counts.includes(players.length)) {
         throw new MatchError(
             "VALIDATION",
-            `expected ${format.competitorsPerMatch} seats, got ${players.length}`
+            `expected ${counts.join(" or ")} seats, got ${players.length}`
         );
     }
 
@@ -516,9 +519,10 @@ export async function transitionMatch(
         const tournament = await requireTournament(tournamentId);
         const shortfalls: string[] = [];
 
-        if (existing.players.length !== tournament.format.competitorsPerMatch) {
+        const allowed = allowedSeatCounts(tournament.format);
+        if (!allowed.includes(existing.players.length)) {
             shortfalls.push(
-                `seats: ${existing.players.length}/${tournament.format.competitorsPerMatch}`
+                `seats: ${existing.players.length} (allowed: ${allowed.join("/")})`
             );
         }
         if (existing.questions.length === 0) {

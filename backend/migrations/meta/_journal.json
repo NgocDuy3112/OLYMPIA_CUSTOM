@@ -204,6 +204,13 @@
       "when": 1793331754529,
       "tag": "0028_score_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793418995359,
+      "tag": "0029_magical_toro",
+      "breakpoints": true
     }
   ]
 }

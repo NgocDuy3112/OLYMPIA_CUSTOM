@@ -30,6 +30,8 @@ import {
 export const visibility = pgEnum("visibility", ["PUBLIC", "PRIVATE"]);
 export const questionKind = pgEnum("question_kind", ["MC", "TEXT", "KEYWORD", "HINT"]);
 export const questionStatus = pgEnum("question_status", ["DRAFT", "PENDING", "PUBLISHED", "ARCHIVED"]);
+// AOC group-stage membership (Nhóm A / Nhóm B). Nullable: classic tournaments have no groups.
+export const playerGroup = pgEnum("player_group", ["A", "B"]);
 
 
 export const tournaments = pgTable(
@@ -77,6 +79,9 @@ export const tournamentPlayers = pgTable(
         userId: uuid("user_id")
             .notNull()
             .references(() => users.id, { onDelete: "cascade" }),
+        // AOC group stage: which group this contestant banks team points for.
+        // NULL = the classic format (no groups). Set at enrollment, staff's call.
+        group: playerGroup("group"),
         enrolledAt: timestamp("enrolled_at", { withTimezone: true }).notNull().defaultNow()
     },
     (table) => [primaryKey({ columns: [table.tournamentId, table.userId] })]
