@@ -1,5 +1,8 @@
-import { Badges, CardHeader, MainCard, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
+import { Badges, CardHeader, ConsoleStage, KeywordLengthBanner, MainCard, Rail, Timer } from "@/components/stage/deck"
+import { backToLobbyAction } from "@/components/stage/actions"
 import { pt, DECK_PAD } from "@shared/deck/geometry"
+import { hintTileClass } from "@shared/deck/cells"
+import { COPY } from "@shared/deck/copy"
 
 // Giải mã (S3): the hint tile grid (count-driven — any hint count fits), then
 // the lower question card, the keyword strip and the ledger rail. Pure: its ctx.
@@ -34,42 +37,46 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
     const openHintId = mcGiaiMa?.openHintId ?? null
     const tileState = (qid: string): "free" | "open" | "used" =>
         qid === openHintId ? "open" : mcGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
+    const openHint = (qid: string) => ctx.send({ kind: "giai-ma.openHint", hintId: qid })
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.toggleSelect} />}>
-            {keywordLength !== null && (
-                <div className="flex shrink-0 items-center justify-center rounded-2xl bg-card px-[2cqw] py-[0.7cqw] shadow-md ring-1 ring-border">
-                    <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(32) }}>
-                        Mật mã gồm có {keywordLength} chữ cái
-                    </span>
-                </div>
-            )}
+        <ConsoleStage
+            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.toggleSelect} />}
+            actions={[
+                // Đúng commits the hint window with EXPLICIT verdicts — enabled only
+                // when a selected player submitted (nobody selected would mean
+                // "everyone wrong", which must never be an accident).
+                { label: COPY.correct, onClick: ctx.commitHintReady ? () => ctx.commitHint() : undefined },
+                // Sai has no commit of its own: the pair is expressed by the
+                // selection (selected = correct), so this slot stays display-only.
+                { label: COPY.wrong },
+                // Đúng từ khoá: one press judges every keyword draft — selected
+                // correct, the rest of the submitters wrong.
+                { label: COPY.judgeKeyword, onClick: ctx.commitKeywordReady ? () => ctx.commitKeyword() : undefined },
+                backToLobbyAction(ctx.ketThuc),
+            ]}
+            flash={flash}
+        >
+            <KeywordLengthBanner length={keywordLength} />
 
             {/* the tiles: a count-driven grid — any hint count fits, none dropped */}
             <div className="grid min-h-0 flex-1 content-start gap-x-[2.2cqw] gap-y-[1.1cqw]" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
                 {hintQuestions.map((q, i) => {
-                    const s = tileState(q._id)
-                    const interactive = s === "free"
+                    const state = tileState(q._id)
+                    const interactive = state === "free"
                     return (
                         <div
                             key={q._id}
-                            onClick={interactive ? () => ctx.send({ kind: "giai-ma.openHint", hintId: q._id }) : undefined}
+                            onClick={interactive ? () => openHint(q._id) : undefined}
                             role={interactive ? "button" : undefined}
                             tabIndex={interactive ? 0 : undefined}
                             onKeyDown={interactive ? (event) => {
                                 if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault()
-                                    ctx.send({ kind: "giai-ma.openHint", hintId: q._id })
+                                    openHint(q._id)
                                 }
                             } : undefined}
-                            className={`flex aspect-[203/132] items-center justify-center rounded-2xl font-display font-bold leading-none shadow-md ${s === "free"
-                                    ? interactive
-                                        ? "cursor-pointer bg-card text-foreground ring-1 ring-border hover:ring-sky-500"
-                                        : "bg-card text-foreground ring-1 ring-border"
-                                    : s === "open"
-                                        ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2 ring-offset-background"
-                                        : "bg-muted text-muted-foreground/50 ring-1 ring-border"
-                                }`}
+                            className={hintTileClass(state, interactive)}
                             style={{ fontSize: pt(60) }}
                         >
                             {i + 1}
@@ -87,20 +94,6 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
                     {open.length > 0 ? open[0].question?.questionText ?? "" : "Chọn một hint để mở cửa sổ trả lời"}
                 </p>
             </MainCard>
-            <Strip
-                items={[
-                    // Đúng commits the hint window with EXPLICIT verdicts — enabled
-                    // only when a selected player submitted (otherwise it would be
-                    // an accident: nobody selected = everyone wrong).
-                    { label: "Đúng", onClick: ctx.commitHintReady ? () => ctx.commitHint() : undefined },
-                    { label: "Sai" },
-                    // Đúng từ khoá: one press judges every keyword draft —
-                    // selected = correct, the rest of the submitters = wrong.
-                    { label: "Đúng từ khoá", onClick: ctx.commitKeywordReady ? () => ctx.commitKeyword() : undefined },
-                    { label: "Về sảnh", onClick: ctx.ketThuc },
-                ]}
-            />
-            <Status error={flash} />
-        </StageLayout>
+        </ConsoleStage>
     )
 }

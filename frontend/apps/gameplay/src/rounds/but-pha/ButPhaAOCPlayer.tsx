@@ -1,30 +1,26 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { Band, Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Timer, AnswerBand, type PlayerCtx } from "@shared/deck/player-deck"
+import { AnswerBand, PlayerStage, Progress, QuestionFrame, Rail, Timer, type PlayerCore } from "@shared/deck/player-deck"
 import { pt } from "@shared/deck/geometry"
+import type { AnswerValue } from "@shared/deck/types"
 
 // Bứt phá (S4): sequential typed questions, one open at a time. Pure: every
-// value comes from the orchestrator's PlayerCtx.
-export function ButPhaAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
+// value comes from the orchestrator, narrowed to what this screen reads.
+export type ButPhaPlayerCtx = PlayerCore & {
+    remaining: number
+    answerBusy: boolean
+    submitAnswer: (questionId: string, value: AnswerValue) => void
+}
+
+export function ButPhaAOCPlayer({ ctx }: { ctx: ButPhaPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer } = ctx
     const openQ = ctx.open[0] ?? null
     const pos = openQ?.question?.position ?? null
     const done = ctx.stage === "ended" ? 4 : pos !== null ? pos : 0
     return (
-        <StageLayout rail={<Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />}>
-            <MainCard>
-                <CardHeader
-                    left={<Badges round="Bứt phá" />}
-                    right={
-                        <>
-                            <Progress total={4} done={done} active={pos ?? done} />
-                            <Timer remaining={openQ ? remaining : null} fallback="30s" />
-                        </>
-                    }
-                />
-                <QuestionBlock question={openQ?.question?.questionText ?? null} media={openQ?.question?.media ?? null} />
-            </MainCard>
-            <Band>
-                {openQ ? (
+        <PlayerStage
+            rail={<Rail variant="answers" view={v} myId={myId} currentQid={openQ?.questionId ?? null} />}
+            band={
+                openQ ? (
                     <AnswerBand
                         question={openQ.question}
                         answerState={v.me.answerState}
@@ -35,9 +31,22 @@ export function ButPhaAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
                     />
                 ) : (
                     <span className="font-sans text-muted-foreground" style={{ fontSize: pt(12) }}>Chờ MC mở câu tiếp theo…</span>
-                )}
-            </Band>
-            <Status error={flash} hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ MC"} />
-        </StageLayout>
+                )
+            }
+            hint={openQ ? `còn ${formatRemaining(remaining)}` : "chờ MC"}
+            flash={flash}
+        >
+            <QuestionFrame
+                round="Bứt phá"
+                right={
+                    <>
+                        <Progress total={4} done={done} active={pos ?? done} />
+                        <Timer remaining={openQ ? remaining : null} fallback="30s" />
+                    </>
+                }
+                question={openQ?.question?.questionText ?? null}
+                media={openQ?.question?.media ?? null}
+            />
+        </PlayerStage>
     )
 }

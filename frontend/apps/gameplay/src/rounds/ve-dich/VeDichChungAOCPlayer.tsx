@@ -1,67 +1,51 @@
-import { Shield, Zap } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { Band, Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Timer, AnswerBand, VeDichStripCells, type PlayerCtx } from "@shared/deck/player-deck"
-import { STRIP_R } from "@shared/deck/geometry"
+import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
+import type { AnswerValue, VeDichCommand } from "@shared/deck/types"
+import { stripCellsOf } from "@shared/deck/ve-dich-board"
 
-// Về đích — câu hỏi mở, phase 1 (S7): the shared round — the typed form for
-// the answerer, the public power declaration for everyone. Pure: every value
-// comes from the orchestrator's PlayerCtx.
-export function VeDichChungAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
+// Về đích — câu hỏi mở, phase 1 (S7): the shared round — the typed form for the
+// answerer, the public power declaration for everyone. Pure: every value comes
+// from the orchestrator, narrowed here.
+export type VeDichChungPlayerCtx = PlayerCore & {
+    remaining: number
+    answerBusy: boolean
+    submitAnswer: (questionId: string, value: AnswerValue) => void
+    cmdBusy: boolean
+    command: (action: VeDichCommand) => void
+}
+
+export function VeDichChungAOCPlayer({ ctx }: { ctx: VeDichChungPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
-    const stripCells = (v.board ?? []).filter((cell) => cell.where === "open" || cell.where === "pending")
     return (
-        <StageLayout rail={<Rail variant="answers" view={v} myId={myId} currentQid={qid || null} />}>
-            <MainCard>
-                <CardHeader
-                    left={<Badges round="Về đích" mode="Lượt chung" />}
-                    mid={<VeDichStripCells cells={stripCells} phase2={false} />}
-                    right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
-                />
-                <QuestionBlock question={openQ.question?.questionText ?? null} media={openQ.question?.media ?? null} />
-            </MainCard>
-            <Band>
-                {/* powers first: declaring is public and one-shot */}
-                {v.me.canDeclarePower && (
-                    <>
-                        <button
-                            type="button"
-                            onClick={() => command({ type: "power", power: "HOPE" })}
-                            disabled={cmdBusy}
-                            className="flex h-[3.3cqw] items-center gap-[0.5cqw] rounded-lg border border-amber-300 bg-amber-50 px-[1.2cqw] font-sans text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
-                            style={{ borderRadius: STRIP_R }}
-                        >
-                            <Zap className="size-3.5" aria-hidden /> Hy vọng
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => command({ type: "power", power: "SHIELD" })}
-                            disabled={cmdBusy}
-                            className="flex h-[3.3cqw] items-center gap-[0.5cqw] rounded-lg border border-emerald-300 bg-emerald-50 px-[1.2cqw] font-sans text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
-                            style={{ borderRadius: STRIP_R }}
-                        >
-                            <Shield className="size-3.5" aria-hidden /> Khiên
-                        </button>
-                    </>
-                )}
-                <AnswerBand
-                    question={openQ.question}
-                    answerState={v.me.answerState}
-                    verdict={v.me.verdicts?.[qid]}
-                    busy={answerBusy}
-                    error={flash}
-                    onSubmit={(value) => submitAnswer(qid, value)}
-                />
-            </Band>
-            <Status
-                error={flash}
-                hint={
-                    v.me.canAnswer && remaining !== null
-                        ? `còn ${formatRemaining(remaining)}`
-                        : undefined
-                }
+        <PlayerStage
+            rail={<Rail variant="answers" view={v} myId={myId} currentQid={qid || null} />}
+            band={
+                <>
+                    {/* powers first: declaring is public and one-shot */}
+                    {v.me.canDeclarePower && <PowerButtons busy={cmdBusy} onDeclare={command} />}
+                    <AnswerBand
+                        question={openQ.question}
+                        answerState={v.me.answerState}
+                        verdict={v.me.verdicts?.[qid]}
+                        busy={answerBusy}
+                        error={flash}
+                        onSubmit={(value) => submitAnswer(qid, value)}
+                    />
+                </>
+            }
+            hint={v.me.canAnswer && remaining !== null ? `còn ${formatRemaining(remaining)}` : undefined}
+            flash={flash}
+        >
+            <QuestionFrame
+                round="Về đích"
+                mode="Lượt chung"
+                mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2={false} />}
+                right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
+                question={openQ.question?.questionText ?? null}
+                media={openQ.question?.media ?? null}
             />
-        </StageLayout>
+        </PlayerStage>
     )
 }

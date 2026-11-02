@@ -1,10 +1,10 @@
 // ── the player deck's wire contract ──────────────────────────────────────────
+import type { Dispatch, SetStateAction } from "react"
 import type { RemoteVideoTrack } from "livekit-client"
 // The PLAYER-facing shape of the live view (docs/live-surface.md § L3). This is
 // the backend's contract, so it lives with the shared deck instead of inside
-// either app — both apps' clients (portal player-live's PlayerView, gameplay's
-// LiveView) are structurally identical to it, and the deck components only ever
-// read THIS shape.
+// either app — the backend's player projection is this shape, so the deck
+// components read exactly what the wire carries.
 
 export interface PlayerQuestion {
     questionId: string
@@ -131,4 +131,50 @@ export interface LobbyData {
     }>
     /** User ids with a live socket right now — the lobby's connected dots. */
     connected: string[]
+}
+
+// ── the player deck's contract with its orchestrator ────────────────────────
+
+/**
+ * What every player screen may read. A screen's ctx type is this plus its
+ * round's extras — `PlayerCore & { … }` — exactly as the MC's screens do with
+ * `ScreenCore`, so a screen shows which slice it actually depends on.
+ */
+export type PlayerCore = Pick<PlayerCtx, "v" | "stage" | "open" | "myId" | "flash" | "nameOf">
+
+/** The projection a round's logic module hands its screens (see PlayerCore). */
+export function playerCore(ctx: PlayerCtx): PlayerCore {
+    const { v, stage, open, myId, flash, nameOf } = ctx
+    return { v, stage, open, myId, flash, nameOf }
+}
+
+/**
+ * Everything the player deck KNOWS — gathered ONCE by the orchestrator
+ * (gameplay/lib/live + components/player-shell). Screens never see it whole:
+ * each declares `PlayerCore & { …the round's extras… }`.
+ */
+export interface PlayerCtx {
+    /** The pushed player view: stage/open/me/board/table/keyword/oral. */
+    v: PlayerView
+    stage: string
+    open: PlayerView["open"]
+    remaining: number
+    myId: string | null
+    /** refusal flash for the Status slots. */
+    flash: string | null
+    nameOf: (id: string) => string
+    /** S2: the question on screen + the square selector. */
+    s2Q: PlayerView["open"][number] | undefined
+    s2Idx: number
+    pickS2: (questionId: string, idx: number) => void
+    /** ve-dich board picks (the screen derives toggle/confirm from these). */
+    pickedCells: string[]
+    setPickedCells: Dispatch<SetStateAction<string[]>>
+    /** transport — one wrapper per mutation, versions owned by their hooks. */
+    answerBusy: boolean
+    submitAnswer: (questionId: string, value: AnswerValue) => void
+    keywordBusy: boolean
+    submitKeyword: (questionId: string, text: string) => void
+    cmdBusy: boolean
+    command: (action: VeDichCommand) => void
 }

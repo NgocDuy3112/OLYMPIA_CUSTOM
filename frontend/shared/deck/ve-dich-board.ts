@@ -1,3 +1,5 @@
+import type { PlayerView } from "./types"
+
 // The Về đích show table — ONE fixed matrix shared by both surfaces and both
 // phases: 6 domains across, 4 score bands down (20 → 50, as drawn).
 //
@@ -27,4 +29,11 @@ export function sortVeCells<T>(
         if (byRank !== 0) return byRank;
         return domainOf(a).localeCompare(domainOf(b));
     });
+}
+
+/** The chips above the open question: this turn's OPEN + PENDING cells only —
+ *  the same slice the MC's card header shows, so both surfaces point at the
+ *  same squares. */
+export function stripCellsOf(board: PlayerView["board"]): NonNullable<PlayerView["board"]> {
+    return (board ?? []).filter((cell) => cell.where === "open" || cell.where === "pending");
 }

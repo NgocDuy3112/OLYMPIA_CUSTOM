@@ -1,6 +1,9 @@
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
+import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
+import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
+import { COPY } from "@shared/deck/copy"
 
-
+// Bứt phá (S4): four typed questions, one open at a time — Tính giờ opens the
+// next, Đúng/Sai stage the verdict, Hết lượt's finalize is the round's own plan.
 import type { ConsoleQuestion } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
@@ -22,28 +25,27 @@ export function ButPhaAOCController({ ctx }: { ctx: ButPhaCtx }) {
     const done = pos ?? 0
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
-            <MainCard>
-                <CardHeader
-                    left={<Badges round="Bứt phá" onRoundClick={openRounds} />}
-                    right={
-                        <>
-                            <Progress total={4} done={done} active={pos ?? done} />
-                            <Timer remaining={remaining} />
-                        </>
-                    }
-                />
-                <QuestionBlock question={openQ?.question?.questionText ?? "Nhấn Tính giờ để mở câu tiếp theo"} media={openQ?.question?.media ?? null} />
-            </MainCard>
-            <Strip
-                items={[
-                    { label: "Tính giờ", onClick: () => ctx.pickQuestion() },
-                    { label: "Đúng", onClick: ctx.target && openQ ? () => ctx.setVerdict(true) : undefined },
-                    { label: "Sai", onClick: ctx.target && openQ ? () => ctx.setVerdict(false) : undefined },
-                    { label: "Về sảnh", onClick: ctx.ketThuc },
-                ]}
+        <ConsoleStage
+            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
+            actions={[
+                { label: COPY.startClock, onClick: ctx.pickQuestion },
+                ...verdictActions({ canVerdict: ctx.target !== null && openQ !== null, onVerdict: ctx.setVerdict }),
+                backToLobbyAction(ctx.ketThuc),
+            ]}
+            flash={flash}
+        >
+            <QuestionFrame
+                round="Bứt phá"
+                onRoundClick={openRounds}
+                right={
+                    <>
+                        <Progress total={4} done={done} active={pos ?? done} />
+                        <Timer remaining={remaining} />
+                    </>
+                }
+                question={openQ?.question?.questionText ?? "Nhấn Tính giờ để mở câu tiếp theo"}
+                media={openQ?.question?.media ?? null}
             />
-            <Status error={flash} />
-        </StageLayout>
+        </ConsoleStage>
     )
 }

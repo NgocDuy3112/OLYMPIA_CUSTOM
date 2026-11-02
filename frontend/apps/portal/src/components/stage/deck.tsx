@@ -1,25 +1,22 @@
-
-import { useEffect, useRef } from "react"
-import type { RemoteVideoTrack } from "livekit-client"
-import {
-    type ConsoleQuestion,
-    type LiveResponse,
-    type QuestionAnswerRow,
-} from "@/lib/live"
-import { pt } from "@shared/deck/geometry"
-import { VerdictIcon } from "@shared/deck/stage"
-
-// The MC console's surface: the shared flow primitives re-exported (one import
-// site for screens — see @shared/deck/stage), plus the MC-only pieces: the
-// verdict rail (CardData) and the orchestrator's ctx contract.
-
+// The MC console's deck surface — ONE import site for the round screens.
+//
+//   @shared/deck/stage   the shared flow primitives, re-exported below
+//   ./rail.tsx           the operator's rail card (cameras, verdicts, badges)
+//   ./facts.ts           ConsoleFacts — what the orchestrator knows
+//   ./screen.tsx         ConsoleStage — the stack every controller ends with
+//   ./actions.ts         verdictActions / backToLobbyAction (pure plans)
+//
+// Components and TYPES only (fast-refresh); helpers are imported from their own
+// module.
 export {
     Badges,
     Band,
     CardHeader,
+    KeywordLengthBanner,
     MainCard,
     Progress,
     QuestionBlock,
+    QuestionFrame,
     StageLayout,
     Status,
     Strip,
@@ -28,179 +25,8 @@ export {
     type StripItem,
 } from "@shared/deck/stage"
 
-// what one rail card shows
-export interface CardData {
-    id: string
-    name: string
-    points: number
-    answer?: string        // answer-variant bottom line
-    value?: string         // answer-variant value row
-    verdict?: "CORRECT" | "INCORRECT" | null
-    badge?: { text: string; tone: "primary" | "amber" | "emerald" }  // keyword / power pill
-    ring?: "selected" | "active"
-    dimmed?: boolean       // giai-ma eliminated
-    /** has a live player socket right now (the hub's connected list) */
-    connected?: boolean
-    /** the player's live camera — Room identity === card id, so a plain map
-     *  lookup by `id` feeds this slot; absent → the initials show */
-    video?: RemoteVideoTrack | null
-}
+export { Rail, type CardData } from "./rail"
 
-const badgePill = (tone: "primary" | "amber" | "emerald") =>
-    `flex items-center justify-center rounded-full px-[0.6cqw] font-sans font-semibold leading-tight ${tone === "primary"
-        ? "bg-primary text-primary-foreground"
-        : tone === "amber"
-            ? "bg-amber-50 text-amber-700 ring-1 ring-amber-300"
-            : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300"
-    }`
+export type { ConsoleFacts } from "./facts"
 
-/**
- * The card's live camera: attaches the remote track to a <video> for exactly
- * as long as the card holds it, laid OVER the initials (which stay as the
- * no-camera base). Not mirrored — the MC is looking AT the player.
- */
-function CardVideo({ track }: { track: RemoteVideoTrack }) {
-    const holder = useRef<HTMLSpanElement>(null)
-    useEffect(() => {
-        const box = holder.current
-        if (!box) return
-        const video = track.attach()
-        video.className = "absolute inset-0 h-full w-full object-cover"
-        box.append(video)
-        return () => {
-            track.detach(video)
-            video.remove()
-        }
-    }, [track])
-    return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
-}
-
-/** The rail column: who's playing, what they answered, the MC's verdict on them. */
-export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
-    const isAnswers = variant === "answers"
-    const Interactive = onSelect ? "button" : "div"
-    return (
-        <>
-            {cards.map((c) => (
-                <Interactive
-                    key={c.id}
-                    {...(onSelect ? { type: "button" as const, onClick: () => onSelect(c.id) } : {})}
-                    className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] text-left shadow-sm ring-1 ring-border transition ${onSelect ? "cursor-pointer hover:ring-sky-400" : ""
-                        } ${c.ring === "selected" ? "ring-2 ring-primary" : c.ring === "active" ? "ring-2 ring-amber-400" : ""} ${c.dimmed ? "opacity-60" : ""
-                        }`}
-                >
-                    <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
-                        <div className="relative w-[52%] shrink-0">
-                            <div
-                                className="flex h-full items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
-                                style={{ fontSize: pt(16) }}
-                                aria-hidden
-                            >
-                                {c.name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"}
-                            </div>
-                            {c.video && <CardVideo track={c.video} />}
-                            {/* connected dot — green = at a device, gray = gone/idle */}
-                            <span
-                                className={`absolute right-[0.3cqw] top-[0.4cqw] size-[1.2cqw] rounded-full ring-2 ring-card ${c.connected
-                                        ? "bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.25)]"
-                                        : "bg-muted-foreground/40"
-                                    }`}
-                            />
-                        </div>
-                        <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
-                            <span className="truncate font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>
-                                {c.name}
-                            </span>
-                            <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(isAnswers ? 44 : 34) }}>
-                                {c.points}
-                            </span>
-                        </div>
-                    </div>
-                    {isAnswers && (
-                        <div className="shrink-0 truncate px-[0.4cqw] text-center font-sans leading-snug text-muted-foreground" style={{ fontSize: pt(10) }} title={c.answer}>
-                            {c.answer ?? "—"}
-                        </div>
-                    )}
-                    {/* the bottom row: the badge, or the player state — value + verdict */}
-                    {c.badge && !isAnswers ? (
-                        <div className="flex shrink-0 justify-end" style={{ fontSize: pt(9) }}>
-                            <span className={badgePill(c.badge.tone)}>{c.badge.text}</span>
-                        </div>
-                    ) : isAnswers ? (
-                        <div className="flex shrink-0 items-center justify-center gap-[0.4cqw]">
-                            {c.badge ? (
-                                <span style={{ fontSize: pt(9) }} className={badgePill(c.badge.tone)}>
-                                    {c.badge.text}
-                                </span>
-                            ) : (
-                                <>
-                                    <span className="truncate font-sans font-semibold tabular-nums text-foreground" style={{ fontSize: pt(12) }}>
-                                        {c.value ?? "—"}
-                                    </span>
-                                    {c.verdict !== undefined && <VerdictIcon verdict={c.verdict} />}
-                                </>
-                            )}
-                        </div>
-                    ) : null}
-                </Interactive>
-            ))}
-        </>
-    )
-}
-
-// ── the screens' contract ────────────────────────────────────────────────────
-
-/**
- * Everything the MC console KNOWS — the orchestrator gathers it ONCE and
- * screens never see it. Each round module projects the narrow slice its own
- * screens need (rounds/<round>/logic), so every screen's ctx type is declared next
- * to the screen: `ScreenCore & { …the round's extras… }`.
- */
-export interface ConsoleFacts {
-    /** The polled live read: projection carries stage/open/oral/board/table. */
-    v: LiveResponse
-    /** The live stage (phase1/phase2/…) — round modules route on it. */
-    stage: string
-    remaining: number | null
-    rows: QuestionAnswerRow[]
-    baseCards: CardData[]
-    /** the question the ledger is reading (khoi-dong S2 / but-pha S4). */
-    judgingId: string | null
-    /** verdict target = clicked card, else the first answering player. */
-    target: string | null
-    setSelectedQ: (questionId: string | null) => void
-    setSelectedPlayer: (userId: string) => void
-    /** giai-ma: toggle a card in the multi-select — the clicked players are the
-     * ones Đúng / Đúng từ khoá will judge CORRECT. */
-    toggleSelect: (userId: string) => void
-    /** giai-ma: the commits are ready (players selected ON the current question).
-     *  The screen disables the buttons until then. */
-    commitHintReady: boolean
-    commitKeywordReady: boolean
-    /** giai-ma: commit the hint window (resolve with verdicts) / the keyword
-     *  drafts (selected = correct, the rest of the submitters = wrong). */
-    commitHint: () => void
-    commitKeyword: () => void
-    /** stage an override verdict for the selected card (committed by Kết thúc). */
-    setVerdict: (correct: boolean) => void
-    /** version-guarded action senders. */
-    send: (action: Record<string, unknown>) => void
-    /** turn-based (ve-dich): finish the current TURN — the open question, verdicts first. */
-    hetLuot: () => void
-    /** end the whole ROUND (turn-based: the turn itself is hetLuot's job). */
-    ketThuc: () => void
-    /** Tính giờ — pick the round's NEXT question (but-pha's question cursor). */
-    pickQuestion: () => void
-    byId: (id: string) => ConsoleQuestion | null
-    verdictOf: (questionId: string, userId: string) => "CORRECT" | "INCORRECT" | null
-    /** the MC's stopwatch (khoi-dong S1) — `watchMs` comes from the interval. */
-    watchRunning: boolean
-    watchMs: number
-    toggleWatch: () => void
-    /** refusal flash for the Status slots. */
-    flash: string | null
-    /** the round badge → the rounds navigator. */
-    openRounds: () => void
-    /** open the score-adjust dialog for one seated player. */
-    openAdjust: (userId: string) => void
-}
+export { ConsoleStage } from "./screen"

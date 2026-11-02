@@ -1,5 +1,7 @@
 import { formatRemaining } from "@shared/lib/clock"
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
+import { COPY } from "@shared/deck/copy"
+import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
+import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 
 // Khởi động — lượt cá nhân (S1): one player's oral run, projected to the whole
 // room. Nobody types here — the MC's stopwatch drives Đúng/Sai. Pure: every
@@ -19,33 +21,39 @@ export function KhoiDongRiengAOCController({ ctx }: { ctx: KhoiDongRiengCtx }) {
     const overBudget = oral
         ? ctx.watchMs > Math.max(0, (oral.budgetS - oral.elapsedS) * 1000)
         : false
+    // Đúng/Sai here RECORD the oral verdict with the stopwatch's spend, so they
+    // need a live run; over budget the pair goes display-only.
+    const canVerdict = Boolean(oral) && !overBudget
+    const spentS = Math.max(0, Math.floor(ctx.watchMs / 1000))
+    const record = (correct: boolean) => ctx.send({ kind: "khoi-dong.recordOral", correct, spentS })
+
     return (
-        <StageLayout rail={<Rail variant="compact" cards={baseCards} />}>
-            <MainCard>
-                <CardHeader
-                    left={<Badges round="Khởi động" mode="Lượt cá nhân" onRoundClick={openRounds} />}
-                    right={
-                        <>
-                            <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} />
-                            <Timer remaining={null} fallback={oral ? String(Math.max(0, Math.ceil(oral.budgetS - oral.elapsedS))) : "45"} />
-                        </>
-                    }
-                />
-                <QuestionBlock question={oral?.question?.questionText ?? "Đang chuyển người chơi…"} media={oral?.question?.media ?? null} />
-            </MainCard>
-            <Strip
-                items={[
-                    {
-                        label: "Tính giờ",
-                        content: ctx.watchRunning ? `⏱ ${formatRemaining(ctx.watchMs)}` : "Tính giờ",
-                        onClick: ctx.toggleWatch,
-                    },
-                    { label: "Đúng", onClick: oral && !overBudget ? () => ctx.send({ kind: "khoi-dong.recordOral", correct: true, spentS: Math.max(0, Math.floor(ctx.watchMs / 1000)) }) : undefined },
-                    { label: "Sai", onClick: oral && !overBudget ? () => ctx.send({ kind: "khoi-dong.recordOral", correct: false, spentS: Math.max(0, Math.floor(ctx.watchMs / 1000)) }) : undefined },
-                    { label: "Về sảnh", onClick: ctx.ketThuc },
-                ]}
+        <ConsoleStage
+            rail={<Rail variant="compact" cards={baseCards} />}
+            actions={[
+                {
+                    label: COPY.startClock,
+                    content: ctx.watchRunning ? `⏱ ${formatRemaining(ctx.watchMs)}` : COPY.startClock,
+                    onClick: ctx.toggleWatch,
+                },
+                ...verdictActions({ canVerdict, onVerdict: record }),
+                backToLobbyAction(ctx.ketThuc),
+            ]}
+            flash={flash}
+        >
+            <QuestionFrame
+                round="Khởi động"
+                mode="Lượt cá nhân"
+                onRoundClick={openRounds}
+                right={
+                    <>
+                        <Progress total={oral?.total ?? 6} done={oral?.index ?? 0} active={oral?.index ?? 0} />
+                        <Timer remaining={null} fallback={oral ? String(Math.max(0, Math.ceil(oral.budgetS - oral.elapsedS))) : "45"} />
+                    </>
+                }
+                question={oral?.question?.questionText ?? "Đang chuyển người chơi…"}
+                media={oral?.question?.media ?? null}
             />
-            <Status error={flash} />
-        </StageLayout>
+        </ConsoleStage>
     )
 }

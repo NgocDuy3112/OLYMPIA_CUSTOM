@@ -1,4 +1,5 @@
-import { Badges, CardHeader, MainCard, Progress, QuestionBlock, Rail, StageLayout, Status, Strip, Timer } from "@/components/stage/deck"
+import { ConsoleStage, Progress, QuestionFrame, Rail, Timer } from "@/components/stage/deck"
+import { backToLobbyAction, verdictActions } from "@/components/stage/actions"
 
 // Khởi động — lượt chung (S2): the whole field faces 6 shared questions, one
 // deadline; the MC picks a square to judge per card. Pure: every value comes
@@ -24,30 +25,32 @@ export function KhoiDongChungAOCController({ ctx }: { ctx: KhoiDongChungCtx }) {
     const activeQuestionId = activeQ ?? open[0]?.questionId ?? ""
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}>
-            <MainCard>
-                <CardHeader
-                    left={<Badges round="Khởi động" mode="Lượt chung" onRoundClick={openRounds} />}
-                    right={
-                        <>
-                            <Progress total={open.length || 6} done={0} active={activeQ ? open.findIndex((q) => q.questionId === activeQ) : 0} onPick={(i) => open[i] && ctx.setSelectedQ(open[i].questionId)} />
-                            <Timer remaining={remaining} />
-                        </>
-                    }
-                />
-                <QuestionBlock
-                    question={ctx.byId(activeQuestionId)?.questionText ?? "Cả bảng đang trả lời…"}
-                    media={open.find((q) => q.questionId === activeQuestionId)?.question?.media ?? null}
-                />
-            </MainCard>
-            <Strip
-                items={[
-                    { label: "Đúng", onClick: ctx.target ? () => ctx.setVerdict(true) : undefined },
-                    { label: "Sai", onClick: ctx.target ? () => ctx.setVerdict(false) : undefined },
-                    { label: "Về sảnh", onClick: ctx.ketThuc },
-                ]}
+        <ConsoleStage
+            rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.setSelectedPlayer} />}
+            actions={[
+                ...verdictActions({ canVerdict: ctx.target !== null, onVerdict: ctx.setVerdict }),
+                backToLobbyAction(ctx.ketThuc),
+            ]}
+            flash={flash}
+        >
+            <QuestionFrame
+                round="Khởi động"
+                mode="Lượt chung"
+                onRoundClick={openRounds}
+                right={
+                    <>
+                        <Progress
+                            total={open.length || 6}
+                            done={0}
+                            active={activeQ ? open.findIndex((q) => q.questionId === activeQ) : 0}
+                            onPick={(i) => open[i] && ctx.setSelectedQ(open[i].questionId)}
+                        />
+                        <Timer remaining={remaining} />
+                    </>
+                }
+                question={ctx.byId(activeQuestionId)?.questionText ?? "Cả bảng đang trả lời…"}
+                media={open.find((q) => q.questionId === activeQuestionId)?.question?.media ?? null}
             />
-            <Status error={flash} />
-        </StageLayout>
+        </ConsoleStage>
     )
 }

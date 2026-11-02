@@ -1,90 +1,80 @@
-import { Hand, Shield, Zap } from "lucide-react"
+import { Hand } from "lucide-react"
 import { formatRemaining } from "@shared/lib/clock"
-import { Band, Badges, CardHeader, MainCard, QuestionBlock, Rail, StageLayout, Status, Timer, AnswerBand, VeDichStripCells, type PlayerCtx } from "@shared/deck/player-deck"
+import { AnswerBand, PlayerStage, PowerButtons, QuestionFrame, Rail, Timer, VeDichStripCells, type PlayerCore } from "@shared/deck/player-deck"
 import { STRIP_R, pt } from "@shared/deck/geometry"
+import { stripCellsOf } from "@shared/deck/ve-dich-board"
+import { COPY } from "@shared/deck/copy"
+import type { AnswerValue, VeDichCommand } from "@shared/deck/types"
 
 // Về đích — câu hỏi mở, phase 2 (S8): the personal round — everyone sees the
 // question; the answer is oral, the buzz window is the typed part, and powers
-// are declared here. Pure: every value comes from the orchestrator's PlayerCtx.
-export function VeDichRiengAOCPlayer({ ctx }: { ctx: PlayerCtx }) {
+// are declared here. Pure: every value comes from the orchestrator, narrowed.
+export type VeDichRiengPlayerCtx = PlayerCore & {
+    remaining: number
+    answerBusy: boolean
+    submitAnswer: (questionId: string, value: AnswerValue) => void
+    cmdBusy: boolean
+    command: (action: VeDichCommand) => void
+}
+
+/** What the band says when this player has nothing to press. */
+function spectatorLine(ctx: VeDichRiengPlayerCtx): string {
+    const me = ctx.v.me
+    if (me.isAnswerer) return "Bạn trả lời miệng trước MC"
+    if (me.buzzer) return `Đập chuông trước: ${ctx.nameOf(me.buzzer)}`
+    if (me.power) return `${me.power === "HOPE" ? "Bùa hy vọng" : "Bùa bảo hộ"} đã công bố`
+    return "Theo dõi thí sinh trả lời"
+}
+
+export function VeDichRiengAOCPlayer({ ctx }: { ctx: VeDichRiengPlayerCtx }) {
     const { v, remaining, myId, flash, answerBusy, submitAnswer, cmdBusy, command } = ctx
     const openQ = ctx.open[0]
     const qid = openQ.questionId
-    const stripCells = (v.board ?? []).filter((cell) => cell.where === "open" || cell.where === "pending")
     return (
-        <StageLayout rail={<Rail variant="compact" view={v} myId={myId} currentQid={qid || null} />}>
-            <MainCard>
-                <CardHeader
-                    left={<Badges round="Về đích" mode="Lượt cá nhân" />}
-                    mid={<VeDichStripCells cells={stripCells} phase2 />}
-                    right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
-                />
-                <QuestionBlock question={openQ.question?.questionText ?? null} media={openQ.question?.media ?? null} />
-            </MainCard>
-            <Band>
-                {/* powers first: declaring is public and one-shot */}
-                {v.me.canDeclarePower && (
-                    <>
+        <PlayerStage
+            rail={<Rail variant="compact" view={v} myId={myId} currentQid={qid || null} />}
+            band={
+                <>
+                    {/* powers first: declaring is public and one-shot */}
+                    {v.me.canDeclarePower && <PowerButtons busy={cmdBusy} onDeclare={command} />}
+                    {v.me.canBuzz && openQ ? (
                         <button
                             type="button"
-                            onClick={() => command({ type: "power", power: "HOPE" })}
+                            onClick={() => command({ type: "buzz", questionId: openQ.questionId })}
                             disabled={cmdBusy}
-                            className="flex h-[3.3cqw] items-center gap-[0.5cqw] rounded-lg border border-amber-300 bg-amber-50 px-[1.2cqw] font-sans text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-50"
+                            className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
                             style={{ borderRadius: STRIP_R }}
+                            title={COPY.buzz}
                         >
-                            <Zap className="size-3.5" aria-hidden /> Hy vọng
+                            <Hand className="size-4" aria-hidden /> {COPY.buzz}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => command({ type: "power", power: "SHIELD" })}
-                            disabled={cmdBusy}
-                            className="flex h-[3.3cqw] items-center gap-[0.5cqw] rounded-lg border border-emerald-300 bg-emerald-50 px-[1.2cqw] font-sans text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
-                            style={{ borderRadius: STRIP_R }}
-                        >
-                            <Shield className="size-3.5" aria-hidden /> Khiên
-                        </button>
-                    </>
-                )}
-                {v.me.canBuzz && openQ ? (
-                    <button
-                        type="button"
-                        onClick={() => command({ type: "buzz", questionId: openQ.questionId })}
-                        disabled={cmdBusy}
-                        className="flex h-[3.3cqw] items-center gap-[0.8cqw] rounded-lg bg-destructive px-[2cqw] font-sans text-base font-bold uppercase text-destructive-foreground shadow-sm transition hover:brightness-110 disabled:opacity-60"
-                        style={{ borderRadius: STRIP_R }}
-                        title="Bấm chuông"
-                    >
-                        <Hand className="size-4" aria-hidden /> Bấm chuông
-                    </button>
-                ) : v.me.canAnswer && openQ ? (
-                    <AnswerBand
-                        question={openQ.question}
-                        answerState={v.me.answerState}
-                        verdict={v.me.verdicts?.[qid]}
-                        busy={answerBusy}
-                        error={flash}
-                        onSubmit={(value) => submitAnswer(qid, value)}
-                    />
-                ) : (
-                    <span className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
-                        {v.me.isAnswerer
-                            ? "Bạn trả lời miệng trước MC"
-                            : v.me.buzzer
-                                ? `Đập chuông trước: ${ctx.nameOf(v.me.buzzer)}`
-                                : v.me.power
-                                    ? `${v.me.power === "HOPE" ? "Bùa hy vọng" : "Bùa bảo hộ"} đã công bố`
-                                    : "Theo dõi thí sinh trả lời"}
-                    </span>
-                )}
-            </Band>
-            <Status
-                error={flash}
-                hint={
-                    remaining !== null
-                        ? `còn ${formatRemaining(remaining)}`
-                        : undefined
-                }
+                    ) : v.me.canAnswer && openQ ? (
+                        <AnswerBand
+                            question={openQ.question}
+                            answerState={v.me.answerState}
+                            verdict={v.me.verdicts?.[qid]}
+                            busy={answerBusy}
+                            error={flash}
+                            onSubmit={(value) => submitAnswer(qid, value)}
+                        />
+                    ) : (
+                        <span className="flex h-[3.3cqw] items-center rounded-lg bg-muted px-[1.2cqw] font-sans font-semibold text-foreground ring-1 ring-border" style={{ fontSize: pt(12), borderRadius: STRIP_R }}>
+                            {spectatorLine(ctx)}
+                        </span>
+                    )}
+                </>
+            }
+            hint={remaining !== null ? `còn ${formatRemaining(remaining)}` : undefined}
+            flash={flash}
+        >
+            <QuestionFrame
+                round="Về đích"
+                mode="Lượt cá nhân"
+                mid={<VeDichStripCells cells={stripCellsOf(v.board)} phase2 />}
+                right={<Timer remaining={openQ ? remaining : null} fallback="—" />}
+                question={openQ.question?.questionText ?? null}
+                media={openQ.question?.media ?? null}
             />
-        </StageLayout>
+        </PlayerStage>
     )
 }

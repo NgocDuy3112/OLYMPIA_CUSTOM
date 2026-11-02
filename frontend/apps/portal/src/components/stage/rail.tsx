@@ -1,0 +1,138 @@
+// The MC's rail — the contestant cards as the OPERATOR sees them: the live
+// camera from the match Room, who is connected, this round's badge/value, and
+// the MC's staged verdict. It is NOT the player's rail (a player sees "BẠN" and
+// their own verdict): same frame, different card, so neither grows flags.
+import { useEffect, useRef } from "react"
+import type { RemoteVideoTrack } from "livekit-client"
+import { pt } from "@shared/deck/geometry"
+import { VerdictIcon } from "@shared/deck/stage"
+
+/** What one rail card shows — the console's projection of a score row. */
+export interface CardData {
+    id: string
+    name: string
+    points: number
+    answer?: string        // answer-variant bottom line
+    value?: string         // answer-variant value row
+    verdict?: "CORRECT" | "INCORRECT" | null
+    badge?: { text: string; tone: "primary" | "amber" | "emerald" }  // keyword / power pill
+    ring?: "selected" | "active"
+    dimmed?: boolean       // giai-ma eliminated
+    /** has a live player socket right now (the hub's connected list) */
+    connected?: boolean
+    /** the player's live camera — Room identity === card id, so a plain map
+     *  lookup by `id` feeds this slot; absent → the initials show */
+    video?: RemoteVideoTrack | null
+}
+
+/** The pill's colour, keyed by tone. */
+const PILL_TONE: Record<NonNullable<CardData["badge"]>["tone"], string> = {
+    primary: "bg-primary text-primary-foreground",
+    amber: "bg-amber-50 text-amber-700 ring-1 ring-amber-300",
+    emerald: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300",
+}
+
+const badgePill = (tone: NonNullable<CardData["badge"]>["tone"]): string =>
+    `flex items-center justify-center rounded-full px-[0.6cqw] font-sans font-semibold leading-tight ${PILL_TONE[tone]}`
+
+/** The card's ring: the multi-select (giai-ma) or the verdict target. */
+const cardRing = (ring: CardData["ring"]): string =>
+    ring === "selected" ? "ring-2 ring-primary" : ring === "active" ? "ring-2 ring-amber-400" : ""
+
+/**
+ * The card's live camera: attaches the remote track to a <video> for exactly
+ * as long as the card holds it, laid OVER the initials (which stay as the
+ * no-camera base). Not mirrored — the MC is looking AT the player.
+ */
+function CardVideo({ track }: { track: RemoteVideoTrack }) {
+    const holder = useRef<HTMLSpanElement>(null)
+    useEffect(() => {
+        const box = holder.current
+        if (!box) return
+        const video = track.attach()
+        video.className = "absolute inset-0 h-full w-full object-cover"
+        box.append(video)
+        return () => {
+            track.detach(video)
+            video.remove()
+        }
+    }, [track])
+    return <span ref={holder} className="absolute inset-0 overflow-hidden rounded-lg" aria-hidden />
+}
+
+const initialsOf = (name: string): string =>
+    name.replace(/[^A-Za-zÀ-ỹ0-9]/g, "").slice(0, 2).toUpperCase() || "??"
+
+/** The rail column: who's playing, what they answered, the MC's verdict on them. */
+export function Rail({ variant, cards, onSelect }: { variant: "compact" | "answers"; cards: CardData[]; onSelect?: (id: string) => void }) {
+    const isAnswers = variant === "answers"
+    const Interactive = onSelect ? "button" : "div"
+    return (
+        <>
+            {cards.map((c) => (
+                <Interactive
+                    key={c.id}
+                    {...(onSelect ? { type: "button" as const, onClick: () => onSelect(c.id) } : {})}
+                    className={`flex ${isAnswers ? "h-[11.9cqw]" : "h-[9.3cqw]"} w-full shrink-0 flex-col gap-[0.3cqw] overflow-hidden rounded-2xl bg-card p-[0.9cqw] text-left shadow-sm ring-1 ring-border transition ${
+                        onSelect ? "cursor-pointer hover:ring-sky-400" : ""
+                    } ${cardRing(c.ring)} ${c.dimmed ? "opacity-60" : ""}`}
+                >
+                    <div className="flex min-h-0 flex-1 gap-[0.7cqw]">
+                        <div className="relative w-[52%] shrink-0">
+                            <div
+                                className="flex h-full items-center justify-center rounded-lg bg-muted font-display font-bold text-muted-foreground"
+                                style={{ fontSize: pt(16) }}
+                                aria-hidden
+                            >
+                                {initialsOf(c.name)}
+                            </div>
+                            {c.video && <CardVideo track={c.video} />}
+                            {/* connected dot — green = at a device, gray = gone/idle */}
+                            <span
+                                className={`absolute right-[0.3cqw] top-[0.4cqw] size-[1.2cqw] rounded-full ring-2 ring-card ${
+                                    c.connected
+                                        ? "bg-emerald-500 shadow-[0_0_0_2px_rgba(16,185,129,0.25)]"
+                                        : "bg-muted-foreground/40"
+                                }`}
+                            />
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col justify-start gap-[0.3cqw] pt-[0.2cqw] text-center">
+                            <span className="truncate font-display font-medium leading-none text-foreground" style={{ fontSize: pt(12) }}>
+                                {c.name}
+                            </span>
+                            <span className="font-display font-bold leading-none tabular-nums text-foreground" style={{ fontSize: pt(isAnswers ? 44 : 34) }}>
+                                {c.points}
+                            </span>
+                        </div>
+                    </div>
+                    {isAnswers && (
+                        <div className="shrink-0 truncate px-[0.4cqw] text-center font-sans leading-snug text-muted-foreground" style={{ fontSize: pt(10) }} title={c.answer}>
+                            {c.answer ?? "—"}
+                        </div>
+                    )}
+                    {/* the bottom row: the badge, or the player state — value + verdict */}
+                    {c.badge && !isAnswers ? (
+                        <div className="flex shrink-0 justify-end" style={{ fontSize: pt(9) }}>
+                            <span className={badgePill(c.badge.tone)}>{c.badge.text}</span>
+                        </div>
+                    ) : isAnswers ? (
+                        <div className="flex shrink-0 items-center justify-center gap-[0.4cqw]">
+                            {c.badge ? (
+                                <span style={{ fontSize: pt(9) }} className={badgePill(c.badge.tone)}>
+                                    {c.badge.text}
+                                </span>
+                            ) : (
+                                <>
+                                    <span className="truncate font-sans font-semibold tabular-nums text-foreground" style={{ fontSize: pt(12) }}>
+                                        {c.value ?? "—"}
+                                    </span>
+                                    {c.verdict !== undefined && <VerdictIcon verdict={c.verdict} />}
+                                </>
+                            )}
+                        </div>
+                    ) : null}
+                </Interactive>
+            ))}
+        </>
+    )
+}
