@@ -8,6 +8,7 @@ import {
     beginPhase2 as beginVeDichPhase2,
     closeCurrentAnswer,
     createVeDich,
+    declarePower,
     openPhase2Question,
     pickPhase1,
     pickPhase2,
@@ -219,6 +220,36 @@ describe("player view — ve-dich", () => {
         expect(view.me.canBuzz).toBe(true);
         expect(view.me.canAnswer).toBe(false);
         expect(view.open[0].deadlineAt).toBe(at(5));         // the 5 s buzz window
+    });
+
+    it("phase 2: a duel offers the buzz ONLY to the pair — and to the answerer", () => {
+        // ASSIGN on a partner: the race replaces the "current answers first" step,
+        // so the answerer now HAS a buzz and the room does not.
+        const { state } = phase2Open();
+        const answerer = state.open!.answerer;
+        const partner = state.players.find((p) => p.id !== answerer)!.id;
+        const outsider = state.players.filter((p) => p.id !== answerer && p.id !== partner)[0]?.id
+            ?? "outsider";
+
+        const duel = declarePower(state, answerer, "ASSIGN", { targetId: partner, nowIso: NOW });
+        const viewOf = (userId: string) =>
+            buildPlayerView(base({ roundId: "ve-dich", state: duel, userId })).me;
+
+        expect(viewOf(answerer).canBuzz).toBe(true);
+        expect(viewOf(partner).canBuzz).toBe(true);
+        expect(viewOf(outsider).canBuzz).toBe(false);
+        // …and nobody may declare a power once the duel has started
+        expect(viewOf(answerer).canDeclarePower).toBe(false);
+    });
+
+    it("phase 2: the buzz is offered only while the window is open — the clock decides", () => {
+        const { state } = phase2Open();
+        const withBuzzWindow = closeCurrentAnswer(state, NOW);
+        const other = withBuzzWindow.players.find((p) => p.id !== withBuzzWindow.open!.answerer)!.id;
+        const late = buildPlayerView(base({
+            roundId: "ve-dich", state: withBuzzWindow, userId: other, now: at(6)
+        }));
+        expect(late.me.canBuzz).toBe(false);
     });
 
     it("phase 2: an expired buzz window offers no buzz", () => {

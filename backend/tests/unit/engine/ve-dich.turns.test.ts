@@ -185,6 +185,15 @@ describe("powers — STAR", () => {
         expect(codeOf(() => declarePower(chung, "a", "STAR"))).toBe("WRONG_PHASE_FOR_POWER");
     });
 
+    it("only the player whose question it is may declare — the room cannot", () => {
+        const { state, a } = riengOpen();
+        const opened = openPhase2Question(state, "THTH-40");
+        const other = state.players.find((p) => p.id !== a)!.id;
+        expect(codeOf(() => declarePower(opened, other, "STAR"))).toBe("NOT_YOUR_TURN");
+        expect(codeOf(() => declarePower(opened, other, "ASSIGN", { targetId: a, nowIso: NOW })))
+            .toBe("NOT_YOUR_TURN");
+    });
+
     it("is declared at open, spent, and cannot be reused", () => {
         const { state, a } = riengOpen();
         const withStar = declarePower(openPhase2Question(state, "THTH-40"), a, "STAR");

@@ -18,7 +18,7 @@ import {
     khoiDongPoints,
     type KhoiDongState
 } from "../../game/engine/turns/khoi-dong-round.js";
-import { isBuzzOpen, type VeDichState } from "../../game/engine/turns/ve-dich.js";
+import { isBuzzOpen, mayBuzz, type VeDichState } from "../../game/engine/turns/ve-dich.js";
 import { sanitizeQuestion, type SanitizedQuestion } from "../../lib/question-view.js";
 import type { MatchQuestion } from "../../game/contracts/index.js";
 
@@ -321,10 +321,14 @@ function veDichView(input: ViewInput, state: VeDichState): PlayerView {
             pendingPicks: state.pendingPicks.map((q) => q.id),
             isAnswerer: open?.answerer === input.userId,
             canAnswer: open !== null && open.stage === "current" && open.answerer === input.userId,
-            canDeclarePower: open !== null && open.stage === "current"
+            // Powers are Riêng's, and only on YOUR OWN turn (before the answer).
+            canDeclarePower: open !== null && open.stage === "current" && state.phase === 2
                 && open.answerer === input.userId && open.power === null,
+            // Who may buzz is the ENGINE's rule, not a re-derivation: everyone but
+            // the answerer on a normal question; ONLY the two halves of the duel on
+            // an ASSIGN question (where the answerer buzzes too).
             canBuzz: open !== null && open.stage === "buzz" && open.buzzer === null
-                && open.answerer !== input.userId && isBuzzOpen(state, input.now),
+                && mayBuzz(state, input.userId) && isBuzzOpen(state, input.now),
             power: open?.power ?? null,
             buzzer: open?.buzzer ?? null,
             answerState: open === null ? "none" : stateOf(input.submitted, open.question.id),
