@@ -44,6 +44,11 @@ function facts(
         target: null,
         setSelectedQ: vi.fn(),
         setSelectedPlayer: vi.fn(),
+        toggleSelect: vi.fn(),
+        commitHintReady: false,
+        commitKeywordReady: false,
+        commitHint: vi.fn(),
+        commitKeyword: vi.fn(),
         setVerdict: vi.fn(),
         send: vi.fn(),
         hetLuot: vi.fn(),
@@ -135,15 +140,53 @@ describe("KhoiDongChung — S2, the shared typed round", () => {
 })
 
 describe("GiaiMa — S3", () => {
-    it("Đúng resolves the hint window; Sai stays inert (auto-scored)", async () => {
-        const user = userEvent.setup()
-        const f = renderRound("giai-ma", { send: vi.fn() })
+    const BUTTON = { selector: "button" } as const
 
-        expectButtonsInOrder(["Đúng", "Về sảnh"])
-        await user.click(screen.getByRole("button", { name: "Đúng" }))
-        expect(f.send).toHaveBeenCalledWith({ kind: "giai-ma.resolveHint" })
+    it("commits are inert until a submitted player is selected", () => {
+        renderRound("giai-ma")                 // defaults: nothing selected
+        // both commits render as inert slots — not clickable
+        expect(screen.queryByText("Đúng", BUTTON)).toBeNull()
+        expect(screen.queryByText("Đúng từ khoá", BUTTON)).toBeNull()
+        expect(screen.getByText("Sai")).toBeInTheDocument()      // old button stays, inert
+        expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
+    })
+
+    it("Đúng commits the hint verdicts when ready; Sai stays inert", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("giai-ma", {
+            commitHintReady: true,
+            commitKeywordReady: true,        // both buttons live for the order check
+        }, { open: [openQ] })
+
+        expectButtonsInOrder(["Đúng", "Đúng từ khoá", "Về sảnh"])
+        await user.click(screen.getByText("Đúng", BUTTON))
+        expect(f.commitHint).toHaveBeenCalledOnce()
+        expect(f.commitKeyword).not.toHaveBeenCalled()
         expect(screen.getByText("Sai")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Sai" })).toBeNull()
+    })
+
+    it("Đúng từ khoá commits the keyword judgments when ready", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("giai-ma", { commitKeywordReady: true })
+
+        await user.click(screen.getByText("Đúng từ khoá", BUTTON))
+        expect(f.commitKeyword).toHaveBeenCalledOnce()
+        expect(f.commitHint).not.toHaveBeenCalled()
+    })
+
+    it("the rail cards toggle the selection (multi-select)", async () => {
+        const user = userEvent.setup()
+        const f = renderRound("giai-ma", {
+            baseCards: [
+                { id: "u1", name: "An", points: 10 },
+                { id: "u2", name: "Bình", points: 5 },
+            ],
+        }, { open: [openQ] })
+        await user.click(screen.getByText("An"))
+        await user.click(screen.getByText("Bình"))
+        expect(f.toggleSelect).toHaveBeenCalledWith("u1")
+        expect(f.toggleSelect).toHaveBeenCalledWith("u2")
     })
 })
 

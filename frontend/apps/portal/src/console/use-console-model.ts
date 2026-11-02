@@ -52,10 +52,11 @@ export type ConsoleModel = {
 
 export function useConsoleModel(tournamentId: string, matchId: string): ConsoleModel {
     // ── hooks first — early returns belong to the HOST, not here ────────────
-    const live = useLive(tournamentId, matchId)
+    const clock = useServerClock()
+    // The socket pushes re-anchor the clock (each frame carries the server's `at`).
+    const live = useLive(tournamentId, matchId, clock.sync)
     const matches = useMatches(tournamentId)
     const writer = useLiveAction(tournamentId, matchId)
-    const clock = useServerClock()
     const [roundsView, setRoundsView] = useState(false)
 
     const [watch, setWatch] = useState<WatchState>(() => freshWatch(null))
@@ -67,6 +68,9 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const [overrides, setOverrides] = useState<Record<string, boolean>>({})
     const [selectedQ, setSelectedQ] = useState<string | null>(null)
     const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null)
+    // giai-ma: MULTI-select — the clicked cards are the players Đúng / Đúng từ
+    // khoá will judge CORRECT. Cleared whenever the judged question changes.
+    const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set())
     const [adjustFor, setAdjustFor] = useState<string | null>(null)
     const oralQuestionId = live.data?.projection.oral?.questionId ?? null
     const effWatch = watch.qid === oralQuestionId ? watch : freshWatch(oralQuestionId)
@@ -87,15 +91,36 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const remaining = useCountdown(open[0]?.deadlineAt ?? null, clock)
 
     // The ledger reads ITS question — one hook, one derived id (no hooks in loops).
+    // giai-ma: the OPEN hint's rows while a window runs; between windows the
+    // keyword drafts — that is what Đúng từ khoá judges.
+    const keywordQuestionId =
+        v && roundId === "giai-ma"
+            ? v.questions.find((q) => q.roundId === "giai-ma" && q.kind === "KEYWORD")?._id ?? null
+            : null
     const judgingId =
         v && (roundId === "khoi-dong" || roundId === "but-pha")
             ? open.some((q) => q.questionId === selectedQ)
                 ? selectedQ
                 : open[0]?.questionId ?? null
-            : null
+            : v && roundId === "giai-ma"
+                ? open.length > 0
+                    ? open[0]?.questionId ?? null
+                    : keywordQuestionId
+                : null
     const resolvingId = v && roundId === "ve-dich" && open.length > 0 ? open[0].questionId : null
     const answers = useQuestionAnswers(tournamentId, matchId, judgingId ?? resolvingId)
     const rows = answers.data ?? []
+
+    // A stale selection must never leak into the next question's commit.
+    useEffect(() => {
+        setSelectedIds(new Set())
+    }, [judgingId])
+
+    // Commits are ready when a selected player actually SUBMITTED the current
+    // question — hint commit needs a window, keyword commit needs none.
+    const selectedOnQuestion = rows.some((r) => selectedIds.has(r.userId))
+    const commitHintReady = roundId === "giai-ma" && open.length > 0 && selectedOnQuestion
+    const commitKeywordReady = roundId === "giai-ma" && open.length === 0 && selectedOnQuestion
 
     const surface = useApiSurface()
     const rtc = useRtcRoom({
@@ -143,6 +168,31 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         }
     }
 
+    // ── giai-ma commits ──────────────────────────────────────────────────────────
+    // Every commit judges ALL submitters of the current question in one go
+    // (selected = correct, the rest = wrong), so a coverage check can never
+    // refuse it and the round never strands an unjudged draft.
+    const commitHint = () => {
+        if (!commitHintReady || !judgingId) return
+        send({
+            kind: "giai-ma.resolveHint",
+            verdicts: rows.map((r) => ({
+                playerId: r.userId,
+                correct: selectedIds.has(r.userId)
+            }))
+        })
+    }
+    const commitKeyword = () => {
+        if (!commitKeywordReady || !keywordQuestionId) return
+        const actions = rows.map((r) => ({
+            kind: "giai-ma.judgeKeyword",
+            playerId: r.userId,
+            questionId: keywordQuestionId,
+            correct: selectedIds.has(r.userId)
+        }))
+        void sendChain(actions)
+    }
+
     // `shown` comes from the interval — render stays pure (no Date.now here):
     // the stopwatch reads the clock only inside this state updater.
     const watchMs = effWatch.shown
@@ -164,6 +214,14 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         if (!target) return
         setOverrides((o) => ({ ...o, [`${qid}:${target}`]: correct }))
     }
+    // giai-ma's selection: click toggles membership — the selected SET is what
+    // the commits judge (selected = correct, the rest of the submitters = wrong).
+    const toggleSelect = (userId: string) => setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(userId)) next.delete(userId)
+        else next.add(userId)
+        return next
+    })
     const verdictOf = (qid: string, uid: string): "CORRECT" | "INCORRECT" | null => {
         const key = `${qid}:${uid}`
         if (key in overrides) return overrides[key] ? "CORRECT" : "INCORRECT"
@@ -236,11 +294,15 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
     const baseCards: CardData[] = table.map((t) => {
         const row = rows.find((r) => r.userId === t.id)
         const isTarget = target === t.id && (judgingId || resolvingId) !== null
+        // giai-ma marks the multi-select; other rounds mark the verdict target.
+        const isSelected = roundId === "giai-ma"
+            ? judgingId !== null && selectedIds.has(t.id)
+            : isTarget
         const card: CardData = {
             id: t.id,
             name: t.displayName,
             points: t.points,
-            ring: isTarget ? "selected" : undefined,
+            ring: isSelected ? "selected" : undefined,
             connected: v?.connected?.includes(t.id) ?? false,
             // identity === user id → the player's camera joins by plain equality
             video: peers.get(t.id)?.video ?? null,
@@ -332,6 +394,11 @@ export function useConsoleModel(tournamentId: string, matchId: string): ConsoleM
         target,
         setSelectedQ,
         setSelectedPlayer,
+        toggleSelect,
+        commitHintReady,
+        commitKeywordReady,
+        commitHint,
+        commitKeyword,
         setVerdict,
         send,
         hetLuot,

@@ -88,23 +88,46 @@ describe("ketThucPlanOf — what Kết thúc sends (one press ends the round)", 
     })
 
     it("but-pha: ONE press ends — committing the open question first if unjudged", () => {
-        // unjudged drafts → finalize, then end (never a separate close step)
+        // every row staged → the commit carries EXACTLY those verdicts, then end
         expect(ketThucPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
-            rows: [row("u1", "CORRECT", true), row("u2", null, false)],
-            overrides: { "b1:u2": true },
+            rows: [row("u1", null, false), row("u2", null, false)],
+            overrides: { "b1:u1": true, "b1:u2": false },
         }))).toEqual([
             {
                 kind: "but-pha.finalize",
                 questionId: "b1",
                 verdicts: [
                     { playerId: "u1", correct: true },
-                    { playerId: "u2", correct: true }, // MC's staged flip wins
+                    { playerId: "u2", correct: false }, // exactly what the MC staged — no defaults
                 ],
             },
             { kind: "but-pha.endRound" },
         ])
+
+        // PARTIALLY staged → only the staged rows travel; the backend refuses the
+        // incomplete set (UNJUDGED_ANSWERS) and the chain stops before endRound
+        expect(ketThucPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b1"],
+            rows: [row("u1", null, false), row("u2", null, false)],
+            overrides: { "b1:u2": true },
+        }))).toEqual([
+            {
+                kind: "but-pha.finalize",
+                questionId: "b1",
+                verdicts: [{ playerId: "u2", correct: true }],
+            },
+            { kind: "but-pha.endRound" },
+        ])
+
+        // NOTHING staged → no commit at all; the end guard carries the refusal
+        expect(ketThucPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b1"],
+            rows: [row("u2", null, false)],
+        }))).toEqual([{ kind: "but-pha.endRound" }])
 
         // already judged / nobody answered → straight end
         expect(ketThucPlanOf("but-pha", input({
@@ -130,13 +153,27 @@ describe("nextQuestionPlanOf — what Tính giờ sends (pick a NEW question)", 
     })
 
     it("mid-round: commit the current question, advance, open the next", () => {
+        // staged → the commit travels with the advance
+        expect(nextQuestionPlanOf("but-pha", input({
+            stage: "question",
+            openIds: ["b1"],
+            openQuestionPosition: 2,
+            rows: [row("u2", null, false)],
+            overrides: { "b1:u2": true },
+        }))).toEqual([
+            { kind: "but-pha.finalize", questionId: "b1", verdicts: [{ playerId: "u2", correct: true }] },
+            { kind: "but-pha.closeQuestion" },
+            { kind: "but-pha.openQuestion" },
+        ])
+
+        // nothing staged → no empty commit; closeQuestion's own UNJUDGED_ANSWERS
+        // guard refuses the advance (the MC must stage first)
         expect(nextQuestionPlanOf("but-pha", input({
             stage: "question",
             openIds: ["b1"],
             openQuestionPosition: 2,
             rows: [row("u2", null, false)],
         }))).toEqual([
-            { kind: "but-pha.finalize", questionId: "b1", verdicts: [{ playerId: "u2", correct: false }] },
             { kind: "but-pha.closeQuestion" },
             { kind: "but-pha.openQuestion" },
         ])

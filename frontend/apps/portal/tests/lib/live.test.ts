@@ -93,22 +93,25 @@ describe("startActionPayload", () => {
 
 
 describe("mergedVerdicts", () => {
-    it("defaults to the engine's draft and lets the MC overwrite it", () => {
+    it("sends ONLY the explicitly staged rows — nothing defaults", () => {
         const rows = [
             row({ userId: "p1", verdict: "CORRECT" }),
             row({ userId: "p2", verdict: "INCORRECT" }),
             row({ userId: "p3", verdict: null }),
         ]
+        // only p2 was staged → the others are ABSENT: the backend refuses this
+        // incomplete set (UNJUDGED_ANSWERS) instead of silently judging it
         expect(mergedVerdicts("q9", rows, { "q9:p2": true })).toEqual([
-            { playerId: "p1", correct: true },
-            { playerId: "p2", correct: true },   // MC flipped the draft
-            { playerId: "p3", correct: false },  // nothing matched → wrong until flipped
+            { playerId: "p2", correct: true }    // exactly what the MC clicked
         ])
+        expect(mergedVerdicts("q9", rows, {})).toEqual([])
     })
 
     it("an override on one question never leaks to another", () => {
         const rows = [row({ userId: "p1", verdict: "INCORRECT" })]
-        expect(mergedVerdicts("q1", rows, { "q1:p1": true })[0].correct).toBe(true)
-        expect(mergedVerdicts("q2", rows, { "q1:p1": true })[0].correct).toBe(false)
+        expect(mergedVerdicts("q1", rows, { "q1:p1": true })).toEqual([
+            { playerId: "p1", correct: true }
+        ])
+        expect(mergedVerdicts("q2", rows, { "q1:p1": true })).toEqual([])   // nothing staged for q2
     })
 })

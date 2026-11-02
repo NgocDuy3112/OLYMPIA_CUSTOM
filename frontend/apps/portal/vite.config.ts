@@ -27,10 +27,12 @@ export default defineConfig({
             // /gameplay + ws: the portal's PLAYER shell (PIN join → player view)
             // rides the player surface — same endpoints the gameplay app uses,
             // including the live stream's socket upgrade.
-            "/portal": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
+            // ws: true on every surface — the live stream's socket upgrade rides
+            // these proxies (the console channel and the player channel alike).
+            "/portal": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false, ws: true },
             "/gameplay": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false, ws: true },
             // The link-only spectator twins (public reads — same backend).
-            "/spectate": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false },
+            "/spectate": { target: process.env.API_PROXY_TARGET ?? "http://localhost:3000", changeOrigin: false, ws: true },
         },
     },
 })

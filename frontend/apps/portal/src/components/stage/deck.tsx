@@ -170,6 +170,17 @@ export interface ConsoleFacts {
     target: string | null
     setSelectedQ: (questionId: string | null) => void
     setSelectedPlayer: (userId: string) => void
+    /** giai-ma: toggle a card in the multi-select — the clicked players are the
+     * ones Đúng / Đúng từ khoá will judge CORRECT. */
+    toggleSelect: (userId: string) => void
+    /** giai-ma: the commits are ready (players selected ON the current question).
+     *  The screen disables the buttons until then. */
+    commitHintReady: boolean
+    commitKeywordReady: boolean
+    /** giai-ma: commit the hint window (resolve with verdicts) / the keyword
+     *  drafts (selected = correct, the rest of the submitters = wrong). */
+    commitHint: () => void
+    commitKeyword: () => void
     /** stage an override verdict for the selected card (committed by Kết thúc). */
     setVerdict: (correct: boolean) => void
     /** version-guarded action senders. */

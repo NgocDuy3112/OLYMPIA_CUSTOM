@@ -3,7 +3,7 @@ import { api, ApiError } from "@shared/lib/api"
 import { useServerClock, type ServerClock } from "@shared/lib/clock"
 import { isKnownRound, isWaitingStage } from "@shared/deck/geometry"
 import type { LayoutKey, LobbyData } from "@shared/deck/types"
-import { useSocketStream } from "./ws"
+import { useSocketStream } from "@shared/lib/ws"
 
 // An API refusal, shaped for the gate screens: each status is a screen, never
 // a crash. A non-API error becomes status 0 so it lands in the "say why" branch.

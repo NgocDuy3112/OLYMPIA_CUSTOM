@@ -6,11 +6,20 @@ import { pt, DECK_PAD } from "@shared/deck/geometry"
 import type { ConsoleQuestion, GiaiMaMc } from "@/lib/live"
 import type { ScreenCore } from "../types"
 
-/** Giải mã: hint windows + the typed keyword. */
+/** Giải mã: hint windows + the typed keyword — NOTHING is auto-scored. */
 export type GiaiMaCtx = ScreenCore & {
     remaining: number | null
     questions: ConsoleQuestion[]
     mcGiaiMa: GiaiMaMc | null
+    /** multi-select: toggle a card — selected = the CORRECT answerers. */
+    toggleSelect: (userId: string) => void
+    /** the commits enable once a selected player submitted the question. */
+    commitHintReady: boolean
+    commitKeywordReady: boolean
+    /** Đúng: resolve the open hint with explicit verdicts. */
+    commitHint: () => void
+    /** Đúng từ khoá: judge the keyword drafts — selected correct, rest wrong. */
+    commitKeyword: () => void
 }
 
 export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
@@ -27,7 +36,7 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
         qid === openHintId ? "open" : mcGiaiMa?.hintsPicked.includes(qid) ? "used" : "free"
 
     return (
-        <StageLayout rail={<Rail variant="answers" cards={baseCards} />}>
+        <StageLayout rail={<Rail variant="answers" cards={baseCards} onSelect={ctx.toggleSelect} />}>
             {keywordLength !== null && (
                 <div className="flex shrink-0 items-center justify-center rounded-2xl bg-card px-[2cqw] py-[0.7cqw] shadow-md ring-1 ring-border">
                     <span className="font-display font-bold uppercase tracking-wide text-foreground" style={{ fontSize: pt(32) }}>
@@ -80,8 +89,14 @@ export function GiaiMaAOCController({ ctx }: { ctx: GiaiMaCtx }) {
             </MainCard>
             <Strip
                 items={[
-                    { label: "Đúng", onClick: () => ctx.send({ kind: "giai-ma.resolveHint" }) },
+                    // Đúng commits the hint window with EXPLICIT verdicts — enabled
+                    // only when a selected player submitted (otherwise it would be
+                    // an accident: nobody selected = everyone wrong).
+                    { label: "Đúng", onClick: ctx.commitHintReady ? () => ctx.commitHint() : undefined },
                     { label: "Sai" },
+                    // Đúng từ khoá: one press judges every keyword draft —
+                    // selected = correct, the rest of the submitters = wrong.
+                    { label: "Đúng từ khoá", onClick: ctx.commitKeywordReady ? () => ctx.commitKeyword() : undefined },
                     { label: "Về sảnh", onClick: ctx.ketThuc },
                 ]}
             />

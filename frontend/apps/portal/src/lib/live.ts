@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@shared/lib/api"
+import { useSocketStream } from "@shared/lib/ws"
 import { useApiPrefix } from "@/lib/surface"
 
 // The MC console's data layer: one polled read, one version-guarded action
@@ -143,11 +144,22 @@ export interface QuestionAnswerRow {
 export const liveKey = (tournamentId: string, matchId: string) =>
     ["live", tournamentId, matchId] as const
 
-// The console's eyes: poll while the round runs. 404 (no round yet) and 409 are
-// answers, not crashes — no retry storm.
-export function useLive(tournamentId: string, matchId: string) {
+// The stream's frames — the subset this client reads. `console` carries the
+// same body as the GET below; players' `view` frames never reach this door.
+interface ConsoleStreamFrame {
+    v?: number
+    type?: "console" | "error"
+    at?: string
+    data?: { view?: LiveResponse }
+}
+
+// The console's eyes: the socket pushes, the 3 s poll stays as the fallback
+// (it also refreshes `connected`, which a push alone cannot announce).
+// 404 (no round yet) and 409 are answers, not crashes — no retry storm.
+export function useLive(tournamentId: string, matchId: string, onFrame?: (at: string) => void) {
     const prefix = useApiPrefix()
-    return useQuery({
+    const queryClient = useQueryClient()
+    const query = useQuery({
         queryKey: liveKey(tournamentId, matchId),
         queryFn: () =>
             api<LiveResponse>(`${prefix}/tournaments/${tournamentId}/matches/${matchId}/live`),
@@ -156,6 +168,34 @@ export function useLive(tournamentId: string, matchId: string) {
         staleTime: 0,
         retry: false,
     })
+
+    useSocketStream(
+        `${prefix}/tournaments/${tournamentId}/matches/${matchId}/live/stream`,
+        Boolean(tournamentId && matchId),
+        (message) => {
+            const frame = message as ConsoleStreamFrame | null
+            if (!frame || typeof frame !== "object") return
+
+            if (frame.type === "console" && frame.data?.view) {
+                // Every push carries the server's `at`: the clock re-anchors, then
+                // the snapshot lands. A response already in flight is older — the
+                // version guard keeps a late poll from overwriting a newer push.
+                if (frame.at) onFrame?.(frame.at)
+                const incoming = frame.data.view
+                queryClient.setQueryData<LiveResponse>(liveKey(tournamentId, matchId), (current) =>
+                    current && current.version > incoming.version ? current : incoming
+                )
+                return
+            }
+
+            if (frame.type === "error") {
+                // e.g. UNAVAILABLE (the match left LIVE): let HTTP answer the gate.
+                void queryClient.invalidateQueries({ queryKey: liveKey(tournamentId, matchId) })
+            }
+        }
+    )
+
+    return query
 }
 
 // Every action carries the version it was read from. The server rejects a stale
@@ -221,18 +261,20 @@ export function hintPool(
         .map((id) => ({ questionId: id, text: byId.get(id)?.questionText ?? id }))
 }
 
-// The verdicts to SEND with a finalize: one per answered player — the engine's
-// own auto-matched draft, overridden wherever the MC toggled it. A row without a
-// draft (nothing matched) defaults to incorrect; the MC can flip it.
+// The verdicts to SEND with a finalize: ONLY the rows the MC explicitly staged —
+// there is no default. An un-staged submitted answer makes the set incomplete and
+// the backend refuses it (UNJUDGED_ANSWERS → the flash shows the message), so an
+// answer can never be silently judged. Judged rows are already final and are not
+// re-sent.
 export function mergedVerdicts(
     questionId: string,
     rows: QuestionAnswerRow[],
     overrides: Record<string, boolean>
 ): Array<{ playerId: string; correct: boolean }> {
-    return rows.map((row) => ({
-        playerId: row.userId,
-        correct: overrides[`${questionId}:${row.userId}`] ?? row.verdict === "CORRECT"
-    }))
+    return rows.flatMap((row) => {
+        const correct = overrides[`${questionId}:${row.userId}`]
+        return correct === undefined ? [] : [{ playerId: row.userId, correct }]
+    })
 }
 
 // The `start` action's payloads differ per round: giai-ma needs the field and the

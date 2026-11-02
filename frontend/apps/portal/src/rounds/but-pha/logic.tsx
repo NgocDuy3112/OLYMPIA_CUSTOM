@@ -24,11 +24,13 @@ function finalizeIfNeeded(input: RoundPlanInput): RoundAction[] {
     if (input.openIds.length === 0) return []
     if (input.rows.length === 0 || !input.rows.some((row) => !row.judged)) return []
     const questionId = input.openIds[0]
-    return [{
-        kind: "but-pha.finalize",
-        questionId,
-        verdicts: mergedVerdicts(questionId, input.rows, input.overrides),
-    }]
+    const verdicts = mergedVerdicts(questionId, input.rows, input.overrides)
+    // Nothing staged → skip the commit entirely (an empty finalize is invalid);
+    // the close/end guard that follows carries the UNJUDGED_ANSWERS refusal,
+    // and a PARTIAL set is sent as-is — the backend refuses it too, so an
+    // un-staged answer can never be silently judged.
+    if (verdicts.length === 0) return []
+    return [{ kind: "but-pha.finalize", questionId, verdicts }]
 }
 
 export const butPhaAOC: RoundModule = {

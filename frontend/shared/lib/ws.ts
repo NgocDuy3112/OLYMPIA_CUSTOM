@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react"
 
-// One place for what every gameplay socket shares: how to dial the backend, how
-// long to wait before trying again, and when to stop trying at all. The live
-// match channel rides this.
+// One place for what every socket shares: how to dial the backend, how
+// long to wait before trying again, and when to stop trying at all. Both
+// realtime channels ride this — the players' live match channel and the
+// console's live stream.
 
 const BASE_BACKOFF_MS = 2_000
 const MAX_BACKOFF_MS = 30_000
